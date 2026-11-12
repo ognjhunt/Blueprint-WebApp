@@ -37,6 +37,9 @@ const REASONS: Record<string, string> = {
   beta_screening_site_budget_exhausted: NOT_RUN,
   website_job_ceiling_insufficient: JOB_LIMIT_NOT_RUN,
   beta_screening_waiting_for_capacity: "Waiting for room in our simulator.",
+  // Waits on our side that need nothing from the site (review, 2026-11-12).
+  beta_screening_work_disk_wait: "In line for processing on our side.",
+  account_monthly_spend_job_start_wait: "In line for processing on our side.",
   beta_screening_waiting_for_control: "Waiting to confirm this job can still run.",
   beta_screening_transport_retry_cap_exhausted: "Not run: we could not confirm this job can still run. This is ours to fix.",
   beta_screening_static_preflight_blocked: "Could not start in our simulator. This is ours to fix.",

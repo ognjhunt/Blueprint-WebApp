@@ -25,7 +25,7 @@ import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, manag
   readManagedScreeningCapture, readPreparedRevisionOfferings } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { betaPolicyScreeningSourceSchema, isScreeningAttentionOutcome, storedScreeningOutcome,
-  type ScreeningHeldOutcome } from "./betaPolicyScreeningContract";
+  type ScreeningHeldOutcome , screeningHoldDetail } from "./betaPolicyScreeningContract";
 import { heldOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { websiteRunClosure } from "./websiteRunClosure";
@@ -51,7 +51,9 @@ export const betaPolicyScreeningHoldSchema = z.object({
   site_id: identifier,
   source: betaPolicyScreeningSourceSchema,
   status: z.enum(["held", "released"]),
-  reason_code: z.enum(REASONS).nullable(),
+  // Open (review, 2026-11-12): a reason this release does not know never fails the ingest. It holds the job on our
+  // side with the general set-up sentence (`screeningHoldOutcome`), and staff hear once per job and code.
+  reason_code: code.nullable(),
   detail_code: code.nullable(),
   revision: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
   generated_at: z.string().datetime({ offset: true }),
@@ -84,7 +86,10 @@ export const SCREENING_HOLD_ACCOUNT_LIMIT_DETAIL = "account_monthly_spend_limit_
 export const screeningHoldOutcome = (hold: Pick<BetaPolicyScreeningHold, "status" | "reason_code"> & { detail_code?: string | null }):
   ScreeningHeldOutcome | "awaiting_spend_approval" | null =>
   hold.status !== "held" || !hold.reason_code ? null
-    : hold.detail_code === SCREENING_HOLD_ACCOUNT_LIMIT_DETAIL ? "awaiting_spend_approval" : SCREENING_HOLD_OUTCOMES[hold.reason_code];
+    : hold.detail_code === SCREENING_HOLD_ACCOUNT_LIMIT_DETAIL ? "awaiting_spend_approval"
+    : isKnownHoldReason(hold.reason_code) ? SCREENING_HOLD_OUTCOMES[hold.reason_code] : "held_setup";
+export const isKnownHoldReason = (reason: unknown): reason is HoldReason =>
+  typeof reason === "string" && Object.prototype.hasOwnProperty.call(SCREENING_HOLD_OUTCOMES, reason);
 
 /**
  * Bind the hold to the scene intake and the job exactly as a campaign is bound
@@ -107,7 +112,7 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
   const runRef = store.collection("taskEvaluationPolicyRuns").doc(hold.hold_id);
   // The offerings that bind the intake's revision file, read outside the transaction as a campaign's are.
   const revisionOfferings = await readPreparedRevisionOfferings(selected);
-  return store.runTransaction(async transaction => {
+  const stored = await store.runTransaction(async transaction => {
     const intake = (await transaction.get(intakeRef)).data();
     const jobId = intake?.website_request_id;
     if (typeof jobId !== "string" || jobId !== selected.website_request_id || intake?.source_session_id !== screeningCapture.captureId)
@@ -143,7 +148,7 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
     // The site hears once when a hold first names an outcome (F-01); the same outcome again,
     // a release, or a run the owner closed owes nothing new.
     const notice = closed || outcome === storedScreeningOutcome(previous?.screening_outcome) ? null
-      : heldOutcomeNoticeIntent(outcome, jobId, hold.hold_id, hold.source.scene_intent_id);
+      : heldOutcomeNoticeIntent(outcome, jobId, hold.hold_id, hold.source.scene_intent_id, screeningHoldDetail(hold.reason_code, hold.detail_code));
     const now = new Date().toISOString();
     transaction.set(runRef, {
       run_id: hold.hold_id, run_kind: SCREENING_HOLD_RUN_KIND,
@@ -160,4 +165,9 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
       created_at_iso: previous?.created_at_iso ?? now, updated_at_iso: now });
     return receipt(previous ? "updated" : "created", { hold_revision: hold.revision, hold_digest: hold.hold_digest });
   });
+  // After the hold is stored, and only for a new revision: a replay or a failed write alerts no one.
+  if (stored.status !== "replayed" && hold.reason_code && !isKnownHoldReason(hold.reason_code))
+    void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
+      noteUnknownPipelineCode(selected.website_request_id, "screening_hold.reason_code", hold.reason_code!));
+  return stored;
 }

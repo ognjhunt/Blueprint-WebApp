@@ -29,8 +29,12 @@ import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 export const SCENE_INTENT_OUTCOME_SCHEMA = "task_evaluation_scene_intent_outcome.v1";
 export const SCENE_INTENT_OUTCOME_KINDS = ["setup_repair", "awaiting_spend_approval", "awaiting_site", "withdrawn", "held"] as const;
 export type SceneIntentOutcomeKind = typeof SCENE_INTENT_OUTCOME_KINDS[number];
-/** The endings the site is told about once. */
-export const TERMINAL_SCENE_OUTCOME_KINDS = ["held", "withdrawn", "setup_repair"] as const;
+/**
+ * The endings the site is told about once. `stopped` is the WebApp's own general ending, never a kind the Pipeline
+ * sends under that meaning: a terminal outcome whose kind this release does not know is adopted as it (review,
+ * 2026-11-12), so the job ends, spending stops and the site hears once that the simulation stopped.
+ */
+export const TERMINAL_SCENE_OUTCOME_KINDS = ["held", "withdrawn", "setup_repair", "stopped"] as const;
 export type TerminalSceneOutcomeKind = typeof TERMINAL_SCENE_OUTCOME_KINDS[number];
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -39,14 +43,19 @@ export const sceneIntentOutcomeSchema = z.object({
   schema_version: z.literal(SCENE_INTENT_OUTCOME_SCHEMA),
   intent_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),
   intent_digest: digest,
-  kind: z.enum(SCENE_INTENT_OUTCOME_KINDS),
+  // Open (review, 2026-11-12): a kind this release does not know never fails the intake's status read. Such an
+  // outcome is not adopted (`adoptedSceneOutcome`): the job keeps the state its status otherwise shows, and staff hear.
+  kind: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
   terminal: z.boolean(),
   reason_category: reason,
   reason_code: reason,
   decided_at_epoch: z.number().finite().nonnegative(),
   outcome_digest: digest,
 }).strict();
-export type SceneIntentOutcome = z.infer<typeof sceneIntentOutcomeSchema>;
+/** An adopted outcome: a kind the release knows, or `stopped` for a terminal one it does not. */
+export type SceneIntentOutcome = Omit<z.infer<typeof sceneIntentOutcomeSchema>, "kind"> & { kind: SceneIntentOutcomeKind | "stopped" };
+export const isKnownSceneIntentOutcomeKind = (kind: unknown): kind is SceneIntentOutcomeKind =>
+  (SCENE_INTENT_OUTCOME_KINDS as readonly unknown[]).includes(kind);
 
 /** Sealed by the Pipeline over every other field, and decided for this exact intent. */
 export function sceneIntentOutcomeBinds(outcome: SceneIntentOutcome, status: { intent_id: string; intent_digest: string }): boolean {
@@ -79,16 +88,21 @@ const RIGHTS_REVOCATION_CAUSES = new Set(["source_revoked"]);
 export function adoptedSceneOutcome(record: Record<string, any> | null | undefined): SceneIntentOutcome | null {
   const status = record?.pipeline_status;
   const parsed = sceneIntentOutcomeSchema.safeParse(status?.outcome);
-  if (!record || !parsed.success || !definedPairing(parsed.data) || status.status === "completed"
+  if (!record || !parsed.success || status.status === "completed"
     || ["completed", "closeout_pending", "revocation_pending"].includes(record.state)) return null;
+  // A kind this release does not know: a terminal one is the general ending; a wait is not adopted (the job keeps
+  // the state its status otherwise shows).
+  if (!isKnownSceneIntentOutcomeKind(parsed.data.kind))
+    return parsed.data.terminal ? { ...parsed.data, kind: "stopped" } : null;
+  if (!definedPairing(parsed.data as SceneIntentOutcome)) return null;
   const revokedByWebApp = record.revocation_requested === true || Boolean(record.revocation_receipt);
   if (parsed.data.kind === "withdrawn" && revokedByWebApp && !RIGHTS_REVOCATION_CAUSES.has(record.revocation_cause))
     return null;
-  return parsed.data;
+  return parsed.data as SceneIntentOutcome;
 }
 
 /** The outcome as a job page reads it: what picks the sentence, and the digest its one email is keyed by. */
-export type SceneOutcomeReading = { kind: SceneIntentOutcomeKind; terminal: boolean; reasonCode: string; digest: string };
+export type SceneOutcomeReading = { kind: SceneIntentOutcome["kind"]; terminal: boolean; reasonCode: string; digest: string };
 export const sceneOutcomeReading = (outcome: SceneIntentOutcome): SceneOutcomeReading =>
   ({ kind: outcome.kind, terminal: outcome.terminal, reasonCode: outcome.reason_code, digest: outcome.outcome_digest });
 
@@ -107,6 +121,8 @@ const ENDINGS: Readonly<Record<TerminalSceneOutcomeKind, { sentence: string; clo
     closing: "You don't need to do anything; this job has stopped.", subject: "Your Blueprint job has stopped" },
   setup_repair: { sentence: "We could not finish building the simulation of your site, and we have stopped trying.",
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "We stopped building the simulation of your site" },
+  stopped: { sentence: "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens.",
+    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "The simulation of your job stopped" },
 };
 export const isTerminalSceneOutcomeKind = isTerminalKind;
 /** The job page's headline for an ending, and the first paragraph of its one email. */
@@ -140,7 +156,7 @@ export const sceneOutcomeNoticeEventId = (kind: TerminalSceneOutcomeKind, outcom
 const noticeIntentSchema = z.object({
   schema_version: z.literal(SCENE_OUTCOME_NOTICE_SCHEMA), request_id: identifier, intake_id: identifier,
   kind: z.enum(TERMINAL_SCENE_OUTCOME_KINDS), outcome_digest: digest,
-  event_id: z.string().regex(/^(held|withdrawn|setup_repair)-[a-f0-9]{64}$/),
+  event_id: z.string().regex(/^(held|withdrawn|setup_repair|stopped)-[a-f0-9]{64}$/),
 }).strict().refine(value => value.event_id === sceneOutcomeNoticeEventId(value.kind, value.outcome_digest));
 export type SceneOutcomeNoticeIntent = z.infer<typeof noticeIntentSchema>;
 

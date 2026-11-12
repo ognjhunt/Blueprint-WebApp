@@ -3,6 +3,9 @@ import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
 import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
+import { KNOWN_PREPARATION_OUTCOME_CATEGORIES, KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON, pipelineAsksForSentence } from "./taskPreparationOutcome";
+import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
+import { logger } from "../logger";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
 import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
@@ -45,6 +48,13 @@ const codes = { preparing: "preparation_in_progress", awaiting_inputs: "preparat
   failed_retryable: "preparation_retryable_failure", authority_ended: "preparation_authority_ended",
   handed_off: "preparation_handed_off", capacity_delayed: "preparation_capacity_delayed",
   failed_terminal: "preparation_failed_terminal" } as const;
+/**
+ * A reason, verdict or name the Pipeline sends: a lowercase code. These slots are open (review, 2026-11-12): a code
+ * this release does not know never fails the whole status read. It is shown as the slot's general sentence (or left
+ * out), the job keeps its real state, and staff hear once per job and code (`noteUnknownPipelineCode`).
+ */
+const pipelineCode = z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/);
+const known = <T extends string>(list: readonly T[], value: unknown): value is T => (list as readonly unknown[]).includes(value);
 const receiptBase = z.object(websitePreparationSelectorSchema.shape).extend({
   attempt_count: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
@@ -57,7 +67,8 @@ const receiptV1 = receiptBase.extend({
 const receiptV2 = receiptBase.extend({
   schema_version: z.literal("website_preparation_status.v2"), state: z.enum(statesV2),
   code: z.enum(statesV2.map(state => codes[state]) as [string, ...string[]]),
-  terminal_reason: z.enum(WEBSITE_PREPARATION_TERMINAL_REASONS).nullable(),
+  // Open: a reason this release does not know never fails the read (it reads as a general ending, and staff are told).
+  terminal_reason: pipelineCode.nullable(),
 }).strict();
 const receiptV3 = receiptV2.extend({
   schema_version: z.literal("website_preparation_status.v3"),
@@ -78,11 +89,11 @@ export const robotFitSchema = z.object({
   schema_version: z.literal("website_robot_fit_projection.v1"),
   route: z.enum(["full", "geometry_only"]),
   status: z.enum(["completed", "not_run"]),
-  reason: z.enum(ROBOT_FIT_NOT_RUN_REASONS).nullable(),
+  reason: pipelineCode.nullable(),
   evidence_label: z.literal("spec_bounded_estimate").nullable(),
   counts: z.object({fits: fitCount, fits_spec: fitCount, doesnt_fit: fitCount, unknown: fitCount}).strict().nullable(),
   models: z.array(z.object({name: z.string().min(1).max(120), manufacturer: z.string().min(1).max(120),
-    verdict: z.enum(ROBOT_FIT_VERDICTS), open_checks: z.array(z.string().regex(/^[a-z_]{1,40}$/)).max(12)}).strict())
+    verdict: pipelineCode, open_checks: z.array(z.string().regex(/^[a-z_]{1,40}$/)).max(12)}).strict())
     .max(200),
   models_truncated: z.boolean(),
   table_digest: digest.nullable(),
@@ -109,8 +120,8 @@ export const robotFitPrecheckSchema = z.object({
   // sent, so the status digest still covers it; `publicRobotFitPrecheck` shows only a well-formed kind, else null.
   task_kind: z.unknown().optional(),
   counts: z.object({fit: fitCount, no_fit: fitCount, unknown: fitCount, unavailable: fitCount}).strict(),
-  embodiments: z.array(z.object({embodiment: z.enum(ROBOT_FIT_PRECHECK_EMBODIMENTS),
-    verdict: z.enum(ROBOT_FIT_PRECHECK_STATUSES), reasons: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(4),
+  embodiments: z.array(z.object({embodiment: pipelineCode,
+    verdict: pipelineCode, reasons: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(4),
     fit_candidates: fitCount}).strict()).max(50),
   embodiments_truncated: z.boolean(),
   evidence_label: z.literal("pre_spend_estimate"),
@@ -145,10 +156,12 @@ export type PublicRobotFit = {
   modelsTruncated: boolean;
 };
 export function publicRobotFit(fit: RobotFitReceipt): PublicRobotFit {
-  return {route: fit.route, status: fit.status, reason: fit.reason,
+  return {route: fit.route, status: fit.status, reason: known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason) ? fit.reason : null,
     counts: fit.counts && {fits: fit.counts.fits, fitsSpec: fit.counts.fits_spec, doesntFit: fit.counts.doesnt_fit,
       unknown: fit.counts.unknown},
-    models: fit.models.map(row => ({name: row.name, manufacturer: row.manufacturer, verdict: row.verdict,
+    // A verdict this release does not know says only that it is not known.
+    models: fit.models.map(row => ({name: row.name, manufacturer: row.manufacturer,
+      verdict: known(ROBOT_FIT_VERDICTS, row.verdict) ? row.verdict : "unknown" as const,
       openChecks: row.open_checks})),
     modelsTruncated: fit.models_truncated};
 }
@@ -167,10 +180,35 @@ export function publicRobotFitPrecheck(precheck: RobotFitPrecheckReceipt): Publi
   return {status: precheck.status, holdReason: precheck.hold_reason, taskKind: displayTaskKind(precheck.task_kind),
     counts: {fit: precheck.counts.fit, noFit: precheck.counts.no_fit, unknown: precheck.counts.unknown,
       unavailable: precheck.counts.unavailable},
-    embodiments: precheck.embodiments.map(row => ({embodiment: row.embodiment, verdict: row.verdict, reasons: row.reasons})),
+    // A robot body this release does not name is left out of the list (the counts still include it); a verdict it
+    // does not know reads as unknown.
+    embodiments: precheck.embodiments.filter(row => known(ROBOT_FIT_PRECHECK_EMBODIMENTS, row.embodiment)).map(row => ({
+      embodiment: row.embodiment as typeof ROBOT_FIT_PRECHECK_EMBODIMENTS[number],
+      verdict: known(ROBOT_FIT_PRECHECK_STATUSES, row.verdict) ? row.verdict : "unknown" as const, reasons: row.reasons})),
     embodimentsTruncated: precheck.embodiments_truncated, precheckDigest: precheck.precheck_digest};
 }
+/** The codes in a receipt this release does not know, by slot, for the ops alert. */
+export function unknownPreparationCodes(status: WebsitePreparationReceipt): Array<[string, string]> {
+  const found: Array<[string, string]> = [];
+  const terminal = terminalReasonOf(status);
+  if (terminal && !known(WEBSITE_PREPARATION_TERMINAL_REASONS, terminal)) found.push(["preparation.terminal_reason", terminal]);
+  const outcome = "outcome" in status ? status.outcome : null;
+  if (outcome && !KNOWN_PREPARATION_OUTCOME_REASONS.has(outcome.reason) && !(PREPARATION_RECAPTURE_REASONS as readonly string[]).includes(outcome.reason)
+    && outcome.reason !== TASK_NOT_NAMED_REASON) found.push(["preparation.outcome.reason", outcome.reason]);
+  if (outcome && !KNOWN_PREPARATION_OUTCOME_CATEGORIES.includes(outcome.category)) found.push(["preparation.outcome.category", outcome.category]);
+  const fit = "robot_fit" in status ? status.robot_fit : null;
+  if (fit?.reason && !known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason)) found.push(["robot_fit.reason", fit.reason]);
+  for (const row of fit?.models ?? []) if (!known(ROBOT_FIT_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
+  const precheck = "robot_fit_precheck" in status ? status.robot_fit_precheck : null;
+  for (const row of precheck?.embodiments ?? []) {
+    if (!known(ROBOT_FIT_PRECHECK_EMBODIMENTS, row.embodiment)) found.push(["robot_fit_precheck.embodiment", row.embodiment]);
+    if (!known(ROBOT_FIT_PRECHECK_STATUSES, row.verdict)) found.push(["robot_fit_precheck.verdict", row.verdict]);
+  }
+  return found;
+}
 export type PublicWebsitePreparationStatus = {
+  /** The job waits for the site to name it in one sentence (`website_task_not_named`). */
+  taskNotNamed?: true;
   state: PreparationState | "unavailable"; correlationId: string | null;
   terminalReason?: WebsitePreparationTerminalReason | null;
   outcome?: TaskOutcome | null;
@@ -181,7 +219,7 @@ export type PublicWebsitePreparationStatus = {
   /** Only from a v6 receipt: the robot fit precheck made before any spend, and its hold when none fits. */
   robotFitPrecheck?: PublicRobotFitPrecheck | null;
 };
-export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended";
+export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended" | "preparation_resumed";
 export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string;
   milestone: WebsitePreparationNoticeMilestone; terminalReason: WebsitePreparationTerminalReason | null;
   /** Set when this needs-attention notice may be the Pipeline's early task hold, whose reason only the separately
@@ -235,6 +273,23 @@ export function websitePreparationEventId(selector: WebsitePreparationSelector):
 export function websitePreparationEndedEventId(selector: WebsitePreparationSelector, attemptCount: number): string {
   return crossRuntimeDigest({ ...selector, milestone: "preparation_ended", attempt_count: attemptCount });
 }
+/** One per capture: the job it asked to film again moved on with that same video. */
+export function websitePreparationResumedEventId(selector: WebsitePreparationSelector): string {
+  return crossRuntimeDigest({ ...selector, milestone: "preparation_resumed" });
+}
+const isRecaptureAsk = (status: WebsitePreparationReceipt) => "outcome" in status && isRecaptureReason(status.outcome?.reason);
+/**
+ * The notice the stored row owes now: the status's own (`noticeFor`), or "no new video is needed" (review,
+ * 2026-11-12). That one is recorded by the merge only, at the transition: the same capture (a new video is a new
+ * capture, so it never qualifies) was asking to be filmed again, that ask's email was queued, and the status is now
+ * `handed_off`. It stays owed only while the status is still `handed_off`.
+ */
+function currentNotice(stored: Pick<StoredWebsitePreparation, "selector" | "notification">, status: WebsitePreparationReceipt):
+  {eventId: string; milestone: WebsitePreparationNoticeMilestone} | null {
+  const resumed = websitePreparationResumedEventId(stored.selector);
+  if (stored.notification?.eventId === resumed && status.state === "handed_off") return {eventId: resumed, milestone: "preparation_resumed"};
+  return noticeFor(stored.selector, status);
+}
 /** The single notice a current status calls for, if any. */
 function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt):
   {eventId: string; milestone: WebsitePreparationNoticeMilestone} | null {
@@ -243,9 +298,14 @@ function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparat
   // A geometry-only job ends at its robot fit check by design: that end is its result, not a problem.
   if (status.state === "awaiting_inputs" && "robot_fit" in status && status.robot_fit?.route === "geometry_only")
     return null;
+  // A job waiting for its sentence needs the site to name it, not our team: no "needs attention" email (the page asks).
+  if (pipelineAsksForSentence(status as never)) return null;
   return needsAttention(status.state)
     ? {eventId: websitePreparationEventId(selector), milestone: "preparation_needs_attention"} : null;
 }
+const knownTerminalReason = (reason: string | null | undefined): WebsitePreparationTerminalReason | null =>
+  known(WEBSITE_PREPARATION_TERMINAL_REASONS, reason) ? reason : null;
+/** The terminal reason as sent; `knownTerminalReason` is the one the site's sentences name. */
 const terminalReasonOf = (status: WebsitePreparationReceipt) =>
   status.schema_version !== "website_preparation_status.v1" ? status.terminal_reason : null;
 function parseReceipt(raw: unknown, selector: WebsitePreparationSelector): WebsitePreparationReceipt {
@@ -277,9 +337,17 @@ function parseStored(value: unknown): StoredWebsitePreparation | null {
     notification: z.object({eventId: digest, state: z.enum(["pending", "enqueued"])}).strict().nullable(),
   }).strict().parse(value);
   parseReceipt(parsed.status, parsed.selector);
-  if (parsed.notification && parsed.notification.eventId !== websitePreparationEventId(parsed.selector)
-    && parsed.notification.eventId !== noticeFor(parsed.selector, parsed.status)?.eventId) throw unavailable();
+  if (parsed.notification && !storedNoticeAllowed(parsed.selector, parsed.status, parsed.notification.eventId)) throw unavailable();
   return parsed;
+}
+/**
+ * The one rule for which notice id a stored row may hold (review, 2026-11-12): the attention id, or the id
+ * `currentNotice` gives for this status (the status's own notice, or "no new video is needed" on a `handed_off`
+ * status). The parser and the drain read the same rule, so a row the merge writes is always one they accept.
+ */
+function storedNoticeAllowed(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt, eventId: string): boolean {
+  return eventId === websitePreparationEventId(selector)
+    || currentNotice({selector, notification: {eventId, state: "pending"}}, status)?.eventId === eventId;
 }
 /** An exact lower/reused revision cannot downgrade newer persisted authority. The same
  * revision read in the other receipt version is the same ledger state, not a replay. */
@@ -291,6 +359,13 @@ export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | 
     || status.revision === prior.status.revision && status.schema_version === prior.status.schema_version
       && status.status_digest !== prior.status.status_digest)) throw unavailable();
   const attentionId = websitePreparationEventId(selector);
+  const resumedId = websitePreparationResumedEventId(selector);
+  // The new-video ask was emailed for this same capture, and the job moved on without a new video.
+  const resumed = same && status.state === "handed_off" && isRecaptureAsk(prior.status)
+    && prior.notification?.eventId === attentionId && prior.notification.state === "enqueued";
+  if (resumed) return {selector, status, notification: {eventId: resumedId, state: "pending"}};
+  if (same && status.state === "handed_off" && prior.notification?.eventId === resumedId)
+    return {selector, status, notification: prior.notification};
   const notice = noticeFor(selector, status);
   // One durable intent per event: a replay keeps it; a newer event replaces an
   // unsent one; a state that calls for no notice keeps only the attention intent.
@@ -421,7 +496,11 @@ const defaultDeps: WebsitePreparationDeps = {
     const rows = await automationBatch(db, db.collection("captureUploadSessions")
       .where("website_preparation_notification_pending", "==", true), "website_preparation_notifications", limit);
     return rows.docs.flatMap(row => {
-      const stored = parseStored(row.data().website_preparation);
+      // One row that does not parse is skipped and logged; it never fails the other jobs' rows (review, 2026-11-12).
+      let stored: StoredWebsitePreparation | null;
+      try { stored = parseStored(row.data().website_preparation); }
+      catch { logger.error({captureId: row.id, alert: "website_preparation_row_unreadable"},
+        "A stored website preparation row could not be read; it was skipped."); return []; }
       if (!stored) return [];
       const owed = owedSchema.safeParse(row.data()[WEBSITE_PREPARATION_NOTICE_OWED_FIELD]);
       return [owed.success && owed.data.event_id === stored.notification?.eventId
@@ -471,7 +550,12 @@ async function latestVerified(selector: WebsitePreparationSelector, deps: Websit
 export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultDeps): Promise<WebsitePreparationReceipt> {
   const selector = websitePreparationSelectorSchema.parse(raw);
   const {latest, authority} = await boundedRead(signal => latestVerified(selector, deps, signal));
+  // Recorded at ingest only, and only for a receipt this job has not stored before (never on a read or a replay).
+  const prior = await Promise.resolve().then(() => deps.readStored(selector.capture_id)).catch(() => null);
+  const newReceipt = prior?.status?.status_digest !== latest.status_digest;
   await deps.commit(selector, latest, authority);
+  // After the commit: a failed commit has alerted no one.
+  if (newReceipt) void noteUnknownPipelineCodes(selector.request_id, unknownPreparationCodes(latest));
   // A geometry-only job ends at its robot fit check, and an ended authority ends the job before a test ran: either
   // ending gives the site its paper-check answer now, queued here where it is recorded.
   if ((latest.state === "awaiting_inputs" && "robot_fit" in latest && latest.robot_fit?.route === "geometry_only")
@@ -496,7 +580,7 @@ export async function loadCurrentWebsitePreparationProof(requestId: string, capt
   return fresh(captureId, requestId, deps);
 }
 export async function loadCurrentWebsitePreparationStatus(requestId: string, captureId: string,
-  deps = defaultDeps): Promise<PublicWebsitePreparationStatus> {
+  deps = defaultDeps, objectName?: string | null): Promise<PublicWebsitePreparationStatus> {
   try {
     id.parse(requestId); websitePreparationSelectorSchema.shape.capture_id.parse(captureId);
     const {status} = await fresh(captureId, requestId, deps);
@@ -504,9 +588,11 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
       ? publicRobotFitPrecheck(status.robot_fit_precheck) : null;
     // Customer correlation is company-derived; never trust caller supplied correlation text.
     return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,
-      terminalReason: terminalReasonOf(status),
+      terminalReason: knownTerminalReason(terminalReasonOf(status)),
       ...("outcome" in status ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome, precheck && {
-        holdReason: precheck.holdReason, precheckDigest: precheck.precheckDigest, counts: precheck.counts}) : null} : {}),
+        holdReason: precheck.holdReason, precheckDigest: precheck.precheckDigest, counts: precheck.counts}, objectName) : null} : {}),
+      // The job waits for its sentence (the site names it; the page asks for it).
+      ...(pipelineAsksForSentence(status as never) ? {taskNotNamed: true} : {}),
       ...("question" in status ? {question: status.question} : {}),
       ...("robot_fit" in status ? {robotFit: status.robot_fit ? publicRobotFit(status.robot_fit) : null} : {}),
       ...("robot_fit_precheck" in status ? {robotFitPrecheck: precheck} : {})};
@@ -539,12 +625,22 @@ export async function canNotifyCurrentWebsitePreparationIssue(requestId: string,
       const {latest} = await latestVerified(match.selector, deps, signal, transaction);
       mergeWebsitePreparationStatus(match, match.selector, latest);
       // Still the same event: a needs-attention state, or the same terminal transition.
-      return noticeFor(match.selector, latest)?.eventId === eventId;
+      return currentNotice(match, latest)?.eventId === eventId;
     });
   } catch (error) {
     if ((error as Error).message === "website_preparation_authority_ended") return false;
     throw unavailable();
   }
+}
+/**
+ * For a "no new video is needed" notice: the capture whose ask it follows, and that ask's event id, read from the
+ * stored row that owes it. Null when no single current row owes it (review, 2026-11-12).
+ */
+export async function resumedNoticeAsk(requestId: string, eventId: string, transaction?: FirebaseFirestore.Transaction,
+  deps = defaultDeps): Promise<{captureId: string; askEventId: string} | null> {
+  const match = await deps.findEvent(requestId, eventId, transaction).catch(() => null);
+  if (!match || websitePreparationResumedEventId(match.selector) !== eventId) return null;
+  return {captureId: match.selector.capture_id, askEventId: websitePreparationEventId(match.selector)};
 }
 /** Enqueue only into the existing outbox. Unknown enqueue outcome keeps recoverable durable intent. */
 export async function drainPendingWebsitePreparationNotifications(
@@ -554,11 +650,11 @@ export async function drainPendingWebsitePreparationNotifications(
   for (const row of await deps.pending(limit)) {
     try {
       const current = await fresh(row.selector.capture_id, row.selector.request_id, deps);
-      const notice = noticeFor(current.selector, current.status);
+      const notice = currentNotice(row, current.status);
       if (!notice || !row.notification || row.notification.eventId !== notice.eventId) { pending++; continue; }
       const result = await enqueue({requestId: row.selector.request_id, captureId: row.selector.capture_id,
         eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`,
-        milestone: notice.milestone, terminalReason: terminalReasonOf(current.status),
+        milestone: notice.milestone, terminalReason: knownTerminalReason(terminalReasonOf(current.status)),
         ...(notice.milestone === "preparation_needs_attention" && "outcome" in current.status
           && isRecaptureReason(current.status.outcome?.reason) ? {recaptureReason: current.status.outcome!.reason as RecaptureReason} : {}),
         ...(notice.milestone === "preparation_needs_attention" && mayBeEarlyTaskHold(current.status)

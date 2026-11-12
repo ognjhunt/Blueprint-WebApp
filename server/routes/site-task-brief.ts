@@ -99,6 +99,7 @@ import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
+import { loadJobWaitsForItsSentence } from "../utils/jobSentenceWait";
 
 const router = Router();
 
@@ -758,9 +759,11 @@ router.get("/:token", async (req: Request, res: Response) => {
       scope: payload.scope,
       brief: presented,
       account: payload.scope === "owner" ? await siteAccountFor(payload.requestId) : null,
-      // Asked only once the footage was read and showed no job to draft.
-      ...(payload.scope === "owner" ? { taskStatementNeeded: !brief.confirmedAtIso && isPlaceholderSummary(brief.summary)
-        && recorded?.capture_task_statement_draft?.state === "none_seen" } : {}),
+      // Asked once the footage was read and showed no job to draft, or when the Pipeline says the job has no sentence
+      // to prepare from (`website_task_not_named`) and the site has not given one since.
+      ...(payload.scope === "owner" ? { taskStatementNeeded: !brief.confirmedAtIso && (isPlaceholderSummary(brief.summary)
+        && recorded?.capture_task_statement_draft?.state === "none_seen"
+        || await loadJobWaitsForItsSentence(payload.requestId, recorded, brief)) } : {}),
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load a task brief");
@@ -1372,6 +1375,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         site_task_brief_confirmed_at: request?.site_task_brief_confirmed_at,
         capture_coverage: request?.capture_coverage ?? null,
         briefDrafted: Boolean(brief),
+        siteNamedTask: Boolean(brief) && !isPlaceholderSummary(brief!.summary),
         hasStoredCapture,
         footageBeforeAccount,
         consentRevoked: request?.captureRights.consent_revoked,

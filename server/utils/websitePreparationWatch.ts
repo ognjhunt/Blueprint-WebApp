@@ -44,7 +44,8 @@ const watchSchema = z.object({
   capture_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,131}$/),
   kind: z.enum(["awaiting_first_status", "unchanged_state", "ended"]),
   state: z.string().max(40).nullable(),
-  terminal_reason: z.string().max(40).nullable(),
+  // As long as any Pipeline code (`pipelineCode`, 128): a long unknown reason must still be watched and alerted.
+  terminal_reason: z.string().max(128).nullable(),
   attempt_count: z.number().int().positive().nullable(),
   since_iso: z.string().max(40),
   due_at_ms: z.number().int().nonnegative().nullable(),

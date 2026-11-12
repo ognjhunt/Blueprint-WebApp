@@ -1,3 +1,5 @@
+import { isKnownFlag } from "./screeningSetupFlagSentences";
+import { screeningRowFlagFields, screeningSceneFeasibility } from "./betaPolicyScreeningContract";
 import { waitingAnswerNoticeFields } from "./answerNoticeOwed";
 import { TERMINAL_RUN_STATES } from "../../client/src/lib/simulationProof";
 import { logger } from "../logger";
@@ -296,6 +298,16 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
   });
   // A run recorded as ended with no result outcome (failed, blocked, cancelled) is an ending: its paper-check email is
   // queued here, where the terminal evaluation record is written (review, 2026-11-11). The answer slot keeps it to one.
+  // Flags this release has no words for: the page shows the general sentence, and staff hear once per job and code.
+  const unknownFlags = [...new Set([...(screeningSceneFeasibility(publication)?.flags ?? []),
+    ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => row[key] ?? []))])].filter(code => !isKnownFlag(code));
+  if (unknownFlags.length) {
+    // Bounded: a few alerts per ingest, then one summary line (`noteUnknownPipelineCodes`); only for a new revision.
+    if (ingested.status === "created" || ingested.status === "updated") {
+      const { noteUnknownPipelineCodes } = await import("./unknownPipelineCode");
+      void noteUnknownPipelineCodes(selected.website_request_id, unknownFlags.map(code => ["screening.flag", code] as [string, string]));
+    }
+  }
   if ((ingested.status === "created" || ingested.status === "updated") && TERMINAL_RUN_STATES.has(String(publication.status))
     && !screeningOutcome(publication)) {
     const { notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");

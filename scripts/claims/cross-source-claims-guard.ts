@@ -600,6 +600,13 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
     ["client/src/lib/simulationProof.ts", "customer_messages"],
     ["client/src/lib/screeningPlainLanguage.ts", "customer_messages"],
     ["server/utils/screeningSetupFlagSentences.ts", "customer_messages"],
+    // The new-video asks, the job-naming ask and the general "stopped" sentence (review, 2026-11-12).
+    ["server/utils/taskPreparationOutcome.ts", "customer_messages"],
+    // The page's preparation headlines, the simulation endings and the evaluation sentences
+    // (review, 2026-11-12: the capacity ending and the general simulation ending live here).
+    ["server/utils/taskStatusProjection.ts", "customer_messages"],
+    ["server/utils/sceneIntentOutcome.ts", "customer_messages"],
+    ["server/utils/betaPolicyScreeningContract.ts", "customer_messages"],
     ["server/utils/siteAnswer.ts", "customer_messages"],
     ["server/utils/jobCardAnswer.ts", "customer_messages"],
     ["client/public/agent-access.openapi.json", "public_api_contract"],

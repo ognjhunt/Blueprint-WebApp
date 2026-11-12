@@ -70,8 +70,13 @@ describe("source-bound preparation closeout", () => {
   it("never treats a planner abstention or an assumed desk height as robot incompatibility", () => {
     expect(projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_scene_planner_abstained")))!.category)
       .toBe("insufficient_evidence");
-    expect(preparationOutcomeSchema.safeParse({ category: "robot_incompatibility", reason: "desk_too_high",
-      basis: "verified", robot_id: "franka_panda", evidence_digest: sha }).success).toBe(false);
+    // A reason this release does not know is read, not refused (review, 2026-11-12), and it is never a robot verdict:
+    // it reads as the general "stopped" sentence.
+    const desk = preparationOutcomeSchema.safeParse({ category: "robot_incompatibility", reason: "desk_too_high",
+      basis: "verified", robot_id: "franka_panda", evidence_digest: sha });
+    expect(desk.success).toBe(true);
+    expect(projectPreparationOutcome(desk.data as never)).toMatchObject({ category: "insufficient_evidence",
+      title: "The preparation of your simulation stopped" });
   });
   it("keeps a no-object scene preservation refusal separate from a robot verdict", () => {
     const outcome = projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_scene_requires_preserved_capture")));

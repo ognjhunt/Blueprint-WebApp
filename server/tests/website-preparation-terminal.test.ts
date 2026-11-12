@@ -111,7 +111,6 @@ describe("v2 receipt contract", () => {
   it.each([
     ["terminal without a reason", (s: Selector) => receipt(s, "failed_terminal", 1, 3, "v2", null)],
     ["a reason on a live state", (s: Selector) => receipt(s, "preparing", 1, 3, "v2", "retry_exhausted")],
-    ["an unknown reason", (s: Selector) => receipt(s, "failed_terminal", 1, 3, "v2", "provider_failed")],
     ["a v2 state in a v1 receipt", (s: Selector) => receipt(s, "capacity_delayed", 1, 3, "v1")],
     ["a forged code", (s: Selector) => { const value: any = receipt(s, "capacity_delayed"); const { status_digest: _drop, ...rest } = value;
       rest.code = "preparation_inputs_pending"; return { ...rest, status_digest: crossRuntimeArtifactDigest(rest, "status_digest") }; }],
@@ -120,6 +119,17 @@ describe("v2 receipt contract", () => {
     const f = production(); f.ledger(build(f.selected));
     await expect(status.syncWebsitePreparationStatus(f.selected)).rejects.toThrow();
     expect(f.session().website_preparation).toBeUndefined();
+  });
+});
+
+// Review, 2026-11-12: an ending reason this release does not know is read as a general ending, never refused.
+describe("an ending reason the website does not know", () => {
+  it("reads the ending, says no reason, and keeps the job's state", async () => {
+    const f = production(); f.ledger(receipt(f.selected, "failed_terminal", 1, 3, "v2", "provider_failed"));
+    await status.syncWebsitePreparationStatus(f.selected);
+    expect(f.session().website_preparation).toBeDefined();
+    expect(await status.loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1"))
+      .toMatchObject({ state: "failed_terminal", terminalReason: null });
   });
 });
 

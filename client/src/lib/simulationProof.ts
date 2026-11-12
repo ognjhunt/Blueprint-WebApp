@@ -151,6 +151,8 @@ export interface SimulationOption {
   /** How far it got, in the closed phrases (`PROGRESS_PHRASES`), when the run graded it. */
   furthestText: string | null;
   furthestDetail: string | null;
+  /** Facts about this robot and the object, from its own row: shown on its result, never as a set-up doubt. */
+  notes?: string[];
   /** The median closest approach, in metres, when measured. */
   closestM: number | null;
 }
@@ -643,6 +645,7 @@ export function optionsOf(evaluation: JobManagedEvidenceSummary | null): Simulat
       software: known.robot ? known.policy : null, maker: known.robot ? known.maker : null, robot: known.robot,
       succeeded, scored: count(row.scored), rangeText: succeeded > 0 ? rangeTextOf(row.successRange) : null,
       furthest: reached?.furthest ?? null, furthestText: reached?.text ?? null, furthestDetail: reached?.detail ?? null,
+      ...(Array.isArray(row.robotNotes) && row.robotNotes.length ? { notes: row.robotNotes.filter((note: unknown) => typeof note === "string") as string[] } : {}),
       closestM: Number.isFinite(approach) ? approach : null });
   }
   const mean = (entry: { succeeded: number; scored: number }) => (entry.succeeded + 1) / (entry.scored + 2);

@@ -300,6 +300,16 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={phase === "result"} /> : null;
   const sceneNotice = answer.sceneNote && pick ? <BareNotice>{answer.sceneNote}</BareNotice> : null;
 
+  // The job waits for its sentence: the site names it (the form above asks for it); nothing else is offered.
+  if (phase === "waiting_on_site") return <section className="site-answer-bare" aria-label="Your answer">
+    <BareGroup>
+      <h2 className="bare-label" id="site-answer-title">Your answer</h2>
+      <BareLead>{outlook?.sentence ?? "Tell us in one sentence what the robot should do, so we can build the simulation of your job."}</BareLead>
+    </BareGroup>
+    {shared}
+    <BareLinks links={links} />
+  </section>;
+
   // The simulation of the site is being built: the test result will be the answer, so nothing new is offered.
   if (phase === "building") return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>

@@ -12,10 +12,12 @@ import oldPipelineRouter from "../routes/internal-capture-worlds";
 import { createWebsitePreparationRouter, websitePreparationRawBody } from "../routes/internal-website-preparation";
 import { canNotifyCurrentWebsitePreparationIssue, drainPendingWebsitePreparationNotifications,
   loadCurrentWebsitePreparationStatus, mergeWebsitePreparationStatus, syncWebsitePreparationStatus,
-  websitePreparationEventId, websitePreparationReceiptSchema, websitePreparationSelectorSchema,
+  websitePreparationEventId, websitePreparationReceiptSchema, websitePreparationResumedEventId, websitePreparationSelectorSchema,
   type WebsitePreparationDeps, type WebsitePreparationReceipt,
   type WebsitePreparationSelector, type StoredWebsitePreparation } from "../utils/websitePreparationStatus";
 
+import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { taskLifecycleNotificationIsCurrent } from "../utils/taskLifecycleNotificationAuthority";
 // Production verifier controls use in-memory Firestore/GCS and a retained observer projection.
 // No real database, credentials, transport, provider or mail is used.
 const runtime = vi.hoisted(() => ({records: new Map<string, any>(), objects: new Map<string, {metadata: any; bytes: Buffer}>(),
@@ -147,7 +149,6 @@ it.each([
   ["a check that did not run but lists robots", robotFit("geometry_only", {status: "not_run",
     reason: "task_family_not_modelled", evidence_label: null, counts: null, table_digest: null})],
   ["a physical verdict", robotFit("full", {evidence_label: "physical_test"})],
-  ["an unknown verdict", robotFit("full", {models: [{name: "X", manufacturer: "Y", verdict: "probably", open_checks: []}]})],
 ])("v5 with %s is refused, never shown", (_name, fit) => {
   expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", robotFit("full"))).success).toBe(true);
   expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", fit)).success).toBe(false);
@@ -184,8 +185,8 @@ it("v6 shows the early robot fit hold: which robots were checked and why none fi
     + "than the arm can reach from any place it could be mounted level with the lower work surface.");
   expect(projected.outcome!.scope).toMatch(/before any paid work.*estimate.*no robot was tried/);
 });
-function v7(state: WebsitePreparationReceipt["state"], outcome: unknown = null) {
-  const value = {...receipt(state), schema_version: "website_preparation_status.v7", terminal_reason: null,
+function v7(state: WebsitePreparationReceipt["state"], outcome: unknown = null, revision = 3, selected = selector) {
+  const value = {...receipt(state, 1, revision, selected), schema_version: "website_preparation_status.v7", terminal_reason: null,
     outcome, question: null, robot_fit: null, robot_fit_precheck: null};
   return {...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest")};
 }
@@ -214,13 +215,167 @@ it("the needs-attention notice for a v7 new-video stop carries its reason, so th
     recaptureReason: "website_front_normal_undetermined", eventId: websitePreparationEventId(selector)}));
   expect(h.enqueue.mock.calls[0][0]).not.toHaveProperty("awaitEarlyHoldUntilMs");
 });
-it("v6 does not accept a v7 stop, and v7 accepts no other new reason", () => {
+// Review, 2026-11-12: the Pipeline re-checks a job it asked to film again because of its own alignment step; when the
+// re-check passes, the job goes on with the video it has. The site had the "film again" email, so it gets ONE more.
+describe("no new video is needed after all", () => {
+  const ask = () => v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_registration_poor_fit",
+    basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`});
+  it("sends one email when a job shown a new-video ask moves on without a new video", async () => {
+    const h = harness();
+    h.ledger(ask());
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
+    h.ledger(v7("handed_off", null, 4));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    // Recorded with the status that carries the fact.
+    expect(h.stored?.notification).toEqual({eventId: websitePreparationResumedEventId(selector), state: "pending"});
+    expect(await canNotifyCurrentWebsitePreparationIssue("r1", websitePreparationResumedEventId(selector), h.deps)).toBe(true);
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
+    expect(h.enqueue).toHaveBeenLastCalledWith(expect.objectContaining({milestone: "preparation_resumed",
+      eventId: websitePreparationResumedEventId(selector)}));
+    // Never twice: a replay and later reads owe nothing more.
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 0, pending: 0});
+    expect(h.enqueue).toHaveBeenCalledTimes(2);
+  });
+  it("owes nothing when the site sent a new video (a new capture), or when the ask's email never went out", async () => {
+    const h = harness();
+    h.ledger(ask());
+    await syncWebsitePreparationStatus(selector, h.deps);
+    // The ask's email not yet queued: moving on owes no correction of it.
+    h.ledger(v7("handed_off", null, 4));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(h.stored?.notification?.eventId).not.toBe(websitePreparationResumedEventId(selector));
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toMatchObject({enqueued: 0});
+    expect(h.enqueue).not.toHaveBeenCalled();
+    // A new video is a new capture: its hand-off carries no ask behind it.
+    const prior = mergeWebsitePreparationStatus(null, selector, ask());
+    const asked = {...prior, notification: {...prior.notification!, state: "enqueued" as const}};
+    const refilmed = {...selector, completion_marker_generation: "90071992547409932"};
+    expect(mergeWebsitePreparationStatus(asked, refilmed, v7("handed_off", null, 4, refilmed)).notification).toBeNull();
+  });
+  it("owes nothing for an ordinary hand-off with no ask before it", async () => {
+    const h = harness();
+    h.ledger(v7("preparing"));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    h.ledger(v7("handed_off", null, 4));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(h.stored?.notification).toBeNull();
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 0, pending: 0});
+    expect(h.enqueue).not.toHaveBeenCalled();
+  });
+  it("says only that no new video is needed, with the job link", () => {
+    const row = buildTaskLifecycleNotification({requestId: "r1", milestone: "preparation_resumed",
+      eventId: websitePreparationResumedEventId(selector), to: "owner@example.test", detail: "PRIVATE"});
+    expect(row.subject).toBe("No new video is needed");
+    expect(row.body).toMatch(/^No new video is needed; we are preparing your job\.\n\nOpen your job:\n/);
+    expect(row.body).not.toContain("PRIVATE");
+  });
+});
+// Rewritten (review, 2026-11-12): a reason this release does not know never fails the read; a known reason must keep
+// its own shape, and v6 still refuses a v7 stop.
+it("v6 does not accept a v7 stop, and v7 reads a new reason it does not know instead of refusing it", () => {
   const stop = {category: "insufficient_evidence", reason: "website_registration_poor_fit", basis: "missing_evidence",
     robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`};
   expect(websitePreparationReceiptSchema.safeParse(v6("awaiting_inputs", null, stop)).success).toBe(false);
   expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", stop)).success).toBe(true);
   expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs",
-    {...stop, reason: "website_registration_anchor_frame_invalid"})).success).toBe(false);
+    {...stop, reason: "website_registration_anchor_frame_invalid"})).success).toBe(true);
+  // A known reason with the wrong shape is still refused (structure, not vocabulary).
+  expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", {...stop, robot_id: "franka_panda"})).success).toBe(false);
+  expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", {...stop, evidence_digest: "sha256:short"})).success).toBe(false);
+});
+
+// Review, 2026-11-12: never throw on a code the website does not know.
+describe("a code the website does not know never breaks the read", () => {
+  // Rewritten (review, 2026-11-12): staff hear where the receipt is ingested, never on a read. N reads, and a replay
+  // of the same receipt, record nothing; an unknown category reads as the same general sentence.
+  it("reads an outcome reason or category it does not know as one general sentence, keeps the job's state, and tells staff at ingest only", async () => {
+    const alerts = await import("../utils/unknownPipelineCode");
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCodes").mockResolvedValue(undefined);
+    try {
+      const h = harness();
+      h.ledger(v7("awaiting_inputs", {category: "brand_new_category", reason: "website_brand_new_stop", basis: "missing_evidence",
+        robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+      await syncWebsitePreparationStatus(selector, h.deps);
+      expect(noted).toHaveBeenCalledTimes(1);
+      expect(noted).toHaveBeenCalledWith("r1", [["preparation.outcome.reason", "website_brand_new_stop"],
+        ["preparation.outcome.category", "brand_new_category"]]);
+      const stored = JSON.stringify(h.stored);
+      for (let read = 0; read < 5; read++) {
+        const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+        expect(projected.state).toBe("awaiting_inputs");
+        expect(projected.outcome).toMatchObject({ title: "The preparation of your simulation stopped",
+          reason: "Preparing the simulation of your site stopped, for a reason this page cannot show yet. Our team is alerted when this happens." });
+        expect(JSON.stringify(projected)).not.toMatch(/website_brand_new_stop|brand_new_category/);
+      }
+      // A replay of the receipt already stored is no new ingest.
+      await syncWebsitePreparationStatus(selector, h.deps);
+      expect(noted).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(h.stored)).toBe(stored);
+    } finally { noted.mockRestore(); }
+  });
+  it("alerts only after the receipt is committed: a commit that fails has told no one", async () => {
+    const alerts = await import("../utils/unknownPipelineCode");
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCodes").mockResolvedValue(undefined);
+    try {
+      const h = harness();
+      h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_brand_new_stop", basis: "missing_evidence",
+        robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+      h.race(() => h.sourceChange());
+      await expect(syncWebsitePreparationStatus(selector, h.deps)).rejects.toThrow();
+      expect(noted).not.toHaveBeenCalled();
+    } finally { noted.mockRestore(); }
+  });
+  it("never fails the read on a category it does not know, for a known reason too", async () => {
+    const h = harness();
+    h.ledger(v7("awaiting_inputs", {category: "brand_new_category", reason: "website_registration_poor_fit", basis: "missing_evidence",
+      robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+    expect(projected.outcome).toMatchObject({title: "We need a new video to build the simulation of your site", actionOwner: "site"});
+    expect(JSON.stringify(projected)).not.toContain("brand_new_category");
+  });
+  it("reads unknown robot-fit reasons, verdicts, robot bodies and terminal reasons without failing", async () => {
+    const fit = robotFit("full", {models: [{name: "X", manufacturer: "Y", verdict: "probably", open_checks: []}]});
+    expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", fit)).success).toBe(true);
+    const h = harness();
+    h.ledger(v5("handed_off", fit));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps)).robotFit?.models[0].verdict).toBe("unknown");
+    const notRun = robotFit("geometry_only", {status: "not_run", reason: "brand_new_reason", evidence_label: null, counts: null,
+      models: [], table_digest: null});
+    expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", notRun)).success).toBe(true);
+    const body = precheck({embodiments: [{embodiment: "new_robot_body_v1", verdict: "maybe", reasons: ["reach"], fit_candidates: 0}]});
+    expect(websitePreparationReceiptSchema.safeParse(v6("awaiting_inputs", body, robotFitNone)).success).toBe(true);
+    const h2 = harness();
+    h2.ledger(v6("awaiting_inputs", body, robotFitNone));
+    await syncWebsitePreparationStatus(selector, h2.deps);
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h2.deps)).robotFitPrecheck?.embodiments).toEqual([]);
+  });
+  it.each(["website_task_object_not_observed", "website_capture_frames_unusable"])("asks for a new video for %s", async reason => {
+    expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", {category: "insufficient_evidence", reason,
+      basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`})).success).toBe(true);
+    const h3 = harness();
+    h3.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason, basis: "missing_evidence", robot_id: null,
+      evidence_digest: `sha256:${"e".repeat(64)}`}));
+    await syncWebsitePreparationStatus(selector, h3.deps);
+    const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h3.deps, "the blue tote");
+    expect(projected.outcome).toMatchObject({ title: "We need a new video to build the simulation of your site", actionOwner: "site",
+      reason: reason === "website_task_object_not_observed" ? "We could not find the blue tote in your video." : "We could not use any of the frames in your video.",
+      nextStep: reason === "website_task_object_not_observed" ? "Please film again with it in view. Then send us the new video."
+        : "Please film again slowly, in good light. Then send us the new video." });
+  });
+  it("asks the site for its sentence when the job is not named, and sends no needs-attention email for it", async () => {
+    const h = harness();
+    h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_task_not_named", basis: "missing_evidence",
+      robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(h.stored!.notification).toBeNull();
+    const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+    expect(projected).toMatchObject({ taskNotNamed: true, outcome: { title: "Tell us the job in one sentence", actionOwner: "site" } });
+    expect(JSON.stringify(projected)).not.toMatch(/review|nothing else is needed/i);
+  });
 });
 it("v6 says none fits, and no more, when the hold names a cause it does not know", async () => {
   const h = harness();
@@ -263,8 +418,6 @@ it.each([
   ["a reason on a check that fits", v6("preparing", precheck({status: "fit", counts: {fit: 1, no_fit: 0, unknown: 0, unavailable: 0}}))],
   ["a hold while a candidate is undecided", v6("awaiting_inputs", precheck({counts: {fit: 0, no_fit: 1, unknown: 1, unavailable: 0}}))],
   ["a physical verdict", v6("awaiting_inputs", precheck({evidence_label: "physical_test"}))],
-  ["an unknown robot body", v6("awaiting_inputs", precheck({embodiments: [{embodiment: "sketch_bot", verdict: "no_fit",
-    reasons: ["reach"], fit_candidates: 0}]}))],
   ["a hold reason outside its prefix", v6("awaiting_inputs", precheck({hold_reason: "robot_fit_none:reach"}))],
   ["a hold whose precheck fits", v6("awaiting_inputs", precheck({status: "fit", hold_reason: null,
     counts: {fit: 1, no_fit: 0, unknown: 0, unavailable: 0}}), robotFitNone)],
@@ -538,6 +691,100 @@ describe("explicit supplementary rotating-notification scan control",()=>{
     expect(await drainPendingWebsitePreparationNotifications(enqueue,undefined,2)).toEqual({enqueued:1,pending:0});
     expect(enqueue).toHaveBeenCalledTimes(1);
     expect(runtime.records.get("captureUploadSessions/walkthrough-r1").website_preparation_notification_pending).toBe(false);
+  });
+});
+
+// Review, 2026-11-12: the "no new video is needed" notice through the REAL stored-row path: written by the merge in the
+// commit transaction, read back by the parser in the pending load, findEvent and acknowledge.
+describe("no new video is needed, through the stored row", () => {
+  const stop = (selected: WebsitePreparationSelector) => v7("awaiting_inputs", {category: "insufficient_evidence",
+    reason: "website_registration_poor_fit", basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}, 3, selected);
+  const row = () => runtime.records.get("captureUploadSessions/walkthrough-r1");
+  // The pending scan rotates (PREP-041): two passes cover every row whatever cursor an earlier test left.
+  const drain = async (enqueue: Parameters<typeof drainPendingWebsitePreparationNotifications>[0]) => {
+    const first = await drainPendingWebsitePreparationNotifications(enqueue);
+    const second = await drainPendingWebsitePreparationNotifications(enqueue);
+    return {enqueued: first.enqueued + second.enqueued, pending: second.pending};
+  };
+  it("is accepted, owed once, marked sent, and kept by a replay", async () => {
+    const f = productionFixture(); f.ledger(stop(f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    const enqueue = vi.fn(async () => "enqueued" as const);
+    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
+    expect(row().website_preparation.notification).toEqual({eventId: websitePreparationEventId(f.selected), state: "enqueued"});
+    const resumed = websitePreparationResumedEventId(f.selected);
+    f.ledger(v7("handed_off", null, 4, f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "pending"});
+    expect(row().website_preparation_notification_pending).toBe(true);
+    expect(await canNotifyCurrentWebsitePreparationIssue("r1", resumed)).toBe(true);
+    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
+    expect(enqueue).toHaveBeenLastCalledWith(expect.objectContaining({milestone: "preparation_resumed", eventId: resumed}));
+    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "enqueued"});
+    expect(row().website_preparation_notification_pending).toBe(false);
+    // The dispatch check: the ask's own email went out, so this one may.
+    const askKey = `captureOutbox/r1:preparation_needs_attention:${websitePreparationEventId(f.selected).replace(":", "_")}`;
+    (f.request as any).contact = {email: "owner@example.test"};
+    const entry = {kind: "preparation_resumed", requestId: "r1", preparationEventId: resumed, to: "owner@example.test"} as never;
+    runtime.records.set(askKey, {status: "sent"});
+    expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(true);
+    // The site re-filmed (a supplement is now the job's video) or closed its run: nothing follows the ask.
+    (f.request as any).active_capture_id = `supplement-${"a".repeat(40)}`;
+    expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(false);
+    delete (f.request as any).active_capture_id;
+    // A replay of the same status keeps it, sent; nothing more is owed.
+    await syncWebsitePreparationStatus(f.selected);
+    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "enqueued"});
+    expect(await drain(enqueue)).toEqual({enqueued: 0, pending: 0});
+    expect(enqueue).toHaveBeenCalledTimes(2);
+  });
+  it("sends nothing when the ask was queued but never went out", async () => {
+    const f = productionFixture(); f.ledger(stop(f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    const enqueue = vi.fn(async () => "enqueued" as const);
+    await drain(enqueue);
+    f.ledger(v7("handed_off", null, 4, f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    const resumed = websitePreparationResumedEventId(f.selected);
+    (f.request as any).contact = {email: "owner@example.test"};
+    const entry = {kind: "preparation_resumed", requestId: "r1", preparationEventId: resumed, to: "owner@example.test"} as never;
+    const askKey = `captureOutbox/r1:preparation_needs_attention:${websitePreparationEventId(f.selected).replace(":", "_")}`;
+    for (const status of [undefined, "pending", "failed"]) {
+      if (status) runtime.records.set(askKey, {status}); else runtime.records.delete(askKey);
+      expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(false);
+    }
+    // And the ask itself is no longer current: the hand-off dropped it.
+    expect(await canNotifyCurrentWebsitePreparationIssue("r1", websitePreparationEventId(f.selected))).toBe(false);
+  });
+  it("a second capture's ask is followed for that capture only", () => {
+    const second = {...selector, completion_marker_generation: "90071992547409932"};
+    const first = mergeWebsitePreparationStatus(null, selector, stop(selector));
+    const askedAgain = mergeWebsitePreparationStatus({...first, notification: {...first.notification!, state: "enqueued"}}, second, stop(second));
+    expect(askedAgain.notification).toEqual({eventId: websitePreparationEventId(second), state: "pending"});
+    const sent = {...askedAgain, notification: {...askedAgain.notification!, state: "enqueued" as const}};
+    const resumed = mergeWebsitePreparationStatus(sent, second, v7("handed_off", null, 4, second));
+    expect(resumed.notification).toEqual({eventId: websitePreparationResumedEventId(second), state: "pending"});
+    expect(websitePreparationResumedEventId(second)).not.toBe(websitePreparationResumedEventId(selector));
+  });
+  it.each([
+    ["the resumed id on a status that is not handed_off", (selected: WebsitePreparationSelector) =>
+      ({status: stop(selected), eventId: websitePreparationResumedEventId(selected)})],
+    ["a foreign id", (selected: WebsitePreparationSelector) =>
+      ({status: v7("handed_off", null, 4, selected), eventId: `sha256:${"9".repeat(64)}`})],
+  ])("refuses %s, and that one row never fails the other jobs' rows", async (_label, make) => {
+    const f = productionFixture(); f.ledger(stop(f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    const {status, eventId} = make(f.selected);
+    runtime.records.set("captureUploadSessions/a-bad", {website_preparation_notification_pending: true,
+      website_preparation: {selector: f.selected, status, notification: {eventId, state: "pending"}}});
+    const enqueue = vi.fn(async () => "enqueued" as const);
+    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention"}));
+    // The bad row itself is refused wherever it is read.
+    runtime.records.set("captureUploadSessions/walkthrough-r1", {...row(),
+      website_preparation: {selector: f.selected, status, notification: {eventId, state: "pending"}}});
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1")).state).toBe("unavailable");
   });
 });
 

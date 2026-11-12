@@ -2958,12 +2958,14 @@ describe("the intent's outcome (C-04)", () => {
       blockers: ["website_task_family_unknown"], outcome: sceneOutcome("held", true, "task_family_unsupported") });
     respond(fetcher, held);
     expect(await scenePipelineRequest(request, "scene-one")).toEqual(held);
-    // A reason added later still parses; only the kind is a closed set.
+    // A reason added later still parses, and so does a kind added later (review, 2026-11-12): the status read never
+    // fails on it; such an outcome is simply not adopted (`adoptedSceneOutcome`).
     respond(fetcher, pipelineStatus(request, { outcome: sceneOutcome("setup_repair", false, "a_later_reason",
       { reason_category: "a_later_category" }) }));
     await expect(scenePipelineRequest(request, "scene-one")).resolves.toMatchObject({ outcome: { reason_code: "a_later_reason" } });
+    respond(fetcher, pipelineStatus(request, { outcome: sceneOutcome("finished", true, "task_family_unsupported") }));
+    await expect(scenePipelineRequest(request, "scene-one")).resolves.toMatchObject({ outcome: { kind: "finished" } });
     for (const outcome of [
-      sceneOutcome("finished", true, "task_family_unsupported"),
       { ...sceneOutcome("held", true, "task_family_unsupported"), detail: "extra" },
       sceneOutcome("held", "yes", "task_family_unsupported"),
       sceneOutcome("held", true, "Task-Family Unsupported"),
@@ -3049,6 +3051,51 @@ describe("the intent's outcome (C-04)", () => {
         schema_version: "scene_outcome_notification.v1", request_id: "req1", intake_id: key.split("/")[1],
         kind: "held", outcome_digest: outcome.outcome_digest, event_id: `held-${outcome.outcome_digest.slice(7)}` } });
     expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
+  });
+
+  // Review, 2026-11-12: an outcome kind this release does not know. A wait is not adopted and staff hear once, when it
+  // is first stored: the 60-second polls that read it again record nothing. An ending is the general ending, one email.
+  it("tells staff once of an unknown wait, never on the polls that read it again, and keeps the job's state", async () => {
+    await preparedWebsiteScene();
+    const alerts = await import("../utils/unknownPipelineCode");
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCode").mockResolvedValue(true);
+    try {
+      const outcome = sceneOutcome("brand_new_wait", false, "anything", { reason_category: "anything" });
+      const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(init.method === "POST"
+        ? accepted(JSON.parse(init.body))
+        : pipelineStatus(stored()[1].request, { status: "running", phase: "configuration", blockers: [], attempts: [], outcome }))));
+      vi.stubGlobal("fetch", fetcher);
+      await processSceneIntakeQueue();
+      for (let read = 0; read < 4; read++) { stored()[1].next_forward_at_ms = 0; await processSceneIntakeQueue(); }
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(fetcher.mock.calls.filter((call: any[]) => call[1]?.method === "GET")).toHaveLength(4);
+      expect(noted).toHaveBeenCalledTimes(1);
+      expect(noted).toHaveBeenCalledWith("req1", "scene_outcome.kind", "brand_new_wait");
+      expect(stored()[1]).toMatchObject({ state: "accepted", pipeline_status: { outcome: { kind: "brand_new_wait" } } });
+      expect(stored()[1].scene_outcome_notification_pending).toBeUndefined();
+    } finally { noted.mockRestore(); }
+  });
+  it("ends a website job on an unknown terminal kind as the general ending, with one email, and stops polling", async () => {
+    await preparedWebsiteScene();
+    const alerts = await import("../utils/unknownPipelineCode");
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCode").mockResolvedValue(true);
+    try {
+      const outcome = sceneOutcome("brand_new_end", true, "anything", { reason_category: "anything" });
+      const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(init.method === "POST"
+        ? accepted(JSON.parse(init.body))
+        : pipelineStatus(stored()[1].request, { status: "blocked", phase: "configuration", blockers: [], attempts: [], outcome }))));
+      vi.stubGlobal("fetch", fetcher);
+      await processSceneIntakeQueue();
+      stored()[1].next_forward_at_ms = 0; await processSceneIntakeQueue();
+      const [key, intake] = stored();
+      expect(intake).toMatchObject({ state: "blocked", next_forward_at_ms: Number.MAX_SAFE_INTEGER,
+        scene_outcome_notification_pending: true, scene_outcome_notification_intent: { request_id: "req1", intake_id: key.split("/")[1],
+          kind: "stopped", event_id: `stopped-${outcome.outcome_digest.slice(7)}` } });
+      // Ended: the queue polls it no more.
+      stored()[1].next_forward_at_ms = 0; await processSceneIntakeQueue();
+      expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET"]);
+      expect(noted).toHaveBeenCalledTimes(1);
+    } finally { noted.mockRestore(); }
   });
 
   it("records why the WebApp revoked a website intent, so its own revoke never reads as the site's withdrawal", async () => {

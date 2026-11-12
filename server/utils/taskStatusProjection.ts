@@ -29,9 +29,9 @@ import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
-  jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
+  jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome } from "./taskPreparationOutcome";
 import { isScreeningHeldOutcome, screeningOutcomeSentenceWithWindow, simulationOutcomeEmailSentence, type ScreeningHeldOutcome, type ScreeningOutcome,
-  type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
+  type ScreeningOutcomeCaveat , simulationHoldSentence, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
 /**
@@ -222,6 +222,8 @@ export interface TaskSceneProgression {
   /** One build attempt failed and the Pipeline keeps trying: a wait, never an ending (review, 2026-11-11). */
   attemptFailed?: true;
   heldReason?: ScreeningHeldOutcome;
+  /** `held` only: the hold's detail with words of its own (`simulationHoldSentence`). */
+  holdDetail?: ScreeningHoldDetail;
   progressOutcome?: Extract<ScreeningOutcome, "awaiting_spend_approval" | "setup_repair" | "superseded">;
   /** `evaluated` only: what the estimate's sentence adds (`screeningOutcomeCaveat`), as the run's summary and email say it. */
   outcomeCaveat?: ScreeningOutcomeCaveat;
@@ -264,15 +266,25 @@ export function resultOutranksWindowEnding(input: { screening?: SceneScreening |
 const ENDED_REASON: Record<string, string> = {
   retry_exhausted: "We tried several times and could not get past a problem on our side.",
   budget_exhausted: "Preparation stopped at a limit on our side.",
-  capacity_blocked: "Our processing capacity stayed full for too long.",
+  // Every cause the Pipeline sends it for is ours: its disk or staging stayed short, or the job waited for room until
+  // its grant ran out. Said without naming either (review, 2026-11-12).
+  capacity_blocked: "Nothing you did caused it: we could not start or finish preparing your job in time, for a reason on our side.",
   permanent_invalid: "We could not read this recording.",
   out_of_scope: "This job is outside what the beta can build a scene for.",
 };
+/**
+ * A `capacity_blocked` ending, as the page and its email open: ours, nothing the site did. Whether the video is kept
+ * is said only where it is known (the page, from its stored capture); the email asks the site to keep its original.
+ */
+export const CAPACITY_ENDED_HEADLINE = "We could not start or finish preparing your job in time, for a reason on our side, and we have stopped trying. "
+  + "Nothing you did caused it.";
 export function preparationEndedSentence(reason: string | null | undefined): string {
   return reason && Object.hasOwn(ENDED_REASON, reason) ? ENDED_REASON[reason] : "";
 }
 
 interface TaskStatusInput {
+  /** The site's brief holds its own sentence: a "tell us the job" ask from the Pipeline is already answered. */
+  siteNamedTask?: boolean;
   briefDrafted: boolean;
   briefConfirmed: boolean;
   /** From `assessReadiness`, when it has been run. */
@@ -452,15 +464,24 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (sceneEnding && !hasRuns) {
     return { ...base, decision: "footage_received", stage: null, missingViews: [], headline: sceneEnding, operatorAction: null };
   }
-  const stopped = input.preparationStatus?.outcome
+  const asked = input.preparationStatus?.outcome
     ?? (!nativeProgress && !input.scenePreviewReady ? input.preparationOutcome : null)
     ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
       || input.scenePreparationFailed && !nativeProgress
       || input.sceneProgression?.state === "ended" && !sceneEnding ? processingFailure() : null);
+  // The Pipeline still asks for the job's sentence, but the site has given it (review, 2026-11-12): we have it and are
+  // starting (the Pipeline re-reads the job within the hour). No ask and no form.
+  const stopped = asked?.title === TASK_NOT_NAMED_SENTENCES.title && input.siteNamedTask ? taskNamedOutcome() : asked;
+  // A `capacity_blocked` ending is said as ours, with no retry or processing step to speak of (`capacityEnded`).
+  const capacityEnd = input.preparationStatus?.state === "failed_terminal" && input.preparationStatus.terminalReason === "capacity_blocked"
+    && !input.preparationStatus.outcome && stopped ? capacityEnded() : null;
   if (stopped && !hasRuns) {
     const ended = input.preparationStatus?.state === "failed_terminal"
       ? preparationEndedSentence(input.preparationStatus.terminalReason) : "";
-    const outcome = {...stopped,
+    const outcome = capacityEnd ? { ...capacityEnd,
+      ...(/^bp-prep-[a-f0-9]{16}$/.test(input.preparationStatus?.correlationId ?? "") ? {reference: input.preparationStatus!.correlationId!} : {}),
+      nextStep: input.hasStoredCapture ? capacityEnd.nextStep : capacityEnd.nextStep
+        .replace("Your recording is saved;", "Keep your original recording;") } : {...stopped,
       reason: input.preparationStatus?.state === "failed_terminal"
         ? `${stopped.reason} Automatic preparation retries have stopped.${ended ? ` ${ended}` : ""}` : stopped.reason,
       ...(/^bp-prep-[a-f0-9]{16}$/.test(input.preparationStatus?.correlationId ?? "")
@@ -656,7 +677,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       // One sentence for every capacity wait the Pipeline reports this way (this month's room, disk or staging).
       capacity_delayed: "Your recording is saved and your job is in line for processing on our side; nothing is needed from you. Keep your original recording.",
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
-      failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
+      failed_terminal: preparation.terminalReason === "capacity_blocked"
+        ? `${CAPACITY_ENDED_HEADLINE}${input.hasStoredCapture ? " Your video is kept." : " Keep your original recording."} Nothing more is needed from you.`
+        : `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
       // Final, never a hold: the job's own window says whether its time ran out.
       authority_ended: `${input.jobWindowEnded ? `${JOB_WINDOW_ENDED_SENTENCE} ${ANSWER_STAYS_ON_JOB_PAGE}` : AUTHORITY_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
       unavailable: "Your recording is saved. We could not verify the latest preparation status. Keep your original recording and check again shortly.",
@@ -713,7 +736,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // simulation, as its email says it, never "held" about the job: the site has its answer whatever happens here.
   const sceneOutcome = sceneProgressionOutcome(input.sceneProgression);
   const resultHeadline = sceneOutcome ? isScreeningHeldOutcome(sceneOutcome)
-    ? `${simulationOutcomeEmailSentence(sceneOutcome)} ${ANSWER_STAYS_ON_JOB_PAGE}`
+    ? `${simulationHoldSentence(sceneOutcome, input.sceneProgression?.holdDetail)} ${ANSWER_STAYS_ON_JOB_PAGE}`
     : screeningOutcomeSentenceWithWindow(sceneOutcome, input.jobWorkUntilEpoch, input.sceneProgression?.outcomeCaveat) : null;
   // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
   const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome
@@ -822,6 +845,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
  * where the coverage block or the confirmation timestamp live.
  */
 export function taskStatusInputFrom(record: {
+  /** The site's brief holds its own sentence (`isPlaceholderSummary` is false), confirmed or not. */
+  siteNamedTask?: boolean;
   active_capture_id?: string | null;
   site_task_brief_confirmed_at?: unknown;
   capture_coverage?: {
@@ -885,6 +910,7 @@ export function taskStatusInputFrom(record: {
             ? { jobNoGrantReason: "video_over_ingest_limit" as const } : {}) } : {}) } : {}),
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
+    ...(record.siteNamedTask ? { siteNamedTask: true } : {}),
     visualReconstructionReady: record.visualReconstructionReady === true,
     scenePreparationFailed: record.scenePreparationFailed === true,
     preparationOutcome: record.preparationOutcome ?? null,

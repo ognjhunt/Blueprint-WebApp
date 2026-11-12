@@ -72,7 +72,8 @@ describe("a website evaluation held before any campaign started", () => {
     expect(parseBetaPolicyScreeningHold({ ...sealHold(), detail_code: "changed" })).toBeNull();
     expect(parseBetaPolicyScreeningHold(sealHold({ hold_id: holdId("another-intent") }))).toBeNull();
     expect(parseBetaPolicyScreeningHold(sealHold({ status: "released" }))).toBeNull();
-    expect(parseBetaPolicyScreeningHold(sealHold({ reason_code: "made_up_reason" }))).toBeNull();
+    // A reason this release does not know is read, not refused (review, 2026-11-12): a hold on our side.
+    expect(parseBetaPolicyScreeningHold(sealHold({ reason_code: "made_up_reason" }))).not.toBeNull();
     expect(parseBetaPolicyScreeningHold(sealHold({ status: "released", reason_code: null, detail_code: null }))).not.toBeNull();
   });
 

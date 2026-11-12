@@ -106,6 +106,25 @@ describe("the Pipeline's early task hold", () => {
     });
   }
 
+  // Review, 2026-11-12: only the Atlas preview says the job has no sentence, before any preparation status arrived.
+  it("asks the site for its sentence and queues no needs-attention email when only the preview says the job is not named", async () => {
+    const { jobAwaitsItsSentence, TASK_NOT_NAMED_SENTENCES } = await import("../utils/taskPreparationOutcome");
+    const preview = atlas("website_task_not_named");
+    const record = { contact: { email: "encrypted:owner@example.com" }, website_atlas_previews: { [preview.capture_id]: preview } };
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", record);
+    // The page: the brief route asks for the sentence (`taskStatementNeeded`), and the card says why, the site's step.
+    expect(jobAwaitsItsSentence(record, "walkthrough-req-1")).toBe(true);
+    expect(jobAwaitsItsSentence(record, "walkthrough-other")).toBe(false);
+    const outcome = projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, preview.capture_id));
+    expect(outcome).toMatchObject({ title: TASK_NOT_NAMED_SENTENCES.title, actionOwner: "site" });
+    expect(JSON.stringify(projectTaskStatus({ ...base, preparationOutcome: outcome }))).not.toMatch(/needs our team's review|could not finish/i);
+    // No needs-attention email: the notice is not queued.
+    expect(await enqueueTaskLifecycleNotification({ requestId: "req-1", captureId: "walkthrough-req-1", eventId: EVENT,
+      milestone: "preparation_needs_attention" })).toEqual({ enqueued: false, reason: "awaiting_site_sentence" });
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("keeps the needs-attention email for a job that is not early-held and asks nothing of the site", async () => {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" },
       website_atlas_previews: { "walkthrough-req-1": atlas("atlas_scene_planner_abstained") } });

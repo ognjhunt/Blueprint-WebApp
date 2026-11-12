@@ -780,7 +780,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     }
                   })();
                 }}>
-                  <label htmlFor="task-statement">{answer
+                  {/* When the page is asking for the sentence, the label asks too; "Optional" only for a correction. */}
+                  <label htmlFor="task-statement">{status?.outlook?.phase === "waiting_on_site"
+                    ? "In one line, what should the robot do?"
+                    : answer
                     ? "Optional: if we read the job wrong, say in one line what the robot should do."
                     : "We could not tell the job from your video. In one line, what should the robot do?"}</label>
                   <input id="task-statement" value={taskStatement} maxLength={300} required
@@ -859,6 +862,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
         outlook={status?.outlook ?? null} />}
+      {/* The answer asks for the job's sentence: the form to give it sits right under it, not in the settings. */}
+      {answer && taskStatementForm}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
       {!answer && workspace}

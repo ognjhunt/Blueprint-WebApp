@@ -227,6 +227,40 @@ test("the answer, its details and the job settings read at phone width without s
   await context.close();
 });
 
+// Review, 2026-11-12: a job that waits for its sentence says so AND shows the form to give it. The server decides both
+// from one function (`jobWaitsForItsSentence`); here they arrive together, as it sends them.
+test("a job waiting for its sentence shows the form to name it under the answer that asks for it", async ({ page }) => {
+  const { unexpected } = await mockJob(page, { evaluation: null });
+  await page.route(`**/api/site-task-brief/${token}`, route => route.fulfill({ json: { ready: true, scope: "owner", account: null,
+    taskStatementNeeded: true, brief: { summary: "", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } }));
+  await page.route(`**/api/site-task-brief/${token}/status`, route => route.fulfill({ json: { scope: "owner", captureReceived: true,
+    answer: readyAnswer, outlook: { phase: "waiting_on_site", reason: "task_not_named",
+      sentence: "Tell us in one sentence what the robot should do, so we can build the simulation of your job." },
+    status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } }));
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.locator(".site-answer-bare .bare-lead")).toHaveText("Tell us in one sentence what the robot should do, so we can build the simulation of your job.");
+  const form = page.getByRole("form", { name: "Name the job" });
+  await expect(form).toBeVisible();
+  await expect(form.getByRole("textbox")).toBeVisible();
+  // The page is asking, so the label asks too: never "Optional".
+  await expect(form.locator("label")).toHaveText("In one line, what should the robot do?");
+  await expect(page.getByText(/^Optional: if we read the job wrong/)).toHaveCount(0);
+  expect(unexpected).toEqual([]);
+});
+
+// Review, 2026-11-12: once the site has given its sentence, the server says so (no ask, no form) until the Pipeline
+// re-reads the job: the page shows neither.
+test("a job the site has named shows no ask and no naming form", async ({ page }) => {
+  const { unexpected } = await mockJob(page, { evaluation: null });
+  await page.route(`**/api/site-task-brief/${token}`, route => route.fulfill({ json: { ready: true, scope: "owner", account: null,
+    taskStatementNeeded: false, brief: { summary: "Move the cartons onto the pallet.", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } }));
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await page.locator(".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
+  await expect(page.getByText("Tell us in one sentence what the robot should do, so we can build the simulation of your job.")).toHaveCount(0);
+  await expect(page.getByRole("form", { name: "Name the job" })).toHaveCount(0);
+  expect(unexpected).toEqual([]);
+});
+
 /** The withdrawn and before-the-video modes of the same job, as the server sends them; registered after mockJob, so they win. */
 async function mockMode(page: Page, mode: "withdrawn" | "film") {
   await page.route(`**/api/self-capture/uploads/${token}/status`, route => route.fulfill({ json: mode === "withdrawn"

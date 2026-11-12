@@ -25,7 +25,7 @@ import { logger } from "../logger";
 import { automationBatch } from "./automationBatch";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { isScreeningResultOutcome, screeningCandidateRows, screeningOutcome, screeningOutcomeCaveat, SCREENING_OUTCOME_CAVEATS,
-  type BetaPolicyScreeningPublication, type ScreeningOutcome } from "./betaPolicyScreeningContract";
+  type BetaPolicyScreeningPublication, type ScreeningOutcome , SCREENING_HOLD_DETAILS, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 
 export const SCREENING_OUTCOME_NOTICE_SCHEMA = "screening_outcome_notification.v1";
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -38,8 +38,10 @@ const intentSchema = z.object({
   counts: z.object({ ran: count, total: count, scored: count }).strict().optional(),
   /** What the estimate's sentence adds; absent on intents written before it existed and on every other outcome. */
   caveat: z.enum(SCREENING_OUTCOME_CAVEATS).optional(),
+  /** A hold's detail with words of its own (`screeningHoldDetail`); only on a set-up hold. */
+  hold_detail: z.enum(SCREENING_HOLD_DETAILS).optional(),
 }).strict().refine(value => value.event_id.startsWith(`${value.outcome}-`) && (value.outcome === "estimate") === Boolean(value.counts)
-  && (value.caveat === undefined || value.outcome === "estimate"));
+  && (value.caveat === undefined || value.outcome === "estimate") && (value.hold_detail === undefined || value.outcome === "held_setup"));
 export type ScreeningOutcomeNoticeIntent = z.infer<typeof intentSchema>;
 
 /** The same outcome on the same scene is one email, whichever campaign reached it. */
@@ -62,10 +64,11 @@ export function screeningOutcomeNoticeIntent(publication: BetaPolicyScreeningPub
 
 /** The notice a Pipeline hold owes its site (no campaign started), or null. Same key as a run's: one email per outcome and scene. */
 export function heldOutcomeNoticeIntent(outcome: ScreeningOutcome | null, requestId: string, runId: string,
-  sceneIntentId: string): ScreeningOutcomeNoticeIntent | null {
+  sceneIntentId: string, holdDetail: ScreeningHoldDetail | null = null): ScreeningOutcomeNoticeIntent | null {
   if (!isScreeningResultOutcome(outcome) || outcome === "estimate") return null;
   return parseScreeningOutcomeNoticeIntent({ schema_version: SCREENING_OUTCOME_NOTICE_SCHEMA, request_id: requestId, run_id: runId,
-    outcome, event_id: screeningOutcomeNoticeEventId(outcome, sceneIntentId) });
+    outcome, event_id: screeningOutcomeNoticeEventId(outcome, sceneIntentId),
+    ...(holdDetail && outcome === "held_setup" ? { hold_detail: holdDetail } : {}) });
 }
 
 export function parseScreeningOutcomeNoticeIntent(value: unknown): ScreeningOutcomeNoticeIntent | null {
@@ -92,7 +95,7 @@ export async function reconcileScreeningOutcomeNotifications(limit = 20): Promis
       // Refused while recording permission is withdrawn or no contact is on file: the intent stays pending.
       await enqueueTaskLifecycleNotification({ requestId: intent.request_id, milestone: "evaluation_outcome",
         eventId: intent.event_id, screeningOutcome: intent.outcome, ...(intent.counts ? { screeningCounts: intent.counts } : {}),
-        ...(intent.caveat ? { screeningCaveat: intent.caveat } : {}) });
+        ...(intent.caveat ? { screeningCaveat: intent.caveat } : {}), ...(intent.hold_detail ? { screeningHoldDetail: intent.hold_detail } : {}) });
       const queued = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(`${intent.request_id}:evaluation_outcome:${intent.event_id}`);
       await store.runTransaction(async transaction => {
         const current = await transaction.get(row.ref);

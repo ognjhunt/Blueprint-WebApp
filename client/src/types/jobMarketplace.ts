@@ -94,6 +94,8 @@ export interface JobManagedEvidenceSummary {
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number; configurationDigest?: string;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[];
+    /** Facts about this robot and the job's object (gripper width, weight), shown on this robot's result only. */
+    robotNotes?: string[];
     /** Where the success rate likely lies (a Wilson interval, whole percents); only on rows with scored episodes. */
     successRange?: { lowerPercent: number; upperPercent: number; confidencePercent: number };
     /** How far its graded episodes got (publication v4); absent when the publication has none. */

@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { parseBetaPolicyScreeningPublication, screeningCandidateRows, screeningEstimateRows, screeningKnownGoodControl,
-  screeningOutcome, screeningOutcomeCaveat, type BetaPolicyScreeningPublication } from "../utils/betaPolicyScreeningContract";
+  screeningOutcome, screeningOutcomeCaveat, screeningReferenceCheck, type BetaPolicyScreeningPublication } from "../utils/betaPolicyScreeningContract";
 import { encodeTaskEvaluationRunPublication } from "../utils/taskEvaluationRunPublicationStorage";
 import { projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { screeningOutcomeNoticeIntent } from "../utils/screeningOutcomeNotifications";
@@ -20,18 +20,25 @@ const PASSED = "Before testing robots, a scripted reference arm that reads exact
 const FAILED = "A scripted reference arm that reads exact positions from the simulation did not complete the job in the simulated scene, so a low result here may reflect our simulation rather than the robots.";
 const UNAVAILABLE = "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success.";
 const INTERRUPTED = "Our scripted reference check did not finish, so it could not confirm that the simulated scene can record a success.";
+// The check's own sentence states its real counts (review, 2026-11-12): successes of its scored tries, and how many
+// could not be scored when any.
+const ARM = "a scripted reference arm that reads exact positions from the simulation";
+const counted = (done: string, verdict: "passed" | "partly" | "failed") => verdict === "passed"
+  ? `Before testing robots, ${ARM} did the job in ${done}, so the simulated scene can record a success.`
+  : `A${ARM.slice(1)} did the job in ${done}, so a low result here may ${verdict === "partly" ? "partly " : ""}reflect our simulation rather than the robots.`;
+const NOT_SCORED = "None of our scripted reference check's tries could be scored, so it could not confirm that the simulated scene can record a success.";
 
 /** The control row as the Pipeline publishes it: scripted, three nominal episodes, its outcome as its one flag. */
-function controlRow(flag: string, done: { scored: number; succeeded: number } | null = { scored: 3, succeeded: 1 }) {
+function controlRow(flag: string, done: { scored: number; succeeded: number; planned?: number } | null = { scored: 3, succeeded: 1 }) {
   const ran = done !== null && !flag.startsWith("known_good_control_unavailable") && flag !== "known_good_control_pending";
   return { candidate_id: "blueprint_scripted_ur5e", display_name: "Blueprint scripted reference check",
     configuration_digest: screeningSha("9"), status: flag === "known_good_control_pending" ? "running" : ran ? "completed" : "unavailable",
-    blockers: ran || flag === "known_good_control_pending" ? [] : ["candidate_disabled"], episodes_planned: ran || flag === "known_good_control_pending" ? 3 : 0,
+    blockers: ran || flag === "known_good_control_pending" ? [] : ["candidate_disabled"], episodes_planned: ran ? done!.planned ?? 3 : flag === "known_good_control_pending" ? 3 : 0,
     episodes_scored: ran ? done!.scored : 0, episodes_succeeded: ran ? done!.succeeded : 0,
-    episodes_failed: ran ? done!.scored - done!.succeeded : 0, episodes_void: ran ? 3 - done!.scored : 0,
+    episodes_failed: ran ? done!.scored - done!.succeeded : 0, episodes_void: ran ? (done!.planned ?? 3) - done!.scored : 0,
     success_rate: ran && done!.scored ? done!.succeeded / done!.scored : null, session_result_digest: ran ? screeningSha("8") : null,
     execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
-    scripted_rollout_count: ran ? 3 : 0, learned_policy_rollout_count: 0, scripted_controller_invoked: ran, candidate_policy_queried: false,
+    scripted_rollout_count: ran ? done!.planned ?? 3 : 0, learned_policy_rollout_count: 0, scripted_controller_invoked: ran, candidate_policy_queried: false,
     setup_quality_flags: [flag] };
 }
 
@@ -62,7 +69,9 @@ const finished = () => {
 describe("the known-good control row", () => {
   it("is a check, never a candidate: out of the estimate, the counts and the list, said in one sentence", () => {
     const base = finished();
-    const value = parseBetaPolicyScreeningPublication(withControl(base, controlRow("known_good_control_passed")))!;
+    // A check that did the job 3 of 3 times (rewritten, 2026-11-12: the sentence follows the counts, and this fixture's
+    // default of 1 of 3 now reads as partly).
+    const value = parseBetaPolicyScreeningPublication(withControl(base, controlRow("known_good_control_passed", { scored: 3, succeeded: 3 })))!;
     expect(value).not.toBeNull();
     const control = value.candidates.at(-1)!;
     expect(screeningKnownGoodControl(control)).toBe(true);
@@ -74,9 +83,32 @@ describe("the known-good control row", () => {
     expect(row.screening!.candidates.map(item => item.candidateId)).toEqual(before.screening!.candidates.map(item => item.candidateId));
     expect(row.summary).toBe(before.summary);
     expect(row.limitations).toEqual(before.limitations);
-    expect(row.screening!.setupNotes).toEqual([PASSED]);
+    expect(row.screening!.setupNotes).toEqual([counted("3 of 3 scored tries in the simulated scene", "passed")]);
     const notice = screeningOutcomeNoticeIntent(value, "job-1")!, plain = screeningOutcomeNoticeIntent(base, "job-1")!;
     expect(notice.counts).toEqual(plain.counts);
+  });
+
+  // Review, 2026-11-12: the next Pipeline publishes the control FIRST, with its counts in the flag. Nothing depends on
+  // its position: it is found by its own marker. The released Pipeline's row-last publications read as before.
+  it("reads the same when the control is the first row, with the next Pipeline's suffixed flag", () => {
+    const base = finished();
+    const first = (row: ReturnType<typeof controlRow>) => sealScreening({ ...base, schema_version: "beta_policy_screening_publication.v3",
+      scene_feasibility: { status: "unknown", flags: [] }, candidates: [row, ...base.candidates] });
+    const value = parseBetaPolicyScreeningPublication(first(controlRow("known_good_control_passed:3_of_3", { scored: 3, succeeded: 3 })))!;
+    expect(value).not.toBeNull();
+    expect(screeningKnownGoodControl(value.candidates[0])).toBe(true);
+    expect(screeningCandidateRows(value.candidates)).toEqual(value.candidates.slice(1));
+    expect(screeningOutcome(value)).toBe(screeningOutcome(base));
+    const row = projected(value), before = projected(base);
+    expect(row.screening!.candidates.map(item => item.candidateId)).toEqual(before.screening!.candidates.map(item => item.candidateId));
+    expect(row.summary).toBe(before.summary);
+    expect(row.screening!.setupNotes).toEqual([counted("3 of 3 scored tries in the simulated scene", "passed")]);
+    expect(screeningOutcomeNoticeIntent(value, "job-1")!.counts).toEqual(screeningOutcomeNoticeIntent(base, "job-1")!.counts);
+    const projection = projectCandidateSelection({ record: selectionFixture(value) }, value)!;
+    expect(projection.candidates.map(item => item.candidateId)).toEqual(value.candidates.slice(1).map(item => item.candidate_id));
+    const partly = parseBetaPolicyScreeningPublication(first(controlRow("known_good_control_partly:1_of_3", { scored: 3, succeeded: 1 })))!;
+    expect(screeningReferenceCheck(partly.candidates)).toBe("partly");
+    expect(screeningSetupNotes(partly)).toEqual([counted("1 of 3 scored tries in the simulated scene", "partly")]);
   });
 
   it("is never a row the Pipeline's choice of candidate lists", () => {
@@ -122,13 +154,68 @@ describe("the known-good control row", () => {
     expect(screeningOutcome(value)).toBe("held_setup");
   });
 
-  it("does not add the scene caveat for a control's own flag", () => {
-    const base = sealScreening({ ...finished(), candidates: finished().candidates.map(row => row.status === "completed"
-      ? { ...row, episodes_succeeded: 0, episodes_failed: row.episodes_scored, success_rate: 0 } : row) });
-    const value = parseBetaPolicyScreeningPublication(withControl(base, controlRow("known_good_control_failed", { scored: 3, succeeded: 0 })))!;
+  // Rewritten (review, 2026-11-12): the reference check now drives the set-up notice on a result with no success: it
+  // shows when the check failed, did only partly, or could not run, and a passed check removes no other flag.
+  const noSuccess = () => sealScreening({ ...finished(), candidates: finished().candidates.map(row => row.status === "completed"
+    ? { ...row, episodes_succeeded: 0, episodes_failed: row.episodes_scored, success_rate: 0 } : row) });
+  it.each([
+    ["failed (0 of 3)", controlRow("known_good_control_failed", { scored: 3, succeeded: 0 }), "failed", "scene_setup"],
+    ["partly (1 of 3)", controlRow("known_good_control_passed", { scored: 3, succeeded: 1 }), "partly", "scene_setup"],
+    ["could not run", controlRow("known_good_control_unavailable"), "could_not_run", "scene_setup"],
+    ["interrupted", controlRow("known_good_control_interrupted", null), "could_not_run", "scene_setup"],
+    ["passed (2 of 3)", controlRow("known_good_control_passed", { scored: 3, succeeded: 2 }), "passed", null],
+    ["passed (3 of 3)", controlRow("known_good_control_passed", { scored: 3, succeeded: 3 }), "passed", null],
+  ] as const)("adds the set-up notice to a result with no success when the reference check %s", (_label, row, check, caveat) => {
+    const value = parseBetaPolicyScreeningPublication(withControl(noSuccess(), row as never))!;
     expect(screeningOutcome(value)).toBe("estimate");
-    expect(screeningOutcomeCaveat(value)).toBe(screeningOutcomeCaveat(base));
-    expect(screeningSetupNotes(value)).toEqual([FAILED]);
+    expect(screeningReferenceCheck(value.candidates)).toBe(check);
+    expect(screeningOutcomeCaveat(value)).toBe(caveat);
+  });
+  // Rewritten (review, 2026-11-12): the check's sentence and its verdict both follow its real counts, never its flag
+  // (a released Pipeline flags 1 of 3 as passed): could not run with nothing scored, failed with no scored success,
+  // passed with at least two scored and two thirds of them successes, otherwise partly.
+  it.each([
+    ["3/3", { scored: 3, succeeded: 3 }, "passed", counted("3 of 3 scored tries in the simulated scene", "passed")],
+    ["2/3", { scored: 3, succeeded: 2 }, "passed", counted("2 of 3 scored tries in the simulated scene", "passed")],
+    ["2/2 with a void", { scored: 2, succeeded: 2 }, "passed",
+      counted("2 of 2 scored tries in the simulated scene (1 more try could not be scored)", "passed")],
+    ["1/2 with a void", { scored: 2, succeeded: 1 }, "partly",
+      counted("1 of 2 scored tries in the simulated scene (1 more try could not be scored)", "partly")],
+    ["1/1 with two voids", { scored: 1, succeeded: 1 }, "partly",
+      counted("1 of 1 scored try in the simulated scene (2 more tries could not be scored)", "partly")],
+    ["0/3", { scored: 3, succeeded: 0 }, "failed", counted("none of 3 scored tries in the simulated scene", "failed")],
+    ["0 scored", { scored: 0, succeeded: 0 }, "could_not_run", NOT_SCORED],
+  ] as const)("says the reference check's real counts and verdict (%s, flagged passed)", (_label, done, check, sentence) => {
+    const value = parseBetaPolicyScreeningPublication(withControl(noSuccess(), controlRow("known_good_control_passed", done) as never))!;
+    expect(value).not.toBeNull();
+    expect(screeningReferenceCheck(value.candidates)).toBe(check);
+    expect(screeningSetupNotes(value)).toEqual([sentence]);
+  });
+  it.each([
+    ["could not run", controlRow("known_good_control_unavailable"), UNAVAILABLE],
+    ["interrupted", controlRow("known_good_control_interrupted", null), INTERRUPTED],
+  ] as const)("keeps the flag's own sentence for a check that %s", (_label, row, sentence) => {
+    const value = parseBetaPolicyScreeningPublication(withControl(noSuccess(), row as never))!;
+    expect(screeningReferenceCheck(value.candidates)).toBe("could_not_run");
+    expect(screeningSetupNotes(value)).toEqual([sentence]);
+  });
+
+  it("keeps a camera flag's notice when the reference check passed, and adds none to a result with a success", () => {
+    const flagged = sealScreening({ ...noSuccess(), schema_version: "beta_policy_screening_publication.v3",
+      scene_feasibility: { status: "unknown", flags: [] }, candidates: noSuccess().candidates.map((row, index) => index === 0
+        ? { ...row, observation_quality_flags: ["task_object_partly_hidden:wrist"] } : row) });
+    const passed = parseBetaPolicyScreeningPublication(withControl(flagged, controlRow("known_good_control_passed", { scored: 3, succeeded: 3 })))!;
+    expect(screeningOutcomeCaveat(passed)).toBe("scene_setup");
+    const succeeded = parseBetaPolicyScreeningPublication(withControl(finished(), controlRow("known_good_control_failed", { scored: 3, succeeded: 0 })))!;
+    expect(screeningOutcomeCaveat(succeeded)).toBeNull();
+  });
+  it("never raises the notice for a fact about one robot and the object", () => {
+    const facts = sealScreening({ ...noSuccess(), schema_version: "beta_policy_screening_publication.v3",
+      scene_feasibility: { status: "unknown", flags: [] }, candidates: noSuccess().candidates.map((row, index) => index === 0
+        ? { ...row, setup_quality_flags: ["task_object_needs_edge_grip", "task_object_wider_than_gripper"] } : row) });
+    const value = parseBetaPolicyScreeningPublication(facts)!;
+    expect(screeningOutcomeCaveat(value)).toBeNull();
+    expect(screeningSetupNotes(value)).toEqual([]);
   });
 });
 

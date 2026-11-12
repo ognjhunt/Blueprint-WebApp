@@ -407,8 +407,12 @@ describe("scene progression after hand-off", () => {
     // A pairing the contract does not define, or an unreadable record, is not adopted.
     const blocked = { status: "blocked", phase: "preparation", blockers: ["x"] };
     for (const value of [outcome("awaiting_site", true, "site_consent_required"), outcome("held", false, "task_family_unsupported"),
-      { ...outcome("held", true, "task_family_unsupported"), kind: "finished" }, { kind: "held", terminal: true }])
+      { kind: "held", terminal: true }])
       expect(projectWebsiteSceneProgression({ state: "accepted", pipeline_status: { ...blocked, outcome: value } })).toEqual({ state: "waiting" });
+    // Rewritten (review, 2026-11-12): a terminal kind this release does not know is the general ending (`stopped`).
+    expect(projectWebsiteSceneProgression({ state: "accepted", pipeline_status: { ...blocked,
+      outcome: { ...outcome("held", true, "task_family_unsupported"), kind: "finished" } } })).toMatchObject({ state: "ended",
+      sceneOutcome: { kind: "stopped", terminal: true } });
   });
   it("PROG-002 reads only this capture's latest intake and never fails the page", async () => {
     state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1",
