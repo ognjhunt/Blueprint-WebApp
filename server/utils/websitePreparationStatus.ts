@@ -633,6 +633,16 @@ export async function canNotifyCurrentWebsitePreparationIssue(requestId: string,
     throw unavailable();
   }
 }
+/**
+ * For a "no new video is needed" notice: the capture whose ask it follows, and that ask's event id, read from the
+ * stored row that owes it. Null when no single current row owes it (review, 2026-11-12).
+ */
+export async function resumedNoticeAsk(requestId: string, eventId: string, transaction?: FirebaseFirestore.Transaction,
+  deps = defaultDeps): Promise<{captureId: string; askEventId: string} | null> {
+  const match = await deps.findEvent(requestId, eventId, transaction).catch(() => null);
+  if (!match || websitePreparationResumedEventId(match.selector) !== eventId) return null;
+  return {captureId: match.selector.capture_id, askEventId: websitePreparationEventId(match.selector)};
+}
 /** Enqueue only into the existing outbox. Unknown enqueue outcome keeps recoverable durable intent. */
 export async function drainPendingWebsitePreparationNotifications(
   enqueue: (intent: WebsitePreparationIntent) => Promise<"enqueued" | "duplicate" | "unavailable">,

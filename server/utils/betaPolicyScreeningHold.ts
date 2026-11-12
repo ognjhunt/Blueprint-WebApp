@@ -25,7 +25,7 @@ import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, manag
   readManagedScreeningCapture, readPreparedRevisionOfferings } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { betaPolicyScreeningSourceSchema, isScreeningAttentionOutcome, storedScreeningOutcome,
-  type ScreeningHeldOutcome } from "./betaPolicyScreeningContract";
+  type ScreeningHeldOutcome , screeningHoldDetail } from "./betaPolicyScreeningContract";
 import { heldOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { websiteRunClosure } from "./websiteRunClosure";
@@ -151,7 +151,7 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
     // The site hears once when a hold first names an outcome (F-01); the same outcome again,
     // a release, or a run the owner closed owes nothing new.
     const notice = closed || outcome === storedScreeningOutcome(previous?.screening_outcome) ? null
-      : heldOutcomeNoticeIntent(outcome, jobId, hold.hold_id, hold.source.scene_intent_id);
+      : heldOutcomeNoticeIntent(outcome, jobId, hold.hold_id, hold.source.scene_intent_id, screeningHoldDetail(hold.reason_code, hold.detail_code));
     const now = new Date().toISOString();
     transaction.set(runRef, {
       run_id: hold.hold_id, run_kind: SCREENING_HOLD_RUN_KIND,

@@ -33,7 +33,7 @@ import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isE
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningHeldOutcome, isScreeningResultOutcome, simulationOutcomeEmailSentence, storedScreeningOutcomeCaveat,
-  type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
+  type ScreeningOutcome, type ScreeningOutcomeCaveat , simulationHoldSentence, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 import { PLAIN_SETUP_CAVEAT, projectSimulationProof, testHeadline, testNotRunLine, testResultOf, testSubLine,
   type SimulationProof } from "../../client/src/lib/simulationProof";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
@@ -259,6 +259,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   screeningCounts?: { ran: number; total: number; scored: number };
   /** `evaluation_outcome` estimate only: what the page's sentence adds (`screeningOutcomeCaveat`). */
   screeningCaveat?: ScreeningOutcomeCaveat;
+  /** `evaluation_outcome` set-up hold only: its detail with words of its own. */
+  screeningHoldDetail?: ScreeningHoldDetail;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `answer_ready` only: the settled answer the email states. */
@@ -474,6 +476,7 @@ export function buildTaskLifecycleNotification(params: {
   screeningCounts?: { ran: number; total: number; scored: number };
   /** `evaluation_outcome` estimate only: what the page's sentence adds (`screeningOutcomeCaveat`). */
   screeningCaveat?: ScreeningOutcomeCaveat;
+  screeningHoldDetail?: ScreeningHoldDetail;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `robot_access_question` only: how many chairs and stools the proposal moves; its event id is the proposal digest. */
@@ -640,6 +643,7 @@ async function loadSimulationProof(requestId: string): Promise<SimulationProof |
  */
 function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number }; screeningCaveat?: ScreeningOutcomeCaveat;
+  screeningHoldDetail?: ScreeningHoldDetail;
   simulationProof?: SimulationProof | null; siteAnswer?: SiteAnswer; paperUnread?: true }): string {
   const outcome = params.screeningOutcome;
   const counts = params.screeningCounts;
@@ -658,7 +662,7 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
     ? [testNotRunLine(params.simulationProof) ?? OUTLOOK_SENTENCES.no_ai_robot_scored,
       params.simulationProof?.options.setupFlag || storedScreeningOutcomeCaveat(params.screeningCaveat) ? PLAIN_SETUP_CAVEAT : null]
       .filter(Boolean).join(" ")
-    : testNotRunLine(params.simulationProof) ?? simulationOutcomeEmailSentence(outcome);
+    : testNotRunLine(params.simulationProof) ?? simulationHoldSentence(outcome, params.screeningHoldDetail);
   const paper = paperLine(params.siteAnswer, { hold: isScreeningHeldOutcome(outcome), unread: params.paperUnread });
   return paperAnswerLine(params.siteAnswer) ? `${why} ${paper}\n\n${finePrint(LIMITS_PAPER)}`
     : `${why} ${paper} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;

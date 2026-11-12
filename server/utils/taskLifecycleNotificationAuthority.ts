@@ -2,7 +2,7 @@
 import {dbAdmin as db} from '../../client/src/lib/firebaseAdmin';
 import {projectWebsiteCaptureRights} from './websiteTaskContext';
 import type {OutboxKind} from './captureOutbox';
-import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatus';
+import {canNotifyCurrentWebsitePreparationIssue,resumedNoticeAsk} from './websitePreparationStatus';
 import {decryptFieldValue} from './field-encryption';
 import {siteWalkthroughIdentity} from './siteWalkthrough';
 import {websiteRunClosure} from './websiteRunClosure';
@@ -131,11 +131,17 @@ export async function taskLifecycleNotificationIsCurrent(
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentRecipient)||currentRecipient!==entry.to)return false;
   // "No new video is needed" only while the walkthrough that was asked about is still the job's video, and the site
   // has not closed the job's run (review, 2026-11-12).
+  // It follows the ask for the capture that owes it: still the job's current video (the outlook's own identity),
+  // the run not closed, and the ask's own email went out (`OUTBOX_WENT_OUT`). An ask queued and never sent is
+  // dropped with the hand-off, and nothing follows it.
   if(entry.kind==='preparation_resumed'){
    const record=snapshot.data();
-   const captureId=`walkthrough-${entry.requestId}`;
-   if(siteWalkthroughIdentity(entry.requestId,record).captureId!==captureId)return false;
-   try{if(websiteRunClosure(record,entry.requestId,captureId))return false;}catch{return false;}
+   const ask=await resumedNoticeAsk(entry.requestId,entry.preparationEventId!,transaction);
+   if(!ask||siteWalkthroughIdentity(entry.requestId,record).captureId!==ask.captureId)return false;
+   try{if(websiteRunClosure(record,entry.requestId,ask.captureId))return false;}catch{return false;}
+   const askRef=db.collection('captureOutbox').doc(`${entry.requestId}:preparation_needs_attention:${ask.askEventId.replace(/[^A-Za-z0-9._-]/g,'_').slice(0,120)}`);
+   const asked=(transaction?await transaction.get(askRef):await askRef.get()).data();
+   if(!asked||!OUTBOX_WENT_OUT.has(String(asked.status)))return false;
   }
   return canNotifyCurrentWebsitePreparationIssue(entry.requestId,entry.preparationEventId!,transaction);
  }

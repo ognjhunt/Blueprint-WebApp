@@ -31,7 +31,7 @@ import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded } from "./taskPreparationOutcome";
 import { isScreeningHeldOutcome, screeningOutcomeSentenceWithWindow, simulationOutcomeEmailSentence, type ScreeningHeldOutcome, type ScreeningOutcome,
-  type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
+  type ScreeningOutcomeCaveat , simulationHoldSentence, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
 /**
@@ -222,6 +222,8 @@ export interface TaskSceneProgression {
   /** One build attempt failed and the Pipeline keeps trying: a wait, never an ending (review, 2026-11-11). */
   attemptFailed?: true;
   heldReason?: ScreeningHeldOutcome;
+  /** `held` only: the hold's detail with words of its own (`simulationHoldSentence`). */
+  holdDetail?: ScreeningHoldDetail;
   progressOutcome?: Extract<ScreeningOutcome, "awaiting_spend_approval" | "setup_repair" | "superseded">;
   /** `evaluated` only: what the estimate's sentence adds (`screeningOutcomeCaveat`), as the run's summary and email say it. */
   outcomeCaveat?: ScreeningOutcomeCaveat;
@@ -726,7 +728,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // simulation, as its email says it, never "held" about the job: the site has its answer whatever happens here.
   const sceneOutcome = sceneProgressionOutcome(input.sceneProgression);
   const resultHeadline = sceneOutcome ? isScreeningHeldOutcome(sceneOutcome)
-    ? `${simulationOutcomeEmailSentence(sceneOutcome)} ${ANSWER_STAYS_ON_JOB_PAGE}`
+    ? `${simulationHoldSentence(sceneOutcome, input.sceneProgression?.holdDetail)} ${ANSWER_STAYS_ON_JOB_PAGE}`
     : screeningOutcomeSentenceWithWindow(sceneOutcome, input.jobWorkUntilEpoch, input.sceneProgression?.outcomeCaveat) : null;
   // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
   const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome

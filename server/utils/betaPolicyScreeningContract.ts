@@ -585,6 +585,22 @@ const SIMULATION_OUTCOME_EMAIL_SENTENCE: Readonly<Record<Exclude<ScreeningOutcom
   held_scene_check: `The simulated scene failed the check we run before testing robots, so no robot was tested in it. ${ATTENTION_NEXT}`,
 };
 /** A held or reference-only outcome's email sentence, said about the simulation. */
+/**
+ * A hold's detail the site is told in its own words (review, 2026-11-12). The Pipeline sends the cold-storage hold
+ * only as the evaluation hold record: `team_scene_packet_blocked` with this `detail_code`. Any other detail keeps the
+ * reason's own sentence.
+ */
+export const SCREENING_HOLD_DETAILS = ["scene_run_in_cold_storage"] as const;
+export type ScreeningHoldDetail = typeof SCREENING_HOLD_DETAILS[number];
+const HOLD_DETAIL_SENTENCE: Readonly<Record<ScreeningHoldDetail, string>> = {
+  scene_run_in_cold_storage: "Held on our side while the saved simulation of your job is restored. Nothing is needed from you.",
+};
+export const screeningHoldDetail = (reason: unknown, detail: unknown): ScreeningHoldDetail | null =>
+  reason === "team_scene_packet_blocked" && detail === "scene_run_in_cold_storage" ? detail : null;
+/** The held sentence, by its detail when it has words of its own. */
+export function simulationHoldSentence(outcome: ScreeningOutcome, detail?: ScreeningHoldDetail | null): string {
+  return detail && outcome === "held_setup" ? HOLD_DETAIL_SENTENCE[detail] : simulationOutcomeEmailSentence(outcome);
+}
 export function simulationOutcomeEmailSentence(outcome: ScreeningOutcome): string {
   return (SIMULATION_OUTCOME_EMAIL_SENTENCE as Partial<Record<ScreeningOutcome, string>>)[outcome] ?? SCREENING_OUTCOME_SENTENCE[outcome];
 }
