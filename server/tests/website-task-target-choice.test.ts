@@ -254,3 +254,55 @@ describe("signed Pipeline read route", () => {
     expect((await post(false)).status).not.toBe(200);
   });
 });
+
+// The place question (Pipeline `website_destination_choice.public_place_question`, 2026-11-12), built against the
+// Pipeline's working-tree shape: kind, digests, the object label, the sentence (not shown as sent), 2-4 places and
+// the picture's reference. Answered like the object question; "none of these" has no meaning for a place.
+describe("the place question", () => {
+  const HERE = "p0123456789abcdef", THERE = "pfedcba9876543210";
+  const place = { kind: "task_destination_choice", question_digest: `sha256:${"3".repeat(64)}`, target_id: "destination.place",
+    semantic_label: "Tote", sentence: "We will test moving the tote from here to here.",
+    candidate_set_digest: `sha256:${"4".repeat(64)}`, guessed_candidate_id: HERE,
+    candidates: [{ candidate_id: HERE, label: "The place your job names", reference_time_ms: 2000 },
+      { candidate_id: THERE, label: "The other end of the same surface", reference_time_ms: 2000 }],
+    picture: { png_sha256: `sha256:${"5".repeat(64)}`, frame_id: "frame_000123" } } as unknown as TaskTargetChoiceQuestion;
+  it("is read on the status beside the object question, which reads exactly as before", async () => {
+    const deps = preparation(receipt("preparing", place));
+    await syncWebsitePreparationStatus(selector, deps);
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", deps)).question).toEqual(place);
+    const old = preparation(receipt("preparing"));
+    await syncWebsitePreparationStatus(selector, old);
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", old)).question).toEqual(question);
+  });
+  it("never fails the read for an extra key, or a question kind this release does not know (not shown)", async () => {
+    const extra = { ...place, later_key: true, candidates: (place as any).candidates.map((row: object) => ({ ...row, more: 1 })) };
+    const deps = preparation(receipt("preparing", extra as never));
+    await syncWebsitePreparationStatus(selector, deps);
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", deps)).question?.question_digest).toBe(place.question_digest);
+    const strange = preparation(receipt("preparing", { kind: "brand_new_question", question_digest: `sha256:${"6".repeat(64)}` } as never));
+    await syncWebsitePreparationStatus(selector, strange);
+    const read = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", strange);
+    expect(read.state).toBe("preparing");
+    expect(read.question).toBeNull();
+    // Still strict where it binds: ids, digests and the guess.
+    expect(taskTargetChoiceQuestionSchema.safeParse({ ...place, guessed_candidate_id: "p9999999999999999" }).success).toBe(false);
+    expect(taskTargetChoiceQuestionSchema.safeParse({ ...place, candidates: [(place as any).candidates[0]] }).success).toBe(false);
+  });
+  it("confirms the place or picks another; never none of these; the binding digest is the Pipeline's", async () => {
+    const confirm = choiceStore(place);
+    expect((await answerTaskTargetChoice("r1", "walkthrough-r1", { questionDigest: place.question_digest,
+      choice: { kind: "confirm_guess" } }, confirm.deps)).choice).toEqual({ kind: "confirm_guess", candidate_id: HERE });
+    await expect(answerTaskTargetChoice("r1", "walkthrough-r1", { questionDigest: place.question_digest,
+      choice: { kind: "none_of_these" } }, choiceStore(place).deps)).rejects.toThrow("task_target_choice_candidate_unknown");
+    const other = choiceStore(place);
+    const answer = await answerTaskTargetChoice("r1", "walkthrough-r1", { questionDigest: place.question_digest,
+      choice: { kind: "other_candidate", candidate_id: THERE } }, other.deps);
+    const session = { website_preparation: { selector }, website_task_target_choice: answer };
+    // The Pipeline's `correction_binding_digest`: {corrections: [object fixes], destination_place: {...}}.
+    expect(taskTargetSelection(session).correctionsDigest).toBe(crossRuntimeDigest({ corrections: [],
+      destination_place: { target_id: "destination.place", question_digest: place.question_digest, candidate_id: THERE } }));
+    expect(taskTargetSelection(session).rejected).toBe(false);
+    // A confirmed place is no correction at all.
+    expect(taskTargetSelection({ website_preparation: { selector }, website_task_target_choice: confirm.stored }).correctionsDigest).toBeNull();
+  });
+});
