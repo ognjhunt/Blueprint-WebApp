@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { assertWithinWebsiteJobCeiling, WEBSITE_JOB_CEILING_DEFAULT_USD, websiteJobCeiling, websiteJobCeilingSummary,
-  websiteJobSpend, type WebsiteJobLedgerReader } from "../utils/websiteJobCeiling";
+  websiteJobSafetyLimitUsd, websiteJobSpend, type WebsiteJobLedgerReader } from "../utils/websiteJobCeiling";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 
 const policy = { schema_version: "website_atlas_grant_policy.v1", maximum_cost_usd: 40, maximum_requests: 32,
@@ -30,6 +30,19 @@ describe("where the job's ceiling comes from", () => {
     expect(WEBSITE_JOB_CEILING_DEFAULT_USD).toBe(100);
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 30 }));
     expect(websiteJobCeiling({ record, captureId: "capture-b" })).toEqual({ maximum_cost_usd: 30, source: "atlas_grant_policy" });
+  });
+});
+
+describe("the job's safety limit (owner decision 2026-11-11)", () => {
+  it("is the stored ceiling or the grant policy's current figure, whichever is higher; $100 with no policy", () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "");
+    expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 25 })).toBe(100);
+    expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 130 })).toBe(130);
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 100 }));
+    expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 25 })).toBe(100);
+    // A policy lowered below a job's stored ceiling never lowers the job.
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 20 }));
+    expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 25 })).toBe(25);
   });
 });
 

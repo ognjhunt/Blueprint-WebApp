@@ -124,7 +124,7 @@ describe("job workflow authority and durable decisions", () => {
     expect(site.screening).not.toHaveProperty("budget");
     expect(JSON.stringify(site)).not.toMatch(/Owner approval|rerun|limitUsd|UpperBoundUsd|reservedUsd|\$/);
     const staff = (await api("/admin/job-one", "GET", undefined, "ops-token")).body.managedEvidence![0];
-    expect(staff.opsNextAction).toMatch(/^Held: the site's simulation allowance is spent/);
+    expect(staff.opsNextAction).toMatch(/^Held: testing reached a limit on our side/);
     expect(staff.screening?.budget).toMatchObject({ limitUsd: "15.00", spentUpperBoundUsd: "4" });
   });
 

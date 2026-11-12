@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { noEstimateReason as screeningNoEstimateReason, parseBetaPolicyScreeningPublication, screeningOutcome, screeningOutcomeSentence,
-  screeningPublicationTransition, screeningPublicationWithinJobCeilingSchema, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
+  screeningPublicationAboveSafetyLimit, screeningPublicationTransition, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, preparedSceneRevisionDigest, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
@@ -300,29 +300,23 @@ describe("automatic many-candidate job evaluation", () => {
       .toThrow("screening_campaign_identity_conflict");
   });
 
-  // Owner decision 2026-11-11: screening is bounded by the job's one safety limit, read at ingest, not a fixed $30.
-  it("holds a new delivery to its job's ceiling, and keeps every publication at $30 or under valid exactly as before", () => {
+  // Owner decision 2026-11-11: a result is never refused for its budget figures, only past the absolute $1000 cap.
+  it("accepts any limit up to $1000, keeps today's publications valid, and says when one is above a job's safety limit", () => {
     const { publication } = screeningFixture();
     const withBudget = (limit: string, committed = "0") => sealScreening({ ...publication,
       budget: { currency: "USD", limit_usd: limit, committed_upper_bound_usd: committed, spent_upper_bound_usd: committed, reserved_usd: "0" } });
-    const accepted = (ceiling: number, value: unknown) => screeningPublicationWithinJobCeilingSchema(ceiling).safeParse(value).success;
-    // What the Pipeline sends after its release: the job's $100 ceiling, with plans that fund every runnable robot.
-    expect(parseBetaPolicyScreeningPublication(withBudget("100", "51"))).not.toBeNull();
-    expect(accepted(100, withBudget("100", "51"))).toBe(true);
-    expect(accepted(100, withBudget("100.000001"))).toBe(false);
-    expect(accepted(100, withBudget("100.000001", "100.000001"))).toBe(false);
-    // Today's publications ($30 site limit, $15 plans) stay valid on every job, a $25 job included.
-    for (const ceiling of [25, 40, 100]) {
-      expect(accepted(ceiling, withBudget("30", "26.63"))).toBe(true);
-      expect(accepted(ceiling, withBudget("15", "15"))).toBe(true);
-    }
-    // Above $30 the job's own ceiling is the bound: a $25 job refuses $30.000001; an owner-raised one takes it.
-    expect(accepted(25, withBudget("30.000001"))).toBe(false);
-    expect(accepted(130, withBudget("130", "71.15"))).toBe(true);
-    expect(accepted(130, withBudget("130.000001"))).toBe(false);
-    // Everything the base schema refuses is still refused.
-    expect(accepted(100, withBudget("10", "11"))).toBe(false);
-    expect(accepted(100, { ...withBudget("10"), status: "completed" })).toBe(false);
+    for (const [limit, committed] of [["15", "15"], ["30", "26.63"], ["100", "51"], ["150", "120"], ["1000", "1000"]])
+      expect(parseBetaPolicyScreeningPublication(withBudget(limit, committed))).not.toBeNull();
+    expect(parseBetaPolicyScreeningPublication(withBudget("1000.000001"))).toBeNull();
+    expect(parseBetaPolicyScreeningPublication(withBudget("10", "11"))).toBeNull();
+    const above = (limit: string, committed: string, safety: number) =>
+      screeningPublicationAboveSafetyLimit({ limit_usd: limit, committed_upper_bound_usd: committed }, safety);
+    expect(above("100", "51", 100)).toBe(false);
+    expect(above("100.000001", "0", 100)).toBe(true);
+    expect(above("100", "100.000001", 100)).toBe(true);
+    // The legacy $30 site limit is never reported, even on a job whose safety limit is lower.
+    expect(above("30", "26.63", 25)).toBe(false);
+    expect(above("30.000001", "0", 25)).toBe(true);
   });
 
   it("funds a waitlisted candidate from released money without reopening a closed one", () => {
@@ -527,7 +521,7 @@ describe("automatic many-candidate job evaluation", () => {
     // Spending past it is the owner's to decide: the site reads no instruction and no budget.
     expect(projected.nextAction).toBe("Nothing is needed from you. Each row lists why it stopped.");
     expect(`${projected.summary} ${projected.nextAction}`).not.toMatch(/budget|owner approval|\$/i);
-    expect(projected.opsNextAction).toMatch(/^Held: the site's simulation allowance is spent/);
+    expect(projected.opsNextAction).toMatch(/^Held: testing reached a limit on our side/);
     expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
     expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
   });

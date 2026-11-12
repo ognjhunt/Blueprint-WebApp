@@ -779,6 +779,34 @@ it("queues a navigation intake with the job's own consent and rights, reserving 
   expect((await ledger()).native_construction_micros).toBe(0);
 });
 
+// Owner decision 2026-11-11: on a flagged grant nothing passes the job's safety limit, a navigation intake included.
+// It adds $0, so it is refused only once the job is already past the limit; everything else about it is unchanged.
+it.each([["flagged", true], ["unflagged", false]])("a navigation intake on a %s grant and the job's safety limit", async (_label, flagged) => {
+  if (!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION", "false");
+  sponsoredCapture();
+  const post = await sponsoredRoute();
+  const grant = await (await post("scene-sponsorship")).json();
+  expect(Boolean(grant.automatic_budget_extension)).toBe(flagged);
+  const request = navigationRequest(grant);
+  const held = (usd: number) => { store.rows.get("inboundRequests/req1").website_preparation_reservations = { ["b".repeat(64)]: {
+    admission: { provider: "world_labs_atlas", resource_class: "provider_reconstruction_api", maximum_cost_usd: usd, request_count: 1 } } }; };
+  // Already past the $100 default safety limit: refused on a flagged grant with the job's one alert, admitted as before otherwise.
+  held(100.000001);
+  const past = await post("prepared-scene", { request });
+  expect(past.status).toBe(flagged ? 409 : 202);
+  expect(store.rows.has("opsWebsiteJobOverBudgetAlerts/req1-safety-limit")).toBe(flagged);
+  if (!flagged) return;
+  expect(await past.json()).toEqual({ code: "website_scene_preparation_budget_exhausted" });
+  expect(intakeRows()).toHaveLength(0);
+  expect(store.rows.get("opsWebsiteJobOverBudgetAlerts/req1-safety-limit").safety_limit).toMatchObject({
+    stage: "scene_intake", safety_limit_usd: 100, additional_cost_usd: 0 });
+  // At the limit exactly it adds nothing, so it is admitted, with no note.
+  held(100);
+  const admitted = await post("prepared-scene", { request });
+  expect(admitted.status).toBe(202);
+  expect(stored()[1]).not.toHaveProperty("over_budget");
+});
+
 it("refuses an unconfirmed brief's navigation intake by name and stores nothing", async () => {
   sponsoredCapture();
   store.rows.get("siteTaskBriefs/req1").confirmedAtIso = null;

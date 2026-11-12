@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Owner decision 2026-11-11: a site's screening is bounded by its job's one safety limit, read at ingest.
+// Owner decision 2026-11-11: a result is never refused for its budget figures; the money stop is the reservation path.
 import { createServer, request as httpRequest, type Server } from "node:http";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
@@ -7,7 +7,8 @@ import { tmpdir } from "node:os";
 import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
-import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
+import { outcomePublication, screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
+import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader } from "../utils/websiteJobCeiling";
 
 const store = vi.hoisted(() => ({ rows: new Map<string, any>(), quarantined: [] as Array<{ issue: string }> }));
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({
@@ -92,39 +93,63 @@ const grantedAt = (figure: number) => {
   job.website_atlas_grants = { ...(job.website_atlas_grants ?? {}), [captureId]: { maximum_cost_usd: figure } };
 };
 
-it("accepts what the Pipeline sends after its release: a limit equal to the job's $100 ceiling", async () => {
+const alertRows = () => [...store.rows.keys()].filter(key => key.startsWith("opsWebsiteJobOverBudgetAlerts/"));
+const jobSpend = async () => {
+  const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+  return assertWithinWebsiteJobCeiling({ record: store.rows.get("inboundRequests/job-one"), requestId: "job-one",
+    captureId: screeningFixture().publication.source.capture_id, additionalCostUsd: 0.01,
+    reader: transactionJobLedgerReader(dbAdmin as any, { get: (ref: any) => ref.get() }, "job-one") });
+};
+
+it("accepts what the Pipeline sends after its release, a limit equal to the job's $100 ceiling, with no alert", async () => {
   const url = await endpoint();
   grantedAt(100);
   expect((await post(url, withBudget("100", "51"))).status).toBe(201);
   expect(runs()).toHaveLength(1);
-  expect(store.quarantined).toHaveLength(0);
+  expect(alertRows()).toEqual([]);
 });
 
-it("refuses a publication above its job's ceiling the way it refused one above the old $30: kept, 422, nothing ingested", async () => {
-  const url = await endpoint();
-  grantedAt(100);
-  for (const body of [withBudget("100.000001"), withBudget("100.000001", "100.000001")]) {
-    expect(await post(url, body)).toEqual({ status: 422, body: expect.objectContaining({ code: "schema_not_accepted",
-      kind: "beta_policy_screening_publication", quarantined: true }) });
-  }
-  expect(runs()).toHaveLength(0);
-  expect(store.quarantined.map(row => row.issue)).toEqual(["Screening must stay within the job's $100 safety limit",
-    "Screening must stay within the job's $100 safety limit"]);
-});
-
-it("keeps today's $30 publications valid on a job granted earlier at $25, and refuses $30.000001 there", async () => {
+it("keeps today's $30 publications exactly as before on a job granted earlier at $25", async () => {
   const url = await endpoint();
   grantedAt(25);
   expect((await post(url, withBudget("30", "26.63"))).status).toBe(201);
-  expect((await post(url, withBudget("30.000001"))).status).toBe(422);
-  expect(runs()).toHaveLength(1);
+  expect(alertRows()).toEqual([]);
+  expect(store.quarantined).toHaveLength(0);
 });
 
-it("reads the ceiling fresh: an owner-raised job takes a larger limit, and no grant at all means the $100 default", async () => {
+it("never refuses a result for its budget figures: one above the job's safety limit is kept, counted in full and reported once", async () => {
   const url = await endpoint();
-  // No grant, no policy: the owner default.
-  expect((await post(url, withBudget("100"))).status).toBe(201);
-  expect((await post(url, sealScreening({ ...withBudget("100.5"), revision: 2 }))).status).toBe(422);
-  grantedAt(130);
-  expect((await post(url, sealScreening({ ...withBudget("130", "71.15"), revision: 2 }))).status).toBe(200);
+  grantedAt(25);
+  // Safety limit: max($25 stored ceiling, $100 owner default with no policy) = $100.
+  expect((await post(url, withBudget("150", "120"))).status).toBe(201);
+  expect(runs()).toHaveLength(1);
+  expect(store.quarantined).toHaveLength(0);
+  expect(alertRows()).toEqual(["opsWebsiteJobOverBudgetAlerts/job-one-screening-over-safety-limit"]);
+  expect(store.rows.get(alertRows()[0]).screening_over_safety_limit).toMatchObject({ safety_limit_usd: 100, job_ceiling_usd: 25,
+    limit_usd: "150", committed_upper_bound_usd: "120", campaign_id: "campaign-one" });
+  // A later revision, and a replay, add no second alert.
+  expect((await post(url, sealScreening({ ...withBudget("150", "130"), revision: 2 }))).status).toBe(200);
+  expect(alertRows()).toHaveLength(1);
+  // Counted in full ($130), so the job admits no more spend.
+  const refusal = await jobSpend().catch(error => error);
+  expect(refusal).toBeInstanceOf(Error);
+  expect(refusal.message).toBe("website_scene_preparation_budget_exhausted");
+});
+
+it("refuses only past the parser's absolute $1000 cap, the largest job ceiling there can be", async () => {
+  const url = await endpoint();
+  expect((await post(url, withBudget("1000", "999"))).status).toBe(201);
+  expect(await post(url, sealScreening({ ...withBudget("1000.000001"), revision: 2 }))).toEqual({ status: 422,
+    body: expect.objectContaining({ code: "schema_not_accepted", quarantined: true }) });
+  expect(store.quarantined).toEqual([{ issue: "Screening must stay within its limit, at most $1000" }]);
+});
+
+it("reports robots held back at the job's limit once per job, so the site's line about our team is true", async () => {
+  const url = await endpoint();
+  const held = outcomePublication(screeningFixture().publication, "awaiting_spend_approval");
+  expect((await post(url, held)).status).toBe(201);
+  expect(alertRows()).toEqual(["opsWebsiteJobOverBudgetAlerts/job-one-screening-job-ceiling"]);
+  expect(store.rows.get(alertRows()[0]).screening_job_ceiling).toMatchObject({ candidate_count: held.candidates.length });
+  expect((await post(url, held)).status).toBe(200);
+  expect(alertRows()).toHaveLength(1);
 });
