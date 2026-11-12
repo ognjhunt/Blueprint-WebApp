@@ -7,7 +7,7 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { TASK_TARGET_CHOICE_ANSWER_SCHEMA, taskTargetCandidateIdSchema, taskTargetChoiceSchema,
-  taskTargetChoiceSelectorShape, taskTargetIdSchema, type TaskTargetChoice, type TaskTargetChoiceQuestion,
+  taskTargetChoiceSelectorShape, taskTargetIdSchema, TASK_DESTINATION_TARGET_ID, type TaskTargetChoice, type TaskTargetChoiceQuestion,
   type TaskTargetChoiceRequest } from "./taskTargetChoiceContract";
 import { loadCurrentTaskTargetChoiceQuestion, verifyCurrentWebsitePreparationSelector,
   type WebsitePreparationSelector } from "./websitePreparationStatus";
@@ -60,15 +60,21 @@ export function taskTargetSelection(session: Record<string, any> | null | undefi
     if (!prior || answer.answered_at >= prior.answered_at) latest.set(answer.target_id, answer);
   }
   const answers = [...latest.values()].sort((a, b) => a.target_id < b.target_id ? -1 : a.target_id > b.target_id ? 1 : 0);
-  const corrections = answers.filter(row => row.choice.kind !== "confirm_guess").map(row => ({
+  // The place answer is not an object correction: it binds the preparation as the Pipeline's own
+  // `correction_binding_digest` does ({corrections, destination_place}), so the two digests agree (2026-11-12).
+  const place = answers.find(row => row.target_id === TASK_DESTINATION_TARGET_ID && row.choice.kind === "other_candidate");
+  const corrections = answers.filter(row => row.target_id !== TASK_DESTINATION_TARGET_ID && row.choice.kind !== "confirm_guess").map(row => ({
     target_id: row.target_id, question_digest: row.question_digest,
     ...(row.choice.kind === "none_of_these" ? {kind: "none_of_these"} : {candidate_id: row.choice.candidate_id}),
   }));
   const prior = parseStoredTaskTargetChoice(session?.website_task_target_choice_prior);
   const restoringGuess = Boolean(prior?.choice.kind === 'none_of_these' && answers.some(row => row.choice.kind === 'confirm_guess'
     && row.question_digest === prior.question_digest && crossRuntimeDigest(selectorOf(row)) === crossRuntimeDigest(selectorOf(prior))));
+  const destinationPlace = place && place.choice.kind === "other_candidate"
+    ? {target_id: place.target_id, question_digest: place.question_digest, candidate_id: place.choice.candidate_id} : null;
   return { answers, restoringGuess, rejected: answers.some(row => row.choice.kind === "none_of_these"),
-    correctionsDigest: corrections.length ? crossRuntimeDigest({corrections}) : null };
+    correctionsDigest: destinationPlace ? crossRuntimeDigest({corrections, destination_place: destinationPlace})
+      : corrections.length ? crossRuntimeDigest({corrections}) : null };
 }
 
 export function taskTargetSelectionApplies(session: Record<string, any> | null | undefined,
@@ -169,6 +175,9 @@ export async function answerTaskTargetChoice(requestId: string, captureId: strin
     throw new Error("task_target_choice_question_changed");
   const guessed = current.question.guessed_candidate_id;
   const request = body.choice;
+  // A place is confirmed or replaced; "none of these" has no meaning for it.
+  if (current.question.kind === "task_destination_choice" && request.kind === "none_of_these")
+    throw new Error("task_target_choice_candidate_unknown");
   if (request.kind === "other_candidate" && (request.candidate_id === guessed
     || !current.question.candidates.some(row => row.candidate_id === request.candidate_id)))
     throw new Error("task_target_choice_candidate_unknown");

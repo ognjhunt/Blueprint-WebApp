@@ -1,3 +1,5 @@
+import { destinationPictureUrl } from "../utils/websiteDestinationPicture";
+import { placeKindOf } from "../utils/taskTargetChoiceContract";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
@@ -1463,7 +1465,14 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       claimUrl,
       sceneViewUrl: scenePreviewUrl ?? (status.resultSuperseded ? null : sceneViewUrl),
       // Opaque ids and position labels only; no frame or person pixels.
-      targetChoice: question ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
+      // The optional place question (2026-11-12): ids and place kinds only; the picture through its 15-minute ticket.
+      destinationChoice: question?.kind === "task_destination_choice" && targetChoiceAnswer === null ? {
+        questionDigest: question.question_digest, objectLabel: question.semantic_label,
+        guessedCandidateId: question.guessed_candidate_id,
+        candidates: question.candidates.map(row => ({ id: row.candidate_id, place: placeKindOf(row.label) })),
+        pictureUrl: question.picture && request?.captureRights.derived_scene_generation_allowed
+          ? destinationPictureUrl(payload.requestId, payload.captureId, question.picture.png_sha256) : null } : null,
+      targetChoice: question && question.kind === "task_target_choice" ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
         ...(targetChoiceAnswer === 'none_of_these' ? {rejected: true} : {}),
         guessedCandidateId: question.guessed_candidate_id,
         candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,

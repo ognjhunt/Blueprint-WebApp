@@ -3,12 +3,14 @@ import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
 import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
-import { KNOWN_PREPARATION_OUTCOME_CATEGORIES, KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON, pipelineAsksForSentence } from "./taskPreparationOutcome";
+import { KNOWN_PREPARATION_OUTCOME_CATEGORIES, KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS,
+  PREPARATION_NOT_POSSIBLE_REASON, PREPARATION_NOT_POSSIBLE_CAUSES, PREPARATION_OUTCOME_KEYS, PREPARATION_RETRIES_SPENT_REASON, TASK_NOT_NAMED_REASON, pipelineAsksForSentence } from "./taskPreparationOutcome";
 import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
 import { logger } from "../logger";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
-import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
+import { isKnownTaskChoiceQuestion, TASK_CHOICE_CANDIDATE_KEYS, TASK_CHOICE_PICTURE_KEYS, TASK_CHOICE_QUESTION_KEYS,
+  taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -194,11 +196,24 @@ export function unknownPreparationCodes(status: WebsitePreparationReceipt): Arra
   if (terminal && !known(WEBSITE_PREPARATION_TERMINAL_REASONS, terminal)) found.push(["preparation.terminal_reason", terminal]);
   const outcome = "outcome" in status ? status.outcome : null;
   if (outcome && !KNOWN_PREPARATION_OUTCOME_REASONS.has(outcome.reason) && !(PREPARATION_RECAPTURE_REASONS as readonly string[]).includes(outcome.reason)
-    && outcome.reason !== TASK_NOT_NAMED_REASON) found.push(["preparation.outcome.reason", outcome.reason]);
+    && outcome.reason !== TASK_NOT_NAMED_REASON && outcome.reason !== PREPARATION_NOT_POSSIBLE_REASON
+    && outcome.reason !== PREPARATION_RETRIES_SPENT_REASON) found.push(["preparation.outcome.reason", outcome.reason]);
   if (outcome && !KNOWN_PREPARATION_OUTCOME_CATEGORIES.includes(outcome.category)) found.push(["preparation.outcome.category", outcome.category]);
+  // A cause this release has no words for, and any key the outcome or the question carries that it does not read
+  // (kept, since the status digest seals it; never shown): staff hear, the read goes on.
+  const cause = outcome && outcome.reason === PREPARATION_NOT_POSSIBLE_REASON ? (outcome as {cause?: string}).cause : undefined;
+  if (cause && !Object.hasOwn(PREPARATION_NOT_POSSIBLE_CAUSES, cause)) found.push(["preparation.outcome.cause", cause]);
+  for (const key of Object.keys(outcome ?? {})) if (!PREPARATION_OUTCOME_KEYS.includes(key)) found.push(["preparation.outcome.key", key]);
+  const asked = "question" in status ? status.question as Record<string, any> | null : null;
+  for (const key of Object.keys(asked ?? {})) if (!TASK_CHOICE_QUESTION_KEYS.includes(key)) found.push(["preparation.question.key", key]);
+  for (const row of Array.isArray(asked?.candidates) ? asked!.candidates : [])
+    for (const key of Object.keys(row ?? {})) if (!TASK_CHOICE_CANDIDATE_KEYS.includes(key)) found.push(["preparation.question.candidate_key", key]);
+  for (const key of Object.keys(asked?.picture ?? {})) if (!TASK_CHOICE_PICTURE_KEYS.includes(key)) found.push(["preparation.question.picture_key", key]);
   const fit = "robot_fit" in status ? status.robot_fit : null;
   if (fit?.reason && !known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason)) found.push(["robot_fit.reason", fit.reason]);
   for (const row of fit?.models ?? []) if (!known(ROBOT_FIT_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
+  const question = "question" in status ? status.question as {kind?: unknown} | null : null;
+  if (question && typeof question.kind === "string" && !isKnownTaskChoiceQuestion(question)) found.push(["preparation.question.kind", question.kind]);
   const precheck = "robot_fit_precheck" in status ? status.robot_fit_precheck : null;
   for (const row of precheck?.embodiments ?? []) {
     if (!known(ROBOT_FIT_PRECHECK_EMBODIMENTS, row.embodiment)) found.push(["robot_fit_precheck.embodiment", row.embodiment]);
@@ -593,7 +608,8 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
         holdReason: precheck.holdReason, precheckDigest: precheck.precheckDigest, counts: precheck.counts}, objectName) : null} : {}),
       // The job waits for its sentence (the site names it; the page asks for it).
       ...(pipelineAsksForSentence(status as never) ? {taskNotNamed: true} : {}),
-      ...("question" in status ? {question: status.question} : {}),
+      // A question of a kind this release does not know is not shown (never a failed read).
+      ...("question" in status ? {question: isKnownTaskChoiceQuestion(status.question) ? status.question : null} : {}),
       ...("robot_fit" in status ? {robotFit: status.robot_fit ? publicRobotFit(status.robot_fit) : null} : {}),
       ...("robot_fit_precheck" in status ? {robotFitPrecheck: precheck} : {})};
   } catch { return {state: "unavailable", correlationId: null}; }
@@ -603,7 +619,7 @@ export async function loadCurrentTaskTargetChoiceQuestion(requestId: string, cap
   Promise<{selector: WebsitePreparationSelector; question: TaskTargetChoiceQuestion} | null> {
   id.parse(requestId); websitePreparationSelectorSchema.shape.capture_id.parse(captureId);
   const {status, selector} = await fresh(captureId, requestId, deps);
-  return "question" in status && status.question ? {selector, question: status.question} : null;
+  return "question" in status && isKnownTaskChoiceQuestion(status.question) ? {selector, question: status.question} : null;
 }
 /** Recheck ownership, rights and current task without calling back into the
  * Pipeline worker that is reading an already retained owner selection. */

@@ -49,6 +49,7 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   // flag read on its own.
   known_good_control_partly: "A scripted reference arm that reads exact positions from the simulation did the job in only some of its tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots.",
   "known_good_control_unavailable:task_kind": "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
+  "known_good_control_unavailable:backend": "We have no scripted reference that runs in the simulator this job used yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   // A run's own record that an AI robot's software stopped mid-test (Pipeline `session_policy_server_lost`).
   session_policy_server_lost: "This AI robot's software stopped during the test, so only some tries were counted.",
   // What the simulated scene was built on that was estimated, not observed (Pipeline `atlas_scene_estimates`,
@@ -69,6 +70,9 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "scene_estimate:registration_ambiguous": "We could not line your video up with the simulated scene with full confidence, so things may sit slightly differently from your site.",
   "scene_estimate:placement_uncertainty": "The object's position in the simulated scene may differ from your site by a few centimetres.",
   "scene_estimate:support_height_differs_from_picture": "In the simulated scene, the object rests slightly above or below the surface the cameras show.",
+  "scene_estimate:support_guessed": "We could not find the surface the object rests on in your video, so the simulated scene uses the nearest one.",
+  // Our paper check gave no verdict (no arm enabled, no clear standing place, or out of reach from every place found).
+  "scene_estimate:capability_unassessed": "We could not work out on paper what each robot can do in this scene; the tests ran anyway.",
   // A run's camera and set-up checks, per camera where the code names one.
   task_object_partly_hidden: "In the simulation, the job's object was partly hidden from one of the robot's cameras.",
   task_target_marker_partly_hidden: "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras.",
@@ -94,7 +98,24 @@ const ROBOT_FACT_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.en
 /** The box-fit flags (`task_object_box_fit_*`): one sentence for the family. */
 const BOX_FIT_PREFIX = "task_object_box_fit_";
 const BOX_FIT_SENTENCE = "In the simulated scene, the object's size or outline differs from what your video shows.";
-const familySentence = (code: string) => code.split(":")[0].startsWith(BOX_FIT_PREFIX) ? BOX_FIT_SENTENCE : undefined;
+/**
+ * `scene_estimate:robot_fit_none:<cause>`: on paper none of the robots fits; the general sentence, then one for the
+ * cause when it has words (an unknown cause keeps the general sentence).
+ */
+const ROBOT_FIT_NONE_PREFIX = "scene_estimate:robot_fit_none";
+export const ROBOT_FIT_NONE_SENTENCE = "On paper, none of the robots we tested fits this job, so a low result is expected. We ran the test anyway.";
+export const ROBOT_FIT_NONE_CAUSES: Readonly<Record<string, string>> = {
+  reach: "No robot's arm can reach the job from any position we found.",
+  task_kind: "No robot's software lists this kind of job.",
+  gpu_memory: "The robots' software needs more computing memory than any machine we rent.",
+  no_candidate_available: "No robot was available from our catalog.",
+};
+const familySentence = (code: string) => {
+  if (code.split(":")[0].startsWith(BOX_FIT_PREFIX)) return BOX_FIT_SENTENCE;
+  if (code !== ROBOT_FIT_NONE_PREFIX && !code.startsWith(`${ROBOT_FIT_NONE_PREFIX}:`)) return undefined;
+  const cause = code.slice(ROBOT_FIT_NONE_PREFIX.length + 1);
+  return Object.hasOwn(ROBOT_FIT_NONE_CAUSES, cause) ? `${ROBOT_FIT_NONE_SENTENCE} ${ROBOT_FIT_NONE_CAUSES[cause]}` : ROBOT_FIT_NONE_SENTENCE;
+};
 const flagBase = (code: string) => code.split(":")[0];
 /** A flag that is a fact about one robot and the object, not about how we set up the scene. */
 export const isRobotFactFlag = (code: string) => isRobotFactFlagCode(code) && ROBOT_FACT_FLAG_SENTENCES.has(flagBase(code));

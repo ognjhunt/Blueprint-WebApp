@@ -16,9 +16,8 @@ import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screenin
 import pipelineV1 from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
 import pipelineV2 from "./fixtures/pipeline-beta-policy-screening-publication.v2.json";
 import pipelineV3 from "./fixtures/pipeline-beta-policy-screening-flagged-publication.v3.json";
-import pipelineV4 from "./fixtures/pipeline-beta-policy-screening-progress-publication.v4.json";
 import { parseBetaPolicyScreeningPublication, screeningOutcome, screeningPublicationTransition, SCREENING_PROGRESS_GRADER_VERSION,
-  SCREENING_PROGRESS_STAGES } from "../utils/betaPolicyScreeningContract";
+  SCREENING_PROGRESS_STAGES, screeningKnownGoodControl } from "../utils/betaPolicyScreeningContract";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 
@@ -49,7 +48,14 @@ const router: any = (await import("../routes/internal-beta-policy-screening")).d
  * The Pipeline's own v4 fixture's bytes (`progress-fixture`, written by the Pipeline from its grader).
  * Change the fixture in both repositories together, and this value in both tests.
  */
-const PIPELINE_V4_FIXTURE_SHA256 = "5ad8e51f64357ff520ad2b961c0db169e21ec9f5d82b17583cc04cdd33c75da6";
+// Refreshed 2026-11-12 from the Pipeline's working tree (its control row now first, flagged with its counts); the
+// released Pipeline's shape (control last, unsuffixed flag) is kept beside it and must keep reading the same.
+const PIPELINE_V4_FIXTURES = [
+  { name: "the Pipeline's current", file: "./fixtures/pipeline-beta-policy-screening-progress-publication.v4.json",
+    sha256: "4b3e90887c3df6dcceb17cc01c690106c1ef28686ebbc6f0117264d4c51fb540" },
+  { name: "the released Pipeline's", file: "./fixtures/pipeline-beta-policy-screening-progress-publication.v4.released.json",
+    sha256: "5ad8e51f64357ff520ad2b961c0db169e21ec9f5d82b17583cc04cdd33c75da6" },
+] as const;
 const NO_POLICY = "The simulation ran, but no policy completed the job in it, so it could not rank them.";
 const HOW_FAR = "How far each got: π0.5 lifted and carried the object in 2 of 10 tries; GR00T N1.7 moved the object in 1 of 10 tries.";
 const SECRET = "test-only-screening-progress-signature";
@@ -115,19 +121,23 @@ beforeEach(() => {
 });
 
 describe("the v4 wire contract", () => {
-  it("reads the Pipeline's own v4 fixture byte for byte, digest included, and carries its progress to the site", async () => {
-    const raw = readFileSync(new URL("./fixtures/pipeline-beta-policy-screening-progress-publication.v4.json", import.meta.url));
-    expect(createHash("sha256").update(raw).digest("hex")).toBe(PIPELINE_V4_FIXTURE_SHA256);
+  it.each(PIPELINE_V4_FIXTURES)("reads $name v4 fixture byte for byte, digest included, and carries its progress to the site", async fixture => {
+    const raw = readFileSync(new URL(fixture.file, import.meta.url));
+    expect(createHash("sha256").update(raw).digest("hex")).toBe(fixture.sha256);
     const published = JSON.parse(raw.toString("utf8"));
     const parsed = parseBetaPolicyScreeningPublication(published)!;
     expect(parsed).not.toBeNull();
     expect(parsed).toStrictEqual(published);
-    expect(parsed.publication_digest).toBe(crossRuntimeArtifactDigest(pipelineV4, "publication_digest"));
+    expect(parsed.publication_digest).toBe(crossRuntimeArtifactDigest(published, "publication_digest"));
     expect(parsed.schema_version).toBe("beta_policy_screening_publication.v4");
-    // Both ladders, the distance exactly with `approached`, and none on the known-good control.
-    expect(parsed.candidates.map(row => [row.progress?.stages[0].stage ?? null, row.progress?.closest_approach_m ?? null])).toEqual([
+    // Both ladders, the distance exactly with `approached`, and none on the known-good control, wherever it sits.
+    const control = parsed.candidates.findIndex(screeningKnownGoodControl);
+    expect(control).toBeGreaterThanOrEqual(0);
+    expect(parsed.candidates[control].progress ?? null).toBeNull();
+    const candidates = parsed.candidates.filter((_row, index) => index !== control);
+    expect(candidates.map(row => [row.progress?.stages[0].stage ?? null, row.progress?.closest_approach_m ?? null])).toEqual([
       ["approached", { median: 0, min: 0 }], ["approached", { median: 0, min: 0 }], ["approached", { median: 0.12, min: 0.07 }],
-      ["contact", null], [null, null]]);
+      ["contact", null]]);
     expect(screeningOutcome(parsed)).toBe("estimate");
 
     // Ingested for the fixture job: the site's view carries each candidate's progress in the contract's shape.
@@ -135,7 +145,7 @@ describe("the v4 wire contract", () => {
       site_id: job.publication.site_id, source: job.publication.source }));
     const rows = siteView().screening!.candidates;
     expect(rows.map(row => row.candidateId)).toEqual(["policy-a", "policy-b", "policy-c", "policy-d"]);
-    expect(rows.map(row => row.progress)).toEqual(published.candidates.slice(0, 4).map((row: any) => ({
+    expect(rows.map(row => row.progress)).toEqual(published.candidates.filter((_row: unknown, index: number) => index !== control).map((row: any) => ({
       graded: row.progress.episodes_graded, stages: row.progress.stages, meanScore: row.progress.mean_score,
       ...(row.progress.closest_approach_m ? { closestApproachM: row.progress.closest_approach_m } : {}) })));
     // Policy C reached no stage: it says how close it typically came. A completion elsewhere leaves the line alone.

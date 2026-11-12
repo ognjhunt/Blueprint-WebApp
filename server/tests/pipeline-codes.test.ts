@@ -37,7 +37,14 @@ describe("set-up and scene flags", () => {
     ["task_object_box_fit_outline:top", "In the simulated scene, the object's size or outline differs from what your video shows."],
     ["known_good_control_partly:1_of_3", "A scripted reference arm that reads exact positions from the simulation did the job in only some of its tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots."],
     ["known_good_control_passed:2_of_3", "Before testing robots, a scripted reference arm that reads exact positions from the simulation completed the job, so the simulated scene can record a success."],
-    ["known_good_control_unavailable:backend", "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
+    ["known_good_control_unavailable:backend", "We have no scripted reference that runs in the simulator this job used yet, so nothing confirmed beforehand that the simulated scene can record a success."],
+    ["scene_estimate:support_guessed", "We could not find the surface the object rests on in your video, so the simulated scene uses the nearest one."],
+    ["scene_estimate:capability_unassessed", "We could not work out on paper what each robot can do in this scene; the tests ran anyway."],
+    ["scene_estimate:robot_fit_none:reach", "On paper, none of the robots we tested fits this job, so a low result is expected. We ran the test anyway. No robot's arm can reach the job from any position we found."],
+    ["scene_estimate:robot_fit_none:task_kind", "On paper, none of the robots we tested fits this job, so a low result is expected. We ran the test anyway. No robot's software lists this kind of job."],
+    ["scene_estimate:robot_fit_none:gpu_memory", "On paper, none of the robots we tested fits this job, so a low result is expected. We ran the test anyway. The robots' software needs more computing memory than any machine we rent."],
+    ["scene_estimate:robot_fit_none:no_candidate_available", "On paper, none of the robots we tested fits this job, so a low result is expected. We ran the test anyway. No robot was available from our catalog."],
+    ["scene_estimate:robot_fit_none:brand_new_cause", "On paper, none of the robots we tested fits this job, so a low result is expected. We ran the test anyway."],
     ["known_good_control_unavailable:task_kind", "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
   ])("says %s in plain words, never the code", (code, sentence) => {
     expect(setupFlagSentence(code)).toBe(sentence);

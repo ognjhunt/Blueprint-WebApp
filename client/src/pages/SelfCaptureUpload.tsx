@@ -6,6 +6,7 @@ import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
+import { TaskDestinationChoice, isDestinationChoice, type TaskDestinationChoiceView } from "@/components/site/TaskDestinationChoice";
 import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/RobotFit";
 import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/components/site/RobotFitHold";
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
@@ -69,6 +70,7 @@ type TaskStatus = {
   footageReviewAutomated?: boolean;
   /** The optional correction of the guessed object to move, for the owner only. */
   targetChoice?: TaskTargetChoiceView | null;
+  destinationChoice?: TaskDestinationChoiceView | null;
   /** Which robots fit the job by spec sheet, for the owner only: an estimate, never a physical test. */
   robotFit?: RobotFitView | null;
   /** The robots checked before any spend and why none fits, for the owner only, while the job is held on it. */
@@ -536,6 +538,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             captureReceived: data.captureReceived === true,
             footageReviewAutomated: data.footageReviewAutomated !== false,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
+            destinationChoice: data.scope === "owner" && isDestinationChoice(data.destinationChoice) ? data.destinationChoice : null,
             robotFit: data.scope === "owner" && isRobotFit(data.robotFit) ? data.robotFit : null,
             robotFitHold: data.scope === "owner" && isRobotFitHold(data.robotFitHold) ? data.robotFitHold : null,
             successThresholds: data.scope === "owner" && isSuccessThresholds(data.successThresholds) ? data.successThresholds : null,
@@ -869,6 +872,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {!answer && workspace}
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
         && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
+          onAnswered={() => setStatusRefresh(value => value + 1)} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.destinationChoice
+        && <TaskDestinationChoice key={status.destinationChoice.questionDigest} token={token} question={status.destinationChoice}
           onAnswered={() => setStatusRefresh(value => value + 1)} />}
       {saved && scope === "owner" && currentStatusKnown && status?.robotFitHold && <RobotFitHold hold={status.robotFitHold} />}
       {saved && scope === "owner" && currentStatusKnown && status?.robotFit && !answer && <RobotFit fit={status.robotFit} />}
