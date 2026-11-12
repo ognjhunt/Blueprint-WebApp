@@ -12,21 +12,43 @@ const carryPathRejected = z.object({ reason: z.literal("robot_carry_path_rejecte
   basis: z.literal("conservative_configuration_check"), robot_id: z.literal("franka_panda"), evidence_digest: digest }).strict();
 const taskEvidenceIncomplete = z.object({ reason: z.literal("task_evidence_incomplete"), category: z.literal("insufficient_evidence"),
   basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict();
-/** Preparation status v3–v5 keep this closed vocabulary. */
-export const preparationOutcomeSchema = z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete]);
+/**
+ * An outcome whose reason this release does not know (review, 2026-11-12): it never fails the status read. Its shape
+ * is still checked (a known category and a sealed evidence digest); the site sees one general sentence for it
+ * (`unknownOutcome`) and staff hear once per job and code. A known reason must keep its own exact shape.
+ */
+export const KNOWN_PREPARATION_OUTCOME_REASONS = new Set<string>(["robot_carry_path_rejected", "task_evidence_incomplete",
+  "robot_fit_none"]);
+const unknownReasonOutcome = z.object({ reason: z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/),
+  category: z.enum(["robot_incompatibility", "insufficient_evidence"]), basis: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+  robot_id: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/).nullable(), evidence_digest: digest }).strict()
+  .refine(value => !KNOWN_PREPARATION_OUTCOME_REASONS.has(value.reason) && !isRecaptureReason(value.reason)
+    && value.reason !== TASK_NOT_NAMED_REASON, "A known reason keeps its own shape");
+/** Preparation status v3–v5 keep this vocabulary, and accept a reason they do not know. */
+export const preparationOutcomeSchema = z.union([z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete]),
+  unknownReasonOutcome]);
 /** v6 adds the early robot fit hold (Pipeline #3336): no robot Blueprint runs fits the task in this room,
  * decided before any spend. Its evidence is the precheck's digest. */
-export const preparationOutcomeV6Schema = z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete,
+export const preparationOutcomeV6Schema = z.union([z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete,
   z.object({ reason: z.literal("robot_fit_none"), category: z.literal("robot_incompatibility"),
-    basis: z.literal("conservative_pre_spend_fit_check"), robot_id: z.null(), evidence_digest: digest }).strict()]);
+    basis: z.literal("conservative_pre_spend_fit_check"), robot_id: z.null(), evidence_digest: digest }).strict()]),
+  unknownReasonOutcome]);
 /** The preparation stops only a new video can clear (Pipeline `website_recapture_required`): the reason is the
  * stop's own code. Each has its sentences in `RECAPTURE_SENTENCES`. */
 export const PREPARATION_RECAPTURE_REASONS = ["website_front_normal_undetermined", "website_registration_ambiguous",
   "website_registration_poor_fit", "website_registration_conflicts_provider_anchor",
-  "website_registration_anchor_deviation", "website_registration_ground_plane_inconsistent"] as const;
+  "website_registration_anchor_deviation", "website_registration_ground_plane_inconsistent",
+  // The object the job moves was never seen, or no frame of the video could be used (review, 2026-11-12).
+  "website_task_object_not_observed", "website_capture_frames_unusable"] as const;
+/**
+ * The job has no sentence saying what the robot should do, so the Pipeline cannot prepare it and retries hourly. The
+ * site names its job; the page asks for it, and no "needs attention" email goes out. Sent by the Atlas preview as
+ * `needs_input`, and by the preparation status as an outcome with this reason.
+ */
+export const TASK_NOT_NAMED_REASON = "website_task_not_named";
 /** v7 adds those stops: the preparation ended at once and the site is asked to film again. */
 export const preparationOutcomeV7Schema = z.union([preparationOutcomeV6Schema, z.object({
-  reason: z.enum(PREPARATION_RECAPTURE_REASONS), category: z.literal("insufficient_evidence"),
+  reason: z.enum([...PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON]), category: z.literal("insufficient_evidence"),
   basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict()]);
 export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeV7Schema>;
 
@@ -66,8 +88,11 @@ function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "rob
   };
 }
 
-export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, precheck?: RobotFitHoldEvidence | null): TaskOutcome {
-  if (isRecaptureReason(receipt.reason)) return recaptureNeeded(receipt.reason, receipt.evidence_digest);
+export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, precheck?: RobotFitHoldEvidence | null,
+  objectName?: string | null): TaskOutcome {
+  if (receipt.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(receipt.evidence_digest);
+  if (isRecaptureReason(receipt.reason)) return recaptureNeeded(receipt.reason, receipt.evidence_digest, objectName);
+  if (!KNOWN_PREPARATION_OUTCOME_REASONS.has(receipt.reason)) return unknownOutcome(receipt.evidence_digest);
   if (receipt.reason === "robot_fit_none") return robotFitHold(receipt, precheck);
   if (receipt.reason === "robot_carry_path_rejected") return {
     category: "robot_incompatibility", basis: receipt.basis, title: "The checked robot configuration was rejected",
@@ -132,6 +157,16 @@ export const RECAPTURE_SENTENCES = {
   website_registration_conflicts_provider_anchor: OBJECT_PLACEMENT_SENTENCES,
   website_registration_anchor_deviation: OBJECT_PLACEMENT_SENTENCES,
   website_registration_ground_plane_inconsistent: OBJECT_PLACEMENT_SENTENCES,
+  // The object the job moves was not seen in the video (the named form: `recaptureSentences`).
+  website_task_object_not_observed: {
+    reason: "We could not find the object the job moves in your video.",
+    nextStep: "Please film again with it in view. Then send us the new video.",
+  },
+  // No frame of the video could be used.
+  website_capture_frames_unusable: {
+    reason: "We could not use any of the frames in your video.",
+    nextStep: "Please film again slowly, in good light. Then send us the new video.",
+  },
   atlas_scale_review_unresolved: {
     reason: "From your video we could not work out how large the space is: nothing in it gave us a size we could rely on.",
     nextStep: "Please film again with an object of standard size in view near where the job happens, such as a door or a tape measure laid open on the floor. Then send us the new video.",
@@ -154,8 +189,43 @@ function recaptureOutcome(sentences: { reason: string; nextStep: string }, evide
     nextStep: sentences.nextStep,
     actionOwner: "site", evidence: [{ label, digest: evidenceDigest }] };
 }
-function recaptureNeeded(reason: RecaptureReason, evidenceDigest: string): TaskOutcome {
-  return recaptureOutcome(RECAPTURE_SENTENCES[reason], evidenceDigest, "Video coverage finding");
+function recaptureNeeded(reason: RecaptureReason, evidenceDigest: string, objectName?: string | null): TaskOutcome {
+  return recaptureOutcome(recaptureSentences(reason, objectName), evidenceDigest, "Video coverage finding");
+}
+
+/** A new-video ask's sentences; the one about an unseen object names it from the site's own brief when it can. */
+export function recaptureSentences(reason: RecaptureReason, objectName?: string | null): { reason: string; nextStep: string } {
+  if (reason !== "website_task_object_not_observed") return RECAPTURE_SENTENCES[reason];
+  const name = typeof objectName === "string" ? objectName.trim().replace(/\s+/g, " ").slice(0, 80) : "";
+  return name && /^[\p{L}\p{N} ,.'()-]+$/u.test(name)
+    ? { reason: `We could not find ${name} in your video.`, nextStep: "Please film again with it in view. Then send us the new video." }
+    : RECAPTURE_SENTENCES.website_task_object_not_observed;
+}
+
+/** The job waits for its sentence: the site names it on its job page. Not a failure, and not ours to fix. */
+export const TASK_NOT_NAMED_SENTENCES = {
+  title: "Tell us the job in one sentence",
+  reason: "We need one sentence saying what the robot should do before we can build the simulation of your job.",
+  nextStep: "Write it at the top of your job page, for example \"Pick up each box and put it on the shelf.\" We start as soon as you send it.",
+} as const;
+export function taskNotNamedOutcome(evidenceDigest: string): TaskOutcome {
+  return { category: "insufficient_evidence", basis: "missing_evidence", title: TASK_NOT_NAMED_SENTENCES.title,
+    reason: TASK_NOT_NAMED_SENTENCES.reason,
+    scope: "This is about your job's description only. It is not a finding about any robot or about your site.",
+    nextStep: TASK_NOT_NAMED_SENTENCES.nextStep, actionOwner: "site", evidence: [{ label: "Job description", digest: evidenceDigest }] };
+}
+
+/** An outcome whose reason this release does not know: one true, general sentence, and no claim about why. */
+export const UNKNOWN_OUTCOME_SENTENCES = {
+  title: "The preparation of your simulation stopped",
+  reason: "Preparing the simulation of your site stopped, for a reason this page can't describe yet. Our team has been told.",
+  nextStep: "We'll email you if anything is needed from you. Your recording is saved.",
+} as const;
+export function unknownOutcome(evidenceDigest: string): TaskOutcome {
+  return { category: "insufficient_evidence", basis: "missing_evidence", title: UNKNOWN_OUTCOME_SENTENCES.title,
+    reason: UNKNOWN_OUTCOME_SENTENCES.reason,
+    scope: "This preparation attempt only. It is not a finding about any robot or about your site.",
+    nextStep: UNKNOWN_OUTCOME_SENTENCES.nextStep, actionOwner: "blueprint", evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
 }
 
 /**
@@ -283,6 +353,7 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
   if (!preview || preview.state === "ready" || preview.state === "processing" || preview.state === "withdrawn") return null;
   const held = earlyTaskHoldOf(preview);
   if (held) return earlyTaskHoldOutcome(held, preview.preview_digest);
+  if (preview.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(preview.preview_digest);
   if (preview.state === "needs_input" && isRecaptureReason(preview.reason))
     return recaptureNeeded(preview.reason, preview.preview_digest);
   if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? ""))

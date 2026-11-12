@@ -45,6 +45,13 @@ const codes = { preparing: "preparation_in_progress", awaiting_inputs: "preparat
   failed_retryable: "preparation_retryable_failure", authority_ended: "preparation_authority_ended",
   handed_off: "preparation_handed_off", capacity_delayed: "preparation_capacity_delayed",
   failed_terminal: "preparation_failed_terminal" } as const;
+/**
+ * A reason, verdict or name the Pipeline sends: a lowercase code. These slots are open (review, 2026-11-12): a code
+ * this release does not know never fails the whole status read. It is shown as the slot's general sentence (or left
+ * out), the job keeps its real state, and staff hear once per job and code (`noteUnknownPipelineCode`).
+ */
+const pipelineCode = z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/);
+const known = <T extends string>(list: readonly T[], value: unknown): value is T => (list as readonly unknown[]).includes(value);
 const receiptBase = z.object(websitePreparationSelectorSchema.shape).extend({
   attempt_count: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
@@ -57,7 +64,8 @@ const receiptV1 = receiptBase.extend({
 const receiptV2 = receiptBase.extend({
   schema_version: z.literal("website_preparation_status.v2"), state: z.enum(statesV2),
   code: z.enum(statesV2.map(state => codes[state]) as [string, ...string[]]),
-  terminal_reason: z.enum(WEBSITE_PREPARATION_TERMINAL_REASONS).nullable(),
+  // Open: a reason this release does not know never fails the read (it reads as a general ending, and staff are told).
+  terminal_reason: pipelineCode.nullable(),
 }).strict();
 const receiptV3 = receiptV2.extend({
   schema_version: z.literal("website_preparation_status.v3"),
@@ -78,11 +86,11 @@ export const robotFitSchema = z.object({
   schema_version: z.literal("website_robot_fit_projection.v1"),
   route: z.enum(["full", "geometry_only"]),
   status: z.enum(["completed", "not_run"]),
-  reason: z.enum(ROBOT_FIT_NOT_RUN_REASONS).nullable(),
+  reason: pipelineCode.nullable(),
   evidence_label: z.literal("spec_bounded_estimate").nullable(),
   counts: z.object({fits: fitCount, fits_spec: fitCount, doesnt_fit: fitCount, unknown: fitCount}).strict().nullable(),
   models: z.array(z.object({name: z.string().min(1).max(120), manufacturer: z.string().min(1).max(120),
-    verdict: z.enum(ROBOT_FIT_VERDICTS), open_checks: z.array(z.string().regex(/^[a-z_]{1,40}$/)).max(12)}).strict())
+    verdict: pipelineCode, open_checks: z.array(z.string().regex(/^[a-z_]{1,40}$/)).max(12)}).strict())
     .max(200),
   models_truncated: z.boolean(),
   table_digest: digest.nullable(),
@@ -109,8 +117,8 @@ export const robotFitPrecheckSchema = z.object({
   // sent, so the status digest still covers it; `publicRobotFitPrecheck` shows only a well-formed kind, else null.
   task_kind: z.unknown().optional(),
   counts: z.object({fit: fitCount, no_fit: fitCount, unknown: fitCount, unavailable: fitCount}).strict(),
-  embodiments: z.array(z.object({embodiment: z.enum(ROBOT_FIT_PRECHECK_EMBODIMENTS),
-    verdict: z.enum(ROBOT_FIT_PRECHECK_STATUSES), reasons: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(4),
+  embodiments: z.array(z.object({embodiment: pipelineCode,
+    verdict: pipelineCode, reasons: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(4),
     fit_candidates: fitCount}).strict()).max(50),
   embodiments_truncated: z.boolean(),
   evidence_label: z.literal("pre_spend_estimate"),
@@ -145,10 +153,12 @@ export type PublicRobotFit = {
   modelsTruncated: boolean;
 };
 export function publicRobotFit(fit: RobotFitReceipt): PublicRobotFit {
-  return {route: fit.route, status: fit.status, reason: fit.reason,
+  return {route: fit.route, status: fit.status, reason: known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason) ? fit.reason : null,
     counts: fit.counts && {fits: fit.counts.fits, fitsSpec: fit.counts.fits_spec, doesntFit: fit.counts.doesnt_fit,
       unknown: fit.counts.unknown},
-    models: fit.models.map(row => ({name: row.name, manufacturer: row.manufacturer, verdict: row.verdict,
+    // A verdict this release does not know says only that it is not known.
+    models: fit.models.map(row => ({name: row.name, manufacturer: row.manufacturer,
+      verdict: known(ROBOT_FIT_VERDICTS, row.verdict) ? row.verdict : "unknown" as const,
       openChecks: row.open_checks})),
     modelsTruncated: fit.models_truncated};
 }
@@ -167,7 +177,11 @@ export function publicRobotFitPrecheck(precheck: RobotFitPrecheckReceipt): Publi
   return {status: precheck.status, holdReason: precheck.hold_reason, taskKind: displayTaskKind(precheck.task_kind),
     counts: {fit: precheck.counts.fit, noFit: precheck.counts.no_fit, unknown: precheck.counts.unknown,
       unavailable: precheck.counts.unavailable},
-    embodiments: precheck.embodiments.map(row => ({embodiment: row.embodiment, verdict: row.verdict, reasons: row.reasons})),
+    // A robot body this release does not name is left out of the list (the counts still include it); a verdict it
+    // does not know reads as unknown.
+    embodiments: precheck.embodiments.filter(row => known(ROBOT_FIT_PRECHECK_EMBODIMENTS, row.embodiment)).map(row => ({
+      embodiment: row.embodiment as typeof ROBOT_FIT_PRECHECK_EMBODIMENTS[number],
+      verdict: known(ROBOT_FIT_PRECHECK_STATUSES, row.verdict) ? row.verdict : "unknown" as const, reasons: row.reasons})),
     embodimentsTruncated: precheck.embodiments_truncated, precheckDigest: precheck.precheck_digest};
 }
 export type PublicWebsitePreparationStatus = {
@@ -246,6 +260,9 @@ function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparat
   return needsAttention(status.state)
     ? {eventId: websitePreparationEventId(selector), milestone: "preparation_needs_attention"} : null;
 }
+const knownTerminalReason = (reason: string | null | undefined): WebsitePreparationTerminalReason | null =>
+  known(WEBSITE_PREPARATION_TERMINAL_REASONS, reason) ? reason : null;
+/** The terminal reason as sent; `knownTerminalReason` is the one the site's sentences name. */
 const terminalReasonOf = (status: WebsitePreparationReceipt) =>
   status.schema_version !== "website_preparation_status.v1" ? status.terminal_reason : null;
 function parseReceipt(raw: unknown, selector: WebsitePreparationSelector): WebsitePreparationReceipt {
@@ -504,7 +521,7 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
       ? publicRobotFitPrecheck(status.robot_fit_precheck) : null;
     // Customer correlation is company-derived; never trust caller supplied correlation text.
     return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,
-      terminalReason: terminalReasonOf(status),
+      terminalReason: knownTerminalReason(terminalReasonOf(status)),
       ...("outcome" in status ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome, precheck && {
         holdReason: precheck.holdReason, precheckDigest: precheck.precheckDigest, counts: precheck.counts}) : null} : {}),
       ...("question" in status ? {question: status.question} : {}),
@@ -558,7 +575,7 @@ export async function drainPendingWebsitePreparationNotifications(
       if (!notice || !row.notification || row.notification.eventId !== notice.eventId) { pending++; continue; }
       const result = await enqueue({requestId: row.selector.request_id, captureId: row.selector.capture_id,
         eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`,
-        milestone: notice.milestone, terminalReason: terminalReasonOf(current.status),
+        milestone: notice.milestone, terminalReason: knownTerminalReason(terminalReasonOf(current.status)),
         ...(notice.milestone === "preparation_needs_attention" && "outcome" in current.status
           && isRecaptureReason(current.status.outcome?.reason) ? {recaptureReason: current.status.outcome!.reason as RecaptureReason} : {}),
         ...(notice.milestone === "preparation_needs_attention" && mayBeEarlyTaskHold(current.status)
