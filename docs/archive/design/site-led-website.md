@@ -2,7 +2,7 @@
 
 Owner-directed replacement of the public website. The site owner is the buyer of a scoped, paid Task Evaluation Run; robot teams apply to participate subject to fit and site approval. No marketplace inventory, customer claims, pricing tiers, or guaranteed pilots are introduced.
 
-ADP-010 / partner-proof day 7: support partner admission with a focused site inquiry and a separate supplier application. The old homepage offered free site participation and primarily addressed robot teams. Completion artifact: a responsive five-page public website with durable contact routing, retired-marketing redirects, and browser-verified inquiry flows.
+Support partner admission with a focused site inquiry and a separate supplier application. The old homepage offered free site participation and primarily addressed robot teams. Completion artifact: a responsive five-page public website with durable contact routing, retired-marketing redirects, and browser-verified inquiry flows.
 
 ## Public pages
 

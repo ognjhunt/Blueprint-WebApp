@@ -30,8 +30,8 @@ Focused offline tests verify unchanged request count/query, source rows/digests,
 null/invalid currency, partial pages, stable identities, credit/conflict handling,
 redaction and gross-positive zero-spend proof. Typecheck and the required Graphify
 refresh run locally; exact-head CI and independent Sol review gate release.
-Communications and research-learning source files are untouched. The actual ADP
-backlog/day gate was not supplied; no program closeout is claimed.
+Communications and research-learning source files are untouched. No program
+closeout is claimed.
 
 Live source access in the delegated environment is blocked by the existing
 operator door's proxy 403. Notion page/schema reads succeeded, but actual daily

@@ -22,7 +22,7 @@ Existing site recording, training, anonymized-card and account permissions remai
 
 ## Shared doctrine
 
-The owner instruction updates independent policy access and commercial selection; it preserves capture-first assessment and the existing simulation/evaluation pipeline. The earlier description-first/video-optional implementation was an incorrect interpretation and is corrected here. Canonical fragments in `BlueprintCapturePipeline/doctrine/` were corrected and synchronized through the existing generator into WebApp, Pipeline and Capture with matching locks. The correction preserves Arm Decision Proof and its physical-evidence protocol.
+The owner instruction updates independent policy access and commercial selection; it preserves capture-first assessment and the existing simulation/evaluation pipeline. The earlier description-first/video-optional implementation was an incorrect interpretation and is corrected here. Canonical fragments in `BlueprintCapturePipeline/doctrine/` were corrected and synchronized through the existing generator into WebApp, Pipeline and Capture with matching locks.
 
 ## Verification
 

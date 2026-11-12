@@ -2,8 +2,8 @@
 
 This procedure supports beta step L5, a robot team's simulator-scored evaluation
 of one captured site task, and L6, an evidence-backed recommendation. A qualified
-result remains a bounded simulation estimate. Physical-performance claims and
-ADP qualified-evidence eligibility remain false.
+result remains a bounded simulation estimate. Physical-performance claims remain
+false.
 
 The 2026-10-18 repair work implements this path. Local tests and synthetic
 fixtures do not establish a qualified real site, a live 200-episode evaluation,

@@ -9,8 +9,8 @@ A site films one recurring job once. Blueprint turns the video into a **job
 packet** that any robot deployment company can evaluate without visiting,
 sends it to deployment companies Blueprint has approved, and tells the site
 who will take the job and on what evidence. The site is the user and pays
-nothing. The deployment company is the customer; how it pays is not decided,
-and no price is stated anywhere.
+nothing. The deployment company is the customer. Deployment companies will
+pay; how is not decided, and no price is stated anywhere. Each introduction is recorded as a billable event. Nothing is charged and no price is stated until the owner sets one.
 
 The packet holds the site's own sentence for the job and its constraints, the
 video with the site's rights recorded, the first look on paper (which kinds of
@@ -25,15 +25,30 @@ The site's answer is the responses of deployment companies: who will take the
 job, who will not, and why. Until responses exist the site sees the first look
 and the simulation of its site, and is told plainly where the job stands: not
 yet sent, sent and waiting, or no response yet. Nothing promises a response
-that has not been given.
+that has not been given. A packet is not held for the simulation: it goes
+when the video and the first look exist, and says plainly what is not
+finished. No deployment company is required to test in the simulation. When
+several are interested the site decides: up to three introductions per job,
+in the order the companies answered. After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job.
 
-Today a deployment company receives a summary of a job only. A site's video
-and simulation stay private until the owner sets a new permission: what sites
-have agreed to so far says their video stays private.
+Sharing is the service. A site that sends a job agrees once, in the statement
+it accepts (recording statement `2026-11-12.v4` or later), that Blueprint
+shares the job with the deployment companies it has approved: the site's
+description, its video without its sound, the simulation built from it, the
+success rule, the first look and any early trial. There is no share button, no
+share setting and no pause. A job under an older statement is not shown to any
+company until its site accepts the current one. A site's name, street address
+and contact details are never shared without asking the site first. A
+withdrawal removes the job from every company's view at once. A copy a company
+already saved cannot be taken back; the company is asked to delete it.
 
-V1 is by hand: Blueprint carries each packet to five to ten deployment
-companies and collects their responses. Every approach to an outside company
-needs the owner's go-ahead first.
+The website does not work this way yet: it still has a share step and the
+older statements. That change is in build; until it ships, no site has
+accepted `2026-11-12.v4`.
+
+No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press, at most three per job; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. The website does not do this yet: the
+automatic sends, the introduction press and the follow-up questions are in
+build.
 
 This repo is the site side: start a job with an email and a video, see the
 first look, the simulation of your site, where the job stands and the
@@ -69,8 +84,8 @@ fixing its cause; do not add a gate, approval step, review stage or readiness
 check unless it protects privacy, rights or money. Delete checks that protect
 none of the three.
 
-Ask the owner first before sending email to outside people, charging money,
-or deleting retained data. `docs/architecture/command-safety-matrix.md` lists
+Contacting a company that Blueprint has not approved is outreach and needs the owner's word first. Ask the owner first before sending email
+by hand to outside people, charging money, or deleting retained data. `docs/architecture/command-safety-matrix.md` lists
 commands with live side effects.
 
 ## Two Truths
@@ -78,8 +93,7 @@ commands with live side effects.
 - Don't make things up: no invented figures, customers, results or readiness.
   Public figures carry their source (`client/src/data/deploymentMarket.ts`).
 - Simulation results are bounded estimates; they never certify physical
-  performance or safety. Arm Decision Proof v1 is a separate evidence program
-  and the only one that may claim physical validation.
+  performance or safety.
 
 ## Stack
 

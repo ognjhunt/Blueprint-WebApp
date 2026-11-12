@@ -7,9 +7,11 @@ Audience: Codex, Claude and any other coding agent working in this repo.
 Help a site turn a video of one job into a job packet that approved deployment
 companies can evaluate without a visit, and show the site where its job stands
 and the responses. The frame is the shared block of `PLATFORM_CONTEXT.md`
-(owner direction 2026-11-12). Today a deployment company receives a summary of
-a job only; a site's video and simulation stay private until the owner sets a
-new permission.
+(owner direction 2026-11-12). Sharing is the service: a site agrees once, when
+it sends a job, that Blueprint shares it with the deployment companies it has
+approved, with no share button, no share setting and no pause. A site's name,
+street address and contact details are never shared without asking the site
+first. The website change for this is in build.
 
 ## Read Order
 
@@ -40,8 +42,9 @@ Inspect untracked or dirty files before editing. Preserve unrelated work.
 
 Do not run live sends, production deploys, Render env imports, provider writes,
 payment mutations or Paperclip repair scripts unless the task explicitly
-authorizes that side effect. Ask the owner first before sending email to
-outside people, charging money or deleting retained data.
+authorizes that side effect. Contacting a company that Blueprint has not approved is outreach and needs the owner's word first. Ask the owner first before
+sending email by hand to outside people, charging money or deleting retained
+data.
 
 ## Notion Rules
 
@@ -53,7 +56,7 @@ databases, and mark missing figures as source-needed, never invented.
 
 "Deployment company" (not vendor, integrator or OEM), "job packet", "first
 look", "simulation of your site", "early trial", "responses". Say only what is
-true today: V1 is by hand, no price is stated, no deployment company is named,
+true today: no price is stated, no deployment company is named,
 nothing promises a response.
 
 ## Done Definition

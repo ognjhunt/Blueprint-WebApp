@@ -1,6 +1,5 @@
 # ChatGPT Work production-run connection
 
-ADP-009D; day-14 two-candidate execution receipts and day-28 complete replay.
 The missing seam is authenticated cloud access to the existing Website launch
 and controller evidence APIs. This adapter reuses Firebase operator authority,
 Firestore, the Website launch records, signed forwarding, and the canonical

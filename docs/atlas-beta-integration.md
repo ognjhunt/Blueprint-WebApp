@@ -1,6 +1,6 @@
 # Atlas beta preparation control
 
-ADP-040 / Day 28: admit a source-bound development reconstruction through the
+Admit a source-bound development reconstruction through the
 existing Pipeline allocator. Atlas is a task API, separate from Marble's world
 API. The API key stays in the canonical secret integration. Never set
 `WORLDLABS_DEFAULT_MODEL=atlas`; the Marble adapter continues to refuse it.

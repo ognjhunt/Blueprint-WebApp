@@ -8,7 +8,7 @@ join us, or send us their robot team's candidates. The post sells *discipline*, 
 results.
 
 **Publication gate (do first, not last):** methods-and-mechanisms only, on the public
-rehearsal scene; verify against the ADP claim boundaries (evidence-ladder doc) and the
+rehearsal scene; verify against the claim boundaries and the
 public-scene dataset licenses before using any rendered imagery publicly; nothing that
 elevates `development_only` evidence into a performance claim; no partner references. A
 failed run is presented as evidence discipline (that framing is doctrine, and it is also

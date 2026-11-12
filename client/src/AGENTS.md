@@ -22,10 +22,20 @@ Public copy:
   action.
 - The early trial is our own trial of openly available robot software. It is
   never the site's answer and never predicts a deployment company's robot.
-- No price is stated anywhere. Sites pay nothing.
-- Today a deployment company receives a summary of a job only. Nothing may say
-  or imply that a company sees a site's video or simulation: no recorded
-  permission covers it yet.
+- The site pays nothing. Deployment companies will pay; how is not decided,
+  and no price is stated anywhere. Each introduction is recorded as a billable event. Nothing is charged and no price is stated until the owner sets one.
+- Sharing is the service. A site that sends a job agrees once, in the statement
+  it accepts (recording statement `2026-11-12.v4` or later), that Blueprint
+  shares the job with the deployment companies it has approved: the site's
+  description, its video without its sound, the simulation built from it, the
+  success rule, the first look and any early trial. There is no share button,
+  no share setting and no pause. A job under an older statement is not shown to
+  any company until its site accepts the current one. A site's name, street
+  address and contact details are never shared without asking the site first.
+- The screens do not say this yet: they still have a share step and the older
+  statements. That change is in build, with new statement versions; until it
+  ships, no copy may say a company sees a site's video or simulation, because
+  no site has accepted `2026-11-12.v4`.
 - A simulation never certifies physical performance or safety.
 - Do not edit Terms, Privacy, their previous versions or any recorded consent
   statement: they record what a person agreed to and change only with a new

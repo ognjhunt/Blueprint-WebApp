@@ -1,6 +1,6 @@
 # Site operator backend reliability — 2026-10-07
 
-Baseline: `efd2e6858`, including merged PRs #909, #911, #912 and #914. The integration coordinator refreshed those and open #917 (diagnostic/archive only; not a replacement implementation). ADP dependency: partner intake, authorization, and durable evidence receipt; backlog/day gate is not supplied by the task. These local checks do not prove deployment or production storage health.
+Baseline: `efd2e6858`, including merged PRs #909, #911, #912 and #914. The integration coordinator refreshed those and open #917 (diagnostic/archive only; not a replacement implementation). Dependency: partner intake, authorization, and durable evidence receipt. These local checks do not prove deployment or production storage health.
 
 ## Observed failures and repair
 

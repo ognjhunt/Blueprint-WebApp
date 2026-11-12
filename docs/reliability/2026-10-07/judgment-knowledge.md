@@ -1,6 +1,6 @@
 # Judgment and knowledge reliability, 2026-10-07
 
-Scope: authorized reliability closeout of partner intake and inspectable evidence. Base: `efd2e6858`. ADP relationship: partner admission/evidence review supporting Arm Decision Proof v1; no new backlog item or physical day-gate completion is asserted. All test/reference artifacts remain `development_only`.
+Scope: authorized reliability closeout of partner intake and inspectable evidence. Base: `efd2e6858`. Relationship: partner admission and evidence review. All test/reference artifacts remain `development_only`.
 
 ## Fixed blocker
 

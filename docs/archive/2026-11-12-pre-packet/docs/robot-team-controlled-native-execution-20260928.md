@@ -1,6 +1,6 @@
 # Private native policy execution
 
-ADP-011/day 7 admission; ADP-050/day 28 execution and delivery. Owner: Nijel Hunt.
+Owner: Nijel Hunt.
 Observed blocker: interfaces and private upload proofs existed without a production
 native simulator outcome delivered to the submitting team.
 

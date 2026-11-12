@@ -1,6 +1,6 @@
 # Blueprint communications agent
 
-> **Frame, 2026-11-12.** The customer is the deployment company; sites pay nothing; no price is stated. Every approach to an outside company needs the owner's go-ahead first; do not send without it. Today a deployment company receives a summary of a job only. Current frame: the shared block of PLATFORM_CONTEXT.md.
+> **Frame, 2026-11-12.** The customer is the deployment company; sites pay nothing; no price is stated. Contacting a company that Blueprint has not approved is outreach and needs the owner's word first. Introductions between a site and an approved company are automatic: the site asks with one press and Blueprint emails each side the other's details. Sharing is the service: a site agrees once, when it sends a job, that Blueprint shares it with the deployment companies it has approved (the website change for this is in build). Current frame: the shared block of PLATFORM_CONTEXT.md.
 
 This portable Agents API consumer drafts first-touch outreach and answers real,
 correlated replies on Blueprint infrastructure. Research remains a separate role.

@@ -1,9 +1,9 @@
 # Customer closeout of stopped task preparation
 
 This extends the existing signed capture-link and authenticated workspace status
-projection. It serves beta journey L3/L6 and rehearses ADP-009D's day-28 typed
-abstention/delivery seam. The office floor-to-table case remains development-only;
-it completes neither the sealed public-scene gate nor physical trials.
+projection. It serves beta journey L3/L6 and rehearses the typed abstention/delivery seam.
+The office floor-to-table case remains development-only; it completes no
+physical trials.
 
 ## Owner closure of a capture run
 
@@ -34,7 +34,7 @@ Observed blocker: the floor-to-table run had been resumed by another work lane
 after the earlier abstention and was again processing at the mesh stage when
 the owner chose to close it. Existing controls exposed retry or recording
 withdrawal, not a run-specific stop that retained the recording. This is the
-minimal beta results/ADP-040 day-28 owner-abstention control; no Pipeline deploy,
+minimal beta results owner-abstention control; no Pipeline deploy,
 new provider purchase, policy run or general infrastructure is introduced.
 
 | Finding | Customer outcome | Evidence and next action |

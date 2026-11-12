@@ -1,6 +1,6 @@
 # Operator policy canaries that stop before allocation
 
-ADP-009D, day-28 result delivery: a registered operator run can stop during
+Result delivery: a registered operator run can stop during
 provider-offer selection. Its Website record must become terminal even though
 there is no activation-derived run or executed result bundle. V24 exposed this
 gap when no driver-compatible offer met its hourly limit.

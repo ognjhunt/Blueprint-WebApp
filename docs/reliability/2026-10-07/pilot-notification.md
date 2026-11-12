@@ -2,7 +2,7 @@
 
 State: done (local implementation and focused verification; root owns release).
 
-Objective: close the observed recommendation-save/notification-loss gap in the active site workflow without sending a message or changing recommendation authority. Local run: `pilot-notification-2026-10-07`. External issue ID and a detailed execution budget were not supplied; this is part of the authorized 48-hour closeout. Product linkage: durable partner workflow/authorization; no separate ADP backlog or day-gate identifier was supplied.
+Objective: close the observed recommendation-save/notification-loss gap in the active site workflow without sending a message or changing recommendation authority. Local run: `pilot-notification-2026-10-07`. External issue ID and a detailed execution budget were not supplied; this is part of the authorized 48-hour closeout. Product linkage: durable partner workflow/authorization.
 
 ## Observed failure
 

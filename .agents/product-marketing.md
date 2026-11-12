@@ -22,27 +22,34 @@ rule; and, where one exists, the result of our early trial of openly available
 robot software. The early trial is not the site's answer and does not predict a
 deployment company's robot.
 
-**Today:** a deployment company receives a summary of a job only. A site's
-video and simulation stay private until the owner sets a new permission.
+**Sharing is the service.** A site that sends a job agrees once, in the
+statement it accepts (recording statement `2026-11-12.v4` or later), that
+Blueprint shares the job with the deployment companies it has approved: the
+site's description, its video without its sound, the simulation built from it,
+the success rule, the first look and any early trial. There is no share button,
+no share setting and no pause. A site's name, street address and contact
+details are never shared without asking the site first. The website and its
+statements do not say this yet; that change is in build, and public copy
+follows it, not this file.
 
 ## Who it is for
 
 | Party | Role | What they get | Pays? |
 |---|---|---|---|
 | Site | The user | One video in; a first look, a simulation of their site, and the responses of deployment companies. | No. Free. |
-| Deployment company | The customer | Qualified jobs they would not otherwise see, in one format. | Not decided. No price is stated anywhere. |
+| Deployment company | The customer | Qualified jobs they would not otherwise see, in one format. | Will pay; how is not decided. Each introduction is recorded as a billable event. No price is stated anywhere. |
 
-## V1
+## How it runs
 
-By hand: Blueprint carries each packet to five to ten deployment companies and
-collects their responses. Every approach to an outside company needs the
-owner's go-ahead first. No deployment company is named in public copy.
+No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press, at most three per job; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job. The website does not
+do this yet; the change is in build. No deployment company is named in public copy.
 
 ## Rules for copy
 
 - Don't make things up. Every sentence is true on the day it ships.
 - No price, no promise of a response, no named customer or company.
-- Never say or imply that a company sees a site's video or simulation.
+- Until the website change ships, never say or imply that a company sees a
+  site's video or simulation: no site has accepted `2026-11-12.v4` yet.
 - Do not call a packet or a trial "proof"; a simulation never certifies
   physical performance or safety.
 

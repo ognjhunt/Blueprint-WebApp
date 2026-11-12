@@ -1,6 +1,6 @@
 # Live robot-team integration evidence, 2026-09-28
 
-Owner: Nijel Hunt. ADP-011/day 7 admission; ADP-050/day 28 execution.
+Owner: Nijel Hunt.
 
 The owner restored live proof runs to the capability scope. These receipts
 record actual production requests and isolated inference. They do not describe

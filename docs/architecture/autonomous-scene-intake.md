@@ -1,6 +1,6 @@
 # Persistent scene Task Evaluation Run intake
 
-ADP-009D / day-28. This implements the Website owner-intake and durable transport
+This implements the Website owner-intake and durable transport
 portion of the seven-check autonomous scene initiative. Pipeline remains the
 owner of source admission, exact execution attempts, scientific results, paid
 allocation, billing, and teardown. This document is implementation evidence,

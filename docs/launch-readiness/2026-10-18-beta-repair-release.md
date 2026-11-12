@@ -29,7 +29,7 @@ The default provider DROID assets remain diagnostic because this boundary does n
 | Existing data-handling owners | Complete the existing cohort/counsel/retention/restore prerequisites for the selected cohort. | Existing approval/retention packet and retained restore/deletion-process evidence. This change does not approve legal terms, extend retention or authorize deletion. |
 | Engineering owner | Execute and inspect the real evaluation and delivery once authorized and eligible. | First-shard gate, all 200 prescribed cells, independent scored outcomes, required cycle-time/media, cost/time/footprint and operator-intervention receipts, provider-zero teardown and actual delivery/booking inspection. |
 
-The measured receipt is not an execution or spending authorization. Code deployment does not release the founder hold. A passing simulation does not establish physical performance or ADP qualified evidence.
+The measured receipt is not an execution or spending authorization. Code deployment does not release the founder hold. A passing simulation does not establish physical performance.
 
 ## Release sequence and recovery
 

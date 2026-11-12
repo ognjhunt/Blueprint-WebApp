@@ -2,7 +2,7 @@
 
 **Blocker title:** Separate Gmail compose consent and one draft-only copy.
 **Blocker ID:** `BP-BLOCKER-GMAIL-DRAFT-20261002`.
-**Workstream:** 2, communications / ADP partner outreach review. Observed blocker:
+**Workstream:** 2, communications / partner outreach review. Observed blocker:
 Gmail draft creation requires compose scope; the installed founder binding has
 read-only plus send scope. Completion artifact: an exact-revision, readback-
 verified Gmail `DRAFT` delivery copy, with canonical company records preserved.
