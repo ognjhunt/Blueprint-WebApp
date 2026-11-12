@@ -102,7 +102,7 @@ describe("composeSiteAnswer", () => {
     expect(answer.job).toEqual({ sentence: "Move cartons from the conveyor to the shelf", drafted: true, family: null, familyLabel: null });
     expect(answer.facts).toContainEqual({ label: "How far the object moves", display: "about 1 m", basis: "video_estimate" });
     expect(answer.nextStep).toEqual({ kind: "introduction",
-      text: "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site." });
+      text: "Share a summary of this job with deployment companies Blueprint has approved." });
     expect(answer.note).toBe(SITE_ANSWER_NOTE);
     expect(answer.checked).toEqual({ models: 33, makers: 21, specsRetrievedOn: "2026-11-02" });
     expect(answer.reason).toBeNull();
@@ -293,7 +293,7 @@ describe("composeSiteAnswer", () => {
 
   it("is reading while the video is being read and the site gave no number", () => {
     const answer = compose({ estimates: null, request: { capture_coverage: null }, brief: { requestId: "job-1", summary: "Your site task" } });
-    expect(answer).toMatchObject({ state: "reading", headline: "We are reading your video. Your answer will appear here.", pick: null });
+    expect(answer).toMatchObject({ state: "reading", headline: "We are reading your video. Your first look will appear here.", pick: null });
     expect(answer.job.sentence).toBeNull();
   });
 

@@ -69,11 +69,11 @@ async function outbox(request: APIRequestContext, requestId: string) {
   return (await response.json()).rows as Array<{ kind: string; status: string; subject: string; body: string; idempotencyKey: string }>;
 }
 
-const answer = (page: Page) => page.getByRole("region", { name: "Your answer" });
+const answer = (page: Page) => page.getByRole("region", { name: "Your job" });
 
 /**
  * The job's no-grant wait ends, as the scheduler's sweep records it: the first pass starts the wait, a pass a window
- * later records the ending and queues its one email. With no simulation test on the way, the paper check is the answer.
+ * later records the ending and queues its one email. With no simulation on the way, the first look stands on its own.
  */
 async function endWithoutGrant(request: APIRequestContext, requestId: string) {
   const sweep = async (atMs: number) => {
@@ -85,27 +85,27 @@ async function endWithoutGrant(request: APIRequestContext, requestId: string) {
   expect([await sweep(now), await sweep(now + 60 * 86_400_000)]).toEqual(["clock_started", "ended_notice_queued"]);
 }
 
-/** While the simulation is being built the screen says so, and offers nothing to share yet. */
+/** While the simulation is being built the page says so, and offers nothing to share yet. */
 async function expectGettingReady(page: Page) {
-  await expect(answer(page).getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible({ timeout: 45_000 });
-  await expect(answer(page).getByText("Building your simulation", { exact: true })).toBeVisible();
-  await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
+  await expect(answer(page).getByText("We're building the simulation of your site.", { exact: true })).toBeVisible({ timeout: 45_000 });
+  await expect(answer(page).getByText("We're building your job packet. Nothing has been shared.", { exact: true })).toBeVisible();
+  await expect(answer(page).getByRole("button", { name: "Share my job" })).toHaveCount(0);
 }
 
 /** Waits, within the page's own status polling, for the answer and checks what it says. Returns the robot's name. */
 async function expectAnswer(page: Page) {
   const section = answer(page);
-  const big = section.locator(".bare-big");
-  await expect(big).toBeVisible({ timeout: 45_000 });
+  const firstLook = page.getByRole("region", { name: "First look" });
+  const sentence = firstLook.getByText(/^On paper, the robot most likely to fit: .+\.$/);
   // The scripted reading (one carton, 1.6 m, a stated weight) gives a pick that fits on its published figures.
-  await expect(section.getByRole("heading", { level: 2 })).toHaveText("On paper, the robot most likely to fit");
-  await expect(section.locator(".bare-sub")).toHaveText(/^by .+/);
-  await expect(section).toContainText(/How sure are we\?/);
+  await expect(sentence).toBeVisible({ timeout: 45_000 });
+  await expect(firstLook.getByText("From published specifications and where it has been used.", { exact: true })).toBeVisible();
+  await expect(firstLook).toContainText(/How sure are we\?/);
   // Every figure and source is on the details screen: a published figure always has its source; the track
   // record carries one, or says plainly that none was found for this kind of job (a carton moved to a cart is
   // pick and place; the pick may have documented use only for palletizing). Never an invented one.
   await section.getByRole("button", { name: "See details ›" }).click();
-  await page.getByRole("button", { name: "On paper: why this robot" }).click();
+  await page.getByRole("button", { name: "First look: why this robot" }).click();
   const why = page.locator(".site-answer-details");
   await expect(why.getByRole("link", { name: "source" }).first()).toHaveAttribute("target", "_blank");
   if (!(await why.getByText("We found no documented use of this robot on this kind of job.").count())) {
@@ -116,9 +116,9 @@ async function expectAnswer(page: Page) {
   await expect(page.getByRole("heading", { level: 1, name: /^Other robots/ })).toBeVisible();
   await page.getByRole("button", { name: "‹ Back" }).click();
   await page.getByRole("button", { name: "‹ Back" }).click();
-  // Before the computer test starts, the answer says nothing about it.
-  await expect(section).not.toContainText("Simulation test");
-  return (await big.textContent())!.trim();
+  // Before our early trial starts, the page says nothing about it.
+  await expect(section).not.toContainText(/early trial|Simulation test/i);
+  return (await sentence.textContent())!.trim();
 }
 
 test.describe("desktop", () => {
@@ -132,7 +132,7 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await expect(page.getByRole("heading", { level: 1, name: "Your job", exact: true })).toBeVisible();
   // Before the video is read the answer says so, and offers nothing yet.
   await expect(answer(page).getByText("We're watching your video.", { exact: true })).toBeVisible();
-  await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
+  await expect(answer(page).getByRole("button", { name: "Share my job" })).toHaveCount(0);
 
   const ticked = await tick(request, requestId);
   expect(ticked.finished).toBe(true);
@@ -142,7 +142,7 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await expectGettingReady(page);
   await answer(page).screenshot({ path: path.join(SHOTS, "journey-3a-getting-ready-desktop.png") });
   expect((await outbox(request, requestId)).filter(row => !["task_received", "video_received"].includes(row.kind))).toEqual([]);
-  // The job's wait for a simulation ends with none built: the paper check is the answer, with the reason.
+  // The job's wait for a simulation ends with none built: the first look stands, with the reason.
   await endWithoutGrant(request, requestId);
   await page.reload();
   const headline = await expectAnswer(page);
@@ -150,29 +150,30 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await answer(page).screenshot({ path: path.join(SHOTS, "journey-3-answer-desktop.png") });
   await page.screenshot({ path: path.join(SHOTS, "journey-answer-desktop.png"), fullPage: true });
 
-  // (b) Find a deployment company: one click, the confirmation, and it survives a reload.
-  const find = answer(page).getByRole("button", { name: "Find a company to set it up", exact: true });
+  // (b) Share the job with deployment companies: the question, one click, the confirmation, and it survives a reload.
+  const find = answer(page).getByRole("button", { name: "Share my job", exact: true });
   await expect(find).toBeVisible();
+  await expect(answer(page)).toContainText("May we share a summary of your job with deployment companies we approve?");
   await expect(answer(page)).toContainText("Your video, address and contacts stay private.");
   const posted = page.waitForResponse(response => response.url().endsWith("/introduction-request") && response.request().method() === "POST");
   await find.click();
   const reply = await posted;
   expect(reply.status(), await reply.text()).toBe(200);
   const confirmation = answer(page).getByRole("status");
-  await expect(confirmation).toHaveText("✓ Shared. We'll email you when a company replies.");
+  await expect(confirmation).toHaveText(/^Shared on .+ with the deployment companies we've approved\. Nothing more is needed from you\.$/);
   await page.screenshot({ path: path.join(SHOTS, "journey-4-requested-desktop.png"), fullPage: true });
   await page.reload();
-  await expect(answer(page).getByRole("status")).toHaveText("✓ Shared. We'll email you when a company replies.", { timeout: 45_000 });
-  await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
+  await expect(answer(page).getByRole("status")).toHaveText(/^Shared on .+ with the deployment companies we've approved\. Nothing more is needed from you\.$/, { timeout: 45_000 });
+  await expect(answer(page).getByRole("button", { name: "Share my job" })).toHaveCount(0);
 
-  // (c) One paper-check email, queued by the sweep that recorded the ending (review, 2026-11-11): why no test ran, and
-  // the paper check as the answer. Never delivered here.
+  // (c) One email, queued by the sweep that recorded the ending (review, 2026-11-11): why no simulation was built, and
+  // the first look. Never delivered here.
   const answers = async () => (await outbox(request, requestId)).filter(row => ["answer_ready", "scene_outcome", "evaluation_outcome", "preparation_ended"].includes(row.kind));
   const paper = await answers();
   expect(paper.map(row => row.idempotencyKey)).toEqual([`${requestId}:scene_outcome:job_no_grant_ended`]);
-  // A final ending: the paper check is the answer, with no promise of a later result (review, 2026-11-11).
-  expect(paper[0].body).toContain("So the paper check is your answer.");
-  expect(paper[0].body).not.toContain("If a test result comes later");
+  // A final ending: the first look, with no promise of a later result (review, 2026-11-11).
+  expect(paper[0].body).toContain("On paper, the robot most likely to fit: ");
+  expect(paper[0].body).not.toContain("If our early trial gives a result later");
   expect(headline).toBeTruthy();
   // A second pass of the review settles nothing new and queues no email.
   expect((await tick(request, requestId)).videoModelCalls).toBe(0);
@@ -187,7 +188,7 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await page.reload();
   await expect(page.getByText("Recording permission withdrawn.", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(answer(page)).toHaveCount(0);
-  await expect(page.locator(".bare-big").filter({ hasText: headline })).toHaveCount(0);
+  await expect(page.getByText(headline, { exact: true })).toHaveCount(0);
 
   expect(missing, "every API the page calls is mounted in the harness").toEqual([]);
 });

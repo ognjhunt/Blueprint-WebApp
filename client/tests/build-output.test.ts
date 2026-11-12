@@ -80,11 +80,13 @@ describe("build output", () => {
     expect(home).not.toMatch(/og:image" content="[^"]+\.webp"/);
   });
 
-  // Bare bones (2026-11-11): How it works is three steps; "Jobs we support" and "About" are not pages any more.
-  it("prerenders How it works as three steps, and no page for the folded addresses", () => {
+  // The frame of 2026-11-12: How it works says what is in a job packet and where it goes; "Jobs we support" and
+  // "About" are not pages any more.
+  it("prerenders How it works with the job packet, and no page for the folded addresses", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
-    expect(html).toContain("We test the top AI robots on your job");
-    expect(html).toContain("Find a company to set it up");
+    expect(html).toContain("Your job packet");
+    expect(html).toContain("With your permission, we share a summary of your job with companies we approve.");
+    expect(html).not.toMatch(/top AI robots|which did best|Find a company to set it up/);
     expect(html).not.toContain("Warehouse walkthrough contents");
     expect(fs.existsSync(distPath("jobs-we-support/index.html"))).toBe(false);
     expect(fs.existsSync(distPath("about/index.html"))).toBe(false);
@@ -222,15 +224,18 @@ describe("build output", () => {
     expect(robots).toContain("Disallow: /world-models/*/workspace");
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
-    expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
-    expect(llms).toContain("Applications remain pending until manual approval for a real site task");
+    expect(llms).toContain("https://tryblueprint.io/partners");
+    expect(llms).toContain("Applications stay pending until Blueprint approves the company by hand");
     expect(llms).toContain("paid_evaluations_disabled");
-    expect(llmsFull).toContain("Simulation is a bounded estimate and never certifies physical performance or safety.");
-    expect(llmsFull).toContain("Robot teams register interest through the existing application");
+    expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
+    expect(llmsFull).toContain("The video, the simulation, the site's address and its contacts stay private.");
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/beta");
-    expect(llms).toContain("free beta");
-    expect(llms).toContain("works alongside a deployment company on the real site");
+    // The frame of 2026-11-12: a job packet, a summary shared only with the site's permission, the trial labelled.
+    expect(llms).toContain("Film a job once. We turn it into a job packet robot deployment companies can judge.");
+    expect(llms).toContain("it is not the site's answer, and it does not predict what a deployment company's robot would do");
+    expect(llms).toContain("Free for sites.");
+    expect(llms).not.toMatch(/top AI robots|which did best|Which robot could do your job/);
     expect(llms).not.toMatch(/compare delivery proposals|full scoring|join by invitation|invited evaluation/);
     expect(llms).not.toMatch(/\$99\b|top-ups remain|\bmatch(?:ed|es|ing)?\b/);
     expect(llms).not.toContain("$2,500");
@@ -242,14 +247,13 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("Which robot could do your job?");
-    expect(homeHtml).toContain("We test the top AI robots on your job");
-    expect(homeHtml).toContain("Find a company to set it up");
-    expect(homeHtml).toContain("Free during the beta");
-    expect(homeHtml).toContain("We check pick-up-and-put-down jobs. Not a test at your site, or a safety check.");
-    // The moving example is a small answer screen, marked as an example; it promises no cycle-time check.
-    expect(homeHtml).toContain("Did best on your job");
-    expect(homeHtml).toContain("The names, jobs and results are made up.");
+    expect(homeHtml).toContain("Film a job once. We turn it into a job packet robot deployment companies can judge.");
+    expect(homeHtml).toContain("We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site.");
+    expect(homeHtml).toContain("With your permission, we share a summary of it with robot deployment companies we approve. Your video stays private.");
+    expect(homeHtml).toContain("Free for sites");
+    expect(homeHtml).toContain("We take pick-up-and-put-down jobs best. Nothing here is a test at your site or a safety check.");
+    // The animated example of an invented result is removed (frame of 2026-11-12), and nothing replaces it.
+    expect(homeHtml).not.toMatch(/Did best on your job|The names, jobs and results are made up|top AI robots|which did best|Free during the beta/);
     expect(homeHtml).not.toContain("cycle time");
     expect(homeHtml).not.toContain("One job. A clear pilot plan.");
     expect(homeHtml).not.toContain("Review comparable proposals");
@@ -320,7 +324,7 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("Which robot could do your job?");
+    expect(browserJavaScript).toContain("We turn it into a job packet robot deployment companies can judge.");
     expect(browserJavaScript).toContain("We write this from your video if you leave it empty.");
   });
 

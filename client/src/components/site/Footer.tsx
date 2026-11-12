@@ -19,7 +19,7 @@ const footerColumns: FooterColumn[] = [
 ];
 
 /**
- * The footer gives the buyer journey and keeps physical responsibility clear.
+ * The footer says what Blueprint does in one line and keeps physical responsibility clear.
  */
 export function Footer() {
   return (
@@ -35,7 +35,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
-              Send a video of one job that repeats. We test the top AI robots on your job in a simulation of your site, and help you find a company to set it up.
+              Film a job once. We turn it into a job packet robot deployment companies can judge. With your permission, we share a summary with companies we approve. Your video stays private.
             </p>
             <a
               href="mailto:hello@tryblueprint.io"
@@ -70,7 +70,7 @@ export function Footer() {
         <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-runway-faint sm:grid-cols-[auto_1fr] sm:items-start">
           <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
           <p className="sm:text-right">
-            We check pick-up-and-put-down jobs. Not a test at your site, or a safety check.
+            We take pick-up-and-put-down jobs best. Nothing here is a test at your site or a safety check.
           </p>
         </div>
       </div>

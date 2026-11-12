@@ -51,60 +51,25 @@ describe('exact targeting with provenance', () => {
   });
 });
 describe('existing contact/outbox safety', () => {
-  it('queues only opted-in relevant unsuppressed approved contacts and deduplicates retries', async () => {
+  // The frame of 2026-11-12: every approach to an outside company needs the owner's go-ahead first, so the automatic
+  // "New site job" email no longer sends. These replace the tests of who it was queued for (opted-in, relevant,
+  // unsuppressed, paged, rechecked at dispatch): now it is queued for no one, and a row queued before the stop is
+  // cancelled at dispatch without a send.
+  it('queues the automatic new-job email for no one, however relevant, opted in and approved the contact is', async () => {
     contact('yes@example.com', preference({ interests: { regions: ['US'], industries: ['warehouse'] } }));
-    contact('no@example.com', preference({ newJobAlerts: false }));
-    contact('unknown@example.com', preference({ interests: { embodiments: ['arm'] } }));
-    contact('excluded@example.com', preference({ interests: { regions: ['EU'] } }));
-    contact('old@example.com', undefined); state.docs.get(`robotTeamAccess/${accessRecordId('old@example.com')}`)!.updatePreferences = null;
-    contact('blocked@example.com'); state.docs.set('email_suppressions/blocked@example.com', { suppressed_scopes: ['optional_updates'] });
-    await resumeNewJobFanout();
-    expect(alerts()).toHaveLength(1); expect(alerts()[0][1].to).toBe('yes@example.com');
-    state.docs.get('inboundRequests/job')!.newJobAlertFanout = newJobFanoutIntent(event);
-    await resumeNewJobFanout(); await resumeNewJobFanout();
-    expect(alerts()).toHaveLength(1); expect(send).not.toHaveBeenCalled();
-  });
-  it('treats partial registry rows as unknown and continues to a sourced sibling', async () => {
-    contact('partial@example.com'); contact('sibling@example.com');
-    (state.docs.get('inboundRequests/job')!.public_task_listing as any).details.targeting = {
-      categories: {}, requiredRecipient: { embodiments: ['arm'] },
-    };
-    state.docs.set('robotTeams/partial', { contactEmail: 'partial@example.com', capability: { embodiment: 'arm' } });
-    state.docs.set('robotTeams/empty', { contactEmail: 'sibling@example.com' });
-    state.docs.set('robotTeams/sourced', { contactEmail: 'sibling@example.com', capability: { embodiment: 'arm' },
-      fieldProvenance: { embodiment: { grade: 'self_reported', source: 'intake:sourced', observedAt: event } } });
-    await resumeNewJobFanout();
-    expect(alerts()).toHaveLength(1); expect(alerts()[0][1].to).toBe('sibling@example.com');
-    await deliverOutbox(); expect(send).toHaveBeenCalledTimes(1);
-  });
-  it('pages beyond 500 and resumes after a partial page failure without duplicate intents', async () => {
-    for (let i = 0; i < 605; i++) contact(`team${i}@example.com`);
-    const transaction = vi.spyOn(db, 'runTransaction');
-    const original = db.runTransaction.bind(db);
-    let calls = 0;
-    transaction.mockImplementation(async fn => { if (++calls === 23) throw new Error('temporary write failure'); return original(fn); });
-    await expect(resumeNewJobFanout(5,100)).rejects.toThrow('temporary write failure');
-    transaction.mockRestore();
-    (state.docs.get('inboundRequests/job')!.newJobAlertFanout as any).leaseUntilMs = 0;
-    for (let i = 0; i < 16; i++) await resumeNewJobFanout(5,100);
-    expect(alerts()).toHaveLength(605);
-    expect(new Set(alerts().map(([, row]) => row.to)).size).toBe(605);
+    for (let i = 0; i < 120; i++) contact(`team${i}@example.com`);
+    for (let i = 0; i < 5; i++) await resumeNewJobFanout(5, 50);
+    expect(alerts()).toHaveLength(0);
     expect((state.docs.get('inboundRequests/job')!.newJobAlertFanout as any).status).toBe('complete');
+    await deliverOutbox(); expect(send).not.toHaveBeenCalled();
   });
-  it.each(['opt-out', 'suppression', 'withdrawal', 'card-change', 'account-opt-out'])('rechecks %s at dispatch after queue', async reason => {
-    const email = 'ada@example.com'; contact(email); await resumeNewJobFanout();
-    fence.mockImplementationOnce(async () => {
-      if (reason === 'opt-out') (state.docs.get(`robotTeamAccess/${accessRecordId(email)}`)!.updatePreferences as any).newJobAlerts = false;
-      if (reason === 'suppression') state.docs.set(`email_suppressions/${email}`, { global_suppressed: true });
-      if (reason === 'withdrawal') state.docs.get('inboundRequests/job')!.capture_rights = { consent_revoked: true };
-      if (reason === 'card-change') (state.docs.get('inboundRequests/job')!.public_task_listing as any).details.title = 'Changed approved card';
-      if (reason === 'account-opt-out') {
-        state.docs.get(`robotTeamAccess/${accessRecordId(email)}`)!.preferencesAccountUid = 'uid';
-        state.docs.set('users/uid', { buyerType: 'robot_team', updatePreferences: preference({ newJobAlerts: false }) });
-      }
-      return true;
-    });
-    await deliverOutbox(); expect(send).not.toHaveBeenCalled(); expect(alerts()[0][1].status).toBe('cancelled');
+  it('cancels a new-job email queued before the stop, at dispatch, without sending it', async () => {
+    const email = 'ada@example.com'; contact(email);
+    state.docs.set('captureOutbox/legacy-alert', { idempotencyKey: 'legacy-alert', requestId: 'job', kind: 'robot_team_new_task', to: email,
+      subject: 'New site job on Blueprint: Example', body: 'Example', status: 'pending', attempts: 0, nextAttemptAtMs: 0,
+      jobAlert: { jobId: 'job', eventId: event, cardDigest: 'x' } });
+    await deliverOutbox(); expect(send).not.toHaveBeenCalled();
+    expect((state.docs.get('captureOutbox/legacy-alert') as any).status).not.toBe('sent');
   });
   it('retained legacy optional alerts have no dispatch authority; essential notices remain separate', async () => {
     expect(await db.runTransaction(tx => jobAlertIsCurrent({kind:'robot_team_new_task',to:'ada@example.com'},tx))).toBe(false);

@@ -200,7 +200,8 @@ export function collectBannedCopyHits(text: string): string[] {
 const canonicalPublicQaRoutes: PublicQaRoute[] = [
   { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "How it works", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "Questions ›", hrefStartsWith: "/beta" }] },
   { label: "Questions", path: "/beta", canonicalPath: "/beta", expectedHeading: "Questions", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
-  { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "Which robot could do your job?", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "For robot companies ›", hrefStartsWith: "/partners" }] },
+  { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "Film a job once. We turn it into a job packet robot deployment companies can judge.", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "Deploy robots? See how jobs reach you ›", hrefStartsWith: "/partners" }] },
+  { label: "For deployment companies", path: "/partners", canonicalPath: "/partners", expectedHeading: "Real jobs from real sites.", requiredCtas: [] },
   { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Start a job", requiredCtas: [] },
   { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Apply to see jobs", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },

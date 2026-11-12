@@ -1,14 +1,13 @@
 import { BareBig, BareButton, BareFine, BareGroup, BareLabel, BareLinks, BareScreen } from "@/components/bare/Bare";
 import { BareSteps } from "@/components/bare/BareForm";
-import { PilotPreview } from "@/components/site/PilotPreview";
 import { SEO } from "@/components/SEO";
-import { FOR_ROBOT_COMPANIES, HOME_LABEL, HOME_SEO_DESCRIPTION, HOME_SEO_TITLE, HOME_START_HELPER, HOME_TITLE, PUBLIC_LIMITS,
-  START_JOB, STEP_COMPANY, STEP_SEND, STEP_TEST, STEP_TEST_LINE } from "@/lib/publicCopy";
+import { FOR_DEPLOYMENT_COMPANIES_LINK, HOME_LABEL, HOME_SEO_DESCRIPTION, HOME_SEO_TITLE, HOME_START_HELPER, HOME_TITLE, PUBLIC_LIMITS,
+  START_JOB, STEP_PACKET, STEP_SEND, STEP_SHARE } from "@/lib/publicCopy";
 import { organizationJsonLd, webPageJsonLd, websiteJsonLd } from "@/lib/seoStructuredData";
 
 /**
- * Home, bare bones: one question ("Which robot could do your job?"), three steps, one button. The moving example
- * beside it (below the button on a phone) is a small version of the real answer screen, marked as an example.
+ * Home, bare bones: what happens to a site's video, in three steps, and one button (frame of 2026-11-12). The
+ * animated example of an invented result that used to sit beside it is removed, not replaced.
  */
 export default function Home() {
   return (
@@ -25,8 +24,8 @@ export default function Home() {
             <BareGroup>
               <BareSteps id="how-it-works" label="How it works" steps={[
                 { key: "send", title: STEP_SEND },
-                { key: "test", title: STEP_TEST, line: STEP_TEST_LINE },
-                { key: "company", title: STEP_COMPANY },
+                { key: "packet", title: STEP_PACKET },
+                { key: "share", title: STEP_SHARE },
               ]} />
             </BareGroup>
             <BareGroup>
@@ -34,11 +33,10 @@ export default function Home() {
             </BareGroup>
             <BareLinks links={[
               { key: "how", label: "How it works", href: "/how-it-works" },
-              { key: "companies", label: FOR_ROBOT_COMPANIES, href: "/partners" },
+              { key: "companies", label: FOR_DEPLOYMENT_COMPANIES_LINK, href: "/partners" },
             ]} />
             <BareFine>{PUBLIC_LIMITS}</BareFine>
           </BareScreen>
-          <PilotPreview />
         </div>
       </div>
     </>

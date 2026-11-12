@@ -670,7 +670,7 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
   it("builds on the WP-14 sentences and promises nothing", () => {
     expect(JOB_WINDOW_ENDING_MESSAGE.startsWith(JOB_WINDOW_ENDED_SENTENCE)).toBe(true);
     expect(JOB_WINDOW_ENDING_MESSAGE.endsWith(PREPARATION_ENDED_NEXT)).toBe(true);
-    expect(JOB_WINDOW_ENDING_MESSAGE).toMatch(/did not finish the simulation in that time, and no more simulation work will run on this job\. Your answer stays on your job page\./);
+    expect(JOB_WINDOW_ENDING_MESSAGE).toMatch(/did not finish the simulation in that time, and no more simulation work will run on this job\. Your first look stays on your job page\./);
     expect(JOB_WINDOW_ENDING_MESSAGE).toContain("you can start a new job");
     expect(JOB_WINDOW_ENDING_MESSAGE).not.toMatch(/we will|we'll|our team|review|follow up|email you|on hold|taking longer/i);
   });

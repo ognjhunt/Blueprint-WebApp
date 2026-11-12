@@ -40,6 +40,13 @@
 .bare-screen .bare-group > * + ul.bare-ticks { margin-top: var(--bare-s3); }
 .bare-screen .bare-sure > * + * { margin-top: var(--bare-s2); }
 .bare-screen .bare-lead { font-size: 22px; line-height: 1.3; font-weight: 600; letter-spacing: -.3px; }
+/* The job page's sections (frame of 2026-11-12): each opens 48 px below the last, 32 px below the job's sentence; its
+   title sits 8 px above its first group. The early trial folds under its own title. */
+.bare-screen .site-answer-section { margin-top: var(--bare-s5); }
+.bare-screen .site-answer-bare > .site-answer-section:first-child { margin-top: var(--bare-s4); }
+.bare-screen .site-answer-section > .bare-label + .bare-group { margin-top: var(--bare-s2); }
+.bare-screen .site-answer-section > .bare-group.site-trial { margin-top: 0; }
+.bare-screen .site-trial > summary { cursor: pointer; }
 .bare-screen .bare-job { font-size: 15px; color: var(--bare-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 ul.bare-ticks { list-style: none; margin: 0; padding: 0; }
 .bare-tick { display: flex; gap: 12px; align-items: baseline; padding: var(--bare-s1) 0; font-size: 18px; }

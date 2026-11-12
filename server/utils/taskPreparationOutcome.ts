@@ -110,7 +110,7 @@ function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "rob
     title: "The simulation is held: none of the robots we can simulate fits this job yet",
     reason: cause ? `${checked}. The main reason: ${cause}` : `${checked}.`,
     scope: "A check made before any paid work, from your scene as rebuilt from your video. It is an estimate: no robot was tried on your job, and it does not show that no robot could ever do it.",
-    nextStep: "Nothing is needed from you. Blueprint checks this job again when the robots we run change. Your answer stays on your job page, and your recording is saved; you do not need to send it again.",
+    nextStep: "Nothing is needed from you. Blueprint checks this job again when the robots we run change. Your first look stays on your job page, and your recording is saved; you do not need to send it again.",
     actionOwner: "blueprint", evidence: [{ label: "Robot fit check before any spend", digest: receipt.evidence_digest }],
   };
 }
@@ -292,7 +292,7 @@ export const recaptureReasonOf = (preview: WebsiteAtlasPreview | null): Recaptur
 function recaptureOutcome(sentences: { reason: string; nextStep: string }, evidenceDigest: string, label: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: RECAPTURE_TITLE,
     reason: sentences.reason,
-    scope: "This is for the simulation of your site only. It is not a finding about any robot or about your site, and your answer stays on your job page.",
+    scope: "This is for the simulation of your site only. It is not a finding about any robot or about your site, and your first look stays on your job page.",
     nextStep: sentences.nextStep,
     actionOwner: "site", evidence: [{ label, digest: evidenceDigest }] };
 }
@@ -399,7 +399,7 @@ export const earlyTaskHoldSentence = (reason: unknown): string | null =>
   isEarlyTaskHoldReason(reason) ? EARLY_TASK_HOLD_SENTENCES[reason] : null;
 /** What an early hold adds to its sentence; the job page and the email both read it. */
 export const EARLY_TASK_HOLD_DETAIL = "No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it. "
-  + "Your answer stays on your job page.";
+  + "Your first look stays on your job page.";
 
 /**
  * A job whose preparation authority ended (Pipeline `authority_ended`). It is final, never a hold or a
@@ -410,7 +410,7 @@ export const EARLY_TASK_HOLD_DETAIL = "No robot was tested in a simulation of yo
 export const PREPARATION_ENDED_NEXT = "Nothing more is needed from you. Keep your original recording; "
   + "to have Blueprint work on this site again, you can start a new job.";
 /** The site has its answer whatever happens to the simulation; a stop of the simulation says so. */
-export const ANSWER_STAYS_ON_JOB_PAGE = "Your answer stays on your job page.";
+export const ANSWER_STAYS_ON_JOB_PAGE = "Your first look stays on your job page.";
 /** Said about the simulation: the time Blueprint was authorized to work ran out, and the answer stays. */
 export const JOB_WINDOW_ENDED_SENTENCE = "The simulation of your site has stopped because the time Blueprint was authorized to work on this job ran out.";
 export const AUTHORITY_ENDED_SENTENCE = "This job has ended because Blueprint is no longer authorized to work on it.";

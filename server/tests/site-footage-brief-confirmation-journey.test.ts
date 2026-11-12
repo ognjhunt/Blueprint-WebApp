@@ -394,7 +394,7 @@ describe("a site that sends footage with no description", () => {
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "other",disposition:"accepted_for_analysis" });
     expect(body.screening?.headline).toMatch(/preparing an evaluation/i);
     const notice = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
-    expect(notice?.subject).toMatch(/preparing its evaluation/i);
+    expect(notice?.subject).toMatch(/preparing its job packet/i);
     expect(notice?.subject).not.toMatch(/one sentence/i);
     expect(notice?.body).toMatch(/accepted your job/);
     expect((await jobStatus(token)).status.headline).toMatch(/preparing an evaluation/i);

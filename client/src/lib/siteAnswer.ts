@@ -138,19 +138,30 @@ export const sceneOutrankedNote = (name: string) =>
 export const SITE_ANSWER_NOTE =
   "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
 /**
- * The limits in one line, at the foot of the job page and the emails, chosen by what the headline is: a test
- * result, a test still running, or the paper check. Each is true for every state that shows it.
+ * The limits in one line, at the foot of the emails, chosen by what the email says: our early trial's result, a trial
+ * still running, or the first look. Each is true for every state that shows it.
  */
 export const LIMITS_TESTED = "Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 /** While the test runs nothing has been tested yet, so the line says it is being tested. */
 export const LIMITS_TESTING = "Being tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 /** While the simulation of the site is being built: nothing has been tested yet. */
 export const LIMITS_GETTING_READY = "To be tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
-export const LIMITS_PAPER = "A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const LIMITS_PAPER = "A first look on paper, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/** The job page's one limits line, true in every state it has: whatever the page shows, none of it is a test at the site. */
+export const LIMITS_JOB_PAGE = "Nothing here is a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+
+/** The first look in one sentence, on the job page and in the email that says it is ready (frame of 2026-11-12). */
+export function firstLookSentence(pick: Pick<AnswerRobot, "manufacturer" | "name" | "verdict">): string {
+  const robot = `${pick.manufacturer} ${pick.name}`;
+  return pick.verdict === "fits" || pick.verdict === "fits_on_paper"
+    ? `On paper, the robot most likely to fit: ${robot}.` : `On paper, the closest robot: ${robot}. No robot clearly fits yet.`;
+}
+/** What the first look rests on, said under it. */
+export const FIRST_LOOK_SOURCE = "From published specifications and where it has been used.";
 /** The same lines as an approved deployment company reads them on the card, with the full note in the card's details. */
 export const JOB_CARD_LIMITS_TESTED = "Tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 export const JOB_CARD_LIMITS_TESTING = "Being tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
-export const JOB_CARD_LIMITS = "A paper check, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const JOB_CARD_LIMITS = "A first look on paper, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 
 /** How sure, in words: the one map the job page, the job card and the emails all read. */
 export const SURENESS_WORDS: Readonly<Record<AnswerConfidenceLevel, string>> = { low: "Not sure yet", fair: "Fairly sure", good: "Sure" };

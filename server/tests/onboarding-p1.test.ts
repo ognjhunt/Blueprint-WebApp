@@ -163,7 +163,7 @@ describe("owner authorization and durable demand", () => {
     await post(true);
     expect(live()).toHaveLength(2);
   });
-  it("queues opted-in approved robot teams once for an open card, with the card's text only", async () => {
+  it("queues no automatic new-job email for an open card, even to opted-in approved robot teams", async () => {
     const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
     const { buildUpdatePreferences } = await import("../utils/updatePreferences");
     const { resumeNewJobFanout } = await import("../utils/newJobAlerts");
@@ -181,15 +181,14 @@ describe("owner authorization and durable demand", () => {
     state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
     const alerts = () => [...state.docs.entries()].filter(([key, value]) => key.startsWith("captureOutbox/") && value.kind === "robot_team_new_task" && value.requestId === "req1");
     const post = () => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: true, details: { ...details, opportunity: "open" }, consent: true }) });
+    // The frame of 2026-11-12: the automatic "New site job" email no longer sends to anyone (every approach to an
+    // outside company needs the owner's go-ahead); it used to go to the two opted-in approved teams here.
     expect((await post()).status).toBe(200);
     await resumeNewJobFanout();
-    expect(alerts().map(([, value]) => (value as { to: string }).to).sort()).toEqual(["ada@arm.example", "grace@arm.example"]);
-    const body = String((alerts()[0][1] as { body: string }).body);
-    expect(body).toContain(details.title);
-    expect(body).not.toMatch(/owner@|PRIVATE/);
+    expect(alerts()).toEqual([]);
     expect((await post()).status).toBe(200);
     await resumeNewJobFanout();
-    expect(alerts()).toHaveLength(2);
+    expect(alerts()).toEqual([]);
   });
   it("requires photo permission, serves sanitized approved pixels, and revokes access on pause or withdrawal", async () => {
     const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });

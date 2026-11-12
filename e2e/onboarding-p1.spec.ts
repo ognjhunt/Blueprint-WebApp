@@ -301,7 +301,7 @@ test("site owner sees results before optional account saving", async ({ page }) 
   const optionalAccount = page.getByText("Save this job to an account (optional)", { exact: true });
   await expect(optionalAccount).toBeVisible();
   await expect(page.getByRole("link", { name: "Save this job to your account", exact: true })).toBeHidden();
-  await expect(page.getByRole("link", { name: "View your scene" })).toHaveAttribute("href", "https://scene.example.test/view/owner-scene");
+  await expect(page.getByRole("link", { name: "View the simulation of your site" })).toHaveAttribute("href", "https://scene.example.test/view/owner-scene");
   await optionalAccount.click();
   await expect(page.getByRole("link", { name: "Save this job to your account", exact: true })).toHaveAttribute("href", "/sign-in?claim=owner-fixture");
   expect(mutations).toEqual([]);

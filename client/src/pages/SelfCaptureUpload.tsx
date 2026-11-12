@@ -12,7 +12,7 @@ import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/component
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
 import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/site/RobotAccess";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
-import { SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, type CardState, type DetailScreen } from "@/components/site/SiteAnswer";
+import { SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type CardState, type DetailScreen } from "@/components/site/SiteAnswer";
 import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "@/lib/jobCardAnswerConsent";
 import { outlookHasAnswer, type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
@@ -636,7 +636,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {status.sceneViewUrl && (
         <p className={answer ? "job-more-row" : undefined} style={answer ? undefined : { margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.sceneViewUrl} target="_blank" rel="noreferrer">
-            View your scene
+            {VIEW_SIMULATION_LABEL}
           </a>
         </p>
       )}
@@ -707,7 +707,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   ) : answer ? (
     <details aria-label="Review your job brief" style={{ margin: "16px 0" }}>
       <summary>Correct the job we read from your video (optional)</summary>
-      <p className="ms-field-hint">Your answer above does not wait on this. If we read the job wrong, correct the task and answers here and confirm them; Blueprint uses your correction from then on.</p>
+      <p className="ms-field-hint">Your first look above does not wait on this. If we read the job wrong, correct the task and answers here and confirm them; Blueprint uses your correction from then on.</p>
       <TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount onConfirmed={onBriefConfirmed} />
     </details>
   ) : (
@@ -822,7 +822,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       ...(editJob ? [{ key: "job", label: EDIT_JOB_LABEL, body: editJob }] : []),
       ...(sharing ? [{ key: "share", label: "Share settings", body: sharing }] : []),
       ...(status?.claimUrl && !accountHold && !withdrawn ? [{ key: "account", label: "Save to my account", href: status.claimUrl }] : []),
-      ...(status?.sceneViewUrl ? [{ key: "scene", label: "View your scene", href: status.sceneViewUrl }] : []),
+      ...(status?.sceneViewUrl ? [{ key: "scene", label: VIEW_SIMULATION_LABEL, href: status.sceneViewUrl }] : []),
       ...(processingSection ? [{ key: "processing", label: "Processing", body: processingSection }] : []),
       ...(advisory ? [{ key: "advisory", label: "Processing details", body: advisory }] : []),
       { key: "contact", label: "Contact Blueprint about this job", href: "mailto:hello@tryblueprint.io" },
@@ -871,7 +871,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         onEditJob={brief && scope === "owner" && !withdrawn ? openBriefEditor : undefined}
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
-        outlook={status?.outlook ?? null} />}
+        outlook={status?.outlook ?? null} sceneViewUrl={status?.sceneViewUrl ?? null}
+        successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null} />}
       {answer && placeCaveat}
       {/* The answer asks for the job's sentence: the form to give it sits right under it, not in the settings. */}
       {answer && taskStatementForm}

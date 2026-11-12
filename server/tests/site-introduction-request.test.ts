@@ -295,12 +295,15 @@ describe("POST /:token/introduction-request", () => {
       .toContain("No deployment company has been emailed; whether to alert them is your decision.");
   });
 
-  it("the ordinary listing grant still records the team alert intent when the card goes live", async () => {
+  // The frame of 2026-11-12: every approach to an outside company needs the owner's go-ahead, so the ordinary listing
+  // grant ("Manage opportunity sharing") no longer records a team alert intent either (it used to).
+  it("the ordinary listing grant records no team alert intent when the card goes live", async () => {
     const { applyOwnerTaskListing } = await import("../routes/task-listings");
     const { anonymizedOpportunityDraft } = await import("../../client/src/types/taskBrowse");
     const { wentLive } = await applyOwnerTaskListing("req-1", { enabled: true, consent: true,
       details: anonymizedOpportunityDraft("Move cartons from the conveyor to the pallet") });
     expect(wentLive).toEqual(expect.any(String));
-    expect(row("inboundRequests/req-1").newJobAlertFanout).toMatchObject({ eventId: wentLive, status: "pending" });
+    expect(row("inboundRequests/req-1")).not.toHaveProperty("newJobAlertFanout");
+    expect(enqueueOutbox.mock.calls.map(call => (call as unknown as [{ kind: string }])[0].kind)).not.toContain("robot_team_new_task");
   });
 });

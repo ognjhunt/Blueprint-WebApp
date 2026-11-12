@@ -431,9 +431,9 @@ export const ENDED_INBOUND_EMAIL_ACTION_KEYS: ReadonlySet<string> = new Set([
   "inbound_not_yet_email", "inbound_lets_talk_email", "inbound_qualified_email",
 ]);
 export const EMAIL_ENDED_REASON = "email_ended_by_owner_decision_2026_11_11";
-/** The kept "we can't simulate this kind of job yet" email, by its fixed subjects. */
+/** The kept "we can't simulate this kind of job yet" email, by its fixed subjects (the first, its subject before 2026-11-12, for rows retained under it). */
 const KEPT_SCREENING_SUBJECTS: ReadonlySet<string> = new Set([
-  "Your job: we are preparing its evaluation", "Your job brief needs one sentence about the job",
+  "Your job: we are preparing its evaluation", "Your job: we are preparing its job packet", "Your job brief needs one sentence about the job",
 ]);
 
 /** The ended email a ledger row carries, if any. The row stores no action

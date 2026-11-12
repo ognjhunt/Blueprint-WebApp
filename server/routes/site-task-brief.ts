@@ -372,7 +372,7 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
         const brief = await getBrief(verified.requestId).catch(() => null);
         const summary = brief && !isPlaceholderSummary(brief.summary) ? brief.summary : "";
         await applyOwnerTaskListing(verified.requestId, { enabled: true, consent: true, details: anonymizedOpportunityDraft(summary) },
-          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION, alertTeams: false });
+          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
         listed = true;
       }
     } catch (error) {

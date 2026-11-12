@@ -54,11 +54,11 @@ export interface SiteAnswerInputs {
   evidenceFor?: EvidenceLookup;
 }
 
-const HEADLINE_READING = "We are reading your video. Your answer will appear here.";
+const HEADLINE_READING = "We are reading your video. Your first look will appear here.";
 const HEADLINE_CANNOT = "We can't check robots against this job yet.";
 /** The reason for a video that did not show the job clearly enough to size it; the answer email and the page key on it. */
 export { REASON_UNSIZED, UNKNOWN_JOB_KIND };
-const NEXT_STEP_INTRODUCTION = "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site.";
+const NEXT_STEP_INTRODUCTION = "Share a summary of this job with deployment companies Blueprint has approved.";
 /** Wrist and mounting margin an arm standing between the spots needs beyond half the span. */
 const REACH_MARGIN_M = 0.10;
 /** A length the video reader estimated as one figure is checked across this band. */

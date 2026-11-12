@@ -262,7 +262,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     await sendVideo(token);
     const waiting = await status(token);
     expect(waiting.captureReceived).toBe(true);
-    expect(waiting.answer).toMatchObject({ state: "reading", headline: "We are reading your video. Your answer will appear here.",
+    expect(waiting.answer).toMatchObject({ state: "reading", headline: "We are reading your video. Your first look will appear here.",
       pick: null });
     expect(answerNotices(jobId)).toHaveLength(0);
 
@@ -295,7 +295,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(ready.confidence.level).not.toBe("good");
     expect(ready.facts.find((fact: { label: string }) => fact.label === "Object weight")?.basis).toBe("video_estimate");
     expect(ready.nextStep).toEqual({ kind: "introduction",
-      text: "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site." });
+      text: "Share a summary of this job with deployment companies Blueprint has approved." });
 
     // 4. No answer email for the paper check (round 7, owner 2026-11-11): the site had its receipt at upload, and its
     // one answer email is the test result, or the paper check when no test can run. A second review adds none.
@@ -339,8 +339,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const paperEmails = () => notices(jobId).filter(row => row.kind !== "task_received" && row.kind !== "video_received");
     expect(paperEmails().map(row => row.idempotencyKey)).toEqual([`${jobId}:scene_outcome:job_no_grant_ended`]);
     // A final ending: the paper check is the answer, with no promise of a later result.
-    expect(paperEmails()[0].body).toContain("So the paper check is your answer. Most likely to fit: ");
-    expect(paperEmails()[0].body).not.toContain("If a test result comes later");
+    expect(paperEmails()[0].body).toContain("On paper, the robot most likely to fit: ");
+    expect(paperEmails()[0].body).not.toContain("If our early trial gives a result later");
     // Reading the page again queues no second answer email.
     await status(token);
     expect(paperEmails()).toHaveLength(1);
@@ -421,7 +421,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(answerNotices(jobId)[0].body).toContain(answer.reason);
     expect(answerNotices(jobId)[0].body).not.toMatch(/Most likely to fit/);
     // The reader's "cannot size" is final: no promise of a later result.
-    expect(answerNotices(jobId)[0].body).not.toContain("If a test result comes later");
+    expect(answerNotices(jobId)[0].body).not.toContain("If our early trial gives a result later");
     await status(token);
     expect(answerNotices(jobId)).toHaveLength(1);
     // The page's one-line question is driven by the brief read, not the answer.
@@ -452,16 +452,16 @@ describe("a site's answer, from an email and a video to a deployment company", (
       // The sweep that marks it queues its one paper-slot email, once, with the reader's reason.
       const kept = answerNotices(jobId);
       expect(kept).toHaveLength(1);
-      expect(kept[0].body).toContain(`We can't test this kind of job yet. We've kept your job on file. There is no paper check for this job. ${answer.reason}`);
+      expect(kept[0].body).toContain(`We can't build a simulation for this kind of job yet. We've kept your job on file. There is no first look for this job. ${answer.reason}`);
       expect(kept[0].body).not.toMatch(/test result comes later/);
       expect((await status(token)).outlook).toEqual({ phase: "cannot_match", reason: "kept_on_file",
-        sentence: "We can't test this kind of job yet. We've kept your job on file." });
+        sentence: "We can't build a simulation for this kind of job yet. We've kept your job on file." });
       return;
     }
     expect(results).toEqual(["clock_started", "ended_notice_queued"]);
     const endings = notices(jobId).filter(row => row.kind === "scene_outcome");
     expect(endings).toHaveLength(1);
-    expect(endings[0].body).toContain(`There is no paper check for this job. ${answer.reason}`);
+    expect(endings[0].body).toContain(`There is no first look for this job. ${answer.reason}`);
     expect(endings[0].body).not.toMatch(/Most likely to fit|closest is|test result comes later/);
     expect((await status(token)).outlook).toEqual({ phase: "cannot_match", reason: "other_kind", sentence: answer.reason });
   }
@@ -504,7 +504,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect((await status(token)).outlook).toMatchObject({ phase: "cannot_match", reason: "kept_on_file" });
     const kept = answerNotices(jobId);
     expect(kept).toHaveLength(1);
-    expect(kept[0].body).toContain(`We can't test this kind of job yet. We've kept your job on file. So the paper check is your answer. ${answer.headline}`);
+    expect(kept[0].body).toContain(`We can't build a simulation for this kind of job yet. We've kept your job on file. On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used. You can share a summary of your job with deployment companies from your job page.`);
     expect(kept[0].body).not.toMatch(/test result comes later/);
   }, 30_000);
 

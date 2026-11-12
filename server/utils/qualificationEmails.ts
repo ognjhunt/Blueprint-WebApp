@@ -64,7 +64,7 @@ export function buildTaskNotYetSupportedEmail(params: {
     "",
     unclear
       ? "We need to clarify the job before we can test it. Your job stays on file."
-      : "We have accepted your job and are holding it while we prepare an evaluation for its kind. We email you when we can evaluate it.",
+      : "We have accepted your job and are holding it while we prepare a simulation for its kind. We email you when we can build it.",
     "",
     unclear
       ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
@@ -72,7 +72,7 @@ export function buildTaskNotYetSupportedEmail(params: {
     "",
     EMAIL_SIGN_OFF,
   ].join("\n");
-  return { subject: unclear ? "Your job brief needs one sentence about the job" : "Your job: we are preparing its evaluation",
+  return { subject: unclear ? "Your job brief needs one sentence about the job" : "Your job: we are preparing its job packet",
     body, variant: "not_yet" };
 }
 

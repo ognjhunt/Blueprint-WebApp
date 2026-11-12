@@ -23,10 +23,18 @@ function currentCard(jobId: string, record: Record<string, any>, context: JobAle
     || card.opportunity !== 'open') return null;
   return card;
 }
+/**
+ * Whether the automatic "New site job" email to opted-in approved companies still sends (frame of 2026-11-12):
+ * it does not. Every approach to an outside company needs the owner's go-ahead first, so no fan-out queues it and a
+ * row already queued is never sent. The rest of this file is kept, unused, until the owner decides otherwise.
+ */
+export const AUTOMATIC_NEW_JOB_ALERTS_SEND = false;
+
 /** Shared queue/dispatch gate. All source, opt-out, profile and suppression reads participate in the transaction. */
 export async function jobAlertIsCurrent(entry: Pick<OutboxEntry, 'kind' | 'to' | 'jobAlert'>,
   tx: FirebaseFirestore.Transaction): Promise<boolean> {
   if (entry.kind !== 'robot_team_new_task') return true;
+  if (!AUTOMATIC_NEW_JOB_ALERTS_SEND) return false;
   if (!db || !entry.jobAlert) return false; // Retained pre-opt-in alerts have no authority.
   const email = entry.to.trim().toLowerCase();
   const [source, contact, suppression] = await Promise.all([

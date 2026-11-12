@@ -19,7 +19,8 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
-      ["home", "/", "Which robot could do your job?"],
+      ["home", "/", "Film a job once. We turn it into a job packet robot deployment companies can judge."],
+      ["partners", "/partners", "Real jobs from real sites."],
       ["how", "/how-it-works", "How it works"],
       ["beta", "/beta", "Questions"],
       ["site", "/contact/site-operator", "Start a job"],
@@ -94,8 +95,8 @@ test("old pricing reaches the free beta page with one CTA", async ({ page }) => 
   await page.goto("/pricing?source=legacy-review#scope");
   await expect(page).toHaveURL(/\/beta\?source=legacy-review#scope$/);
   await expect(page.locator("h1")).toHaveText("Questions");
-  await expect(page.getByText(/The beta is free for sites and partners\./)).toBeVisible();
-  await expect(page.getByText(/You agree the price and terms with them\./)).toBeVisible();
+  await expect(page.locator("main")).toContainText("Free for sites.");
+  await expect(page.getByText("You agree any work and its terms with the company directly.")).toBeVisible();
   await expect(page.locator("main .bare-button")).toHaveCount(1);
   await expect(page.locator("main").getByRole("link", { name: "Start a job" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
   await expect(page.locator("main")).not.toContainText("$2,500");

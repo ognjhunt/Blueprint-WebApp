@@ -56,16 +56,16 @@ describe("site-content route", () => {
       );
       expect(payload.safety).toContain("provider execution");
       expect(payload.safety).toContain("owner-system evidence");
-      expect(JSON.stringify(payload)).toContain("free access to its policy or an integration");
-      expect(JSON.stringify(payload)).toContain("no private paid evaluations");
-      // The free beta: no site fee, Blueprint's own evaluation, open site sign-up.
-      expect(JSON.stringify(payload)).toContain("Free for sites and partners");
-      // Blueprint runs the evaluations itself; the site's answer comes first, then what is tested in simulation or "held" (owner, 2026-11-11).
-      expect(JSON.stringify(payload)).toContain("Blueprint runs the candidate evaluations itself");
-      expect(payload.summary).toContain("shows the site one answer: the robot that most likely fits");
-      expect(payload.summary).toContain("checks the picked robot's reach and arm path in a simulation of the site and compares public control policies on the job on a research robot");
-      expect(payload.summary).not.toMatch(/proves it/);
-      expect(payload.summary).toContain("works alongside a deployment company on the real site");
+      // The frame of 2026-11-12: free for sites, no price stated, a job packet whose summary deployment companies
+      // see only with the site's permission, the video private, and the early trial labelled as a trial.
+      expect(JSON.stringify(payload)).toContain("Free for sites. Nothing is charged today.");
+      expect(payload.summary).toContain("into a job packet that robot deployment companies can judge without a visit");
+      expect(payload.summary).toContain("a first look on paper (the robot most likely to fit, from published specifications and a cited track record)");
+      expect(payload.summary).toContain("this early trial is not the site's answer and does not predict what a deployment company's robot would do");
+      expect(payload.summary).toContain("With the site's permission, Blueprint shares a summary of the job, without the site's name or address");
+      expect(payload.summary).toContain("the site's video stays private");
+      expect(payload.summary).not.toMatch(/proves it|which did best|top AI robots|paper check/);
+      expect(JSON.stringify(payload.pages)).not.toMatch(/\$\s?\d/);
       expect(JSON.stringify(payload)).not.toMatch(/compare delivery proposals|full evaluation|join by invitation|evaluated free when invited/);
       expect(JSON.stringify(payload)).not.toContain("books it in one step");
       expect(JSON.stringify(payload)).toContain("anyone can start a job");

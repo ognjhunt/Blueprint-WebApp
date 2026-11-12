@@ -39,7 +39,7 @@ import { PLAIN_SETUP_CAVEAT, projectSimulationProof, testHeadline, testNotRunLin
   type SimulationProof } from "../../client/src/lib/simulationProof";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
-import { LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, type SiteAnswer } from "../../client/src/lib/siteAnswer";
+import { FIRST_LOOK_SOURCE, LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, firstLookSentence, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
 
 export type TaskLifecycleMilestone = Extract<
@@ -136,20 +136,20 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     body: (url) => `We have your job.\n\nIf you haven't sent the video yet, send it from your job page. This link opens your job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
   },
   // The first email after upload is a receipt (owner, 2026-11-11): what happens next, true whichever way the job goes.
-  // It never gives an answer; the one answer email is the test result, or, when no test can run, the paper check.
+  // It promises nothing a company will do (frame of 2026-11-12): it says what we build next and where to look.
   video_received: {
     subject: "We have your video",
-    body: (url) => `Your video arrived safely. Next, we build a simulation of your site and test AI robots on your job in it. We'll email you the result, or, if a test can't run, why not and what we found on paper.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your video arrived safely. Next, we build your job packet: a first look and a simulation of your site. Your job page shows where it stands.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
-    subject: "Your 3D view of the work area is ready",
+    subject: "The simulation of your site is ready to view",
     body: (url) => `You can look around the work area you filmed on your job page.\n\nOpen your job:\n${url}`,
   },
   // Owner decision 2026-10-22: "ready" only once the task objects are in and
   // our first internal test has started, never when the room alone is built.
   scene_tests_started: {
     subject: "The simulation of your site is ready",
-    body: (url) => `Your work area and its objects are in place. We are running our first tests on it now.\n\nNothing is needed from you. We will email you at the next step.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your work area and its objects are in place. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
   listing_live: {
     subject: "Your job card is now shared",
@@ -169,7 +169,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   // One per result outcome of the job's evaluation and scene (F-01). The detail
   // is only the outcome's sentence about the simulation, or for an estimate the
   // job page's own simulation proof, and the results disclaimer, built from typed
-  // values, never caller text. An estimate's subject is its own (`estimateSubject`).
+  // values, never caller text. A finished trial's subject is its own (`TRIAL_FINISHED_SUBJECT`).
   evaluation_outcome: {
     subject: "An update on the simulation of your job",
     body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See the result")}`,
@@ -216,10 +216,10 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     // No later email follows this one, so it promises none.
     body: (url, _detail, workspaceUrl) => `${FOOTAGE_BEFORE_ACCOUNT_SENTENCE}\n\nFollow the same job:\n${workspaceUrl || url}`,
   },
-  // Once per job, when the site's answer first settles. The detail is only the
-  // answer's own sentences (`answerReadyDetail`), built from the composed answer.
+  // Once per job, when the site's first look first settles. The detail is only the
+  // first look's own sentences (`answerReadyDetail`), built from the composed answer.
   answer_ready: {
-    subject: "Your job's paper check is ready",
+    subject: "Your first look is ready",
     body: (url, detail) => `${detail}\n\nOpen your job:\n${url}`,
   },
   pilot_request: {
@@ -553,7 +553,7 @@ export function buildTaskLifecycleNotification(params: {
     ...(scoredNone ? { answerSlot: "paper" as const } : {}),
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !scoredNone
-      ? estimateSubject(params.simulationProof)
+      ? TRIAL_FINISHED_SUBJECT
       : params.milestone === "evaluation_outcome" && paperAnswerLine(params.siteAnswer) ? PAPER_ANSWER_SUBJECT
       : params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
@@ -599,13 +599,13 @@ function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifec
   };
 }
 
-/** The subject of the one answer email when no test result will come: the paper check is the answer. */
-const PAPER_ANSWER_SUBJECT = "Your job's paper check is ready";
+/** The subject of the email that gives the first look when no trial result will come. */
+const PAPER_ANSWER_SUBJECT = "Your first look is ready";
 const SIMULATION_DISCLAIMER = "A simulation is not a physical test, and it never certifies physical performance or safety.";
 /** An estimate's email when the job's results could not be read: true whatever they show. */
-const SIMULATION_FINISHED = "The simulation test of your job has finished. Your job page shows how each AI robot did.";
+const SIMULATION_FINISHED = "Our early trial on your job has finished. Your job page shows how each robot did.";
 /** The page's own headline when a stored caveat is all that can be read: it is only ever set when none finished. */
-const NONE_FINISHED_HEADLINE = "No AI robot finished your job.";
+const NONE_FINISHED_HEADLINE = "No robot finished the job in our trial.";
 
 /** The test result the job page leads with, once the simulation has finished. */
 const finishedResult = (proof: SimulationProof | null | undefined) => {
@@ -613,11 +613,10 @@ const finishedResult = (proof: SimulationProof | null | undefined) => {
   return result && result.kind !== "testing" ? result : null;
 };
 
-/** "A result" when some AI robot finished the job, as on the page; otherwise the test has simply finished. */
-function estimateSubject(proof: SimulationProof | null | undefined): string {
-  const result = finishedResult(proof);
-  return result && result.kind !== "none_finished" ? "Your simulation test has a result" : "The simulation test of your job has finished";
-}
+/** One subject for every finished trial, whatever it found: a zero is a valid result of the trial. */
+const TRIAL_FINISHED_SUBJECT = "Our early trial on your job has finished";
+/** The trial email's first line: whose trial it was, and whose robot it was not. */
+export const TRIAL_EMAIL_OPENING = "This was our own trial of openly available robot software, not a deployment company's robot.";
 
 /**
  * A finished simulation, in the job page's own words (`projectSimulationProof`, `testResultOf`, `testHeadline`):
@@ -631,7 +630,7 @@ function estimateDetail(proof: SimulationProof | null | undefined, caveat: Scree
     : proof?.state === "done" && testNotRunLine(proof)
       ? [testNotRunLine(proof), proof.options.setupFlag || caveat ? PLAIN_SETUP_CAVEAT : null]
     : caveat ? [NONE_FINISHED_HEADLINE, PLAIN_SETUP_CAVEAT] : [SIMULATION_FINISHED];
-  return `${said.filter(Boolean).join(" ")} Nothing is needed from you.`;
+  return `${TRIAL_EMAIL_OPENING} ${said.filter(Boolean).join(" ")} Nothing is needed from you.`;
 }
 
 /** The job's composed answer, for an email that gives the paper check as the answer; undefined when it cannot be read. */
@@ -694,12 +693,14 @@ function withPaperAnswer(reason: string, paper: string): string {
   return `${reason} ${paper}`;
 }
 
-/** The paper check said as the answer, or null when there is none: the composer's own headline. */
+/** The first look in the job page's own sentence, or null when it names no robot. */
 function paperAnswerLine(answer: SiteAnswer | null | undefined, hold = false): string | null {
   return answer?.state === "ready" && answer.pick
-    ? `So ${hold ? "for now " : ""}the paper check is your answer. ${answer.headline}${answer.sceneNote ? ` ${answer.sceneNote}` : ""}${hold ? ` ${PAPER_LATER}` : ""}`
+    ? `${firstLookSentence(answer.pick)} ${FIRST_LOOK_SOURCE}${answer.sceneNote ? ` ${answer.sceneNote}` : ""}${hold ? ` ${PAPER_LATER}` : ""}`
     : null;
 }
+/** Said after the first look when the site may now share its job (the job page offers the button exactly then). */
+export const SHARE_FROM_JOB_PAGE = "You can share a summary of your job with deployment companies from your job page.";
 /**
  * An ending email's line about the paper check (review, 2026-11-11): the paper check as the answer when there is one,
  * else a plain statement that there is none, and why when the reader said why. "If a test result comes later" is said
@@ -712,10 +713,10 @@ function paperLine(answer: SiteAnswer | null | undefined, options: { hold: boole
   const why = answer?.state === "cannot_assess" && answer.reason ? ` ${answer.reason}` : "";
   return `${NO_PAPER_CHECK}${why}`;
 }
-/** A hold's paper-check answer ends with this: a test result may still come. */
-export const PAPER_LATER = "If a test result comes later, we'll email it.";
-export const NO_PAPER_CHECK = "There is no paper check for this job.";
-export const NO_PAPER_UNREAD = "We could not finish reading your video, so there is no paper check for this job.";
+/** A hold's first look ends with this: a trial result may still come. */
+export const PAPER_LATER = "If our early trial gives a result later, we'll email it.";
+export const NO_PAPER_CHECK = "There is no first look for this job.";
+export const NO_PAPER_UNREAD = "We could not finish reading your video, so there is no first look for this job.";
 
 /**
  * The job page's own sentence for a terminal scene outcome and its closing
@@ -768,9 +769,11 @@ function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookVi
   if (unread && outlook && endingEmailDue(outlook)) return `${outlook.sentence ?? ""} ${NO_PAPER_UNREAD}`.trim();
   if (!answerEmailDue(answer, outlook)) throw new Error("answer_ready_notice_invalid");
   // Kept on file: its own sentence, then plainly whether there is a paper check, with the reader's reason.
-  if (outlook!.reason === "kept_on_file") return `${outlook!.sentence} ${paperLine(answer, { hold: false })}`;
+  // The job page offers sharing exactly when the first look names a robot and the ending lets it (`outlookHasAnswer`).
+  const share = paperAnswerLine(answer) && answer.nextStep.kind === "introduction" ? ` ${SHARE_FROM_JOB_PAGE}` : "";
+  if (outlook!.reason === "kept_on_file") return `${outlook!.sentence} ${paperLine(answer, { hold: false })}${share}`;
   if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
-  return `${outlook!.sentence ?? "A simulation test has not run on your job."} ${paperLine(answer, { hold: false })}\n\n${finePrint(LIMITS_PAPER)}`;
+  return `${outlook!.sentence ?? "Our early trial has not run on your job."} ${paperLine(answer, { hold: false })}${share}\n\n${finePrint(LIMITS_PAPER)}`;
 }
 type JobOutlookView = { phase: string; reason?: string | null; sentence: string | null };
 

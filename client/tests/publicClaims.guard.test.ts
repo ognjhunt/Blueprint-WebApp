@@ -26,7 +26,7 @@ const FILES = [
   "client/src/lib/siteStartConsent.ts",
   "client/src/components/site/SiteCaptureStart.tsx",
   "server/routes/site-content.ts",
-  "client/src/components/site/PilotPreview.tsx",
+  "client/src/components/site/RobotScene.tsx",
   "client/src/components/site/Footer.tsx",
   "client/src/components/site/MinimalSiteLayout.tsx",
   "client/src/components/site/PartnerDetail.tsx",
@@ -68,12 +68,10 @@ const RULES: Rule[] = [
     return !/\b(not|never|nor|no)\b|n['’]t\b/i.test(before) && !/^\s+neither\b/i.test(after);
   }) },
   // A promise that the site will see "which … did best": the comparison may find no clear difference. A result
-  // ("{policy} did best: …", emitted only when the rule says so) names the policy and is not this form.
-  // Owner decision 2026-11-11: step 2 of the public pages says Blueprint tests the top robots on the site's job in
-  // a simulation and shows "which did best" (the owner's evaluation framing). That one phrase, with nothing between
-  // "which" and "did best", is allowed; any longer promise ("which control policy did best") is still caught.
-  { name: "a promise of which one did best", test: sentence => [...sentence.matchAll(/\bwhich\b((?:\s+[^\s.;:]+){0,4})\s+did best\b/gi)]
-    .some(match => match[1].trim() !== "") },
+  // ("{policy} did best: …", emitted only when the rule says so) names the policy and is not this form. The one
+  // exception the owner's 2026-11-11 framing needed (the bare phrase "which did best") went with that framing on
+  // 2026-11-12, so every form is caught.
+  { name: "a promise of which one did best", test: sentence => /\bwhich\b(?:\s+[^\s.;:]+){0,4}\s+did best\b/i.test(sentence) },
   { name: "cycle time in a sentence about the simulation", test: sentence => /\bcycle[- ]?times?\b/i.test(sentence) && /simulat/i.test(sentence) },
 ];
 
@@ -147,12 +145,13 @@ describe("public words claim only what the code does", () => {
       "export const F = <p className=\"site-proof-row site-proof-best\">Your proof in simulation.</p>;",
       "export const G = \"You see which control policy did best in the simulation.\";",
       "export const H = \"In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 9 of 10 tries.\";",
-      // The owner-approved step 2 (2026-11-11): "which did best", nothing between, is not a finding.
+      // The bare "which did best" was allowed for the 2026-11-11 framing only; since 2026-11-12 it is a finding too.
       "export const I = \"We test the top robots on your job, and show you which did best.\";",
     ].join("\n");
     const findings = publicClaimFindings(file => (file === FILES[0] ? sample : ""));
     expect(findings.map(finding => finding.split(": ")[1])).toEqual([
       "prove, proves, proven or proof", "guarantee", "certif… outside a negation",
-      "cycle time in a sentence about the simulation", "prove, proves, proven or proof", "a promise of which one did best"]);
+      "cycle time in a sentence about the simulation", "prove, proves, proven or proof", "a promise of which one did best",
+      "a promise of which one did best"]);
   });
 });

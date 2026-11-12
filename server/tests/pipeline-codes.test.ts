@@ -117,7 +117,7 @@ describe("scene outcome kinds", () => {
     expect(notice).toMatchObject({ kind: "stopped", request_id: "job-1" });
     expect(sceneOutcomeNoticeIntent("intake-1", record)).toEqual(notice);
     const sentence = "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens. "
-      + "Your answer stays on your job page. Nothing is needed from you.";
+      + "Your first look stays on your job page. Nothing is needed from you.";
     expect(sceneOutcomeMessage("stopped")).toBe(sentence);
     const email = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "scene_outcome", eventId: notice.event_id,
       sceneOutcomeKind: "stopped", to: "owner@example.test" });

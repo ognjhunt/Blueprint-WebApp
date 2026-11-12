@@ -28,22 +28,23 @@ describe("public managed-pilot copy", () => {
       <MinimalSiteLayout><Home /></MinimalSiteLayout>,
     );
 
-    expect(screen.getByRole("heading", { level: 1, name: "Which robot could do your job?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Film a job once. We turn it into a job packet robot deployment companies can judge." })).toBeInTheDocument();
     // One filled action on the page: the header is the brand and one quiet link.
     expect(screen.getAllByRole("link", { name: "Start a job" })).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
     expect(container).toHaveTextContent(/Send a video of one job that repeats/);
-    expect(container).toHaveTextContent(/We test the top AI robots on your job/);
-    expect(container).toHaveTextContent(/in a simulation of your site, and show you which did best\./);
-    expect(container).toHaveTextContent(/Find a company to set it up/);
-    expect(container).toHaveTextContent(/Free during the beta/);
-    expect(container).toHaveTextContent(/We check pick-up-and-put-down jobs\. Not a test at your site, or a safety check\./);
+    expect(container).toHaveTextContent(/We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site\./);
+    expect(container).toHaveTextContent(/With your permission, we share a summary of it with robot deployment companies we approve\. Your video stays private\./);
+    expect(container).toHaveTextContent(/Free for sites/);
+    expect(container).toHaveTextContent(/We take pick-up-and-put-down jobs best\. Nothing here is a test at your site or a safety check\./);
+    // The frame of 2026-11-12: no invented result, no claim that the trial is the answer, no price.
+    expect(container).not.toHaveTextContent(/which did best|top AI robots|AI robot|Find a company to set it up|during the beta/i);
     expect(container).not.toHaveTextContent(/A clear pilot plan|estimate of what’s likely to work/i);
     expect(container).not.toHaveTextContent(/full evaluation|comparable proposals|delivery proposals|join by invitation/i);
     expect(container).not.toHaveTextContent(/choose a team to deliver|delivery team|invited robot teams/i);
     expect(container).not.toHaveTextContent(/\$99\b/);
     expect(container).not.toHaveTextContent(/book it with one click|one team whose evaluation passed/i);
-    expect(screen.getByRole("link", { name: "For robot companies ›" })).toHaveAttribute("href", "/partners");
+    expect(screen.getByRole("link", { name: "Deploy robots? See how jobs reach you ›" })).toHaveAttribute("href", "/partners");
     // The footer: one quiet line, the way to withdraw cookie consent among it.
     expect(screen.getByRole("button", { name: "Cookie settings" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/beta#who-we-are");

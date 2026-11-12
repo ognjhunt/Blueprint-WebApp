@@ -51,14 +51,15 @@ export function PartnerApplication({ role }: { role: PartnerRole }) {
   if (state === "saved") return (
     <div className="ms-partner-receipt" role="status">
       <h2 ref={savedHeading} tabIndex={-1}>Your application is saved.</h2>
-      <p>We review each partner before sharing site opportunities or arranging an evaluation. We will contact you when a job and your capabilities fit.</p>
+      <p>{deployment ? "We approve each company by hand before we share any job with it. We will contact you when a job and what you do fit."
+        : "We review each partner before sharing site opportunities or arranging an evaluation. We will contact you when a job and your capabilities fit."}</p>
       <p>Applying does not approve access, commit you to a job, or guarantee work. No account or integration is needed now.</p>
-      <a className="ms-text-link" href="/partners">Back to partners <ArrowRight size={17} aria-hidden="true" /></a>
+      {!deployment && <a className="ms-text-link" href="/partners">Back to partners <ArrowRight size={17} aria-hidden="true" /></a>}
     </div>
   );
 
   return (
-    <form className="ms-form ms-partner-form" onSubmit={submit} method="post" aria-label={deployment ? "Deployment partner application" : "Technology provider application"}>
+    <form className="ms-form ms-partner-form" onSubmit={submit} method="post" aria-label={deployment ? "Deployment company application" : "Technology provider application"}>
       <fieldset disabled={!interactive || state === "sending"}>
         <legend className="sr-only">Your company and capabilities</legend>
         <div className="ms-form-row">
@@ -78,7 +79,7 @@ export function PartnerApplication({ role }: { role: PartnerRole }) {
         <details className="ms-partner-more">
           <summary>Equipment, access and other details <span className="ms-optional">(optional)</span></summary>
           <label>{deployment ? "Supported robots and software" : "Supported robot configurations"}
-            <textarea name="supportedSystems" rows={3} maxLength={1200} placeholder={deployment ? "Equipment and policies you can supply, integrate and maintain" : "Robots, grippers, cameras and control interfaces you support"} />
+            <textarea name="supportedSystems" rows={3} maxLength={1200} placeholder={deployment ? "Equipment and software you can supply, integrate and maintain" : "Robots, grippers, cameras and control interfaces you support"} />
           </label>
           <label>{deployment ? "Availability and support arrangements" : "How could we assess your system?"}
             <textarea name="pilotPackage" rows={3} maxLength={1200} placeholder={deployment ? "Typical lead time, installation responsibilities and ongoing support" : "API or hosted access, existing evaluation evidence, or integration work needed. Do not include keys or credentials."} />
@@ -89,7 +90,7 @@ export function PartnerApplication({ role }: { role: PartnerRole }) {
       </fieldset>
       <p className="ms-form-note">By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>. Application notices are separate from optional updates.</p>
       {error && <p role="alert">{error} Your entries are still here. You can also <a href="mailto:hello@tryblueprint.io">contact us</a>.</p>}
-      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Saving…" : deployment ? "Apply as a deployment partner" : "Make your system available"}<ArrowRight size={18} aria-hidden="true" /></button>
+      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Saving…" : deployment ? "Apply" : "Make your system available"}<ArrowRight size={18} aria-hidden="true" /></button>
       <noscript><p>Enable JavaScript to apply, or email your company, capabilities and the work you would like to pursue to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
     </form>
   );
