@@ -114,7 +114,6 @@ export function screeningSetupNotes(publication: BetaPolicyScreeningPublication)
   const counted = reference === "passed" || reference === "partly" || reference === "failed";
   const codes = [...(screeningSceneFeasibility(publication)?.flags ?? []),
     ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => (row[key] ?? [])
-      .filter(code => !(counted && /^known_good_control_(passed|failed)(:|$)/.test(code)))
-      .map(code => counted && /^known_good_control_/.test(code) ? `known_good_control_${reference}` : code)))];
+      .map(code => counted && /^known_good_control_(passed|failed)(:|$)/.test(code) ? `known_good_control_${reference}` : code)))];
   return [...new Set(codes.filter(code => code !== KNOWN_GOOD_CONTROL_PENDING && !isRobotFactFlag(code)).map(setupFlagSentence))];
 }
