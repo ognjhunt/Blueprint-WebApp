@@ -76,6 +76,13 @@ vi.mock("node:fs/promises", async importOriginal => {
   } };
 });
 
+// Accepting recording statement v4 asks for the automatic send at once (PACKAGE_E E4); the send itself is tested with it.
+const autoSend = vi.hoisted(() => vi.fn(async () => null));
+vi.mock("../utils/jobAutoSend", () => ({ sendJobToCompaniesIfListed: autoSend }));
+// The Pipeline is told at once when a job's permission changes (planner, 16:35Z); the call itself is tested on its own.
+const recheck = vi.hoisted(() => vi.fn());
+vi.mock("../utils/pipelineCompanyRecheck", () => ({ recheckCaptureInBackground: recheck, askPipelineToRecheckCapture: vi.fn() }));
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
   const { Readable, Writable } = await import("node:stream");
@@ -395,6 +402,60 @@ describe("description-only owner can explicitly authorize future footage", () =>
       // An older version posted after v4 never replaces it.
       expect(await (await consent(baseUrl, requestId, { granted: true, statementVersion: older })).json()).toEqual({ ok: true, outcome: "existing" });
       expect(doc(requestId).request.consent_attestation.statement_version).toBe("2026-11-12.v4");
+    });
+  });
+  it("lifts a pause the site set before sharing was the service, and asks for the automatic send", async () => {
+    const record = seedDescription("req-v4-paused");
+    record.request.consent_attestation = { granted: true, statement_version: "2026-11-02.v2", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    record.workspace_task = { paused: true, pilotIntent: "kept" };
+    autoSend.mockClear();
+    await withRoutes(async baseUrl => {
+      expect(await (await consent(baseUrl, "req-v4-paused", V4)).json()).toEqual({ ok: true, outcome: "upgraded" });
+      expect(doc("req-v4-paused").workspace_task).toMatchObject({ paused: false, pilotIntent: "kept" });
+      expect(autoSend).toHaveBeenCalledWith("req-v4-paused");
+    });
+  });
+  it("leaves the pause alone for an older statement, and never unpauses a withdrawn job", async () => {
+    const record = seedDescription("req-v4-paused-old");
+    record.request.consent_attestation = null;
+    record.workspace_task = { paused: true };
+    const withdrawn = seedDescription("req-v4-paused-withdrawn");
+    withdrawn.request.consent_attestation = { granted: true, statement_version: "2026-11-02.v2", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    withdrawn.workspace_task = { paused: true };
+    withdrawn.consent_revoked = true;
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, "req-v4-paused-old", { granted: true, statementVersion: "2026-11-02.v2" })).status).toBe(200);
+      expect(doc("req-v4-paused-old").workspace_task).toEqual({ paused: true });
+      expect((await consent(baseUrl, "req-v4-paused-withdrawn", V4)).status).toBe(409);
+      expect(doc("req-v4-paused-withdrawn").workspace_task).toEqual({ paused: true });
+    });
+  });
+  it("tells the Pipeline once when v4 is recorded on a job that has a capture, and not for a job without one", async () => {
+    const withCapture = seedDescription("req-v4-capture");
+    withCapture.request.consent_attestation = { granted: true, statement_version: "2026-11-11.v3", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-v4-capture", { capture_id: "walkthrough-req-v4-capture" });
+    seedDescription("req-v4-nocapture");
+    recheck.mockClear();
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, "req-v4-capture", V4)).status).toBe(200);
+      expect(recheck).toHaveBeenCalledTimes(1);
+      expect(recheck).toHaveBeenCalledWith("req-v4-capture", "walkthrough-req-v4-capture");
+      // v4 again changes nothing, so nothing is said again.
+      expect((await consent(baseUrl, "req-v4-capture", V4)).status).toBe(200);
+      expect(recheck).toHaveBeenCalledTimes(1);
+      expect((await consent(baseUrl, "req-v4-nocapture", V4)).status).toBe(200);
+      expect(recheck).toHaveBeenCalledTimes(1);
+    });
+  });
+  it("answers the site even when telling the Pipeline throws", async () => {
+    const record = seedDescription("req-v4-recheck-fails");
+    record.request.consent_attestation = { granted: true, statement_version: "2026-11-11.v3", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-v4-recheck-fails", { capture_id: "x" });
+    recheck.mockImplementationOnce(() => { throw new Error("pipeline down"); });
+    await withRoutes(async baseUrl => {
+      const response = await consent(baseUrl, "req-v4-recheck-fails", V4);
+      expect(response.status).toBe(200);
+      expect(doc("req-v4-recheck-fails").request.consent_attestation.statement_version).toBe("2026-11-12.v4");
     });
   });
   it("refuses v4 on a withdrawn job and writes nothing", async () => {

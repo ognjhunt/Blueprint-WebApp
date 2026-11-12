@@ -35,7 +35,7 @@ const PROMISES = {
   companyUse: "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.",
   withdrawal: "You can withdraw your job at any time. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.",
   olderJob: "A job started before 12 November 2026 is not shown to companies unless you accept the current statement on its page.",
-  companyAlias: "A site sees your answer under an alias. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested.",
+  companyAlias: "A site sees your answer under an alias. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.",
 };
 
 describe("the sharing promises, in the Terms and the Privacy Policy, word for word", () => {
@@ -66,7 +66,7 @@ describe("the video", () => {
     expect(video).toContain(PROMISES.companyUse);
     expect(annexRow("Sound")).toMatch(/remove the sound before any automated review, before sending footage to an AI or 3D-processing provider and before a deployment company sees it/);
     expect(termsText).toMatch(/We remove its sound before any automated review, before sending footage to an AI or 3D-processing provider, and before a deployment company sees it/);
-    expect(FOOTAGE_UPLOAD_NOTICE).toMatch(/shared with Blueprint and with the robot deployment companies we approve/);
+    expect(FOOTAGE_UPLOAD_NOTICE).toMatch(/goes to Blueprint and to deployment companies we approve/);
     // No sentence on either page says the video stays private or never reaches a company.
     expect(`${termsText}\n${privacyText}`).not.toMatch(/never (?:give your recording to|delivered to) a robot team|video stays private|anonymized job card/i);
   });

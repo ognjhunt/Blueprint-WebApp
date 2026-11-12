@@ -16,6 +16,14 @@ describe("removeContactDetails", () => {
     ["Call 020 7946 0958", `Call ${REMOVED}`],
     ["Call 07700900123", `Call ${REMOVED}`],
     ["Call 4155550134", `Call ${REMOVED}`],
+    ["Write to owner at site-plant dot com today", `Write to ${REMOVED} today`],
+    ["See site-plant dot example", `See ${REMOVED}`],
+    ["Look up siteplant .com", `Look up ${REMOVED}`],
+    ["Mail owner@siteplant now", `Mail ${REMOVED} now`],
+    ["Our instagram @siteplant shows it", `Our instagram ${REMOVED} shows it`],
+    ["Mail owner＠site-plant.example", `Mail ${REMOVED}`],
+    ["Mail o\u200Bwner@site\u200B-plant.example", `Mail ${REMOVED}`],
+    ["See ｗｗｗ.siteplant.com", `See ${REMOVED}`],
   ])("removes %s", (input, expected) => {
     expect(removeContactDetails(input)).toBe(expected);
     expect(containsContactDetails(input)).toBe(true);
@@ -29,6 +37,8 @@ describe("removeContactDetails", () => {
     "Started on 2026-11-12, cycle time 4.5 s, 10-15 kg, 60-300 per hour.",
     "Pick 1200 parts per shift at 0.5 m reach, 3 stations, 1/2 of the line.",
     "Order 1234567 is the biggest we make.",
+    "We move totes at 9 kg each, at the dock, and the forklift is at bay 4.",
+    "One person at a time, 5 to 15 kg, about 30 cm, 60-300 an hour.",
   ])("keeps ordinary numbers: %s", input => {
     expect(removeContactDetails(input)).toBe(input);
     expect(containsContactDetails(input)).toBe(false);

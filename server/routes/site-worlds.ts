@@ -34,7 +34,8 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
   if (!db) return res.status(503).json({ error: "Job unavailable" });
   try {
     const access = await getAccessRecordForEmail(user.email);
-    if (access?.status !== "approved") return res.status(403).json({ error: "Only an approved company can answer." });
+    if (access?.status !== "approved" || access.partnerRole === "technology")
+      return res.status(403).json({ error: "Only an approved deployment company can answer." });
     const taskId = String(req.params.taskId), ref = db.collection("inboundRequests").doc(taskId);
     const before = await loadCompanyJobAccess(taskId);
     if (!before.record || !before.access.listed) return res.status(409).json({ error: "This job is not open to answers." });
@@ -58,7 +59,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       const { record: current, access: now } = await loadCompanyJobAccess(taskId, undefined, tx);
       const company = await tx.get(db!.collection("robotTeamAccess").doc(companyId));
       if (!current || humanDecisionDigest(current.public_task_listing) !== humanDecisionDigest(source.public_task_listing)
-        || !now.listed || company.data()?.status !== "approved") throw new Error("job_changed");
+        || !now.listed || company.data()?.status !== "approved" || company.data()?.partnerRole === "technology") throw new Error("job_changed");
       const interestRef = ref.collection("robotTeamInterest").doc(companyId);
       const prior = (await tx.get(interestRef)).data();
       if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;

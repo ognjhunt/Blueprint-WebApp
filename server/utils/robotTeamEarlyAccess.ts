@@ -449,7 +449,8 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
   }
   const status = record?.status ?? "none";
   let allowed = false;
-  if (status === "approved" && emailVerified && viewer.uid && viewer.email) {
+  // Jobs are shared with approved DEPLOYMENT companies (the v4 statement): a technology partner sees no site job.
+  if (status === "approved" && record?.partnerRole !== "technology" && emailVerified && viewer.uid && viewer.email) {
     try {
       allowed = Boolean(await ensureApprovedTeamForAccount({ uid: viewer.uid, email: viewer.email, verified: true }));
     } catch (error) {

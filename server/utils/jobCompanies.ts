@@ -145,7 +145,9 @@ export async function recordCompanySend(requestId: string, companyId: string, ac
     if (!jobSnap.exists || !record) throw new JobCompaniesError("job_not_found", "Site job not found.");
     if (projectWebsiteCaptureRights(record).consent_revoked)
       throw new JobCompaniesError("consent_withdrawn", "The site withdrew its permission, so this job is not sent to anyone.");
-    if (!teamJobAccess(record).listed)
+    // The whole rule (the sentence and the authority end too), as every company-facing read uses it.
+    const { loadCompanyJobAccess } = await import("./teamJobAccess");
+    if (!(await loadCompanyJobAccess(requestId, record, tx)).access.listed)
       throw new JobCompaniesError("not_visible", "This job is not shared and visible to companies right now, so it cannot be sent.");
     if (!companySnap.exists || !isApprovedDeploymentCompany(companySnap.data() as RobotTeamAccessRecord))
       throw new JobCompaniesError("company_not_approved", "Only an approved deployment company can be sent a job.");

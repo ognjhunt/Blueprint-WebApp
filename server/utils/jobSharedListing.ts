@@ -73,7 +73,9 @@ export function jobIsShared(record: unknown): boolean {
  * (`terms_acceptance`), keeping the earlier acceptance in `terms_acceptance_earlier`.
  */
 export type RecordingConsentWrite =
-  | { outcome: "granted" | "upgraded" | "existing"; request: Record<string, unknown> | null; listing: Record<string, unknown> | null }
+  | { outcome: "granted" | "upgraded" | "existing"; request: Record<string, unknown> | null; listing: Record<string, unknown> | null;
+      /** A site-set pause from before sharing was the service (`workspace_task.paused`) is lifted with v4 (never for a withdrawn job). */
+      unpause: boolean }
   | { outcome: "held" };
 
 export function recordingConsentWrite(params: {
@@ -92,6 +94,7 @@ export function recordingConsentWrite(params: {
   if (record?.request?.buyerType !== "site_operator" || params.revoked) return { outcome: "held" };
   const sharing = isSharingRecordingStatementVersion(statementVersion);
   const attestation = { granted: true, statement_version: statementVersion, recorded_at_iso: atIso, recorded_by: "signed_owner_link" };
+  const unpause = sharing && record.workspace_task?.paused === true;
   const earlierTerms = Array.isArray(record.terms_acceptance_earlier) ? record.terms_acceptance_earlier : [];
   const listing = sharing && !isJobSharedListing(record)
     ? { public_task_listing: buildJobSharedListing({ taskStatement: params.taskStatement, atIso, recordingStatementVersion: statementVersion }),
@@ -101,10 +104,10 @@ export function recordingConsentWrite(params: {
   if (params.hasCurrentGrant) {
     const stored = record.request.consent_attestation as Record<string, unknown>;
     // Not a sharing statement, or already under one: no second grant (a missing listing record is still written).
-    if (!sharing || isSharingRecordingStatementVersion(stored.statement_version)) return { outcome: "existing", request: null, listing };
+    if (!sharing || isSharingRecordingStatementVersion(stored.statement_version)) return { outcome: "existing", request: null, listing, unpause: unpause && listing !== null };
     const earlier = Array.isArray(record.request.consent_attestation_earlier) ? record.request.consent_attestation_earlier : [];
-    return { outcome: "upgraded", request: { consent_attestation: attestation, consent_attestation_earlier: [...earlier, stored] }, listing };
+    return { outcome: "upgraded", request: { consent_attestation: attestation, consent_attestation_earlier: [...earlier, stored] }, listing, unpause };
   }
   if (!params.canGrantInitial) return { outcome: "held" };
-  return { outcome: "granted", request: { consent_attestation: attestation }, listing };
+  return { outcome: "granted", request: { consent_attestation: attestation }, listing, unpause };
 }

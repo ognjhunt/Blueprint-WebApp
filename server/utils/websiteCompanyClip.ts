@@ -165,7 +165,8 @@ export async function fetchCompanyClip(requestId: string, clip: WebsiteCompanyCl
   const digestHeader = response.headers.get("x-blueprint-artifact-sha256");
   const contentRange = response.headers.get("content-range");
   const total = contentRange ? Number(/\/(\d+)$/.exec(contentRange)?.[1]) : Number(response.headers.get("content-length"));
-  if ((digestHeader && digestHeader !== clip.digest) || total !== clip.size_bytes) {
+  // The contract: every 200/206 names the stored digest. A missing or different header, or another total size, is refused.
+  if (digestHeader !== clip.digest || total !== clip.size_bytes) {
     await response.body.cancel().catch(() => undefined);
     return { ok: false, status: 503 };
   }

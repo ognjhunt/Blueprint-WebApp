@@ -1,4 +1,5 @@
 import { recordWebsiteCompanyClip, websiteCompanyClipSchema } from "../utils/websiteCompanyClip";
+import { companySimulationRefusal, recordWebsiteCompanySimulation, websiteCompanySimulationSchema } from "../utils/websiteCompanySimulation";
 import { websitePreparationCaptureId } from "../utils/websitePreparationRevision";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 /**
@@ -245,6 +246,24 @@ router.post("/creator-captures/:captureId/company-clip", createPipelineSyncRateL
       if (/^(source_revoked|idempotency_conflict|task_context_capture_mismatch|website_company_clip_(stale|digest_invalid|capture_missing|request_missing|not_permitted)|website_capture_binding_)/.test(code))
         return res.status(409).json({ code });
       return res.status(503).json({ code: "website_company_clip_unavailable" });
+    }
+  });
+
+// The job's simulation package for deployment companies (package E, E9; `COMPANY_SIMULATION_CONTRACT.md`), signed and
+// guarded like the company clip; rights and the sharing statement are rechecked here.
+router.post("/creator-captures/:captureId/company-simulation", createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
+      scene_id: z.string().max(200), simulation: websiteCompanySimulationSchema }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "website_company_simulation_invalid" });
+    const { request_id: requestId, scene_id: sceneId, simulation } = parsed.data;
+    try {
+      const accepted = await recordWebsiteCompanySimulation(requestId, sceneId, String(req.params.captureId), simulation);
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(accepted);
+    } catch (error) {
+      const refusal = companySimulationRefusal(error);
+      return res.status(refusal.status).json({ code: refusal.code });
     }
   });
 

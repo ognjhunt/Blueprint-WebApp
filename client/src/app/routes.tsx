@@ -273,7 +273,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/contact", layout: "public", component: ContactRedirect },
   { path: "/contact/robot-team", layout: "public", component: Contact },
   // The company's page for one job (package E, E3): signed-in, approved companies only; the server decides.
-  { path: "/jobs/:jobId", layout: "public", component: CompanyJob },
+  { path: "/jobs/:jobId", layout: "public", shell: "bare", component: CompanyJob },
   { path: "/contact/site-operator", layout: "public", component: Contact },
   { path: "/help", layout: "public", component: HelpRedirect },
   { path: "/help/contact", layout: "public", component: HelpRedirect },

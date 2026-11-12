@@ -6,9 +6,12 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { withCsrfHeader } from "@/lib/csrf";
 import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
 import { JobCardAnswer } from "@/components/site/JobCardAnswer";
+import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import type { CompanyJobPage } from "@/types/taskBrowse";
 
 /** Said while the sound-free copy of the site's video is not ready. */
+/** The job library: the signed-in list on the companies' page, at its own section. */
+export const JOB_LIBRARY_URL = "/contact/robot-team#robot-team-access";
 export const VIDEO_PREPARING = "The video is being prepared.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
 export const NO_FIRST_LOOK = "Our first look is not ready yet.";
@@ -21,9 +24,16 @@ function dateInWords(value: string): string {
 /**
  * The company's page for one job (package E, E3). Everything on it comes from the server's closed payload
  * (`server/utils/companyJobPage.ts`): the site's sentence, its quick answers, the country, the video, the first look,
- * the simulation and the early trial, each when it exists, and the answer form. Nothing on it can be downloaded.
+ * the simulation and the early trial, each when it exists, and the answer form. The only download offered is the
+ * simulation package (E9); the video is played, with its download control hidden (which discourages saving; it cannot
+ * prevent it).
  */
 export default function CompanyJob() {
+  // The bare route shell with the minimal public frame (paper), as the job library's own page has.
+  return <MinimalSiteLayout><CompanyJobBody /></MinimalSiteLayout>;
+}
+
+function CompanyJobBody() {
   const { jobId = "" } = useParams();
   const auth = useOptionalAuth();
   const user = auth?.currentUser ?? null;
@@ -46,16 +56,16 @@ export default function CompanyJob() {
     return () => { cancelled = true; };
   }, [jobId, user?.uid, retry, auth?.loading]);
 
-  if (state === "loading") return <main className="ms-page"><p role="status">Loading…</p></main>;
-  if (state === "signed_out") return <main className="ms-page"><h1>Sign in to see this job</h1>
-    <p>Jobs are shown to deployment companies Blueprint has approved. <a href="/contact/robot-team">Sign in or apply</a>.</p></main>;
-  if (state === "missing") return <main className="ms-page"><h1>This job is not available</h1>
-    <p>It may no longer be shared, or your account may not be approved. <a href="/contact/robot-team">Back to the job library</a></p></main>;
-  if (state === "error" || !page) return <main className="ms-page"><div role="alert"><p>This job could not be loaded.</p>
-    <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></main>;
+  if (state === "loading") return <div className="ms-page"><p role="status">Loading…</p></div>;
+  if (state === "signed_out") return <div className="ms-page"><h1>Sign in to see this job</h1>
+    <p>Jobs are shown to deployment companies Blueprint has approved. <a href="/contact/robot-team">Sign in or apply</a>.</p></div>;
+  if (state === "missing") return <div className="ms-page"><h1>This job is not available</h1>
+    <p>It may no longer be shared, or your account may not be approved. <a href={JOB_LIBRARY_URL}>Back to the job library</a></p></div>;
+  if (state === "error" || !page) return <div className="ms-page"><div role="alert"><p>This job could not be loaded.</p>
+    <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></div>;
 
-  return <main className="ms-page company-job" aria-label="Job">
-    <p><a href="/contact/robot-team">‹ Job library</a></p>
+  return <div className="ms-page company-job" role="region" aria-label="Job">
+    <p><a href={JOB_LIBRARY_URL}>‹ Job library</a></p>
     <h1>{page.title}</h1>
     <p className="ms-field-hint">{[page.country, page.publishedAtIso && `Shared on ${dateInWords(page.publishedAtIso)}`].filter(Boolean).join(" · ")}</p>
 
@@ -87,6 +97,7 @@ export default function CompanyJob() {
       {page.simulationDownload?.state === "ready" ? <>
         <p><a className="ms-button" href={page.simulationDownload.url} download>Download the simulation</a></p>
         <p className="ms-field-hint">The site's scene with the job's object in it, and what counts as done. Test in your own tools.</p>
+        <p className="ms-field-hint">Open scene.usda. The room's look is a Gaussian splat that some tools cannot show; the collision mesh is in the file too.</p>
       </> : null}
       {page.simulation.state === "ready"
         ? <p><a className="ms-button" href={page.simulation.viewerUrl} target="_blank" rel="noreferrer">View the simulation of the site</a></p>
@@ -94,7 +105,7 @@ export default function CompanyJob() {
     </section>
 
     {user && <CompanyAnswerForm jobId={page.id} user={user} page={page} />}
-  </main>;
+  </div>;
 }
 
 /** The three answers and the company's words, with the recorded line under it (E5). */

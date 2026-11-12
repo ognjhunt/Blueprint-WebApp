@@ -212,20 +212,24 @@ export function newJobEmail(params: { to: string; jobUrl: string }) {
 export interface IntroductionSiteDetails { name: string; contactName: string | null; email: string; phone: string | null; location: string | null }
 
 /** The email to the company when a site asks for an introduction (E6): the site's details and the job link. */
-export function introductionCompanyEmail(params: { site: IntroductionSiteDetails; jobUrl: string; contactName?: string | null }) {
+export function introductionCompanyEmail(params: { site: IntroductionSiteDetails; jobUrl: string; contactName?: string | null;
+  /** The company's stored answer the introduction followed, worded by its fixed label. */
+  answerLabel: string }) {
   const { site } = params;
+  // The typed location is said once: a workspace job may store it as the site's name too.
+  const location = site.location && site.location !== site.name ? site.location : null;
   return {
     subject: "A site wants to talk about its job",
     body: [
       emailGreeting(params.contactName ? firstName(params.contactName) : null),
       "",
-      "You answered Interested to a job on Blueprint, and the site has asked for an introduction. Here are its details:",
+      `You answered ${params.answerLabel} to a job on Blueprint, and the site has asked for an introduction. Here are its details:`,
       "",
       `Site: ${site.name}`,
       ...(site.contactName ? [`Contact: ${site.contactName}`] : []),
       `Email: ${site.email}`,
       ...(site.phone ? [`Phone: ${site.phone}`] : []),
-      ...(site.location ? [`Where it is: ${site.location}`] : []),
+      ...(location ? [`Where it is: ${location}`] : []),
       "",
       `The job: ${params.jobUrl}`,
       "",

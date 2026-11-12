@@ -95,18 +95,31 @@ export async function sendJobToCompaniesIfListed(requestId: string): Promise<Aut
   }
 }
 
-/** One sweep pass: every job shared under the current listing record that has not been sent yet. */
-export async function sweepAutomaticSends(limit = 50): Promise<{ examined: number; sent: number }> {
-  if (!db) return { examined: 0, sent: 0 };
-  const snapshot = await db.collection("inboundRequests")
-    .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).limit(500).get();
-  const due = snapshot.docs.filter(doc => !doc.data()?.[AUTO_SEND_FIELD]?.sentAtIso).slice(0, limit);
+/** Where the sweep stopped last time, so every unsent job is examined in turn, whatever is ahead of it. */
+export const AUTO_SEND_CURSOR_DOC = "automationState/companyAutoSendCursor";
+
+/**
+ * One sweep pass over one page of jobs shared under the current listing record, starting after the job the previous
+ * pass stopped at and wrapping to the start at the end. Jobs that can never be sent (withdrawn, held, no sentence)
+ * no longer fill the head of every pass: the cursor walks past them.
+ */
+export async function sweepAutomaticSends(pageSize = 100): Promise<{ examined: number; sent: number; wrapped: boolean }> {
+  if (!db) return { examined: 0, sent: 0, wrapped: false };
+  const cursorRef = db.doc(AUTO_SEND_CURSOR_DOC);
+  const after = (await cursorRef.get()).data()?.after;
+  let query = db.collection("inboundRequests")
+    .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).orderBy("__name__").limit(pageSize);
+  if (typeof after === "string" && after) query = query.startAfter(after);
+  const snapshot = await query.get();
+  const wrapped = snapshot.docs.length < pageSize;
+  const due = snapshot.docs.filter(doc => !doc.data()?.[AUTO_SEND_FIELD]?.sentAtIso);
   let sent = 0;
   for (const doc of due) {
     const result = await sendJobToCompaniesIfListed(doc.id);
     if (result?.sent) sent += 1;
   }
-  return { examined: due.length, sent };
+  await cursorRef.set({ after: wrapped ? null : snapshot.docs[snapshot.docs.length - 1].id, updatedAtIso: new Date().toISOString() });
+  return { examined: due.length, sent, wrapped };
 }
 
 /** The worker's sweep, on the automation leader lease, once a minute. */

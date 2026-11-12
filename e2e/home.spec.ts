@@ -17,7 +17,7 @@ test("homepage says what happens to a video in one sentence, shows three steps a
   const steps = main.getByRole("list", { name: "How it works" }).getByRole("listitem");
   await expect(steps).toHaveCount(3);
   await expect(steps.nth(1)).toContainText("We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site.");
-  await expect(steps.nth(2)).toContainText("With your permission, robot deployment companies we approve can see a summary of it. Your video stays private.");
+  await expect(steps.nth(2)).toContainText("We share it with robot deployment companies we approve, and they answer. Your name and contact details go to a company only if you ask to meet it.");
   await expect(main.getByRole("link", { name: "How it works ›" })).toHaveAttribute("href", "/how-it-works");
   await expect(main.getByRole("link", { name: "Deploy robots? See how jobs reach you ›" })).toHaveAttribute("href", "/partners");
   await expect(main.getByText("We take pick-up-and-put-down jobs best. Nothing here is a test at your site or a safety check.")).toBeVisible();

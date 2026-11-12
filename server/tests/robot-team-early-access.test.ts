@@ -168,6 +168,17 @@ describe("who sees the job library", () => {
     expect(JSON.stringify(body.items)).not.toMatch(/PRIVATE/);
   });
 
+  // The site agreed to share its job with robot deployment companies: an approved technology partner sees no job.
+  it("shows an approved technology partner no job", async () => {
+    approve("ada@arm.example");
+    const key = `${early.ROBOT_TEAM_ACCESS_COLLECTION}/${early.accessRecordId("ada@arm.example")}`;
+    state.docs.set(key, { ...(state.docs.get(key) as object), partnerRole: "technology" } as never);
+    tokens.set("tech", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    const body = await tasks("tech");
+    expect(body.access).toMatchObject({ status: "approved", allowed: false });
+    expect(body.items).toEqual([]);
+  });
+
   it("refuses an approved email that is not verified, since anyone can type an address", async () => {
     approve("ada@arm.example");
     tokens.set("unverified", { uid: "u1", email: "ada@arm.example", email_verified: false });

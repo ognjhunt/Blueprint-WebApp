@@ -110,7 +110,7 @@ test("a signed-in company opens a job from the library, watches the video and an
   const errors = await blockOutside(page);
   const answers: unknown[] = [];
   const videoRequests: string[] = [];
-  const statement = "The site is told your answer. If you answer Interested and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
+  const statement = "The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
   const videoUrl = `/api/company-media/jobs/${JOB}/video.mp4?capture=walkthrough-${JOB}&viewer=${NORTH}&expires=1&signature=x`;
   await page.route("**/api/**", async route => {
     const request = route.request();

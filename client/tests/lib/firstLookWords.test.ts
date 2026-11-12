@@ -76,11 +76,19 @@ describe("firstLookRowInWords", () => {
     expect(firstLookRowInWords(fitsIf([mass(11.6)]), { weight: "a_ton" } as never).verdict).toBe("conditional");
   });
 
-  it("says too heavy only when even the lightest item in a bounded range is over the rated payload", () => {
-    expect(firstLookRowInWords(fitsIf([mass(2.1)], 3), facts("5_15kg")))
-      .toMatchObject({ verdict: "does_not_fit", text: "Too heavy for this robot (3 kg)." });
-    expect(firstLookRowInWords(fitsIf([reach(0.85), mass(9.1)], 10), facts("15_30kg")).text).toBe("Too heavy for this robot (10 kg).");
-    expect(firstLookRowInWords(fitsIf([mass(2.1)], null), facts("5_15kg")).verdict).toBe("conditional");
+  // One weight rule (contract revision 5): the site's range against the condition's limit (rating less a 0.9 kg gripper).
+  it("compares the site's weight range with the condition's limit, never the rating: holds, does not fit, or stays", () => {
+    // The whole range at or under the limit: the condition holds and the row reads as a fit.
+    expect(firstLookRowInWords(fitsIf([mass(11.6)], 12.5), facts("under_5kg")).verdict).toBe("fits");
+    // The whole range over the limit, though under the rating (3 kg rating, 2.1 kg limit, 2.5 to 3 kg is not a code;
+    // 5 to 15 kg over 4.1): does not fit, said with the standard gripper.
+    expect(firstLookRowInWords(fitsIf([mass(4.1)], 5), facts("5_15kg"))).toMatchObject({ verdict: "does_not_fit",
+      text: "Does not fit: the item is too heavy for it with a standard gripper (it carries 4.1 kg)." });
+    expect(firstLookRowInWords(fitsIf([reach(0.85), mass(4.1)], null), facts("5_15kg")).verdict).toBe("does_not_fit");
+    // A range that straddles the limit, "over 30 kg" and "not sure" leave the condition as it is.
+    expect(firstLookRowInWords(fitsIf([mass(11.6)], 12.5), facts("5_15kg")).verdict).toBe("conditional");
+    expect(firstLookRowInWords(fitsIf([mass(11.6)], 12.5), facts("over_30kg")).verdict).toBe("conditional");
+    expect(firstLookRowInWords(fitsIf([mass(11.6)], 12.5), facts("unsure")).verdict).toBe("conditional");
   });
 
   it("never resolves an unknown or doesnt_fit row from the weight answer", () => {
@@ -122,6 +130,32 @@ describe("firstLookRowInWords", () => {
       const words = firstLookRowInWords(row as FirstLookRow, facts("under_5kg"));
       expect(words).toMatchObject({ verdict: "not_rated", text: "Not rated yet." });
     }
+  });
+
+  // FIRST_LOOK_CONTRACT revision 4: hand height (a robot that drives) and floor width (reversed: at least the limit).
+  it("words hand_height_m and floor_width_m from the contract, and the site's weight answer never resolves them", () => {
+    const hand = (limit: number, min: number | null = 0.4, max: number | null = 1.65) =>
+      ({ quantity: "hand_height_m", need_min: min, need_max: max, limit, need_basis: "estimated_from_video", limit_basis: "catalog" });
+    const floor = { quantity: "floor_width_m", need_min: 0.5, need_max: 0.9, limit: 0.62, need_basis: "estimated_from_video", limit_basis: "catalog" };
+    expect(conditionWords(hand(1.5))).toBe("Fits if the job's heights are within its hand range up to 1.5 m; it seems to need 0.4 to 1.65 m, estimated from the video.");
+    expect(conditionWords(hand(1.5, null, null))).toBe("Fits if the job's heights are within its hand range up to 1.5 m.");
+    expect(conditionWords(hand(0))).toBeNull();
+    for (const weight of ["under_5kg", "5_15kg", "over_30kg", "unsure"] as const) {
+      expect(firstLookRowInWords(fitsIf([hand(1.5), floor]), facts(weight))).toEqual({ verdict: "conditional", robot: "Universal Robots UR10e",
+        text: "Fits if the job's heights are within its hand range up to 1.5 m; it seems to need 0.4 to 1.65 m, estimated from the video. "
+          + "Fits if there is 0.62 m of clear floor to stand on; this job seems to offer 0.5 to 0.9 m, estimated from the video." });
+    }
+  });
+
+  it("says a quantity the website does not word in the Pipeline's own sentence when it sent one, and never throws", () => {
+    const unknown = { quantity: "floor_load_kg", need_min: 1, need_max: 2, limit: 3, need_basis: "estimated_from_video", limit_basis: "catalog" };
+    expect(firstLookRowInWords({ ...fitsIf([unknown, mass(11.6)]), first_look_reasons: ["Fits if the floor holds its weight.", "x"] }))
+      .toMatchObject({ verdict: "conditional", text: "Fits if the floor holds its weight. Fits if the item weighs under 11.6 kg." });
+    expect(firstLookRowInWords(fitsIf([{ ...unknown, sentence: "Fits if the floor holds it." }])))
+      .toMatchObject({ verdict: "conditional", text: "Fits if the floor holds it." });
+    // No sentence from the Pipeline either: the row is not rated, never a raw code.
+    expect(firstLookRowInWords(fitsIf([unknown]))).toMatchObject({ verdict: "not_rated", text: "Not rated yet." });
+    expect(() => firstLookRowInWords({ ...fitsIf([unknown]), first_look_reasons: [null, 3] as never })).not.toThrow();
   });
 
   it("names the robot only from the row", () => {

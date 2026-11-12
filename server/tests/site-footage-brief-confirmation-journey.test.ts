@@ -368,7 +368,8 @@ describe("a site that will film on its phone and types no task", () => {
     expect(token).toBeTruthy();
     const record = doc(`inboundRequests/${requestId}`);
     expect(record.public_task_listing).toBeUndefined();
-    expect(teamJobAccess(record)).toMatchObject({ listed: false, reason: "not_listed" });
+    // No video, so no recording statement: not shared (2026-11-12).
+    expect(teamJobAccess(record)).toMatchObject({ listed: false, reason: "older_statement" });
     const brief = doc(`siteTaskBriefs/${requestId}`);
     expect(isPlaceholderSummary(brief.summary)).toBe(true);
     expect(brief).toMatchObject({ confirmedAtIso: null, confirmedBy: null });

@@ -42,23 +42,26 @@ beforeEach(() => { outlookPhase.value = "result"; state.docs.clear(); sendEmail.
 afterEach(() => vi.useRealTimers());
 
 describe("public task disclosure", () => {
-  it("publishes only previewed fields, with no contact, intake, storage or footage", () => {
+  it("publishes only the closed category of the job, with no contact, intake, storage, footage or stored free text", () => {
     const card = projectTaskBrowseCard("req1", record());
-    expect(card).toMatchObject({ title: details.title, opportunity: "past", evaluationAvailable: true, stage: "ready", costUsd: 0 });
-    expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs/);
+    // The stored title is free text, so the card shows the neutral category (2026-11-12: never trust stored text).
+    expect(card).toMatchObject({ title: "Work assessment opportunity", opportunity: "open", evaluationAvailable: true, stage: "ready", costUsd: 0 });
+    expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs|Move cartons|US Midwest|Warehouse|Sealed cartons/);
   });
-  it("keeps proposed site terms distinct from an exploratory budget", () => {
-    const proposed = { ...details, pilotBudget: "$20,000", pilotPriceStatus: "site_offer", pilotConditions: "Four weeks including setup and support", ongoingTarget: "$5,000 per month" };
-    expect(projectTaskBrowseCard("req1", record({ public_task_listing: {
-      enabled: true, consentVersion: "job-shared-2026-11-12", approvedAtIso: "2026-09-19T00:00:00.000Z", details: proposed,
-    } }))).toMatchObject({ ...proposed, region: "" });
+  it("rebuilds a shared card from its category and never shows the site's proposed terms or any stored text", () => {
+    const proposed = { ...details, title: "Carton palletizing opportunity", pilotBudget: "$20,000", pilotPriceStatus: "site_offer",
+      pilotConditions: "PLANTED Four weeks including setup and support", ongoingTarget: "$5,000 per month" };
+    const card = projectTaskBrowseCard("req1", record({ public_task_listing: {
+      enabled: true, consentVersion: "job-shared-2026-11-12", approvedAtIso: "2026-09-19T00:00:00.000Z", details: proposed } }));
+    expect(card).toMatchObject({ title: "Carton palletizing opportunity", taskFamily: "Pallet handling", objects: "Cartons",
+      pilotBudget: "", pilotConditions: "", ongoingTarget: "", region: "", siteType: "" });
+    expect(JSON.stringify(card)).not.toMatch(/PLANTED|\$20,000|\$5,000|US Midwest|Warehouse/);
     expect(taskListingSchema.parse({ ...proposed, pilotBudget: "" }).pilotBudget).toBe("");
     expect(taskListingSchema.parse({ ...proposed, pilotBudget: undefined }).pilotBudget).toBe("");
-    expect(approvedTaskDetails(record())).toMatchObject({ pilotBudget: "", opportunity: "past" });
   });
   it.each([
     { public_task_listing: undefined }, { public_task_listing: { enabled: true, details } },
-    { workspace_task: { paused: true } }, { debug: { autoCreatedByPipeline: true } },
+    { workspace_task: { archived: true } }, { debug: { autoCreatedByPipeline: true } },
     { evidence_tier: "development_only" }, { pipeline: { rights_review_status: "blocked" } },
     // Where the Pipeline sync actually reports its rights verdict.
     { evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review" } },
@@ -66,7 +69,7 @@ describe("public task disclosure", () => {
     // A card under an older statement, or a video that has not passed the privacy screen (2026-11-12).
     { public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-09-19T00:00:00.000Z", details } },
     { capture_privacy_screen: { eligibility: "rejected", proceeded: false } },
-  ])("does not expose unconsented, paused, development or restricted records: %j", patch => {
+  ])("does not expose unconsented, closed, development or restricted records: %j", patch => {
     expect(projectTaskBrowseCard("req1", record(patch))).toBeNull();
   });
   it("public interest in a pilot cannot make an unproven scene runnable", () => {
@@ -74,9 +77,11 @@ describe("public task disclosure", () => {
     expect(projectTaskBrowseCard("req1", source)).toMatchObject({ stage: "preparing", evaluationAvailable: false, costUsd: null });
     expect(isRunnableTask(source)).toBe(false);
   });
-  it("shows capture progress separately and hides paused historical scenes from paid supply", () => {
+  it("shows capture progress separately and keeps closed scenes out of paid supply", () => {
     // A listed job's video has passed the privacy screen (2026-11-12), so it is never still at "capture".
     expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "preparing", evaluationAvailable: false });
+    // A pause no longer hides the job from companies (must-fix 3) but still keeps it out of paid runs, as does a close.
+    expect(isRunnableTask(record({ workspace_task: { archived: true } }))).toBe(false);
     expect(isRunnableTask(record({ workspace_task: { paused: true } }))).toBe(false);
   });
   it("lists a job whose video passed the privacy screen", () => {

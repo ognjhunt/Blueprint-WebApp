@@ -41,8 +41,10 @@ export const RESPONSE_PRIVACY_LINE = "The site is told your response, not your c
  * answers again under this one. Never change this text under this version: add a new version.
  */
 export const COMPANY_RESPONSE_STATEMENT_VERSION = "company-response-2026-11-12";
-export const COMPANY_RESPONSE_STATEMENT = "The site is told your answer. If you answer Interested and the site asks for an "
-  + "introduction, we give the site your company's name and your contact details, and give you theirs.";
+// The text names both answers an introduction may follow (planner, 15:33Z). The id is unchanged because this version
+// was never recorded in production before this text.
+export const COMPANY_RESPONSE_STATEMENT = "The site is told your answer. If you answer Interested or Tested it: can do and the "
+  + "site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
 
 /** Introductions a site may ask for on one job. */
 export const MAX_INTRODUCTIONS_PER_JOB = 3;

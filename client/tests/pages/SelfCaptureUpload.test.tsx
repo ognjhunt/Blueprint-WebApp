@@ -300,7 +300,7 @@ describe("video first owner return", () => {
     expect(permission).toHaveTextContent(/need your video to build the simulation of your site and the job packet deployment companies answer from/);
     expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
     // Said before the grant: people in the work area are told, and sound is not analysed.
-    expect(screen.getByText(/Tell people in the work area that you are filming for Blueprint and the robot deployment companies we approve, and avoid filming conversations\. We remove the sound before anyone reviews it or a company sees it\./)).toBeInTheDocument();
+    expect(screen.getByText(/Tell people nearby that the video goes to Blueprint and to deployment companies we approve\. Avoid conversations: we remove the sound\./)).toBeInTheDocument();
     // Recording statement v4, word for word, directly above the one button that agrees to it (2026-11-12): pressing it is the act.
     const button = screen.getByRole("button", { name: "Agree and continue" });
     expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
@@ -365,7 +365,7 @@ describe("video first owner return", () => {
     setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1");
     vi.stubGlobal("fetch", ownerFetch(false));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByText(/^Tell people in the work area that you are filming for Blueprint/)).toBeVisible();
+    expect(await screen.findByText(/^Tell people nearby that the video goes to Blueprint/)).toBeVisible();
     const howTo = screen.getByText("How to film ›").closest("details")!;
     expect(howTo).not.toHaveAttribute("open");
     expect(screen.getByText(/^Move slowly and overlap your passes/)).not.toBeVisible();
@@ -1263,13 +1263,34 @@ describe("the site's answer leads its job page", () => {
   // PACKAGE_E E1: the few quick questions sit directly under the job sentence, on the owner's page only.
   it("mounts the few quick questions directly under the job sentence", async () => {
     setUserAgent(DESKTOP_UA);
-    const drafted = { ...readyAnswer, job: { ...readyAnswer.job, sentence: "Stack cartons onto the pallet", drafted: true } };
+    const drafted = { ...readyAnswer, job: { ...readyAnswer.job, sentence: "Stack cartons onto the pallet", drafted: true },
+      sharing: { state: "visible", sharedAtIso: "2026-11-12T10:00:00.000Z" } };
     vi.stubGlobal("fetch", answerFetch({ answer: drafted }));
     render(<SelfCaptureUpload />);
     const sentence = await screen.findByText(/We read your job as:/);
     const facts = await screen.findByTestId("job-facts");
     expect(sentence.nextElementSibling).toBe(facts);
     expect(facts.compareDocumentPosition(screen.getByRole("region", { name: "Your job" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("asks no quick questions on an older job, whose page asks for the current statement first", async () => {
+    setUserAgent(DESKTOP_UA);
+    const older = { ...readyAnswer, sharing: { state: "not_shared", sharedAtIso: null, olderStatement: true } };
+    vi.stubGlobal("fetch", answerFetch({ answer: older }));
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: "Agree and send my job" });
+    expect(screen.queryByTestId("job-facts")).toBeNull();
+  });
+
+  it("puts the quick questions below the page's action when one waits on the site", async () => {
+    setUserAgent(DESKTOP_UA);
+    const shared = { ...readyAnswer, sharing: { state: "visible", sharedAtIso: "2026-11-12T10:00:00.000Z" } };
+    vi.stubGlobal("fetch", answerFetch({ answer: shared, decision: "save_account", headline: "Save this job to an account to continue." }));
+    render(<SelfCaptureUpload />);
+    const step = await screen.findByText("Save this job to an account to continue.", { selector: "strong" });
+    const facts = await screen.findByTestId("job-facts");
+    expect(step.compareDocumentPosition(facts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Your job" }).compareDocumentPosition(facts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("offers an older job's finished processing details from Job settings under an answer, with no retry", async () => {

@@ -124,6 +124,8 @@ export function screenAllowsSupply(request: Record<string, any>): boolean {
 }
 
 export function isRunnableTask(request: InboundRequest): boolean {
+  // Runs (robot teams running their own software, "later") still respect a site's pause: it no longer hides the job
+  // from companies (must-fix 3), but it keeps stopping paid runs, which is the conservative reading.
   if (request.request?.buyerType === "robot_team" || operatorListingPaused(request)
     || !screenAllowsSupply(request as unknown as Record<string, any>)) return false;
   const measured = coverageEvidenceFrom(request as never);
@@ -219,13 +221,16 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
   if (raw.debug?.autoCreatedByPipeline === true) return closed("pipeline_placeholder");
   const rights = projectWebsiteCaptureRights(raw);
   // The stops come first, so a withdrawn or held job is reported as such whatever else it lacks.
-  if (rights.consent_revoked) return closed("consent_withdrawn");
+  // A withdrawal is found by its own fields (it also sets `workspace_task.paused`, which no longer closes on its own).
+  if (rights.consent_revoked || raw.capture_withdrawal) return closed("consent_withdrawn");
   if (operatorListingHold(raw)) return closed("blueprint_hold");
   const hold = rightsHold(raw);
   if (hold) return closed(hold);
   if (context.preparationState === "authority_ended") return closed("authority_ended");
-  if (closedBySite(raw)) return closed("closed_by_site");
-  if (operatorListingPaused(raw)) return closed("operator_paused");
+  // The site closing its job: a run closure, or the old workspace "close" (`workspace_task.archived`). A site-set
+  // `workspace_task.paused` from the retired pause control does NOT close: under E2 there is no site pause, and a job
+  // paused before 2026-11-12 must not be stranded (planner, 15:07Z).
+  if (closedBySite(raw) || raw.workspace_task?.archived === true) return closed("closed_by_site");
   if (raw.evidence_tier === "development_only" || raw.pipeline?.evidence_tier === "development_only")
     return closed("development_only");
   const legacy = legacyRestriction(raw);

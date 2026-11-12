@@ -23,7 +23,7 @@ export default function Partners() {
         <BareRows title="How it works" rows={[
           { key: "approval", label: "How to be approved", value: "Apply below. We approve each company by hand." },
           { key: "response", label: "What you send back", value: "Interested, not a fit, or would need something." },
-          { key: "introduction", label: "Meeting the site", value: "If you answer Interested and the site asks for an introduction, we give each of you the other's details." },
+          { key: "introduction", label: "Meeting the site", value: "If you answer Interested or Tested it: can do and the site asks for an introduction, we give each of you the other's details." },
           { key: "cost", label: "Cost", value: "Nothing is charged today." },
         ]} />
         <div id="partner-application" className="bare-group">

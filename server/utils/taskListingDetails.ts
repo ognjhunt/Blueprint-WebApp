@@ -48,6 +48,9 @@ export function approvedTaskDetails(record: unknown): TaskListingDetails | null 
  * card recorded under an older version (`LISTING_CONSENT_VERSIONS`) drops out with no data change.
  */
 export const JOB_SHARED_LISTING_VERSION = "job-shared-2026-11-12";
+/** Every category draft `anonymizedOpportunityDraft` can produce: the only details a shared listing is ever shown with. */
+const CATEGORY_DRAFTS: readonly TaskListingDetails[] = ["dish", "pallet carton", "pallet", "pack", "inspect", "pick", ""]
+  .map(phrase => anonymizedOpportunityDraft(phrase));
 /** Every listing version a card may be listed under: only the current one. */
 export const LISTING_CONSENT_VERSIONS: readonly string[] = [JOB_SHARED_LISTING_VERSION];
 
@@ -59,8 +62,8 @@ export function sharedJobListing(record: unknown): { details: TaskListingDetails
   const grant = (record as { public_task_listing?: Record<string, unknown> })?.public_task_listing;
   if (!grant || grant.enabled !== true || grant.consentVersion !== JOB_SHARED_LISTING_VERSION
       || typeof grant.approvedAtIso !== "string" || !Number.isFinite(Date.parse(grant.approvedAtIso))) return null;
-  const parsed = taskListingSchema.safeParse(grant.details);
-  // Free-text fields a site could once type (region, targeting) are never carried: country comes from the job page payload.
-  const { targeting: _targeting, ...details } = parsed.success ? parsed.data : anonymizedOpportunityDraft("");
-  return { details: { ...details, region: "" }, approvedAtIso: grant.approvedAtIso };
+  // Never trust stored text: the details are rebuilt from the closed category the stored title names, else the neutral one.
+  const title = (grant.details as { title?: unknown } | undefined)?.title;
+  return { details: CATEGORY_DRAFTS.find(draft => draft.title === title) ?? anonymizedOpportunityDraft(""),
+    approvedAtIso: grant.approvedAtIso };
 }

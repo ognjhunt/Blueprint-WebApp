@@ -63,8 +63,8 @@ export const PREVIOUS_PRIVACY_VERSION = "2026-11-02.1";
  * version and this digest are updated together.
  */
 export const LEGAL_PAGE_DIGESTS = {
-  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "d063984d0cda80c1c8ac6562c439938b1a08b3e96dd2f059878a62b5abbabddf" },
-  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "cb75eafb878ec2ca944888d706ae46cb00d87492e7c0c32a849b82817a614f98" },
+  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "a79e22d049a28f61aa6cdfb17f31eda7aaf4c606c47235ac9c6a8bf695874ace" },
+  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "75d84801005bf13c39d52ed89658cc509c61302b27c8ab823b62ab7a79dde849" },
   "client/src/pages/TermsAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "2a56699800d45d0ce2d63598021799a7abbc3027612b1cdfaaf9c0c98cf2cd97" },
   "client/src/pages/PrivacyAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "ae47ecfdb9bbf404ac0d070c02816d2a99f7d4460616e8b06435fbbcb3f115f9" },
   "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" },

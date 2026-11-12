@@ -47,8 +47,9 @@ import {
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { canGrantInitialRecordingConsent } from "../utils/descriptionAuthority";
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
-import { RECORDING_RIGHTS_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
+import { RECORDING_RIGHTS_STATEMENT_VERSIONS, isSharingRecordingStatementVersion } from "../../client/src/lib/recordingRightsStatement";
 import { recordingConsentWrite } from "../utils/jobSharedListing";
+import { recheckCaptureInBackground } from "../utils/pipelineCompanyRecheck";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
@@ -579,10 +580,13 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
   const statementVersion = parsed.data.statementVersion;
   if (!dbAdmin) return res.status(503).json({ error: "We could not save recording permission. Try again shortly." });
   try {
+    let captureExists = false;
     const outcome = await dbAdmin.runTransaction(async tx => {
       const ref = dbAdmin!.collection("inboundRequests").doc(payload.requestId);
       const snap = await tx.get(ref), record = snap.data();
       if (!snap.exists || !record) return "missing";
+      // Whether the job already has a capture: then the Pipeline is told at once (below).
+      captureExists = (await tx.get(dbAdmin!.collection("captureUploadSessions").doc(payload.captureId))).exists;
       let taskStatement: string | null = null;
       try { taskStatement = record.request?.taskStatement ? String(await decryptFieldValue(record.request.taskStatement as never)) : null; }
       catch { taskStatement = null; }
@@ -592,8 +596,18 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
       if (write.outcome === "held") return "held";
       if (write.request) tx.set(ref, { request: write.request }, { merge: true });
       if (write.listing) tx.update(ref, write.listing as FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>);
+      if (write.unpause) tx.set(ref, { workspace_task: { paused: false, unpaused_by: "recording_statement" } }, { merge: true });
       return write.outcome;
     });
+    // A statement that shares was just recorded on a job with a capture: the Pipeline rereads its permission now, not in
+    // hours. Best effort, not awaited (`pipelineCompanyRecheck.ts`).
+    if ((outcome === "granted" || outcome === "upgraded") && captureExists && isSharingRecordingStatementVersion(statementVersion))
+      try { recheckCaptureInBackground(payload.requestId, payload.captureId); } catch { /* never the person's failure */ }
+    // A job shared just now goes to the approved companies at once if it is already listed; the sweep catches the rest.
+    if (outcome === "granted" || outcome === "upgraded" || outcome === "existing") {
+      await import("../utils/jobAutoSend").then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId))
+        .catch(() => undefined);
+    }
     if (outcome === "missing") return res.status(404).json({ error: "This link does not point at a job we hold." });
     if (outcome === "held") return res.status(409).json({ error: "Recording permission needs review. Contact hello@tryblueprint.io with your job link." });
     // `granted` (a first grant), `upgraded` (v4 replaced an older grant, kept in `consent_attestation_earlier`) or `existing`.

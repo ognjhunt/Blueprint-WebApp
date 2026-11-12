@@ -14,7 +14,7 @@ export const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street 
 export const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 export const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
 export const OLDER_JOB_SENTENCE = "A job started before 12 November 2026 is not shown to companies unless you accept the current statement on its page.";
-export const COMPANY_ALIAS_SENTENCE = "A site sees your answer under an alias. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested.";
+export const COMPANY_ALIAS_SENTENCE = "A site sees your answer under an alias. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.";
 
 export const privacyPolicySections = [
   {

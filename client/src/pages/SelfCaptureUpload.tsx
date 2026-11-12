@@ -791,6 +791,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </form>
   ) : null;
 
+  // The site's quick questions, and whether the page has an action waiting on the site first (an older job's agreement,
+  // a step the status card names, or the job's sentence): then they sit below that action.
+  // Only for a shared job: a job under an older statement has no company to answer yet, and its page asks for v4 first.
+  const jobFacts = answer && scope === "owner" && !withdrawn && answer.sharing?.state !== "not_shared"
+    ? <JobFacts token={token} facts={status?.jobFacts as never} /> : null;
+  const siteActionWaiting = answer?.sharing?.olderStatement === true || !quietCard || Boolean(taskStatementForm);
   const settingsOpen = scope === "owner" && (link.status === "valid" || link.status === "held");
   const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || undefined}
     onToggle={event => { if ((event.currentTarget as HTMLDetailsElement).open) setEditingBrief(true); }}>
@@ -849,8 +855,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
       {answer?.job.sentence && <p className="bare-job">{answer.job.drafted ? "We read your job as: " : ""}“{answer.job.sentence.trim().replace(/[.!?]+$/, "")}.”</p>}
-      {/* A few quick questions help companies answer (PACKAGE_E E1): optional taps, right under the job sentence. */}
-      {answer && scope === "owner" && !withdrawn && <JobFacts token={token} facts={status?.jobFacts as never} />}
+      {/* A few quick questions help companies answer (PACKAGE_E E1; planner, 2026-11-12): right under the job sentence,
+          unless the page has an action waiting on the site; then below that action. */}
+      {jobFacts && !siteActionWaiting && jobFacts}
 
       {/* A step the site must take comes first; the answer's own button then stays, quiet. */}
       {answer && statusCard}
@@ -864,6 +871,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {answer && placeCaveat}
       {/* The answer asks for the job's sentence: the form to give it sits right under it, not in the settings. */}
       {answer && taskStatementForm}
+      {jobFacts && siteActionWaiting && jobFacts}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
       {!answer && workspace}

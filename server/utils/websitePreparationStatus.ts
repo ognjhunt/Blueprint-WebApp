@@ -154,7 +154,7 @@ const receiptV7 = receiptV6.extend({
  */
 export const ROBOT_FIT_V2_VERDICTS = ["fits", "fits_spec", "fits_if", "doesnt_fit", "unknown"] as const;
 export const ROBOT_FIT_V2_CHECKS = ["stance", "reach", "payload", "cycle_time", "access"] as const;
-export const ROBOT_FIT_V2_QUANTITIES = ["item_mass_kg", "reach_m", "cycle_time_s", "route_clear", "floor_width_m"] as const;
+export const ROBOT_FIT_V2_QUANTITIES = ["item_mass_kg", "reach_m", "hand_height_m", "cycle_time_s", "route_clear", "floor_width_m"] as const;
 export const ROBOT_FIT_V2_CAUSES = ["estimate_straddles_limit", "item_mass_missing", "catalog_figure_missing",
   "tool_figure_missing", "no_clear_station", "footprint_not_searched", "arm_pose_search_inconclusive",
   "carry_check_undecided", "not_modelled", "not_checked"] as const;
@@ -219,7 +219,7 @@ export type PublicRobotFit = {
  */
 export function publicRobotFit(fit: RobotFitReceipt | RobotFitV2Receipt): PublicRobotFit {
   if (fit.schema_version === "website_robot_fit_projection.v2") {
-    const checkOf: Record<string, string> = {item_mass_kg: "payload", reach_m: "reach", cycle_time_s: "cycle_time", route_clear: "access", floor_width_m: "stance"};
+    const checkOf: Record<string, string> = {item_mass_kg: "payload", reach_m: "reach", hand_height_m: "reach", cycle_time_s: "cycle_time", route_clear: "access", floor_width_m: "stance"};
     return {route: fit.route, status: fit.status, reason: known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason) ? fit.reason : null,
       counts: fit.counts && {fits: fit.counts.fits, fitsSpec: fit.counts.fits_spec, doesntFit: fit.counts.doesnt_fit,
         unknown: fit.counts.unknown + fit.counts.fits_if},

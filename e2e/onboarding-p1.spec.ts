@@ -189,8 +189,7 @@ test("desktop owner opens video capture with one status and no share settings", 
   const instruction = await page.getByText("Already have the recording on this computer? Upload a .mov or .mp4 file.").boundingBox();
   // The upload is its own group (round 5 rhythm): its line, the footage notice and the button, 16 px apart. The button
   // stays right under its two lines, never pushed down the page (rewritten from < 110 px, which predates the rhythm).
-  // 2026-11-12: the filming notice now names the deployment companies, one line longer on desktop (was < 140).
-  expect(upload!.y - instruction!.y).toBeLessThan(160);
+  expect(upload!.y - instruction!.y).toBeLessThan(140);
   expect(upload!.y).toBeGreaterThan(instruction!.y + instruction!.height + 15);
   await screenshot(page, "desktop-capture");
   // Sharing is the service (2026-11-12): no Share settings and no public card controls in Job settings.

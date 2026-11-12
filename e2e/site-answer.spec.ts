@@ -18,7 +18,7 @@ const simulationRun = { ...winnerEvaluation, screening: { ...winnerEvaluation.sc
 /** The old share button (until 2026-11-12): it must not come back. */
 const FIND = "Share my job";
 /** An older job's page (PACKAGE_D D1.3): what changed, recording statement v4, and the one button that agrees to it. */
-const OLDER = "Blueprint now shares each job, with its video, with the deployment companies we approve. Your job is not shown to any company. To have it shared, agree below.";
+const OLDER = "Not shared yet.";
 const AGREE = "Agree and send my job";
 const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
 const SHARED = "We share your job with the deployment companies we approve.";

@@ -11,8 +11,9 @@
  * - `fits_if`: one sentence per condition ("Fits if the item weighs under 11.6 kg."). When the site gave a
  *   weight range (`job_facts.weight`), only the weight condition is resolved: the range's upper bound at
  *   or under the limit settles it (the sentence then says so, or the row reads "Fits: …" when it was the
- *   only condition); even the lightest item in a bounded range over the rated payload reads "Too heavy
- *   for this robot"; "over 30 kg" and "not sure" leave it conditional.
+ *   only condition); even the lightest item in a bounded range over the condition's limit (the rating less a
+ *   standard gripper) reads "Does not fit … with a standard gripper"; a straddling range, "over 30 kg" and
+ *   "not sure" leave it conditional.
  * - `unknown`: "Not rated yet: {why}." with each cause in fixed words.
  *
  * A code this file does not know (a verdict, a quantity, a check the Pipeline adds later) never crashes
@@ -26,6 +27,8 @@ import type { AnswerRobot } from "./siteAnswer";
 /** A published v2 condition, as loosely typed as a stored value is. */
 export interface FirstLookCondition {
   quantity?: unknown; need_min?: unknown; need_max?: unknown; limit?: unknown; need_basis?: unknown; limit_basis?: unknown;
+  /** The Pipeline's own sentence for this condition, when it sends one (not in v2; read if a later revision adds it). */
+  sentence?: unknown;
 }
 
 /** A published v2 model row, as loosely typed as a stored or fetched value is. */
@@ -39,6 +42,8 @@ export interface FirstLookRow {
   failed_checks?: unknown;
   conditions?: unknown;
   missing?: unknown;
+  /** The Pipeline's fixed sentences, one per condition in order (`first_look_reasons`), when it sends them. */
+  first_look_reasons?: unknown;
 }
 
 export type FirstLookVerdict = "fits" | "does_not_fit" | "conditional" | "not_rated";
@@ -92,7 +97,8 @@ export const fitsIfUnder = (limit: string) => `Fits if the item weighs under ${l
 export const fitsWithinRange = (upper: string, limit: string) =>
   `Fits: the item is under ${upper} kg and this robot carries ${limit} kg.`;
 export const weightSettled = (upper: string, limit: string) => `The item is under ${upper} kg and this robot carries ${limit} kg.`;
-export const tooHeavy = (rated: string) => `Too heavy for this robot (${rated} kg).`;
+/** The whole weight range is over the condition's limit (the rating less a standard 0.9 kg gripper). */
+export const tooHeavy = (limit: string) => `Does not fit: the item is too heavy for it with a standard gripper (it carries ${limit} kg).`;
 export const FITS_IF_ROUTE_CLEAR = "Fits if it has a clear route to the job.";
 
 const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
@@ -144,6 +150,14 @@ export function conditionWords(condition: unknown): string | null {
       const need = band(c.need_min, c.need_max, "s", 1);
       return `Fits if each cycle can stay within the site's ${figureWords(limit, 1)} s target${need ? `; it seems to take ${need}` : ""}.`;
     }
+    // Revision 4: a robot that drives has its reach checked as hand height; only the top of its range is carried.
+    case "hand_height_m": {
+      const limit = positive(c.limit);
+      if (limit === null) return null;
+      const need = band(c.need_min, c.need_max, "m", 2);
+      return `Fits if the job's heights are within its hand range up to ${figureWords(limit, 2)} m${need ? `; it seems to need ${need}${basis ? `, ${basis}` : ""}` : ""}.`;
+    }
+    // Revision 4, reversed: it holds when the floor the job offers is AT LEAST the base's longest side.
     case "floor_width_m": {
       const limit = positive(c.limit);
       if (limit === null) return null;
@@ -181,20 +195,23 @@ export function firstLookRowInWords(row: FirstLookRow | null | undefined, facts?
       const conditions = list(safe.conditions);
       if (conditions.length === 0) return words("not_rated", FIRST_LOOK_NOT_RATED);
       const upper = weightUpperBoundKg(facts), lower = weightLowerBoundKg(facts);
-      const rated = positive(safe.rated_payload_kg);
       const sentences: string[] = [];
       let settledWeight: { upper: number; limit: number } | null = null;
-      for (const condition of conditions) {
+      const pipelineSentences = list(safe.first_look_reasons);
+      for (const [index, condition] of conditions.entries()) {
         const c = record(condition);
         if (c.quantity === "item_mass_kg") {
           const limit = positive(c.limit);
           if (limit !== null && upper !== null && upper <= limit) { settledWeight = { upper, limit }; continue; }
-          // Only a bounded range settles a row ("over 30 kg" and "not sure" leave it conditional, PACKAGE_E E1).
-          if (limit !== null && upper !== null && lower !== null && rated !== null && lower > rated)
-            return words("does_not_fit", tooHeavy(kgWords(rated)));
+          // One weight rule (Pipeline review, 2026-11-12; contract revision 5): compare the site's range with the
+          // condition's `limit` (the rating less a standard gripper) and nothing else. Only a bounded range settles a row
+          // ("over 30 kg" and "not sure" leave it conditional, PACKAGE_E E1); a range that straddles the limit stays as it is.
+          if (limit !== null && upper !== null && lower !== null && lower > limit)
+            return words("does_not_fit", tooHeavy(kgWords(limit)));
         }
-        const sentence = conditionWords(condition);
-        // A condition with no words means the row cannot be said truthfully: it is not rated.
+        // A quantity the website does not word falls back to the Pipeline's own sentence when it sent one.
+        const sentence = conditionWords(condition) ?? text(c.sentence) ?? text(pipelineSentences[index]);
+        // A condition with no words at all means the row cannot be said truthfully: it is not rated.
         if (!sentence) return words("not_rated", FIRST_LOOK_NOT_RATED);
         sentences.push(sentence);
       }

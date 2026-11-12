@@ -439,7 +439,7 @@ describe("projectJobFacts", () => {
     it("carries every other closed reason through unchanged", () => {
       const reasons: Array<[(record: Record<string, any>) => void, TeamAccessReason]> = [
         [r => { r.public_task_listing.enabled = false; }, "not_listed"],
-        [r => { r.workspace_task = { paused: true }; }, "operator_paused"],
+        [r => { r.workspace_task = { archived: true }; }, "closed_by_site"],
         [r => { r.evidence_tier = "development_only"; }, "development_only"],
         [r => { r.evaluation_readiness.rights_review_status = "needs_review"; }, "rights_needs_review"],
         [r => { r.pipeline.rights_review_status = "blocked"; }, "rights_blocked"],

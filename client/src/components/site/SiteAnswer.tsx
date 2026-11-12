@@ -30,9 +30,8 @@ import { companyAnswered, isSiteCompanyActivity, sentToCompanies, sentToCompany,
 export const SHARED_LINE = "We share your job with the deployment companies we approve.";
 /** Shared, but not in front of companies right now: Blueprint's hold, a rights hold, or the site closed it. */
 export const NOT_VISIBLE_LINE = "Your job is not visible to companies right now.";
-/** An older job (agreed to a statement before 2026-11-12): what changed, and the one agreement that shares it. */
-export const OLDER_JOB_LINES = "Blueprint now shares each job, with its video, with the deployment companies we approve. "
-  + "Your job is not shown to any company. To have it shared, agree below.";
+/** An older job (agreed to a statement before 2026-11-12): one line, then the v4 sentence and its button (PACKAGE_D D1.3, 17:15Z). */
+export const OLDER_JOB_LINES = "Not shared yet.";
 /** The button under the recording statement v4 on the job page: "By sending, you agree …" reads right beside it. */
 export const OLDER_JOB_AGREE = "Agree and send my job";
 export const OLDER_JOB_FAILED = "We could not save your agreement just now. Try again shortly.";

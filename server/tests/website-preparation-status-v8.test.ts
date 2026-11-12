@@ -122,6 +122,21 @@ describe("status v8", () => {
     expect(parses(receipt)).toBe(false);
   });
 
+  // FIRST_LOOK_CONTRACT revision 4: hand_height_m and floor_width_m are known quantities, worded, with no staff alert.
+  it("words revision 4's hand height and floor width conditions without alerting staff", async () => {
+    const fit = v2Fit({ models: [{ ...rows()[0], conditions: [
+      { quantity: "hand_height_m", need_min: 0.4, need_max: 1.65, limit: 1.5, need_basis: "estimated_from_video", limit_basis: "catalog" },
+      { quantity: "floor_width_m", need_min: 0.5, need_max: 0.9, limit: 0.62, need_basis: "estimated_from_video", limit_basis: "catalog" }] }] });
+    const h = harness();
+    h.ledger(v8(fit));
+    alerts.codes.length = 0;
+    await status.syncWebsitePreparationStatus(selector, h.deps);
+    expect(alerts.codes.filter(([slot]) => slot === "robot_fit.condition.quantity")).toEqual([]);
+    expect(firstLookFromStoredPreparation(h.stored, { job_facts: { weight: "under_5kg", updatedAtIso: "2026-11-12T10:00:00.000Z" } })!.rows[0])
+      .toMatchObject({ verdict: "conditional", text: "Fits if the job's heights are within its hand range up to 1.5 m; it seems to need 0.4 to 1.65 m, "
+        + "estimated from the video. Fits if there is 0.62 m of clear floor to stand on; this job seems to offer 0.5 to 0.9 m, estimated from the video." });
+  });
+
   it("reads a new code in an open slot, words it Not rated yet, and alerts staff", async () => {
     const fit = v2Fit({ models: [
       { ...rows()[0], verdict: "fits_perhaps" },

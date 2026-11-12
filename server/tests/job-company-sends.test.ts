@@ -189,7 +189,8 @@ describe("the operator's Deployment companies panel", () => {
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
     patchJob({ public_task_listing: job().public_task_listing, evaluation_readiness: { rights_review_status: "needs_review" } });
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
-    patchJob({ evaluation_readiness: {}, workspace_task: { paused: true } });
+    // The site closed its job with the old workspace control (`archived`): closed. A site-set `paused` alone no longer closes.
+    patchJob({ evaluation_readiness: {}, workspace_task: { archived: true } });
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
     patchJob({ workspace_task: {}, consent_revoked: true });
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });

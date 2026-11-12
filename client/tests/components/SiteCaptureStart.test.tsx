@@ -1246,8 +1246,7 @@ it("tells a site uploading footage that people seen or heard must know, and that
   chooseCountry("us");
   expect(screen.queryByText(/People seen or heard in it must know/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
-  expect(screen.getByText("Only upload footage you may share. People seen or heard in it must know it is shared with Blueprint and with the "
-    + "robot deployment companies we approve, so avoid clips with conversations. We remove the sound before anyone reviews it or a company sees it.")).toBeInTheDocument();
+  expect(screen.getByText("Only upload footage you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.")).toBeInTheDocument();
 });
 
 it("offers account setup only after the site and job have been saved", async () => {
@@ -1379,7 +1378,7 @@ describe("with the one-line consent switched off", () => {
     expect(block).toHaveTextContent("“I am authorized to share this job description with Blueprint on behalf of the site.”");
     if (withVideo) {
       expect(block).toHaveTextContent(`“${RECORDING_RIGHTS_STATEMENT}”`);
-      expect(block).toHaveTextContent("Only upload footage you may share. People seen or heard in it must know it is shared with Blueprint and with the robot deployment companies we approve, so avoid clips with conversations. We remove the sound before anyone reviews it or a company sees it.");
+      expect(block).toHaveTextContent("Only upload footage you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.");
     } else {
       expect(block).not.toHaveTextContent(RECORDING_RIGHTS_STATEMENT);
     }

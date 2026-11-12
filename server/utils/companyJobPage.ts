@@ -24,11 +24,15 @@ import { loadJobCardAnswerWithRobots } from "./jobCardAnswer";
 import { logger } from "../logger";
 import { decryptFieldValue } from "./field-encryption";
 
-/** The company record still stands approved. Read on every page and media request. */
+/**
+ * The company still stands approved as a deployment company (never a technology partner: the site agreed to share its
+ * job with robot deployment companies). Read on every page, media request and introduction.
+ */
 export async function companyStillApproved(companyId: string, tx?: FirebaseFirestore.Transaction): Promise<boolean> {
   if (!db || !/^[a-f0-9]{64}$/.test(companyId)) return false;
   const ref = db.collection("robotTeamAccess").doc(companyId);
-  return (tx ? await tx.get(ref) : await ref.get()).data()?.status === "approved";
+  const record = (tx ? await tx.get(ref) : await ref.get()).data();
+  return record?.status === "approved" && record.partnerRole !== "technology";
 }
 
 /**
@@ -42,15 +46,29 @@ export async function companyMediaAllowed(requestId: string, captureId: string, 
   return Boolean(job) && access.listed && approved && siteWalkthroughIdentity(requestId, job ?? undefined).captureId === captureId;
 }
 
-const COUNTRY = /^[\p{L} .'()-]{2,56}$/u;
+const REGION_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
 
-/** The country only: the place's decrypted country field, else the region the site chose. Never the address. */
+/** A two-letter country code as its English name; anything else (a name, free text, an unknown code) is no country. */
+export function countryName(value: string): string | null {
+  const code = value.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return null;
+  try {
+    const name = REGION_NAMES.of(code);
+    return name && name !== code && name !== "Unknown Region" ? name : null;
+  } catch { return null; }
+}
+
+/**
+ * The country only: the place's decrypted country field when it is a two-letter code, shown as its English name; else
+ * the closed region the site chose (`capture_region`, "us"). Never the address or any free text.
+ */
 export async function countryOf(record: Record<string, any>): Promise<string | null> {
   const stored = record.request?.siteLocationMetadata?.country;
   if (stored) {
     try {
       const value = String(await decryptFieldValue(stored) ?? "").trim();
-      if (COUNTRY.test(value)) return value;
+      const name = countryName(value);
+      if (name) return name;
     } catch (error) {
       logger.warn({ error }, "Could not read the job's country");
     }
@@ -61,8 +79,9 @@ export async function countryOf(record: Record<string, any>): Promise<string | n
 /** The page payload for one viewer, or null when the job is not listed (refused alike with a job that does not exist). */
 export async function loadCompanyJobPage(requestId: string, viewer: { companyId: string }): Promise<CompanyJobPage | null> {
   if (!db) throw new Error("company_job_store_unavailable");
-  const { record, access } = await loadCompanyJobAccess(requestId);
-  if (!record || !access.listed) return null;
+  // The viewer must still be an approved deployment company, whatever the library gate decided.
+  const [{ record, access }, approved] = await Promise.all([loadCompanyJobAccess(requestId), companyStillApproved(viewer.companyId)]);
+  if (!record || !access.listed || !approved) return null;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
   const [brief, session, answerRow, firstLook, country] = await Promise.all([
     db.collection("siteTaskBriefs").doc(requestId).get().then(doc => doc.data()),

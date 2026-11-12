@@ -16,7 +16,8 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { INTRODUCIBLE_RESPONSE_STATES, MAX_INTRODUCTIONS_PER_JOB } from "../../client/src/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES, MAX_INTRODUCTIONS_PER_JOB,
+  type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
 import { COMPANY_RESPONSES_COLLECTION, INTRODUCTIONS_COLLECTION, answerConsentsToIntroduction, companyJobUrl,
@@ -100,7 +101,10 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     // A standing `interested` or `tested_can_do` answer (E9).
     if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer?.state)) return { ok: false, reason: "not_interested" };
     if (!answerConsentsToIntroduction(answer)) return { ok: false, reason: "consent_missing" };
-    if (introductions.size >= MAX_INTRODUCTIONS_PER_JOB) return { ok: false, reason: "limit_reached" };
+    // The count lives on the job document, which this transaction has read: two presses at once both write it, so
+    // Firestore retries one of them and it sees the other's count. The collection count is a floor for older jobs.
+    const used = Math.max(introductions.size, Number.isInteger(record.introductions_used) ? Number(record.introductions_used) : 0);
+    if (used >= MAX_INTRODUCTIONS_PER_JOB) return { ok: false, reason: "limit_reached" };
     const companyEmail = String(company.email ?? "").trim().toLowerCase();
     const companyShared = { company: text(company.company) ?? "", contactName: text(company.name) ?? "", email: companyEmail,
       ...(text(company.website) ? { website: text(company.website)! } : {}) };
@@ -109,12 +113,14 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     const siteRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionSiteKey(input.requestId, companyId));
     const [companyRow, siteRow] = [await tx.get(companyRowRef), await tx.get(siteRowRef)];
     const requestedAtIso = now().toISOString();
+    tx.set(jobRef, { introductions_used: used + 1 }, { merge: true });
     tx.create(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId), { schemaVersion: 1, alias: letter, requestedAtIso,
       by: input.actor, siteShared: { name: site.name, contactName: site.contactName, email: site.email,
         ...(site.phone ? { phone: site.phone } : {}), location: site.location }, companyShared, outcomes: [] });
     writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso));
     if (!companyRow.exists && EMAIL.test(companyEmail)) {
-      const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName });
+      const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName,
+        answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
       tx.create(companyRowRef, buildOutboxEntry({ idempotencyKey: companyRowRef.id, requestId: input.requestId,
         kind: INTRODUCTION_COMPANY_KIND, to: companyEmail, subject: message.subject, body: message.body,
         replyTo: EMAIL.test(site.email) ? site.email : "hello@tryblueprint.io" }));

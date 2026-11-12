@@ -53,7 +53,8 @@ vi.mock("../utils/robotTeamLibraryAccess", async () => {
     if (!account) return { access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
     const companyId = accessRecordId(account.email);
     const record = (await sharedFakeFirestore.collection("robotTeamAccess").doc(companyId).get()).data();
-    const allowed = record?.status === "approved";
+    // As the real gate (`resolveViewerAccess`): approved, and a deployment company, never a technology partner.
+    const allowed = record?.status === "approved" && record.partnerRole !== "technology";
     return { access: { gated: true, status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false },
       viewer: { uid: account.uid, email: account.email, companyId, staff: false } };
   };
@@ -98,7 +99,7 @@ function job(extra: Record<string, unknown> = {}) {
       company: `encrypted:${SITE.name}`, phone: SITE.phone },
     contactEmail: SITE.email, contactPhone: SITE.phone, submitterName: `${SITE.first} ${SITE.last}`,
     request: { buyerType: "site_operator", capture_mode: "self_capture", siteName: `encrypted:${SITE.name}`,
-      siteLocation: `encrypted:${SITE.address}`, siteLocationMetadata: { formattedAddress: `encrypted:${SITE.address}`, country: `encrypted:${SITE.country}` },
+      siteLocation: `encrypted:${SITE.address}`, siteLocationMetadata: { formattedAddress: `encrypted:${SITE.address}`, country: "encrypted:US" },
       consent_attestation: sharedRecordingGrant() },
     site_address: SITE.address,
     public_task_listing: sharedJobListing("Stack cartons onto the pallet"),
@@ -131,6 +132,8 @@ function scenePreview() {
   return { ...value, preview_digest: crossRuntimeArtifactDigest(value, "preview_digest") };
 }
 const CLIP_BYTES = Buffer.from("0123456789abcdefghijklmnopqrstuvwxyz");
+const ZIP_BYTES = Buffer.from("PK-ZIP-BYTES");
+const ZIP_DIGEST = `sha256:${createHash("sha256").update(ZIP_BYTES).digest("hex")}`;
 function companyClip() {
   const value: Record<string, unknown> = { schema_version: "website_company_clip.v1", capture_id: CAPTURE,
     clip_revision: `sha256:${"3".repeat(64)}`, state: "ready", format: "mp4_h264_faststart_video_only", content_type: "video/mp4",
@@ -198,8 +201,18 @@ beforeEach(async () => {
     if (!url.startsWith("https://pipeline.invalid/")) return realFetch(input as never, init);
     const range = new Headers(init?.headers).get("range");
     pipelineReads.push({ url, range });
-    if (url.includes("/website-company-simulations/")) return new Response(Buffer.from("PK-ZIP-BYTES"), { status: 200,
-      headers: { "content-type": "application/zip", "content-length": "12", "x-blueprint-artifact-sha256": `sha256:${"9".repeat(64)}` } });
+    if (url.includes("/website-company-simulations/")) {
+      const zipRange = range ? /^bytes=(\d+)-(\d*)$/.exec(range) : null;
+      if (zipRange) {
+        const first = Number(zipRange[1]), last = zipRange[2] ? Number(zipRange[2]) : ZIP_BYTES.length - 1;
+        if (first >= ZIP_BYTES.length) return new Response(JSON.stringify({ detail: "website_company_simulation_range_not_satisfiable" }),
+          { status: 416, headers: { "content-range": `bytes */${ZIP_BYTES.length}` } });
+        return new Response(ZIP_BYTES.subarray(first, last + 1), { status: 206, headers: { "content-type": "application/zip",
+          "content-range": `bytes ${first}-${last}/${ZIP_BYTES.length}`, "content-length": String(last - first + 1), "x-blueprint-artifact-sha256": ZIP_DIGEST } });
+      }
+      return new Response(ZIP_BYTES, { status: 200, headers: { "content-type": "application/zip",
+        "content-length": String(ZIP_BYTES.length), "x-blueprint-artifact-sha256": ZIP_DIGEST } });
+    }
     const match = range ? /^bytes=(\d+)-(\d*)$/.exec(range) : null;
     if (match) {
       const first = Number(match[1]), last = match[2] ? Number(match[2]) : CLIP_BYTES.length - 1;
@@ -273,7 +286,8 @@ describe("the company's page for one job (E3)", () => {
     expect(pipelineReads.every(read => read.url.includes(`/website-company-clips/${CAPTURE}/clip.mp4`))).toBe(true);
     // A ticket is bound to its viewer: another company cannot use it.
     expect((await media(url.replace(/viewer=[a-f0-9]+/, `viewer=${sha(SOUTH.email)}`))).status).toBe(404);
-    // Opening it as a page is refused: view only.
+    // A browser's request to open it as a page is refused (it only discourages saving; the ticket itself is a 15-minute
+    // signed URL bound to the job, the capture and the viewer).
     expect((await media(url, { "sec-fetch-dest": "document" })).status).toBe(403);
     expectNoSiteIn("the video route", whole.headers.get("content-disposition") ?? "");
   });
@@ -374,18 +388,20 @@ describe("the automatic send (E4)", () => {
 
   it("is idempotent: a second call and the sweep add nothing", async () => {
     await sendJobToApprovedCompanies(ID);
-    const before = JSON.stringify([...state.docs.entries()]);
+    // Everything but the sweep's own cursor.
+    const snapshot = () => JSON.stringify([...state.docs.entries()].filter(([key]) => !key.startsWith("automationState/")));
+    const before = snapshot();
     expect(await sendJobToApprovedCompanies(ID)).toEqual({ sent: false, reason: "already_sent" });
-    expect(await sweepAutomaticSends()).toEqual({ examined: 0, sent: 0 });
-    expect(JSON.stringify([...state.docs.entries()])).toBe(before);
+    expect(await sweepAutomaticSends()).toMatchObject({ examined: 0, sent: 0 });
+    expect(snapshot()).toBe(before);
   });
 
   it("the sweep catches a listed job that was never sent, and sends nothing for one that is not listed", async () => {
     patchJob({ operator_listing_hold: { held: true } });
-    expect(await sweepAutomaticSends()).toEqual({ examined: 1, sent: 0 });
+    expect(await sweepAutomaticSends()).toMatchObject({ examined: 1, sent: 0 });
     expect(outbox()).toEqual([]);
     patchJob({ operator_listing_hold: { held: false } });
-    expect(await sweepAutomaticSends()).toEqual({ examined: 1, sent: 1 });
+    expect(await sweepAutomaticSends()).toMatchObject({ examined: 1, sent: 1 });
   });
 
   it("delivers the email only while the job is listed and the company still wants it, at dispatch", async () => {
@@ -488,8 +504,16 @@ describe("introductions (E6) and money (E7)", () => {
   });
 });
 
-const simulationPackage = () => ({ schema_version: "website_company_simulation.v1", capture_id: CAPTURE, state: "ready",
-  digest: `sha256:${"9".repeat(64)}`, size_bytes: 12 });
+/** A package reference exactly as the contract's record (`website_company_simulation.v1`). */
+function simulationPackage(patch: Record<string, unknown> = {}) {
+  const value: Record<string, unknown> = { schema_version: "website_company_simulation.v1", capture_id: CAPTURE,
+    simulation_revision: `sha256:${"4".repeat(64)}`, state: "ready", format: "zip_usd_scene_object_success_rule",
+    content_type: "application/zip", digest: ZIP_DIGEST, size_bytes: ZIP_BYTES.length,
+    files: ["README.txt", "object.usdz", "scene.usda", "scene/room.usdc", "scene/room_collision.usdc", "success_rule.json"],
+    permission_basis: "site_sharing_statement", statement_version: "2026-11-12.v4", updated_at_epoch: 1_794_000_000, ...patch };
+  delete value.simulation_digest;
+  return { ...value, simulation_digest: crossRuntimeArtifactDigest(value, "simulation_digest") };
+}
 
 describe("the simulation download and the tested answers (E9)", () => {
   it("offers no download and refuses a tested answer until the job has a simulation package", async () => {
@@ -505,7 +529,7 @@ describe("the simulation download and the tested answers (E9)", () => {
     const download = await media(url);
     expect(download.status).toBe(200);
     expect(download.bytes.toString()).toBe("PK-ZIP-BYTES");
-    expect(download.headers.get("content-disposition")).toBe('attachment; filename="blueprint-job-simulation.zip"');
+    expect(download.headers.get("content-disposition")).toBe('attachment; filename="simulation.zip"');
     expect((await media(url.replace(/viewer=[a-f0-9]+/, `viewer=${sha(SOUTH.email)}`))).status).toBe(404);
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
     expect((await answer(SOUTH, { state: "tested_cannot_yet" })).status).toBe(200);
@@ -527,6 +551,258 @@ describe("the simulation download and the tested answers (E9)", () => {
     expect(session.company_clip).toBeUndefined();
     expect(session.company_simulation).toBeUndefined();
     expect(session.scene_preview).toBeTruthy();
+  });
+});
+
+/* ----------------------------------------------------------------- the independent review's findings, as assertions */
+
+const { teamJobAccess, loadCompanyJobAccess } = await import("../utils/teamJobAccess");
+const { recordCompanySend } = await import("../utils/jobCompanies");
+
+describe("review findings (must-fix and should-fix)", () => {
+  it("must-fix 1: a technology partner gets no page, no video, no download, no answer and no introduction", async () => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    const north = (await page()).body.item;
+    expect((await page(TECH)).status).toBe(404);
+    expect((await list(TECH)).body.items).toEqual([]);
+    // A ticket minted for a deployment company, replayed under the partner's id, is refused; so is the partner's own id.
+    for (const url of [north.video.url, north.simulationDownload.url, sceneContentUrl(north.simulation.viewerUrl)])
+      expect((await media(url.replace(/viewer=[a-f0-9]+/, `viewer=${sha(TECH.email)}`), { "sec-fetch-dest": "empty" })).status).toBe(404);
+    const { companyMediaAllowed } = await import("../utils/companyJobPage");
+    expect(await companyMediaAllowed(ID, CAPTURE, sha(TECH.email))).toBe(false);
+    expect((await answer(TECH)).status).toBe(403);
+    expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(TECH.email)}`)).toBe(false);
+    expect((await loadSiteCompanyActivity(ID)).entries).toEqual([]);
+  });
+
+  it.each([
+    ["an operator hold", () => patchJob({ operator_listing_hold: { held: true, atIso: "2026-11-12T12:00:00.000Z", by: "ops" } })],
+    ["a rights hold", () => patchJob({ evaluation_readiness: { rights_review_status: "blocked" } })],
+    ["the site closing its job", () => patchJob({ website_run_closures: { [CAPTURE]: { closed_at_iso: "2026-11-12T12:00:00.000Z" } } })],
+    ["the company's suspension", () => state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, { ...NORTH, status: "declined" })],
+  ] as Array<[string, () => void]>)("must-fix 2: the company's introduction email is cancelled after %s, and carries nothing of the site", async (_name, stop) => {
+    await interested(NORTH);
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail })).toMatchObject({ ok: true });
+    stop();
+    await deliverOutbox({ limit: 50 });
+    expect(outbox().find(row => row.kind === "introduction_made_company")).toMatchObject({ status: "cancelled" });
+    const toCompany = seams.sendEmail.mock.calls.map(([message]) => message as Record<string, unknown>).filter(message => message.to === NORTH.email);
+    expect(JSON.stringify(toCompany)).not.toContain(SITE.name);
+  });
+
+  it("must-fix 3: a job its site paused before today is listed; the old close and a withdrawal still close it", async () => {
+    patchJob({ workspace_task: { paused: true } });
+    expect(teamJobAccess(jobDoc(), { brief: { summary: SENTENCE } })).toMatchObject({ listed: true });
+    expect((await page()).status).toBe(200);
+    patchJob({ workspace_task: { archived: true } });
+    expect(teamJobAccess(jobDoc(), { brief: { summary: SENTENCE } })).toMatchObject({ listed: false, reason: "closed_by_site" });
+    // A withdrawal sets the same pause flag, and is found by its own fields: a fresh v4 grant written afterwards does not reopen it.
+    patchJob({ workspace_task: { paused: true }, capture_withdrawal: { state: "requested" }, consent_revoked: true,
+      request: { ...jobDoc().request, consent_attestation: { granted: false, revoked_at_iso: "2026-11-12T12:00:00.000Z" } } });
+    patchJob({ request: { ...jobDoc().request, consent_attestation: sharedRecordingGrant() } });
+    expect(teamJobAccess(jobDoc(), { brief: { summary: SENTENCE } })).toMatchObject({ listed: false, reason: "consent_withdrawn" });
+    // Even with only the withdrawal record left.
+    patchJob({ consent_revoked: false });
+    expect(teamJobAccess(jobDoc(), { brief: { summary: SENTENCE } })).toMatchObject({ listed: false, reason: "consent_withdrawn" });
+    expect((await page()).status).toBe(404);
+  });
+
+  it("must-fix 4: sixty held shared jobs do not starve a listed one; the sweep walks on and wraps", async () => {
+    const listed = jobDoc();
+    for (let i = 0; i < 60; i += 1) state.docs.set(`inboundRequests/a-held-${String(i).padStart(2, "0")}`,
+      { ...listed, requestId: `a-held-${i}`, operator_listing_hold: { held: true } });
+    const passes = [];
+    for (let i = 0; i < 4 && !jobDoc().company_auto_send; i += 1) passes.push(await sweepAutomaticSends(25));
+    expect(jobDoc().company_auto_send).toMatchObject({ count: 6 });
+    expect(passes.reduce((sum, pass) => sum + pass.sent, 0)).toBe(1);
+    // The cursor wraps to the start after the last page.
+    expect(passes.at(-1)).toMatchObject({ wrapped: true });
+    expect(state.docs.get("automationState/companyAutoSendCursor")).toMatchObject({ after: null });
+  });
+
+  it("must-fix 5: the consent line names both answers, and the company's email states its own stored answer", async () => {
+    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site is told your answer. If you answer Interested or Tested it: can do and the "
+      + "site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.");
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
+    await interested(SOUTH);
+    for (const alias of ["A", "B"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site" }, { siteEmail })).toMatchObject({ ok: true });
+    const bodyTo = (email: string) => outbox().find(row => row.kind === "introduction_made_company" && row.to === email)!.body as string;
+    expect(bodyTo(NORTH.email)).toContain("You answered Tested it: can do to a job on Blueprint");
+    expect(bodyTo(SOUTH.email)).toContain("You answered Interested to a job on Blueprint");
+  });
+
+  it("must-fix 6: both media routes refuse an answer without the stored digest, and the download refuses another size", async () => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    const item = (await page()).body.item;
+    const serve = (simulation: { body: string; headers: Record<string, string> }, clip: { body: string; headers: Record<string, string> }) =>
+      vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input instanceof Request ? input.url : input);
+        if (!url.startsWith("https://pipeline.invalid/")) return realFetch(input as never, init);
+        const answer = url.includes("/website-company-simulations/") ? simulation : clip;
+        return new Response(Buffer.from(answer.body), { status: 200, headers: answer.headers });
+      }));
+    const clipDigest = String(companyClip().digest), zipDigest = ZIP_DIGEST;
+    // No digest header at all.
+    serve({ body: "PK-ZIP-BYTES", headers: { "content-length": "12" } }, { body: "X".repeat(CLIP_BYTES.length), headers: { "content-length": String(CLIP_BYTES.length) } });
+    expect((await media(item.simulationDownload.url)).status).toBe(503);
+    expect((await media(item.video.url)).status).toBe(503);
+    // The right digest header, but a zip of another size.
+    serve({ body: "SOMETHING-ELSE-ENTIRELY-LONGER", headers: { "x-blueprint-artifact-sha256": zipDigest } },
+      { body: CLIP_BYTES.toString(), headers: { "content-length": String(CLIP_BYTES.length), "x-blueprint-artifact-sha256": clipDigest } });
+    expect((await media(item.simulationDownload.url)).status).toBe(503);
+    expect((await media(item.video.url)).status).toBe(200);
+  });
+
+  it("must-fix 7 (stated behaviour): the video ticket is a 15-minute signed URL bound to job, capture and viewer, re-checked per request", async () => {
+    const url = (await page()).body.item.video.url as string;
+    const expires = Number(new URLSearchParams(url.split("?")[1]).get("expires"));
+    expect(expires - Math.floor(Date.now() / 1000)).toBeLessThanOrEqual(15 * 60);
+    expect((await media(url.replace(`capture=${CAPTURE}`, "capture=walkthrough-other"))).status).toBe(404);
+    expect((await media(url.replace(`/jobs/${ID}/`, `/jobs/${encodeURIComponent(`../${ID}`)}/`))).status).toBe(404);
+    // No sign-in is needed while the ticket lasts (the claim says so), but the job's listing is re-read every time.
+    expect((await media(url)).status).toBe(200);
+    patchJob({ operator_listing_hold: { held: true } });
+    expect((await media(url)).status).toBe(404);
+  });
+
+  it("should-fix: the count of introductions lives on the job document", async () => {
+    await interested(NORTH, SOUTH);
+    patchJob({ introductions_used: 3 });
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail })).toEqual({ ok: false, reason: "limit_reached" });
+    patchJob({ introductions_used: 0 });
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail })).toMatchObject({ ok: true });
+    expect(jobDoc().introductions_used).toBe(1);
+    const both = await Promise.all(["B", "B"].map(alias => requestIntroduction({ requestId: ID, alias, actor: "site" }, { siteEmail })));
+    expect(both.filter(result => result.ok)).toHaveLength(1);
+    expect(jobDoc().introductions_used).toBe(2);
+  });
+
+  it("should-fix: stored listing text and a free-text country never reach a company", async () => {
+    const PL = "PLANTXQ";
+    patchJob({ request: { ...jobDoc().request, siteLocationMetadata: { country: `encrypted:${PL} Industries` } },
+      public_task_listing: { ...jobDoc().public_task_listing, details: { ...jobDoc().public_task_listing.details,
+        title: `${PL} listing title`, siteType: `${PL} siteType`, objects: `${PL} objects`, pilotConditions: `${PL} conditions` } } });
+    const { raw, body } = await page();
+    expect(raw).not.toContain(PL);
+    expect(body.item.country).toBeNull();
+    expect((await list()).raw).not.toContain(PL);
+    patchJob({ request: { ...jobDoc().request, siteLocationMetadata: { country: "encrypted:GB" } } });
+    expect((await page()).body.item.country).toBe("United Kingdom");
+  });
+
+  it("should-fix: an operator send uses the whole rule (no sentence: refused)", async () => {
+    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Your site task", confirmedAtIso: null });
+    expect((await loadCompanyJobAccess(ID)).access.listed).toBe(false);
+    await expect(recordCompanySend(ID, sha(NORTH.email), { uid: "ops", email: "ops@example.com" })).rejects.toMatchObject({ code: "not_visible" });
+  });
+
+  it("should-fix: the introduction email says a typed location once when it is also the site's name", async () => {
+    patchJob({ request: { ...jobDoc().request, siteName: `encrypted:${SITE.address}` } });
+    await interested(NORTH);
+    await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail });
+    const body = outbox().find(row => row.kind === "introduction_made_company")!.body as string;
+    expect(body.split(SITE.address)).toHaveLength(2);
+  });
+});
+
+/* ----------------------------------------------------------------- the download against the contract (E9) */
+
+describe("the simulation download against COMPANY_SIMULATION_CONTRACT.md section 2", () => {
+  const ready = () => state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+    company_simulation: simulationPackage() });
+  const answerWith = (status: number, body: Buffer | string, headers: Record<string, string>) => vi.stubGlobal("fetch", vi.fn(
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
+      if (!url.startsWith("https://pipeline.invalid/")) return realFetch(input as never, init);
+      return new Response(typeof body === "string" ? body : body, { status, headers });
+    }));
+
+  it("200: the whole zip, as simulation.zip, private and not cached, with the signed read named by digest", async () => {
+    ready();
+    const url = (await page()).body.item.simulationDownload.url as string;
+    const read = await media(url);
+    expect(read.status).toBe(200);
+    expect(read.bytes.equals(ZIP_BYTES)).toBe(true);
+    expect(read.headers.get("content-type")).toBe("application/zip");
+    expect(read.headers.get("cache-control")).toBe("private, no-store");
+    expect(read.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(read.headers.get("content-disposition")).toBe('attachment; filename="simulation.zip"');
+    const pipelineUrl = new URL(pipelineReads.at(-1)!.url);
+    expect(pipelineUrl.pathname).toBe(`/api/live-pipeline/website-company-simulations/${CAPTURE}/simulation.zip`);
+    expect(Object.fromEntries(pipelineUrl.searchParams)).toEqual({ request_id: ID, digest: ZIP_DIGEST });
+  });
+
+  it("206 and 416: a resumed download's range is passed through, and so is a range past the end", async () => {
+    ready();
+    const url = (await page()).body.item.simulationDownload.url as string;
+    const part = await media(url, { range: "bytes=3-6" });
+    expect(part.status).toBe(206);
+    expect(part.bytes.toString()).toBe("ZIP-");
+    expect(part.headers.get("content-range")).toBe(`bytes 3-6/${ZIP_BYTES.length}`);
+    expect(pipelineReads.at(-1)!.range).toBe("bytes=3-6");
+    const past = await media(url, { range: `bytes=${ZIP_BYTES.length + 5}-` });
+    expect(past.status).toBe(416);
+    expect(past.headers.get("content-range")).toBe(`bytes */${ZIP_BYTES.length}`);
+  });
+
+  it("403, 404 and 503 from the Pipeline: not available (right now), never the Pipeline's words", async () => {
+    ready();
+    const url = (await page()).body.item.simulationDownload.url as string;
+    answerWith(403, JSON.stringify({ detail: "website company simulation issuer not authorized" }), { "content-type": "application/json" });
+    const refused = await media(url);
+    expect(refused.status).toBe(503);
+    expect(refused.bytes.toString()).toContain("The simulation is not available right now.");
+    answerWith(404, JSON.stringify({ detail: "website_company_simulation_unavailable" }), { "content-type": "application/json" });
+    const gone = await media(url);
+    expect(gone.status).toBe(404);
+    expect(gone.bytes.toString()).not.toContain("website_company_simulation_unavailable");
+    answerWith(503, JSON.stringify({ detail: "website_company_simulation_storage_unavailable" }), { "content-type": "application/json" });
+    expect((await media(url)).status).toBe(503);
+  });
+
+  it("refuses an answer without the stored digest, another size, a range of another total, and aborts bytes that do not hash", async () => {
+    ready();
+    const url = (await page()).body.item.simulationDownload.url as string;
+    answerWith(200, ZIP_BYTES, { "content-length": String(ZIP_BYTES.length) });
+    expect((await media(url)).status).toBe(503);
+    answerWith(200, Buffer.from("PK-ZIP-BYTES-AND-MORE"), { "x-blueprint-artifact-sha256": ZIP_DIGEST });
+    expect((await media(url)).status).toBe(503);
+    answerWith(206, ZIP_BYTES.subarray(0, 4), { "content-range": "bytes 0-3/999", "content-length": "4", "x-blueprint-artifact-sha256": ZIP_DIGEST });
+    expect((await media(url, { range: "bytes=0-3" })).status).toBe(503);
+    // Right digest header and size, but other bytes: the stream is cut before it ends, so no whole file arrives.
+    answerWith(200, Buffer.from("XX-ZIP-BYTES"), { "content-length": String(ZIP_BYTES.length), "x-blueprint-artifact-sha256": ZIP_DIGEST });
+    const cut = await realFetch(`${base}${url}`).then(async response => {
+      const outcome = { status: response.status, bytes: -1, failed: false };
+      try { outcome.bytes = (await response.arrayBuffer()).byteLength; } catch { outcome.failed = true; }
+      return outcome;
+    }, () => ({ status: 0, bytes: -1, failed: true }));
+    expect(cut.failed || cut.bytes < ZIP_BYTES.length).toBe(true);
+    // And the right bytes do complete.
+    answerWith(200, ZIP_BYTES, { "content-length": String(ZIP_BYTES.length), "x-blueprint-artifact-sha256": ZIP_DIGEST });
+    expect((await media(url)).bytes.equals(ZIP_BYTES)).toBe(true);
+  });
+
+  it("a technology partner, a job that may not be shared and a withdrawn job get no download and no tested answer", async () => {
+    ready();
+    const url = (await page()).body.item.simulationDownload.url as string;
+    expect((await media(url.replace(/viewer=[a-f0-9]+/, `viewer=${sha(TECH.email)}`))).status).toBe(404);
+    expect((await answer(TECH, { state: "tested_can_do" })).status).toBe(403);
+    // A job whose recording statement does not share it (an older statement).
+    patchJob({ request: { ...jobDoc().request, consent_attestation: { ...sharedRecordingGrant(), statement_version: "2026-11-11.v3" } } });
+    expect((await media(url)).status).toBe(404);
+    expect((await page()).status).toBe(404);
+    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(409);
+    // Withdrawn.
+    patchJob({ request: { ...jobDoc().request, consent_attestation: sharedRecordingGrant() }, consent_revoked: true });
+    expect((await media(url)).status).toBe(404);
+  });
+
+  it("an invalid stored reference reads as not finished yet: no button and no tested answers", async () => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+      company_simulation: { ...simulationPackage(), size_bytes: 600_000_000 } });
+    expect((await page()).body.item.simulationDownload).toEqual({ state: "not_finished" });
+    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(409);
   });
 });
 

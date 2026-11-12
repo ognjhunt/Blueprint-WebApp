@@ -234,6 +234,16 @@ describe("the emails to the site", () => {
     state.docs.set(`inboundRequests/${ID}/introductions/${companyId}`, { schemaVersion: 1, alias: "A" });
     expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`))).toBe(true);
     expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site"))).toBe(false);
+    // Never once the company is suspended, or when it is a technology partner (review must-fix 2).
+    for (const record of [{ ...NORTH, status: "declined" }, { ...NORTH, partnerRole: "technology" }]) {
+      state.docs.set(`robotTeamAccess/${companyId}`, record);
+      expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`))).toBe(false);
+    }
+    state.docs.set(`robotTeamAccess/${companyId}`, NORTH);
+    // Never after the site closes its job (a run closure on record).
+    state.docs.set(`inboundRequests/${ID}`, sharedJob({ website_run_closures: { [`walkthrough-${ID}`]: { closed_at_iso: AT } } }));
+    expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`))).toBe(false);
+    state.docs.set(`inboundRequests/${ID}`, sharedJob());
     for (const [label, patch] of [
       ["withdrawn", { consent_revoked: true }],
       ["held by Blueprint", { operator_listing_hold: { held: true, atIso: AT, by: "admin-1" } }],
