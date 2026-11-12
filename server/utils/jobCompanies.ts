@@ -2,17 +2,17 @@
  * Sends and responses: which approved deployment companies Blueprint sent a site's job to, what each answered, and
  * what the site is told of it (package C1, 2026-11-12).
  *
- * ## What happens, by hand
+ * ## What happens (automatic since 2026-11-12, package E)
  *
- * The product sends nothing to a company. An operator emails an approved company the address of the job in the job
- * library, from their own mailbox, and records that send here. The company answers in the library (signed in, as
- * today) or by email, and the operator records an emailed answer here. A company sees the same summary it could see
- * before: the library card, behind `teamJobAccess(record).listed`.
+ * When a job first becomes listed, `jobAutoSend.ts` records one send per approved deployment company (`sentBy:
+ * "system"`) and emails the companies that asked for job emails. A company answers on the job's own page. An operator
+ * may still record a send by hand and an answer a company gave by email. Introductions are `jobIntroductions.ts`.
  *
  * ## Records (Admin SDK only; the rules stay default-deny)
  *
  * - `inboundRequests/{id}/companySends/{sendId}`: `{ schemaVersion: 1, companyId, sentAtIso, sentBy, sentByEmail,
- *   voidedAtIso?, voidedBy? }`. Never deleted; a mistaken send is voided.
+ *   voidedAtIso?, voidedBy? }`. `sentBy` is `"system"` for the automatic send (id `system-<companyId>`), else the
+ *   operator's uid. Never deleted; a mistaken send is voided.
  * - `inboundRequests/{id}/robotTeamInterest/{companyId}`: the answer, one per company (`companyId` is the id of the
  *   approved record in `robotTeamAccess`). `recordedBy` says who recorded it ("company" or "operator"). An answer
  *   without it was given before this code, when the product said nothing reached the site: it is never shown to a
@@ -34,8 +34,8 @@ import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
-  companyAliasName, isCompanyResponseState,
-  type CompanyResponseState, type SiteCompanyActivity, type SiteCompanyEntry,
+  COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, MAX_INTRODUCTIONS_PER_JOB, companyAliasName, isCompanyResponseState,
+  type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { teamJobAccess, type TeamJobClosedReason } from "./teamJobAccess";
@@ -46,6 +46,9 @@ import { operatorListingHold } from "./operatorListing";
 import { captureUploadUrlFor } from "./captureUploadToken";
 
 export const COMPANY_SENDS_COLLECTION = "companySends";
+export const INTRODUCTIONS_COLLECTION = "introductions";
+/** The event id of the site's one `job_sent` email for the automatic send. */
+export const AUTO_SEND_EVENT_ID = "companies";
 export const COMPANY_RESPONSES_COLLECTION = "robotTeamInterest";
 const JOBS = "inboundRequests";
 
@@ -110,11 +113,13 @@ export function isApprovedDeploymentCompany(record: Partial<RobotTeamAccessRecor
   return record?.status === "approved" && record.partnerRole !== "technology";
 }
 
-/** The address of the job in the job library: the page an approved, signed-in company opens it on. */
-export function libraryJobUrl(requestId: string): string {
+/** The company's page for the job (`/jobs/:jobId`): the page an approved, signed-in company opens and answers it on. */
+export function companyJobUrl(requestId: string): string {
   const origin = (process.env.VITE_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim() || "https://tryblueprint.io").replace(/\/+$/, "");
-  return `${origin}/contact/robot-team#job-${encodeURIComponent(requestId)}`;
+  return `${origin}/jobs/${encodeURIComponent(requestId)}`;
 }
+/** Kept name: the address an operator gives a company is now the job's own page. */
+export const libraryJobUrl = companyJobUrl;
 
 function requireDb() {
   if (!db) throw new JobCompaniesError("store_unavailable", "The job store is unavailable. Try again.");
@@ -256,19 +261,22 @@ export async function setOperatorListingHold(requestId: string, held: boolean, r
  * at this moment, or the site has no usable email. Whether it is still true is decided again at dispatch
  * (`taskLifecycleNotificationIsCurrent`): held, hidden or withdrawn by then, it is cancelled, never sent.
  */
-async function prepareSiteNotice(tx: Tx, requestId: string, record: Data, params: { milestone: "job_sent" | "company_answered";
-  eventId: string; companyAnswerState?: CompanyResponseState }, captureUrl: string): Promise<(() => void) | null> {
+export async function prepareSiteNotice(tx: Tx, requestId: string, record: Data, params: { milestone: "job_sent" | "company_answered";
+  eventId: string; companyAnswerState?: CompanyResponseState; companyCount?: number }, captureUrl: string): Promise<(() => void) | null> {
   const store = requireDb();
   const { buildTaskLifecycleNotification } = await import("./taskLifecycleNotifications");
   const { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } = await import("./captureOutbox");
   const { decryptFieldValue } = await import("./field-encryption");
-  const key = buildTaskLifecycleNotification({ requestId, to: "", captureUrl, ...params }).idempotencyKey;
+  // `companyCount` (the automatic send's one email) is passed through a loosely typed value until the site-side
+  // builder declares it (SEAMS, 2026-11-12).
+  const build = buildTaskLifecycleNotification as (input: Record<string, unknown>) => ReturnType<typeof buildTaskLifecycleNotification>;
+  const key = build({ requestId, to: "", captureUrl, ...params }).idempotencyKey;
   const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(key);
   const existing = await tx.get(ref);
   if (existing.exists) return null;
   if (projectWebsiteCaptureRights(record).consent_revoked || !teamJobAccess(record).listed) return null;
   const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
-  const notice = buildTaskLifecycleNotification({ requestId, to, captureUrl, ...params });
+  const notice = build({ requestId, to, captureUrl, ...params });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     logger.warn({ requestId, milestone: params.milestone }, "The site has no usable email; its company email is not queued");
     return null;
@@ -287,6 +295,12 @@ export async function companyNoticeStillTrue(requestId: string, kind: "job_sent"
   if (!idempotencyKey.startsWith(prefix)) return false;
   const eventId = idempotencyKey.slice(prefix.length);
   const jobRef = store.collection(JOBS).doc(requestId);
+  if (kind === "job_sent" && eventId === AUTO_SEND_EVENT_ID) {
+    // The automatic send's one email: true while at least one system send stands.
+    const query = jobRef.collection(COMPANY_SENDS_COLLECTION).where("sentBy", "==", "system");
+    const rows = transaction ? await transaction.get(query) : await query.get();
+    return rows.docs.some(doc => !text(doc.data()?.voidedAtIso));
+  }
   if (kind === "job_sent") {
     const sendId = /^send-(.+)$/.exec(eventId)?.[1];
     if (!sendId) return false;
@@ -294,7 +308,7 @@ export async function companyNoticeStillTrue(requestId: string, kind: "job_sent"
     const send = (transaction ? await transaction.get(ref) : await ref.get()).data();
     return Boolean(send) && !text(send!.voidedAtIso);
   }
-  const match = /^([A-Z]{1,3})-(interested|declined|needs_something)$/.exec(eventId);
+  const match = new RegExp(`^([A-Z]{1,3})-(${COMPANY_RESPONSE_STATES.join("|")})$`).exec(eventId);
   if (!match) return false;
   const companyId = Object.entries(storedAliases(record)).find(([, alias]) => alias === match[1])?.[0];
   if (!companyId) return false;
@@ -332,45 +346,95 @@ async function readAll(query: FirebaseFirestore.Query): Promise<Array<{ id: stri
 const instant = (value: unknown): string | null =>
   typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(value) ? value : null;
 
+/** What the site's view needs to know about each company beyond its answer: introductions and whether one may be asked. */
+export interface SiteCompanyIntroductionFacts {
+  /** `introductions/{companyId}` documents: when asked, and what the site was given. */
+  introductions: ReadonlyArray<{ id: string; data: Data }>;
+  /** Companies that are approved deployment companies right now. */
+  approvedDeploymentCompanies: ReadonlySet<string>;
+  /** The job is listed right now (`loadCompanyJobAccess`). */
+  listed: boolean;
+}
+
+/** The company's details as the site is given them, only from an introduction document's `companyShared`. */
+function introducedCompany(intro: Data | undefined): IntroducedCompany | undefined {
+  const shared = isRecord(intro?.companyShared) ? intro!.companyShared : null;
+  const name = text(shared?.company), email = text(shared?.email);
+  if (!name || !email) return undefined;
+  const website = text(shared?.website);
+  return { name, contactName: text(shared?.contactName) ?? "", email, ...(website ? { website } : {}) };
+}
+
+/**
+ * An answer the site may ask to be introduced to: `interested` or `tested_can_do` (E9), given by the company itself
+ * under the current line.
+ */
+export function answerConsentsToIntroduction(answer: Data | null | undefined): boolean {
+  if (!answer) return false;
+  return INTRODUCIBLE_RESPONSE_STATES.includes(answer.state) && answer.recordedBy === "company"
+    && answer.statementVersion === COMPANY_RESPONSE_STATEMENT_VERSION;
+}
+
 /**
  * The site's view of company activity on its job: built field by field from the alias letter, the dates and the state.
  * It reads no other field of a send or an answer, so no free text (a company's name, email, website or words, or any
- * note) can reach the site. A voided send, a record without an alias, and an answer recorded before this code (no
- * `recordedBy`) are not shown. In date order; a send before an answer at the same instant.
+ * note) can reach the site, except a company's details on an answer the site asked to be introduced to (E6). A voided
+ * send, a record without an alias, and an answer recorded before C1 (no `recordedBy`) are not shown. The automatic send
+ * is one count line (`sent`), not one entry per company. In date order; a send before an answer at the same instant.
  */
 export function projectSiteCompanyActivity(input: { aliases: Record<string, string>;
-  sends: ReadonlyArray<Data>; responses: ReadonlyArray<{ id: string; data: Data }> }): SiteCompanyActivity {
+  sends: ReadonlyArray<Data>; responses: ReadonlyArray<{ id: string; data: Data }> } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
   const entries: SiteCompanyEntry[] = [];
+  const sentTo = new Set<string>();
+  let firstAtIso: string | null = null;
   for (const send of input.sends) {
-    const letter = typeof send.companyId === "string" ? input.aliases[send.companyId] : undefined;
     const atIso = instant(send.sentAtIso);
-    if (!letter || !atIso || text(send.voidedAtIso)) continue;
+    if (!atIso || text(send.voidedAtIso) || typeof send.companyId !== "string") continue;
+    sentTo.add(send.companyId);
+    if (!firstAtIso || atIso < firstAtIso) firstAtIso = atIso;
+    const letter = input.aliases[send.companyId];
+    if (send.sentBy === "system" || !letter) continue;
     entries.push({ kind: "sent", alias: companyAliasName(letter), atIso });
   }
+  const introductions = new Map((input.introductions ?? []).map(row => [row.id, row.data]));
+  const used = introductions.size;
   for (const response of input.responses) {
     const letter = input.aliases[response.id];
     const atIso = instant(response.data.updatedAtIso);
     const state = response.data.state;
     const recordedBy = response.data.recordedBy;
     if (!letter || !atIso || !isCompanyResponseState(state) || (recordedBy !== "company" && recordedBy !== "operator")) continue;
-    entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state });
+    const intro = introductions.get(response.id);
+    const introducedAtIso = intro ? instant(intro.requestedAtIso) : null;
+    const company = intro ? introducedCompany(intro) : undefined;
+    const canIntroduce = !intro && input.listed === true && used < MAX_INTRODUCTIONS_PER_JOB
+      && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
+    entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
+      ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}) });
   }
   entries.sort((a, b) => a.atIso.localeCompare(b.atIso) || (a.kind === b.kind ? 0 : a.kind === "sent" ? -1 : 1));
-  return { entries, interested: entries.some(entry => entry.kind === "answered" && entry.state === "interested") };
+  return { entries, interested: entries.some(entry => entry.kind === "answered" && INTRODUCIBLE_RESPONSE_STATES.includes(entry.state)),
+    sent: sentTo.size && firstAtIso ? { count: sentTo.size, firstAtIso } : null,
+    introductions: { used, max: MAX_INTRODUCTIONS_PER_JOB } };
 }
 
 /**
- * Read the job's sends and answers and project them for the site. Reads only: it writes nothing, ever (aliases are
- * assigned where a send or an answer is recorded). A withdrawn job shows nothing.
+ * Read the job's sends, answers and introductions and project them for the site. Reads only: it writes nothing, ever
+ * (aliases are assigned where a send or an answer is recorded). A withdrawn job shows nothing.
  */
 export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCompanyActivity> {
   const store = requireDb();
   const jobRef = store.collection(JOBS).doc(requestId);
   const record = (await jobRef.get()).data();
-  if (!record || projectWebsiteCaptureRights(record).consent_revoked) return { entries: [], interested: false };
-  const [sends, responses] = await Promise.all([readAll(jobRef.collection(COMPANY_SENDS_COLLECTION)),
-    readAll(jobRef.collection(COMPANY_RESPONSES_COLLECTION))]);
-  return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses });
+  const empty = { entries: [], interested: false, sent: null, introductions: { used: 0, max: MAX_INTRODUCTIONS_PER_JOB } };
+  if (!record || projectWebsiteCaptureRights(record).consent_revoked) return empty;
+  const [sends, responses, introductions, approved, { access }] = await Promise.all([readAll(jobRef.collection(COMPANY_SENDS_COLLECTION)),
+    readAll(jobRef.collection(COMPANY_RESPONSES_COLLECTION)), readAll(jobRef.collection(INTRODUCTIONS_COLLECTION)),
+    readAll(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved")),
+    import("./teamJobAccess").then(({ loadCompanyJobAccess }) => loadCompanyJobAccess(requestId, record))]);
+  return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses,
+    introductions, listed: access.listed,
+    approvedDeploymentCompanies: new Set(approved.filter(row => isApprovedDeploymentCompany(row.data as RobotTeamAccessRecord)).map(row => row.id)) });
 }
 
 /* ------------------------------------------------------------- the operator's panel */
@@ -383,6 +447,11 @@ const CLOSED_WORDS: Partial<Record<TeamJobClosedReason, string>> = {
   rights_blocked: "the rights review blocked the capture",
   rights_needs_review: "the rights review has not cleared the capture",
   development_only: "a development capture",
+  older_statement: "the job was sent under an older statement",
+  privacy_screen_pending: "the video has not passed the privacy screen yet",
+  no_job_sentence: "the site has not said what the job is yet",
+  authority_ended: "Blueprint's authority to work on it ended",
+  closed_by_site: "the site closed the job",
 };
 
 /** The job's sharing state in words, as `teamJobAccess` decides it. */
@@ -390,8 +459,8 @@ export function sharingInWords(record: Data): AdminJobCompanies["sharing"] {
   const shared = isRecord(record.public_task_listing) && record.public_task_listing.enabled === true;
   const access = teamJobAccess(record);
   if (access.listed) return { state: "shared_visible", words: "Shared and visible to approved companies.", reason: null };
-  if (!shared) return { state: "not_shared", words: "Not shared: the site has not shared a summary.", reason: access.reason };
-  const why = CLOSED_WORDS[access.reason] ?? "the summary is not a current grant";
+  if (!shared) return { state: "not_shared", words: "Not shared: the site has not accepted the current statement.", reason: access.reason };
+  const why = CLOSED_WORDS[access.reason] ?? "it is not under the current sharing record";
   return { state: "shared_not_visible", words: `Shared, but not visible to companies right now: ${why}.`, reason: access.reason };
 }
 
@@ -417,11 +486,26 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
   const responses = responseRows
     .map(({ id, data }) => ({ companyId: id, company: text(data.company), email: text(data.email), alias: aliases[id] ?? null,
       state: isCompanyResponseState(data.state) ? data.state : null, inputs: typeof data.inputs === "string" ? data.inputs : "",
-      updatedAtIso: text(data.updatedAtIso),
+      updatedAtIso: text(data.updatedAtIso), statementVersion: text(data.statementVersion),
       recordedBy: data.recordedBy === "operator" ? "operator" as const : data.recordedBy === "company" ? "company" as const
         : "before_c1" as const }))
     .sort((a, b) => String(a.updatedAtIso).localeCompare(String(b.updatedAtIso)));
+  const [introductionRows, events, { latestOutcome, OUTCOME_STATE_LABELS }] = await Promise.all([
+    readAll(jobRef.collection(INTRODUCTIONS_COLLECTION)),
+    import("./billableEvents").then(({ listJobBillableEvents }) => listJobBillableEvents(requestId)),
+    import("./jobOutcomes")]);
+  const introductions = introductionRows.map(({ id, data }) => {
+    const latest = latestOutcome(data as never).latest;
+    return { companyId: id, company: text(data.companyShared?.company) ?? text(names.get(id)?.company), alias: text(data.alias),
+      requestedAtIso: String(data.requestedAtIso ?? ""),
+      latestOutcome: latest ? { by: latest.by, state: latest.state, atIso: latest.atIso,
+        label: (OUTCOME_STATE_LABELS as Record<string, string>)[latest.state] ?? latest.state } : null };
+  }).sort((a, b) => a.requestedAtIso.localeCompare(b.requestedAtIso));
+  const billableEvents = events.map(event => ({ id: event.id, kind: event.kind, companyId: event.companyId,
+    company: text(names.get(event.companyId)?.company), atIso: event.atIso, priceUsd: null, status: event.status }));
+  const auto = isRecord(record.company_auto_send) && text(record.company_auto_send.sentAtIso)
+    ? { sentAtIso: String(record.company_auto_send.sentAtIso), count: Number(record.company_auto_send.count) || 0 } : null;
   return { sharing: sharingInWords(record), hold: operatorListingHold(record),
     consentRevoked: projectWebsiteCaptureRights(record).consent_revoked === true, libraryUrl: libraryJobUrl(requestId),
-    companies, sends, responses };
+    companies, sends, responses, autoSend: auto, introductions, billableEvents };
 }

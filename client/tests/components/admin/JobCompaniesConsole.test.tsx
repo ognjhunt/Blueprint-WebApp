@@ -108,4 +108,21 @@ describe("the Deployment companies panel", () => {
     await waitFor(() => expect(within(section()).getByText("Shared and visible to approved companies.")).toBeInTheDocument());
     expect(posts).toEqual([{ path: "/hold", body: { held: true, reason: "Checking the summary" } }, { path: "/hold", body: { held: false } }]);
   });
+
+  it("shows the automatic send, introductions with their latest outcome, and billable events with no price", async () => {
+    panel.autoSend = { sentAtIso: "2026-11-12T10:00:00.000Z", count: 4 };
+    panel.sends = [{ sendId: `system-${NORTH}`, companyId: NORTH, company: "North Robotics", alias: "A", sentAtIso: "2026-11-12T10:00:00.000Z",
+      sentBy: "system", voidedAtIso: null, voidedBy: null }];
+    panel.introductions = [{ companyId: NORTH, company: "North Robotics", alias: "A", requestedAtIso: "2026-11-12T15:00:00.000Z",
+      latestOutcome: { by: "company", state: "quote_given", label: "Quote given", atIso: "2026-11-26T15:00:00.000Z" } }];
+    panel.billableEvents = [{ id: "introduction-job-a-x", kind: "introduction", companyId: NORTH, company: "North Robotics",
+      atIso: "2026-11-12T15:00:00.000Z", priceUsd: null, status: "recorded_no_price" }];
+    render(<JobCompaniesConsole requestId="job-a" currentUser={{ uid: "founder" } as never} />);
+    expect(await within(section()).findByText(/Sent automatically to 4 deployment companies/)).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Sends" })).getByText(/automatic/)).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Introductions" })).getByText(/North Robotics \(Company A\).*Quote given \(company/)).toBeInTheDocument();
+    const events = screen.getByRole("region", { name: "Billable events" });
+    expect(within(events).getByText(/Introduction · North Robotics .* recorded, no price/)).toBeInTheDocument();
+    expect(events.textContent).not.toMatch(/\$|USD|charge[ds]? (?!is)/i);
+  });
 });

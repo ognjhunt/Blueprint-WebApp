@@ -63,7 +63,7 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Sites and partners pay nothing for Blueprint assessment during the beta. Robot teams never receive your recording. Approved observations may support controlled evaluation under the rights you grant; evaluation permission does not grant training permission.",
+    "Sites pay nothing. The deployment companies we approve see your job, with your video without its sound, only to decide whether they can do it. Sharing a job does not give anyone permission to train on it.",
   whatIsNotFree:
     "Blueprint assessment and coordination are free during the beta. Physical pilot costs are quoted by the deployment company and agreed directly with the site. Blueprint takes no cut of the pilot.",
 } as const;

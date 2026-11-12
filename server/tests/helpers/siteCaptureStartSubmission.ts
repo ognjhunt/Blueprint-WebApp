@@ -10,7 +10,6 @@
  * and the server journey then runs against the new shape. Tests that build
  * records by hand are what hid the request-step blocker (audit P0-5).
  */
-import { anonymizedOpportunityDraft } from "../../../client/src/types/taskBrowse";
 import { TASK_CONFIRMATION_VERSION } from "../../../client/src/lib/taskConfirmationStatement";
 
 /**
@@ -28,7 +27,13 @@ export function siteCaptureStartSubmission(params: {
   requestId: string;
   retryToken: string;
   sourcePageUrl: string;
-  /** No card grant: a job kept private before the start form dropped that choice (2026-10-22). */
+  /**
+   * The start form with its one-line consent switched off (`START_FORM_SHORT_CONSENT`): the long statements, recording
+   * 2026-11-02.v2 and description 2026-10-06.v1, which do not share the job. By default the body is what the form sends
+   * today: the one line, recording and description authority `2026-11-12.v4`, which shares the job (2026-11-12).
+   */
+  longForm?: boolean;
+  /** A job that is not shared: since 2026-11-12 that is a job under the long statements (`longForm`). */
   keepPrivate?: boolean;
   task?: string;
   email?: string;
@@ -41,6 +46,7 @@ export function siteCaptureStartSubmission(params: {
   withoutTaskConfirmation?: boolean;
 }) {
   const task = params.task ?? SITE_CAPTURE_START_FORM.task;
+  const longForm = params.longForm === true || params.keepPrivate === true;
   return {
     requestId: params.requestId,
     retryToken: params.retryToken,
@@ -60,21 +66,14 @@ export function siteCaptureStartSubmission(params: {
       taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION },
     }),
     ...(params.successDefinition ? { successCriteria: { successDefinition: params.successDefinition } } : {}),
-    ...(params.keepPrivate ? {} : {
-      publicTaskListing: {
-        consent: true,
-        statementVersion: "public-task-card-v1",
-        details: anonymizedOpportunityDraft(task),
-      },
-    }),
     siteTaskGates: {},
     siteTaskSpec: {},
     captureMode: "self_capture",
     captureRegion: "us",
     hasExistingFootage: true,
     descriptionOnly: false,
-    descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" },
-    consentAttestation: { granted: true, statementVersion: "2026-11-02.v2" },
+    descriptionAuthority: { granted: true, statementVersion: longForm ? "2026-10-06.v1" : "2026-11-12.v4" },
+    consentAttestation: { granted: true, statementVersion: longForm ? "2026-11-02.v2" : "2026-11-12.v4" },
     context: { sourcePageUrl: params.sourcePageUrl },
   };
 }

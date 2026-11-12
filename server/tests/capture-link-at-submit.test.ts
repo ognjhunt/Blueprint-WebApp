@@ -353,6 +353,60 @@ describe("description-only owner can explicitly authorize future footage", () =>
       expect(written.size).toBe(0);
     });
   });
+  // Sharing is the service (2026-11-12): recording statement v4 says the job is shared with approved deployment
+  // companies, so accepting it on the job page writes the listing record (PACKAGE_D D1.1, D1.3).
+  const V4 = { granted: true, statementVersion: "2026-11-12.v4" };
+  const LISTING = { enabled: true, consentVersion: "job-shared-2026-11-12", approvedBy: "recording_statement",
+    recordingStatementVersion: "2026-11-12.v4", thumbnailDigest: null, reviewRequired: false };
+  const doc = (requestId: string) => sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as Record<string, any>;
+  it("a job started without a video records v4 when its video is agreed to, and is shared", async () => {
+    seedDescription("req-v4-novideo");
+    await withRoutes(async baseUrl => {
+      const response = await consent(baseUrl, "req-v4-novideo", V4);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true, outcome: "granted" });
+      const record = doc("req-v4-novideo");
+      expect(record.request.consent_attestation).toMatchObject({ granted: true, statement_version: "2026-11-12.v4", recorded_by: "signed_owner_link" });
+      expect(record.public_task_listing).toMatchObject(LISTING);
+      expect(record.public_task_listing.approvedAtIso).toBe(record.request.consent_attestation.recorded_at_iso);
+      expect(record.summary_shared_notice).toEqual({ owed: true });
+      expect(record.terms_acceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1" });
+    });
+  });
+  it.each(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3"])("an older job (%s) taking v4 records v4, keeps the older grant and is shared", async older => {
+    const requestId = `req-v4-older-${older.replace(/\W/g, "-")}`;
+    const record = seedDescription(requestId);
+    record.request.consent_attestation = { granted: true, statement_version: older, recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    record.public_task_listing = { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-11-01T00:00:00.000Z",
+      details: { title: "Old card", region: "OLD-REGION-PLANT" } };
+    const before = structuredClone(record.request.consent_attestation);
+    await withRoutes(async baseUrl => {
+      const response = await consent(baseUrl, requestId, V4);
+      expect(await response.json()).toEqual({ ok: true, outcome: "upgraded" });
+      const after = doc(requestId);
+      expect(after.request.consent_attestation).toMatchObject({ granted: true, statement_version: "2026-11-12.v4" });
+      expect(after.request.consent_attestation_earlier).toEqual([before]);
+      expect(after.public_task_listing).toMatchObject(LISTING);
+      expect(after.summary_shared_notice).toEqual({ owed: true });
+      // v4 again: nothing more is recorded.
+      const again = await consent(baseUrl, requestId, V4);
+      expect(await again.json()).toEqual({ ok: true, outcome: "existing" });
+      expect(doc(requestId).request.consent_attestation_earlier).toHaveLength(1);
+      // An older version posted after v4 never replaces it.
+      expect(await (await consent(baseUrl, requestId, { granted: true, statementVersion: older })).json()).toEqual({ ok: true, outcome: "existing" });
+      expect(doc(requestId).request.consent_attestation.statement_version).toBe("2026-11-12.v4");
+    });
+  });
+  it("refuses v4 on a withdrawn job and writes nothing", async () => {
+    const record = seedDescription("req-v4-withdrawn");
+    record.request.consent_attestation = { granted: true, statement_version: "2026-11-11.v3", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    record.consent_revoked = true;
+    const original = structuredClone(record);
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, "req-v4-withdrawn", V4)).status).toBe(409);
+      expect(doc("req-v4-withdrawn")).toEqual(original);
+    });
+  });
   it("refuses a film-only link", async () => {
     seedDescription("req-description-film");
     await withRoutes(async baseUrl => expect((await consent(baseUrl, "req-description-film", grant, "film")).status).toBe(403));

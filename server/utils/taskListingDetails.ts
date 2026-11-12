@@ -1,16 +1,10 @@
 import { listingTargetingSchema } from "../../client/src/types/updatePreferences";
 import { z } from "zod";
-import { JOB_CARD_ANSWER_STATEMENT_VERSIONS } from "../../client/src/lib/jobCardAnswerConsent";
-import type { TaskListingDetails } from "../../client/src/types/taskBrowse";
+import { anonymizedOpportunityDraft, type TaskListingDetails } from "../../client/src/types/taskBrowse";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 
 export const listingConsentVersion = "public-task-card-v1";
-/**
- * Every statement a card grant may be recorded under. "Find a deployment
- * company" records the card under its own statement, which covers the card
- * and the answer (`client/src/lib/jobCardAnswerConsent.ts`).
- */
-export const LISTING_CONSENT_VERSIONS: readonly string[] = [listingConsentVersion, ...JOB_CARD_ANSWER_STATEMENT_VERSIONS];
+/** The older card statement, kept as a record name; no card under it is listed any more (E2). */
 /** Private suggestions only. Publication still needs the owner's exact review. */
 export function taskListingDraft(brief: SiteTaskBriefRecord | null) {
   const details: TaskListingDetails = {
@@ -45,4 +39,28 @@ export function approvedTaskDetails(record: unknown): TaskListingDetails | null 
       || typeof grant.approvedAtIso !== "string" || !Number.isFinite(Date.parse(grant.approvedAtIso))) return null;
   const parsed = taskListingSchema.safeParse(grant.details);
   return parsed.success ? parsed.data : null;
+}
+
+/**
+ * The listing record written when a site accepts recording statement `2026-11-12.v4` (package D/E, 2026-11-12): the job
+ * is shared with every approved deployment company. It has no text of its own; it records that the job is shared under
+ * that statement (`approvedBy: "recording_statement"`). It is the only listing version `teamJobAccess` accepts, so a
+ * card recorded under an older version (`LISTING_CONSENT_VERSIONS`) drops out with no data change.
+ */
+export const JOB_SHARED_LISTING_VERSION = "job-shared-2026-11-12";
+/** Every listing version a card may be listed under: only the current one. */
+export const LISTING_CONSENT_VERSIONS: readonly string[] = [JOB_SHARED_LISTING_VERSION];
+
+/**
+ * The shared job's listing record, or null. Its `details` are the category-only draft the start form writes
+ * (`anonymizedOpportunityDraft`); a record without readable details gets the neutral category, never free text.
+ */
+export function sharedJobListing(record: unknown): { details: TaskListingDetails; approvedAtIso: string } | null {
+  const grant = (record as { public_task_listing?: Record<string, unknown> })?.public_task_listing;
+  if (!grant || grant.enabled !== true || grant.consentVersion !== JOB_SHARED_LISTING_VERSION
+      || typeof grant.approvedAtIso !== "string" || !Number.isFinite(Date.parse(grant.approvedAtIso))) return null;
+  const parsed = taskListingSchema.safeParse(grant.details);
+  // Free-text fields a site could once type (region, targeting) are never carried: country comes from the job page payload.
+  const { targeting: _targeting, ...details } = parsed.success ? parsed.data : anonymizedOpportunityDraft("");
+  return { details: { ...details, region: "" }, approvedAtIso: grant.approvedAtIso };
 }

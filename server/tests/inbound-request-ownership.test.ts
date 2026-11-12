@@ -132,8 +132,7 @@ describe("atomic inbound request ownership", () => {
     const { server, baseUrl } = await start();
     try {
       const body = { ...payload("video-no-text", "video@example.test"), company: undefined, capture_owner_uid: "forged-owner", taskStatement: "", taskDescription: "",
-        hasExistingFootage: true, descriptionOnly: false,
-        publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft("") } };
+        hasExistingFootage: true, descriptionOnly: false, consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" } };
       const post = (input: unknown) => fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
       const response = await post(body);
       expect(response.status).toBe(201);
@@ -435,22 +434,36 @@ describe("saved intake first-email recovery", () => {
   });
 });
 
-// Upfront publication is a text-only grant. Old/omitted grants never become public on recovery.
-it.each([true, false])("honors the disclosed initial opportunity grant without exposing private intake (public: %s)", async publish => {
+// Sharing is the service (2026-11-12, PACKAGE_D D1.1): a submission under recording statement v4 with a video writes
+// the listing record; nothing else does. A share grant sent by a page opened before the change is ignored.
+it.each([
+  ["v4 with a video", { consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" },
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v4" }, hasExistingFootage: true, descriptionOnly: false }, true],
+  ["v3 with a video (a page opened before the change)", { consentAttestation: { granted: true, statementVersion: "2026-11-11.v3" },
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v2" }, hasExistingFootage: true, descriptionOnly: false }, false],
+  ["v5 without a video", { consentAttestation: null, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" },
+    hasExistingFootage: false, descriptionOnly: true, acceptedTerms: true }, false],
+] as const)("writes the listing record only under v4 with a video (%s), and never from the site's own words", async (label, statements, shared) => {
   const { server, baseUrl } = await start();
   try {
-    const requestId = `initial-listing-${publish}`, taskStatement = "Acme Depot at 123 High Street moves cartons onto a pallet", retryToken = "f".repeat(64);
-    const grant = { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(taskStatement) };
-    const input = { ...payload(requestId, "owner@example.test"), taskStatement, retryToken, ...(publish ? { publicTaskListing: grant } : {}) };
-    const post = (body: unknown) => fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": publish ? "203.0.113.211" : "203.0.113.212" }, body: JSON.stringify(body) });
-    expect((await post({ ...input, publicTaskListing: { ...grant, details: { ...grant.details, region: "123 High Street" } } })).status).toBe(400);
-    expect((await post(input)).status).toBe(201);
+    const slug = label.replace(/\W+/g, "-"), requestId = `shared-${slug}`, taskStatement = "Acme Depot at 123 High Street moves cartons onto a pallet";
+    const input = { ...payload(requestId, `owner-${slug}@example.test`), taskStatement, retryToken: "f".repeat(64), ...statements,
+      // A share grant from an older page is ignored either way.
+      publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: { ...anonymizedOpportunityDraft(taskStatement), region: "123 High Street" } } };
+    const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json",
+      "x-forwarded-for": `198.51.100.${label.length + (shared ? 100 : 0)}` }, body: JSON.stringify(input) });
+    expect(response.status, await response.clone().text()).toBe(201);
     const record = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!;
-    if (publish) {
-      expect(record.public_task_listing).toMatchObject({ enabled: true, approvedBy: "initial_submission", consentVersion: "public-task-card-v1", thumbnailDigest: null });
+    if (shared) {
+      expect(record.public_task_listing).toEqual({ enabled: true, details: anonymizedOpportunityDraft(taskStatement),
+        consentVersion: "job-shared-2026-11-12", approvedAtIso: record.request.consent_attestation.recorded_at_iso,
+        wentLiveIso: record.request.consent_attestation.recorded_at_iso, approvedBy: "recording_statement",
+        recordingStatementVersion: "2026-11-12.v4", thumbnailDigest: null, reviewRequired: false });
+      expect(record.summary_shared_notice).toEqual({ owed: true });
       expect(JSON.stringify(record.public_task_listing)).not.toMatch(/Acme|123 High|owner@example/);
-    } else expect(record.public_task_listing).toBeUndefined();
-    expect((await post({ ...input, publicTaskListing: grant })).status).toBe(200);
-    expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)?.public_task_listing).toEqual(record.public_task_listing);
+    } else {
+      expect(record.public_task_listing).toBeUndefined();
+      expect(record.summary_shared_notice).toBeUndefined();
+    }
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 });

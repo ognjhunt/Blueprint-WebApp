@@ -142,13 +142,68 @@ const receiptV7 = receiptV6.extend({
   schema_version: z.literal("website_preparation_status.v7"),
   outcome: preparationOutcomeV7Schema.nullable(),
 }).strict();
-/** Older Pipelines keep answering v1–v6; v3 adds a retained evidence finding. */
+/**
+ * v8 is v7 with the first look in its second shape, `website_robot_fit_projection.v2` (the Pipeline's
+ * docs/schemas/website_robot_fit_projection.v2.schema.json; scratchpad/e2e/FIRST_LOOK_CONTRACT.md): a row that fits
+ * if its conditions hold (`fits_if`), what each robot can do beside what the job seems to need, and why a row is not
+ * rated (`missing`). The schema has `additionalProperties: false` at every level and promises no additive key, so
+ * every object here is strict like its neighbours: a key this release does not know fails the read. The code slots
+ * (verdict, quantity, check, cause, bases) are open like v1's verdict: a code this release does not know never fails
+ * the read, it is worded "Not rated yet." and staff hear once per job and code. A condition's `limit` may be null for
+ * the same reason (a later quantity such as `route_clear` has no figure).
+ */
+export const ROBOT_FIT_V2_VERDICTS = ["fits", "fits_spec", "fits_if", "doesnt_fit", "unknown"] as const;
+export const ROBOT_FIT_V2_CHECKS = ["stance", "reach", "payload", "cycle_time", "access"] as const;
+export const ROBOT_FIT_V2_QUANTITIES = ["item_mass_kg", "reach_m", "cycle_time_s", "route_clear", "floor_width_m"] as const;
+export const ROBOT_FIT_V2_CAUSES = ["estimate_straddles_limit", "item_mass_missing", "catalog_figure_missing",
+  "tool_figure_missing", "no_clear_station", "footprint_not_searched", "arm_pose_search_inconclusive",
+  "carry_check_undecided", "not_modelled", "not_checked"] as const;
+const figure = z.number().nonnegative().max(1e9);
+const signedFigure = z.number().min(-1e9).max(1e9);
+export const robotFitConditionSchema = z.object({
+  quantity: pipelineCode, need_min: signedFigure.nullable(), need_max: signedFigure.nullable(), limit: signedFigure.nullable(),
+  need_basis: pipelineCode, limit_basis: pipelineCode,
+}).strict();
+export const robotFitV2RowSchema = z.object({
+  name: z.string().min(1).max(120), manufacturer: z.string().min(1).max(120), verdict: pipelineCode,
+  verdict_if_conditions_hold: pipelineCode.nullable(), rated_payload_kg: figure.nullable(), payload_limit_kg: figure.nullable(),
+  failed_checks: z.array(pipelineCode).max(12), conditions: z.array(robotFitConditionSchema).max(12),
+  missing: z.array(z.object({check: pipelineCode, cause: pipelineCode}).strict()).max(12),
+}).strict();
+export const robotFitV2Schema = z.object({
+  schema_version: z.literal("website_robot_fit_projection.v2"),
+  route: z.enum(["full", "geometry_only"]),
+  status: z.enum(["completed", "not_run"]),
+  reason: pipelineCode.nullable(),
+  evidence_label: z.literal("spec_bounded_estimate").nullable(),
+  counts: z.object({fits: fitCount, fits_spec: fitCount, fits_if: fitCount, doesnt_fit: fitCount, unknown: fitCount}).strict().nullable(),
+  geometry_basis: pipelineCode.nullable(),
+  weight_basis: pipelineCode.nullable(),
+  unknown_causes: z.record(z.string().regex(/^[a-z_]{1,40}:[a-z_]{1,60}$/), fitCount).nullable(),
+  models: z.array(robotFitV2RowSchema).max(200),
+  models_truncated: z.boolean(),
+  table_digest: digest.nullable(),
+}).strict().refine(fit => fit.status === "completed"
+  ? fit.reason === null && fit.evidence_label === "spec_bounded_estimate" && fit.counts !== null && fit.table_digest !== null
+  : fit.reason !== null && fit.evidence_label === null && fit.counts === null && fit.models.length === 0
+    && fit.table_digest === null && !fit.models_truncated && fit.geometry_basis === null && fit.weight_basis === null
+    && fit.unknown_causes === null, "robot fit status mismatch");
+export type RobotFitV2Receipt = z.infer<typeof robotFitV2Schema>;
+const receiptV8 = receiptV7.extend({
+  schema_version: z.literal("website_preparation_status.v8"),
+  robot_fit: robotFitV2Schema.nullable(),
+}).strict();
+/** Older Pipelines keep answering v1–v7; v3 adds a retained evidence finding. */
 export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4, receiptV5, receiptV6,
-  receiptV7]);
+  receiptV7, receiptV8]);
 export type WebsitePreparationReceipt = z.infer<typeof websitePreparationReceiptSchema>;
 type PreparationState = typeof statesV2[number];
-/** Asks for v7; older Pipelines cap negotiation at their newest known version (v6 and below stay accepted). */
-export const WEBSITE_PREPARATION_STATUS_VERSION = "7";
+/**
+ * Asks for v8. The Pipeline answers the newest receipt it has at or below what is asked
+ * (`requested_status_version`): one released before v8 answers "8" with v7, which still parses here, so the
+ * website falls back to the newest version both sides know and never reads as unavailable for it.
+ */
+export const WEBSITE_PREPARATION_STATUS_VERSION = "8";
 export const WEBSITE_PREPARATION_STATUS_VERSION_HEADER = "x-blueprint-preparation-status-version";
 /** The site's view of the robot fit table; robots that fit come first. */
 export type PublicRobotFit = {
@@ -157,7 +212,23 @@ export type PublicRobotFit = {
   models: {name: string; manufacturer: string; verdict: typeof ROBOT_FIT_VERDICTS[number]; openChecks: string[]}[];
   modelsTruncated: boolean;
 };
-export function publicRobotFit(fit: RobotFitReceipt): PublicRobotFit {
+/**
+ * The v1 view of either table, for the readers that use it (the site answer's scene rows, the outlook): a v2
+ * `fits_if` row reads `unknown` there, exactly as the Pipeline publishes it under v5 to v7, and its open checks are
+ * its conditions' and missing checks. The worded first look of a v2 table is `firstLookFromStoredPreparation`.
+ */
+export function publicRobotFit(fit: RobotFitReceipt | RobotFitV2Receipt): PublicRobotFit {
+  if (fit.schema_version === "website_robot_fit_projection.v2") {
+    const checkOf: Record<string, string> = {item_mass_kg: "payload", reach_m: "reach", cycle_time_s: "cycle_time", route_clear: "access", floor_width_m: "stance"};
+    return {route: fit.route, status: fit.status, reason: known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason) ? fit.reason : null,
+      counts: fit.counts && {fits: fit.counts.fits, fitsSpec: fit.counts.fits_spec, doesntFit: fit.counts.doesnt_fit,
+        unknown: fit.counts.unknown + fit.counts.fits_if},
+      models: fit.models.map(row => ({name: row.name, manufacturer: row.manufacturer,
+        verdict: row.verdict === "fits" || row.verdict === "fits_spec" || row.verdict === "doesnt_fit" ? row.verdict : "unknown" as const,
+        openChecks: [...new Set([...row.failed_checks, ...row.conditions.map(condition => checkOf[condition.quantity] ?? condition.quantity),
+          ...row.missing.map(item => item.check)])].filter(check => /^[a-z_]{1,40}$/.test(check))})),
+      modelsTruncated: fit.models_truncated};
+  }
   return {route: fit.route, status: fit.status, reason: known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason) ? fit.reason : null,
     counts: fit.counts && {fits: fit.counts.fits, fitsSpec: fit.counts.fits_spec, doesntFit: fit.counts.doesnt_fit,
       unknown: fit.counts.unknown},
@@ -213,7 +284,18 @@ export function unknownPreparationCodes(status: WebsitePreparationReceipt): Arra
   for (const key of Object.keys(asked?.picture ?? {})) if (!TASK_CHOICE_PICTURE_KEYS.includes(key)) found.push(["preparation.question.picture_key", key]);
   const fit = "robot_fit" in status ? status.robot_fit : null;
   if (fit?.reason && !known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason)) found.push(["robot_fit.reason", fit.reason]);
-  for (const row of fit?.models ?? []) if (!known(ROBOT_FIT_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
+  if (fit?.schema_version === "website_robot_fit_projection.v2") {
+    for (const row of fit.models) {
+      if (!known(ROBOT_FIT_V2_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
+      for (const check of row.failed_checks) if (!known(ROBOT_FIT_V2_CHECKS, check)) found.push(["robot_fit.check", check]);
+      for (const condition of row.conditions) if (!known(ROBOT_FIT_V2_QUANTITIES, condition.quantity))
+        found.push(["robot_fit.condition.quantity", condition.quantity]);
+      for (const item of row.missing) {
+        if (!known(ROBOT_FIT_V2_CHECKS, item.check)) found.push(["robot_fit.check", item.check]);
+        if (!known(ROBOT_FIT_V2_CAUSES, item.cause)) found.push(["robot_fit.missing.cause", item.cause]);
+      }
+    }
+  } else for (const row of fit?.models ?? []) if (!known(ROBOT_FIT_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
   const question = "question" in status ? status.question as {kind?: unknown} | null : null;
   if (question && typeof question.kind === "string" && !isKnownTaskChoiceQuestion(question))
     found.push(question.kind === "task_destination_choice" ? ["preparation.question.malformed", question.kind]
@@ -351,6 +433,13 @@ function receiptSelectors(value: WebsitePreparationReceipt): WebsitePreparationS
     producer_delivery_key, source_payload_sha256, task_context_digest} = value;
   return {request_id, scene_id, capture_id, completion_marker_generation,
     producer_delivery_key, source_payload_sha256, task_context_digest};
+}
+/** The stored row's first look in its v2 shape, or null (no row, an older receipt, no table, or a row that does not parse). */
+export function storedRobotFitV2(value: unknown): RobotFitV2Receipt | null {
+  try {
+    const fit = parseStored(value)?.status;
+    return fit && fit.schema_version === "website_preparation_status.v8" ? fit.robot_fit : null;
+  } catch { return null; }
 }
 function parseStored(value: unknown): StoredWebsitePreparation | null {
   if (value == null) return null;

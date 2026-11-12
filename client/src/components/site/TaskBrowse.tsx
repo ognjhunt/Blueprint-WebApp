@@ -1,5 +1,3 @@
-import { withCsrfHeader } from "@/lib/csrf";
-import type { User } from "firebase/auth";
 import { TaskThumbnail } from "./TaskThumbnail";
 import { isLikelyPhone } from "@/lib/device";
 import { TaskFacts } from "./TaskFacts";
@@ -10,7 +8,6 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { LibraryAccess } from "@/lib/robotTeamAccess";
 import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
 import { libraryStageLabels, opportunityLabels, type TaskBrowseCard } from "@/types/taskBrowse";
-import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, RESPONSE_PRIVACY_LINE } from "@/lib/companyResponses";
 
 /** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
 
@@ -98,10 +95,10 @@ export function TaskBrowse() {
     </details>}
     {libraryEmpty && <div className="ms-task-empty">
       <h2>The first site jobs are being prepared.</h2>
-      <p>A site chooses whether to share a summary of its job, and can hide it later.</p>
+      <p>Each job a site sends is shown here once its video has passed our privacy check and the site has said what the job is.</p>
     </div>}
     {state === "ready" && items.length > 0 && <>
-      <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Summaries shared by sites. Tell us for each whether you'd take it.</p>
+      <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Open a job to watch the site's video and answer.</p>
       {filtered.length === 0 && <div className="ms-task-empty">
         <h2>No jobs fit these filters.</h2>
         <p>Try a different job or region, or <a href="mailto:hello@tryblueprint.io">tell us what you need</a>.</p>
@@ -109,40 +106,13 @@ export function TaskBrowse() {
       </div>}
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id} id={`job-${item.id}`}>
         <div className="ms-task-heading"><div><div className="ms-task-meta">{item.simulationStage && <span>{libraryStageLabels[item.simulationStage]}</span>}<span>{opportunityLabels[item.opportunity]}</span></div>
-        <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
+        <h2><a href={item.jobUrl ?? `/jobs/${encodeURIComponent(item.id)}`}>{item.title}</a></h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
         {item.answerHeadline && <JobCardAnswerLine jobId={item.id} headline={item.answerHeadline} user={currentUser} />}
-        {/* The row's one action: the company's response (interested, not a fit, or would need something). Running its own system on a job is
-            not offered (frame of 2026-11-12: "later"), so the old "Offer your system" link, into a removed area, is gone. */}
-        {item.opportunity === "open" && currentUser && !access?.staff && <TeamJobResponse jobId={item.id} user={currentUser} />}
+        {/* The row's one action: open the job's own page, where the company watches the video and answers (E3, E5). */}
+        <p><a className="ms-text-link" href={item.jobUrl ?? `/jobs/${encodeURIComponent(item.id)}`}>Open the job and answer</a></p>
       </li>)}</ul>
     </>}
     <p className="ms-field-hint">Nothing is charged today.</p>
     <p className="ms-field-hint"><a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
-}
-
-/** The existing card is sufficient to express interest; private job data remains private. */
-function TeamJobResponse({ jobId, user }: { jobId: string; user: User }) {
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (saving) return;
-    const data = new FormData(event.currentTarget); setSaving(true); setMessage("");
-    try {
-      const state = String(data.get("state"));
-      const response = await fetch(`/api/site-worlds/tasks/${encodeURIComponent(jobId)}/interest`, { method: "POST", credentials: "include",
-        headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
-        body: JSON.stringify({ state, inputs: data.get("inputs") }) });
-      const body = await response.json();
-      setMessage(response.ok ? body.nextAction : body.error || "Your response was not saved.");
-    } catch { setMessage("Your response was not confirmed. Try again from this job."); }
-    finally { setSaving(false); }
-  }
-  return <details><summary>Respond about this job</summary><form onSubmit={submit} className="ms-form" aria-label="Respond about this job">
-    <p className="ms-field-hint">Only the shared card is available here. Give the quote basis, available timing, evidence of capability or one question needed to scope the work. Interest does not commit your team.</p>
-    <label>Your decision<select name="state">{COMPANY_RESPONSE_STATES.map(state => <option key={state} value={state}>{COMPANY_RESPONSE_LABELS[state]}</option>)}</select></label>
-    <label>Inputs or question<textarea name="inputs" required minLength={4} maxLength={2000} /></label>
-    <button className="ms-button" disabled={saving}>{saving ? "Saving…" : "Save response"}</button>{message && <p role="status">{message}</p>}
-    <p className="ms-field-hint">{RESPONSE_PRIVACY_LINE}</p>
-  </form></details>;
 }

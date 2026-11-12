@@ -4,7 +4,10 @@ import {
   RECORDING_RIGHTS_STATEMENT,
   RECORDING_RIGHTS_STATEMENT_SHORT,
   RECORDING_RIGHTS_STATEMENT_SHORT_VERSION,
+  RECORDING_RIGHTS_STATEMENT_V4,
+  RECORDING_RIGHTS_STATEMENT_V4_VERSION,
   RECORDING_RIGHTS_STATEMENT_VERSION,
+  isSharingRecordingStatementVersion,
   RECORDING_RIGHTS_STATEMENT_VERSIONS,
   isRecordingRightsStatementVersion,
 } from "@/lib/recordingRightsStatement";
@@ -32,8 +35,17 @@ describe("recording-rights statement", () => {
     );
   });
 
-  it("accepts exactly v1, v2 and the start form's v3, so older records and pages stay valid", () => {
-    expect(RECORDING_RIGHTS_STATEMENT_VERSIONS).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3"]);
+  // Sharing is the service (owner, 2026-11-12): one sentence says the job is shared, and only it shares a job.
+  it("pins v4, the sentence that shares the job, and only v4 shares it", () => {
+    expect(RECORDING_RIGHTS_STATEMENT_V4_VERSION).toBe("2026-11-12.v4");
+    expect(RECORDING_RIGHTS_STATEMENT_V4).toBe("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. "
+      + "We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.");
+    expect(isSharingRecordingStatementVersion("2026-11-12.v4")).toBe(true);
+    for (const older of ["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v5", "", null]) expect(isSharingRecordingStatementVersion(older)).toBe(false);
+  });
+
+  it("accepts exactly v1, v2, the start form's v3 and v4, so older records and pages stay valid", () => {
+    expect(RECORDING_RIGHTS_STATEMENT_VERSIONS).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4"]);
     for (const version of RECORDING_RIGHTS_STATEMENT_VERSIONS) expect(isRecordingRightsStatementVersion(version)).toBe(true);
     for (const other of ["2026-11-02.v3", "2026-11-11.v2", "2026-09-18.v2", "2026-11-02.V2", " 2026-11-02.v2", "2026-11-02.v2 ", "",
       "2026-10-06.v1", "2026-09-24.v1", null, undefined, 2, ["2026-11-02.v2"], { version: "2026-11-02.v2" }]) {
@@ -47,8 +59,9 @@ describe("recording-rights statement", () => {
     expect(terms).toContain("When you start a capture with footage, you confirm that you are authorized to record the site "
       + "and to let Blueprint use the recording as these Terms describe.");
     expect(terms).toContain("to draft the job brief");
-    expect(terms).toContain("We rebuild the work area as a simulated scene, run candidate robot policies in that simulation ourselves");
-    // Robot teams do not evaluate, and the anonymized job card has its own clause.
+    expect(terms).toContain("We rebuild the work area as a simulated scene and, where we can, run openly available robot software in that simulation ourselves");
+    // The sharing has its own clause in the Terms (and its own statement, v4); the older sentence names none.
+    expect(terms).toContain("Starting a job means we share it with robot deployment companies we've approved");
     expect(RECORDING_RIGHTS_STATEMENT).not.toMatch(/robot teams?|job card|anonymi[sz]ed|partner|listing/i);
   });
 });

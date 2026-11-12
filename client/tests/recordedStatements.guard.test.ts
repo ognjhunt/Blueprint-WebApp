@@ -11,11 +11,14 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
-import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT, RECORDING_RIGHTS_STATEMENT_VERSIONS } from "@/lib/recordingRightsStatement";
+import {
+  RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT, RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_VERSIONS,
+} from "@/lib/recordingRightsStatement";
+import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
 import { DESCRIPTION_AUTHORITY_STATEMENTS, DESCRIPTION_AUTHORITY_VERSIONS } from "@/lib/siteSubmissionAuthority";
 import { TASK_CONFIRMATION_STATEMENT } from "@/lib/taskConfirmationStatement";
 import { JOB_CARD_ANSWER_STATEMENTS, JOB_CARD_ANSWER_STATEMENT_VERSIONS } from "@/lib/jobCardAnswerConsent";
-import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
+import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 } from "@/lib/siteStartConsent";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const sourceText = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8").replace(/\s+/g, " ");
@@ -30,6 +33,16 @@ const CONSTANT_STATEMENTS = [
   { name: "description authority", version: "2026-10-06.v1", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-10-06.v1"], text: "I am authorized to share this job description with Blueprint on behalf of the site." },
   { name: "description authority", version: "2026-11-11.v2", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-11.v2"], text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site." },
   { name: "description authority", version: "2026-11-11.v3", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-11.v3"], text: "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site." },
+  // Sharing is the service (owner, 2026-11-12; PACKAGE_D D1.1): one sentence, one version, on the start form with a video
+  // and on a job's page (a job started without a video, or under an older statement).
+  { name: "recording rights, shares the job", version: "2026-11-12.v4", actual: RECORDING_RIGHTS_STATEMENT_V4, text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved." },
+  { name: "start form, with video, shares the job", version: "2026-11-12.v4", actual: SITE_START_CONSENT_WITH_VIDEO_V4, text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved." },
+  { name: "start form, no video, shares the job", version: "2026-11-12.v5", actual: SITE_START_CONSENT_NO_VIDEO_V5, text: "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. We share your job with robot deployment companies we've approved." },
+  { name: "description authority", version: "2026-11-12.v4", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-12.v4"], text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved." },
+  { name: "description authority", version: "2026-11-12.v5", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-12.v5"], text: "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. We share your job with robot deployment companies we've approved." },
+  // A deployment company's answer (PACKAGE_E E5), recorded on every answer.
+  { name: "company response", version: "company-response-2026-11-12", actual: COMPANY_RESPONSE_STATEMENT_VERSION === "company-response-2026-11-12" ? COMPANY_RESPONSE_STATEMENT : "", text: "The site is told your answer. If you answer Interested and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs." },
+  // Records only since 2026-11-12: no surface shows or records them any more ("Share my job" is gone).
   { name: "share my job", version: "public-task-card-with-answer-v3", actual: JOB_CARD_ANSWER_STATEMENTS["public-task-card-with-answer-v3"], text: "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private." },
   { name: "share my job", version: "public-task-card-with-answer-v2", actual: JOB_CARD_ANSWER_STATEMENTS["public-task-card-with-answer-v2"], text: "Shares a summary of your job and this answer, without saying who you are, with companies we've approved. Your video, address and contacts stay private." },
   { name: "share my job", version: "public-task-card-with-answer-v1", actual: JOB_CARD_ANSWER_STATEMENTS["public-task-card-with-answer-v1"], text: "This shares an anonymised summary of your job and this answer with deployment companies Blueprint has approved. Your video, address and contacts stay private." },
@@ -49,10 +62,6 @@ const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; tex
     text: "Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime." },
   { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
   { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Relevant new-job alerts" },
-  { version: "public-task-card-v1", file: "client/src/components/site/SiteCaptureStart.tsx", tag: "BareCheck",
-    text: "Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)" },
-  { version: "public-task-card-v1", file: "client/src/components/site/PublicTaskListing.tsx", tag: "label",
-    text: "I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time." },
   { version: "2026-09-24.v1", file: "client/src/components/site/SiteCaptureStart.tsx", tag: "BareCheck",
     text: "For this development test, I authorize Blueprint to send selected frames and task evidence from this recording to Anthropic for Claude Opus 5.5 3D authoring. Blueprint pays the bounded provider cost; this does not train a model on my recording. See Anthropic’s commercial API terms." },
   { version: "2026-09-24.v1", file: "client/src/components/site/SiteCaptureStart.tsx", tag: "BareCheck",
@@ -63,6 +72,18 @@ const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; tex
     text: "By applying, you agree to our Terms of Service and Privacy Policy." },
   { version: "terms and privacy acceptance", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
     text: "I agree to the Terms and Privacy Policy and am authorized to create this organization’s account." },
+];
+
+/**
+ * Statements that were written inline and whose surface is gone (2026-11-12: the start form's share box and Share
+ * settings were removed). Their texts stay here as the record of what was agreed under each version; none may come back
+ * on any page under its old version.
+ */
+const RETIRED_INLINE_STATEMENTS = [
+  { version: "public-task-card-v1", was: "client/src/components/site/SiteCaptureStart.tsx",
+    text: "Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)" },
+  { version: "public-task-card-v1", was: "client/src/components/site/PublicTaskListing.tsx",
+    text: "I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time." },
 ];
 
 /** JSX text as React renders it: lines trimmed where they meet a newline, whitespace-only lines dropped. */
@@ -124,8 +145,31 @@ describe("recorded statements keep their exact text under their version", () => 
   it("covers every version the stores accept", () => {
     for (const version of RECORDING_RIGHTS_STATEMENT_VERSIONS.filter(v => v !== "2026-09-18.v1"))
       expect(CONSTANT_STATEMENTS.some(row => row.version === version), version).toBe(true);
-    for (const version of [...DESCRIPTION_AUTHORITY_VERSIONS, ...JOB_CARD_ANSWER_STATEMENT_VERSIONS])
+    for (const version of [...DESCRIPTION_AUTHORITY_VERSIONS, ...JOB_CARD_ANSWER_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSION])
       expect(CONSTANT_STATEMENTS.some(row => row.version === version), version).toBe(true);
+    // The closed sets themselves: a new version must be added here, and to the rows above, on purpose.
+    expect([...RECORDING_RIGHTS_STATEMENT_VERSIONS]).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4"]);
+    expect([...DESCRIPTION_AUTHORITY_VERSIONS]).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-12.v5"]);
+  });
+
+  it("shows the sharing statement word for word on every surface that records it", () => {
+    // The start form reads the v4/v5 lines and records v4/v5; the job page shows v4 and records v4.
+    const start = sourceText("client/src/components/site/SiteCaptureStart.tsx");
+    expect(start).toMatch(/SITE_START_CONSENT_WITH_VIDEO_V4 : SITE_START_CONSENT_NO_VIDEO_V5/);
+    expect(start).toMatch(/RECORDING_RIGHTS_STATEMENT_V4_VERSION/);
+    expect(start).toMatch(/DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION/);
+    for (const file of ["client/src/components/site/SiteAnswer.tsx", "client/src/pages/SelfCaptureUpload.tsx"]) {
+      const source = sourceText(file);
+      expect(source, file).toMatch(/\{RECORDING_RIGHTS_STATEMENT_V4\}|helper=\{RECORDING_RIGHTS_STATEMENT_V4\}/);
+      expect(source, file).toMatch(/statementVersion: RECORDING_RIGHTS_STATEMENT_V4_VERSION/);
+    }
+  });
+
+  it.each(RETIRED_INLINE_STATEMENTS)("retired: $version is shown nowhere any more ($was)", ({ text }) => {
+    const anchor = text.split(" ").slice(0, 6).join(" ");
+    const pages = fs.readdirSync(path.join(ROOT, "client/src"), { recursive: true }) as string[];
+    for (const file of pages.filter(name => /\.(tsx?|jsx?)$/.test(name)))
+      expect(fs.readFileSync(path.join(ROOT, "client/src", file), "utf8").replace(/\s+/g, " "), file).not.toContain(anchor);
   });
 
   it.each(INLINE_STATEMENTS)("$version in $file", ({ file, tag, text }) => {

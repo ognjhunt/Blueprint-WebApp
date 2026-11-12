@@ -148,6 +148,29 @@ export function websiteScenePreviewViewerUrl(requestId: string, captureId: strin
   return `/splat-viewer/index.html?${new URLSearchParams({ content })}`;
 }
 
+const COMPANY_VIEW_TICKET_DOMAIN = "website_scene_preview_company_view";
+
+/**
+ * The same viewer for an approved deployment company (package E, E3): a 15-minute ticket bound to the viewer as well
+ * as the job and capture, carried as `viewer=<companyId>`. The view route re-reads `teamJobAccess` and the company's
+ * approval on every request before serving a byte.
+ */
+export function websiteScenePreviewCompanyViewerUrl(requestId: string, captureId: string, companyId: string, nowSeconds?: number) {
+  if (!WEBSITE_ATLAS_REQUEST_ID.test(requestId) || !WEBSITE_ATLAS_CAPTURE_ID.test(captureId) || !/^[a-f0-9]{64}$/.test(companyId)) return null;
+  const ticket = createSignedDownloadTicket([COMPANY_VIEW_TICKET_DOMAIN, requestId, captureId, companyId], nowSeconds);
+  if (!ticket) return null;
+  const query = new URLSearchParams({ source: SCENE_PREVIEW_VIEW_SOURCE, viewer: companyId, expires: String(ticket.expires),
+    signature: ticket.signature });
+  const content = `${WEBSITE_ATLAS_PREVIEW_VIEW_ROUTE}/${encodeURIComponent(requestId)}/${encodeURIComponent(captureId)}/scene.ply?${query}`;
+  return `/splat-viewer/index.html?${new URLSearchParams({ content })}`;
+}
+
+export function verifyWebsiteScenePreviewCompanyViewTicket(requestId: string, captureId: string, companyId: unknown,
+  expires: unknown, signature: unknown, nowSeconds?: number) {
+  if (typeof companyId !== "string" || !/^[a-f0-9]{64}$/.test(companyId)) return false;
+  return verifySignedDownloadTicket([COMPANY_VIEW_TICKET_DOMAIN, requestId, captureId, companyId], expires, signature, nowSeconds);
+}
+
 export function verifyWebsiteScenePreviewViewTicket(requestId: string, captureId: string,
   expires: unknown, signature: unknown, nowSeconds?: number) {
   return verifySignedDownloadTicket([VIEW_TICKET_DOMAIN, requestId, captureId], expires, signature, nowSeconds);

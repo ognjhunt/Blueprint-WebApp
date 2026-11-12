@@ -85,27 +85,27 @@ test("capture accepts country permission without an address and keeps non-US fil
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
 
-// The one-line consent is on (START_FORM_SHORT_CONSENT, since the Pipeline accepted recording-rights 2026-11-11.v3
-// on 2026-11-11): one plain line under the button, the full statements one tap away, and the 2026-11-11 versions.
-test("sending a video shows the one consent line, the full statements one tap away, and records the one-line versions", async ({ page }) => {
-  const rights = "I am authorized to record this site and to let Blueprint use the recording to draft the job brief, "
-    + "build a simulation of the work area and run candidate robot policies in it.";
+// Sharing is the service (2026-11-12): one plain line under the button says the job is shared with approved deployment
+// companies; it is recorded as recording and description authority v4 (with a video) or description v5 (without). No share box.
+test("sending a video shows the sharing line, the same words one tap away, no share box, and records v4", async ({ page }) => {
   const submissions: any[] = [];
   await page.route("**/api/inbound-request", route => {
     submissions.push(route.request().postDataJSON());
     return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
   });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.").filter({ visible: true })).toHaveCount(1);
+  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. We share your job with robot deployment companies we've approved.").filter({ visible: true })).toHaveCount(1);
   await page.getByRole("button", { name: "I have a video ›", exact: true }).click();
   const start = page.getByRole("button", { name: "Send video", exact: true });
-  await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site.").filter({ visible: true })).toHaveCount(1);
+  await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.").filter({ visible: true })).toHaveCount(1);
   await expect(page.locator("#start-rights")).toHaveCount(0);
+  await expect(page.getByRole("checkbox", { name: /share an anonymised summary/ })).toHaveCount(0);
   // The full statements, word for word, one tap away; back returns to the form.
   await page.getByRole("button", { name: "What you're agreeing to ›" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeVisible();
   await expect(page).toHaveURL(/#agreeing$/);
-  await expect(page.getByText(rights, { exact: false })).toBeVisible();
+  await expect(page.getByText("“By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.”", { exact: true })).toBeVisible();
+  await expect(page.getByText("We don't share your name, address or contact details unless you ask for an introduction.", { exact: false })).toBeVisible();
   await page.goBack();
   await expect(start).toBeVisible();
   await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
@@ -115,8 +115,9 @@ test("sending a video shows the one consent line, the full statements one tap aw
   await start.click();
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ captureRegion: "us", hasExistingFootage: true, descriptionOnly: false,
-    descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v2" },
-    consentAttestation: { granted: true, statementVersion: "2026-11-11.v3" } });
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v4" },
+    consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" } });
+  expect(submissions[0]).not.toHaveProperty("publicTaskListing");
 });
 
 test("robot teams can apply before approval without seeing private jobs", async ({ page }) => {

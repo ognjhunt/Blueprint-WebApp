@@ -1,7 +1,7 @@
 import { newWebsiteCaptureOwnerBinding } from "../utils/websiteCaptureOwner";
 import { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } from "../utils/sceneScreenGate";
-import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
-import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
+import { buildJobSharedListing } from "../utils/jobSharedListing";
+import { isSharingRecordingStatementVersion } from "../../client/src/lib/recordingRightsStatement";
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
 import { hasCurrentDescriptionAuthority } from "../utils/descriptionAuthority";
 import { createInboundRequestWithReceipt } from "../utils/inboundRequestCommit";
@@ -1083,16 +1083,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
       payload.siteLocationMetadata
     );
     const taskStatement = payload.taskStatement?.trim() || "";
-    let initialPublicListing: Record<string, unknown> | null = null;
-    if (payload.publicTaskListing != null) {
-      const grant = payload.publicTaskListing, details = taskListingSchema.safeParse(grant.details);
-      if (buyerType !== "site_operator" || grant.consent !== true || grant.statementVersion !== listingConsentVersion || !details.success
-        || JSON.stringify(details.data) !== JSON.stringify(taskListingSchema.parse(anonymizedOpportunityDraft(taskStatement)))) return res.status(400).json({ ok: false, message: "Review the generated anonymous summary or choose private handling before submitting." });
-      const approvedAtIso = new Date().toISOString();
-      initialPublicListing = { enabled: true, details: details.data, consentVersion: listingConsentVersion,
-        approvedAtIso, wentLiveIso: approvedAtIso, approvedBy: "initial_submission", thumbnailDigest: null, reviewRequired: false };
-    }
-
+    // Sharing is the service (2026-11-12): there is no share box. A `publicTaskListing` sent by a page opened before
+    // the change is ignored; the job is shared only when its recording statement is v4 or later (below).
     const targetSiteType = payload.targetSiteType?.trim() || "";
     const displayCaptureMetadata = normalizeDisplayCaptureMetadata({
       payload,
@@ -1291,6 +1283,12 @@ export async function submitInboundRequest(req: Request, res: Response) {
         message: "Recording permission was not confirmed, so the request cannot be accepted",
       } satisfies SubmitInboundRequestResponse);
     }
+
+    // The listing record exists only under a statement that says the job is shared (v4 or later), with a video.
+    const initialPublicListing = buyerType === "site_operator" && consentAttestation
+      && isSharingRecordingStatementVersion(consentAttestation.statement_version)
+      ? buildJobSharedListing({ taskStatement, atIso: consentAttestation.recorded_at_iso,
+        recordingStatementVersion: consentAttestation.statement_version ?? undefined }) : null;
 
     const invalidApprovedRobotTeamEmails = (
       pilotOpportunity?.approvedRobotTeamEmails || []
@@ -1985,7 +1983,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
       await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
         ops_notice: initialIntakeOpsNotice(opsNoticeMeta),
         ...(messageSuppression ? { intake_message_suppression: messageSuppression } : {}),
-        // Shared on the start form: the "summary is shared" email is owed until the summary is first visible.
+        // Recording statement v4 says the job is shared with approved deployment companies: the listing record is
+        // written with it, and the "your job is with deployment companies" email is owed until the job is first visible.
         ...(initialPublicListing ? { public_task_listing: initialPublicListing, summary_shared_notice: { owed: true } } : {}),
         // A confirmed brief takes no later reading of its description, so it
         // queues none; its confirmation is projected onto the job instead,

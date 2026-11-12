@@ -34,7 +34,7 @@ describe("public managed-pilot copy", () => {
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
     expect(container).toHaveTextContent(/Send a video of one job that repeats/);
     expect(container).toHaveTextContent(/We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site\./);
-    expect(container).toHaveTextContent(/With your permission, robot deployment companies we approve can see a summary of it\. Your video stays private\./);
+    expect(container).toHaveTextContent(/We share it with robot deployment companies we approve, and they answer\. Your name and contact details go to a company only if you ask to meet it\./);
     expect(container).toHaveTextContent(/Free for sites/);
     expect(container).toHaveTextContent(/We take pick-up-and-put-down jobs best\. Nothing here is a test at your site or a safety check\./);
     // The frame of 2026-11-12: no invented result, no claim that the trial is the answer, no price.

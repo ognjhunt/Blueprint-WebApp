@@ -16,6 +16,7 @@
  * If any link is missing, this fails -- which is the test the isolated ones
  * could not be, because each of them started after the draft already existed.
  */
+import { passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
@@ -269,9 +270,9 @@ describe("a shared job's access does not depend on the screen after the cutover"
     await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana", operatorAnswers: answers });
     const stored = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as Record<string, any>;
     return { ...stored,
-      request: { ...stored.request, consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-11-11T00:00:00Z" } },
-      public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-11-11T00:00:00Z",
-        details: { title: "Cartons to pallet", taskFamily: "Recurring work", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open" } },
+      request: { ...stored.request, consent_attestation: sharedRecordingGrant("2026-11-11T00:00:00Z") },
+      public_task_listing: sharedJobListing("Stack cartons onto the pallet", "2026-11-11T00:00:00Z"),
+      capture_privacy_screen: passedPrivacyScreen(REQUEST),
       pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site/world.json" } },
       evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" } };
   }

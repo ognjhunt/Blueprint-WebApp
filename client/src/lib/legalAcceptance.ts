@@ -21,8 +21,29 @@
  * effect at once instead of on November 15. Every job with footage was the
  * owner's own, and the corrected text is the accurate one.
  */
-export const TERMS_VERSION = "2026-11-25.1";
-export const PRIVACY_VERSION = "2026-11-25.1";
+/*
+ * 2026-11-12 (owner: "sharing is the service"; PACKAGE_D D1.2). The new version says a started job is shared with the
+ * deployment companies Blueprint approves. It takes effect at once, as the 2026-11-02 correction did, and it replaces
+ * the version published ahead as 2026-11-25.1 before that version took effect. Its text keeps everything 2026-11-25.1
+ * changed (the filming visits retired) and adds the sharing.
+ *
+ * Who it binds, and how: a person accepts it only by an act of their own, never by continuing to use the Service.
+ * - A site starting a job from the release accepts it under the start form's line (recorded in `terms_acceptance`).
+ * - A site with an older job accepts it by agreeing to recording statement v4 on the job's page, which records it on the
+ *   job (`server/utils/jobSharedListing.ts`). Until then the job keeps what it was promised: it is not shown to any
+ *   company, and its stored acceptance stays as it is under its own version id.
+ * - A signed-in account whose recorded acceptance is 2026-11-02.1 or 2026-11-25.1 is asked to accept the current
+ *   versions the next time it is checked (`acceptedVersionsAreCurrent` is false for them; `server/routes/workspace.ts`).
+ * The permission to share a job never rests on the Terms alone: it rests on recording statement v4.
+ */
+export const TERMS_VERSION = "2026-11-12.1";
+export const PRIVACY_VERSION = "2026-11-12.1";
+/**
+ * Published ahead on 2026-11-11 for November 25 and replaced before it took effect. Acceptances recorded under it keep
+ * it; its text is frozen at `client/src/pages/TermsAnnounced.tsx` and `PrivacyAnnounced.tsx` (not routed). It no
+ * longer counts as current.
+ */
+export const ANNOUNCED_SUPERSEDED_VERSION = "2026-11-25.1";
 
 /**
  * The versions in force until TERMS_VERSION / PRIVACY_VERSION take effect.
@@ -42,14 +63,17 @@ export const PREVIOUS_PRIVACY_VERSION = "2026-11-02.1";
  * version and this digest are updated together.
  */
 export const LEGAL_PAGE_DIGESTS = {
-  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "2834da6ea5aa90a961902fe151ba78b2a0b633a7d66bf4f4dc45a58467d55a78" },
-  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "3e741f10340e795a7579f09baf59ed3d3734a1307d4809f6e288aed843bae991" },
+  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "d063984d0cda80c1c8ac6562c439938b1a08b3e96dd2f059878a62b5abbabddf" },
+  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "cb75eafb878ec2ca944888d706ae46cb00d87492e7c0c32a849b82817a614f98" },
+  "client/src/pages/TermsAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "2a56699800d45d0ce2d63598021799a7abbc3027612b1cdfaaf9c0c98cf2cd97" },
+  "client/src/pages/PrivacyAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "ae47ecfdb9bbf404ac0d070c02816d2a99f7d4460616e8b06435fbbcb3f115f9" },
   "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" },
   "client/src/pages/PrivacyPrevious.tsx": { version: PREVIOUS_PRIVACY_VERSION, sha256: "cad7fcac5cc1ec468ab74471a13a5e61a208b697deafd97b4039f01ab38eab3c" },
 } as const;
 /** The versions the digests above were recorded against; a version bump without a new digest fails the same test. */
 export const LEGAL_PAGE_DIGEST_VERSIONS = {
-  terms: "2026-11-25.1", privacy: "2026-11-25.1", previousTerms: "2026-11-02.1", previousPrivacy: "2026-11-02.1",
+  terms: "2026-11-12.1", privacy: "2026-11-12.1", previousTerms: "2026-11-02.1", previousPrivacy: "2026-11-02.1",
+  announced: "2026-11-25.1",
 } as const;
 
 /**

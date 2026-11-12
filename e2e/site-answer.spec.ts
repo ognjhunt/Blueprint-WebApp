@@ -15,11 +15,15 @@ const simulationRun = { ...winnerEvaluation, screening: { ...winnerEvaluation.sc
     chosen: { candidateId: "pi05_droid", name: "π0.5 DROID", successRate: 0.7, scored: 10, succeeded: 7, configurationId: null,
       policyRouteId: null, deploymentCompanies: [], relationship: null, evidenceUrl: null, relatedTeams: [], partnerBlockers: [], registryTeams: [] },
     candidates: [{ candidateId: "pi05_droid", resultRank: 1, choiceBlocker: null }] } } };
+/** The old share button (until 2026-11-12): it must not come back. */
 const FIND = "Share my job";
-const QUESTION = "May we share a summary of your job with deployment companies we approve?";
+/** An older job's page (PACKAGE_D D1.3): what changed, recording statement v4, and the one button that agrees to it. */
+const OLDER = "Blueprint now shares each job, with its video, with the deployment companies we approve. Your job is not shown to any company. To have it shared, agree below.";
+const AGREE = "Agree and send my job";
+const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
+const SHARED = "We share your job with the deployment companies we approve.";
 /** The recorded statement, word for word: only the words around it changed. */
-const CONSENT = "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
-const LISTED = "Shared on November 11, 2026. Deployment companies we approve can see a summary of your job. Nothing more is needed from you.";
+
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
 const TRIAL_LINE = "This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.";
 /** Opens the folded early trial, as a site would. */
@@ -41,11 +45,14 @@ const workflow = {
   nextAction: "Blueprint is preparing your job.", actionOwner: "blueprint", review: null,
 };
 
-async function mockJob(page: Page, { evaluation = simulationRun as unknown, listed = true, sharedAtIso = null as string | null,
-  companies }: { evaluation?: unknown; listed?: boolean; sharedAtIso?: string | null; companies?: unknown } = {}) {
-  const introductions: Array<{ csrf: string | undefined }> = [];
+type Sharing = { state: "not_shared" | "preparing" | "visible" | "not_visible"; sharedAtIso: string | null; olderStatement?: boolean };
+const OLDER_JOB: Sharing = { state: "not_shared", sharedAtIso: null, olderStatement: true };
+async function mockJob(page: Page, { evaluation = simulationRun as unknown, sharing: initial = OLDER_JOB, agreedListed = true,
+  companies }: { evaluation?: unknown; sharing?: Sharing; agreedListed?: boolean; companies?: unknown } = {}) {
+  const consents: Array<{ csrf: string | undefined; body: unknown }> = [];
+  const introductions: Array<{ csrf: string | undefined; body: unknown }> = [];
   const unexpected: string[] = [];
-  let requestedAtIso: string | null = sharedAtIso;
+  let sharing = initial;
   await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1"
     ? route.continue() : route.fulfill({ status: 204, body: "" }));
   await page.route("**/api/**", async route => {
@@ -61,29 +68,29 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
     if (path === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: true, scope: "owner", account: null, brief: {
       summary: readyAnswer.job.sentence, captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } });
     if (path === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
-      scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso, jobCardListed: requestedAtIso !== null && listed,
+      scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: null, jobCardListed: sharing.state !== "not_shared",
         // The server's own reading of what a company can see (`jobSharingOf`).
-        sharing: requestedAtIso !== null && listed ? { state: "visible", sharedAtIso: requestedAtIso } : { state: "not_shared", sharedAtIso: null },
-        // Package C1: sends and answers, by alias only, as the server projects them (`projectSiteCompanyActivity`).
-        ...(companies ? { companies } : {}) },
+        sharing,
+        // Sends, answers and introductions, by alias until an introduction, as the server projects them.
+        ...(companies && sharing.state !== "not_shared" ? { companies } : {}) },
       // The job's outlook as the server decides it for this answer and evaluation (the page renders by it).
       outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: (evaluation ? [evaluation] : []) as never, pick: null })),
       status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } });
-    if (path === `/api/site-task-brief/${token}/introduction-request` && method === "POST") {
-      introductions.push({ csrf: route.request().headers()["x-csrf-token"] });
-      requestedAtIso ??= "2026-11-11T15:00:00.000Z";
-      return route.fulfill({ json: { ok: true, requestedAtIso, listed,
-        sharing: listed ? { state: "visible", sharedAtIso: requestedAtIso } : { state: "not_shared", sharedAtIso: null } } });
+    if (path === `/api/self-capture/uploads/${token}/recording-consent` && method === "POST") {
+      consents.push({ csrf: route.request().headers()["x-csrf-token"], body: route.request().postDataJSON() });
+      sharing = { state: agreedListed ? "visible" : "not_visible", sharedAtIso: "2026-11-11T15:00:00.000Z" };
+      return route.fulfill({ json: { ok: true, outcome: "upgraded" } });
+    }
+    if (path === `/api/site-task-brief/${token}/introductions` && method === "POST") {
+      introductions.push({ csrf: route.request().headers()["x-csrf-token"], body: route.request().postDataJSON() });
+      return route.fulfill({ status: 409, json: { ok: false, code: "introduction_refused", reason: "limit_reached", error: "x" } });
     }
     if (path === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: { ok: true, summary: null, report: null,
       briefPath: null, tracker: { steps: [], meanwhile: null } } });
-    // The card goes on under the statement that shares the answer when the request lists it, as the server does.
-    if (path === `/api/task-listings/owner/${token}`) return route.fulfill({ json: { thumbnailPng: null,
-      listing: requestedAtIso && listed ? { enabled: true, consentVersion: "public-task-card-with-answer-v3" } : null } });
     unexpected.push(`${method} ${path}`);
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
-  return { introductions, unexpected };
+  return { consents, introductions, unexpected };
 }
 
 test.use({ serviceWorkers: "block" });
@@ -94,7 +101,7 @@ test("the job page leads with deployment companies and the first look, with our 
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
   const companies = page.getByRole("region", { name: "Deployment companies" });
-  await expect(companies.getByText(QUESTION, { exact: true })).toBeVisible();
+  await expect(companies.getByText(OLDER, { exact: true })).toBeVisible();
   await expect(job.locator("h2, summary")).toHaveText(["Deployment companies", "First look", "Simulation of your site", "Early trial of openly available robot software"]);
   const titleBox = await page.getByRole("heading", { level: 1, name: "Your job" }).boundingBox();
   expect(titleBox!.y).toBeLessThan((await job.boundingBox())!.y);
@@ -106,7 +113,8 @@ test("the job page leads with deployment companies and the first look, with our 
   await expect(page.getByText("We have your recording.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Robot fit" })).toHaveCount(0);
   await expect(page.getByText("Blueprint will update this job as the work progresses.", { exact: true })).toHaveCount(0);
-  await expect(page.locator(".bare-button, .ms-button").filter({ visible: true })).toHaveText([FIND]);
+  await expect(page.locator(".bare-button, .ms-button").filter({ visible: true })).toHaveText([AGREE]);
+  await expect(page.getByRole("button", { name: FIND })).toHaveCount(0);
   // The recorded statement (30 words), the share question, the first look's source and the limits line may not be
   // dropped, and a drafted job sentence adds its own. This pins it from growing. (140 before 2026-11-12, when the
   // test result led and the first look sat behind Details.)
@@ -192,74 +200,68 @@ test("when no robot finished the job in our trial, the trial says so with the se
 
 test("while the simulation of the site is being built, the page says so, with the first look and nothing to share", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  const { unexpected } = await mockJob(page, { evaluation: { ...preparingEvaluation, screening: { candidates: [] } } });
+  const { unexpected } = await mockJob(page, { evaluation: { ...preparingEvaluation, screening: { candidates: [] } },
+    sharing: { state: "preparing", sharedAtIso: "2026-11-11T15:00:00.000Z" } });
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText("We're building your job packet. Nothing has been shared.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(SHARED, { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Simulation of your site" }).getByText("We're building the simulation of your site.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();
   await expect(job.getByRole("navigation", { name: "More" })).toHaveText("See details ›Job settings ›");
   await expect(page.getByRole("button", { name: FIND })).toHaveCount(0);
-  await expect(page.getByText(CONSENT, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: AGREE })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Early trial of openly available robot software" })).toHaveCount(0);
   expect(unexpected).toEqual([]);
 });
 
-test("the share button asks first, carries the recorded statement, posts once and shows the confirmation", async ({ page }) => {
+// Sharing is the service (2026-11-12): an older job's page offers recording statement v4 once; agreeing records v4 on
+// the existing recording-consent route and the job is then shared.
+test("an older job agrees to v4 once, under the sentence itself, and is then shared", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  const { introductions, unexpected } = await mockJob(page);
+  const { consents, unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  const button = page.getByRole("button", { name: FIND, exact: true });
+  const button = page.getByRole("button", { name: AGREE, exact: true });
   await expect(button).toBeVisible();
-  await expect(page.getByText(QUESTION, { exact: true })).toBeVisible();
-  await expect(page.getByText(CONSENT, { exact: true })).toBeVisible();
-  await expect(button).toHaveAttribute("aria-describedby", await page.getByText(CONSENT, { exact: true }).getAttribute("id") ?? "");
+  await expect(page.getByText(V4, { exact: true })).toBeVisible();
+  await expect(button).toHaveAttribute("aria-describedby", await page.getByText(V4, { exact: true }).getAttribute("id") ?? "");
   await button.dblclick();
-  await expect(page.getByText(LISTED, { exact: true })).toBeVisible();
+  await expect(page.getByText(SHARED, { exact: true })).toBeVisible();
   await expect(button).toHaveCount(0);
-  expect(introductions).toEqual([{ csrf: "fixture" }]);
-  // The stored request survives a reload; nothing is posted again.
+  expect(consents).toEqual([{ csrf: "fixture", body: { granted: true, statementVersion: "2026-11-12.v4" } }]);
   await page.reload();
-  await expect(page.getByText(LISTED, { exact: true })).toBeVisible();
+  await expect(page.getByText(SHARED, { exact: true })).toBeVisible();
   await expect(button).toHaveCount(0);
-  expect(introductions).toHaveLength(1);
+  expect(consents).toHaveLength(1);
   expect(unexpected).toEqual([]);
 });
 
-test("when the request is saved but nothing is listed, the page says the summary is not visible right now", async ({ page }) => {
+test("a shared job that is held says it is not visible right now", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  const { introductions } = await mockJob(page, { listed: false });
+  await mockJob(page, { sharing: { state: "not_visible", sharedAtIso: "2026-11-11T15:00:00.000Z" } });
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await page.getByRole("button", { name: FIND, exact: true }).click();
-  // The request is saved (review, 2026-11-12): never "we could not send your request".
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByRole("status"))
-    .toHaveText("You shared a summary of your job on November 11, 2026. It is not visible to companies right now.");
-  await expect(page.getByText(/could not send|can see a summary/)).toHaveCount(0);
-  expect(introductions).toHaveLength(1);
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByRole("status")).toHaveText("Your job is not visible to companies right now.");
+  await expect(page.getByText(/summary/)).toHaveCount(0);
 });
 
-// Package C1: under the sharing sentence, each send and answer by alias, date and fixed label, and, once a company is
-// interested, that we will write about next steps. No free text from anyone: never a company's name, never a note.
-test("the deployment companies section lists each send and answer by alias, and the next step", async ({ page }) => {
+// PACKAGE_E E4 and E6: one send line, each answer by alias, and "Introduce us" with its sentence where it can be pressed.
+test("the deployment companies section says the send line, each answer by alias, and offers Introduce us", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  const { unexpected } = await mockJob(page, { sharedAtIso: "2026-11-11T15:00:00.000Z", companies: { interested: true, entries: [
-    { kind: "sent", alias: "Company A", atIso: "2026-11-12T10:00:00.000Z" },
-    { kind: "answered", alias: "Company B", atIso: "2026-11-12T12:00:00.000Z", state: "needs_something" },
-    { kind: "answered", alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" },
-  ] } });
+  const { introductions, unexpected } = await mockJob(page, { sharing: { state: "visible", sharedAtIso: "2026-11-11T15:00:00.000Z" },
+    companies: { interested: true, sent: { count: 3, firstAtIso: "2026-11-12T10:00:00.000Z" }, introductions: { used: 0, max: 3 }, entries: [
+      { kind: "answered", alias: "Company B", atIso: "2026-11-12T12:00:00.000Z", state: "needs_something", canIntroduce: false },
+      { kind: "answered", alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested", canIntroduce: true },
+    ] } });
   await page.goto(`/capture-upload/${token}?video=existing`);
   const companies = page.getByRole("region", { name: "Deployment companies" });
-  await expect(companies.getByRole("status")).toHaveText(LISTED);
-  await expect(companies.getByRole("list", { name: "Sent and answered" }).getByRole("listitem")).toHaveText([
-    "Sent to Company A on November 12, 2026.",
-    "Company B answered on November 12, 2026: Would need something.",
-    "Company A answered on November 13, 2026: Interested.",
-  ]);
-  await expect(companies.getByText("We will write to you about next steps.", { exact: true })).toBeVisible();
-  // The order on the page: the sharing sentence, then the entries, then the next step.
-  const order = await companies.locator("p").allTextContents();
-  expect(order.indexOf(LISTED)).toBeLessThan(order.indexOf("Sent to Company A on November 12, 2026."));
-  expect(order.indexOf("Sent to Company A on November 12, 2026.")).toBeLessThan(order.indexOf("We will write to you about next steps."));
+  await expect(companies.getByText(SHARED, { exact: true })).toBeVisible();
+  await expect(companies.getByText("Sent to 3 deployment companies on November 12, 2026.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("Company B answered on November 12, 2026: Would need something.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("Company A answered on November 13, 2026: Interested.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("We give Company A your name and contact details, and give you theirs.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("We will write to you about next steps.")).toHaveCount(0);
+  await companies.getByRole("button", { name: "Introduce us" }).click();
+  await expect(companies.getByRole("alert")).toHaveText("You have used your three introductions.");
+  expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A" } }]);
   expect(unexpected).toEqual([]);
 });
 
@@ -271,7 +273,7 @@ test("the job page, its details and the job settings read at phone width without
   await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(FIRST_LOOK, { exact: true })).toBeVisible();
-  const button = await page.getByRole("button", { name: FIND }).boundingBox();
+  const button = await page.getByRole("button", { name: AGREE }).boundingBox();
   expect(button!.y + button!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   for (const screen of ["See details ›", "‹ Back", "Job settings ›"]) {
     await page.getByRole("button", { name: screen }).click();

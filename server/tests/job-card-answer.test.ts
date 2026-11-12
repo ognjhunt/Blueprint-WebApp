@@ -1,10 +1,8 @@
 // @vitest-environment node
 /**
- * Blueprint's answer on a job card, as approved deployment companies open it.
- * The answer appears only when the site pressed "Find a deployment company"
- * under the statement that names the answer; never under the older card box,
- * never on an older request recorded without that statement, never for a
- * viewer the library refuses, and never with the site's identity or words.
+ * Blueprint's first look on a shared job, as approved deployment companies open it (2026-11-12: sharing is the
+ * service). It goes with every job listed under `job-shared-2026-11-12`; a card under an older statement is not listed
+ * at all; never for a viewer the library refuses, and never with the site's identity or words.
  * OFFLINE: the real library routes and composer against the fake Firestore.
  */
 import { createServer, type Server } from "node:http";
@@ -12,8 +10,7 @@ import express from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
-import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_V1, JOB_CARD_ANSWER_STATEMENT_V1_VERSION, JOB_CARD_ANSWER_STATEMENT_V2,
-  JOB_CARD_ANSWER_STATEMENT_V2_VERSION, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
+import { passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -51,7 +48,9 @@ function job(extra: Record<string, unknown> = {}) {
     requestId: ID,
     contact: { email: "owner@example.com", firstName: "Dana", lastName: "Whitfield", phone: "+1 555 0100" },
     contactEmail: "owner@example.com", contactFirstName: "Dana Whitfield",
-    request: { buyerType: "site_operator", siteName: "Acme Supply Co", siteLocation: "12 Elm Street, Springfield", capture_mode: "self_capture" },
+    request: { buyerType: "site_operator", siteName: "Acme Supply Co", siteLocation: "12 Elm Street, Springfield", capture_mode: "self_capture",
+      consent_attestation: sharedRecordingGrant() },
+    capture_privacy_screen: passedPrivacyScreen(ID),
     site_address: "12 Elm Street, Springfield",
     walkthrough_video_uri: "gs://bucket/walkthrough.mp4", video_url: "https://storage.example.com/walkthrough.mp4",
     capture_coverage: { covers_scene: true },
@@ -61,10 +60,7 @@ function job(extra: Record<string, unknown> = {}) {
       pick_to_place_m: 1.6, pick_height_m: null, place_height_m: null, front_clearance_m: 1.5,
       other_items_likely: ["Acme invoices"], cycle_seconds: null,
       basis: "A person in a red jacket stacks cartons from the conveyor by the loading dock at 12 Elm Street." } },
-    public_task_listing: { enabled: true, consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION, approvedAtIso: "2026-11-11T10:00:00.000Z",
-      approvedBy: "signed_owner_link", details: anonymizedOpportunityDraft("Stack cartons onto the pallet") },
-    introduction_request: { requested_at_iso: "2026-11-11T10:00:00.000Z", requested_by: "signed_owner_link",
-      statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT },
+    public_task_listing: sharedJobListing("Stack cartons onto the pallet"),
     ...extra,
   };
 }
@@ -160,13 +156,6 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(JSON.stringify(summary)).not.toMatch(/\byour\b|far side/i);
   });
 
-  it("still carries the answer for a choice recorded under the first wording of the statement", async () => {
-    put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: JOB_CARD_ANSWER_STATEMENT_V1_VERSION },
-      introduction_request: { ...job().introduction_request, statement_version: JOB_CARD_ANSWER_STATEMENT_V1_VERSION,
-        statement_text: JOB_CARD_ANSWER_STATEMENT_V1 } }));
-    expect((await get(`/tasks/${ID}`)).body.item.answerSummary).toBeTruthy();
-  });
-
   it("adds one plain simulation line when the site's evaluation has one", async () => {
     put(job());
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "held_scene_check" }] }));
@@ -198,38 +187,22 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(JSON.stringify(won)).not.toMatch(/stored |\byour\b/i);
   });
 
-  // Round 5 (rights): what a card carries follows what the site agreed to. v1 and v2 named "this answer" when the
-  // answer was the paper check, so a choice under them puts the paper check on the card, never a test result, even
-  // one that arrives after the choice; only v3 ("including later test results") carries the test result.
-  it.each([
-    ["v1", JOB_CARD_ANSWER_STATEMENT_V1_VERSION, JOB_CARD_ANSWER_STATEMENT_V1, false],
-    ["v2", JOB_CARD_ANSWER_STATEMENT_V2_VERSION, JOB_CARD_ANSWER_STATEMENT_V2, false],
-    ["v3", JOB_CARD_ANSWER_STATEMENT_VERSION, JOB_CARD_ANSWER_STATEMENT, true],
-  ] as const)("under %s, carries the test result only if the statement names later test results, before and after it arrives",
-    async (_name, version, text, carriesTest) => {
-      put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: version },
-        introduction_request: { ...job().introduction_request, statement_version: version, statement_text: text } }));
-      // Before a result: the paper check, whatever the version.
-      const before = (await get(`/tasks/${ID}`)).body.item.answerSummary;
-      expect(before.headline).toMatch(/^Most likely to fit: |^No robot clearly fits\.|^None of the /);
-      expect(before.test).toBeNull();
-      // A result arrives after the choice.
-      seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
-        screening: { candidates: [{ candidateId: "pi05_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 10, failed: 0,
-          void: 0, blockers: [] }, { candidateId: "groot_n17_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 0,
-          failed: 10, void: 0, blockers: [] }] } }] }));
-      const after = (await get(`/tasks/${ID}`)).body.item;
-      if (carriesTest) {
-        expect(after.answerSummary.headline).toBe("Did best in our early trial: Franka arm + π0.5, doing the job in 10 of 10 tries.");
-        expect(after.answerSummary.test).toMatchObject({ kind: "winner" });
-      } else {
-        expect(after.answerSummary.headline).toBe(before.headline);
-        expect(after.answerSummary.test).toBeNull();
-        expect(after.answerSummary.simulation).toBeNull();
-        expect(JSON.stringify(after)).not.toMatch(/π0\.5|Did best|In our early trial/);
-      }
-      expect(after.answerHeadline).toBe(after.answerSummary.headline);
-    });
+  // Sharing is the service (2026-11-12): a shared job carries the early trial's result with the first look, before and
+  // after it arrives.
+  it("carries the paper check before a trial result and the trial result once it arrives", async () => {
+    put(job());
+    const before = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    expect(before.headline).toMatch(/^Most likely to fit: |^No robot clearly fits\.|^None of the /);
+    expect(before.test).toBeNull();
+    seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
+      screening: { candidates: [{ candidateId: "pi05_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 10, failed: 0,
+        void: 0, blockers: [] }, { candidateId: "groot_n17_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 0,
+        failed: 10, void: 0, blockers: [] }] } }] }));
+    const after = (await get(`/tasks/${ID}`)).body.item;
+    expect(after.answerSummary.headline).toBe("Did best in our early trial: Franka arm + π0.5, doing the job in 10 of 10 tries.");
+    expect(after.answerSummary.test).toMatchObject({ kind: "winner" });
+    expect(after.answerHeadline).toBe(after.answerSummary.headline);
+  });
 
   it("keeps the answer when the simulation line cannot be read", async () => {
     put(job());
@@ -239,33 +212,12 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(body.item.answerSummary.simulation).toBeNull();
   });
 
-  it("has no answer for a card listed only under the older box", async () => {
-    const record = job({ public_task_listing: { ...job().public_task_listing, consentVersion: "public-task-card-v1" } });
-    delete (record as Record<string, unknown>).introduction_request;
-    put(record);
+  it.each(["public-task-card-v1", "public-task-card-with-answer-v3"])("does not list a card under the older version %s at all", async version => {
+    put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: version } }));
     const { status, body } = await get(`/tasks/${ID}`);
-    expect(status).toBe(200);
-    expect(body.item.answerSummary).toBeUndefined();
-    expect(body.item.answerHeadline).toBeUndefined();
-  });
-
-  it("has no answer for an older introduction request recorded without the statement", async () => {
-    put(job({ introduction_request: { requested_at_iso: "2026-11-10T10:00:00.000Z", requested_by: "signed_owner_link" } }));
-    const { body } = await get(`/tasks/${ID}`);
-    expect(body.item).toBeTruthy();
-    expect(body.item.answerSummary).toBeUndefined();
-  });
-
-  it("has no answer once the card's current consent is the older box, though the site asked under the statement", async () => {
-    // The site pressed the button, then re-saved its card through "Manage opportunity sharing": the card's
-    // consent now is the older box, which does not name the answer.
-    put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: "public-task-card-v1" } }));
-    const { status, body } = await get(`/tasks/${ID}`);
-    expect(status).toBe(200);
-    expect(body.item.answerSummary).toBeUndefined();
-    expect(body.item.answerHeadline).toBeUndefined();
-    const list = await get("/tasks");
-    expect(list.body.items.find((item: { id: string }) => item.id === ID).answerHeadline).toBeUndefined();
+    expect(status).toBe(404);
+    expect(JSON.stringify(body)).not.toMatch(/Most likely|Carton/);
+    expect((await get("/tasks")).body.items).toEqual([]);
   });
 
   it("refuses a viewer the library refuses, and a card that is not listed", async () => {
@@ -292,19 +244,18 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
 });
 
 describe("GET /api/site-worlds/tasks", () => {
-  it("shows the headline alone on a shared card, and nothing on another", async () => {
+  it("shows the headline alone on a shared card, and does not list a card under an older version", async () => {
     const { loadSiteAnswer } = await import("../utils/siteAnswer");
     vi.mocked(loadSiteAnswer).mockClear();
     put(job());
     sharedFakeFirestoreState.docs.set("inboundRequests/req-plain", { ...job(), requestId: "req-plain",
-      public_task_listing: { ...job().public_task_listing, consentVersion: "public-task-card-v1" }, introduction_request: undefined });
+      public_task_listing: { ...job().public_task_listing, consentVersion: "public-task-card-v1" } });
     const { body } = await get("/tasks");
     const shared = body.items.find((item: { id: string }) => item.id === ID);
     const plain = body.items.find((item: { id: string }) => item.id === "req-plain");
     expect(shared.answerHeadline).toMatch(/^Most likely to fit: /);
     expect(shared.answerSummary).toBeUndefined();
-    expect(plain).toBeTruthy();
-    expect(plain.answerHeadline).toBeUndefined();
+    expect(plain).toBeUndefined();
     // The line's headline is the card's own, so the test is read for the consenting card only.
     expect(seams.managed).toHaveBeenCalledTimes(1);
     // The answer is composed for the consenting card only.

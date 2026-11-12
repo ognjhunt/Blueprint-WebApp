@@ -173,7 +173,7 @@ test("a robot team outside early access applies instead of browsing", async ({ p
   await screenshot(page, "early-access-applied");
 });
 
-test("desktop owner opens video capture with one status and explicit public card approval", async ({ page }) => {
+test("desktop owner opens video capture with one status and no share settings", async ({ page }) => {
   statusOutlook = null;
   await page.setViewportSize({ width: 1440, height: 900 }); const mutations = await fixtures(page);
   await page.goto("/capture-upload/owner-fixture");
@@ -189,36 +189,15 @@ test("desktop owner opens video capture with one status and explicit public card
   const instruction = await page.getByText("Already have the recording on this computer? Upload a .mov or .mp4 file.").boundingBox();
   // The upload is its own group (round 5 rhythm): its line, the footage notice and the button, 16 px apart. The button
   // stays right under its two lines, never pushed down the page (rewritten from < 110 px, which predates the rhythm).
-  expect(upload!.y - instruction!.y).toBeLessThan(140);
+  // 2026-11-12: the filming notice now names the deployment companies, one line longer on desktop (was < 140).
+  expect(upload!.y - instruction!.y).toBeLessThan(160);
   expect(upload!.y).toBeGreaterThan(instruction!.y + instruction!.height + 15);
   await screenshot(page, "desktop-capture");
-  // Sharing is a job setting: one quiet link from the capture page, then its row. With no answer yet (review,
-  // 2026-11-11) it says sharing waits for one, and offers no publish controls.
+  // Sharing is the service (2026-11-12): no Share settings and no public card controls in Job settings.
   await page.getByRole("button", { name: "Job settings ›" }).click();
-  await page.getByText("Share settings", { exact: true }).click();
-  await expect(page.getByText("You can share your job once its job packet is ready.")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Job settings" })).toBeVisible();
+  await expect(page.getByText("Share settings", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Publish reviewed card" })).toHaveCount(0);
-  // Once the job has its answer (here a recorded ending, the paper check), the card can be reviewed and published.
-  statusOutlook = { phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." };
-  await page.goto("/capture-upload/owner-fixture");
-  await page.getByRole("button", { name: "Job settings ›" }).click();
-  await page.getByText("Share settings", { exact: true }).click();
-  const form = page.getByRole("form", { name: "Public job card" });
-  await form.getByLabel("Describe the job without naming your site").fill(card.title);
-  await form.getByLabel("Job type", { exact: true }).fill("Palletizing");
-  await form.getByLabel("Job thumbnail (optional)").setInputFiles({ name: "task.png", mimeType: "image/png", buffer: taskPhoto });
-  await expect(form.getByRole("img", { name: "Thumbnail crop to approve for public display" })).toBeVisible();
-  await form.getByLabel("Show this card in the job library").check();
-  await form.getByLabel(/I reviewed the text and thumbnail/).check();
-  await form.getByRole("button", { name: "Publish reviewed card" }).click();
-  await expect(page.getByText(/Public card saved/)).toBeVisible();
-  expect(mutations.at(-1)?.body).toMatchObject({ consent: true, enabled: true, thumbnailConsent: true, details: { title: card.title } });
-  expect(mutations.at(-1)?.body.thumbnailPng).toBeTruthy();
-  await form.getByRole("button", { name: "Use a job illustration instead" }).click();
-  await expect(form.getByRole("img", { name: "Thumbnail crop to approve for public display" })).toHaveCount(0);
-  await form.getByLabel(/I reviewed the text and thumbnail/).check();
-  await form.getByRole("button", { name: "Publish reviewed card" }).click();
-  await expect.poll(() => mutations.at(-1)?.body.thumbnailPng).toBe(null);
 });
 
 test("phone owner opens the recorder and keeps progress visible", async ({ browser }) => {

@@ -1,7 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
-import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
-import { SHARE_REFUSAL_SENTENCES, outlookHasAnswer, type JobOutlook, type JobPhase, type ShareRefusalReason } from "@/lib/jobOutlook";
+import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
+import { type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
+import {
+  INTRODUCE_LABEL, INTRODUCTIONS_USED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
+  isIntroductionRefusalReason,
+} from "@/lib/siteIntroductions";
 import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TRIAL_LINE, TrustRows, setupCaveatShown, testNotRunLine, testResultOf, type TestResult } from "./SimulationProof";
 import {
@@ -13,7 +17,8 @@ import {
   firstLookSentence, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
-import { NEXT_STEPS_LINE, companyAnswered, isSiteCompanyActivity, sentToCompany, type SiteCompanyActivity } from "@/lib/companyResponses";
+import type { FirstLookWords } from "@/lib/firstLookWords";
+import { companyAnswered, isSiteCompanyActivity, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
  * The site's job page below its title, bare bones (frame of 2026-11-12). Four sections, in order: where the job
@@ -21,31 +26,20 @@ import { NEXT_STEPS_LINE, companyAnswered, isSiteCompanyActivity, sentToCompany,
  * trial of openly available robot software. The trial is supporting evidence, never the site's answer. Every line here
  * is a constant, or a short line chosen by the data that makes it true; each says why beside it.
  */
-/** The share button. What it records (the statement, its version, the route) is unchanged; only its words are new. */
-export const FIND_COMPANY_LABEL = "Share my job";
-/** The question above the button. */
-export const SHARE_QUESTION = "May we share a summary of your job with deployment companies we approve?";
-/** Rendered from the statement the introduction route records, so the two never drift. */
-export const FIND_COMPANY_CONSENT = JOB_CARD_ANSWER_STATEMENT;
-const INTRODUCTION_FAILED = "We could not send your request just now. Try again shortly.";
-/** Shared, and the one predicate that decides what an approved company can see (`teamJobAccess`) says it is listed. */
-export const sharedOn = (date: string | null) =>
-  `${date ? `Shared on ${date}.` : "Shared."} Deployment companies we approve can see a summary of your job. Nothing more is needed from you.`;
-/** Shared, but not visible to companies right now: the site paused or closed the job, Blueprint stopped showing it to companies (the operator hold), or a rights hold. */
-export const sharedNotVisible = (date: string | null) =>
-  `${date ? `You shared a summary of your job on ${date}.` : "You shared a summary of your job."} It is not visible to companies right now.`;
-/** The job packet is still being built (the video is being read, the simulation is being built or the trial runs). */
-export const PACKET_BUILDING = "We're building your job packet. Nothing has been shared.";
-/** No share is offered and none was made: true for every other state. */
-export const NOTHING_SHARED = "Nothing has been shared.";
+/** Sharing is the service (2026-11-12): a shared job's section opens with this. */
+export const SHARED_LINE = "We share your job with the deployment companies we approve.";
+/** Shared, but not in front of companies right now: Blueprint's hold, a rights hold, or the site closed it. */
+export const NOT_VISIBLE_LINE = "Your job is not visible to companies right now.";
+/** An older job (agreed to a statement before 2026-11-12): what changed, and the one agreement that shares it. */
+export const OLDER_JOB_LINES = "Blueprint now shares each job, with its video, with the deployment companies we approve. "
+  + "Your job is not shown to any company. To have it shared, agree below.";
+/** The button under the recording statement v4 on the job page: "By sending, you agree …" reads right beside it. */
+export const OLDER_JOB_AGREE = "Agree and send my job";
+export const OLDER_JOB_FAILED = "We could not save your agreement just now. Try again shortly.";
+/** No statement that shares the job was given, and none is offered here (the job's video comes first). */
+export const NOT_SHARED_YET = "Your job is not shared with any company yet.";
 /** A withdrawn job, or a closed one whose summary is not visible (review, 2026-11-12). */
 export const NOTHING_IS_SHARED = "Nothing is shared.";
-/** The job waits for the site to say what it is; the page's own form asks for the sentence. */
-export const PACKET_WAITS_ON_SITE = "Tell us what the job is and we will build its job packet.";
-/** What a summary shared under an earlier statement (or on the start form) leaves out; the button adds it. */
-export const LEAVES_OUT_FIRST_LOOK = "Your shared summary does not include your first look.";
-export const LEAVES_OUT_TRIAL = "Your shared summary does not include our early trial's result.";
-export const LEAVES_OUT_BOTH = "Your shared summary does not include your first look or our early trial's result.";
 export const READING_LINE = "We're watching your video.";
 export const READING_HELPER = "Your job page shows it when it is ready.";
 export const EDIT_JOB_LABEL = "Change my job description";
@@ -146,21 +140,77 @@ function cannotLine(reason: string | null): string | null {
   return reason;
 }
 
+type AnsweredEntry = Extract<SiteCompanyEntry, { kind: "answered" }>;
+
+/** A company's details after an introduction: what the site was given, nothing more. */
+function IntroducedDetails({ entry }: { entry: AnsweredEntry }) {
+  const company = entry.company!;
+  const website = typeof company.website === "string" && /^https?:\/\//i.test(company.website) ? company.website : null;
+  return <div className="site-job-introduced">
+    <BareLead>{introducedOn(company.name, entry.introducedAtIso ? dateInWords(entry.introducedAtIso) : "")}</BareLead>
+    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      {company.contactName && <li>{company.contactName}</li>}
+      <li><a className="ms-text-link" href={`mailto:${company.email}`}>{company.email}</a></li>
+      {website && <li><a className="ms-text-link" href={website} target="_blank" rel="noreferrer noopener">{website}</a></li>}
+    </ul>
+  </div>;
+}
+
 /**
- * Under the sharing sentence: each send and each answer, in date order, by alias only ("Company A"), and, once a
- * company is interested, that we will write about next steps (the introduction is made by hand). No free text from
- * anyone is shown here: the server sends none (`projectSiteCompanyActivity`).
+ * Under the section's sentence: the one line for the automatic send, each send recorded by hand and each answer, by
+ * alias only ("Company A"), in the order they came. Beside each company that answered Interested and can be introduced,
+ * "Introduce us" and the sentence saying what it shares; after an introduction, that company's name and contact
+ * details, and only that company's. No free text from a company is shown here: the server sends none.
  */
-function CompanyEntries({ activity }: { activity: SiteCompanyActivity | undefined }) {
-  if (!isSiteCompanyActivity(activity) || activity.entries.length === 0) return null;
+function CompanyEntries({ token, activity, onIntroduced }: { token: string; activity: SiteCompanyActivity | undefined;
+  onIntroduced?: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  if (!isSiteCompanyActivity(activity)) return null;
+  const sent = activity.sent && Number.isInteger(activity.sent.count) && activity.sent.count > 0 && typeof activity.sent.firstAtIso === "string"
+    ? activity.sent : null;
+  const used = activity.introductions && Number.isInteger(activity.introductions.used) ? activity.introductions.used : 0;
+  const max = activity.introductions && Number.isInteger(activity.introductions.max) ? activity.introductions.max : 3;
+  const limitReached = used >= max;
+  if (!sent && activity.entries.length === 0) return null;
+  async function introduce(alias: string) {
+    if (busy) return;
+    setBusy(alias); setErrors(current => ({ ...current, [alias]: "" }));
+    try {
+      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introductions`, {
+        method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
+        body: JSON.stringify({ alias: alias.replace(/^Company /, "") }),
+      });
+      const result = await response.json().catch(() => null);
+      if (response.status === 409) {
+        setErrors(current => ({ ...current, [alias]: isIntroductionRefusalReason(result?.reason)
+          ? INTRODUCTION_REFUSAL_SENTENCES[result.reason as keyof typeof INTRODUCTION_REFUSAL_SENTENCES] : INTRODUCTION_FAILED }));
+        return;
+      }
+      if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
+      onIntroduced?.();
+    } catch { setErrors(current => ({ ...current, [alias]: INTRODUCTION_FAILED })); }
+    finally { setBusy(null); }
+  }
+  // "Introduce us" is offered beside an answer the server says can be introduced (`interested`, or `tested_can_do`, E9).
+  const INTRODUCIBLE: readonly string[] = ["interested", "tested_can_do"];
+  const interestedWaiting = activity.entries.some(entry => entry.kind === "answered" && INTRODUCIBLE.includes(entry.state) && !entry.company);
   return <>
-    <ul className="site-job-company-entries" aria-label="Sent and answered" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+    {sent && <BareLead>{sentToCompanies(sent.count, dateInWords(sent.firstAtIso))}</BareLead>}
+    {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Sent and answered" style={{ listStyle: "none", padding: 0, margin: 0 }}>
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
         <BareLead>{entry.kind === "sent" ? sentToCompany(entry.alias, dateInWords(entry.atIso))
           : companyAnswered(entry.alias, dateInWords(entry.atIso), entry.state)}</BareLead>
+        {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
+          && <IntroducedDetails entry={entry} />}
+        {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && !limitReached && <>
+          <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
+            {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}</BareButton>
+          {errors[entry.alias] && <p role="alert">{errors[entry.alias]}</p>}
+        </>}
       </li>)}
-    </ul>
-    {activity.interested && <BareLead>{NEXT_STEPS_LINE}</BareLead>}
+    </ul>}
+    {limitReached && interestedWaiting && <BareNotice>{INTRODUCTIONS_USED}</BareNotice>}
   </>;
 }
 
@@ -174,74 +224,52 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 /**
  * Section 1: where the job stands with deployment companies, as the server decided it (`answer.sharing`, from the
- * predicate that decides what a company can see). Shared and visible, or shared but hidden right now, says so. Not
- * shared: the question and one button when sharing is allowed (one click is the site's explicit choice to share what
- * the line under it says), else one true sentence. When the page has a step the site must take first, the button
- * stays, quiet.
+ * predicate that decides what a company can see). Sharing is the service (2026-11-12): a job is shared because its
+ * site accepted recording statement v4; there is no share button. A shared job says so, then the send line, the answers
+ * and the introductions. An older job says what changed and offers v4 once, as the agreement that shares it.
  */
-function Companies({ token, answer, onRequested, quiet, offer, building, waitingOnSite, ended, trialResult }: { token: string;
-  answer: SiteAnswerView; onRequested?: () => void; quiet: boolean; offer: boolean; building: boolean; waitingOnSite: boolean;
-  ended: "withdrawn" | "closed" | null; trialResult: boolean }) {
+function Companies({ token, answer, onChanged, ended }: { token: string; answer: SiteAnswerView; onChanged?: () => void;
+  ended: "withdrawn" | "closed" | null }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  // This page's own press is the latest word, as the route read it back; until then, the server's state.
-  const [pressed, setPressed] = useState<JobSharing | null>(null);
-  const sharing = pressed ?? answer.sharing ?? { state: "not_shared" as const, sharedAtIso: null };
-  async function ask() {
+  const [agreed, setAgreed] = useState(false);
+  const sharing: JobSharing = answer.sharing ?? { state: "not_shared", sharedAtIso: null };
+  async function agree() {
     if (busy) return;
     setBusy(true); setError("");
     try {
-      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introduction-request`, {
+      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/recording-consent`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
-        body: JSON.stringify({ statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION }),
+        // The version of the exact sentence shown above the button.
+        body: JSON.stringify({ granted: true, statementVersion: RECORDING_RIGHTS_STATEMENT_V4_VERSION }),
       });
       const result = await response.json().catch(() => null);
-      // A 409 says why: the page words a known reason itself, else it shows the server's sentence; the button stays.
-      if (response.status === 409 && typeof result?.error === "string") {
-        setError(result.reason in SHARE_REFUSAL_SENTENCES ? SHARE_REFUSAL_SENTENCES[result.reason as ShareRefusalReason] : result.error);
-        return;
-      }
-      if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
-      const after = result.sharing;
-      const at = typeof after?.sharedAtIso === "string" ? after.sharedAtIso : typeof result.requestedAtIso === "string" ? result.requestedAtIso : null;
-      // The request is saved: what companies can see is what the route read back. Saved but listed nowhere is "not
-      // visible right now", never "could not send" (review, 2026-11-12).
-      setPressed(after?.state === "visible"
-        ? { state: "visible", sharedAtIso: at, ...(after.leavesOut ? { leavesOut: after.leavesOut } : {}) }
-        : { state: "not_visible", sharedAtIso: at });
-      onRequested?.();
-    } catch { setError(INTRODUCTION_FAILED); }
+      if (!response.ok || result?.ok !== true) throw new Error(typeof result?.error === "string" ? result.error : OLDER_JOB_FAILED);
+      setAgreed(true);
+      onChanged?.();
+    } catch (failure) { setError(failure instanceof Error && failure.message ? failure.message : OLDER_JOB_FAILED); }
     finally { setBusy(false); }
   }
-  const date = sharing.sharedAtIso ? dateInWords(sharing.sharedAtIso) : null;
-  const button = <>
-    <BareButton onClick={() => void ask()} disabled={busy} quiet={quiet} helper={FIND_COMPANY_CONSENT}>{busy ? "Sending…" : FIND_COMPANY_LABEL}</BareButton>
-    {error && <p role="alert">{error}</p>}
-  </>;
   let body: ReactNode;
-  // A withdrawn job shares nothing, and a closed one whose summary is not visible says so plainly, never "not visible
-  // right now", which would suggest it may come back.
-  if (ended === "withdrawn" || (ended === "closed" && sharing.state !== "visible")) body = <BareGroup><BareLead>{NOTHING_IS_SHARED}</BareLead></BareGroup>;
-  else if (sharing.state === "visible") {
-    // What the summary leaves out under the statement the site agreed to, said only when that thing exists.
-    const leavesFirstLook = Boolean(sharing.leavesOut?.firstLook) && answer.state === "ready";
-    const leavesTrial = Boolean(sharing.leavesOut?.trialResult) && trialResult;
-    const leaves = leavesFirstLook && leavesTrial ? LEAVES_OUT_BOTH : leavesFirstLook ? LEAVES_OUT_FIRST_LOOK : leavesTrial ? LEAVES_OUT_TRIAL : null;
-    body = <BareGroup>
-      <BareDone>{sharedOn(date)}</BareDone>
-      {leaves && <BareNotice>{leaves}</BareNotice>}
-      {leaves && offer && button}
-    </BareGroup>;
-  }
-  else if (sharing.state === "not_visible") body = <BareGroup><BareNotice role="status">{sharedNotVisible(date)}</BareNotice></BareGroup>;
-  else if (offer) body = <BareGroup>
-    <BareLead>{SHARE_QUESTION}</BareLead>
-    {button}
-  </BareGroup>;
-  else body = <BareGroup><BareLead>{waitingOnSite ? PACKET_WAITS_ON_SITE : building ? PACKET_BUILDING : NOTHING_SHARED}</BareLead></BareGroup>;
-  // A withdrawn job, or a closed one whose summary is not visible, shows nothing more ("Nothing is shared.").
+  // A withdrawn job shares nothing, and a closed one whose job is not visible says so plainly.
   const ends = ended === "withdrawn" || (ended === "closed" && sharing.state !== "visible");
-  return <Section id="site-job-companies" title={SECTION_COMPANIES}>{body}{!ends && <CompanyEntries activity={answer.companies} />}</Section>;
+  if (ends) body = <BareGroup><BareLead>{NOTHING_IS_SHARED}</BareLead></BareGroup>;
+  else if (sharing.state === "visible" || sharing.state === "preparing" || agreed) body = <BareGroup>
+    <BareLead>{SHARED_LINE}</BareLead>
+    <CompanyEntries token={token} activity={answer.companies} onIntroduced={onChanged} />
+  </BareGroup>;
+  else if (sharing.state === "not_visible") body = <BareGroup>
+    <BareLead>{SHARED_LINE}</BareLead>
+    <BareNotice role="status">{NOT_VISIBLE_LINE}</BareNotice>
+    <CompanyEntries token={token} activity={answer.companies} onIntroduced={onChanged} />
+  </BareGroup>;
+  else if (sharing.olderStatement) body = <BareGroup>
+    <BareLead>{OLDER_JOB_LINES}</BareLead>
+    <BareButton onClick={() => void agree()} disabled={busy} helper={RECORDING_RIGHTS_STATEMENT_V4}>{busy ? "Saving…" : OLDER_JOB_AGREE}</BareButton>
+    {error && <p role="alert">{error}</p>}
+  </BareGroup>;
+  else body = <BareGroup><BareLead>{NOT_SHARED_YET}</BareLead></BareGroup>;
+  return <Section id="site-job-companies" title={SECTION_COMPANIES}>{body}</Section>;
 }
 
 export interface SiteAnswerProps {
@@ -250,7 +278,7 @@ export interface SiteAnswerProps {
   onEditJob?: () => void;
   /** Starts a new video. */
   onUpdateVideo?: () => void;
-  /** The page has a step the site must take first: the share button stays, quiet. */
+  /** The page has a step the site must take first: the answer's own buttons stay, quiet. */
   quietAction?: boolean;
   onShowDetails?: () => void;
   onShowSettings?: () => void;
@@ -260,6 +288,8 @@ export interface SiteAnswerProps {
   sceneViewUrl?: string | null;
   /** What counts as done, in the site's own words, when it gave them. */
   successRule?: string | null;
+  /** The first look as the Pipeline's published table words it; when present it replaces the robot rows. */
+  firstLookTable?: FirstLookWords | null;
 }
 
 const SURE_STEPS = SURENESS_STEPS;
@@ -316,11 +346,11 @@ function TrialHead({ result }: { result: Exclude<TestResult, null> }) {
 
 /**
  * The job page's sections. The first look leads whenever it exists, in every phase; the simulation of the site says
- * where it stands; our early trial is folded, labelled, and never said to be the site's answer. Sharing is offered
- * exactly when it was before: once the job's outlook has an answer and the first look names a robot.
+ * where it stands; our early trial is folded, labelled, and never said to be the site's answer. There is no share
+ * step: a job is shared because its site accepted recording statement v4.
  */
 export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, firstLookTable = null }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
   // worked on (review, 2026-11-11): with no outlook the page says the packet is being built and offers no button; a
@@ -338,16 +368,9 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   // An answer that cannot be checked stays as it is, whatever the trial found, unless the job is still being built
   // or a trial result leads (as before).
   const cannot = answer.state === "cannot_assess" && phase !== "building" && phase !== "testing" && phase !== "result";
-  const building = reading || phase === "waiting_on_site" || phase === "building" || phase === "testing";
-  // Sharing follows the outlook: offered only once there is an answer (a trial result, or the first look after an
-  // ending), and only when the first look names a robot. A run the site closed itself never offers it.
-  // Never while the packet is still being built (the page's own phase, which waits for a trial result to load).
-  const offer = !building && answer.nextStep.kind === "introduction" && Boolean(outlook && outlookHasAnswer(outlook));
 
   const endedBySite = phase === "ended_by_site" ? (outlook?.reason === "permission_withdrawn" ? "withdrawn" as const : "closed" as const) : null;
-  const companies = <Companies token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction}
-    offer={offer} building={building} waitingOnSite={phase === "waiting_on_site"} ended={endedBySite}
-    trialResult={phase === "result" && Boolean(test) && test!.kind !== "testing"} />;
+  const companies = <Companies token={token} answer={answer} onChanged={onIntroductionRequested} ended={endedBySite} />;
 
   // Section 2: the first look.
   let firstLook: ReactNode;
@@ -392,6 +415,20 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
       </BareGroup>
     </>;
   }
+
+  // The Pipeline's first-look table, when it exists, replaces the robot rows: each robot, then its sentence.
+  const tableRows = !reading && firstLookTable && Array.isArray(firstLookTable.rows) && firstLookTable.rows.length > 0 ? firstLookTable : null;
+  if (tableRows) firstLook = <>
+    <BareGroup>
+      <ul className="site-first-look-table" aria-label="Robots checked" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {tableRows.rows.map((row, index) => <li key={`${row.robot ?? "robot"}-${index}`}>
+          {row.robot && <strong>{row.robot}</strong>} {row.text}
+        </li>)}
+      </ul>
+      {tableRows.more && <p className="bare-helper">{tableRows.more}</p>}
+      <p className="bare-helper">{FIRST_LOOK_SOURCE}</p>
+    </BareGroup>
+  </>;
 
   // Section 3: the simulation of the site, by the phase; the server's reason sentence for an ending, else the
   // trial's own line for why it did not run.

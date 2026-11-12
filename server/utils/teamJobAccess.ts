@@ -1,57 +1,37 @@
 /**
- * Whether approved robot teams may see a site's job and request an evaluation
- * on it. One answer, asked the same way on every surface.
+ * Whether approved deployment companies may see a site's job. One answer, asked the same way on every surface.
  *
- * ## Why there is one predicate
+ * ## The rule (package E, E2, owner direction of 2026-11-12)
  *
- * The job library offered approved teams "Request a free invited evaluation"
- * by one rule (`isRunnableTask`), while the opening page and
- * `POST /api/workspace/evaluations` admitted by another: the retired pilot
- * dossier gate, which needed fields the public start form never sends. Every
- * team that followed the library link, or the link in its notification email,
- * landed on "Opening unavailable", and free admission never received the
- * `workspace_evaluation` it starts from. Each surface now reads this module:
+ * Sharing is the service: a job is listed for every approved deployment company if and only if ALL hold:
+ * - the site accepted recording statement `2026-11-12.v4` or later, and the grant stands (`RECORDING_VERSIONS_THAT_SHARE`);
+ * - the listing record is `job-shared-2026-11-12` (`sharedJobListing`); older cards drop out with no data change;
+ * - the video passed the privacy screen (the stored privacy decision `proceeded`);
+ * - the job sentence exists (the site's brief holds a real sentence);
+ * and none of: the site's withdrawal, Blueprint's operator hold, a rights hold, an authority end (the Pipeline's
+ * preparation `authority_ended`), the site closing its job (`website_run_closures`, or `workspace_task` paused/closed).
+ * A first look or a simulation is NOT required.
  *
- * - the library card and its `evaluationAvailable` (`taskBrowse.ts`);
- * - the site's waiting states (`taskStatusProjection.ts`) and its sharing emails
- *   (`taskLifecycleNotifications.ts`).
+ * Two of these facts live outside the job record (the brief, the preparation state). A caller that holds only the
+ * record and passes no `context` gets every other check; every company-facing surface uses `loadCompanyJobAccess`,
+ * which reads both and applies the whole rule on every request.
  *
- * (The opening page, `POST /api/workspace/evaluations`, free admission and the
- * agent API's candidate list, which also read it, were removed on 2026-11-12:
- * robot teams running their own software is "later".)
+ * ## Who
  *
- * ## The site's consent is the card
- *
- * On the start form a site either authorizes the anonymized job card that
- * approved robot teams see (`public_task_listing`) or keeps the job private.
- * No card, no team access. A team only ever sees the card's approved fields
- * (`approvedTaskDetails`), never raw intake, footage or the rebuilt scene.
- *
- * A record written under the retired dossier (`request.pilotOpportunity`) can
- * narrow access and never widen it: a dossier marked private, or shared only
- * with named teams, closes the job to every team. The beta's card is shown to
- * every approved team, so it cannot honour a narrower named list; refusing
- * everyone is the reading that never shows the job to a team the site did not
- * name.
+ * Who counts as an approved company is the account gate each route enforces (`companyViewerForRequest`); this
+ * module answers only for the job and never widens that gate.
  *
  * ## Which record to pass
  *
  * Every field read here is stored in plaintext, so pass the record as stored.
- * `decryptInboundRequestForAdmin` rebuilds `request` without the recording
- * grant (`request.consent_attestation`); a caller holding only that view must
- * carry the stored grant across, as `decodeWorkspaceRequest` does.
- *
- * ## What this does not decide
- *
- * Who counts as an approved robot team. That is the account gate each route
- * already enforces (an invited, approved, verified robot-team account); this
- * module answers only for the job and never widens that gate.
  */
 import { sceneScreenGateEnded } from "./sceneScreenGate";
 import type { TaskListingDetails, TeamEvaluationTerms } from "../../client/src/types/taskBrowse";
 import type { InboundRequest } from "../types/inbound-request";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
-import { approvedTaskDetails } from "./taskListingDetails";
+import { sharedJobListing } from "./taskListingDetails";
+import { SHARING_RECORDING_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { operatorListingHold, operatorListingPaused } from "./operatorListing";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { coverageEvidenceFrom } from "./captureCoverageEvidence";
@@ -74,6 +54,16 @@ export type TeamJobClosedReason =
   | "restricted_to_named_teams"
   /** The site paused or closed the job. */
   | "operator_paused"
+  /** The job was not submitted under a recording statement that shares it (v4 or later), or the grant does not stand. */
+  | "older_statement"
+  /** The video has not passed the privacy screen. */
+  | "privacy_screen_pending"
+  /** The site has not given the job's sentence yet. */
+  | "no_job_sentence"
+  /** The Pipeline ended Blueprint's authority to work on the job. */
+  | "authority_ended"
+  /** The site closed its job. */
+  | "closed_by_site"
   /** The site withdrew its recording permission. */
   | "consent_withdrawn"
   /** Blueprint stopped showing the job to companies from the job console (`operator_listing_hold`). */
@@ -179,44 +169,115 @@ function rightsHold(raw: Record<string, any>): TeamJobClosedReason | null {
   return null;
 }
 
+/** Recording statement versions whose wording shares the job with approved deployment companies (`recordingRightsStatement.ts`). */
+export const RECORDING_VERSIONS_THAT_SHARE: readonly string[] = SHARING_RECORDING_STATEMENT_VERSIONS;
+
+/** The facts `teamJobAccess` needs that live outside the job record. Absent fields are not checked (see the header). */
+export interface TeamJobAccessContext {
+  /** The site's brief (`siteTaskBriefs/{id}`), or null when it has none. */
+  brief?: { summary?: string | null; confirmedAtIso?: string | null } | null;
+  /** The stored preparation state of the job's current capture (`website_preparation.status.state`), or null. */
+  preparationState?: string | null;
+}
+
+/** The recording grant stands and was given under a statement that shares the job. */
+export function recordingSharesJob(raw: Record<string, any>): boolean {
+  const grant = raw.request?.consent_attestation;
+  return Boolean(grant) && grant.granted === true && RECORDING_VERSIONS_THAT_SHARE.includes(String(grant.statement_version))
+    && !grant.revoked_at_iso && !grant.withdrawn_at_iso;
+}
+
+/** The stored privacy decision for the video let it proceed. */
+export function privacyScreenPassed(raw: Record<string, any>): boolean {
+  const decision = raw.capture_privacy_source_bound_decision || raw.capture_privacy_screen;
+  return decision?.proceeded === true && decision?.eligibility !== "rejected" && decision?.eligibility !== "pending";
+}
+
+/** The site closed its job: a run closure on record for any capture. */
+export function closedBySite(raw: Record<string, any>): boolean {
+  const closures = raw.website_run_closures;
+  return Boolean(closures) && typeof closures === "object"
+    && Object.values(closures as Record<string, unknown>).some(value => Boolean(value) && typeof value === "object");
+}
+
+const PLACEHOLDER_SUMMARY = "Your site task";
+function briefHasSentence(brief: TeamJobAccessContext["brief"]): boolean {
+  const text = (brief?.summary ?? "").trim();
+  return Boolean(text) && text !== PLACEHOLDER_SUMMARY;
+}
+
 /**
- * The one predicate: may approved robot teams see this job, and may they
- * request an evaluation on it?
- *
- * `listed` decides whether the card appears at all. `evaluationAvailable`
- * decides whether a team may open the job and request an evaluation; it is
- * never true for a job that is not listed.
+ * The one predicate: may approved deployment companies see this job? `listed` decides whether it appears anywhere a
+ * company looks (the library, the job's page, every media route, the response route, introductions and the automatic
+ * send). `evaluationAvailable` is kept for older readers; it is never true for a job that is not listed.
  */
-export function teamJobAccess(record: RecordLike): TeamJobAccess {
+export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext = {}): TeamJobAccess {
   const raw = (record ?? {}) as Record<string, any>;
   const closed = (reason: TeamJobClosedReason): TeamJobAccess =>
     ({ listed: false, evaluationAvailable: false, reason, details: null });
   if (raw.request?.buyerType !== "site_operator") return closed("not_a_site_job");
   if (raw.debug?.autoCreatedByPipeline === true) return closed("pipeline_placeholder");
-  // A grant is for the card's text fields only. It never authorizes footage or raw intake.
-  const details = approvedTaskDetails(raw);
-  if (!details) return closed("not_listed");
-  const legacy = legacyRestriction(raw);
-  if (legacy) return closed(legacy);
-  if (operatorListingPaused(raw)) return closed("operator_paused");
   const rights = projectWebsiteCaptureRights(raw);
+  // The stops come first, so a withdrawn or held job is reported as such whatever else it lacks.
   if (rights.consent_revoked) return closed("consent_withdrawn");
-  // Blueprint's own privacy control: while held, no company sees the job, and the site is told it is not visible.
   if (operatorListingHold(raw)) return closed("blueprint_hold");
-  if (raw.evidence_tier === "development_only" || raw.pipeline?.evidence_tier === "development_only")
-    return closed("development_only");
   const hold = rightsHold(raw);
   if (hold) return closed(hold);
-  // The brief screen's task-kind reading never holds an evaluation: whether this job's own
-  // scene is proven to load and step (`isRunnableTask`) decides, so a task kind no regex
-  // knows is not refused, and a task never reuses another task's runtime proof.
-  // Listed. An evaluation also needs the recording grant free admission
-  // requires, and a scene that is proven to run.
+  if (context.preparationState === "authority_ended") return closed("authority_ended");
+  if (closedBySite(raw)) return closed("closed_by_site");
+  if (operatorListingPaused(raw)) return closed("operator_paused");
+  if (raw.evidence_tier === "development_only" || raw.pipeline?.evidence_tier === "development_only")
+    return closed("development_only");
+  const legacy = legacyRestriction(raw);
+  if (legacy) return closed(legacy);
+  if (!recordingSharesJob(raw)) return closed("older_statement");
+  const listing = sharedJobListing(raw);
+  if (!listing) return closed("not_listed");
+  if (!privacyScreenPassed(raw)) return closed("privacy_screen_pending");
+  if (context.brief !== undefined && !briefHasSentence(context.brief)) return closed("no_job_sentence");
+  const details = listing.details;
   if (!rights.derived_scene_generation_allowed)
     return { listed: true, evaluationAvailable: false, reason: "recording_consent_missing", details };
   if (!isRunnableTask(raw as InboundRequest))
     return { listed: true, evaluationAvailable: false, reason: "scene_not_runnable", details };
   return { listed: true, evaluationAvailable: true, reason: null, details };
+}
+
+/** The stored preparation state of the job's current capture, or null. Never calls the Pipeline. */
+export async function storedPreparationState(requestId: string, record: Record<string, any> | null | undefined,
+  tx?: FirebaseFirestore.Transaction): Promise<string | null> {
+  if (!db) return null;
+  const { siteWalkthroughIdentity } = await import("./siteWalkthrough");
+  const ref = db.collection("captureUploadSessions").doc(siteWalkthroughIdentity(requestId, record ?? undefined).captureId);
+  const preparation = (tx ? await tx.get(ref) : await ref.get()).data()?.website_preparation;
+  if (preparation?.selector?.request_id !== requestId) return null;
+  return typeof preparation?.status?.state === "string" ? preparation.status.state : null;
+}
+
+/** The site's brief for the predicate: its sentence and confirmation only. */
+export async function briefForAccess(requestId: string, tx?: FirebaseFirestore.Transaction): Promise<TeamJobAccessContext["brief"]> {
+  if (!db) return null;
+  const ref = db.collection("siteTaskBriefs").doc(requestId);
+  const brief = (tx ? await tx.get(ref) : await ref.get()).data();
+  return brief ? { summary: typeof brief.summary === "string" ? brief.summary : null,
+    confirmedAtIso: typeof brief.confirmedAtIso === "string" ? brief.confirmedAtIso : null } : null;
+}
+
+/**
+ * The whole E2 rule for one job, on every company-facing request: reads the job (unless given), the brief and the
+ * stored preparation state. Inside a transaction, pass `tx` so every read participates.
+ */
+export async function loadCompanyJobAccess(requestId: string, given?: Record<string, any> | null,
+  tx?: FirebaseFirestore.Transaction): Promise<{ record: Record<string, any> | null; access: TeamJobAccess }> {
+  if (!db) throw new Error("company_job_store_unavailable");
+  let record = given ?? null;
+  if (given === undefined) {
+    const ref = db.collection("inboundRequests").doc(requestId);
+    record = (tx ? await tx.get(ref) : await ref.get()).data() ?? null;
+  }
+  if (!record) return { record: null, access: teamJobAccess(null) };
+  const [brief, preparationState] = await Promise.all([briefForAccess(requestId, tx), storedPreparationState(requestId, record, tx)]);
+  return { record, access: teamJobAccess(record, { brief, preparationState }) };
 }
 
 /** The card image route, when the site approved a thumbnail with its card. */

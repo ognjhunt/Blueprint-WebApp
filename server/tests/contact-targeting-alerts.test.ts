@@ -51,10 +51,9 @@ describe('exact targeting with provenance', () => {
   });
 });
 describe('existing contact/outbox safety', () => {
-  // The frame of 2026-11-12: every approach to an outside company needs the owner's go-ahead first, so the automatic
-  // "New site job" email no longer sends, and the fan-out that queued it is gone. A row queued before the stop is
-  // cancelled at dispatch without a send.
-  it('cancels a new-job email queued before the stop, at dispatch, without sending it', async () => {
+  // A row queued under the retired card-alert shape (before 2026-11-12) carries no `job-alert-2026-11-12` context, so
+  // it has no dispatch authority and is cancelled without a send. The automatic send (jobAutoSend.ts) queues the new shape.
+  it('cancels a new-job email queued under the retired shape, at dispatch, without sending it', async () => {
     const email = 'ada@example.com'; contact(email);
     state.docs.set('captureOutbox/legacy-alert', { idempotencyKey: 'legacy-alert', requestId: 'job', kind: 'robot_team_new_task', to: email,
       subject: 'New site job on Blueprint: Example', body: 'Example', status: 'pending', attempts: 0, nextAttemptAtMs: 0,

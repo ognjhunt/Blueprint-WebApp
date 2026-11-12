@@ -1,4 +1,6 @@
 import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
+import { introductionEmailIsCurrent } from "./jobIntroductionGate";
+import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
@@ -108,8 +110,14 @@ export type OutboxKind =
   | "robot_team_access_received"
   | "robot_team_access_approved"
   | "robot_team_access_not_yet"
-  /** To approved robot teams, when a site lists a new task card. */
-  | "robot_team_new_task";
+  /** To an approved deployment company that asked for job emails, when a job is shared (package E, E4): once per job. */
+  | "robot_team_new_task"
+  /** To the company the site chose, with the site's details (E6): once per introduction. */
+  | "introduction_made_company"
+  /** To the site, with the company's details (E6; words by the site side): once per introduction. */
+  | "introduction_made_site"
+  /** The timed one-click outcome question after an introduction (E8). */
+  | "job_outcome_question";
 
 export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required";
 
@@ -486,7 +494,10 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       // still describe the provider effect and are never recast as cancelled.
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
-      if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert)
+      const currentIntroduction = await introductionEmailIsCurrent(entry, tx);
+      const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
+      if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert
+        || !currentIntroduction || !currentOutcomeQuestion)
         return stop({ status: "cancelled" }, "notice_not_current");
       const nowMs = Date.now();
       tx.set(doc.ref, { status: "dispatching", attempts: entry.attempts + 1,

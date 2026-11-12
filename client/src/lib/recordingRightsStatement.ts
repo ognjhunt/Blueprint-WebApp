@@ -1,4 +1,4 @@
-import { SITE_START_CONSENT_WITH_VIDEO } from "./siteStartConsent";
+import { SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 } from "./siteStartConsent";
 
 /**
  * The recording-rights sentence a site attests before Blueprint takes its
@@ -36,9 +36,27 @@ export const RECORDING_RIGHTS_STATEMENT =
 export const RECORDING_RIGHTS_STATEMENT_SHORT_VERSION = "2026-11-11.v3";
 export const RECORDING_RIGHTS_STATEMENT_SHORT = SITE_START_CONSENT_WITH_VIDEO;
 
-export const RECORDING_RIGHTS_STATEMENT_VERSIONS = ["2026-09-18.v1", RECORDING_RIGHTS_STATEMENT_VERSION, RECORDING_RIGHTS_STATEMENT_SHORT_VERSION] as const;
+/**
+ * Sharing is the service (owner, 2026-11-12): the one sentence a site agrees to with its video, on the start form and,
+ * for a job started without a video or under an older statement, on the job's page. It says the job is shared with
+ * the deployment companies Blueprint has approved; accepting it is the only switch (`server/utils/jobSharedListing.ts`
+ * writes the listing record). One text, one version, every surface. NOTE: the Pipeline's owner read
+ * (`capture_original_owner_observer.py`) must list this version before the website records it.
+ */
+export const RECORDING_RIGHTS_STATEMENT_V4_VERSION = "2026-11-12.v4";
+export const RECORDING_RIGHTS_STATEMENT_V4 = SITE_START_CONSENT_WITH_VIDEO_V4;
+
+export const RECORDING_RIGHTS_STATEMENT_VERSIONS = ["2026-09-18.v1", RECORDING_RIGHTS_STATEMENT_VERSION, RECORDING_RIGHTS_STATEMENT_SHORT_VERSION,
+  RECORDING_RIGHTS_STATEMENT_V4_VERSION] as const;
 export type RecordingRightsStatementVersion = (typeof RECORDING_RIGHTS_STATEMENT_VERSIONS)[number];
 
 export function isRecordingRightsStatementVersion(value: unknown): value is RecordingRightsStatementVersion {
   return typeof value === "string" && (RECORDING_RIGHTS_STATEMENT_VERSIONS as readonly string[]).includes(value);
+}
+
+/** The versions whose sentence says the job is shared with approved deployment companies: v4 and any later one. */
+export const SHARING_RECORDING_STATEMENT_VERSIONS: readonly RecordingRightsStatementVersion[] = [RECORDING_RIGHTS_STATEMENT_V4_VERSION];
+
+export function isSharingRecordingStatementVersion(value: unknown): boolean {
+  return typeof value === "string" && (SHARING_RECORDING_STATEMENT_VERSIONS as readonly string[]).includes(value);
 }

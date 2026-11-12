@@ -11,7 +11,7 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started',
  'evaluation_outcome','scene_outcome','robot_access_question','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed','answer_ready','video_too_large',
- 'listing_live','job_sent','company_answered',
+ 'listing_live','job_sent','company_answered','introduction_made_site',
 ]);
 /**
  * The answer emails, by slot (review, 2026-11-11): per job at most one paper-check answer and at most one test
@@ -148,10 +148,17 @@ export async function taskLifecycleNotificationIsCurrent(
  }
  // A company was sent the job, or answered it (package C1): sent only while the summary is visible to companies by the
  // same predicate, and while what the email says still stands (the send not voided, the answer unchanged).
- if(entry.kind==='job_sent'||entry.kind==='company_answered'){
+ if(entry.kind==='job_sent'||entry.kind==='company_answered'||entry.kind==='introduction_made_site'){
   const {teamJobAccess}=await import('./teamJobAccess');
   if(!teamJobAccess(snapshot.data()??null).listed)return false;
-  if(entry.idempotencyKey===undefined)return true;
+  if(entry.idempotencyKey===undefined)return entry.kind!=='introduction_made_site';
+  // "Meet {company}" (PACKAGE_E E6): only while the introduction is on record.
+  if(entry.kind==='introduction_made_site'){
+   const prefix=`${entry.requestId}:introduction_made_site:`;
+   if(!entry.idempotencyKey.startsWith(prefix))return false;
+   const introRef=ref.collection('introductions').doc(entry.idempotencyKey.slice(prefix.length));
+   return Boolean((transaction?await transaction.get(introRef):await introRef.get()).exists);
+  }
   const {companyNoticeStillTrue}=await import('./jobCompanies');
   return companyNoticeStillTrue(entry.requestId,entry.kind,entry.idempotencyKey,snapshot.data()??{},transaction);
  }

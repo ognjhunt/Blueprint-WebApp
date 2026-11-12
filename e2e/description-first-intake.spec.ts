@@ -72,23 +72,21 @@ for (const device of ["desktop", "mobile"] as const) {
       await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
       expect(mutations).toHaveLength(1);
       expect(mutations[0].body).toMatchObject({ taskStatement: "Move sealed cartons from a conveyor onto a pallet.",
-        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false });
+        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null, hasExistingFootage: false });
       expect(mutations[0].body.matchFee).toBeUndefined();
       await shot("saved");
       await captureLink.click();
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
       await expect(page.getByRole("button", { name: /Open the camera|Choose or record|Upload a video file/ })).toHaveCount(0);
       await shot("capture-before-permission");
-      await expect(page.getByRole("button", { name: "Confirm recording permission" })).toBeDisabled();
-      // The box is labelled with exactly the sentence its version records.
-      await page.getByRole("checkbox", { exact: true, name: "I am authorized to record this site and to let Blueprint use the recording "
-        + "to draft the job brief, build a simulation of the work area and run candidate robot policies in it." }).check();
-      await page.getByRole("button", { name: "Confirm recording permission" }).click();
+      // Recording statement v4, word for word, above the one button that agrees to it.
+      await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "Agree and continue" }).click();
       await expect(page.getByRole("button", { name: /Choose or record a video|Upload a video file/ })).toBeVisible();
       await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)" })).toHaveCount(0);
       await expect(page.getByRole("heading", { name: "Delivery proposals", exact: true })).toHaveCount(0);
       expect(mutations.map(row => row.path)).toEqual(["/api/inbound-request", `/api/self-capture/uploads/${token}/recording-consent`]);
-      expect(mutations[1].body).toEqual({ granted: true, statementVersion: "2026-11-02.v2" });
+      expect(mutations[1].body).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
       expect(errors).toEqual([]);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
       expect(overflow).toBe(false);
