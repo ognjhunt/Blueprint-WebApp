@@ -776,11 +776,16 @@ describe("review findings (must-fix and should-fix)", () => {
     expect((await media(url)).status).toBe(404);
   });
 
-  it("should-fix: the count of introductions lives on the job document", async () => {
+  it("should-fix: the count is the standing introductions, and two presses at once both write the job document", async () => {
     await interested(NORTH, SOUTH);
-    patchJob({ introductions_used: 3 });
+    // Three standing introductions to other companies: a fourth is refused. One cancelled at dispatch (G3) frees its place.
+    for (const other of ["x", "y", "z"]) state.docs.set(`inboundRequests/${ID}/introductions/${other.repeat(64)}`,
+      { requestedAtIso: "2026-11-12T00:00:00.000Z", outcomes: [] });
     expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toEqual({ ok: false, reason: "limit_reached" });
-    patchJob({ introductions_used: 0 });
+    state.docs.set(`inboundRequests/${ID}/introductions/${"x".repeat(64)}`, { requestedAtIso: "2026-11-12T00:00:00.000Z",
+      cancelledAtIso: "2026-11-12T01:00:00.000Z", cancelReason: "company_not_approved", outcomes: [] });
+    state.docs.delete(`inboundRequests/${ID}/introductions/${"y".repeat(64)}`);
+    state.docs.delete(`inboundRequests/${ID}/introductions/${"z".repeat(64)}`);
     expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     expect(jobDoc().introductions_used).toBe(1);
     const both = await Promise.all(["B", "B"].map(alias => requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })));

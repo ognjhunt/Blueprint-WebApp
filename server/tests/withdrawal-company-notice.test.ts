@@ -51,10 +51,13 @@ const rows = () => [...state.docs.entries()].filter(([key]) => key.startsWith("c
   .map(([key, value]) => ({ key, ...(value as Record<string, any>) }));
 
 describe("the withdrawal's deletion notice to companies", () => {
-  it("queues one fixed email to each approved deployment company the job was sent to, and only those", async () => {
+  // Planner, 19:50Z, G6: every company the job was sent to, whatever its state now; never one it was not sent to (a
+  // voided send is a send recorded in error, so it does not count).
+  it("queues one fixed email to every company the job was sent to, whatever its state, and only those", async () => {
     await recordWebsiteCaptureWithdrawal({ requestId: ID, requestedBy: "signed_owner_link", authorize: () => undefined });
     const notices = rows().filter(row => row.kind === "job_withdrawn_company");
-    expect(notices.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:job_withdrawn_company:north`, `captureOutbox/${ID}:job_withdrawn_company:south`]);
+    expect(notices.map(row => row.key).sort()).toEqual(["gone", "north", "south", "tech"]
+      .map(companyId => `captureOutbox/${ID}:job_withdrawn_company:${companyId}`));
     const north = notices.find(row => row.to === "north@co.example")!;
     expect(north).toMatchObject({ status: "pending", subject: WITHDRAWAL_COMPANY_SUBJECT,
       body: "A site has withdrawn a job you were sent on November 12, 2026: Pallet handling opportunity. It has left your job library. "
@@ -81,14 +84,16 @@ describe("the withdrawal's deletion notice to companies", () => {
     }
   });
 
-  it("is sent whatever the company's optional-updates choice, and not to a company no longer approved", async () => {
+  it("is sent whatever the company's optional-updates choice or state, and never to a company the job was not sent to", async () => {
     state.docs.set("robotTeamAccess/north", company("North", { newJobAlertsOptIn: false, updatePreferences: { newJobAlerts: false } }));
     const entry = (companyId: string) => ({ kind: "job_withdrawn_company", requestId: ID, idempotencyKey: `${ID}:job_withdrawn_company:${companyId}` });
     expect(await withdrawalNoticeIsCurrent(entry("north"))).toBe(true);
     state.docs.set("robotTeamAccess/north", company("North", { status: "declined" }));
-    expect(await withdrawalNoticeIsCurrent(entry("north"))).toBe(false);
+    expect(await withdrawalNoticeIsCurrent(entry("north"))).toBe(true);
     state.docs.set("robotTeamAccess/north", company("North", { partnerRole: "technology" }));
-    expect(await withdrawalNoticeIsCurrent(entry("north"))).toBe(false);
+    expect(await withdrawalNoticeIsCurrent(entry("north"))).toBe(true);
+    expect(await withdrawalNoticeIsCurrent(entry("unsent"))).toBe(false);
+    expect(await withdrawalNoticeIsCurrent(entry("void"))).toBe(false);
     expect(await withdrawalNoticeIsCurrent({ kind: "job_withdrawn_company", requestId: ID })).toBe(false);
     expect(await withdrawalNoticeIsCurrent({ kind: "listing_live", requestId: ID })).toBe(true);
   });
