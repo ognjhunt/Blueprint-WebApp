@@ -6,6 +6,7 @@ import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
+import { DESTINATION_CORRECTED_AFTER_RESULTS, TaskDestinationAnswered, TaskDestinationChoice, isDestinationChoice, type TaskDestinationChoiceView } from "@/components/site/TaskDestinationChoice";
 import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/RobotFit";
 import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/components/site/RobotFitHold";
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
@@ -16,7 +17,7 @@ import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } fr
 import { outlookHasAnswer, type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
-import { projectSimulationProof } from "@/lib/simulationProof";
+import { currentEvaluation, projectSimulationProof } from "@/lib/simulationProof";
 import type { JobManagedEvidenceSummary, JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -69,6 +70,8 @@ type TaskStatus = {
   footageReviewAutomated?: boolean;
   /** The optional correction of the guessed object to move, for the owner only. */
   targetChoice?: TaskTargetChoiceView | null;
+  destinationChoice?: TaskDestinationChoiceView | null;
+  destinationAnswered?: boolean;
   /** Which robots fit the job by spec sheet, for the owner only: an estimate, never a physical test. */
   robotFit?: RobotFitView | null;
   /** The robots checked before any spend and why none fits, for the owner only, while the job is held on it. */
@@ -536,6 +539,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             captureReceived: data.captureReceived === true,
             footageReviewAutomated: data.footageReviewAutomated !== false,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
+            destinationChoice: data.scope === "owner" && isDestinationChoice(data.destinationChoice) ? data.destinationChoice : null,
+            destinationAnswered: data.scope === "owner" && data.destinationAnswered === true,
             robotFit: data.scope === "owner" && isRobotFit(data.robotFit) ? data.robotFit : null,
             robotFitHold: data.scope === "owner" && isRobotFitHold(data.robotFitHold) ? data.robotFitHold : null,
             successThresholds: data.scope === "owner" && isSuccessThresholds(data.successThresholds) ? data.successThresholds : null,
@@ -584,6 +589,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const answerPick = answer?.state === "ready" ? answer.pick : null;
   const proof = useMemo(() => evaluations && (answer || evaluations.length > 0)
     ? projectSimulationProof({ evaluation: evaluations, robotFit, pick: answerPick }) : null, [evaluations, answer, answerPick, robotFit]);
+  // Results tested before the site picked another place for the object say so, wherever they show as current.
+  // The results the page shows decide it, from their own preparation revision (server-decided per result).
+  const placeCaveat = evaluations && currentEvaluation(evaluations)?.placeCorrectedSince === true
+    && Boolean(proof?.options.options.some(option => option.scored > 0))
+    ? <BareNotice>{DESTINATION_CORRECTED_AFTER_RESULTS}</BareNotice> : null;
   // Under an answer (still reading, or settled) the status card keeps only what the site still has to do or know: a step of its
   // own, a new video, an account, recording permission or a withdrawal, or an ended job. Waits on the
   // simulation are the proof section's to say, so the card does not repeat them as if the job were waiting.
@@ -841,8 +851,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </Helmet>
 
       <BareScreen>
-      {view === "details" && answer ? <SiteAnswerDetails answer={answer} proof={proof} onBack={closeView} onOpen={screen => openView(`details/${screen}`)} />
-        : view.startsWith("details/") && answer ? <SiteAnswerDetail answer={answer} proof={proof} screen={view.slice(8) as DetailScreen} onBack={closeView} />
+      {view === "details" && answer ? <>{placeCaveat}<SiteAnswerDetails answer={answer} proof={proof} onBack={closeView} onOpen={screen => openView(`details/${screen}`)} /></>
+        : view.startsWith("details/") && answer ? <>{placeCaveat}<SiteAnswerDetail answer={answer} proof={proof} screen={view.slice(8) as DetailScreen} onBack={closeView} /></>
         : view === "settings" && settingsOpen ? settingsScreen
         : recordingWithdrawn ? <>
           {/* Withdrawn: only what is true now, the withdrawal's own words in small type, and what still does something. */}
@@ -862,6 +872,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
         outlook={status?.outlook ?? null} />}
+      {answer && placeCaveat}
       {/* The answer asks for the job's sentence: the form to give it sits right under it, not in the settings. */}
       {answer && taskStatementForm}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
@@ -870,6 +881,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
         && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
           onAnswered={() => setStatusRefresh(value => value + 1)} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.destinationChoice
+        && <TaskDestinationChoice key={status.destinationChoice.questionDigest} token={token} question={status.destinationChoice}
+          onAnswered={() => setStatusRefresh(value => value + 1)} />}
+      {saved && scope === "owner" && currentStatusKnown && !status?.destinationChoice && status?.destinationAnswered && <TaskDestinationAnswered />}
       {saved && scope === "owner" && currentStatusKnown && status?.robotFitHold && <RobotFitHold hold={status.robotFitHold} />}
       {saved && scope === "owner" && currentStatusKnown && status?.robotFit && !answer && <RobotFit fit={status.robotFit} />}
       {saved && scope === "owner" && currentStatusKnown && status?.successThresholds

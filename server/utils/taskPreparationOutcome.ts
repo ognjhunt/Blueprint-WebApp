@@ -16,9 +16,9 @@ const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const category = z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/);
 export const KNOWN_PREPARATION_OUTCOME_CATEGORIES: readonly string[] = ["robot_incompatibility", "insufficient_evidence"];
 const carryPathRejected = z.object({ reason: z.literal("robot_carry_path_rejected"), category,
-  basis: z.literal("conservative_configuration_check"), robot_id: z.literal("franka_panda"), evidence_digest: digest }).strict();
+  basis: z.literal("conservative_configuration_check"), robot_id: z.literal("franka_panda"), evidence_digest: digest }).passthrough();
 const taskEvidenceIncomplete = z.object({ reason: z.literal("task_evidence_incomplete"), category,
-  basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict();
+  basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).passthrough();
 /**
  * An outcome whose reason this release does not know (review, 2026-11-12): it never fails the status read. Its shape
  * is still checked (a code-shaped category and basis, and a sealed evidence digest); the site sees one general sentence for it
@@ -29,9 +29,10 @@ export const KNOWN_PREPARATION_OUTCOME_REASONS = new Set<string>(["robot_carry_p
 const unknownReasonOutcome = z.object({ reason: z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/),
   // Open too (review, 2026-11-12): a category this release does not know reads as the same general sentence.
   category, basis: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
-  robot_id: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/).nullable(), evidence_digest: digest }).strict()
+  robot_id: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/).nullable(), evidence_digest: digest }).passthrough()
   .refine(value => !KNOWN_PREPARATION_OUTCOME_REASONS.has(value.reason) && !isRecaptureReason(value.reason)
-    && value.reason !== TASK_NOT_NAMED_REASON, "A known reason keeps its own shape");
+    && value.reason !== TASK_NOT_NAMED_REASON && value.reason !== "website_preparation_not_possible"
+    && value.reason !== "website_preparation_retries_spent", "A known reason keeps its own shape");
 /** Preparation status v3–v5 keep this vocabulary, and accept a reason they do not know. */
 export const preparationOutcomeSchema = z.union([z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete]),
   unknownReasonOutcome]);
@@ -39,7 +40,7 @@ export const preparationOutcomeSchema = z.union([z.discriminatedUnion("reason", 
  * decided before any spend. Its evidence is the precheck's digest. */
 export const preparationOutcomeV6Schema = z.union([z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete,
   z.object({ reason: z.literal("robot_fit_none"), category,
-    basis: z.literal("conservative_pre_spend_fit_check"), robot_id: z.null(), evidence_digest: digest }).strict()]),
+    basis: z.literal("conservative_pre_spend_fit_check"), robot_id: z.null(), evidence_digest: digest }).passthrough()]),
   unknownReasonOutcome]);
 /** The preparation stops only a new video can clear (Pipeline `website_recapture_required`): the reason is the
  * stop's own code. Each has its sentences in `RECAPTURE_SENTENCES`. */
@@ -57,10 +58,25 @@ export const TASK_NOT_NAMED_REASON = "website_task_not_named";
 /** The one test of whether the Pipeline asks for the job's sentence: a preparation status or an Atlas preview. */
 export const pipelineAsksForSentence = (value: { outcome?: { reason?: unknown } | null; state?: unknown; reason?: unknown } | null | undefined) =>
   value?.outcome?.reason === TASK_NOT_NAMED_REASON || (value?.state === "needs_input" && value.reason === TASK_NOT_NAMED_REASON);
-/** v7 adds those stops: the preparation ended at once and the site is asked to film again. */
-export const preparationOutcomeV7Schema = z.union([preparationOutcomeV6Schema, z.object({
+/**
+ * Part 6 (Pipeline `website_preparation_outcome`, 2026-11-12): two endings that used to say "Blueprint will review",
+ * which nothing did. `website_preparation_not_possible`: this release cannot prepare the job, for the `cause` it
+ * names (a blocker code), and it is looked at again when a release changes that step. `website_preparation_retries_spent`:
+ * a step kept failing after its timed retries; it runs again on each new release.
+ */
+export const PREPARATION_NOT_POSSIBLE_REASON = "website_preparation_not_possible";
+export const PREPARATION_RETRIES_SPENT_REASON = "website_preparation_retries_spent";
+const notPossible = z.object({ reason: z.literal(PREPARATION_NOT_POSSIBLE_REASON), category,
+  cause: z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/).optional(),
+  basis: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/), robot_id: z.null(), evidence_digest: digest }).passthrough();
+const retriesSpent = z.object({ reason: z.literal(PREPARATION_RETRIES_SPENT_REASON), category,
+  basis: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/), robot_id: z.null(), evidence_digest: digest }).passthrough();
+/** v7 adds those stops: the preparation ended at once and the site is asked to film again; and the two part-6 endings. */
+export const preparationOutcomeV7Schema = z.union([notPossible, retriesSpent, preparationOutcomeV6Schema, z.object({
   reason: z.enum([...PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON]), category,
-  basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict()]);
+  basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).passthrough()]);
+/** The keys an outcome record is read by; any other key is kept (it is sealed in the status digest), ignored and alerted. */
+export const PREPARATION_OUTCOME_KEYS: readonly string[] = ["reason", "category", "cause", "basis", "robot_id", "evidence_digest"];
 export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeV7Schema>;
 
 /** What the v6 precheck says about a robot fit hold, when it binds to the same evidence as the outcome. */
@@ -103,18 +119,84 @@ export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, pr
   objectName?: string | null): TaskOutcome {
   if (receipt.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(receipt.evidence_digest);
   if (isRecaptureReason(receipt.reason)) return recaptureNeeded(receipt.reason, receipt.evidence_digest, objectName);
+  if (receipt.reason === PREPARATION_NOT_POSSIBLE_REASON) return preparationNotPossible((receipt as { cause?: string }).cause, receipt.evidence_digest);
+  if (receipt.reason === PREPARATION_RETRIES_SPENT_REASON) return preparationRetriesSpent(receipt.evidence_digest);
   if (!KNOWN_PREPARATION_OUTCOME_REASONS.has(receipt.reason)) return unknownOutcome(receipt.evidence_digest);
   if (receipt.reason === "robot_fit_none") return robotFitHold(receipt as Extract<PreparationOutcomeReceipt, { reason: "robot_fit_none"; basis: "conservative_pre_spend_fit_check" }>, precheck);
   if (receipt.reason === "robot_carry_path_rejected") return {
     category: "robot_incompatibility", basis: "conservative_configuration_check", title: "The checked robot configuration was rejected",
     reason: "No collision-free pickup-to-placement path was found for the Franka configuration, top-down grasp and bounded set of stations checked. Paid construction and policy evaluation were not admitted by this check.",
     scope: "Conservative rejection for this prepared scene estimate and checked configuration. This is not proof that the task is impossible, that every robot would fail, or that it was tested physically.",
-    nextStep: "Blueprint must review the retained geometry, scale uncertainty, grasp and station evidence before proposing another compatible configuration. Your recording and findings remain saved.",
+    nextStep: "Nothing is needed from you. Your recording and findings remain saved.",
     actionOwner: "blueprint", evidence: [{ label: "Robot configuration check", digest: receipt.evidence_digest }],
   };
   return evidenceNeeded("The retained task geometry or acceptance evidence is incomplete.", receipt.evidence_digest,
     "Task preparation finding");
 }
+
+/**
+ * Why this release cannot prepare the job, by the Pipeline's blocker code (`website_preparation_outcome._MISSING`).
+ * Each says only what the code names; a cause without words here keeps the general sentence.
+ */
+export const PREPARATION_NOT_POSSIBLE_CAUSES: Readonly<Record<string, string>> = {
+  website_registration_scale_conflicts_declared: "The sizes we measured in your video do not match the sizes given for your job.",
+  support_surface_not_found_under_subject: "We could not find the surface the object rests on in your video.",
+  task_destination_pose_required: "We could not work out how the object should sit where it goes.",
+  task_destination_relation_required: "We could not work out whether the object goes on, in or next to the place it goes.",
+  task_destination_interior_geometry_required: "We cannot yet build the inside of the place the object goes into.",
+  task_destination_surface_contact_required: "We could not find the surface the object should be put down on.",
+  website_owner_success_criteria_translation_required: "We cannot yet turn the way you judge success into a check in the simulation.",
+  website_assembly_whole_object_coverage_required: "Your video does not show the whole of the object the job assembles.",
+  website_synthetic_subject_start_unplaceable: "We could not place the object where it starts in the simulated scene.",
+};
+/**
+ * The words for the part-6 endings, as constants so one line changes when the Pipeline confirms what happens next.
+ * Nothing here says the job is looked at or tried again: no code confirmed yet does either (review, 2026-11-12).
+ */
+export const PREPARATION_NOT_POSSIBLE_SENTENCES = {
+  title: "We cannot prepare the simulation of your job",
+  /** After a cause's own sentence. */
+  withCause: "We cannot prepare the simulation of your job, so it has stopped.",
+  /** With no cause, or one without words. */
+  general: "Preparing the simulation of your job needs a step we cannot do yet, so it has stopped.",
+  nextStep: "Nothing is needed from you now. Your recording is saved.",
+} as const;
+/** A next step of its own, by cause. The page offers "Update walkthrough" to the owner in every preparation state. */
+const NOT_POSSIBLE_NEXT_STEPS: Readonly<Record<string, string>> = {
+  website_assembly_whole_object_coverage_required: "A new video that shows the whole object would let us try again. Your recording is saved.",
+  website_registration_scale_conflicts_declared: "Your recording is saved.",
+};
+export function preparationNotPossible(cause: string | undefined, evidenceDigest: string): TaskOutcome {
+  const known = cause !== undefined && Object.hasOwn(PREPARATION_NOT_POSSIBLE_CAUSES, cause);
+  return { category: "insufficient_evidence", basis: "missing_evidence", title: PREPARATION_NOT_POSSIBLE_SENTENCES.title,
+    reason: known ? `${PREPARATION_NOT_POSSIBLE_CAUSES[cause!]} ${PREPARATION_NOT_POSSIBLE_SENTENCES.withCause}`
+      : PREPARATION_NOT_POSSIBLE_SENTENCES.general,
+    scope: "This preparation only. It is not a finding about any robot or about your site.",
+    nextStep: known && Object.hasOwn(NOT_POSSIBLE_NEXT_STEPS, cause!) ? NOT_POSSIBLE_NEXT_STEPS[cause!] : PREPARATION_NOT_POSSIBLE_SENTENCES.nextStep,
+    actionOwner: "blueprint", evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
+}
+export const PREPARATION_RETRIES_SPENT_SENTENCES = {
+  title: "We could not finish preparing your job",
+  reason: "We could not finish preparing your job after several tries, for a reason on our side.",
+  nextStep: "Nothing is needed from you now. Your recording is saved.",
+} as const;
+export function preparationRetriesSpent(evidenceDigest: string): TaskOutcome {
+  return { category: "processing_failure", basis: "execution_failure", title: PREPARATION_RETRIES_SPENT_SENTENCES.title,
+    reason: PREPARATION_RETRIES_SPENT_SENTENCES.reason,
+    scope: "This preparation only. It is not a finding about any robot or about your site.",
+    nextStep: PREPARATION_RETRIES_SPENT_SENTENCES.nextStep, actionOwner: "blueprint",
+    evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
+}
+/** The part-6 endings say all there is: the page adds nothing beside them. */
+export const isCompletePreparationOutcome = (outcome: Pick<TaskOutcome, "title"> | null | undefined) =>
+  outcome?.title === PREPARATION_NOT_POSSIBLE_SENTENCES.title || outcome?.title === PREPARATION_RETRIES_SPENT_SENTENCES.title;
+
+/** The planner held back and the preparation status names no outcome: said with no promise (review, 2026-11-12). */
+export const PLANNER_ABSTAINED_SENTENCES = {
+  title: "We could not confirm the 3D scene covers your job",
+  reason: "The views in your video did not show enough of the scene for this job.",
+  nextStep: "Nothing is needed from you now. Your recording stays saved.",
+} as const;
 
 export function processingFailure(evidence?: {label: string; digest: string}): TaskOutcome {
   return { category: "processing_failure", basis: "execution_failure", title: "Blueprint could not finish processing this attempt",
@@ -140,7 +222,8 @@ export function capacityEnded(evidence?: {label: string; digest: string}): TaskO
 function evidenceNeeded(reason: string, evidenceDigest: string, label: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: "There is not enough evidence for a robot decision",
     reason, scope: "The current capture and task evidence. No robot incompatibility or qualified evaluation result has been established.",
-    nextStep: "Blueprint will review the saved evidence and identify the exact missing measurement, view or task fact. We will continue the work this recording supports and report its limits here. Your recording stays saved; no repeat upload is needed.",
+    // Rewritten (review, 2026-11-12): nothing reviews this, so nothing promises a review.
+    nextStep: "Nothing is needed from you now. Your recording stays saved; no repeat upload is needed.",
     actionOwner: "blueprint", evidence: [{ label, digest: evidenceDigest }] };
 }
 
@@ -241,7 +324,8 @@ export const TASK_NOT_NAMED_SENTENCES = {
 /** The site has given its sentence and the Pipeline has not re-read the job yet. Ours, not the site's. */
 export const TASK_NAMED_SENTENCES = {
   title: "We have your job's sentence",
-  reason: "We have the sentence you gave us, and we are starting to build the simulation of your job.",
+  // Not "starting": the Pipeline picks the job up on its own next read (review, 2026-11-12).
+  reason: "We have your job's sentence and will start building its simulation.",
   nextStep: "Nothing more is needed from you.",
 } as const;
 export function taskNamedOutcome(): TaskOutcome {
@@ -397,9 +481,13 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
   if (preview.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(preview.preview_digest);
   if (preview.state === "needs_input" && isRecaptureReason(preview.reason))
     return recaptureNeeded(preview.reason, preview.preview_digest);
-  if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? ""))
-    return evidenceNeeded("The available source views did not establish enough scene coverage for this task.",
-      preview.preview_digest, "Scene coverage finding");
+  // The planner held back (review, 2026-11-12). The preparation status's own outcome, when it has one, takes this
+  // card's place on the page; without one, this card says what is true and promises nothing.
+  if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? "")) return { category: "insufficient_evidence",
+    basis: "missing_evidence", title: PLANNER_ABSTAINED_SENTENCES.title, reason: PLANNER_ABSTAINED_SENTENCES.reason,
+    scope: "The current capture and task evidence. It is not a finding about any robot or about your site.",
+    nextStep: PLANNER_ABSTAINED_SENTENCES.nextStep, actionOwner: "blueprint",
+    evidence: [{ label: "Scene coverage finding", digest: preview.preview_digest }] };
   if (preview.state === "needs_input" && preview.reason === "atlas_scene_requires_preserved_capture")
     return evidenceNeeded("The scene-preparation plan could not preserve the captured objects required by this task.",
       preview.preview_digest, "Scene preservation finding");

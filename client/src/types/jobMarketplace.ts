@@ -77,6 +77,8 @@ export interface JobScreeningProgress { graded: number; stages: Array<{ stage: J
 export interface JobManagedEvidenceSummary {
   runId: string;
   state: string;
+  /** Server-decided: these results were prepared before the site picked another place for the object. */
+  placeCorrectedSince?: true;
   /** A job evaluation's outcome; null while it is still running. Absent on other run kinds. */
   outcome?: JobScreeningOutcome | null;
   /** Present when the summary carries a caveat: our own checks flagged the scene a zero-success estimate ran in. */

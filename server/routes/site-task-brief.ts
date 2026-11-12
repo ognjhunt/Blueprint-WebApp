@@ -1,3 +1,5 @@
+import { destinationPictureUrl } from "../utils/websiteDestinationPicture";
+import { placeKindOf } from "../utils/taskTargetChoiceContract";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
@@ -72,7 +74,7 @@ import {
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
-import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer, taskTargetSelection } from "../utils/websiteTaskTargetChoice";
+import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer, currentPlaceAnswer, taskTargetSelection } from "../utils/websiteTaskTargetChoice";
 import { taskTargetChoiceRequestSchema } from "../utils/taskTargetChoiceContract";
 import { decideOwnerSuccessProposal, loadOwnerSuccessView, ownerSuccessDecisionRequestSchema } from "../utils/websiteOwnerSuccessConfirmation";
 import { decideRobotAccessProposal, loadRobotAccessView, robotAccessDecisionRequestSchema } from "../utils/websiteRobotAccessRemoval";
@@ -1366,9 +1368,16 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // The site's answer to the optional question about the guessed object to move, bound to this exact source.
     const targetChoiceAnswer = payload.scope === "owner" && preparationStatus
       ? currentTaskTargetChoiceAnswer(captureSession?.data(), preparationStatus) : null;
-    const question = payload.scope === "owner" && (!targetChoiceAnswer || targetChoiceAnswer === "none_of_these")
-      && preparationStatus?.state !== "authority_ended" ? preparationStatus?.question ?? null : null;
+    // The place answer is kept apart from the object's (2026-11-12): it changes nothing the page says about the job.
+    const placeAnswer = payload.scope === "owner" && preparationStatus
+      ? currentPlaceAnswer(captureSession?.data(), preparationStatus) : null;
+    const asked = preparationStatus?.state !== "authority_ended" ? preparationStatus?.question ?? null : null;
+    const question = payload.scope === "owner" && asked && (asked.kind === "task_destination_choice" ? placeAnswer === null
+      : !targetChoiceAnswer || targetChoiceAnswer === "none_of_these") ? asked : null;
 
+    const destinationPicture = question?.kind === "task_destination_choice" && question.picture
+      && request?.captureRights.derived_scene_generation_allowed && !request?.captureRights.consent_revoked
+      ? destinationPictureUrl(payload.requestId, payload.captureId, question.picture.png_sha256) : null;
     const status = projectTaskStatus(
       taskStatusInputFrom({
         active_capture_id: request?.active_capture_id,
@@ -1463,7 +1472,16 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       claimUrl,
       sceneViewUrl: scenePreviewUrl ?? (status.resultSuperseded ? null : sceneViewUrl),
       // Opaque ids and position labels only; no frame or person pixels.
-      targetChoice: question ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
+      // The optional place question (2026-11-12): ids and place kinds only; the picture through its 15-minute ticket.
+      // Answered: the page says only that it has the answer.
+      destinationAnswered: payload.scope === "owner" && placeAnswer !== null,
+      // Only with its picture (the places are told apart by the letters drawn on it): without one, nothing is asked.
+      destinationChoice: destinationPicture && question?.kind === "task_destination_choice" ? {
+        questionDigest: question.question_digest, objectLabel: question.semantic_label,
+        guessedCandidateId: question.guessed_candidate_id,
+        candidates: question.candidates.map(row => ({ id: row.candidate_id, place: placeKindOf(row.label) })),
+        pictureUrl: destinationPicture } : null,
+      targetChoice: question && question.kind === "task_target_choice" ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
         ...(targetChoiceAnswer === 'none_of_these' ? {rejected: true} : {}),
         guessedCandidateId: question.guessed_candidate_id,
         candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,

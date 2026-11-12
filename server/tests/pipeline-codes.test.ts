@@ -37,7 +37,14 @@ describe("set-up and scene flags", () => {
     ["task_object_box_fit_outline:top", "In the simulated scene, the object's size or outline differs from what your video shows."],
     ["known_good_control_partly:1_of_3", "A scripted reference arm that reads exact positions from the simulation did the job in only some of its tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots."],
     ["known_good_control_passed:2_of_3", "Before testing robots, a scripted reference arm that reads exact positions from the simulation completed the job, so the simulated scene can record a success."],
-    ["known_good_control_unavailable:backend", "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
+    ["known_good_control_unavailable:backend", "We have no scripted reference that runs in the simulator this job used yet, so nothing confirmed beforehand that the simulated scene can record a success."],
+    ["scene_estimate:support_guessed", "We could not find the surface the object rests on in your video, so the simulated scene uses the nearest one."],
+    ["scene_estimate:capability_unassessed", "We could not work out on paper what each robot can do in this scene."],
+    ["scene_estimate:robot_fit_none:reach", "On paper, none of the robots fits this job. The most common reason: the arm cannot reach the job from any position we found."],
+    ["scene_estimate:robot_fit_none:task_kind", "On paper, none of the robots fits this job. The most common reason: the robot's software does not list this kind of job."],
+    ["scene_estimate:robot_fit_none:gpu_memory", "On paper, none of the robots fits this job. The most common reason: the robot's software needs more computing memory than any machine we rent."],
+    ["scene_estimate:robot_fit_none:no_candidate_available", "On paper, none of the robots fits this job. No robot was available from our catalog."],
+    ["scene_estimate:robot_fit_none:brand_new_cause", "On paper, none of the robots fits this job."],
     ["known_good_control_unavailable:task_kind", "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
   ])("says %s in plain words, never the code", (code, sentence) => {
     expect(setupFlagSentence(code)).toBe(sentence);
@@ -55,7 +62,7 @@ describe("set-up and scene flags", () => {
   });
   it("says the fixed arm's reach on that robot's row only, never as a set-up note", () => {
     const code = "fixed_arm_reach_cannot_span_pick_and_place";
-    expect(robotFactNotes({ scene_check_flags: [code] })).toEqual(["From one position, this robot's arm cannot reach both where the object starts and where it goes."]);
+    expect(robotFactNotes({ scene_check_flags: [code] })).toEqual(["On paper, this robot's arm cannot reach both the pick-up and the put-down place from one position."]);
     expect(isRobotFactFlag(code)).toBe(true);
     expect(isKnownFlag(code)).toBe(true);
   });
@@ -211,5 +218,118 @@ describe("the scripted reference row, first or last", () => {
       expect(screeningReferenceCheck([row(flag, scored, succeeded), learned])).toBe(check);
       expect(screeningReferenceCheck([learned, row(flag, scored, succeeded)])).toBe(check);
     }
+  });
+});
+
+describe("the part-6 preparation endings", () => {
+  const sha = `sha256:${"e".repeat(64)}`;
+  const read = async (value: Record<string, unknown>) => {
+    const { preparationOutcomeV7Schema, projectPreparationOutcome } = await import("../utils/taskPreparationOutcome");
+    const parsed = preparationOutcomeV7Schema.safeParse(value);
+    expect(parsed.success).toBe(true);
+    return projectPreparationOutcome(parsed.data as never);
+  };
+  const base = { category: "insufficient_evidence", reason: "website_preparation_not_possible", basis: "missing_evidence",
+    robot_id: null, evidence_digest: sha };
+  // Rewritten (review, 2026-11-12): nothing says the job is looked at or tried again (no code confirmed does it).
+  it.each([
+    ["support_surface_not_found_under_subject", "We could not find the surface the object rests on in your video. We cannot prepare the simulation of your job, so it has stopped.",
+      "Nothing is needed from you now. Your recording is saved."],
+    ["website_assembly_whole_object_coverage_required", "Your video does not show the whole of the object the job assembles. We cannot prepare the simulation of your job, so it has stopped.",
+      "A new video that shows the whole object would let us try again. Your recording is saved."],
+    ["website_registration_scale_conflicts_declared", "The sizes we measured in your video do not match the sizes given for your job. We cannot prepare the simulation of your job, so it has stopped.",
+      "Your recording is saved."],
+    ["brand_new_blocker", "Preparing the simulation of your job needs a step we cannot do yet, so it has stopped.",
+      "Nothing is needed from you now. Your recording is saved."],
+  ])("words a not-possible ending for cause %s, and never promises a later look", async (cause, reason, nextStep) => {
+    const outcome = await read({ ...base, cause });
+    expect(outcome).toMatchObject({ title: "We cannot prepare the simulation of your job", actionOwner: "blueprint", reason, nextStep });
+    expect(JSON.stringify(outcome)).not.toMatch(/brand_new_blocker|review|look at it again|try again each/i);
+  });
+  it("reads an extra key, and words retries spent plainly", async () => {
+    expect((await read({ ...base, cause: "support_surface_not_found_under_subject", later_key: 1 })).title)
+      .toBe("We cannot prepare the simulation of your job");
+    const spent = await read({ category: "processing_failure", reason: "website_preparation_retries_spent", basis: "execution_failure",
+      robot_id: null, evidence_digest: sha });
+    expect(spent).toMatchObject({ title: "We could not finish preparing your job",
+      reason: "We could not finish preparing your job after several tries, for a reason on our side.",
+      nextStep: "Nothing is needed from you now. Your recording is saved." });
+  });
+  it("is the whole card on the page: nothing added beside it, in every state it arrives in", async () => {
+    const { projectTaskStatus } = await import("../utils/taskStatusProjection");
+    const page = { briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, stage: null, coversScene: null, missingViews: [],
+      supplementWouldFinish: false };
+    for (const outcome of [await read({ ...base, cause: "support_surface_not_found_under_subject" }),
+      await read({ category: "processing_failure", reason: "website_preparation_retries_spent", basis: "execution_failure", robot_id: null, evidence_digest: sha })])
+      for (const state of ["failed_terminal", "failed_retryable", "awaiting_inputs"]) {
+        const card = projectTaskStatus({ ...page, preparationStatus: { state, correlationId: null, outcome, terminalReason: null } } as never);
+        expect(card.headline).toBe(outcome.title);
+        expect(card.outcome?.reason).toBe(outcome.reason);
+        expect(`${card.headline} ${card.outcome?.reason} ${card.outcome?.nextStep}`).not.toMatch(/Automatic preparation retries|review/i);
+      }
+  });
+  it("the needs-attention email says the page's own words for them, with no review promise", () => {
+    for (const [ending, outcome] of [[{ reason: "website_preparation_not_possible", cause: "support_surface_not_found_under_subject" },
+      "We could not find the surface the object rests on in your video. We cannot prepare the simulation of your job, so it has stopped."],
+      [{ reason: "website_preparation_retries_spent" }, "We could not finish preparing your job after several tries, for a reason on our side."]] as const) {
+      const email = buildTaskLifecycleNotification({ requestId: "r1", milestone: "preparation_needs_attention",
+        eventId: `sha256:${"e".repeat(64)}`, preparationEnding: ending as never, to: "owner@example.test" });
+      expect(email.body).toContain(outcome);
+      expect(email.body).toContain("Nothing is needed from you now. Your recording is saved.");
+      expect(email.subject).not.toMatch(/review/i);
+      expect(email.body).not.toMatch(/review/i);
+    }
+  });
+});
+
+describe("the test stage's new codes", () => {
+  it.each([
+    ["known_good_control_unavailable:reach", "Our scripted reference robot cannot reach both places in this scene, so nothing confirmed beforehand that the simulated scene can record a success."],
+    ["scene_estimate:success_height_adjusted:5mm", "We moved the height at which a put-down counts as a success by 5 mm, to match the surface in the simulated scene."],
+    ["scene_estimate:success_height_adjusted:25mm", "We moved the height at which a put-down counts as a success by 25 mm, to match the surface in the simulated scene."],
+  ])("says %s", (code, sentence) => {
+    expect(setupFlagSentence(code)).toBe(sentence);
+    expect(isKnownFlag(code)).toBe(true);
+  });
+  it.each(["scene_estimate:success_height_adjusted:0mm", "scene_estimate:success_height_adjusted:26mm",
+    "scene_estimate:success_height_adjusted:5", "scene_estimate:success_height_adjusted:05mm", "scene_estimate:success_height_adjusted:-3mm"])(
+    "reads %s as a flag without words", code => {
+      expect(setupFlagSentence(code)).toBe(SETUP_FLAG_UNCLASSIFIED_SENTENCE);
+      expect(isKnownFlag(code)).toBe(false);
+    });
+  it("labels the work-disk blocker plainly", () => {
+    expect(screeningReasonLabel("beta_screening_output_cannot_land_on_work_disk"))
+      .toBe("We could not test this robot: our machine had no room to store the test's recording.");
+  });
+  it("never shows a hold's detail other than cold storage, and never alerts on it", async () => {
+    const { screeningHoldDetail } = await import("../utils/betaPolicyScreeningContract");
+    expect(screeningHoldDetail("team_scene_packet_blocked", "scene_run_in_cold_storage")).toBe("scene_run_in_cold_storage");
+    for (const detail of ["probe_root_unavailable", "profile_missing"]) {
+      expect(screeningHoldDetail("team_scene_packet_blocked", detail)).toBeNull();
+      expect(screeningHoldOutcome({ status: "held", reason_code: "team_scene_packet_blocked", detail_code: detail })).toBe("held_setup");
+    }
+  });
+});
+
+describe("a job stopped on a planner abstention", () => {
+  it("shows a card with no promise when the status has no outcome of its own, and the status's when it has one", async () => {
+    const { projectAtlasPreparationOutcome, preparationRetriesSpent } = await import("../utils/taskPreparationOutcome");
+    const { selectWebsiteAtlasPreview } = await import("../utils/websiteAtlasPreview");
+    const { projectTaskStatus } = await import("../utils/taskStatusProjection");
+    const value = { schema_version: "website_atlas_preview.v1", capture_id: "walkthrough-r1", revision: 2, state: "needs_input",
+      reason: "atlas_scene_planner_abstained", updated_at_epoch: 1793109960, bundle: null, splat_available: false, mesh_available: false,
+      claim_ceiling: "development_only", scale_status: "unscaled_provider_world_units" };
+    const preview = selectWebsiteAtlasPreview({ website_atlas_previews: { "walkthrough-r1": { ...value,
+      preview_digest: crossRuntimeArtifactDigest(value, "preview_digest") } } }, "walkthrough-r1");
+    const page = { briefDrafted: true, briefConfirmed: false, hasStoredCapture: true, stage: null, coversScene: null, missingViews: [],
+      supplementWouldFinish: false, preparationOutcome: projectAtlasPreparationOutcome(preview) };
+    for (const preparationStatus of [undefined, { state: "unavailable", correlationId: null }, { state: "awaiting_inputs", correlationId: null, outcome: null }]) {
+      const status = projectTaskStatus({ ...page, preparationStatus } as never);
+      expect(status.headline).toBe("We could not confirm the 3D scene covers your job");
+      expect(JSON.stringify(status)).not.toMatch(/next update will appear|review/i);
+    }
+    const own = preparationRetriesSpent(`sha256:${"e".repeat(64)}`);
+    expect(projectTaskStatus({ ...page, preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome: own } } as never).headline)
+      .toBe(own.title);
   });
 });

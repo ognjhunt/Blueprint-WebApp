@@ -80,8 +80,7 @@ export function SuccessThresholds({ token, view, onDecided }: {
       : <>
         {decision?.kind === "held" && decision.reason && <p role="status">
           You said these goals are wrong: {REASONS[decision.reason].toLowerCase()}. Blueprint’s team is alerted with
-          your reason. Blueprint will review it and contact you. These numbers stay as they are
-          until then; if Blueprint proposes new goals, they appear here for you to confirm.</p>}
+          your reason. These numbers stay as they are; if Blueprint proposes new goals, they appear here for you to confirm.</p>}
         <p className="ms-field-hint" style={{ marginTop: "12px" }}>{decision?.kind === "held"
           ? "If you change your mind, you can still use these goals."
           : "You can confirm these goals, or tell us what is wrong."}</p>

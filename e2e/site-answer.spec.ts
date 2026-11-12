@@ -261,6 +261,101 @@ test("a job the site has named shows no ask and no naming form", async ({ page }
   expect(unexpected).toEqual([]);
 });
 
+// Review, 2026-11-12: the optional place question, with its private picture, beside the answer; the job keeps going.
+test("the place question shows its picture and sentence, This is right needs nothing more, and it never shows without one", async ({ page }) => {
+  const { unexpected } = await mockJob(page, { evaluation: null });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await page.locator(".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
+  await expect(page.getByRole("region", { name: "Where the object goes" })).toHaveCount(0);
+
+  const posted: unknown[] = [];
+  const picture = "/api/website-destination-pictures/job-one/walkthrough-job-one/place.png?digest=sha256%3A" + "5".repeat(64) + "&expires=1&signature=" + "a".repeat(64);
+  await page.route(`**/api/site-task-brief/${token}/status`, route => route.fulfill({ json: { scope: "owner", captureReceived: true,
+    answer: readyAnswer, outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: [] as never, pick: null })),
+    destinationAnswered: posted.length > 0,
+    destinationChoice: posted.length ? null : { questionDigest: `sha256:${"3".repeat(64)}`, objectLabel: "Carton",
+      guessedCandidateId: "p0123456789abcdef", pictureUrl: picture,
+      candidates: [{ id: "p0123456789abcdef", place: "named_place" }, { id: "pfedcba9876543210", place: "surface_end" }] },
+    status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } }));
+  // A 1x1 PNG stands in for the private frame; the page only ever asks the ticketed route for it.
+  await page.route("**/api/website-destination-pictures/**", route => route.fulfill({ contentType: "image/png",
+    body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64") }));
+  await page.route(`**/api/site-task-brief/${token}/task-target-choice`, route => {
+    posted.push(route.request().postDataJSON());
+    return route.fulfill({ json: { ok: true, choice: "confirm_guess" } });
+  });
+  await page.reload();
+  const region = page.getByRole("region", { name: "Where the object goes" });
+  await expect(region).toBeVisible();
+  await expect(region.getByText("We will test moving the carton from here to here.")).toBeVisible();
+  await expect(region.getByRole("img")).toBeVisible();
+  await expect(region.getByText("Nothing is needed from you: your job keeps going either way.")).toBeVisible();
+  await region.getByRole("button", { name: "The place is wrong" }).click();
+  // Places are told apart by the letters the picture draws: never the Pipeline's words.
+  await expect(region.getByLabel("Place B")).toBeVisible();
+  await expect(region.getByText("Place A (our guess) is the one we use now.")).toBeVisible();
+  await region.getByRole("button", { name: "This is right" }).click();
+  await expect.poll(() => posted.length).toBe(1);
+  expect(posted[0]).toEqual({ questionDigest: `sha256:${"3".repeat(64)}`, choice: { kind: "confirm_guess" } });
+  // The job's answer stays where it was; once answered, the page says only that.
+  await expect(page.getByRole("region", { name: "Where the object goes" }).getByRole("status"))
+    .toHaveText("We have your answer about where the object goes.");
+  await expect(page.getByRole("button", { name: "This is right" })).toHaveCount(0);
+  await expect(page.locator(".site-answer-bare")).toBeVisible();
+  expect(unexpected).toEqual([]);
+});
+
+// Review, 2026-11-12: results prepared before the site corrected the place say so beside them, and nothing else changes.
+// The server decides it per result from the result's own preparation revision (`placeCorrectedSince`); the page shows
+// it beside exactly those results. Replacement results prepared with the corrected place carry no line.
+for (const [name, evaluation, choice, predates, caveat] of [
+  ["results from before the correction", simulationRun, "other", true, true],
+  ["replacement results prepared with the corrected place", simulationRun, "other", false, false],
+  ["results, then the guess confirmed", simulationRun, "confirm", false, false],
+  ["another place chosen, no results yet", null, "other", false, false],
+] as const) {
+  test(`the place answer beside the result: ${name}`, async ({ page }) => {
+    const { unexpected } = await mockJob(page, { evaluation });
+    const posted: Array<{ choice: { kind: string } }> = [];
+    const picture = "/api/website-destination-pictures/job-one/walkthrough-job-one/place.png?digest=sha256%3A" + "5".repeat(64) + "&expires=1&signature=" + "a".repeat(64);
+    await page.route(`**/api/job-workflow/owner/${token}`, route => route.fulfill({ json: { ...workflow,
+      managedEvidence: evaluation ? [{ ...evaluation, ...(posted.length && predates ? { placeCorrectedSince: true } : {}) }] : [] } }));
+    await page.route(`**/api/site-task-brief/${token}/status`, route => route.fulfill({ json: { scope: "owner", captureReceived: true,
+      answer: readyAnswer, outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: (evaluation ? [evaluation] : []) as never, pick: null })),
+      destinationAnswered: posted.length > 0,
+      destinationChoice: posted.length ? null : { questionDigest: `sha256:${"3".repeat(64)}`, objectLabel: "Carton",
+        guessedCandidateId: "p0123456789abcdef", pictureUrl: picture,
+        candidates: [{ id: "p0123456789abcdef", place: "named_place" }, { id: "pfedcba9876543210", place: "surface_end" }] },
+      status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } }));
+    await page.route("**/api/website-destination-pictures/**", route => route.fulfill({ contentType: "image/png",
+      body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64") }));
+    await page.route(`**/api/site-task-brief/${token}/task-target-choice`, route => {
+      posted.push(route.request().postDataJSON());
+      return route.fulfill({ json: { ok: true, choice: posted[0].choice.kind } });
+    });
+    await page.goto(`/capture-upload/${token}?video=existing`);
+    const region = page.getByRole("region", { name: "Where the object goes" });
+    await expect(region.getByRole("img")).toBeVisible();
+    const line = page.getByText("These results were tested with the place you have since corrected.");
+    await expect(line).toHaveCount(0);
+    if (choice === "other") {
+      await region.getByRole("button", { name: "The place is wrong" }).click();
+      await region.getByLabel("Place B").click();
+      await region.getByRole("button", { name: "Use this place" }).click();
+    } else await region.getByRole("button", { name: "This is right" }).click();
+    await expect(page.getByRole("region", { name: "Where the object goes" }).getByRole("status"))
+      .toHaveText("We have your answer about where the object goes.");
+    // The results the page shows, read again: the line follows their own revision.
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Where the object goes" }).getByRole("status"))
+      .toHaveText("We have your answer about where the object goes.");
+    await expect(line).toHaveCount(caveat ? 1 : 0);
+    // Nothing else changes: no "updating", no superseded wording.
+    await expect(page.getByText(/updating this job|superseded/i)).toHaveCount(0);
+    expect(unexpected).toEqual([]);
+  });
+}
+
 /** The withdrawn and before-the-video modes of the same job, as the server sends them; registered after mockJob, so they win. */
 async function mockMode(page: Page, mode: "withdrawn" | "film") {
   await page.route(`**/api/self-capture/uploads/${token}/status`, route => route.fulfill({ json: mode === "withdrawn"

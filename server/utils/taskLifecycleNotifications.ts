@@ -26,7 +26,7 @@ import { finePrint, finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { CAPACITY_ENDED_HEADLINE, preparationEndedSentence } from "./taskStatusProjection";
-import { pipelineAsksForSentence } from "./taskPreparationOutcome";
+import { pipelineAsksForSentence, preparationNotPossible, preparationRetriesSpent } from "./taskPreparationOutcome";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_NO_GRANT_SITE_ENDING_SUBJECT, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
   isRecaptureReason, LARGE_VIDEO_RECAPTURE_SENTENCES, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf, TASK_NOT_NAMED_REASON,
@@ -255,6 +255,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   awaitEarlyHoldUntilMs?: number;
   /** `preparation_needs_attention` only: the preparation stop only a new video clears, from the status's outcome. */
   recaptureReason?: RecaptureReason;
+  /** `preparation_needs_attention` only: a part-6 ending; the email says the page's own words for it. */
+  preparationEnding?: PreparationEnding;
   /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
   screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number };
@@ -487,6 +489,8 @@ export function buildTaskLifecycleNotification(params: {
   earlyTaskHold?: EarlyTaskHoldReason;
   /** `preparation_needs_attention` only: the new-video ask the job page states; the notice is then that ask. */
   recaptureReason?: RecaptureReason;
+  /** `preparation_needs_attention` only: a part-6 ending the job page states; the notice says the same. */
+  preparationEnding?: PreparationEnding;
   /**
    * `scene_outcome` only: the job's window ran out and the WebApp's sweep ended it
    * (`websiteJobWindowSweep`). Its event id is the job's fixed one, or the one naming a later window end.
@@ -528,7 +532,8 @@ export function buildTaskLifecycleNotification(params: {
   const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
     ? params.recaptureReason : null;
   const capacityEnded = params.milestone === "preparation_ended" && params.terminalReason === "capacity_blocked";
-  const message = held ? earlyTaskHoldCopy(held) : recapture ? recaptureCopy(recapture) : capacityEnded ? CAPACITY_ENDED_COPY : copy[params.milestone];
+  const ending = !held && !recapture && params.milestone === "preparation_needs_attention" ? preparationEndingCopy(params.preparationEnding) : null;
+  const message = held ? earlyTaskHoldCopy(held) : recapture ? recaptureCopy(recapture) : ending ?? (capacityEnded ? CAPACITY_ENDED_COPY : copy[params.milestone]);
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   // Preparation notices never carry caller text: only a validated reference and,
@@ -565,6 +570,20 @@ export function buildTaskLifecycleNotification(params: {
 }
 
 /** A new-video ask's one email: the job page's title, reason and next step, in place of the needs-attention notice. */
+export type PreparationEnding = {reason: "website_preparation_not_possible" | "website_preparation_retries_spent"; cause?: string};
+/**
+ * A part-6 ending's one email (review, 2026-11-12): the job page's own title and sentences for it (the same
+ * constants), never a review promise. When it fires is unchanged; only what it says.
+ */
+function preparationEndingCopy(ending: PreparationEnding | undefined): (typeof copy)[TaskLifecycleMilestone] | null {
+  const outcome = ending?.reason === "website_preparation_not_possible" ? preparationNotPossible(ending.cause, ZERO_DIGEST)
+    : ending?.reason === "website_preparation_retries_spent" ? preparationRetriesSpent(ZERO_DIGEST) : null;
+  if (!outcome) return null;
+  return { subject: outcome.title,
+    body: (url, detail) => `${outcome.reason} ${outcome.nextStep}${detail ? `\n\n${finePrint(detail)}` : ""}\n\nOpen your job:\n${url}` };
+}
+const ZERO_DIGEST = `sha256:${"0".repeat(64)}`;
+
 function recaptureCopy(reason: RecaptureReason): (typeof copy)[TaskLifecycleMilestone] {
   return {
     subject: RECAPTURE_TITLE,
