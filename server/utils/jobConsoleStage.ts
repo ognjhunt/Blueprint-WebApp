@@ -132,7 +132,7 @@ export function closedJobStep(facts: JobFacts): Step {
 }
 
 const SCREENING_WAITS: Record<NonNullable<BlueprintScene["progressOutcome"]>, string> = {
-  awaiting_spend_approval: "Screening waits for spend approval: check the job's screening budget",
+  awaiting_spend_approval: "Screening waits on Blueprint: a limit on our side held it back",
   setup_repair: "Screening waits for a setup repair: check the screening plan's blockers",
   superseded: "Screening is planned again for the current candidates",
 };
@@ -140,7 +140,7 @@ const SCREENING_WAITS: Record<NonNullable<BlueprintScene["progressOutcome"]>, st
 /** Blueprint's own scene and screening: the next step, and any money or setup wait worth a glance. */
 function blueprintSceneStep(scene: BlueprintScene, attention: string[]): Step {
   const wait = scene.progressOutcome;
-  if (wait === "awaiting_spend_approval") attention.push("Money wait: the screening awaits spend approval");
+  if (wait === "awaiting_spend_approval") attention.push("Money wait: screening stopped at the job's own limit or at this month's account limit");
   if (wait === "setup_repair") attention.push("Setup wait: the screening needs a repair");
   switch (scene.state) {
     case "in_progress": return step("scene_preparation", "Pipeline is preparing the scene", "none");

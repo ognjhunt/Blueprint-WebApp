@@ -509,7 +509,24 @@ export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<
 }
 
 const OVER_BUDGET_ALERT_COLLECTION = "opsWebsiteJobOverBudgetAlerts";
+/** The per-job markers beside the over-budget ones (`websiteJobAlert` in websiteSceneSponsorship). */
+const JOB_ALERT_KINDS = ["safety_limit", "screening_over_safety_limit", "screening_job_ceiling", "spend_unreadable"] as const;
+type JobAlertKind = typeof JOB_ALERT_KINDS[number];
 const usd = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? `$${value.toFixed(2)}` : "unknown";
+
+const JOB_ALERT_LINE: Record<JobAlertKind, (value: Record<string, any>) => string> = {
+  safety_limit: value => `reached its safety limit of ${usd(value.safety_limit_usd ?? value.job_ceiling_usd)} `
+    + `(${usd(value.job_reserved_or_settled_before_usd)} already held or spent; ${usd(value.additional_cost_usd)} more was asked for). `
+    + "It was refused. Something may be broken: a person needs to look before this job spends more.",
+  screening_over_safety_limit: value => `: the Pipeline reported testing above this job's safety limit of ${usd(value.safety_limit_usd)} `
+    + `(limit $${value.limit_usd}, committed $${value.committed_upper_bound_usd}, campaign ${value.campaign_id}). `
+    + "The result was kept and counted in full, so the job admits no more spend. A person needs to look.",
+  screening_job_ceiling: value => `: testing held ${value.candidate_count ?? "some"} AI robot(s) back at this job's limit of `
+    + `${usd(value.job_ceiling_usd)} (campaign ${value.campaign_id}). Decide whether to raise it `
+    + "(scripts/amend-website-atlas-grant.ts).",
+  spend_unreadable: value => `: this job's spend cannot be read: ${(Array.isArray(value.records) ? value.records : []).join(", ")
+    || "a record"}${value.record_count > 20 ? ` and ${value.record_count - 20} more` : ""}. It is counted as before; a person needs to look.`,
+};
 
 /**
  * Owner decision 2026-11-10: a job whose grant names the automatic budget extension is
@@ -519,6 +536,9 @@ const usd = (value: unknown) => typeof value === "number" && Number.isFinite(val
  * recoverable delivery (Slack first, ops email as fallback). Internal only: nothing is
  * sent to the site. A site that withdrew consent is not reported. The account's monthly
  * limit is the host's; its 50/80/100% alerts are the host's own and are not repeated here.
+ *
+ * Owner decision 2026-11-11: the same collection carries one marker per job that reached its
+ * safety limit (the job ceiling, refused on every grant), reported here under its own title.
  */
 export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{ due: number; alerted: number }> {
   const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
@@ -527,6 +547,8 @@ export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{
   const rows = await store.collection(OVER_BUDGET_ALERT_COLLECTION).where("next_attempt_at_ms", "<=", now())
     .limit(Math.max(1, Math.min(deps.limit ?? 50, 200))).get();
   const claims: ClaimedAlert[] = [];
+  const jobClaims: Record<JobAlertKind, ClaimedAlert[]> = { safety_limit: [], screening_over_safety_limit: [], screening_job_ceiling: [],
+    spend_unreadable: [] };
   for (const row of rows.docs) {
     const ref = store.collection(OVER_BUDGET_ALERT_COLLECTION).doc(row.id), leaseId = randomUUID();
     const requestId = row.data()?.request_id;
@@ -549,16 +571,12 @@ export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{
         const delivery = claimDelivery(parsed.success ? parsed.data : pendingDelivery(), nowMs, leaseId);
         if (!delivery) return null;
         tx.set(ref, { delivery, next_attempt_at_ms: delivery.lease_until_ms, alerted_at_iso: null }, { merge: true });
-        return (marker.over_budget ?? {}) as Record<string, any>;
+        const kind = JOB_ALERT_KINDS.find(name => marker[name] && typeof marker[name] === "object");
+        return { overBudget: (marker.over_budget ?? {}) as Record<string, any>,
+          job: kind ? { kind, value: marker[kind] as Record<string, any> } : null };
       });
       if (!claimed) continue;
-      const passed = [claimed.allowance_exceeded ? `its ${claimed.allowance === "atlas_allowance" ? "Atlas allowance"
-        : "preparation allowance"} of ${usd(claimed.allowance_usd)}` : null,
-      claimed.job_ceiling_exceeded ? `its job budget of ${usd(claimed.job_ceiling_usd)}` : null].filter(Boolean).join(" and ");
-      claims.push({ id: row.id, line: `- request ${requestId} passed ${passed || "its original budget"} `
-        + `(${usd(claimed.job_reserved_or_settled_before_usd)} already held or spent before this reservation). `
-        + `It continues under the account's monthly limit. ${appBaseUrl()}/admin/leads/${encodeURIComponent(requestId)}`,
-      update: action => store.runTransaction(async tx => {
+      const update: ClaimedAlert["update"] = action => store.runTransaction(async tx => {
         const marker = (await tx.get(ref)).data() ?? {}, nowMs = now();
         const request = (await tx.get(store.collection("inboundRequests").doc(requestId))).data();
         const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
@@ -570,11 +588,34 @@ export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{
         tx.set(ref, { delivery: next.delivery, next_attempt_at_ms: next.due,
           alerted_at_iso: next.delivery.acknowledged_at_iso }, { merge: true });
         return true;
-      }) });
+      });
+      // Owner decision 2026-11-11: one alert per job for each thing about its safety limit a person needs to see.
+      if (claimed.job) {
+        const line = JOB_ALERT_LINE[claimed.job.kind](claimed.job.value);
+        jobClaims[claimed.job.kind].push({ id: row.id, line: `- request ${requestId}${line.startsWith(":") ? "" : " "}${line} `
+          + `${appBaseUrl()}/admin/leads/${encodeURIComponent(requestId)}`, update });
+        continue;
+      }
+      const over = claimed.overBudget;
+      const passed = [over.allowance_exceeded ? `its ${over.allowance === "atlas_allowance" ? "Atlas allowance"
+        : "preparation allowance"} of ${usd(over.allowance_usd)}` : null,
+      over.job_ceiling_exceeded ? `its job budget of ${usd(over.job_ceiling_usd)}` : null].filter(Boolean).join(" and ");
+      claims.push({ id: row.id, line: `- request ${requestId} passed ${passed || "its original budget"} `
+        + `(${usd(over.job_reserved_or_settled_before_usd)} already held or spent before this reservation). `
+        + `It continues under the account's monthly limit. ${appBaseUrl()}/admin/leads/${encodeURIComponent(requestId)}`, update });
     } catch (error) {
       logger.warn({ err: error, alertId: row.id }, "Could not claim a website job over-budget alert");
     }
   }
-  return { due: rows.docs.length, alerted: await report(claims, deps, "website_job_over_budget",
-    "Website jobs passed their original budget (automatic budget extension)") };
+  const alerted = await report(claims, deps, "website_job_over_budget",
+    "Website jobs passed their original budget (automatic budget extension)")
+    + await report(jobClaims.safety_limit, deps, "website_job_safety_limit",
+      "Website jobs reached their safety limit and need a person to look")
+    + await report(jobClaims.screening_over_safety_limit, deps, "website_job_screening_over_safety_limit",
+      "The Pipeline reported testing above a website job's safety limit")
+    + await report(jobClaims.screening_job_ceiling, deps, "website_job_screening_job_ceiling",
+      "Website job testing held robots back at the job's limit")
+    + await report(jobClaims.spend_unreadable, deps, "website_job_spend_unreadable",
+      "A website job's spend cannot be read");
+  return { due: rows.docs.length, alerted };
 }

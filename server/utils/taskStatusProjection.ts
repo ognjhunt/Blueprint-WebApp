@@ -263,7 +263,7 @@ export function resultOutranksWindowEnding(input: { screening?: SceneScreening |
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
 const ENDED_REASON: Record<string, string> = {
   retry_exhausted: "We tried several times and could not get past a problem on our side.",
-  budget_exhausted: "Your scene needed more processing than the free beta provides for one job.",
+  budget_exhausted: "Preparation stopped at a limit on our side.",
   capacity_blocked: "Our processing capacity stayed full for too long.",
   permanent_invalid: "We could not read this recording.",
   out_of_scope: "This job is outside what the beta can build a scene for.",
@@ -653,7 +653,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
         : preparation.robotFit?.status === "completed"
           ? "Your robot fit check is ready: the robots that fit your job on paper are listed below. It is an estimate from published specs and your video; no robot has been tried on this job."
           : "Blueprint could not check robot fit for this job. The reason is below. Keep your original recording.",
-      capacity_delayed: "Your recording is saved and queued. It is waiting for processing capacity on our side; nothing is needed from you. Keep your original recording.",
+      // One sentence for every capacity wait the Pipeline reports this way (this month's room, disk or staging).
+      capacity_delayed: "Your recording is saved and your job is in line for processing on our side; nothing is needed from you. Keep your original recording.",
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
       failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
       // Final, never a hold: the job's own window says whether its time ran out.

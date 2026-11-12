@@ -32,8 +32,27 @@ export const screeningMoneyMicros = (value: string) => {
   const [whole, fraction = ""] = value.split(".");
   return BigInt(whole) * BigInt(1_000_000) + BigInt(fraction.padEnd(6, "0"));
 };
-/** The beta-screening site ledger's standing allowance, shared across a site's campaigns. */
-export const SCREENING_SITE_LIMIT_USD = 30;
+/**
+ * The beta-screening site allowance before 2026-11-11, shared across a site's campaigns. The Pipeline
+ * still publishes this figure for a site whose campaigns were planned before then (its
+ * `LEGACY_SITE_LIMIT_USD`), so a publication at or under it is never reported as above a job's limit.
+ */
+export const SCREENING_LEGACY_SITE_LIMIT_USD = 30;
+/**
+ * The only budget figure a publication is refused for (owner decision 2026-11-11): a limit above the
+ * largest job ceiling there can be, an owner authorization row's maximum (`websiteAtlasAuthorization`,
+ * $1000, also the per-reservation bound). No job can be planned above it, so a publication naming more
+ * is malformed rather than a job that spent more. Anything at or under it is accepted, whatever its job:
+ * refusing a result un-spends nothing and only hides results the job already paid for. Testing reported
+ * above a job's safety limit is counted in full and reported (`screeningPublicationAboveSafetyLimit`).
+ */
+export const SCREENING_PUBLICATION_LIMIT_MAX_USD = 1000;
+/** Whether a publication's limit or committed total is above the job's safety limit (or the legacy $30, if larger). */
+export function screeningPublicationAboveSafetyLimit(budget: { limit_usd: string; committed_upper_bound_usd: string },
+  safetyLimitUsd: number) {
+  const bound = BigInt(Math.floor(Math.max(safetyLimitUsd, SCREENING_LEGACY_SITE_LIMIT_USD) * 1_000_000));
+  return screeningMoneyMicros(budget.limit_usd) > bound || screeningMoneyMicros(budget.committed_upper_bound_usd) > bound;
+}
 export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred", "infeasible"]);
 /**
  * `waitlisted`: runnable, waiting for site budget a funded candidate may
@@ -243,8 +262,8 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
   if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
     .every(amount => dollars.safeParse(amount).success)) return;
   const limit = screeningMoneyMicros(budget.limit_usd), committed = screeningMoneyMicros(budget.committed_upper_bound_usd);
-  if (limit > BigInt(SCREENING_SITE_LIMIT_USD * 1_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
-    || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: `Screening must retain the shared $${SCREENING_SITE_LIMIT_USD} site ceiling` });
+  if (limit > BigInt(SCREENING_PUBLICATION_LIMIT_MAX_USD * 1_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
+    || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: `Screening must stay within its limit, at most $${SCREENING_PUBLICATION_LIMIT_MAX_USD}` });
   if (new Set(value.candidates.map(row => row.candidate_id)).size !== value.candidates.length)
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Candidate identities must be unique" });
   const states = new Set<string>(value.candidates.map(row => row.status));
@@ -512,10 +531,10 @@ const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   infeasible: "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.",
   no_match: "No match: none of the robots we can simulate matched this job. At least one was measured out of reach from the robot position planned in the scene built from your video.",
   held_setup: `Held: a problem on our side stopped the simulation of your job before it gave an estimate. ${SETUP_NEXT}`,
-  held_budget: `Held: your job reached the most the free beta can simulate for one job before it gave an estimate. ${ATTENTION_NEXT}`,
+  held_budget: `Held: your job reached a limit on our side before it gave an estimate. ${ATTENTION_NEXT}`,
   held_scene_check: `Held: the simulation built from your video failed the check we run before testing robots, so no robot was tested on your job. ${ATTENTION_NEXT}`,
   // An internal limit is Blueprint's own control, never a step for the site, and is never named.
-  awaiting_spend_approval: "Blueprint is deciding whether to continue simulating your job.",
+  awaiting_spend_approval: "Your job is paused on our side. Nothing is needed from you.",
   setup_repair: SETUP_REPAIR_SENTENCE,
   superseded: "Continued in a newer run.",
 };
@@ -532,7 +551,7 @@ const SIMULATION_OUTCOME_EMAIL_SENTENCE: Readonly<Record<Exclude<ScreeningOutcom
   infeasible: "From the robot position planned in the scene built from your video, none of the robots the simulation can run could reach the task.",
   no_match: "None of the robots the simulation can run matched this task. At least one was measured out of reach from the robot position planned in the scene built from your video.",
   held_setup: `A problem on our side stopped the simulation before it finished. ${SETUP_NEXT}`,
-  held_budget: `The simulation reached the most the free beta can run for one job before it finished. ${ATTENTION_NEXT}`,
+  held_budget: `The simulation stopped at a limit on our side before it finished. ${ATTENTION_NEXT}`,
   held_scene_check: `The simulated scene failed the check we run before testing robots, so no robot was tested in it. ${ATTENTION_NEXT}`,
 };
 /** A held or reference-only outcome's email sentence, said about the simulation. */

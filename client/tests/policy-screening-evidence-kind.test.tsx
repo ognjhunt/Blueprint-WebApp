@@ -36,7 +36,7 @@ it("states each scored candidate's bounded estimate in plain words, and the chos
   expect(screen.getByText("“Likely between” is a 95% confidence range from the scored tries, for this simulated scene only. "
     + "It assumes each try is independent; fewer tries give a wider range.")).toBeInTheDocument();
   // Held back by the job's dollar ceiling: the site reads that it did not run, never a money figure or code.
-  expect(screen.getByText("Not run in this evaluation.")).toBeInTheDocument();
+  expect(screen.getByText("Not run: this job reached a limit on our side. Nothing is needed from you.")).toBeInTheDocument();
   expect(document.body.textContent).not.toMatch(/ceiling|budget|\$|[a-z]_[a-z]/i);
 });
 

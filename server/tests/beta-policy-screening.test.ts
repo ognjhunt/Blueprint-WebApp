@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { noEstimateReason as screeningNoEstimateReason, parseBetaPolicyScreeningPublication, screeningOutcome, screeningOutcomeSentence,
-  screeningPublicationTransition, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
+  screeningPublicationAboveSafetyLimit, screeningPublicationTransition, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, preparedSceneRevisionDigest, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
@@ -234,7 +234,7 @@ describe("automatic many-candidate job evaluation", () => {
     for (const budget of [
       { ...publication.budget, committed_upper_bound_usd: "15.000001", reserved_usd: "15.000001" },
       { ...publication.budget, committed_upper_bound_usd: "2", spent_upper_bound_usd: "1", reserved_usd: "0" },
-      { ...publication.budget, limit_usd: "30.000001" }, { ...publication.budget, reserved_usd: "NaN" },
+      { ...publication.budget, limit_usd: "1000.000001" }, { ...publication.budget, reserved_usd: "NaN" },
     ]) expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, budget }))).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, candidates: [publication.candidates[0], publication.candidates[0]] }))).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, candidates: [{ ...publication.candidates[0], episodes_scored: 1 }] }))).toBeNull();
@@ -292,12 +292,31 @@ describe("automatic many-candidate job evaluation", () => {
     const raised = sealScreening({ ...finished, revision: 3, budget: { ...finished.budget, limit_usd: "30" } });
     expect(screeningPublicationTransition(finished, raised)).toBe("updated");
     // A limit is never above the shared ceiling, and never below what is committed.
-    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...raised, budget: { ...raised.budget, limit_usd: "30.000001" } }))).toBeNull();
+    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...raised, budget: { ...raised.budget, limit_usd: "1000.000001" } }))).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...raised, budget: { ...raised.budget, limit_usd: "0",
       committed_upper_bound_usd: "1", spent_upper_bound_usd: "1", reserved_usd: "0" } }))).toBeNull();
     // Everything else that names the campaign is still fixed.
     expect(() => screeningPublicationTransition(finished, sealScreening({ ...raised, plan_digest: screeningSha("9") })))
       .toThrow("screening_campaign_identity_conflict");
+  });
+
+  // Owner decision 2026-11-11: a result is never refused for its budget figures, only past the absolute $1000 cap.
+  it("accepts any limit up to $1000, keeps today's publications valid, and says when one is above a job's safety limit", () => {
+    const { publication } = screeningFixture();
+    const withBudget = (limit: string, committed = "0") => sealScreening({ ...publication,
+      budget: { currency: "USD", limit_usd: limit, committed_upper_bound_usd: committed, spent_upper_bound_usd: committed, reserved_usd: "0" } });
+    for (const [limit, committed] of [["15", "15"], ["30", "26.63"], ["100", "51"], ["150", "120"], ["1000", "1000"]])
+      expect(parseBetaPolicyScreeningPublication(withBudget(limit, committed))).not.toBeNull();
+    expect(parseBetaPolicyScreeningPublication(withBudget("1000.000001"))).toBeNull();
+    expect(parseBetaPolicyScreeningPublication(withBudget("10", "11"))).toBeNull();
+    const above = (limit: string, committed: string, safety: number) =>
+      screeningPublicationAboveSafetyLimit({ limit_usd: limit, committed_upper_bound_usd: committed }, safety);
+    expect(above("100", "51", 100)).toBe(false);
+    expect(above("100.000001", "0", 100)).toBe(true);
+    expect(above("100", "100.000001", 100)).toBe(true);
+    // The legacy $30 site limit is never reported, even on a job whose safety limit is lower.
+    expect(above("30", "26.63", 25)).toBe(false);
+    expect(above("30.000001", "0", 25)).toBe(true);
   });
 
   it("funds a waitlisted candidate from released money without reopening a closed one", () => {
@@ -389,7 +408,7 @@ describe("automatic many-candidate job evaluation", () => {
     const projected = projectManagedJobEvidence(value.campaign_id, run, { record_id: "result-one", publication: value },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
     expect(projected).toMatchObject({ state: "awaiting_spend_approval", outcome: "awaiting_spend_approval",
-      summary: "Blueprint is deciding whether to continue simulating your job.",
+      summary: "Your job is paused on our side. Nothing is needed from you.",
       nextAction: "Nothing is needed from you." });
     expect(projected.opsNextAction).toBe("Owner approval needed: this job's dollar ceiling, shared by all of its spending, has too little left "
       + "to run its candidates. Raising it is the owner's money decision. Nothing is needed from the site.");
@@ -497,12 +516,12 @@ describe("automatic many-candidate job evaluation", () => {
     // The other candidates hit the site's allowance after money was spent, and nothing reserves more:
     // held by name, never "in progress" with no rerun coming.
     expect([projected.state, projected.outcome]).toEqual(["held", "held_budget"]);
-    expect(projected.summary).toMatch(/^Held: your job reached the most the free beta can simulate for one job/);
+    expect(projected.summary).toMatch(/^Held: your job reached a limit on our side before it gave an estimate/);
     expect(projected.summary).toMatch(/won't restart by itself\. Our team has been told/);
     // Spending past it is the owner's to decide: the site reads no instruction and no budget.
     expect(projected.nextAction).toBe("Nothing is needed from you. Each row lists why it stopped.");
     expect(`${projected.summary} ${projected.nextAction}`).not.toMatch(/budget|owner approval|\$/i);
-    expect(projected.opsNextAction).toMatch(/^Held: the site's simulation allowance is spent/);
+    expect(projected.opsNextAction).toMatch(/^Held: testing reached a limit on our side/);
     expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
     expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
   });
@@ -722,7 +741,7 @@ describe("one outcome per run, in one plain sentence (F-03)", () => {
     const sentences = SCREENING_OUTCOMES.map(screeningOutcomeSentence);
     // A wait on Blueprint's money decision says so; a re-plan after a deploy is in progress.
     expect(new Set(sentences).size).toBe(SCREENING_OUTCOMES.length);
-    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe("Blueprint is deciding whether to continue simulating your job.");
+    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe("Your job is paused on our side. Nothing is needed from you.");
     // A failure on our side may run again after a later deploy (the Pipeline replans a harness failure then),
     // so the site is never told it won't restart; a spent allowance or a failed scene check does not restart.
     // WP-14: nothing schedules that rerun, so it is not promised; the page and the email read this one sentence.

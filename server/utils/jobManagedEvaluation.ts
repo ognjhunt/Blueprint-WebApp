@@ -317,12 +317,16 @@ const SITE_NEXT_ACTION: Readonly<Record<ScreeningOutcome, string>> = {
 /** Blueprint's own next step, shown in operations views only. */
 const OPS_NEXT_ACTION: Partial<Record<ScreeningOutcome, string>> = {
   held_setup: "Held on our side: fix the cause in each candidate's blockers, then rerun. Once the fix deploys, the Pipeline plans a harness failure again by itself (a bounded number of times); rerun anything else by hand. Nothing is needed from the site.",
-  held_budget: "Held: the site's simulation allowance is spent and nothing reserves more. Spending past it is an owner decision. Nothing is needed from the site.",
+  held_budget: "Held: testing reached a limit on our side (the job's limit or the site's screening limit) before an estimate. Check for a fault; raising a job's limit is an owner decision (scripts/amend-website-atlas-grant.ts). Nothing is needed from the site.",
   held_scene_check: "Held: the scene failed its robot-free check, so no campaign started. Rebuild or re-probe the scene to continue. Nothing is needed from the site.",
-  awaiting_spend_approval: "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site.",
+  awaiting_spend_approval: "Waiting on Blueprint: the job's limit held testing back (a run the account's monthly limit kept from starting reads the same). Check for a fault; raise the job with scripts/amend-website-atlas-grant.ts if it is right. Nothing is needed from the site.",
   setup_repair: "Rows refused for code a deploy changed are planned again at the new release by the Pipeline itself. Nothing is needed from the site.",
 };
-/** When the job's dollar ceiling, not the screening budget, is what held the candidates back. */
+/**
+ * When the job's dollar ceiling, not the screening budget, is what held the candidates back. A publication's
+ * `awaiting_spend_approval` always has such a row, so its OPS_NEXT_ACTION line above is not shown today (a hold run has no
+ * result record and never reaches here); it is kept correct for safety.
+ */
 const OPS_JOB_CEILING_NEXT_ACTION = "Owner approval needed: this job's dollar ceiling, shared by all of its spending, has too little left "
   + "to run its candidates. Raising it is the owner's money decision. Nothing is needed from the site.";
 const opsNextAction = (outcome: ScreeningOutcome, candidates: BetaPolicyScreeningPublication["candidates"]) =>

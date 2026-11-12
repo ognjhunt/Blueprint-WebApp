@@ -14,7 +14,8 @@ import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 import { websiteAtlasRuntimePolicy, atlasAllowanceUsage, resolveWebsiteAtlasGrant, websiteAtlasAutomaticLane,
-  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, websiteAtlasSourceVideoIdentity, type AtlasAuxiliaryProvider } from "./websiteAtlasAuthorization";
+  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, websiteAtlasSourceVideoIdentity, type AtlasAuxiliaryProvider,
+  parseWebsiteAtlasStoredGrant, WEBSITE_ATLAS_STORED_GRANT_MAXIMUM_COST_USD } from "./websiteAtlasAuthorization";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -63,10 +64,12 @@ export const WEBSITE_SCENE_MAX_RETRIES: readonly number[] = [0, 1];
 export const WEBSITE_SCENE_CONFIGURATION_MAX_RETRIES = 1;
 /**
  * Owner decision 2026-11-10: one hard money stop, the account's monthly limit. A new grant
- * names `automatic_budget_extension: true`, so the job's own dollar figures (the upstream
- * preparation cap, its Atlas allowance and the job ceiling) are its expected budget, not a
- * wall: a reservation the Pipeline asks for, after its own account-limit precheck, is
- * admitted past them with a note, and ops is told once per job and grant. Grant expiry, the
+ * names `automatic_budget_extension: true`, so the job's inner dollar figures (the upstream
+ * preparation cap and its Atlas allowance) are its expected budget, not a wall: a reservation
+ * the Pipeline asks for, after its own account-limit precheck, is admitted past them with a
+ * note, and ops is told once per job and grant. The job ceiling is passed the same way, up to the
+ * job's safety limit (owner decision 2026-11-11, `websiteJobSafetyLimitUsd`), which nothing passes
+ * (`WEBSITE_JOB_SAFETY_LIMIT_REACHED`). Grant expiry, the
  * per-reservation limit, rights, consent and terms are unchanged. On by default; the
  * non-secret setting `BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION=false` turns it off for
  * new grants. It is read only when a grant is first issued and is never part of the hashed
@@ -96,6 +99,55 @@ export async function websiteJobOverBudgetAlert(store: { collection(name: string
   return () => transaction.set(alertRef, { request_id: requestId, sponsorship_digest: overBudget.sponsorship_digest,
     ...source, over_budget: overBudget, delivery: null, next_attempt_at_ms: Date.now(), alerted_at_iso: null });
 }
+/**
+ * Owner decision 2026-11-11: each job has one safety limit (`websiteJobSafetyLimitUsd`), whose only
+ * purpose is to stop a bug from burning the month in one job. A build reservation or intake on a grant
+ * naming the automatic budget extension that would take the job's counted total past it is refused;
+ * every other rule is as before. The refusal keeps the code the Pipeline already reads as the job's
+ * ceiling reached (`job_ceiling_reached`) and ends preparation on; a new code would be an unknown
+ * refusal to a released Pipeline.
+ */
+export const WEBSITE_JOB_SAFETY_LIMIT_REACHED = "website_scene_preparation_budget_exhausted";
+const SAFETY_LIMIT_REACHED = Symbol("website_job_safety_limit_reached");
+/**
+ * One ops alert per job and kind, each a job a person needs to look at: `safety_limit`, spend refused at
+ * the job's safety limit; `screening_over_safety_limit`, the Pipeline reported testing above it;
+ * `screening_job_ceiling`, testing held robots back at the job's limit; `spend_unreadable`, a record the
+ * job's spend is counted from cannot be read, so a person needs to look at it.
+ */
+export const WEBSITE_JOB_ALERT_KINDS = ["safety_limit", "screening_over_safety_limit", "screening_job_ceiling", "spend_unreadable"] as const;
+export type WebsiteJobAlertKind = typeof WEBSITE_JOB_ALERT_KINDS[number];
+export const websiteJobAlertId = (requestId: string, kind: WebsiteJobAlertKind) => `${requestId}-${kind.replace(/_/g, "-")}`;
+export const websiteJobSafetyLimitAlertId = (requestId: string) => websiteJobAlertId(requestId, "safety_limit");
+export function websiteJobSafetyLimitRecord(job: { ceiling: { maximum_cost_usd: number; source: string };
+  spend: { readable_total_micros: number }; safetyLimitUsd: number }, at: Record<string, string | number>) {
+  return { schema_version: "website_job_safety_limit.v1", safety_limit_usd: job.safetyLimitUsd,
+    job_ceiling_usd: job.ceiling.maximum_cost_usd, job_ceiling_source: job.ceiling.source,
+    // What the records that can be read add up to: the figure the safety limit refused on.
+    job_reserved_or_settled_before_usd: job.spend.readable_total_micros / 1_000_000,
+    ...at, recorded_at_epoch: Date.now() / 1000 };
+}
+/** Reads (inside the caller's transaction, before its writes) whether this job already has its one
+ * alert of this kind, and returns the write that records it if not. */
+export async function websiteJobAlert(store: { collection(name: string): any },
+  transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
+  kind: WebsiteJobAlertKind, value: Record<string, unknown>) {
+  const alertRef = store.collection(OVER_BUDGET_ALERT_COLLECTION).doc(websiteJobAlertId(requestId, kind));
+  if ((await transaction.get(alertRef)).exists) return () => {};
+  return () => transaction.set(alertRef, { request_id: requestId, [kind]: value, delivery: null,
+    next_attempt_at_ms: Date.now(), alerted_at_iso: null });
+}
+/** The job's one `spend_unreadable` alert, when any record its spend is counted from cannot be read. */
+export async function websiteJobSpendUnreadableAlert(store: { collection(name: string): any },
+  transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
+  spend: { unreadable: string[] }, at: Record<string, string>) {
+  if (!spend.unreadable.length) return () => {};
+  return websiteJobAlert(store, transaction, requestId, "spend_unreadable", { schema_version: "website_job_spend_unreadable.v1",
+    records: spend.unreadable.slice(0, 20), record_count: spend.unreadable.length, ...at, recorded_at_epoch: Date.now() / 1000 });
+}
+export const websiteJobSafetyLimitAlert = (store: { collection(name: string): any },
+  transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
+  safetyLimit: Record<string, unknown>) => websiteJobAlert(store, transaction, requestId, "safety_limit", safetyLimit);
 const policySchema = z.object({
   owner: z.object({ user_id: z.string().trim().min(1), organization_id: z.string().trim().min(1) }).strict(),
   upstream_max_spend_usd: money,
@@ -935,6 +987,77 @@ export async function amendWebsitePreparationRequestLimit(
   }));
 }
 
+const atlasGrantFigureAmendment = z.object({
+  capture_id: z.string().trim().min(1).max(200),
+  authorization_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  maximum_cost_usd: z.number().finite().positive().max(WEBSITE_ATLAS_STORED_GRANT_MAXIMUM_COST_USD),
+  approved_by: z.string().trim().min(1),
+  approval_reference: z.string().trim().min(1).max(1000),
+  // When the owner approved it (a date, or a date and time), recorded apart from when it was applied.
+  approved_at_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}(T[0-9:.]+(Z|[+-]\d{2}:\d{2}))?$/)
+    .refine(value => Number.isFinite(Date.parse(value)), "approved_at_iso must be a date"),
+}).strict();
+export const WEBSITE_ATLAS_GRANT_AMENDMENT_SCHEMA = "website_atlas_grant_figure_amendment.v1";
+
+/**
+ * Operator-only owner amendment (owner decision 2026-11-11): raises one job's stored automatic
+ * Atlas grant figure, and with it the job's stored ceiling, up to the stored grant schema's maximum
+ * ($100). The job's safety limit, max(stored ceiling, $100), does not change. Nothing else in the grant changes: its consent, terms, source, owner, request
+ * count, approval reference and expiry stay as issued, so the Pipeline's resume check
+ * (`website_atlas_pipeline._same_authority`) reads it as the same grant with a raised figure and
+ * continues the job. An owner authorization row would replace the grant instead and stop the job's
+ * remaining Atlas work. The owner's approval is recorded in the job's amendment list with the prior
+ * and new figure and digest. Never a public or Pipeline API. `apply` false changes nothing and
+ * returns what would change; the same amendment applied again returns the stored receipt.
+ */
+export async function amendWebsiteAtlasGrantFigure(
+  requestId: string, input: z.infer<typeof atlasGrantFigureAmendment>, apply = false,
+) {
+  const command = atlasGrantFigureAmendment.parse(input);
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const store = db;
+  return storeTimeout(store.runTransaction(async transaction => {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const record = (await transaction.get(ref)).data();
+    const stored = record?.website_atlas_grants?.[command.capture_id];
+    if (!record || stored === undefined) throw new Error("website_atlas_grant_missing");
+    const grant = parseWebsiteAtlasStoredGrant(stored);
+    if (!grant || grant.request_id !== requestId || grant.capture_id !== command.capture_id)
+      throw new Error("website_atlas_authorization_invalid");
+    const amendments: Record<string, any>[] = Array.isArray(record.website_atlas_grant_amendments)
+      ? record.website_atlas_grant_amendments : [];
+    const last = [...amendments].reverse().find(row => row?.capture_id === command.capture_id);
+    // The same owner amendment again: the grant already carries it.
+    if (last && last.to_maximum_cost_usd === command.maximum_cost_usd && last.approval_reference === command.approval_reference
+      && last.authorization_digest === digest(grant) && grant.maximum_cost_usd === command.maximum_cost_usd)
+      return { status: "already_applied" as const, receipt: last };
+    if (digest(grant) !== command.authorization_digest
+      || command.approved_by !== record.website_scene_sponsorship?.owner?.user_id)
+      throw new Error("website_atlas_grant_amendment_binding_invalid");
+    if (grant.expires_at_epoch <= Date.now() / 1000) throw new Error("website_atlas_consent_expired");
+    if (!projectWebsiteCaptureRights(record).derived_scene_generation_allowed) throw new Error("source_revoked");
+    // A run the owner closed (or a capture another one replaced) is not raised.
+    assertWebsiteRunOpen(record, requestId, command.capture_id);
+    const approvedAt = Date.parse(command.approved_at_iso) / 1000;
+    if (approvedAt > Date.now() / 1000) throw new Error("website_atlas_grant_amendment_approval_in_future");
+    if (command.maximum_cost_usd <= grant.maximum_cost_usd) throw new Error("website_atlas_grant_amendment_not_increased");
+    const amended = parseWebsiteAtlasStoredGrant({ ...grant, maximum_cost_usd: command.maximum_cost_usd });
+    if (!amended) throw new Error("website_atlas_grant_amendment_out_of_bounds");
+    const value = { schema_version: WEBSITE_ATLAS_GRANT_AMENDMENT_SCHEMA, request_id: requestId,
+      capture_id: command.capture_id, approved_by: command.approved_by, approval_reference: command.approval_reference,
+      from_maximum_cost_usd: grant.maximum_cost_usd, to_maximum_cost_usd: command.maximum_cost_usd,
+      prior_authorization_digest: command.authorization_digest, authorization_digest: digest(amended),
+      approved_at_iso: command.approved_at_iso, approved_at_epoch: approvedAt, applied_at_epoch: Date.now() / 1000 };
+    const receipt = { ...value, amendment_digest: digest(value) };
+    const change = { path: `inboundRequests/${requestId}.website_atlas_grants.${command.capture_id}.maximum_cost_usd`,
+      from: grant.maximum_cost_usd, to: command.maximum_cost_usd };
+    if (apply) transaction.update(ref, {
+      website_atlas_grants: { ...record.website_atlas_grants, [command.capture_id]: amended },
+      website_atlas_grant_amendments: [...amendments, receipt] });
+    return { status: apply ? "applied" as const : "preview" as const, change, receipt };
+  }));
+}
+
 function preparationObservationBinding(requestId: string, captureId: string, command: z.infer<typeof preparationSpendRequest>) {
   return { request_id: requestId, scene_id: `site-${requestId}`, capture_id: captureId,
     command_digest: digest(command), task_context_digest: command.task_context_digest,
@@ -1060,7 +1183,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
   // this is exactly the existing path.
   const automaticAtlas = atlasRequested && websiteAtlasAutomaticLane({ requestId, captureId,
     taskContextDigest: command.task_context_digest, sourceVideoDigest: command.source_video_digest });
-  return storeTimeout(store.runTransaction(async transaction => {
+  const result = await storeTimeout(store.runTransaction(async transaction => {
     const ref = store.collection("inboundRequests").doc(requestId);
     const [request, brief, inventory] = await Promise.all([
       transaction.get(ref), transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
@@ -1174,7 +1297,20 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     // every ledger this job spends from must also fit under the job's ceiling.
     const job = await checkWebsiteJobCeiling({ record, captureId, requestId, atlas,
       reader: transactionJobLedgerReader(store, transaction, requestId), additionalCostUsd: command.maximum_cost_usd });
-    if (job.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
+    // Owner decision 2026-11-11: a record whose figure cannot be read is counted as before and
+    // reported once per job, whatever this admission decides (so a refusal records it too).
+    const recordUnreadable = await websiteJobSpendUnreadableAlert(store, transaction, requestId, job.spend,
+      { stage: "preparation_reservation", reservation_key: key });
+    if (job.exceeded && !extended) { recordUnreadable(); return SAFETY_LIMIT_REACHED; }
+    // Owner decision 2026-11-11: past the job's ceiling a flagged grant still builds with a note, but
+    // never past its safety limit, a fuse against a bug burning the month in one job. The job's one
+    // safety-limit alert is recorded and the refusal is thrown once this transaction commits.
+    if (extended && job.pastSafetyLimit) {
+      const recordSafety = await websiteJobSafetyLimitAlert(store, transaction, requestId, websiteJobSafetyLimitRecord(job,
+        { stage: "preparation_reservation", reservation_key: key, additional_cost_usd: command.maximum_cost_usd }));
+      recordSafety(); recordUnreadable();
+      return SAFETY_LIMIT_REACHED;
+    }
     const overBudget = extended && (pastAllowance || job.exceeded) ? {
       schema_version: "website_job_over_budget.v1", basis: "automatic_budget_extension",
       sponsorship_digest: rootAuthority.authority_digest,
@@ -1203,8 +1339,11 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
         observation_binding: preparationObservationBinding(requestId, captureId, command),
         ...(overBudget ? { over_budget: overBudget } : {}) } } });
     recordAlert();
+    recordUnreadable();
     return admission;
   }));
+  if (result === SAFETY_LIMIT_REACHED) throw new Error(WEBSITE_JOB_SAFETY_LIMIT_REACHED);
+  return result;
 }
 
 /** Planning configuration, never dispatch authority. create:false is strictly
@@ -1256,7 +1395,8 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
     const usage = atlasAllowanceUsage(record.website_preparation_reservations || {});
     const policy = websiteAtlasRuntimePolicy();
     // The job's one ceiling across all of its ledgers; the allowance figures above stay Atlas-only.
-    const jobCeiling = websiteJobCeilingSummary(websiteJobCeiling({ record, captureId, requestId, atlas: authority }),
+    const ceiling = websiteJobCeiling({ record, captureId, requestId, atlas: authority });
+    const jobCeiling = websiteJobCeilingSummary(ceiling,
       await websiteJobSpend({ record, reader: transactionJobLedgerReader(store, transaction, requestId) }));
     // First writer wins: a concurrent creation retries this transaction and then reads it.
     if (created && input.create !== false)

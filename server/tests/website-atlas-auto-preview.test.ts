@@ -46,7 +46,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   } };
 });
 
-import { loadWebsiteAtlasConfiguration, observeWebsitePreparationSpend, reserveWebsitePreparationSpend,
+import { amendWebsiteAtlasGrantFigure, loadWebsiteAtlasConfiguration, observeWebsitePreparationSpend, reserveWebsitePreparationSpend,
   settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 import { websitePreparationAccounting } from "../utils/websitePreparationAccounting";
@@ -339,12 +339,15 @@ describe("non-authorizing Atlas configuration read", () => {
       expect(alerts).toHaveLength(0);
       return;
     }
+    // As on main: admitted past the $2 allowance and ceiling with a note. The safety limit is the owner's
+    // fixed $100, never the $2 hosting setting (owner decision 2026-11-11), so it does not stop this.
     expect(second.status).toBe(200);
     expect(second.body).toMatchObject({ status: "admitted", maximum_cost_usd: 1.5 });
     expect(ledger["1".repeat(64)]).not.toHaveProperty("over_budget");
     expect(ledger["2".repeat(64)].over_budget).toMatchObject({ basis: "automatic_budget_extension",
       allowance: "atlas_allowance", allowance_usd: 2, allowance_exceeded: true, job_ceiling_exceeded: true });
     expect(alerts).toHaveLength(1);
+    expect(alerts[0].endsWith("-safety-limit")).toBe(false);
   });
 
   it("accounts each retained hold or settlement once without exposing raw record fields", async () => {
@@ -596,6 +599,111 @@ const ready = (revision = 2) => preview({ revision, state: "ready", updated_at_e
   bundle: { digest: bundleDigest, size_bytes: bundleBytes.length, filename: "atlas-preview-walkthrough-req1.zip" },
   splat_available: true, mesh_available: true });
 
+// Owner decision 2026-11-11: the owner raises one existing job's safety limit by amending its stored grant's own figure.
+describe("owner amendment of a stored Atlas grant's figure", () => {
+  const OWNER = "blueprint-preparation", CAPTURE = "walkthrough-req1";
+  async function grantedJob() {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    const created = await configure();
+    const payload = { owner: { user_id: OWNER }, expires_at_epoch: Date.now() / 1000 + 3600 };
+    store.rows.get(REQUEST).website_scene_sponsorship = { ...payload, authority_digest: crossRuntimeDigest(payload) };
+    return created.authority;
+  }
+  const amend = (authorization_digest: string, maximum_cost_usd: number, apply: boolean, overrides: Record<string, unknown> = {}) =>
+    amendWebsiteAtlasGrantFigure("req1", { capture_id: CAPTURE, authorization_digest, maximum_cost_usd, approved_by: OWNER,
+      approval_reference: "Owner approval 2026-11-12: raise this job's safety limit to $5", approved_at_iso: "2026-11-12",
+      ...overrides }, apply);
+  // The Pipeline's resume check (website_atlas_pipeline._same_authority): only these may change, and the figures only rise.
+  const pipelineAcceptsResume = (stored: Record<string, any>, current: Record<string, any>) => {
+    const amendable = new Set(["maximum_cost_usd", "maximum_requests", "approval_reference", "expires_at_epoch", "authorization_digest"]);
+    const rest = (value: Record<string, any>) => crossRuntimeDigest(Object.fromEntries(Object.entries(value).filter(([key]) => !amendable.has(key))));
+    return rest(stored) === rest(current) && ["maximum_cost_usd", "maximum_requests"]
+      .every(key => !(key in current) || current[key] >= stored[key]);
+  };
+
+  it("previews exactly what would change and writes nothing", async () => {
+    const authority = await grantedJob();
+    const before = structuredClone(store.rows.get(REQUEST));
+    store.writes.length = 0;
+    const preview = await amend(authority.authorization_digest, 5, false);
+    expect(preview).toMatchObject({ status: "preview",
+      change: { path: `inboundRequests/req1.website_atlas_grants.${CAPTURE}.maximum_cost_usd`, from: 2, to: 5 },
+      receipt: { schema_version: "website_atlas_grant_figure_amendment.v1", from_maximum_cost_usd: 2, to_maximum_cost_usd: 5,
+        prior_authorization_digest: authority.authorization_digest, approved_by: OWNER,
+        approval_reference: "Owner approval 2026-11-12: raise this job's safety limit to $5",
+        approved_at_iso: "2026-11-12", approved_at_epoch: Date.parse("2026-11-12") / 1000, applied_at_epoch: expect.any(Number) } });
+    expect(store.rows.get(REQUEST)).toEqual(before);
+    expect(store.writes).toEqual([]);
+  });
+
+  it("raises the job's ceiling and Atlas allowance, records the approval once, and is read by the Pipeline as the same grant", async () => {
+    const authority = await grantedJob();
+    expect(await reserveWebsitePreparationSpend("req1", atlasSpend())).toMatchObject({ status: "admitted" });
+    // At $2 the job's safety limit refuses the next $1.50.
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2") })))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    const applied = await amend(authority.authorization_digest, 5, true);
+    expect(applied.status).toBe("applied");
+    const record = store.rows.get(REQUEST);
+    expect(record.website_atlas_grants[CAPTURE].maximum_cost_usd).toBe(5);
+    expect(record.website_atlas_grant_amendments).toEqual([applied.receipt]);
+    expect(applied.receipt.amendment_digest).toBe(crossRuntimeDigest(Object.fromEntries(Object.entries(applied.receipt)
+      .filter(([key]) => key !== "amendment_digest"))));
+    // Idempotent: the same amendment again returns the stored receipt and records nothing more.
+    expect(await amend(authority.authorization_digest, 5, true)).toEqual({ status: "already_applied", receipt: applied.receipt });
+    expect(store.rows.get(REQUEST).website_atlas_grant_amendments).toHaveLength(1);
+    const read = await configure({ create: false });
+    expect(read.authority.maximum_cost_usd).toBe(5);
+    expect(read.authority.authorization_digest).toBe(applied.receipt.authorization_digest);
+    expect(read.job_ceiling).toMatchObject({ maximum_cost_usd: 5, source: "atlas_authorization" });
+    // Only the figure and its digest changed: the Pipeline's resume check continues the job.
+    expect(Object.keys(read.authority).filter(key => crossRuntimeDigest({ v: read.authority[key] }) !== crossRuntimeDigest({ v: authority[key] })).sort())
+      .toEqual(["authorization_digest", "maximum_cost_usd"]);
+    expect(pipelineAcceptsResume(authority, read.authority)).toBe(true);
+    expect(await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2") })))
+      .toMatchObject({ status: "admitted" });
+  });
+
+  it("refuses anything but a raise, up to the stored grant schema's $100, for this grant, approved by the job's sponsor", async () => {
+    const authority = await grantedJob();
+    await expect(amend(authority.authorization_digest, 2, true)).rejects.toThrow("website_atlas_grant_amendment_not_increased");
+    await expect(amend(authority.authorization_digest, 1, true)).rejects.toThrow("website_atlas_grant_amendment_not_increased");
+    await expect(amend(authority.authorization_digest, 100.01, true)).rejects.toThrow();
+    await expect(amend(sha("0"), 5, true)).rejects.toThrow("website_atlas_grant_amendment_binding_invalid");
+    await expect(amend(authority.authorization_digest, 5, true, { approved_by: "someone-else" }))
+      .rejects.toThrow("website_atlas_grant_amendment_binding_invalid");
+    await expect(amend(authority.authorization_digest, 5, true, { capture_id: "walkthrough-other" }))
+      .rejects.toThrow("website_atlas_grant_missing");
+    expect(store.rows.get(REQUEST).website_atlas_grants[CAPTURE].maximum_cost_usd).toBe(2);
+    expect(store.rows.get(REQUEST)).not.toHaveProperty("website_atlas_grant_amendments");
+    // The schema's maximum itself is allowed; a later raise binds to the amended grant's digest.
+    const first = await amend(authority.authorization_digest, 40, true);
+    await expect(amend(authority.authorization_digest, 100, true)).rejects.toThrow("website_atlas_grant_amendment_binding_invalid");
+    expect((await amend(first.receipt.authorization_digest, 100, true)).status).toBe("applied");
+    expect(store.rows.get(REQUEST).website_atlas_grant_amendments.map((row: any) => row.to_maximum_cost_usd)).toEqual([40, 100]);
+  });
+
+  it("refuses a run the owner closed, and an approval dated in the future", async () => {
+    const authority = await grantedJob();
+    await expect(amend(authority.authorization_digest, 5, true, { approved_at_iso: "2999-01-01" }))
+      .rejects.toThrow("website_atlas_grant_amendment_approval_in_future");
+    await expect(amend(authority.authorization_digest, 5, true, { approved_at_iso: "12 November" })).rejects.toThrow();
+    store.rows.get(REQUEST).website_run_closures = { [CAPTURE]: ownerClosure("req1", CAPTURE) };
+    await expect(amend(authority.authorization_digest, 5, true)).rejects.toThrow("website_run_closed_by_owner");
+    expect(store.rows.get(REQUEST).website_atlas_grants[CAPTURE].maximum_cost_usd).toBe(2);
+  });
+
+  it("refuses an expired grant and a withdrawn site", async () => {
+    const authority = await grantedJob();
+    const clock = vi.spyOn(Date, "now").mockReturnValue((authority.expires_at_epoch + 1) * 1000);
+    try { await expect(amend(authority.authorization_digest, 5, true)).rejects.toThrow("website_atlas_consent_expired"); }
+    finally { clock.mockRestore(); }
+    store.rows.get(REQUEST).request.consent_attestation.granted = false;
+    await expect(amend(authority.authorization_digest, 5, true)).rejects.toThrow("source_revoked");
+  });
+});
+
 describe("one dollar ceiling per job (owner, 2026-10-30)", () => {
   const atlasOutcome = (key: string, outcome: "completed" | "failed" | "refused", overrides: Record<string, unknown> = {}) => ({
     task_context_digest: contextDigest(), allocation_binding_digest: sha(key), provider: "world_labs_atlas" as const,
@@ -642,7 +750,7 @@ describe("one dollar ceiling per job (owner, 2026-10-30)", () => {
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
     expect(await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"), maximum_cost_usd: .05 })))
       .toMatchObject({ status: "admitted" });
-    // An unreadable screening publication counts the whole screening site limit.
+    // An unreadable screening publication counts all the ceiling the other ledgers leave: the job is full.
     store.rows.set("captureTaskEvaluationRuns/screening-one", { publication: { schema_version: "unknown" } });
     await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"), maximum_cost_usd: .01 })))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");

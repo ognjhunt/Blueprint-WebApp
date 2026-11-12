@@ -145,6 +145,13 @@ const storedGrant = z.object({
   claim_scope: z.literal("development_only"),
 }).strict();
 export type WebsiteAtlasStoredGrant = z.infer<typeof storedGrant>;
+/** A stored automatic grant as the schema reads it, or null. Reads only; used by the owner's figure amendment. */
+export function parseWebsiteAtlasStoredGrant(value: unknown): WebsiteAtlasStoredGrant | null {
+  const parsed = storedGrant.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+/** The most a stored automatic grant may name, the schema's own maximum above. */
+export const WEBSITE_ATLAS_STORED_GRANT_MAXIMUM_COST_USD = 100;
 
 /** Whether an Atlas command takes the automatic side lane: a valid policy and no exact
  * env row. Never throws; an invalid env row list keeps today's path and its refusal. */

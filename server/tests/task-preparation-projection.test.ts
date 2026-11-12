@@ -110,13 +110,13 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
   it("capacity_delayed is ours to wait on, not a request for information", () => {
     const status = preparing("capacity_delayed");
     expect(status.decision).toBe("assessing");
-    expect(status.headline).toContain("waiting for processing capacity on our side; nothing is needed from you");
+    expect(status.headline).toContain("in line for processing on our side; nothing is needed from you");
     expect(status.headline).not.toContain("needs more information");
     expect(status.operatorAction).toBeNull();
   });
   it.each([
     ["retry_exhausted", "tried several times"],
-    ["budget_exhausted", "more processing than the free beta provides"],
+    ["budget_exhausted", "Preparation stopped at a limit on our side."],
     ["capacity_blocked", "capacity stayed full"],
     ["permanent_invalid", "could not read this recording"],
     ["out_of_scope", "outside what the beta can build"],

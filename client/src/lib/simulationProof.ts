@@ -284,7 +284,7 @@ export const HEADLINES = {
 
 /** Waiting or still in progress: said about the simulation. */
 export const WAITING: Partial<Record<JobScreeningOutcome, string>> = {
-  awaiting_spend_approval: "Blueprint is deciding whether to continue the simulation.",
+  awaiting_spend_approval: "The simulation is paused on our side. Nothing is needed from you.",
   setup_repair: "A Blueprint update stopped the simulation before it finished. If a later run finishes, it will show here.",
   superseded: "The simulation continues in a newer run.",
 };
@@ -297,7 +297,7 @@ export const COULD_NOT_RUN: Partial<Record<JobScreeningOutcome, string>> = {
   infeasible: "From the robot position planned in the scene built from your video, none of the robots the simulation can run could reach the task.",
   no_match: "None of the robots the simulation can run matched this task; at least one was measured out of reach from the robot position planned in the scene built from your video.",
   held_setup: "A problem on our side stopped the simulation before it finished.",
-  held_budget: "The simulation reached the most the free beta can run for one job before it finished.",
+  held_budget: "The simulation stopped at a limit on our side before it finished.",
   held_scene_check: "The simulated scene failed the check we run before testing robots, so no robot was tested in it.",
 };
 
@@ -769,18 +769,18 @@ export function testHeadline(result: TestResult): string | null {
  * same case (`simulationProof.ts`), so it is true whenever that one is. The projection's sentences stay in the
  * details, word for word, and in the email.
  */
-const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+export const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
   reference_only: "Only our own test moves ran. No robot program could be tried yet.",
   held_capability: "Our simulation test can't do this kind of job yet.",
   held_unprepared: "The robots that could do this job aren't set up in our simulation test yet.",
   infeasible: "In the simulation of your site, none of the robots we can test could reach the job.",
   no_match: "None of the robots we can test matched this job. At least one couldn't reach it in the simulation of your site.",
   held_setup: "A problem on our side stopped it.",
-  held_budget: "It reached the most the free beta can run for one job.",
+  held_budget: "It stopped at a limit on our side.",
   held_scene_check: "The simulation of your site failed our check, so no robot was tested in it.",
 };
-const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
-  awaiting_spend_approval: "We're deciding whether to keep testing.",
+export const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+  awaiting_spend_approval: "Testing is paused on our side.",
   setup_repair: "An update on our side stopped the test before it finished. If a later test finishes, it shows here.",
   superseded: "The test goes on in a newer run.",
 };

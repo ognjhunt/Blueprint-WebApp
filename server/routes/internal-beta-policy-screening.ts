@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import { betaPolicyScreeningPublicationSchema, parseBetaPolicyScreeningPublication } from "../utils/betaPolicyScreeningContract";
+import { recordScreeningPublicationAlerts } from "../utils/screeningPublicationAlerts";
 import { ingestBetaCandidateSelection, ingestBetaPolicyScreening, observeBetaScreeningExecutionControl,
   parseBetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
 import { parseBetaCandidateSelection } from "../utils/betaCandidateSelection";
@@ -36,6 +37,10 @@ router.post("/beta-policy-screening-runs", createPipelineSyncRateLimiter(), asyn
     body: req.body, schema: betaPolicyScreeningPublicationSchema, invalidCode: "screening_publication_invalid" });
   try {
     const receipt = await ingestBetaPolicyScreening(publication);
+    // Owner decision 2026-11-11: a result is never refused for its budget figures. Testing reported above
+    // the job's safety limit, or robots held back at the job's limit, raise one ops alert per job. A store
+    // failure here is a 503 so the Pipeline delivers again; the replay records what was missed.
+    if (receipt.status !== "superseded") await recordScreeningPublicationAlerts(publication);
     return res.status(receipt.status === "created" ? 201 : 200).json(receipt);
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
