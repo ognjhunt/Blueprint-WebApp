@@ -223,14 +223,15 @@ test("the share button asks first, carries the recorded statement, posts once an
   expect(unexpected).toEqual([]);
 });
 
-test("when the summary could not be listed, nothing claims it is shared and the button stays", async ({ page }) => {
+test("when the request is saved but nothing is listed, the page says the summary is not visible right now", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { introductions } = await mockJob(page, { listed: false });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await page.getByRole("button", { name: FIND, exact: true }).click();
-  await expect(page.getByRole("alert")).toHaveText("We could not send your request just now. Try again shortly.");
-  await expect(page.getByText(/^Shared on|can see a summary/)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: FIND, exact: true })).toBeVisible();
+  // The request is saved (review, 2026-11-12): never "we could not send your request".
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByRole("status"))
+    .toHaveText("You shared a summary of your job on November 11, 2026. It is not visible to companies right now.");
+  await expect(page.getByText(/could not send|can see a summary/)).toHaveCount(0);
   expect(introductions).toHaveLength(1);
 });
 

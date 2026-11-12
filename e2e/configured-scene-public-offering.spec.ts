@@ -42,6 +42,8 @@ const taskCard = {
   pilotBudget: "Not published",
   opportunity: "not_seeking",
   stage: "preparing",
+  // The server reads where the job's simulation stands from its real state (`libraryJobStage`).
+  simulationStage: "simulation_building",
   evaluationAvailable: false,
   costUsd: null,
   publishedAtIso: "2026-09-19T00:00:00.000Z",
