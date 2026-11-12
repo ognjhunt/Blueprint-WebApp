@@ -339,13 +339,15 @@ describe("non-authorizing Atlas configuration read", () => {
       expect(alerts).toHaveLength(0);
       return;
     }
-    // Owner decision 2026-11-11: the Atlas allowance is the job's ceiling here ($2), and the ceiling is
-    // the job's safety limit. Past it the flagged job is refused too, with one safety-limit alert.
-    expect(second).toEqual({ status: 409, body: { code: "website_scene_preparation_budget_exhausted" } });
-    expect(ledger).not.toHaveProperty("2".repeat(64));
-    expect(alerts).toEqual(["opsWebsiteJobOverBudgetAlerts/req1-safety-limit"]);
-    expect(store.rows.get(alerts[0]).safety_limit).toMatchObject({ schema_version: "website_job_safety_limit.v1",
-      job_ceiling_usd: 2, job_reserved_or_settled_before_usd: 1.5, stage: "preparation_reservation", additional_cost_usd: 1.5 });
+    // As on main: admitted past the $2 allowance and ceiling with a note. The safety limit is the owner's
+    // fixed $100, never the $2 hosting setting (owner decision 2026-11-11), so it does not stop this.
+    expect(second.status).toBe(200);
+    expect(second.body).toMatchObject({ status: "admitted", maximum_cost_usd: 1.5 });
+    expect(ledger["1".repeat(64)]).not.toHaveProperty("over_budget");
+    expect(ledger["2".repeat(64)].over_budget).toMatchObject({ basis: "automatic_budget_extension",
+      allowance: "atlas_allowance", allowance_usd: 2, allowance_exceeded: true, job_ceiling_exceeded: true });
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].endsWith("-safety-limit")).toBe(false);
   });
 
   it("accounts each retained hold or settlement once without exposing raw record fields", async () => {
@@ -610,7 +612,8 @@ describe("owner amendment of a stored Atlas grant's figure", () => {
   }
   const amend = (authorization_digest: string, maximum_cost_usd: number, apply: boolean, overrides: Record<string, unknown> = {}) =>
     amendWebsiteAtlasGrantFigure("req1", { capture_id: CAPTURE, authorization_digest, maximum_cost_usd, approved_by: OWNER,
-      approval_reference: "Owner approval 2026-11-12: raise this job's safety limit to $5", ...overrides }, apply);
+      approval_reference: "Owner approval 2026-11-12: raise this job's safety limit to $5", approved_at_iso: "2026-11-12",
+      ...overrides }, apply);
   // The Pipeline's resume check (website_atlas_pipeline._same_authority): only these may change, and the figures only rise.
   const pipelineAcceptsResume = (stored: Record<string, any>, current: Record<string, any>) => {
     const amendable = new Set(["maximum_cost_usd", "maximum_requests", "approval_reference", "expires_at_epoch", "authorization_digest"]);
@@ -628,7 +631,8 @@ describe("owner amendment of a stored Atlas grant's figure", () => {
       change: { path: `inboundRequests/req1.website_atlas_grants.${CAPTURE}.maximum_cost_usd`, from: 2, to: 5 },
       receipt: { schema_version: "website_atlas_grant_figure_amendment.v1", from_maximum_cost_usd: 2, to_maximum_cost_usd: 5,
         prior_authorization_digest: authority.authorization_digest, approved_by: OWNER,
-        approval_reference: "Owner approval 2026-11-12: raise this job's safety limit to $5" } });
+        approval_reference: "Owner approval 2026-11-12: raise this job's safety limit to $5",
+        approved_at_iso: "2026-11-12", approved_at_epoch: Date.parse("2026-11-12") / 1000, applied_at_epoch: expect.any(Number) } });
     expect(store.rows.get(REQUEST)).toEqual(before);
     expect(store.writes).toEqual([]);
   });
@@ -678,6 +682,16 @@ describe("owner amendment of a stored Atlas grant's figure", () => {
     await expect(amend(authority.authorization_digest, 100, true)).rejects.toThrow("website_atlas_grant_amendment_binding_invalid");
     expect((await amend(first.receipt.authorization_digest, 100, true)).status).toBe("applied");
     expect(store.rows.get(REQUEST).website_atlas_grant_amendments.map((row: any) => row.to_maximum_cost_usd)).toEqual([40, 100]);
+  });
+
+  it("refuses a run the owner closed, and an approval dated in the future", async () => {
+    const authority = await grantedJob();
+    await expect(amend(authority.authorization_digest, 5, true, { approved_at_iso: "2999-01-01" }))
+      .rejects.toThrow("website_atlas_grant_amendment_approval_in_future");
+    await expect(amend(authority.authorization_digest, 5, true, { approved_at_iso: "12 November" })).rejects.toThrow();
+    store.rows.get(REQUEST).website_run_closures = { [CAPTURE]: ownerClosure("req1", CAPTURE) };
+    await expect(amend(authority.authorization_digest, 5, true)).rejects.toThrow("website_run_closed_by_owner");
+    expect(store.rows.get(REQUEST).website_atlas_grants[CAPTURE].maximum_cost_usd).toBe(2);
   });
 
   it("refuses an expired grant and a withdrawn site", async () => {

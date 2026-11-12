@@ -132,7 +132,7 @@ export function closedJobStep(facts: JobFacts): Step {
 }
 
 const SCREENING_WAITS: Record<NonNullable<BlueprintScene["progressOutcome"]>, string> = {
-  awaiting_spend_approval: "Screening waits on Blueprint: the job's limit or this month's account limit",
+  awaiting_spend_approval: "Screening waits on Blueprint: a limit on our side held it back",
   setup_repair: "Screening waits for a setup repair: check the screening plan's blockers",
   superseded: "Screening is planned again for the current candidates",
 };

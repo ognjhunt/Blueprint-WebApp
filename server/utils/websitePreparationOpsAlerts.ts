@@ -510,7 +510,7 @@ export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<
 
 const OVER_BUDGET_ALERT_COLLECTION = "opsWebsiteJobOverBudgetAlerts";
 /** The per-job markers beside the over-budget ones (`websiteJobAlert` in websiteSceneSponsorship). */
-const JOB_ALERT_KINDS = ["safety_limit", "screening_over_safety_limit", "screening_job_ceiling"] as const;
+const JOB_ALERT_KINDS = ["safety_limit", "screening_over_safety_limit", "screening_job_ceiling", "spend_unreadable"] as const;
 type JobAlertKind = typeof JOB_ALERT_KINDS[number];
 const usd = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? `$${value.toFixed(2)}` : "unknown";
 
@@ -522,8 +522,10 @@ const JOB_ALERT_LINE: Record<JobAlertKind, (value: Record<string, any>) => strin
     + `(limit $${value.limit_usd}, committed $${value.committed_upper_bound_usd}, campaign ${value.campaign_id}). `
     + "The result was kept and counted in full, so the job admits no more spend. A person needs to look.",
   screening_job_ceiling: value => `: testing held ${value.candidate_count ?? "some"} AI robot(s) back at this job's limit of `
-    + `${usd(value.job_ceiling_usd)} (campaign ${value.campaign_id}). The site is told our team has been told; decide whether `
-    + "to raise it (scripts/amend-website-atlas-grant.ts).",
+    + `${usd(value.job_ceiling_usd)} (campaign ${value.campaign_id}). Decide whether to raise it `
+    + "(scripts/amend-website-atlas-grant.ts).",
+  spend_unreadable: value => `: this job's spend cannot be read: ${(Array.isArray(value.records) ? value.records : []).join(", ")
+    || "a record"}${value.record_count > 20 ? ` and ${value.record_count - 20} more` : ""}. It is counted as before; a person needs to look.`,
 };
 
 /**
@@ -545,7 +547,8 @@ export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{
   const rows = await store.collection(OVER_BUDGET_ALERT_COLLECTION).where("next_attempt_at_ms", "<=", now())
     .limit(Math.max(1, Math.min(deps.limit ?? 50, 200))).get();
   const claims: ClaimedAlert[] = [];
-  const jobClaims: Record<JobAlertKind, ClaimedAlert[]> = { safety_limit: [], screening_over_safety_limit: [], screening_job_ceiling: [] };
+  const jobClaims: Record<JobAlertKind, ClaimedAlert[]> = { safety_limit: [], screening_over_safety_limit: [], screening_job_ceiling: [],
+    spend_unreadable: [] };
   for (const row of rows.docs) {
     const ref = store.collection(OVER_BUDGET_ALERT_COLLECTION).doc(row.id), leaseId = randomUUID();
     const requestId = row.data()?.request_id;
@@ -611,6 +614,8 @@ export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{
     + await report(jobClaims.screening_over_safety_limit, deps, "website_job_screening_over_safety_limit",
       "The Pipeline reported testing above a website job's safety limit")
     + await report(jobClaims.screening_job_ceiling, deps, "website_job_screening_job_ceiling",
-      "Website job testing held robots back at the job's limit");
+      "Website job testing held robots back at the job's limit")
+    + await report(jobClaims.spend_unreadable, deps, "website_job_spend_unreadable",
+      "A website job's spend cannot be read");
   return { due: rows.docs.length, alerted };
 }

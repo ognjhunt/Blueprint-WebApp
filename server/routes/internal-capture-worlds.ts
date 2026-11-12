@@ -29,7 +29,7 @@ import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext,
   loadWebsiteAtlasConfiguration, assertNoMultiStepTaskHold, automaticBudgetExtensionGrant,
   websiteJobOverBudgetAlert, WEBSITE_JOB_SAFETY_LIMIT_REACHED, websiteJobSafetyLimitAlert,
-  websiteJobSafetyLimitRecord } from "../utils/websiteSceneSponsorship";
+  websiteJobSafetyLimitRecord, websiteJobSpendUnreadableAlert } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
 import { isNavigationStrategy, navigationIntakeTask } from "../utils/navigationSceneIntake";
 import {
@@ -360,12 +360,16 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         const navigation = isNavigationStrategy(request.task.strategy);
         const additional = navigation ? 0 : request.execution.max_total_spend_usd;
         const job = navigation && !extended ? null
-          : await checkWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId, extended,
+          : await checkWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
             reader: transactionJobLedgerReader(db!, transaction, requestId), additionalCostUsd: additional });
-        if (!navigation && job?.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
+        // A record whose figure cannot be read is counted as before and reported once per job (owner, 2026-11-11).
+        const recordUnreadable = job ? await websiteJobSpendUnreadableAlert(db!, transaction, requestId, job.spend,
+          { stage: "scene_intake", scene_intake_id: id }) : () => {};
+        if (!navigation && job?.exceeded && !extended) { recordUnreadable(); return true; }
         if (extended && job?.pastSafetyLimit) {
-          (await websiteJobSafetyLimitAlert(db!, transaction, requestId, websiteJobSafetyLimitRecord(job,
-            { stage: "scene_intake", scene_intake_id: id, additional_cost_usd: additional })))();
+          const recordSafety = await websiteJobSafetyLimitAlert(db!, transaction, requestId, websiteJobSafetyLimitRecord(job,
+            { stage: "scene_intake", scene_intake_id: id, additional_cost_usd: additional }));
+          recordSafety(); recordUnreadable();
           return true;
         }
         const overBudget = !navigation && job?.exceeded ? {
@@ -379,6 +383,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         const recordAlert = overBudget
           ? await websiteJobOverBudgetAlert(db!, transaction, requestId, overBudget, { scene_intake_id: id }) : () => {};
         recordAlert();
+        recordUnreadable();
         transaction.create(ref, {
           ...(overBudget ? { over_budget: overBudget } : {}),
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,

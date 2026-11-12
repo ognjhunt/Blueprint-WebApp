@@ -769,7 +769,7 @@ export function testHeadline(result: TestResult): string | null {
  * same case (`simulationProof.ts`), so it is true whenever that one is. The projection's sentences stay in the
  * details, word for word, and in the email.
  */
-const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+export const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
   reference_only: "Only our own test moves ran. No robot program could be tried yet.",
   held_capability: "Our simulation test can't do this kind of job yet.",
   held_unprepared: "The robots that could do this job aren't set up in our simulation test yet.",
@@ -779,7 +779,7 @@ const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>
   held_budget: "It stopped at a limit on our side.",
   held_scene_check: "The simulation of your site failed our check, so no robot was tested in it.",
 };
-const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+export const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
   awaiting_spend_approval: "Testing is paused on our side.",
   setup_repair: "An update on our side stopped the test before it finished. If a later test finishes, it shows here.",
   superseded: "The test goes on in a newer run.",

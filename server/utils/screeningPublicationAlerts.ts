@@ -7,7 +7,7 @@
  *   job's safety limit. The publication is accepted and counted in full toward the job's total, which
  *   then refuses further spend; a person needs to look at why.
  * - `screening_job_ceiling`: testing held at least one AI robot back at the job's limit (Pipeline
- *   `website_job_ceiling_insufficient`). The site is told our team has been told; this is that message.
+ *   `website_job_ceiling_insufficient`), so a person can decide whether to raise the job's limit.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { screeningJobCeilingRow, screeningPublicationAboveSafetyLimit, type BetaPolicyScreeningPublication }

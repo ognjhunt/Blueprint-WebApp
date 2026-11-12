@@ -12,14 +12,13 @@
  * per-ledger caps still apply inside the ceiling, and no stored reservation,
  * grant or settlement is read differently, reset or rewritten.
  *
- * Owner decision 2026-11-11: each job has one safety limit (`websiteJobSafetyLimitUsd`: its ceiling,
- * or the grant policy's current figure if higher; $100 for new jobs), a fuse against a bug burning the
- * account's month in one job, never a judgment that a job costs too much. Nothing passes it, the
- * automatic budget extension included. Below it every rule is as before: testing stops at the stored
- * ceiling, and a flagged grant's build passes the ceiling with a note.
+ * Owner decision 2026-11-11: each job has one safety limit (`websiteJobSafetyLimitUsd`: its stored
+ * ceiling, or the owner's fixed $100 if higher), a fuse against a bug burning the account's month in
+ * one job, never a judgment that a job costs too much. A flagged grant's build passes the ceiling with
+ * a note, as before, and never the safety limit. Everything is counted as before.
  */
 import { websiteAtlasAuthorizationCeiling, websiteAtlasGrantPolicy } from "./websiteAtlasAuthorization";
-import { parseBetaPolicyScreeningPublication, screeningMoneyMicros } from "./betaPolicyScreeningContract";
+import { parseBetaPolicyScreeningPublication, screeningMoneyMicros, SCREENING_LEGACY_SITE_LIMIT_USD } from "./betaPolicyScreeningContract";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { isNavigationStrategy } from "./navigationSceneIntake";
 
@@ -164,37 +163,51 @@ function nativeIntakeMicros(intake: Record<string, any>) {
 /**
  * The screening site ledger is site-wide and every publication carries its
  * whole snapshot, so the latest one counts: its spent upper bound (charged at
- * the full reservation once allocated) plus its open reservations.
- *
- * A run with no readable publication counts the most screening could hold
- * (owner decision 2026-11-11: screening has no fixed allowance, only the job's
- * ceiling): all of the ceiling the job's other ledgers leave, so the job counts
- * as full and nothing more is admitted until it reads. Without a ceiling to
- * measure against it counts as unbounded.
+ * the full reservation once allocated) plus its open reservations. A run with
+ * no readable publication counts the full screening site limit, as before.
  */
-function screeningMicros(rows: Array<{ run: Record<string, any>; result: Record<string, any> | null }>,
-  room: { ceilingMicros?: number; otherMicros: number }) {
-  if (rows.length === 0) return 0;
+function screeningMicros(rows: Array<{ run: Record<string, any>; result: Record<string, any> | null }>, unreadable: string[]) {
+  if (rows.length === 0) return { counted: 0, readable: 0 };
   const publications = rows.map(row => row.result ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(row.result)) : null);
-  if (publications.some(publication => publication === null))
-    return room.ceilingMicros === undefined ? Infinity : Math.max(0, room.ceilingMicros - room.otherMicros);
+  if (publications.some(publication => publication === null)) {
+    rows.forEach((row, index) => { if (publications[index] === null)
+      unreadable.push(`screening result ${String(row.run?.result_record_id ?? row.run?.run_id ?? "with no record id")}`); });
+    return { counted: micros(SCREENING_LEGACY_SITE_LIMIT_USD), readable: 0 };
+  }
   const latest = publications.reduce((best, publication) => !best
     || Date.parse(publication!.generated_at) > Date.parse(best.generated_at)
     || Date.parse(publication!.generated_at) === Date.parse(best.generated_at) && publication!.revision > best.revision
     ? publication : best, null as ReturnType<typeof parseBetaPolicyScreeningPublication>)!;
-  return Number(screeningMoneyMicros(latest.budget.committed_upper_bound_usd));
+  const counted = Number(screeningMoneyMicros(latest.budget.committed_upper_bound_usd));
+  return { counted, readable: counted };
 }
 
-/** What the job holds or spent on each ledger. `ceiling` is the job's ceiling, which an unreadable screening publication fills. */
-export async function websiteJobSpend(input: { record: Record<string, any>; reader: WebsiteJobLedgerReader;
-  ceiling?: { maximum_cost_usd: number } }) {
-  const preparation = Object.values(input.record.website_preparation_reservations ?? {})
-    .reduce((sum: number, row) => sum + preparationRowMicros(row), 0);
-  const native = (await input.reader.sceneIntakes()).reduce((sum, intake) => sum + nativeIntakeMicros(intake), 0);
-  const screening = screeningMicros(await input.reader.screeningRuns(), { otherMicros: preparation + native,
-    ceilingMicros: input.ceiling ? Math.floor(input.ceiling.maximum_cost_usd * 1_000_000) : undefined });
-  return { preparation_micros: preparation, native_construction_micros: native, screening_micros: screening,
-    total_micros: preparation + native + screening };
+/**
+ * What the job holds or spent on each ledger, counted exactly as before (an unbounded hold is
+ * unbounded; an unreadable screening result counts the $30 site limit). Owner decision 2026-11-11:
+ * beside it, `readable_total_micros` is what the records that can be read add up to (an unreadable
+ * one counts nothing there), which is what the job's safety limit refuses on, and `unreadable` names
+ * each record whose figure cannot be read, so a person is told (`spend_unreadable`).
+ */
+export async function websiteJobSpend(input: { record: Record<string, any>; reader: WebsiteJobLedgerReader }) {
+  const unreadable: string[] = [];
+  let readable = 0;
+  const preparation = Object.entries(input.record.website_preparation_reservations ?? {})
+    .reduce((sum: number, [key, row]) => {
+      const value = preparationRowMicros(row);
+      if (Number.isFinite(value)) readable += value; else unreadable.push(`preparation reservation ${key}`);
+      return sum + value;
+    }, 0);
+  const native = (await input.reader.sceneIntakes()).reduce((sum, intake) => {
+    const value = nativeIntakeMicros(intake);
+    if (Number.isFinite(value)) readable += value;
+    else unreadable.push(`scene intake ${String(intake?.command?.submission_id ?? intake?.request?.submission_id ?? "with no submission id")}`);
+    return sum + value;
+  }, 0);
+  const screening = screeningMicros(await input.reader.screeningRuns(), unreadable);
+  readable += screening.readable;
+  return { preparation_micros: preparation, native_construction_micros: native, screening_micros: screening.counted,
+    total_micros: preparation + native + screening.counted, readable_total_micros: readable, unreadable };
 }
 
 /** The read-only projection returned with the Atlas configuration; it authorizes nothing. */
@@ -214,30 +227,28 @@ type WebsiteJobCeilingInput = { record: Record<string, any>; captureId: string;
   requestId?: string; atlas?: { maximum_cost_usd: number } | null; reader: WebsiteJobLedgerReader;
   additionalCostUsd: number };
 
+/** The owner's safety limit per job, decided 2026-11-11 ("$100 fuse"): a fixed figure, never the hosting setting. */
+export const WEBSITE_JOB_SAFETY_LIMIT_USD = 100;
+
 /**
- * The job's safety limit (owner decision 2026-11-11): its ceiling, or the configured grant policy's
- * current figure if that is higher (the owner default when no policy is set). A job granted before the
- * policy was raised keeps its stored ceiling for testing, and on a grant naming the automatic budget
- * extension may build past that ceiling with a note, as before, but never past this. A policy lowered
- * below a job's stored ceiling never lowers the job: the larger figure stands.
+ * The job's safety limit: its stored ceiling, or the owner's $100 safety limit if that is higher. The
+ * hosting setting only decides the figure a new grant is stored with. On a grant naming the automatic
+ * budget extension the build may pass the stored ceiling with a note, as before, but never this.
  */
 export function websiteJobSafetyLimitUsd(ceiling: { maximum_cost_usd: number }) {
-  return Math.max(ceiling.maximum_cost_usd, websiteAtlasGrantPolicy()?.maximum_cost_usd ?? WEBSITE_JOB_CEILING_DEFAULT_USD);
+  return Math.max(ceiling.maximum_cost_usd, WEBSITE_JOB_SAFETY_LIMIT_USD);
 }
 
-/** Whether new spend would take the job past its ceiling, and past its safety limit. Reads only; the caller decides and writes. */
-export async function checkWebsiteJobCeiling(input: WebsiteJobCeilingInput & {
-  /** The admission is on a grant naming the automatic budget extension, so it stops at the safety limit. */
-  extended?: boolean }) {
+/**
+ * Whether new spend would take the job past its ceiling (counted as before), and past its safety limit
+ * (on what can be read). Reads only; the caller decides and writes.
+ */
+export async function checkWebsiteJobCeiling(input: WebsiteJobCeilingInput) {
   const ceiling = websiteJobCeiling(input);
   const safetyLimitUsd = websiteJobSafetyLimitUsd(ceiling);
-  // An unreadable screening publication fills the limit that applies to this admission: the safety limit
-  // on a flagged grant (where build stops), else the ceiling. It never under-counts against either.
-  const spend = await websiteJobSpend({ ...input,
-    ceiling: input.extended ? { maximum_cost_usd: safetyLimitUsd } : ceiling });
-  const after = spend.total_micros + micros(input.additionalCostUsd);
-  const exceeded = after > Math.floor(ceiling.maximum_cost_usd * 1_000_000);
-  const pastSafetyLimit = after > Math.floor(safetyLimitUsd * 1_000_000);
+  const spend = await websiteJobSpend(input);
+  const exceeded = spend.total_micros + micros(input.additionalCostUsd) > Math.floor(ceiling.maximum_cost_usd * 1_000_000);
+  const pastSafetyLimit = spend.readable_total_micros + micros(input.additionalCostUsd) > Math.floor(safetyLimitUsd * 1_000_000);
   return { ceiling, spend, exceeded, safetyLimitUsd, pastSafetyLimit };
 }
 

@@ -11,11 +11,8 @@ const own = (map: Record<string, string>, key: string) => Object.prototype.hasOw
 const MEASURED = "Measured out of reach from the robot position planned in your scene.";
 const NOT_SET_UP = "Not set up in our simulator yet.";
 const NOT_RUN = "Not run in this evaluation.";
-/**
- * Held back at the job's limit (owner decision 2026-11-11: a limit is ours to look at). Every
- * publication carrying it raises one ops alert per job on ingest (`recordScreeningPublicationAlerts`).
- */
-const JOB_LIMIT_NOT_RUN = "Not run: this job reached a limit on our side. Our team has been told; nothing is needed from you.";
+/** Held back at the job's limit (owner decision 2026-11-11): ours to look at, never the site's step. */
+const JOB_LIMIT_NOT_RUN = "Not run: this job reached a limit on our side. Nothing is needed from you.";
 /**
  * The Pipeline's harness failures: the candidate ran in our simulator (it was
  * set up), but the run gave nothing that could be scored. Ours to fix, and the

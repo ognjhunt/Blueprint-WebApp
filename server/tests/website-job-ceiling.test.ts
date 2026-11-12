@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { assertWithinWebsiteJobCeiling, checkWebsiteJobCeiling, WEBSITE_JOB_CEILING_DEFAULT_USD, websiteJobCeiling, websiteJobCeilingSummary,
-  websiteJobSafetyLimitUsd, websiteJobSpend, type WebsiteJobLedgerReader } from "../utils/websiteJobCeiling";
+  WEBSITE_JOB_SAFETY_LIMIT_USD, websiteJobSafetyLimitUsd, websiteJobSpend, type WebsiteJobLedgerReader } from "../utils/websiteJobCeiling";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 
 const policy = { schema_version: "website_atlas_grant_policy.v1", maximum_cost_usd: 40, maximum_requests: 32,
@@ -34,15 +34,13 @@ describe("where the job's ceiling comes from", () => {
 });
 
 describe("the job's safety limit (owner decision 2026-11-11)", () => {
-  it("is the stored ceiling or the grant policy's current figure, whichever is higher; $100 with no policy", () => {
-    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "");
-    expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 25 })).toBe(100);
-    expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 130 })).toBe(130);
-    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 100 }));
-    expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 25 })).toBe(100);
-    // A policy lowered below a job's stored ceiling never lowers the job.
-    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 20 }));
-    expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 25 })).toBe(25);
+  it("is the stored ceiling or the owner's fixed $100, whichever is higher, whatever the hosting setting says", () => {
+    expect(WEBSITE_JOB_SAFETY_LIMIT_USD).toBe(100);
+    for (const figure of [null, 2, 20, 100]) {
+      vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", figure === null ? "" : JSON.stringify({ ...policy, maximum_cost_usd: figure }));
+      expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 25 })).toBe(100);
+      expect(websiteJobSafetyLimitUsd({ maximum_cost_usd: 130 })).toBe(130);
+    }
   });
 });
 
@@ -225,57 +223,43 @@ describe("what counts against it", () => {
       blockers: [], attempts: [{ maximum_spend_usd: 3 }] } })).toBe(3_000_000);
   });
 
-  it("counts the screening site ledger once, from its latest snapshot, and an unreadable one as all the ceiling leaves", async () => {
-    const ceiling = { maximum_cost_usd: 100 };
-    const spend = async (runs: Parameters<typeof reader>[1], record: Record<string, any> = {}) =>
-      (await websiteJobSpend({ record, ceiling, reader: reader([], runs) })).screening_micros;
+  it("counts the screening site ledger once, from its latest snapshot, and an unreadable one at the site limit", async () => {
+    const spend = async (runs: Parameters<typeof reader>[1]) =>
+      (await websiteJobSpend({ record: {}, reader: reader([], runs) })).screening_micros;
     expect(await spend([])).toBe(0);
     expect(await spend([screening("3.5", "2026-10-30T10:00:00Z"), screening("1.25", "2026-10-30T11:00:00Z")])).toBe(1_250_000);
     expect(await spend([screening("3.5", "2026-10-30T11:00:00Z", 2), screening("1.25", "2026-10-30T11:00:00Z")])).toBe(3_500_000);
-    const unreadable = [screening("1.25", "2026-10-30T11:00:00Z"), { run: { run_kind: "beta_policy_screening" }, result: null }];
-    // Owner decision 2026-11-11: no fixed $30 any more. It counts the ceiling less what the other ledgers hold ...
-    expect(await spend(unreadable)).toBe(100_000_000);
-    expect(await spend(unreadable, { website_preparation_reservations: { a: held(12.5) } })).toBe(87_500_000);
-    // ... never below nothing, and as unbounded when no ceiling is given to measure against.
-    expect(await spend(unreadable, { website_preparation_reservations: { a: held(130) } })).toBe(0);
-    expect((await websiteJobSpend({ record: {}, reader: reader([], unreadable) })).screening_micros).toBe(Infinity);
+    expect(await spend([screening("1.25", "2026-10-30T11:00:00Z"), { run: { run_kind: "beta_policy_screening" }, result: null }]))
+      .toBe(30_000_000);
   });
 
-  it("on a flagged grant an unreadable publication fills the safety limit, the figure build stops at; unflagged is unchanged", async () => {
-    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 100 }));
-    const unreadable = [{ run: { run_kind: "beta_policy_screening" }, result: null }];
-    const input = (runs: Parameters<typeof reader>[1], additionalCostUsd: number, extended: boolean) => checkWebsiteJobCeiling({
-      record: { website_atlas_grants: { "capture-a": { maximum_cost_usd: 25 } }, website_preparation_reservations: { a: held(10) } },
-      captureId: "capture-a", reader: reader([], runs), additionalCostUsd, extended });
-    // Flagged $25 grant under a $100 policy: readable, build fits to $100 exactly and not a micro-dollar more.
-    const readable = [screening("1", "2026-10-30T11:00:00Z")];
-    expect((await input(readable, 89, true)).pastSafetyLimit).toBe(false);
-    expect((await input(readable, 89.000001, true)).pastSafetyLimit).toBe(true);
-    // Unreadable: it counts as the $100 less the $10 held, so the job is full at its safety limit.
-    const flagged = await input(unreadable, 0.000001, true);
-    expect(flagged.spend.screening_micros).toBe(90_000_000);
-    expect(flagged.pastSafetyLimit).toBe(true);
-    expect((await input(unreadable, 0, true)).pastSafetyLimit).toBe(false);
-    // Unflagged: as before, it fills the $25 ceiling, which refuses any new spend; the safety limit is not what stops it.
-    const unflagged = await input(unreadable, 0.000001, false);
-    expect(unflagged.spend.screening_micros).toBe(15_000_000);
-    expect(unflagged).toMatchObject({ exceeded: true, pastSafetyLimit: false });
+  // Owner decision 2026-11-11: counted exactly as before; what cannot be read is named, and the safety
+  // limit refuses on what can be read.
+  it("names every record whose figure cannot be read, and adds up only what can be read beside the count", async () => {
+    const record = { website_preparation_reservations: { good: held(10), broken: { admission: {} } } };
+    const intakes = [{ command: { submission_id: "sub-1" }, request: { execution: {} }, state: "accepted" }];
+    const runs = [{ run: { run_kind: "beta_policy_screening", result_record_id: "screening-x" }, result: null }];
+    const spend = await websiteJobSpend({ record, reader: reader(intakes, runs) });
+    expect(spend).toMatchObject({ preparation_micros: Infinity, native_construction_micros: Infinity, screening_micros: 30_000_000,
+      total_micros: Infinity, readable_total_micros: 10_000_000,
+      unreadable: ["preparation reservation broken", "scene intake sub-1", "screening result screening-x"] });
+    expect((await websiteJobSpend({ record: { website_preparation_reservations: { good: held(10) } }, reader: reader() })).unreadable).toEqual([]);
   });
 
-  it("never lets an unreadable screening publication under-count: the job is full and admits nothing more", async () => {
+  it("checks the ceiling as before and the safety limit on what can be read", async () => {
     const unreadable = [{ run: { run_kind: "beta_policy_screening" }, result: null }];
-    for (const [ceilingUsd, heldUsd] of [[100, 10], [25, 24.99], [25, 0], [100, 130]]) {
-      const input = { record: { website_preparation_reservations: { a: held(heldUsd) } }, captureId: "capture-a",
-        atlas: { maximum_cost_usd: ceilingUsd }, reader: reader([], unreadable) };
-      await expect(assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 0.000001 }))
-        .rejects.toThrow("website_scene_preparation_budget_exhausted");
-      const { ceiling, spend } = { ceiling: websiteJobCeiling(input), spend: await websiteJobSpend({ ...input, ceiling: websiteJobCeiling(input) }) };
-      expect(websiteJobCeilingSummary(ceiling, spend).remaining_cost_usd).toBe(0);
-    }
-    // Before 2026-11-11 a $100 job holding $10 with an unreadable publication still had $60 to spend.
-    const input = { record: { website_preparation_reservations: { a: held(10) } }, captureId: "capture-a",
-      atlas: { maximum_cost_usd: 100 }, reader: reader([], unreadable) };
-    await expect(assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 60 })).rejects.toThrow("budget_exhausted");
+    const input = (record: Record<string, any>, additionalCostUsd: number) => checkWebsiteJobCeiling({
+      record: { website_atlas_grants: { "capture-a": { maximum_cost_usd: 25 } }, ...record },
+      captureId: "capture-a", reader: reader([], unreadable), additionalCostUsd });
+    // $10 held + the unreadable result at $30 = $40 counted: past the $25 ceiling, as on main.
+    const job = await input({ website_preparation_reservations: { a: held(10) } }, 1);
+    expect(job).toMatchObject({ exceeded: true, pastSafetyLimit: false, safetyLimitUsd: 100 });
+    expect(job.spend.total_micros).toBe(40_000_000);
+    // The safety limit refuses on the $10 that can be read: $90 more fits, a micro-dollar over does not.
+    expect((await input({ website_preparation_reservations: { a: held(10) } }, 90)).pastSafetyLimit).toBe(false);
+    expect((await input({ website_preparation_reservations: { a: held(10) } }, 90.000001)).pastSafetyLimit).toBe(true);
+    // An unbounded hold never stops the safety limit by itself.
+    expect((await input({ website_preparation_reservations: { a: { admission: {} } } }, 1)).pastSafetyLimit).toBe(false);
   });
 });
 

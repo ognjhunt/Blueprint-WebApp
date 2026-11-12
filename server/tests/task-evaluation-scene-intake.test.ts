@@ -807,6 +807,19 @@ it.each([["flagged", true], ["unflagged", false]])("a navigation intake on a %s 
   expect(stored()[1]).not.toHaveProperty("over_budget");
 });
 
+// Owner decision 2026-11-11: a hold that cannot be read never stops a navigation intake main admits; it is reported once.
+it("admits a flagged navigation intake beside an unreadable hold, as main does, and reports the hold once", async () => {
+  sponsoredCapture();
+  const post = await sponsoredRoute();
+  const grant = await (await post("scene-sponsorship")).json();
+  expect(grant.automatic_budget_extension).toBe(true);
+  store.rows.get("inboundRequests/req1").website_preparation_reservations = { broken: { admission: { provider: "world_labs_atlas" } } };
+  expect((await post("prepared-scene", { request: navigationRequest(grant) })).status).toBe(202);
+  expect(store.rows.has("opsWebsiteJobOverBudgetAlerts/req1-safety-limit")).toBe(false);
+  expect(store.rows.get("opsWebsiteJobOverBudgetAlerts/req1-spend-unreadable")?.spend_unreadable)
+    .toMatchObject({ stage: "scene_intake", records: ["preparation reservation broken"] });
+});
+
 it("refuses an unconfirmed brief's navigation intake by name and stores nothing", async () => {
   sponsoredCapture();
   store.rows.get("siteTaskBriefs/req1").confirmedAtIso = null;

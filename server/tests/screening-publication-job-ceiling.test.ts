@@ -144,7 +144,7 @@ it("refuses only past the parser's absolute $1000 cap, the largest job ceiling t
   expect(store.quarantined).toEqual([{ issue: "Screening must stay within its limit, at most $1000" }]);
 });
 
-it("reports robots held back at the job's limit once per job, so the site's line about our team is true", async () => {
+it("reports robots held back at the job's limit once per job, so a person can decide whether to raise its limit", async () => {
   const url = await endpoint();
   const held = outcomePublication(screeningFixture().publication, "awaiting_spend_approval");
   expect((await post(url, held)).status).toBe(201);

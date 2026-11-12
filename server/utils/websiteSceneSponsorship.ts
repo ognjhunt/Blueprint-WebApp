@@ -112,18 +112,19 @@ const SAFETY_LIMIT_REACHED = Symbol("website_job_safety_limit_reached");
 /**
  * One ops alert per job and kind, each a job a person needs to look at: `safety_limit`, spend refused at
  * the job's safety limit; `screening_over_safety_limit`, the Pipeline reported testing above it;
- * `screening_job_ceiling`, testing held robots back at the job's limit (the site is told our team knows).
+ * `screening_job_ceiling`, testing held robots back at the job's limit; `spend_unreadable`, a record the
+ * job's spend is counted from cannot be read, so a person needs to look at it.
  */
-export const WEBSITE_JOB_ALERT_KINDS = ["safety_limit", "screening_over_safety_limit", "screening_job_ceiling"] as const;
+export const WEBSITE_JOB_ALERT_KINDS = ["safety_limit", "screening_over_safety_limit", "screening_job_ceiling", "spend_unreadable"] as const;
 export type WebsiteJobAlertKind = typeof WEBSITE_JOB_ALERT_KINDS[number];
 export const websiteJobAlertId = (requestId: string, kind: WebsiteJobAlertKind) => `${requestId}-${kind.replace(/_/g, "-")}`;
 export const websiteJobSafetyLimitAlertId = (requestId: string) => websiteJobAlertId(requestId, "safety_limit");
 export function websiteJobSafetyLimitRecord(job: { ceiling: { maximum_cost_usd: number; source: string };
-  spend: { total_micros: number }; safetyLimitUsd: number }, at: Record<string, string | number>) {
+  spend: { readable_total_micros: number }; safetyLimitUsd: number }, at: Record<string, string | number>) {
   return { schema_version: "website_job_safety_limit.v1", safety_limit_usd: job.safetyLimitUsd,
     job_ceiling_usd: job.ceiling.maximum_cost_usd, job_ceiling_source: job.ceiling.source,
-    // An unreadable earlier hold is unknown, never a figure.
-    job_reserved_or_settled_before_usd: Number.isFinite(job.spend.total_micros) ? job.spend.total_micros / 1_000_000 : null,
+    // What the records that can be read add up to: the figure the safety limit refused on.
+    job_reserved_or_settled_before_usd: job.spend.readable_total_micros / 1_000_000,
     ...at, recorded_at_epoch: Date.now() / 1000 };
 }
 /** Reads (inside the caller's transaction, before its writes) whether this job already has its one
@@ -135,6 +136,14 @@ export async function websiteJobAlert(store: { collection(name: string): any },
   if ((await transaction.get(alertRef)).exists) return () => {};
   return () => transaction.set(alertRef, { request_id: requestId, [kind]: value, delivery: null,
     next_attempt_at_ms: Date.now(), alerted_at_iso: null });
+}
+/** The job's one `spend_unreadable` alert, when any record its spend is counted from cannot be read. */
+export async function websiteJobSpendUnreadableAlert(store: { collection(name: string): any },
+  transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
+  spend: { unreadable: string[] }, at: Record<string, string>) {
+  if (!spend.unreadable.length) return () => {};
+  return websiteJobAlert(store, transaction, requestId, "spend_unreadable", { schema_version: "website_job_spend_unreadable.v1",
+    records: spend.unreadable.slice(0, 20), record_count: spend.unreadable.length, ...at, recorded_at_epoch: Date.now() / 1000 });
 }
 export const websiteJobSafetyLimitAlert = (store: { collection(name: string): any },
   transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
@@ -984,6 +993,9 @@ const atlasGrantFigureAmendment = z.object({
   maximum_cost_usd: z.number().finite().positive().max(WEBSITE_ATLAS_STORED_GRANT_MAXIMUM_COST_USD),
   approved_by: z.string().trim().min(1),
   approval_reference: z.string().trim().min(1).max(1000),
+  // When the owner approved it (a date, or a date and time), recorded apart from when it was applied.
+  approved_at_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}(T[0-9:.]+(Z|[+-]\d{2}:\d{2}))?$/)
+    .refine(value => Number.isFinite(Date.parse(value)), "approved_at_iso must be a date"),
 }).strict();
 export const WEBSITE_ATLAS_GRANT_AMENDMENT_SCHEMA = "website_atlas_grant_figure_amendment.v1";
 
@@ -1024,6 +1036,10 @@ export async function amendWebsiteAtlasGrantFigure(
       throw new Error("website_atlas_grant_amendment_binding_invalid");
     if (grant.expires_at_epoch <= Date.now() / 1000) throw new Error("website_atlas_consent_expired");
     if (!projectWebsiteCaptureRights(record).derived_scene_generation_allowed) throw new Error("source_revoked");
+    // A run the owner closed (or a capture another one replaced) is not raised.
+    assertWebsiteRunOpen(record, requestId, command.capture_id);
+    const approvedAt = Date.parse(command.approved_at_iso) / 1000;
+    if (approvedAt > Date.now() / 1000) throw new Error("website_atlas_grant_amendment_approval_in_future");
     if (command.maximum_cost_usd <= grant.maximum_cost_usd) throw new Error("website_atlas_grant_amendment_not_increased");
     const amended = parseWebsiteAtlasStoredGrant({ ...grant, maximum_cost_usd: command.maximum_cost_usd });
     if (!amended) throw new Error("website_atlas_grant_amendment_out_of_bounds");
@@ -1031,7 +1047,7 @@ export async function amendWebsiteAtlasGrantFigure(
       capture_id: command.capture_id, approved_by: command.approved_by, approval_reference: command.approval_reference,
       from_maximum_cost_usd: grant.maximum_cost_usd, to_maximum_cost_usd: command.maximum_cost_usd,
       prior_authorization_digest: command.authorization_digest, authorization_digest: digest(amended),
-      approved_at_epoch: Date.now() / 1000 };
+      approved_at_iso: command.approved_at_iso, approved_at_epoch: approvedAt, applied_at_epoch: Date.now() / 1000 };
     const receipt = { ...value, amendment_digest: digest(value) };
     const change = { path: `inboundRequests/${requestId}.website_atlas_grants.${command.capture_id}.maximum_cost_usd`,
       from: grant.maximum_cost_usd, to: command.maximum_cost_usd };
@@ -1279,15 +1295,20 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       throw new Error("website_scene_preparation_budget_exhausted");
     // Owner decision 2026-10-30: one dollar ceiling per job. The caps above stay;
     // every ledger this job spends from must also fit under the job's ceiling.
-    const job = await checkWebsiteJobCeiling({ record, captureId, requestId, atlas, extended,
+    const job = await checkWebsiteJobCeiling({ record, captureId, requestId, atlas,
       reader: transactionJobLedgerReader(store, transaction, requestId), additionalCostUsd: command.maximum_cost_usd });
-    if (job.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
+    // Owner decision 2026-11-11: a record whose figure cannot be read is counted as before and
+    // reported once per job, whatever this admission decides (so a refusal records it too).
+    const recordUnreadable = await websiteJobSpendUnreadableAlert(store, transaction, requestId, job.spend,
+      { stage: "preparation_reservation", reservation_key: key });
+    if (job.exceeded && !extended) { recordUnreadable(); return SAFETY_LIMIT_REACHED; }
     // Owner decision 2026-11-11: past the job's ceiling a flagged grant still builds with a note, but
     // never past its safety limit, a fuse against a bug burning the month in one job. The job's one
     // safety-limit alert is recorded and the refusal is thrown once this transaction commits.
     if (extended && job.pastSafetyLimit) {
-      (await websiteJobSafetyLimitAlert(store, transaction, requestId, websiteJobSafetyLimitRecord(job,
-        { stage: "preparation_reservation", reservation_key: key, additional_cost_usd: command.maximum_cost_usd })))();
+      const recordSafety = await websiteJobSafetyLimitAlert(store, transaction, requestId, websiteJobSafetyLimitRecord(job,
+        { stage: "preparation_reservation", reservation_key: key, additional_cost_usd: command.maximum_cost_usd }));
+      recordSafety(); recordUnreadable();
       return SAFETY_LIMIT_REACHED;
     }
     const overBudget = extended && (pastAllowance || job.exceeded) ? {
@@ -1318,6 +1339,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
         observation_binding: preparationObservationBinding(requestId, captureId, command),
         ...(overBudget ? { over_budget: overBudget } : {}) } } });
     recordAlert();
+    recordUnreadable();
     return admission;
   }));
   if (result === SAFETY_LIMIT_REACHED) throw new Error(WEBSITE_JOB_SAFETY_LIMIT_REACHED);
@@ -1375,7 +1397,7 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
     // The job's one ceiling across all of its ledgers; the allowance figures above stay Atlas-only.
     const ceiling = websiteJobCeiling({ record, captureId, requestId, atlas: authority });
     const jobCeiling = websiteJobCeilingSummary(ceiling,
-      await websiteJobSpend({ record, ceiling, reader: transactionJobLedgerReader(store, transaction, requestId) }));
+      await websiteJobSpend({ record, reader: transactionJobLedgerReader(store, transaction, requestId) }));
     // First writer wins: a concurrent creation retries this transaction and then reads it.
     if (created && input.create !== false)
       transaction.update(ref, { website_atlas_grants: { ...(record.website_atlas_grants ?? {}), [captureId]: created } });

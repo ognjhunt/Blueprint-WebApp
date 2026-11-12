@@ -305,7 +305,7 @@ describe("deriveJobStage", () => {
     it("names a money or setup wait and makes it Blueprint's move", () => {
       const money = deriveJobStage(facts({ scene: scene("completed", { progressOutcome: "awaiting_spend_approval" }) }));
       expect(money).toMatchObject({ stage: "screening", actionOwner: "blueprint",
-        nextAction: "Screening waits on Blueprint: the job's limit or this month's account limit" });
+        nextAction: "Screening waits on Blueprint: a limit on our side held it back" });
       expect(money.attention).toContain("Money wait: the screening awaits spend approval");
       const setup = deriveJobStage(facts({ scene: scene("testing", { progressOutcome: "setup_repair" }) }));
       expect(setup).toMatchObject({ stage: "screening", actionOwner: "blueprint" });

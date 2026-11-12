@@ -764,9 +764,8 @@ it.each([["flagged",true],["unflagged",false]])("a scene intake past the job cei
   });
 });
 // Owner decision 2026-11-11: the job's ceiling is one safety limit per job, a real stop for the build too.
-// Owner decision 2026-11-11: each job's safety limit = max(its stored ceiling, the grant policy's current
-// figure; $100 when no policy is set). A flagged grant builds past its ceiling with a note, as before, and
-// never past its safety limit. An unflagged grant is exactly as before.
+// Owner decision 2026-11-11: each job's safety limit = max(its stored ceiling, the owner's fixed $100). A flagged
+// grant builds past its ceiling with a note, as before, and never past its safety limit. An unflagged grant is as before.
 const grantPolicy=(maximum_cost_usd:number)=>JSON.stringify({schema_version:"website_atlas_grant_policy.v1",maximum_cost_usd,
   maximum_requests:32,validity_seconds:604800,provider_retention:"account_does_not_retain",approval_reference:"owner",approved_by:"owner"});
 it.each([
@@ -781,8 +780,10 @@ it.each([
   ["new $100 grant, flagged, to $100.000001",true,100,100,99.4,0.600001,false],
   ["policy unset, old $25 grant, flagged, to $100.00",true,25,null,99.4,0.6,true],
   ["policy unset, old $25 grant, flagged, to $100.000001",true,25,null,99.4,0.600001,false],
-  ["policy lowered to $20 below a $25 grant, flagged, to $25.00",true,25,20,24.4,0.6,true],
-  ["policy lowered to $20 below a $25 grant, flagged, to $25.000001",true,25,20,24.4,0.600001,false],
+  // The hosting setting only sets the figure new grants are stored with: lowered, it never lowers a job's limit.
+  ["policy lowered to $2 below a $25 grant, flagged, to $25.000001",true,25,2,24.4,0.600001,true],
+  ["policy lowered to $2 below a $25 grant, flagged, to $100.00",true,25,2,99.4,0.6,true],
+  ["policy lowered to $2 below a $25 grant, flagged, to $100.000001",true,25,2,99.4,0.600001,false],
 ] as const)("a Pipeline reservation: %s",async(_label,flagged,stored,policy,heldUsd,askedUsd,admitted)=>{
   if(!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON",policy===null?"":grantPolicy(policy));
@@ -805,6 +806,33 @@ it.each([
   if(admitted) expect(rows["d".repeat(64)].over_budget?.job_ceiling_exceeded??false).toBe(flagged&&pastCeiling);
   // Only a refusal at the safety limit raises the job's one safety-limit alert; an unflagged refusal is as before.
   expect(alertRows().filter(key=>key.endsWith("-safety-limit"))).toEqual(!admitted&&flagged?["opsWebsiteJobOverBudgetAlerts/one-safety-limit"]:[]);
+});
+// Owner decision 2026-11-11: what cannot be read is counted exactly as on main, and reported once per job.
+it.each([["flagged",true],["unflagged",false]])("a malformed hold on a %s grant is counted as before and reported once",async(_label,flagged)=>{
+  if(!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
+  const {spend}=await budgetJob();
+  const record=state.docs.get("inboundRequests/one") as any;
+  record.website_preparation_reservations={broken:{admission:{provider:"world_labs_atlas",atlas_authorization_digest:`sha256:${"a".repeat(64)}`}}};
+  await withSignedRoute(async send=>{
+    for(const n of ["d","e"]){
+      const response=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend(n,0.4)});
+      // As on main: an unbounded hold passes the ceiling, so a flagged grant admits with a note and an unflagged one refuses.
+      expect(response.status).toBe(flagged?200:409);
+    }
+  });
+  const rows=(state.docs.get("inboundRequests/one") as any).website_preparation_reservations;
+  if(flagged) expect(rows["d".repeat(64)].over_budget).toMatchObject({job_ceiling_exceeded:true,job_reserved_or_settled_before_usd:null});
+  else expect(Object.keys(rows)).toEqual(["broken"]);
+  const unreadable=alertRows().filter(key=>key.endsWith("-spend-unreadable"));
+  expect(unreadable).toEqual(["opsWebsiteJobOverBudgetAlerts/one-spend-unreadable"]);
+  expect((state.docs.get(unreadable[0]) as any).spend_unreadable).toMatchObject({records:["preparation reservation broken"],record_count:1});
+  expect(alertRows().some(key=>key.endsWith("-safety-limit"))).toBe(false);
+  const alert=vi.fn(async()=>({sent:true}));
+  const deps={store:(await import("./helpers/fake-firestore")).sharedFakeFirestore as any,alert,email:vi.fn() as any};
+  await scanOverBudgetWebsiteJobs(deps);
+  const messages=(alert.mock.calls as unknown as Array<[string,string]>).map(call=>call[1]).join("\n");
+  expect(messages).toContain("A website job's spend cannot be read");
+  expect(messages).toContain("request one: this job's spend cannot be read: preparation reservation broken.");
 });
 it("reports a job's safety-limit refusal once, as a safety limit",async()=>{
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON",grantPolicy(100));
