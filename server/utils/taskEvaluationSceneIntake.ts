@@ -1149,7 +1149,9 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
       const notice = record.website_request_id ? sceneOutcomeNoticeIntent(row.id, { ...record, ...patch }) : null;
       // An outcome kind this release does not know is not adopted; staff hear once per job and code.
       const sentKind = ({ ...record, ...patch } as Record<string, any>).pipeline_status?.outcome?.kind;
-      if (record.website_request_id && typeof sentKind === "string" && !isKnownSceneIntentOutcomeKind(sentKind))
+      // Only when this outcome is first stored: the 60-second poll that reads it again writes nothing.
+      if (record.website_request_id && typeof sentKind === "string" && !isKnownSceneIntentOutcomeKind(sentKind)
+        && record.pipeline_status?.outcome?.outcome_digest !== (patch as Record<string, any>).pipeline_status?.outcome?.outcome_digest)
         void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
           noteUnknownPipelineCode(record.website_request_id, "scene_outcome.kind", sentKind));
       await storeTimeout(

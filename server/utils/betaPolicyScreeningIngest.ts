@@ -302,8 +302,11 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
   const unknownFlags = [...new Set([...(screeningSceneFeasibility(publication)?.flags ?? []),
     ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => row[key] ?? []))])].filter(code => !isKnownFlag(code));
   if (unknownFlags.length) {
-    const { noteUnknownPipelineCodes } = await import("./unknownPipelineCode");
-    noteUnknownPipelineCodes(selected.website_request_id, unknownFlags.map(code => ["screening.flag", code] as [string, string]));
+    // Bounded: a few alerts per ingest, then one summary line (`noteUnknownPipelineCodes`); only for a new revision.
+    if (ingested.status === "created" || ingested.status === "updated") {
+      const { noteUnknownPipelineCodes } = await import("./unknownPipelineCode");
+      void noteUnknownPipelineCodes(selected.website_request_id, unknownFlags.map(code => ["screening.flag", code] as [string, string]));
+    }
   }
   if ((ingested.status === "created" || ingested.status === "updated") && TERMINAL_RUN_STATES.has(String(publication.status))
     && !screeningOutcome(publication)) {

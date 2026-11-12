@@ -244,8 +244,7 @@ export async function loadJobOutlookDecision(requestId: string):
     windowEndedAtEpoch: await import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
       .then(window => window.endedAtEpoch ?? null).catch(() => null),
     runStoppedByWindow, resultUnknown,
-    awaitsSiteSentence: !record.site_task_brief_confirmed_at && (preparationTaskNotNamed
-      || (await import("./taskPreparationOutcome")).jobAwaitsItsSentence(record, captureId)),
+    awaitsSiteSentence: (await import("./jobSentenceWait")).jobWaitsForItsSentence({ requestId, record, preparationTaskNotNamed }),
     preparation, scene, proof, uncertain,
   };
   const outlook = jobOutlook(input);

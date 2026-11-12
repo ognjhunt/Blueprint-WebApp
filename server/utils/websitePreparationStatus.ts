@@ -4,7 +4,7 @@ import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { z } from "zod";
 import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON } from "./taskPreparationOutcome";
-import { noteUnknownPipelineCode } from "./unknownPipelineCode";
+import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
 import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
@@ -512,7 +512,10 @@ async function latestVerified(selector: WebsitePreparationSelector, deps: Websit
 export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultDeps): Promise<WebsitePreparationReceipt> {
   const selector = websitePreparationSelectorSchema.parse(raw);
   const {latest, authority} = await boundedRead(signal => latestVerified(selector, deps, signal));
-  for (const [slot, code] of unknownPreparationCodes(latest)) void noteUnknownPipelineCode(selector.request_id, slot, code);
+  // Recorded at ingest only, and only for a receipt this job has not stored before (never on a read or a replay).
+  const prior = await deps.readStored(selector.capture_id).catch(() => null);
+  if (crossRuntimeDigest(prior?.status ?? null) !== crossRuntimeDigest(latest))
+    void noteUnknownPipelineCodes(selector.request_id, unknownPreparationCodes(latest));
   await deps.commit(selector, latest, authority);
   // A geometry-only job ends at its robot fit check, and an ended authority ends the job before a test ran: either
   // ending gives the site its paper-check answer now, queued here where it is recorded.
@@ -542,7 +545,6 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
   try {
     id.parse(requestId); websitePreparationSelectorSchema.shape.capture_id.parse(captureId);
     const {status} = await fresh(captureId, requestId, deps);
-    for (const [slot, code] of unknownPreparationCodes(status)) void noteUnknownPipelineCode(requestId, slot, code);
     const precheck = "robot_fit_precheck" in status && status.robot_fit_precheck
       ? publicRobotFitPrecheck(status.robot_fit_precheck) : null;
     // Customer correlation is company-derived; never trust caller supplied correlation text.

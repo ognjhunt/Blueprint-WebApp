@@ -99,7 +99,7 @@ import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
-import { jobAwaitsItsSentence } from "../utils/taskPreparationOutcome";
+import { loadJobWaitsForItsSentence } from "../utils/jobSentenceWait";
 
 const router = Router();
 
@@ -763,7 +763,7 @@ router.get("/:token", async (req: Request, res: Response) => {
       // to prepare from (`website_task_not_named`) and the site has not given one since.
       ...(payload.scope === "owner" ? { taskStatementNeeded: !brief.confirmedAtIso && (isPlaceholderSummary(brief.summary)
         && recorded?.capture_task_statement_draft?.state === "none_seen"
-        || jobAwaitsItsSentence(recorded, `walkthrough-${payload.requestId}`)) } : {}),
+        || await loadJobWaitsForItsSentence(payload.requestId, recorded)) } : {}),
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load a task brief");

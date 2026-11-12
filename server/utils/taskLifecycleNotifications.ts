@@ -287,7 +287,8 @@ export async function enqueueTaskLifecycleNotification(params: {
     ? selectWebsiteAtlasPreview(snapshot.data(), params.captureId) : null;
   const earlyTaskHold = earlyTaskHoldOf(preview);
   // A job waiting for its sentence needs the site, not our team: no "needs attention" email; the page asks for it.
-  if (params.milestone === "preparation_needs_attention" && preview?.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON)
+  if (params.milestone === "preparation_needs_attention"
+    && (await import("./jobSentenceWait")).jobWaitsForItsSentence({ requestId, record: snapshot.data() }))
     return { enqueued: false, reason: "awaiting_site_sentence" };
   // The Pipeline delivers the preview separately and can be late: until it says how this capture's Atlas lane
   // ended, or the wait runs out, owe the notice rather than send a generic one the page would contradict.
