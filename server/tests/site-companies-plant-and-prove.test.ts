@@ -106,8 +106,10 @@ async function siteStatus() {
   expect(response.status, raw).toBe(200);
   return { raw, body: JSON.parse(raw) as Record<string, any> };
 }
-async function introduce(alias: string, scope: "owner" | "film" = "owner") {
-  const response = await fetch(`${base}/api/site-task-brief/${token(scope)}/introductions`, { method: "POST", body: JSON.stringify({ alias }),
+async function introduce(alias: string, scope: "owner" | "film" = "owner",
+  statementVersion: string | null = "introduction-request-2026-11-12") {
+  const response = await fetch(`${base}/api/site-task-brief/${token(scope)}/introductions`, { method: "POST",
+    body: JSON.stringify({ alias, ...(statementVersion === null ? {} : { statementVersion }) }),
     headers: { "content-type": "application/json", cookie: "csrf_token=site-test", "x-csrf-token": "site-test" } });
   return { status: response.status, body: await response.json() as Record<string, any> };
 }
@@ -174,17 +176,61 @@ describe("the introductions route", () => {
     ["not_interested", "This company has not answered Interested, so we cannot introduce you."],
     ["consent_missing", "This company needs to answer again before we can introduce you."],
     ["limit_reached", "You have used your three introductions."],
-    ["already_introduced", "You have already been introduced to this company. Their details are on this page and in your email."],
+    ["already_introduced", "You have already been introduced to this company."],
     ["company_not_approved", "This company can no longer be introduced."],
   ])("says the refusal %s in one plain sentence", async (reason, sentence) => {
     introductions.forced = { ok: false, reason };
     expect(await introduce("Company A")).toEqual({ status: 409, body: { ok: false, code: "introduction_refused", reason, error: sentence } });
   });
 
+  // Review S8: a withdrawn job is told for good, never "right now". (A fully revoked job is refused earlier by the
+  // router's own rights check; this is the moment the withdrawal is on record and the job has just left companies' view.)
+  it("says a withdrawn job's refusal without 'right now'", async () => {
+    state.docs.set(`inboundRequests/${ID}`, sharedJob({ capture_withdrawal: { state: "uploads_stopped_cleanup_pending" } }));
+    introductions.forced = { ok: false, reason: "not_listed" };
+    expect(await introduce("A")).toEqual({ status: 409, body: { ok: false, code: "introduction_refused", reason: "withdrawn",
+      error: "You withdrew this job, so we cannot make an introduction." } });
+  });
+
+  // The sentence beside the button is a recorded statement (planner, 18:25Z): no version, or another, records nothing.
+  it.each([[null], ["introduction-request-2026-11-01"], [""]])("refuses statement version %s and writes nothing", async version => {
+    vi.mocked(requestIntroduction).mockClear();
+    const before = JSON.stringify([...state.docs.entries()]);
+    expect(await introduce("A", "owner", version)).toEqual({ status: 409, body: { ok: false, code: "introduction_statement_changed",
+      error: "The wording on this page has changed. Reload the page, read it, then press Introduce us again." } });
+    expect(vi.mocked(requestIntroduction)).not.toHaveBeenCalled();
+    expect(JSON.stringify([...state.docs.entries()])).toBe(before);
+  });
+
+  it("says a refusal for a wording the company side no longer accepts as 'reload the page'", async () => {
+    introductions.forced = { ok: false, reason: "statement_not_current" };
+    expect(await introduce("A")).toEqual({ status: 409, body: { ok: false, code: "introduction_statement_changed",
+      error: "The wording on this page has changed. Reload the page, read it, then press Introduce us again." } });
+  });
+
+  // End to end with the real `requestIntroduction` (review M2): the site's email says the company's own stored answer.
+  it("queues the site's email with the company's real answer, and records the statement version", async () => {
+    introductions.forced = null;
+    // The introduction's personal fields are encrypted at rest (company side, C1): a fixture key.
+    vi.stubEnv("FIELD_ENCRYPTION_KMS_KEY_NAME", ""); vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY", Buffer.alloc(32, 7).toString("base64"));
+    const north = sha(NORTH.email), south = sha(SOUTH.email);
+    state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${north}`, answer(NORTH, WORDS.north, "tested_can_do"));
+    const response = await introduce("A");
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    const intro = state.docs.get(`inboundRequests/${ID}/introductions/${north}`) as Record<string, any>;
+    expect(intro.statementVersion).toBe("introduction-request-2026-11-12");
+    const row = state.docs.get(`captureOutbox/${ID}:introduction_made_site:${north}`) as Record<string, any>;
+    expect(row.body.split("\n")[0]).toBe(`${NORTH.company} answered Tested it: can do about your job, and you asked us to introduce you.`);
+    expect(JSON.stringify(row)).not.toContain(WORDS.north);
+    expect(state.docs.has(`inboundRequests/${ID}/introductions/${south}`)).toBe(false);
+    vi.unstubAllEnvs();
+  });
+
   it("passes the bare alias letter, and returns when the introduction was made", async () => {
     introductions.forced = { ok: true, introducedAtIso: "2026-11-12T12:00:00.000Z" };
     expect(await introduce("Company A")).toEqual({ status: 200, body: { ok: true, introducedAtIso: "2026-11-12T12:00:00.000Z" } });
-    expect(vi.mocked(requestIntroduction)).toHaveBeenLastCalledWith({ requestId: ID, alias: "A", actor: "site" });
+    expect(vi.mocked(requestIntroduction)).toHaveBeenLastCalledWith({ requestId: ID, alias: "A", actor: "site",
+      statementVersion: "introduction-request-2026-11-12" });
   });
 });
 
@@ -216,13 +262,26 @@ describe("the emails to the site", () => {
 
   it("after an introduction, say exactly the introduced company's details and reply to it", () => {
     const row = buildIntroductionMadeSiteNotification({ requestId: ID, to: "owner@site.example", companyId: sha(NORTH.email), captureUrl: url,
-      company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website } });
+      company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website }, answerLabel: "Interested" });
     expect(row).toMatchObject({ idempotencyKey: `${ID}:introduction_made_site:${sha(NORTH.email)}`, kind: "introduction_made_site",
       to: "owner@site.example", subject: `Meet ${NORTH.company}`, replyTo: NORTH.email });
     expect(row.body).toBe([`${NORTH.company} answered Interested about your job, and you asked us to introduce you.`, "",
       `Contact: ${NORTH.name}`, `Email: ${NORTH.email}`, `Website: ${NORTH.website}`, "",
       "We've given them your details. Reply to them directly.", "", `Open your job:\n${url}`].join("\n"));
     expectNone("introduction email", JSON.stringify(row), [WORDS.north, NORTH.robot, NORTH.region, NORTH.decisionNote, ...SOUTH_PLANTED]);
+  });
+
+  // Review M2: worded from the company's stored answer, never "Interested" for another answer; with none, no answer claimed.
+  it("says the company's own answer in the introduction email", async () => {
+    const { introductionMadeSiteEmail } = await import("../utils/introductionSiteEmail");
+    const company = { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: null };
+    expect(introductionMadeSiteEmail({ jobUrl: url, company, answerLabel: "Tested it: can do" }).body.split("\n")[0])
+      .toBe(`${NORTH.company} answered Tested it: can do about your job, and you asked us to introduce you.`);
+    expect(introductionMadeSiteEmail({ jobUrl: url, company, answerLabel: "Interested" }).body.split("\n")[0])
+      .toBe(`${NORTH.company} answered Interested about your job, and you asked us to introduce you.`);
+    const none = introductionMadeSiteEmail({ jobUrl: url, company });
+    expect(none.body.split("\n")[0]).toBe(`You asked us to introduce you to ${NORTH.company}.`);
+    expect(none.body).not.toMatch(/answered/);
   });
 
   it("are checked again at dispatch: never after a withdrawal, never while the job is not visible", async () => {

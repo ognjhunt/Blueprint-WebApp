@@ -68,10 +68,10 @@ describe("firstLookRowInWords", () => {
       .toMatchObject({ verdict: "conditional", text: "Fits if it has a clear route to the job. The item is under 5 kg and this robot carries 11.6 kg." });
   });
 
-  it("stays conditional when the range overlaps the limit, and for over 30 kg and not sure", () => {
+  it("stays conditional when the range overlaps the limit, for over 30 kg against a limit of 30 kg or more, and for not sure", () => {
     expect(firstLookRowInWords(fitsIf([mass(29.1)], 30), facts("15_30kg")).text).toBe("Fits if the item weighs under 29.1 kg.");
     expect(firstLookRowInWords(fitsIf([mass(11.6)]), facts("5_15kg")).verdict).toBe("conditional");
-    expect(firstLookRowInWords(fitsIf([mass(2.1)], 3), facts("over_30kg")).verdict).toBe("conditional");
+    expect(firstLookRowInWords(fitsIf([mass(30)], 31), facts("over_30kg")).verdict).toBe("conditional");
     expect(firstLookRowInWords(fitsIf([mass(11.6)]), facts("unsure")).verdict).toBe("conditional");
     expect(firstLookRowInWords(fitsIf([mass(11.6)]), { weight: "a_ton" } as never).verdict).toBe("conditional");
   });
@@ -87,7 +87,12 @@ describe("firstLookRowInWords", () => {
     expect(firstLookRowInWords(fitsIf([reach(0.85), mass(4.1)], null), facts("5_15kg")).verdict).toBe("does_not_fit");
     // A range that straddles the limit, "over 30 kg" and "not sure" leave the condition as it is.
     expect(firstLookRowInWords(fitsIf([mass(11.6)], 12.5), facts("5_15kg")).verdict).toBe("conditional");
-    expect(firstLookRowInWords(fitsIf([mass(11.6)], 12.5), facts("over_30kg")).verdict).toBe("conditional");
+    // "Over 30 kg" means more than 30 kg (planner, S6): it does not fit a limit under 30 kg; at 30 kg or more it stays.
+    expect(firstLookRowInWords(fitsIf([mass(11.6)], 12.5), facts("over_30kg"))).toMatchObject({ verdict: "does_not_fit",
+      text: "Does not fit: the item is too heavy for it with a standard gripper (it carries 11.6 kg)." });
+    expect(firstLookRowInWords(fitsIf([mass(29.1)], 30), facts("over_30kg")).verdict).toBe("does_not_fit");
+    expect(firstLookRowInWords(fitsIf([mass(30)], 31), facts("over_30kg")).verdict).toBe("conditional");
+    expect(firstLookRowInWords(fitsIf([mass(34.1)], 35), facts("over_30kg")).verdict).toBe("conditional");
     expect(firstLookRowInWords(fitsIf([mass(11.6)], 12.5), facts("unsure")).verdict).toBe("conditional");
   });
 

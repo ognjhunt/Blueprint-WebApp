@@ -98,3 +98,18 @@ describe("withdrawal", () => {
     expect(privacyPolicySections.find(section => section.title === "Your choices")?.body).toContain(PROMISES.withdrawal);
   });
 });
+
+// Review M3 and S1: an introduction gives the address too, and the Terms name all five answers.
+describe("what an introduction gives, and the answers a company can give", () => {
+  it("says the address goes with an introduction, in the Terms and the Privacy Policy", () => {
+    expect(termsText).toContain("When you ask for an introduction to a company that answered Interested or Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.");
+    expect(privacyText).toContain("When a site asks for an introduction, we give you the site's name, address and contact details.");
+    expect(termsText).not.toMatch(/we give it your name and contact details/);
+  });
+
+  it("lists the five answers", () => {
+    const five = "interested, not a fit, would need something, tested it: can do, or tested it: cannot yet";
+    expect(termsText.split(five).length - 1).toBe(2);
+    expect(termsText).not.toMatch(/interested, not a fit, or would need something/);
+  });
+});

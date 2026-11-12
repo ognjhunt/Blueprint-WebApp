@@ -2,11 +2,16 @@
  * The thank-you page after an outcome answer is recorded (PACKAGE_E E8). It shows the answer and
  * nothing else: no job, no name, no company.
  */
-import { isOutcomeState, outcomeThanks } from "@/lib/jobOutcomeStates";
+import { OUTCOME_STATE_LABELS, isOutcomeState, outcomeThanks } from "@/lib/jobOutcomeStates";
+
+/** After a final answer, a later link records nothing and says so (review S3). */
+export const outcomeAlreadyRecorded = (label: string) => `This introduction is already recorded as ${label}. Nothing more is needed.`;
 
 export function outcomeThanksSentence(search: string): string {
-  let answer: string | null = null;
-  try { answer = new URLSearchParams(search).get("answer"); } catch { answer = null; }
+  let answer: string | null = null, already: string | null = null;
+  try { const params = new URLSearchParams(search); answer = params.get("answer"); already = params.get("already"); }
+  catch { answer = null; }
+  if (isOutcomeState(already)) return outcomeAlreadyRecorded(OUTCOME_STATE_LABELS[already]);
   return isOutcomeState(answer) ? outcomeThanks(answer) : "Thanks.";
 }
 

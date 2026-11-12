@@ -110,14 +110,17 @@ describe("the Pipeline's company simulation callback", () => {
     expect(await publish(first)).toEqual({ status: 409, body: { code: "website_company_simulation_request_missing" } });
   });
 
+  // A record that fails the schema is a named refusal (409 `website_company_simulation_invalid`), so the Pipeline records
+  // it instead of offering the same record on every pass.
   it("refuses a package over the contract's 512 MiB, a different format, and a member name outside the zip", async () => {
     seed();
     expect(MAX_COMPANY_SIMULATION_BYTES).toBe(536_870_912);
-    expect((await publish(sealed({ size_bytes: MAX_COMPANY_SIMULATION_BYTES + 1 }))).status).toBe(400);
+    const invalid = { status: 409, body: { code: "website_company_simulation_invalid" } };
+    expect(await publish(sealed({ size_bytes: MAX_COMPANY_SIMULATION_BYTES + 1 }))).toEqual(invalid);
     expect((await publish(sealed({ size_bytes: MAX_COMPANY_SIMULATION_BYTES }))).status).toBe(200);
-    expect((await publish(sealed({ format: "zip_other" }))).status).toBe(400);
-    expect((await publish(sealed({ files: ["../outside.usda"] }))).status).toBe(400);
-    expect((await publish(sealed({ files: ["/abs/scene.usda"] }))).status).toBe(400);
+    expect(await publish(sealed({ format: "zip_other" }))).toEqual(invalid);
+    expect(await publish(sealed({ files: ["../outside.usda"] }))).toEqual(invalid);
+    expect(await publish(sealed({ files: ["/abs/scene.usda"] }))).toEqual(invalid);
   });
 
   it("gives the rights refusals: a job that may not be shared, and a withdrawn job", async () => {
@@ -135,5 +138,17 @@ describe("the Pipeline's company simulation callback", () => {
     seed({ request: { buyerType: "site_operator", consent_attestation: { ...sharedRecordingGrant(), granted: false, revoked_at_iso: "2026-11-12T12:00:00.000Z" } } });
     expect(await publish(sealed())).toEqual({ status: 409, body: { code: "source_revoked" } });
     expect((state.docs.get(SESSION) as Record<string, unknown>).company_simulation).toBeUndefined();
+  });
+});
+
+describe("the Pipeline's company clip callback: a record that fails its schema is a named refusal", () => {
+  it("answers 409 website_company_clip_invalid, never a 400 the Pipeline would retry on every pass", async () => {
+    seed();
+    for (const clip of [{ schema_version: "website_company_clip.v1", capture_id: CAPTURE }, { fps: 60 }, null]) {
+      const response = await realFetch(`${base}/creator-captures/${CAPTURE}/company-clip`, { method: "POST",
+        headers: { "content-type": "application/json" }, body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", clip }) });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ code: "website_company_clip_invalid" });
+    }
   });
 });

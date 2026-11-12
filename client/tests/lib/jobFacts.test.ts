@@ -57,3 +57,13 @@ describe("outcome thank-you page", () => {
     expect(outcomeThanksSentence("")).toBe("Thanks.");
   });
 });
+
+// Review S3: after a final answer, a later link records nothing and its page says what is on record.
+describe("the outcome page after a final answer", () => {
+  it("says the introduction is already recorded as that answer", async () => {
+    const { outcomeThanksSentence } = await import("@/pages/JobOutcomeThanks");
+    expect(outcomeThanksSentence("?already=installed")).toBe("This introduction is already recorded as Installed. Nothing more is needed.");
+    expect(outcomeThanksSentence("?already=not_going_ahead")).toBe("This introduction is already recorded as Not going ahead. Nothing more is needed.");
+    expect(outcomeThanksSentence("?already=nonsense")).toBe("Thanks.");
+  });
+});

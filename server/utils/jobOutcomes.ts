@@ -12,6 +12,8 @@
  * sweep run twice queues it once. Each side already knows the other's name from the introduction;
  * the email names it and says nothing else about the other side.
  */
+import { FINAL_OUTCOME_STATES } from "../../client/src/lib/jobOutcomeStates";
+import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { OUTCOME_STATES, OUTCOME_STATE_LABELS, type OutcomeState } from "../../client/src/lib/jobOutcomeStates";
 import { logger } from "../logger";
@@ -51,7 +53,8 @@ function appOrigin(): string {
 }
 
 export const outcomeQuestionSubject = (otherSide: string) => `How did it go with ${otherSide}?`;
-export const outcomeQuestionSentence = (otherSide: string) => `One click tells us where things stand with ${otherSide}.`;
+/** Two presses, not one: the link opens a page whose button records it (review S2). */
+export const outcomeQuestionSentence = (otherSide: string) => `Press one to tell us what happened with ${otherSide}.`;
 
 /** The one email to one side: one sentence, then the five answers as signed links. Nothing else. */
 export function buildOutcomeQuestionEmail(params: { requestId: string; companyId: string; side: OutcomeSide; otherSideName: string;
@@ -180,7 +183,9 @@ export function startJobOutcomeQuestionWorker(options: { intervalMs?: number; le
 /* ------------------------------------------------------------------ answer */
 
 export type OutcomeAnswerResult =
-  | { ok: true; state: OutcomeState; recorded: boolean }
+  | { ok: true; state: OutcomeState; recorded: boolean;
+      /** Already final ("Installed" or "Not going ahead" from either side): nothing more is recorded (review S3). */
+      finalAlready?: OutcomeState }
   | { ok: false; reason: "invalid_link" | "not_found" | "closed" | "store_unavailable" };
 
 /**
@@ -202,12 +207,19 @@ export async function recordOutcomeAnswer(token: string, now = new Date()): Prom
     if (!job.exists || !intro.exists) return { ok: false, reason: "not_found" };
     if (projectWebsiteCaptureRights(job.data()).consent_revoked) return { ok: false, reason: "closed" };
     const data = intro.data() as IntroductionLike;
+    const existing = Array.isArray(data.outcomes) ? data.outcomes : [];
+    // A final answer is final (planner, 2026-11-12, S3): after "Installed" or "Not going ahead" from either side, a later
+    // link records nothing and says what is on record.
+    const final = existing.find(record => record && FINAL_OUTCOME_STATES.has(record.state as OutcomeState));
+    if (final) return { ok: true, state: payload.state, recorded: false, finalAlready: final.state as OutcomeState };
+    // The same link used twice records once, however long apart.
+    const link = createHash("sha256").update(token).digest("hex");
+    if (existing.some(record => (record as { link?: unknown })?.link === link)) return { ok: true, state: payload.state, recorded: false };
     const mine = latestOutcome(data)[payload.by];
     // A repeated click of the same answer within the hour is one answer; the same answer to a later question appends.
     if (mine?.state === payload.state && now.getTime() - Date.parse(mine.atIso) < REPEAT_CLICK_MS)
       return { ok: true, state: payload.state, recorded: false };
-    const existing = Array.isArray(data.outcomes) ? data.outcomes : [];
-    const entry: OutcomeRecord = { by: payload.by, state: payload.state, atIso: now.toISOString() };
+    const entry = { by: payload.by, state: payload.state, atIso: now.toISOString(), link } as OutcomeRecord;
     tx.update(introRef, { outcomes: [...existing, entry] });
     return { ok: true, state: payload.state, recorded: true };
   });

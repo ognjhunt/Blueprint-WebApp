@@ -11,8 +11,7 @@
  * serving at once. Before a reference exists the page says "The simulation is not finished yet." and offers neither the
  * button nor the two tested answers.
  */
-import { createHash } from "node:crypto";
-import { Readable, Transform } from "node:stream";
+import { Readable } from "node:stream";
 import { z } from "zod";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -23,7 +22,7 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { RECORDING_VERSIONS_THAT_SHARE } from "./teamJobAccess";
-import { forwardableRange } from "./websiteCompanyClip";
+import { forwardableRange, rangeCoversWholeFile, verifiedWholeFile } from "./websiteCompanyClip";
 
 export const COMPANY_SIMULATION_FIELD = "company_simulation";
 /** The contract's `MAX_PACKAGE_BYTES`. */
@@ -133,8 +132,11 @@ export type CompanySimulationFetch =
  * not match the stored digest the stream errors before it ends, so the browser never gets a complete file. A range read
  * must state the stored size as its total.
  */
-export async function fetchCompanySimulation(requestId: string, reference: WebsiteCompanySimulation, range: string | null,
+export async function fetchCompanySimulation(requestId: string, reference: WebsiteCompanySimulation, asked: string | null,
   fetcher: typeof fetch = fetch): Promise<CompanySimulationFetch> {
+  // A range that covers the whole file is read whole, hashed and answered as a 200 (a resumed download's other pieces
+  // pass through unchecked: a part cannot be checked against the whole file's digest without keeping a copy).
+  const range = rangeCoversWholeFile(asked, reference.size_bytes) ? null : asked;
   const origin = signedWebsitePipelineRequest(
     `/api/live-pipeline/website-company-simulations/${encodeURIComponent(reference.capture_id)}/simulation.zip`, "",
     { request_id: requestId, digest: reference.digest });
@@ -143,6 +145,11 @@ export async function fetchCompanySimulation(requestId: string, reference: Websi
   if (response.status === 416) {
     await response.body?.cancel().catch(() => undefined);
     return { ok: false, status: 416, contentRange: response.headers.get("content-range") };
+  }
+  // A whole read must come back whole: a part answered to it is never passed on, since it would go out unchecked.
+  if (!range && response.status === 206) {
+    await response.body?.cancel().catch(() => undefined);
+    return { ok: false, status: 503 };
   }
   if ((response.status !== 200 && response.status !== 206) || !response.body) {
     await response.body?.cancel().catch(() => undefined);
@@ -160,28 +167,9 @@ export async function fetchCompanySimulation(requestId: string, reference: Websi
   const length = response.headers.get("content-length");
   if (length) headers["Content-Length"] = length;
   if (response.status === 206) headers["Content-Range"] = contentRange!;
-  let body = Readable.fromWeb(response.body as import("node:stream/web").ReadableStream<Uint8Array>);
-  if (response.status === 200) {
-    const expected = reference.digest.slice("sha256:".length);
-    const hash = createHash("sha256");
-    let received = 0;
-    // The latest chunk is held back until the whole file has hashed: bytes that do not match never complete the file.
-    let held: Buffer | null = null;
-    body = body.pipe(new Transform({
-      transform(chunk: Buffer, _encoding, done) {
-        received += chunk.length;
-        if (received > reference.size_bytes) return done(new Error("website_company_simulation_mismatch"));
-        hash.update(chunk);
-        const previous = held;
-        held = chunk;
-        done(null, previous ?? undefined);
-      },
-      flush(done) {
-        if (received !== reference.size_bytes || hash.digest("hex") !== expected) return done(new Error("website_company_simulation_mismatch"));
-        done(null, held ?? undefined);
-      },
-    }));
-  }
+  const source = Readable.fromWeb(response.body as import("node:stream/web").ReadableStream<Uint8Array>);
+  const body = response.status === 200
+    ? verifiedWholeFile(source, reference.size_bytes, reference.digest, "website_company_simulation_mismatch") : source;
   return { ok: true, status: response.status as 200 | 206, headers, body };
 }
 

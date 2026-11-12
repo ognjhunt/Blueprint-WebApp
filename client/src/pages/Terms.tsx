@@ -19,7 +19,7 @@ export const termsSections: readonly Section[] = [
     title: "1. The Service",
     paragraphs: [
       "Blueprint helps a site find a deployment company for one of its recurring jobs. A site gives an email and a video of the job, and can correct the short job brief we draft from the video. From the video we make a job packet: the site's description of the job, the video without its sound, our first look at which kinds of robot most likely fit, a simulation of the site with the job's object in it, and what counts as the job done. We rebuild the work area as a simulated scene and, where we can, run openly available robot software in that simulation ourselves as an early trial. Deployment companies do not run their own software on a site's job in our simulation.",
-      `${SHARING_SENTENCE} A deployment company we approved can answer: interested, not a fit, or would need something. The site sees each answer.`,
+      `${SHARING_SENTENCE} A deployment company we approved can answer: interested, not a fit, would need something, tested it: can do, or tested it: cannot yet. The site sees each answer.`,
       "The Service is in beta. Features may change, be limited, or be withdrawn, and we may pause or stop work on a job, for example to protect a site's privacy or the integrity of a result.",
       "A simulation or early trial result is a bounded estimate from a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site, and it does not certify physical performance or safety. Any physical pilot is agreed directly between the site and the deployment company. The deployment company remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may record agreed pilot outcomes under the parties' permissions.",
       "Other providers help us run the Service; our Privacy Policy lists them. Their own terms apply to the services they provide.",
@@ -42,7 +42,7 @@ export const termsSections: readonly Section[] = [
       "Avoid recording screens, documents and restricted areas where you can.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to review them, build the simulation, run our early trial, show you the results, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
       SHARING_SENTENCE,
-      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you under an alias. When you ask for an introduction to a company that answered Interested, we give it your name and contact details and give you its name and contact details. You can ask for up to three introductions for each job.`,
+      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you under an alias. When you ask for an introduction to a company that answered Interested or Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details. You can ask for up to three introductions for each job.`,
       COMPANY_USE_SENTENCE,
       WITHDRAWAL_SENTENCE,
       OLDER_JOB_SENTENCE,
@@ -60,7 +60,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "5. For deployment companies",
     items: [
-      "A deployment company applies for an account, and Blueprint approves each company. An approved company signs in, sees the jobs sites have shared, and can answer each one: interested, not a fit, or would need something.",
+      "A deployment company applies for an account, and Blueprint approves each company. An approved company signs in, sees the jobs sites have shared, and can answer each one: interested, not a fit, would need something, tested it: can do, or tested it: cannot yet.",
       COMPANY_ALIAS_SENTENCE,
       "You may use a job only to decide whether you can do it. You may not pass it on, use it to train software, or keep it after we ask you to delete it.",
       "Blueprint does not charge deployment companies today.",

@@ -12,7 +12,8 @@
  * approved deployment company and the job stays listed (both re-read on every request). A browser's request to open
  * the address as a page is refused and the player hides its download control; both only discourage saving.
  */
-import { Router } from "express";
+import { Router, type Response } from "express";
+import { pipeline, type Readable } from "node:stream";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -21,6 +22,20 @@ import { fetchCompanySimulation, storedCompanySimulation, verifyCompanySimulatio
 import { fetchCompanyClip, forwardableRange, storedCompanyClip, verifyCompanyClipTicket } from "../utils/websiteCompanyClip";
 
 const router = Router();
+
+/**
+ * Stream an upstream body to the company's browser. `pipeline` carries errors and cancellation both ways: an upstream
+ * error (a reset connection) ends only this response, in an error; a company that goes away destroys the body, which
+ * cancels the upstream read. Never `.pipe()`, which leaves the source's error unhandled and can take the process down.
+ */
+export function sendThrough(body: Readable, res: Response, context: { jobId: string; kind: "clip" | "simulation" }): void {
+  pipeline(body, res, error => {
+    if (!error) return;
+    logger.warn({ jobId: context.jobId, kind: context.kind, code: (error as NodeJS.ErrnoException).code ?? null },
+      "A company media stream ended early");
+    if (!res.destroyed) res.destroy();
+  });
+}
 
 router.get("/jobs/:jobId/video.mp4", async (req, res) => {
   res.set("Cache-Control", "private, no-store");
@@ -46,7 +61,7 @@ router.get("/jobs/:jobId/video.mp4", async (req, res) => {
       return res.status(503).json({ error: "The video is not available right now. Try again in a few minutes." });
     }
     res.status(read.status).set({ ...read.headers, "Content-Disposition": "inline" });
-    read.body.on("error", () => res.destroy()).pipe(res);
+    sendThrough(read.body, res, { jobId, kind: "clip" });
   } catch (error) {
     logger.warn({ error, jobId }, "Company clip unavailable");
     if (!res.headersSent) return res.status(503).json({ error: "The video is not available right now. Try again in a few minutes." });
@@ -82,7 +97,7 @@ router.get("/jobs/:jobId/simulation.zip", async (req, res) => {
       return res.status(503).json({ error: "The simulation is not available right now. Try again in a few minutes." });
     }
     res.status(read.status).set(read.headers);
-    read.body.on("error", () => res.destroy()).pipe(res);
+    sendThrough(read.body, res, { jobId, kind: "simulation" });
   } catch (error) {
     logger.warn({ error, jobId }, "Company simulation unavailable");
     if (!res.headersSent) return res.status(503).json({ error: "The simulation is not available right now. Try again in a few minutes." });

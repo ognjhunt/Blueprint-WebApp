@@ -434,8 +434,12 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
     readAll(jobRef.collection(COMPANY_RESPONSES_COLLECTION)), readAll(jobRef.collection(INTRODUCTIONS_COLLECTION)),
     readAll(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved")),
     import("./teamJobAccess").then(({ loadCompanyJobAccess }) => loadCompanyJobAccess(requestId, record))]);
+  // The introduced companies' details are decrypted here, only for the site's own page (`introductionShared.ts`).
+  const { openShared } = await import("./introductionShared");
+  const opened = await Promise.all(introductions.map(async row => ({ id: row.id,
+    data: { ...row.data, companyShared: await openShared(row.data.companyShared) } })));
   return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses,
-    introductions, listed: access.listed,
+    introductions: opened, listed: access.listed,
     approvedDeploymentCompanies: new Set(approved.filter(row => isApprovedDeploymentCompany(row.data as RobotTeamAccessRecord)).map(row => row.id)) });
 }
 
@@ -496,9 +500,11 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
     readAll(jobRef.collection(INTRODUCTIONS_COLLECTION)),
     import("./billableEvents").then(({ listJobBillableEvents }) => listJobBillableEvents(requestId)),
     import("./jobOutcomes")]);
-  const introductions = introductionRows.map(({ id, data }) => {
+  const { openShared } = await import("./introductionShared");
+  const introductions = (await Promise.all(introductionRows.map(async ({ id, data }) => ({ id, data,
+    companyShared: await openShared(data.companyShared) })))).map(({ id, data, companyShared }) => {
     const latest = latestOutcome(data as never).latest;
-    return { companyId: id, company: text(data.companyShared?.company) ?? text(names.get(id)?.company), alias: text(data.alias),
+    return { companyId: id, company: text(companyShared.company) ?? text(names.get(id)?.company), alias: text(data.alias),
       requestedAtIso: String(data.requestedAtIso ?? ""),
       latestOutcome: latest ? { by: latest.by, state: latest.state, atIso: latest.atIso,
         label: (OUTCOME_STATE_LABELS as Record<string, string>)[latest.state] ?? latest.state } : null };

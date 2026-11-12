@@ -12,8 +12,8 @@
  *   weight range (`job_facts.weight`), only the weight condition is resolved: the range's upper bound at
  *   or under the limit settles it (the sentence then says so, or the row reads "Fits: …" when it was the
  *   only condition); even the lightest item in a bounded range over the condition's limit (the rating less a
- *   standard gripper) reads "Does not fit … with a standard gripper"; a straddling range, "over 30 kg" and
- *   "not sure" leave it conditional.
+ *   standard gripper) reads "Does not fit … with a standard gripper"; "over 30 kg" does so against a limit under
+ *   30 kg; a straddling range, "over 30 kg" against a limit of 30 kg or more, and "not sure" leave it conditional.
  * - `unknown`: "Not rated yet: {why}." with each cause in fixed words.
  *
  * A code this file does not know (a verdict, a quantity, a check the Pipeline adds later) never crashes
@@ -204,9 +204,10 @@ export function firstLookRowInWords(row: FirstLookRow | null | undefined, facts?
           const limit = positive(c.limit);
           if (limit !== null && upper !== null && upper <= limit) { settledWeight = { upper, limit }; continue; }
           // One weight rule (Pipeline review, 2026-11-12; contract revision 5): compare the site's range with the
-          // condition's `limit` (the rating less a standard gripper) and nothing else. Only a bounded range settles a row
-          // ("over 30 kg" and "not sure" leave it conditional, PACKAGE_E E1); a range that straddles the limit stays as it is.
-          if (limit !== null && upper !== null && lower !== null && lower > limit)
+          // condition's `limit` (the rating less a standard gripper) and nothing else. The whole range over the limit does
+          // not fit: "Over 30 kg" means more than 30 kg (planner, S6), so it does not fit a limit under 30 kg and stays
+          // conditional at 30 kg or more. "Not sure" (no range) and a range that straddles the limit stay as they are.
+          if (limit !== null && lower !== null && (upper === null ? limit < lower : lower > limit))
             return words("does_not_fit", tooHeavy(kgWords(limit)));
         }
         // A quantity the website does not word falls back to the Pipeline's own sentence when it sent one.

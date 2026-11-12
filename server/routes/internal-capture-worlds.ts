@@ -235,7 +235,9 @@ router.post("/creator-captures/:captureId/company-clip", createPipelineSyncRateL
   async (req: Request, res: Response) => {
     const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
       scene_id: z.string().max(200), clip: websiteCompanyClipSchema }).strict().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ code: "website_company_clip_invalid" });
+    // A record that fails its schema is a refusal the contract can name (409), so the Pipeline records it and does not
+    // offer the same record on every pass.
+    if (!parsed.success) return res.status(409).json({ code: "website_company_clip_invalid" });
     const { request_id: requestId, scene_id: sceneId, clip } = parsed.data;
     try {
       const accepted = await recordWebsiteCompanyClip(requestId, sceneId, String(req.params.captureId), clip);
@@ -255,7 +257,8 @@ router.post("/creator-captures/:captureId/company-simulation", createPipelineSyn
   async (req: Request, res: Response) => {
     const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
       scene_id: z.string().max(200), simulation: websiteCompanySimulationSchema }).strict().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ code: "website_company_simulation_invalid" });
+    // As the clip's: a schema failure is a named 409 refusal, never a 400 the Pipeline would retry for ever.
+    if (!parsed.success) return res.status(409).json({ code: "website_company_simulation_invalid" });
     const { request_id: requestId, scene_id: sceneId, simulation } = parsed.data;
     try {
       const accepted = await recordWebsiteCompanySimulation(requestId, sceneId, String(req.params.captureId), simulation);

@@ -9,7 +9,8 @@
  * `teamJobAccess` and the viewer's approval before anything is fetched. The raw upload is never served, and nothing is
  * cached on the website's disk, so a withdrawal or a hold stops serving at once with nothing to clean up.
  */
-import { Readable } from "node:stream";
+import { pipeline, Readable, Transform } from "node:stream";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -140,16 +141,58 @@ export function forwardableRange(value: unknown): string | null {
   return /^bytes=(\d+-\d*|-\d+)$/.test(text) ? text : null;
 }
 
+/**
+ * A range that asks for the whole file (`bytes=0-`, or `bytes=0-<last byte>`): read as a whole read instead, so it is
+ * hashed and answered as a 200. A browser's player starts every video with `bytes=0-`.
+ */
+export function rangeCoversWholeFile(range: string | null, sizeBytes: number): boolean {
+  if (!range) return false;
+  const match = /^bytes=0-(\d*)$/.exec(range);
+  return Boolean(match) && (match![1] === "" || Number(match![1]) >= sizeBytes - 1);
+}
+
+/**
+ * A whole file's bytes, checked on the way against the stored size and digest. The latest chunk is held back until the
+ * whole file has hashed, so bytes that do not match never complete the file: the stream errors before its end.
+ * `pipeline` joins the source to the check, so an upstream error fails the check stream (and with it only this
+ * response), and destroying the check stream (the viewer went away) destroys the source, cancelling the upstream read.
+ */
+export function verifiedWholeFile(source: Readable, sizeBytes: number, digest: string, mismatchCode: string): Readable {
+  const expected = digest.slice("sha256:".length);
+  const hash = createHash("sha256");
+  let received = 0;
+  let held: Buffer | null = null;
+  const check = new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      received += chunk.length;
+      if (received > sizeBytes) return done(new Error(mismatchCode));
+      hash.update(chunk);
+      const previous = held;
+      held = chunk;
+      done(null, previous ?? undefined);
+    },
+    flush(done) {
+      if (received !== sizeBytes || hash.digest("hex") !== expected) return done(new Error(mismatchCode));
+      done(null, held ?? undefined);
+    },
+  });
+  pipeline(source, check, () => undefined);
+  return check;
+}
+
 export type CompanyClipFetch =
   | { ok: true; status: 200 | 206; headers: Record<string, string>; body: Readable }
   | { ok: false; status: 404 | 416 | 503; contentRange?: string | null };
 
 /**
- * One read of the clip through the signed Pipeline route (contract section 2), the browser's range forwarded as is.
- * The answer is checked against the stored identity: the digest header, and the total size of a range read.
+ * One read of the clip through the signed Pipeline route (contract section 2). The answer must name the stored digest
+ * and state the stored total size. A whole read, and a range that covers the whole file (read whole instead), is
+ * hashed as it streams and answered as a 200. Any other range passes through as a 206: a part of the file cannot be
+ * checked against the whole file's digest without keeping a copy, which the contract rules out.
  */
-export async function fetchCompanyClip(requestId: string, clip: WebsiteCompanyClip, range: string | null,
+export async function fetchCompanyClip(requestId: string, clip: WebsiteCompanyClip, asked: string | null,
   fetcher: typeof fetch = fetch): Promise<CompanyClipFetch> {
+  const range = rangeCoversWholeFile(asked, clip.size_bytes) ? null : asked;
   const origin = signedWebsitePipelineRequest(`/api/live-pipeline/website-company-clips/${encodeURIComponent(clip.capture_id)}/clip.mp4`,
     "", { request_id: requestId, digest: clip.digest });
   if (!origin) return { ok: false, status: 503 };
@@ -157,6 +200,11 @@ export async function fetchCompanyClip(requestId: string, clip: WebsiteCompanyCl
   if (response.status === 416) {
     await response.body?.cancel().catch(() => undefined);
     return { ok: false, status: 416, contentRange: response.headers.get("content-range") };
+  }
+  // A whole read must come back whole: a part answered to it is never passed on, since it would go out unchecked.
+  if (!range && response.status === 206) {
+    await response.body?.cancel().catch(() => undefined);
+    return { ok: false, status: 503 };
   }
   if ((response.status !== 200 && response.status !== 206) || !response.body) {
     await response.body?.cancel().catch(() => undefined);
@@ -174,6 +222,7 @@ export async function fetchCompanyClip(requestId: string, clip: WebsiteCompanyCl
   const length = response.headers.get("content-length");
   if (length) headers["Content-Length"] = length;
   if (response.status === 206 && contentRange) headers["Content-Range"] = contentRange;
+  const source = Readable.fromWeb(response.body as import("node:stream/web").ReadableStream<Uint8Array>);
   return { ok: true, status: response.status as 200 | 206, headers,
-    body: Readable.fromWeb(response.body as import("node:stream/web").ReadableStream<Uint8Array>) };
+    body: response.status === 200 ? verifiedWholeFile(source, clip.size_bytes, clip.digest, "website_company_clip_mismatch") : source };
 }

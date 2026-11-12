@@ -143,8 +143,9 @@ export async function taskLifecycleNotificationIsCurrent(
  // "Deployment companies we approve can now see a summary of your job": sent only while that is true, by the one
  // predicate that decides what a company can see (paused or closed by the site, held by Blueprint, or under a rights hold, it is not).
  if(entry.kind==='listing_live'){
-  const {teamJobAccess}=await import('./teamJobAccess');
-  return teamJobAccess(snapshot.data()??null).listed;
+  // The whole rule a company's own reads use (review M1): the job sentence and an authority end included.
+  const {loadCompanyJobAccess}=await import('./teamJobAccess');
+  return (await loadCompanyJobAccess(entry.requestId,snapshot.data()??null,transaction)).access.listed;
  }
  // A company was sent the job, or answered it (package C1): sent only while the summary is visible to companies by the
  // same predicate, and while what the email says still stands (the send not voided, the answer unchanged).

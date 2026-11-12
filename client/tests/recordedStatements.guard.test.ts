@@ -15,6 +15,7 @@ import {
   RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT, RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_VERSIONS,
 } from "@/lib/recordingRightsStatement";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
+import { INTRODUCTION_REQUEST_STATEMENT, INTRODUCTION_REQUEST_STATEMENT_VERSION, introduceSentence } from "@/lib/siteIntroductions";
 import { DESCRIPTION_AUTHORITY_STATEMENTS, DESCRIPTION_AUTHORITY_VERSIONS } from "@/lib/siteSubmissionAuthority";
 import { TASK_CONFIRMATION_STATEMENT } from "@/lib/taskConfirmationStatement";
 import { JOB_CARD_ANSWER_STATEMENTS, JOB_CARD_ANSWER_STATEMENT_VERSIONS } from "@/lib/jobCardAnswerConsent";
@@ -42,6 +43,10 @@ const CONSTANT_STATEMENTS = [
   { name: "description authority", version: "2026-11-12.v5", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-12.v5"], text: "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. We share your job with robot deployment companies we've approved." },
   // A deployment company's answer (PACKAGE_E E5), recorded on every answer.
   { name: "company response", version: "company-response-2026-11-12", actual: COMPANY_RESPONSE_STATEMENT_VERSION === "company-response-2026-11-12" ? COMPANY_RESPONSE_STATEMENT : "", text: "The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs." },
+  // The site's agreement beside "Introduce us" (planner, 2026-11-12, 18:25Z): the recorded text is the template.
+  { name: "introduction request", version: "introduction-request-2026-11-12",
+    actual: INTRODUCTION_REQUEST_STATEMENT_VERSION === "introduction-request-2026-11-12" ? INTRODUCTION_REQUEST_STATEMENT : "",
+    text: "We give {alias} your name, address and contact details, and give you theirs." },
   // Records only since 2026-11-12: no surface shows or records them any more ("Share my job" is gone).
   { name: "share my job", version: "public-task-card-with-answer-v3", actual: JOB_CARD_ANSWER_STATEMENTS["public-task-card-with-answer-v3"], text: "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private." },
   { name: "share my job", version: "public-task-card-with-answer-v2", actual: JOB_CARD_ANSWER_STATEMENTS["public-task-card-with-answer-v2"], text: "Shares a summary of your job and this answer, without saying who you are, with companies we've approved. Your video, address and contacts stay private." },
@@ -150,6 +155,13 @@ describe("recorded statements keep their exact text under their version", () => 
     // The closed sets themselves: a new version must be added here, and to the rows above, on purpose.
     expect([...RECORDING_RIGHTS_STATEMENT_VERSIONS]).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4"]);
     expect([...DESCRIPTION_AUTHORITY_VERSIONS]).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-12.v5"]);
+  });
+
+  it("shows the introduction statement word for word beside the button, and the button records its version", () => {
+    expect(introduceSentence("Company A")).toBe("We give Company A your name, address and contact details, and give you theirs.");
+    expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/helper=\{introduceSentence\(entry\.alias\)\}/);
+    expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION/);
+    expect(sourceText("server/routes/site-task-brief.ts")).toMatch(/statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION/);
   });
 
   it("shows the sharing statement word for word on every surface that records it", () => {

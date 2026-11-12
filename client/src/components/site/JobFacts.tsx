@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
   JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_QUESTIONS, JOB_FACTS_HEADING, sanitizeJobFacts,
@@ -48,12 +48,18 @@ export function JobFacts({ token, facts, onSaved }: {
     : JOB_FACT_KEYS.find(key => !answers[key]) ?? null;
   const step = current ? JOB_FACT_KEYS.indexOf(current) + 1 : total;
 
+  // After each step, focus moves to the new question (or the closing line), so a keyboard or screen-reader user keeps
+  // their place in the block (review S5).
+  const stepRef = useRef<HTMLElement | null>(null);
+  const [moved, setMoved] = useState(0);
+  useEffect(() => { if (moved > 0) stepRef.current?.focus(); }, [moved]);
+
+  const advance = () => { setChanging(index => index === null ? null : index + 1 >= total ? null : index + 1); setMoved(count => count + 1); };
+
   async function choose(key: JobFactKey, code: string) {
-    const before = answers;
-    const advance = () => setChanging(index => index === null ? null : index + 1 >= total ? null : index + 1);
+    if (status === "saving") return;
+    // The answer already chosen: moving on, nothing to save.
     if (answers[key] === code) { advance(); return; }
-    setAnswers({ ...answers, [key]: code });
-    advance();
     setStatus("saving"); setError("");
     try {
       const response = await fetch(`/api/job-facts/${encodeURIComponent(token)}`, {
@@ -63,10 +69,12 @@ export function JobFacts({ token, facts, onSaved }: {
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.ok !== true) throw new Error(typeof result?.error === "string" ? result.error : JOB_FACTS_NOT_SAVED);
       const stored = sanitizeJobFacts(result.jobFacts);
-      if (stored) { setAnswers(answersOf(stored)); onSaved?.(stored); }
+      setAnswers(stored ? answersOf(stored) : { ...answers, [key]: code });
+      if (stored) onSaved?.(stored);
       setStatus("saved");
+      advance();
     } catch (cause) {
-      setAnswers(before);
+      // A failed save stays on the same question, in Change mode too, and says so.
       setStatus("error");
       setError(cause instanceof Error && cause.message ? cause.message : JOB_FACTS_NOT_SAVED);
     }
@@ -74,27 +82,25 @@ export function JobFacts({ token, facts, onSaved }: {
 
   return <section aria-labelledby={`${groupId}-heading`} data-testid="job-facts" style={{ margin: "16px 0 24px" }}>
     <h2 id={`${groupId}-heading`} style={{ fontSize: "1.05rem", margin: "0 0 12px" }}>{JOB_FACTS_HEADING}</h2>
-    {current ? <fieldset key={current} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-      <legend style={{ fontWeight: 600, padding: 0, marginBottom: "8px" }}>{JOB_FACT_QUESTIONS[current]}</legend>
+    {current ? <div role="group" aria-labelledby={`${groupId}-question`} key={current}>
+      {/* Buttons, not radios: arrow keys never save; Enter or Space on a choice does (review S5). */}
+      <p id={`${groupId}-question`} ref={node => { stepRef.current = node; }} tabIndex={-1}
+        style={{ fontWeight: 600, margin: "0 0 8px" }}>{JOB_FACT_QUESTIONS[current]}</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
         {JOB_FACT_CHOICES[current].map(choice => {
-          const checked = answers[current] === choice.code;
-          return <label key={choice.code} style={{
-            display: "inline-flex", alignItems: "center", gap: "6px", minHeight: "44px", padding: "6px 12px",
-            border: `1px solid ${checked ? "currentColor" : "rgba(127,127,127,0.45)"}`, borderRadius: "999px",
-            fontWeight: checked ? 600 : 400, cursor: "pointer", maxWidth: "100%",
-          }}>
-            <input type="radio" name={`${groupId}-${current}`} value={choice.code} checked={checked}
-              onChange={() => void choose(current, choice.code)} onClick={() => { if (checked) void choose(current, choice.code); }}
-              style={{ width: "auto", minHeight: 0, margin: 0 }} />
-            <span>{choice.label}</span>
-          </label>;
+          const chosen = answers[current] === choice.code;
+          return <button key={choice.code} type="button" aria-pressed={chosen} disabled={status === "saving"}
+            onClick={() => void choose(current, choice.code)} style={{
+              display: "inline-flex", alignItems: "center", minHeight: "44px", padding: "6px 12px", font: "inherit", color: "inherit",
+              background: "transparent", border: `1px solid ${chosen ? "currentColor" : "rgba(127,127,127,0.45)"}`, borderRadius: "999px",
+              fontWeight: chosen ? 600 : 400, cursor: "pointer", maxWidth: "100%",
+            }}>{choice.label}</button>;
         })}
       </div>
       <p className="ms-field-hint" style={{ margin: "12px 0 0" }}>{jobFactsStep(step, total)}</p>
-    </fieldset> : <p style={{ margin: 0 }}>
+    </div> : <p ref={node => { stepRef.current = node; }} tabIndex={-1} style={{ margin: 0 }}>
       {JOB_FACTS_DONE}{" "}
-      <button type="button" className="ms-inline-link" onClick={() => { setChanging(0); setStatus("idle"); }}>{JOB_FACTS_CHANGE}</button>
+      <button type="button" className="ms-inline-link" onClick={() => { setChanging(0); setStatus("idle"); setMoved(count => count + 1); }}>{JOB_FACTS_CHANGE}</button>
     </p>}
     <p role="status" aria-live="polite" className="ms-field-hint" style={{ minHeight: "1.4em", margin: "8px 0 0" }}>
       {status === "saving" ? "Saving…" : status === "saved" && current ? JOB_FACTS_SAVED : ""}

@@ -19,8 +19,13 @@ vi.mock("../utils/field-encryption", () => ({
 }));
 const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false, listed: true }));
 // A record on a rights hold is not listed, as the real predicate says; every other record follows `jobAccess`.
-vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: (record?: { pipeline?: { rights_review_status?: string } }) =>
-  record?.pipeline?.rights_review_status === "needs_review" ? { listed: false, evaluationAvailable: false, reason: "rights_needs_review" } : jobAccess }));
+vi.mock("../utils/teamJobAccess", () => {
+  const teamJobAccess = (record?: { pipeline?: { rights_review_status?: string } }) =>
+    record?.pipeline?.rights_review_status === "needs_review" ? { listed: false, evaluationAvailable: false, reason: "rights_needs_review" } : jobAccess;
+  // The whole rule (review M1) reads the same stub here; its own facts are tested with it.
+  return { teamJobAccess, loadCompanyJobAccess: async (_id: string, record?: Record<string, unknown> | null) =>
+    ({ record: record ?? null, access: teamJobAccess(record as never) }) };
+});
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 // The site's answer, as the composer would give it; null until a test sets one.

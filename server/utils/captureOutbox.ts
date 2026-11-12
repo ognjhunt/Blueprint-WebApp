@@ -1,6 +1,7 @@
 import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
 import { introductionEmailIsCurrent } from "./jobIntroductionGate";
 import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
+import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
@@ -117,7 +118,9 @@ export type OutboxKind =
   /** To the site, with the company's details (E6; words by the site side): once per introduction. */
   | "introduction_made_site"
   /** The timed one-click outcome question after an introduction (E8). */
-  | "job_outcome_question";
+  | "job_outcome_question"
+  /** To each approved company a withdrawn job was sent to: delete any copy (review M4, `withdrawalCompanyNotice.ts`). */
+  | "job_withdrawn_company";
 
 export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required";
 
@@ -496,8 +499,9 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
       const currentIntroduction = await introductionEmailIsCurrent(entry, tx);
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
+      const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
       if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert
-        || !currentIntroduction || !currentOutcomeQuestion)
+        || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice)
         return stop({ status: "cancelled" }, "notice_not_current");
       const nowMs = Date.now();
       tx.set(doc.ref, { status: "dispatching", attempts: entry.attempts + 1,

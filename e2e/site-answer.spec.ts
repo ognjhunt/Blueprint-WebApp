@@ -257,11 +257,11 @@ test("the deployment companies section says the send line, each answer by alias,
   await expect(companies.getByText("Sent to 3 deployment companies on November 12, 2026.", { exact: true })).toBeVisible();
   await expect(companies.getByText("Company B answered on November 12, 2026: Would need something.", { exact: true })).toBeVisible();
   await expect(companies.getByText("Company A answered on November 13, 2026: Interested.", { exact: true })).toBeVisible();
-  await expect(companies.getByText("We give Company A your name and contact details, and give you theirs.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("We give Company A your name, address and contact details, and give you theirs.", { exact: true })).toBeVisible();
   await expect(companies.getByText("We will write to you about next steps.")).toHaveCount(0);
   await companies.getByRole("button", { name: "Introduce us" }).click();
   await expect(companies.getByRole("alert")).toHaveText("You have used your three introductions.");
-  expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A" } }]);
+  expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A", statementVersion: "introduction-request-2026-11-12" } }]);
   expect(unexpected).toEqual([]);
 });
 

@@ -59,7 +59,7 @@ export const capturePrivacyAnnex = [
 export const rolePrivacyAnnex = [
   {
     title: "Deployment companies",
-    body: `Your account holds your company's name, the contact details you give us and your answers about jobs. ${COMPANY_ALIAS_SENTENCE} When a site asks for an introduction, we give you the site's name and contact details. Results and records from before the free beta keep their original sharing restrictions.`,
+    body: `Your account holds your company's name, the contact details you give us and your answers about jobs. ${COMPANY_ALIAS_SENTENCE} When a site asks for an introduction, we give you the site's name, address and contact details. Results and records from before the free beta keep their original sharing restrictions.`,
   },
   {
     title: "Sites",
@@ -260,7 +260,7 @@ export default function Privacy() {
           We also share each job with the robot deployment companies we approve. They receive it as the job&rsquo;s
           recipients, not as our providers: the site&rsquo;s description of the job, its video without its sound, the
           simulation, what counts as the job done, our first look and any early trial result, only so they can judge
-          the job. A site&rsquo;s name and contact details go to a company only when the site asks for an introduction
+          the job. A site&rsquo;s name, address and contact details go to a company only when the site asks for an introduction
           to it, and the site then receives the company&rsquo;s name and contact details.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.

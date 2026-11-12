@@ -7,6 +7,7 @@
  * `company-response-2026-11-12`), enforces at most three introductions per job, and writes, all or nothing:
  * - `inboundRequests/{id}/introductions/{companyId}` = `{ schemaVersion: 1, alias, requestedAtIso, by: "site",
  *   siteShared: { name, contactName, email, phone?, location }, companyShared: { company, contactName, email, website? },
+ *   each field encrypted at rest (`introductionShared.ts`),
  *   outcomes: [] }` (`outcomes` is appended to by the outcome questions, E8; never rewritten here);
  * - the billable event (E7, `billableEvents.ts`): no price, nothing charged;
  * - the email to the company (`introduction_made_company`), with the site's details and the job link;
@@ -28,8 +29,10 @@ import { loadCompanyJobAccess } from "./teamJobAccess";
 import { introductionCompanyKey, INTRODUCTION_COMPANY_KIND } from "./jobIntroductionGate";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { decryptFieldValue } from "./field-encryption";
+import { sealShared } from "./introductionShared";
+import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 
-export type IntroductionRefusal = "not_listed" | "not_interested" | "consent_missing" | "limit_reached"
+export type IntroductionRefusal = "statement_not_current" | "not_listed" | "not_interested" | "consent_missing" | "limit_reached"
   | "already_introduced" | "company_not_approved";
 export type IntroductionResult = { ok: true; introducedAtIso: string } | { ok: false; reason: IntroductionRefusal };
 
@@ -38,7 +41,9 @@ export const introductionSiteKey = (requestId: string, companyId: string) => `${
 
 /** The site's email in the site side's words (`introductionSiteEmail.ts`). Injectable for tests. */
 export type SiteIntroductionEmail = (input: { jobUrl: string;
-  company: { name: string; contactName: string; email: string; website: string | null } }) => { subject: string; body: string };
+  company: { name: string; contactName: string; email: string; website: string | null };
+  /** The company's stored answer as its fixed label ("Interested", "Tested it: can do"). */
+  answerLabel?: string | null }) => { subject: string; body: string };
 
 export interface IntroductionDeps {
   now?: () => Date;
@@ -75,9 +80,13 @@ async function siteDetailsOf(record: Record<string, any>, decrypt: (value: unkno
     phone: null, location: location && location !== "Location pending" ? location : null };
 }
 
-export async function requestIntroduction(input: { requestId: string; alias: string; actor: "site" },
+export async function requestIntroduction(input: { requestId: string; alias: string; actor: "site";
+  /** The recorded statement beside "Introduce us" the site agreed to: it must be the current one. */
+  statementVersion?: string | null },
   deps: IntroductionDeps = {}): Promise<IntroductionResult> {
   if (!db) throw new Error("introduction_store_unavailable");
+  // Pressing the button is the site's agreement to give the company its details, under the sentence it was shown.
+  if (input.statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION) return { ok: false, reason: "statement_not_current" };
   const store = db;
   const now = deps.now ?? (() => new Date());
   const decrypt = deps.decrypt ?? defaultDecrypt;
@@ -115,8 +124,13 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     const requestedAtIso = now().toISOString();
     tx.set(jobRef, { introductions_used: used + 1 }, { merge: true });
     tx.create(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId), { schemaVersion: 1, alias: letter, requestedAtIso,
-      by: input.actor, siteShared: { name: site.name, contactName: site.contactName, email: site.email,
-        ...(site.phone ? { phone: site.phone } : {}), location: site.location }, companyShared, outcomes: [] });
+      by: input.actor,
+      // Not personal, so stored plainly: the recorded statement the site agreed to by pressing the button.
+      statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION,
+      // Both sides' details are encrypted at rest (`introductionShared.ts`); the emails below use the plain values.
+      siteShared: await sealShared({ name: site.name, contactName: site.contactName, email: site.email, phone: site.phone,
+        location: site.location }),
+      companyShared: await sealShared(companyShared), outcomes: [] });
     writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso));
     if (!companyRow.exists && EMAIL.test(companyEmail)) {
       const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName,
@@ -127,7 +141,8 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     }
     if (!siteRow.exists && EMAIL.test(site.email)) {
       const message = siteEmail({ jobUrl: captureUploadUrlFor(input.requestId, "owner"), company: { name: companyShared.company,
-        contactName: companyShared.contactName, email: companyEmail, website: companyShared.website ?? null } });
+        contactName: companyShared.contactName, email: companyEmail, website: companyShared.website ?? null },
+        answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
       tx.create(siteRowRef, buildOutboxEntry({ idempotencyKey: siteRowRef.id, requestId: input.requestId,
         kind: INTRODUCTION_SITE_KIND, to: site.email, subject: message.subject, body: message.body,
         replyTo: EMAIL.test(companyEmail) ? companyEmail : "hello@tryblueprint.io" }));

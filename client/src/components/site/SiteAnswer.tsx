@@ -3,7 +3,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
 import { type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
 import {
-  INTRODUCE_LABEL, INTRODUCTIONS_USED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
+  INTRODUCE_LABEL, INTRODUCTIONS_USED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
   isIntroductionRefusalReason,
 } from "@/lib/siteIntroductions";
 import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
@@ -178,12 +178,14 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
     try {
       const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introductions`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
-        body: JSON.stringify({ alias: alias.replace(/^Company /, "") }),
+        // The version of the sentence shown beside the button: pressing it is the agreement it records.
+        body: JSON.stringify({ alias: alias.replace(/^Company /, ""), statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }),
       });
       const result = await response.json().catch(() => null);
-      if (response.status === 409) {
+      if (response.status === 409 || response.status === 400) {
         setErrors(current => ({ ...current, [alias]: isIntroductionRefusalReason(result?.reason)
-          ? INTRODUCTION_REFUSAL_SENTENCES[result.reason as keyof typeof INTRODUCTION_REFUSAL_SENTENCES] : INTRODUCTION_FAILED }));
+          ? INTRODUCTION_REFUSAL_SENTENCES[result.reason as keyof typeof INTRODUCTION_REFUSAL_SENTENCES]
+          : result?.code === "introduction_statement_changed" ? INTRODUCTION_STATEMENT_CHANGED : INTRODUCTION_FAILED }));
         return;
       }
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);

@@ -605,7 +605,8 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
       try { recheckCaptureInBackground(payload.requestId, payload.captureId); } catch { /* never the person's failure */ }
     // A job shared just now goes to the approved companies at once if it is already listed; the sweep catches the rest.
     if (outcome === "granted" || outcome === "upgraded" || outcome === "existing") {
-      await import("../utils/jobAutoSend").then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId))
+      // Fire and forget, like the Pipeline call: the person never waits for the send (review S7).
+      void import("../utils/jobAutoSend").then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId))
         .catch(() => undefined);
     }
     if (outcome === "missing") return res.status(404).json({ error: "This link does not point at a job we hold." });

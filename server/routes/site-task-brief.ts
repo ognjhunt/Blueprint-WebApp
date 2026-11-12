@@ -2,7 +2,8 @@ import { destinationPictureUrl } from "../utils/websiteDestinationPicture";
 import { placeKindOf } from "../utils/taskTargetChoiceContract";
 import { readJobFacts } from "../utils/jobFacts";
 import { loadFirstLookWords } from "../utils/firstLookTable";
-import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, isIntroductionRefusalReason } from "../../client/src/lib/siteIntroductions";
+import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED,
+  isIntroductionRefusalReason, type IntroductionRefusalReason } from "../../client/src/lib/siteIntroductions";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
@@ -276,14 +277,30 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
   if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
   if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_owner_required",
     error: "Open the owner's job link to ask for this." });
-  const body = z.object({ alias: z.string().trim().regex(/^Company [A-Z]{1,3}$|^[A-Z]{1,3}$/) }).strict().safeParse(req.body ?? {});
+  const body = z.object({ alias: z.string().trim().regex(/^Company [A-Z]{1,3}$|^[A-Z]{1,3}$/),
+    statementVersion: z.string().trim().max(100).optional() }).strict().safeParse(req.body ?? {});
   if (!body.success) return res.status(400).json({ code: "introduction_invalid", error: "Press the button beside the company on your job page." });
+  // Pressing the button is the agreement its sentence records (planner, 18:25Z): a page without that sentence, or with
+  // another wording (an old tab), is refused before anything is recorded.
+  if (body.data.statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION)
+    return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });
   const alias = body.data.alias.replace(/^Company /, "");
   try {
     const { requestIntroduction } = await import("../utils/jobIntroductions");
-    const result = await requestIntroduction({ requestId: verified.requestId, alias, actor: "site" });
+    const result = await requestIntroduction({ requestId: verified.requestId, alias, actor: "site",
+      statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
     if (result.ok) return res.json({ ok: true, introducedAtIso: result.introducedAtIso });
-    const reason = isIntroductionRefusalReason(result.reason) ? result.reason : "not_listed";
+    if ((result.reason as string) === "statement_not_current")
+      return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });
+    let reason: IntroductionRefusalReason = isIntroductionRefusalReason(result.reason) ? result.reason : "not_listed";
+    // A withdrawn job is said for good, never "right now" (review S8).
+    if (reason === "not_listed") {
+      const record = (await db?.collection("inboundRequests").doc(verified.requestId).get().catch(() => null))?.data();
+      if (record) {
+        const { projectWebsiteCaptureRights } = await import("../utils/websiteTaskContext");
+        if (projectWebsiteCaptureRights(record).consent_revoked || record.capture_withdrawal) reason = "withdrawn";
+      }
+    }
     return res.status(409).json({ ok: false, code: "introduction_refused", reason, error: INTRODUCTION_REFUSAL_SENTENCES[reason] });
   } catch (error) {
     logger.error({ error, requestId: verified.requestId }, "Could not record an introduction");
@@ -1163,6 +1180,13 @@ async function siteAnswerForStatus(params: { requestId: string; request: Record<
     const answer = await loadSiteAnswer(params.requestId, { request: params.request, brief: (params.brief ?? null) as never,
       videoReceived: params.videoReceived, robotFit: (params.robotFit ?? null) as never });
     if (!answer) return null;
+    // Where the job stands with companies, by the whole rule a company's own reads use (review M1).
+    const whole = await import("../utils/teamJobAccess").then(({ loadCompanyJobAccess }) =>
+      loadCompanyJobAccess(params.requestId, params.request as Record<string, any>)).catch(() => null);
+    if (whole) {
+      const { jobSharingOf } = await import("../utils/siteAnswer");
+      Object.assign(answer, { sharing: jobSharingOf(params.request as Record<string, any>, whole.access) });
+    }
     // Which approved companies the job was sent to and what each answered, by alias until the site asks for an
     // introduction (`jobCompanies.ts`): a company's name and contact details only for a company it was introduced to,
     // never a company's words. Only for a job shared under the current statement: an older job shows none. A read that

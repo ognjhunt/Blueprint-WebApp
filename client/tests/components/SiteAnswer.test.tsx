@@ -626,7 +626,7 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(lines()[1]).toContain("Company A answered on November 13, 2026: Interested.");
     const buttons = within(companies()).getAllByRole("button", { name: "Introduce us" });
     expect(buttons).toHaveLength(1);
-    expect(within(companies()).getByText("We give Company A your name and contact details, and give you theirs."))
+    expect(within(companies()).getByText("We give Company A your name, address and contact details, and give you theirs."))
       .toHaveAttribute("id", buttons[0].getAttribute("aria-describedby"));
     expect(companies().textContent).not.toMatch(/NOTE-PLANT|WORDS-PLANT|We will write to you/);
     expect(companies().textContent).not.toMatch(BANNED);
@@ -639,7 +639,7 @@ describe("the deployment companies section, with sends, answers and introduction
     fireEvent.click(within(companies()).getByRole("button", { name: "Introduce us" }));
     await waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({ method: "POST",
-      body: JSON.stringify({ alias: "A" }) }));
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12" }) }));
   });
 
   it.each([
@@ -647,8 +647,9 @@ describe("the deployment companies section, with sends, answers and introduction
     ["not_interested", "This company has not answered Interested, so we cannot introduce you."],
     ["consent_missing", "This company needs to answer again before we can introduce you."],
     ["limit_reached", "You have used your three introductions."],
-    ["already_introduced", "You have already been introduced to this company. Their details are on this page and in your email."],
+    ["already_introduced", "You have already been introduced to this company."],
     ["company_not_approved", "This company can no longer be introduced."],
+    ["withdrawn", "You withdrew this job, so we cannot make an introduction."],
   ])("says a refusal (%s) in one plain sentence and keeps the button", async (reason, sentence) => {
     fetchMock.mockResolvedValue(response({ ok: false, reason, error: "server words" }, 409));
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);

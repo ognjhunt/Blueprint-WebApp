@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REMOVED, containsContactDetails, removeContactDetails } from "@/lib/contactRedaction";
+import { REMOVED, containsContactDetails, identifyingDetailsRemoved, removeContactDetails, removeIdentifyingDetails } from "@/lib/contactRedaction";
 
 describe("removeContactDetails", () => {
   it.each([
@@ -48,5 +48,60 @@ describe("removeContactDetails", () => {
     const out = removeContactDetails("Stack boxes. Ask bob@plantco.com or 312-555-0199, see plantco.com/about.");
     expect(out).not.toMatch(/bob@|312-555|plantco/);
     expect(out.split(REMOVED).length - 1).toBe(3);
+  });
+});
+
+describe("removeIdentifyingDetails: the site's own known identity, and street addresses", () => {
+  const known = { names: ["ZEBRAPLANT Foods", "Acme Holdings", "Wilhelmina Zebraplant", "Wilhelmina", "Zebraplant", "Dana Submitter"],
+    addresses: ["77 QUOKKA Lane, Springfield, IL 62704, US"], contacts: ["owner@site-plant.example", "+1 415 555 0134"] };
+  const gone = (out: string) => {
+    for (const planted of ["ZEBRAPLANT", "Zebraplant", "QUOKKA", "Quokka", "quokka", "77", "Springfield", "springfield", "62704",
+      "Wilhelmina", "wilhelmina", "Acme", "Dana", "site-plant", "415"]) expect(out).not.toContain(planted);
+  };
+
+  it("removes the review's example: no ZEBRAPLANT, no 77, no QUOKKA Lane", () => {
+    const out = removeIdentifyingDetails("Stack cartons at ZEBRAPLANT Foods, 77 QUOKKA Lane, Springfield.", known);
+    expect(out).toBe("Stack cartons at the site.");
+    gone(out);
+  });
+
+  it.each([
+    ["the site's name in another case and spacing", "zebraplant   FOODS stacks cartons", "the site stacks cartons"],
+    ["the site's name with punctuation between its words", "Zebraplant-Foods stacks cartons", "the site stacks cartons"],
+    ["the organisation", "acme holdings owns the line", "the site owns the line"],
+    ["the contact's full name and first name", "Ask WILHELMINA zebraplant or wilhelmina", "Ask the site or the site"],
+    ["the submitter's name", "Dana  Submitter films it", "the site films it"],
+    ["the site's email and phone", "Mail OWNER@SITE-PLANT.EXAMPLE or call +1 (415) 555-0134", "Mail [removed] or call [removed]"],
+    ["the address split across the sentence", "Cartons on 77 quokka lane go to the dock in Springfield.", "Cartons go to the dock."],
+    ["the state and postal code part", "Ship from IL 62704 daily", "Ship daily"],
+  ])("removes %s", (_name, input, expected) => {
+    const out = removeIdentifyingDetails(input, known);
+    expect(out).toBe(expected);
+    gone(out);
+  });
+
+  it.each([
+    ["Move totes from 12 Mill Road, Unit 4, 60601 to the dock.", "Move totes to the dock."],
+    ["Cartons come from 400 Industrial parkway daily.", "Cartons come daily."],
+    ["We work at 5 Mill Place.", "We work."],
+    ["Deliver from 1200 N Main St, Suite 300 every morning.", "Deliver every morning."],
+  ])("removes a street address we do not hold: %s", (input, expected) => {
+    expect(removeIdentifyingDetails(input, { names: [], addresses: [], contacts: [] })).toBe(expected);
+  });
+
+  it.each([
+    "stack 12 cartons on 3 pallets",
+    "Pick from aisle 4 and drop at station 2.",
+    "Pick 2 totes and place them on the line.",
+    "Move 3 boxes to the court yard, 2 shifts a day, 24/7.",
+    "Lift 12 kg boxes 30 cm onto pallet 7, then drive the cart back.",
+  ])("leaves ordinary numbers and quantities: %s", input => {
+    expect(removeIdentifyingDetails(input, { names: [], addresses: [], contacts: [] })).toBe(input);
+    expect(removeIdentifyingDetails(input, known)).toBe(input);
+  });
+
+  it("says when something was removed", () => {
+    expect(identifyingDetailsRemoved("Stack cartons at ZEBRAPLANT Foods.", known)).toBe(true);
+    expect(identifyingDetailsRemoved("Stack cartons on 3 pallets.", known)).toBe(false);
   });
 });

@@ -27,6 +27,7 @@ import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
+import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 
@@ -36,8 +37,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
     dbAdmin: sharedFakeFirestore, authAdmin: null, storageAdmin: null };
 });
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
-vi.mock("../utils/field-encryption", async importOriginal => ({ ...await importOriginal<typeof import("../utils/field-encryption")>(),
-  decryptFieldValue: vi.fn(async (value: unknown) => String(value ?? "").replace(/^encrypted:/, "")) }));
+// Fixture strings stand for encrypted fields ("encrypted:…"); a real encrypted object (an introduction's details) is
+// decrypted by the real function with the test's master key.
+vi.mock("../utils/field-encryption", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/field-encryption")>();
+  return { ...actual, decryptFieldValue: vi.fn(async (value: unknown) => typeof value === "string" || value == null
+    ? String(value ?? "").replace(/^encrypted:/, "") : actual.decryptFieldValue(value as never)) };
+});
 const seams = vi.hoisted(() => ({
   tokens: new Map<string, { uid: string; email: string }>(),
   sendEmail: vi.fn(async (_message: Record<string, unknown>) => ({ sent: true, provider: "resend", messageId: "accepted" })),
@@ -191,6 +197,8 @@ beforeEach(async () => {
   seams.sendEmail.mockClear();
   pipelineReads.length = 0;
   vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
+  vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY", Buffer.alloc(32, 7).toString("base64"));
+  vi.stubEnv("FIELD_ENCRYPTION_KMS_KEY_NAME", "");
   vi.stubEnv("CAPTURE_LIFECYCLE_PIPELINE_BASE_URL", "https://pipeline.invalid");
   vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-read-token");
   const dir = mkdtempSync(path.join(tmpdir(), "company-scene-"));
@@ -257,6 +265,21 @@ describe("the company's page for one job (E3)", () => {
     expect(item.sentence).toBe("Stack 12 kg cartons onto the pallet, 2 shifts, 24/7. Call [removed] or email [removed], see [removed]");
     expectNoSiteIn("the job page payload", raw);
     expect(raw).not.toMatch(/walkthrough\.|raw\/|scenes\/site-|pipeline\.invalid/);
+  });
+
+  // Plant-and-prove, with the sentence as one of the planted places: the site's own name, typed address, contact name,
+  // submitter name, email and phone, each in another case or spacing, and a street address we do not hold.
+  it("removes the site's own identity and street addresses from the sentence before any company sees it", async () => {
+    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, confirmedAtIso: null, summary:
+      "Stack cartons at ZEBRAPLANT Foods, 77 QUOKKA Lane, Springfield. wilhelmina   ZEBRAPLANT runs it; ask WILHELMINA. "
+      + "Cartons also come from 12 Mill Road, Unit 4. Mail OWNER@SITE-PLANT.EXAMPLE or call +1 (415) 555-0134. "
+      + "We stack 12 cartons on 3 pallets in aisle 4 at station 2." });
+    const { raw, body } = await page();
+    expect(body.item.sentence).toBe("Stack cartons at the site. the site runs it; ask the site. Cartons also come. "
+      + "Mail [removed] or call [removed]. We stack 12 cartons on 3 pallets in aisle 4 at station 2.");
+    expectNoSiteIn("the job page payload", raw);
+    for (const planted of ["77", "Mill Road", "Springfield", "springfield"]) expect(body.item.sentence).not.toContain(planted);
+    expect((await list()).raw).not.toMatch(/ZEBRAPLANT|QUOKKA|Wilhelmina|Springfield|Mill Road/i);
   });
 
   it("says the video is being prepared, and the simulation is not finished, until each exists", async () => {
@@ -357,7 +380,7 @@ describe("every stop closes everything a company can see (E2)", () => {
     expect((await media(before.video.url)).status).toBe(404);
     expect((await media(sceneContentUrl(before.simulation.viewerUrl), { "sec-fetch-dest": "empty" })).status).toBe(404);
     expect((await answer(NORTH, { state: "declined" })).status).not.toBe(200);
-    const result = await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail: () => ({ subject: "s", body: "b" }) });
+    const result = await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail: () => ({ subject: "s", body: "b" }) });
     expect(result.ok).toBe(false);
     expect(state.docs.has(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toBe(false);
   });
@@ -427,14 +450,21 @@ async function interested(...records: Array<{ email: string }>) {
 describe("introductions (E6) and money (E7)", () => {
   it("introduces the site to the company it chose: one transaction, both emails, one billable event, no price", async () => {
     await interested(NORTH);
-    const result = await requestIntroduction({ requestId: ID, alias: "Company A", actor: "site" },
+    const result = await requestIntroduction({ requestId: ID, alias: "Company A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION },
       { siteEmail, now: () => new Date("2026-11-12T15:00:00.000Z") });
     expect(result).toEqual({ ok: true, introducedAtIso: "2026-11-12T15:00:00.000Z" });
     const companyId = sha(NORTH.email);
-    expect(state.docs.get(`inboundRequests/${ID}/introductions/${companyId}`)).toEqual({ schemaVersion: 1, alias: "A",
-      requestedAtIso: "2026-11-12T15:00:00.000Z", by: "site",
-      siteShared: { name: SITE.name, contactName: `${SITE.first} ${SITE.last}`, email: SITE.email, location: SITE.address },
-      companyShared: { company: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website }, outcomes: [] });
+    const stored = state.docs.get(`inboundRequests/${ID}/introductions/${companyId}`) as Record<string, any>;
+    expect(stored).toMatchObject({ schemaVersion: 1, alias: "A", requestedAtIso: "2026-11-12T15:00:00.000Z", by: "site", outcomes: [] });
+    // Both sides' details are encrypted at rest: no planted name, email, phone or address in plain text (item 5).
+    const raw = JSON.stringify(stored);
+    for (const planted of [SITE.name, "ZEBRAPLANT", SITE.email, SITE.first, SITE.address, "QUOKKA", NORTH.company, NORTH.email, NORTH.name, "north.example"])
+      expect(raw).not.toContain(planted);
+    const { openShared } = await import("../utils/introductionShared");
+    expect(await openShared(stored.siteShared)).toEqual({ name: SITE.name, contactName: `${SITE.first} ${SITE.last}`, email: SITE.email,
+      location: SITE.address });
+    expect(await openShared(stored.companyShared)).toEqual({ company: NORTH.company, contactName: NORTH.name, email: NORTH.email,
+      website: NORTH.website });
     expect(state.docs.get(`billableEvents/introduction-${ID}-${companyId}`)).toEqual({ kind: "introduction", requestId: ID, companyId,
       atIso: "2026-11-12T15:00:00.000Z", priceUsd: null, status: "recorded_no_price" });
     const toCompany = outbox().find(row => row.kind === "introduction_made_company")!;
@@ -463,7 +493,7 @@ describe("introductions (E6) and money (E7)", () => {
   });
 
   it("returns each refusal in its case", async () => {
-    const ask = (alias: string) => requestIntroduction({ requestId: ID, alias, actor: "site" }, { siteEmail });
+    const ask = (alias: string) => requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail });
     // No company under that alias, and a company that did not answer Interested.
     expect(await ask("A")).toEqual({ ok: false, reason: "not_interested" });
     expect((await answer(NORTH, { state: "needs_something" })).status).toBe(200);
@@ -483,10 +513,40 @@ describe("introductions (E6) and money (E7)", () => {
     expect(await ask("A")).toEqual({ ok: false, reason: "not_listed" });
   });
 
+  it("refuses without the current introduction statement, and stores the one the site agreed to in plain text", async () => {
+    await interested(NORTH);
+    for (const statementVersion of [undefined, null, "introduction-request-2026-11-01"])
+      expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion }, { siteEmail }))
+        .toEqual({ ok: false, reason: "statement_not_current" });
+    expect(state.docs.has(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toBe(false);
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION },
+      { siteEmail })).toMatchObject({ ok: true });
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`))
+      .toMatchObject({ statementVersion: "introduction-request-2026-11-12" });
+  });
+
+  it("tells the site, in its Meet email, the answer the company gave", async () => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
+    await interested(SOUTH);
+    const labels: unknown[] = [];
+    const capture = (input: { answerLabel?: string | null }) => { labels.push(input.answerLabel); return { subject: "s", body: "b" }; };
+    for (const alias of ["A", "B"])
+      expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION },
+        { siteEmail: capture })).toMatchObject({ ok: true });
+    expect(labels).toEqual(["Tested it: can do", "Interested"]);
+    // And the site side's real email words it (no stub).
+    await interested(EAST);
+    expect(await requestIntroduction({ requestId: ID, alias: "C", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }))
+      .toMatchObject({ ok: true });
+    const toSite = outbox().filter(row => row.kind === "introduction_made_site").map(row => String(row.body));
+    expect(toSite.at(-1)).toContain("Interested");
+  });
+
   it("allows three introductions per job and refuses a fourth", async () => {
     await interested(NORTH, SOUTH, EAST, WEST);
-    for (const alias of ["A", "B", "C"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site" }, { siteEmail })).toMatchObject({ ok: true });
-    expect(await requestIntroduction({ requestId: ID, alias: "D", actor: "site" }, { siteEmail })).toEqual({ ok: false, reason: "limit_reached" });
+    for (const alias of ["A", "B", "C"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
+    expect(await requestIntroduction({ requestId: ID, alias: "D", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toEqual({ ok: false, reason: "limit_reached" });
     expect([...state.docs.keys()].filter(key => key.startsWith(`inboundRequests/${ID}/introductions/`))).toHaveLength(3);
     expect([...state.docs.keys()].filter(key => key.startsWith("billableEvents/"))).toHaveLength(3);
     const activity = await loadSiteCompanyActivity(ID);
@@ -496,7 +556,7 @@ describe("introductions (E6) and money (E7)", () => {
 
   it("cancels the company's introduction email at dispatch once the site has withdrawn", async () => {
     await interested(NORTH);
-    await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail });
+    await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail });
     patchJob({ consent_revoked: true });
     await deliverOutbox({ limit: 50 });
     expect(outbox().find(row => row.kind === "introduction_made_company")).toMatchObject({ status: "cancelled" });
@@ -536,8 +596,8 @@ describe("the simulation download and the tested answers (E9)", () => {
     const activity = await loadSiteCompanyActivity(ID);
     expect(activity.entries.map(entry => [entry.alias, entry.kind === "answered" && entry.state, entry.kind === "answered" && entry.canIntroduce]))
       .toEqual([["Company A", "tested_can_do", true], ["Company B", "tested_cannot_yet", false]]);
-    expect(await requestIntroduction({ requestId: ID, alias: "B", actor: "site" }, { siteEmail })).toEqual({ ok: false, reason: "not_interested" });
-    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail })).toMatchObject({ ok: true });
+    expect(await requestIntroduction({ requestId: ID, alias: "B", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toEqual({ ok: false, reason: "not_interested" });
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     // A stop closes the download too.
     patchJob({ operator_listing_hold: { held: true } });
     expect((await media(url)).status).toBe(404);
@@ -582,7 +642,7 @@ describe("review findings (must-fix and should-fix)", () => {
     ["the company's suspension", () => state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, { ...NORTH, status: "declined" })],
   ] as Array<[string, () => void]>)("must-fix 2: the company's introduction email is cancelled after %s, and carries nothing of the site", async (_name, stop) => {
     await interested(NORTH);
-    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail })).toMatchObject({ ok: true });
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     stop();
     await deliverOutbox({ limit: 50 });
     expect(outbox().find(row => row.kind === "introduction_made_company")).toMatchObject({ status: "cancelled" });
@@ -626,7 +686,7 @@ describe("review findings (must-fix and should-fix)", () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
     await interested(SOUTH);
-    for (const alias of ["A", "B"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site" }, { siteEmail })).toMatchObject({ ok: true });
+    for (const alias of ["A", "B"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     const bodyTo = (email: string) => outbox().find(row => row.kind === "introduction_made_company" && row.to === email)!.body as string;
     expect(bodyTo(NORTH.email)).toContain("You answered Tested it: can do to a job on Blueprint");
     expect(bodyTo(SOUTH.email)).toContain("You answered Interested to a job on Blueprint");
@@ -669,11 +729,11 @@ describe("review findings (must-fix and should-fix)", () => {
   it("should-fix: the count of introductions lives on the job document", async () => {
     await interested(NORTH, SOUTH);
     patchJob({ introductions_used: 3 });
-    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail })).toEqual({ ok: false, reason: "limit_reached" });
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toEqual({ ok: false, reason: "limit_reached" });
     patchJob({ introductions_used: 0 });
-    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail })).toMatchObject({ ok: true });
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     expect(jobDoc().introductions_used).toBe(1);
-    const both = await Promise.all(["B", "B"].map(alias => requestIntroduction({ requestId: ID, alias, actor: "site" }, { siteEmail })));
+    const both = await Promise.all(["B", "B"].map(alias => requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })));
     expect(both.filter(result => result.ok)).toHaveLength(1);
     expect(jobDoc().introductions_used).toBe(2);
   });
@@ -700,13 +760,110 @@ describe("review findings (must-fix and should-fix)", () => {
   it("should-fix: the introduction email says a typed location once when it is also the site's name", async () => {
     patchJob({ request: { ...jobDoc().request, siteName: `encrypted:${SITE.address}` } });
     await interested(NORTH);
-    await requestIntroduction({ requestId: ID, alias: "A", actor: "site" }, { siteEmail });
+    await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail });
     const body = outbox().find(row => row.kind === "introduction_made_company")!.body as string;
     expect(body.split(SITE.address)).toHaveLength(2);
   });
 });
 
 /* ----------------------------------------------------------------- the download against the contract (E9) */
+
+/* ----------------------------------------------------------------- a reset upstream never takes the process down */
+
+describe("a company media stream whose upstream fails or whose company goes away", () => {
+  /** An upstream body: these chunks, then an error or a wait that only a cancel ends. Records the cancel. */
+  function upstream(chunks: Buffer[], then: "error" | "hang") {
+    const state = { cancelled: false };
+    let sent = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        if (sent < chunks.length) { controller.enqueue(new Uint8Array(chunks[sent])); sent += 1; return; }
+        if (then === "error") { await new Promise(resolve => setTimeout(resolve, 20)); controller.error(new Error("ECONNRESET upstream")); return; }
+        await new Promise(() => undefined);
+      },
+      cancel() { state.cancelled = true; },
+    });
+    return { stream, state };
+  }
+  const serveUpstream = (make: (url: string, range: string | null) => { status: number; body: ReadableStream<Uint8Array>; headers: Record<string, string> }) =>
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
+      if (!url.startsWith("https://pipeline.invalid/")) return realFetch(input as never, init);
+      const answer = make(url, new Headers(init?.headers).get("range"));
+      return new Response(answer.body, { status: answer.status, headers: answer.headers });
+    }));
+  let uncaught: unknown[] = [];
+  const onUncaught = (error: unknown) => { uncaught.push(error); };
+  beforeEach(() => {
+    uncaught = [];
+    process.on("uncaughtException", onUncaught);
+    process.on("unhandledRejection", onUncaught);
+  });
+  afterEach(() => {
+    process.off("uncaughtException", onUncaught);
+    process.off("unhandledRejection", onUncaught);
+  });
+  const settle = () => new Promise(resolve => setTimeout(resolve, 100));
+  /** Read a response to its end; true when it ended in an error (the connection was cut before the file completed). */
+  async function readsToError(url: string, headers: Record<string, string> = {}): Promise<boolean> {
+    try {
+      // A response that never ends (the failure this guards against) fails the test in seconds, not minutes.
+      const response = await realFetch(`${base}${url}`, { signal: AbortSignal.timeout(5000), headers: { "sec-fetch-dest": "video", ...headers } });
+      await response.arrayBuffer();
+      return false;
+    } catch (error) {
+      // Our own timeout is a hang, not the error the server should have ended the response with.
+      return !(error instanceof Error && error.name === "TimeoutError");
+    }
+  }
+
+  const cases: Array<[string, "clip" | "simulation", string | null]> = [
+    ["the video, whole file", "clip", null], ["the video, a range", "clip", "bytes=2-"],
+    ["the video, a range covering the whole file", "clip", "bytes=0-"],
+    ["the simulation, whole file", "simulation", null], ["the simulation, a range", "simulation", "bytes=2-"],
+    ["the simulation, a range covering the whole file", "simulation", "bytes=0-"],
+  ];
+
+  it.each(cases)("%s: an upstream error midway ends only that response, in an error, with nothing unhandled", async (_name, kind, range) => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    const item = (await page()).body.item;
+    const bytes = kind === "clip" ? CLIP_BYTES : ZIP_BYTES;
+    const digest = kind === "clip" ? String(companyClip().digest) : ZIP_DIGEST;
+    serveUpstream((_url, asked) => ({ status: asked ? 206 : 200, body: upstream([bytes.subarray(0, 4), bytes.subarray(4, 8)], "error").stream,
+      headers: { "content-length": String(bytes.length), "x-blueprint-artifact-sha256": digest,
+        ...(asked ? { "content-range": `bytes 0-${bytes.length - 1}/${bytes.length}` } : {}) } }));
+    const url = kind === "clip" ? item.video.url : item.simulationDownload.url;
+    expect(await readsToError(url, range ? { range } : {})).toBe(true);
+    await settle();
+    expect(uncaught).toEqual([]);
+    // The server is still up and serves the next request.
+    expect((await page()).status).toBe(200);
+  });
+
+  it.each(cases)("%s: a company that goes away cancels the upstream read", async (_name, kind, range) => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    const item = (await page()).body.item;
+    const bytes = kind === "clip" ? CLIP_BYTES : ZIP_BYTES;
+    const digest = kind === "clip" ? String(companyClip().digest) : ZIP_DIGEST;
+    let made: ReturnType<typeof upstream> | null = null;
+    serveUpstream((_url, asked) => {
+      made = upstream([bytes.subarray(0, 4), bytes.subarray(4, 8)], "hang");
+      return { status: asked ? 206 : 200, body: made.stream, headers: { "content-length": String(bytes.length), "x-blueprint-artifact-sha256": digest,
+        ...(asked ? { "content-range": `bytes 0-${bytes.length - 1}/${bytes.length}` } : {}) } };
+    });
+    const url = kind === "clip" ? item.video.url : item.simulationDownload.url;
+    const controller = new AbortController();
+    const response = await realFetch(`${base}${url}`, { signal: controller.signal, headers: { "sec-fetch-dest": "video", ...(range ? { range } : {}) } });
+    const reader = response.body!.getReader();
+    await reader.read();
+    controller.abort();
+    void response;
+    await reader.cancel().catch(() => undefined);
+    await vi.waitFor(() => expect(made?.state.cancelled).toBe(true), { timeout: 3000 });
+    await settle();
+    expect(uncaught).toEqual([]);
+  });
+});
 
 describe("the simulation download against COMPANY_SIMULATION_CONTRACT.md section 2", () => {
   const ready = () => state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
@@ -781,6 +938,42 @@ describe("the simulation download against COMPANY_SIMULATION_CONTRACT.md section
     // And the right bytes do complete.
     answerWith(200, ZIP_BYTES, { "content-length": String(ZIP_BYTES.length), "x-blueprint-artifact-sha256": ZIP_DIGEST });
     expect((await media(url)).bytes.equals(ZIP_BYTES)).toBe(true);
+  });
+
+  // Ported from the re-check's probe, which asserted the gap (a complete wrong file through `Range: bytes=0-`); flipped.
+  it("a range covering the whole file is read whole and hashed: wrong bytes never complete the file", async () => {
+    ready();
+    const item = (await page()).body.item;
+    const wrong = Buffer.from("XX-XXX-XXXXX");
+    const rawFetch = async (url: string, headers: Record<string, string>) => {
+      let response: Response;
+      try { response = await realFetch(`${base}${url}`, { headers: { "sec-fetch-dest": "empty", ...headers } }); }
+      catch (error) { return { status: 0, bytes: null as Buffer | null, error }; }
+      try { return { status: response.status, bytes: Buffer.from(await response.arrayBuffer()), error: null as unknown }; }
+      catch (error) { return { status: response.status, bytes: null as Buffer | null, error }; }
+    };
+    // The re-check's stub: the Pipeline answers a part (206) of the right total with wrong bytes.
+    answerWith(206, wrong, { "content-length": String(wrong.length), "content-range": `bytes 0-${wrong.length - 1}/${wrong.length}`,
+      "x-blueprint-artifact-sha256": ZIP_DIGEST });
+    for (const range of ["bytes=0-", `bytes=0-${ZIP_BYTES.length - 1}`]) {
+      const read = await rawFetch(item.simulationDownload.url, { range });
+      expect(read.bytes?.equals(wrong) ?? false).toBe(false);
+      expect(read.status).not.toBe(206);
+    }
+    // The Pipeline answers the whole read (as it does when no range is sent) with wrong bytes: cut before the end.
+    answerWith(200, wrong, { "content-length": String(wrong.length), "x-blueprint-artifact-sha256": ZIP_DIGEST });
+    const cut = await rawFetch(item.simulationDownload.url, { range: "bytes=0-" });
+    expect(cut.error !== null || (cut.bytes?.length ?? 0) < wrong.length).toBe(true);
+    // The right bytes, asked as bytes=0-, arrive whole as a 200.
+    answerWith(200, ZIP_BYTES, { "content-length": String(ZIP_BYTES.length), "x-blueprint-artifact-sha256": ZIP_DIGEST });
+    const right = await rawFetch(item.simulationDownload.url, { range: "bytes=0-" });
+    expect(right).toMatchObject({ status: 200 });
+    expect(right.bytes?.equals(ZIP_BYTES)).toBe(true);
+    // The video too: a player's first request (bytes=0-) is read whole and hashed.
+    answerWith(200, Buffer.from("X".repeat(CLIP_BYTES.length)), { "content-length": String(CLIP_BYTES.length),
+      "x-blueprint-artifact-sha256": String(companyClip().digest) });
+    const video = await rawFetch(item.video.url, { range: "bytes=0-", "sec-fetch-dest": "video" });
+    expect(video.error !== null || (video.bytes?.length ?? 0) < CLIP_BYTES.length).toBe(true);
   });
 
   it("a technology partner, a job that may not be shared and a withdrawn job get no download and no tested answer", async () => {

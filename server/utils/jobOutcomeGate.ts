@@ -35,7 +35,9 @@ export function outcomesOf(introduction: IntroductionLike | null | undefined): O
   const list = Array.isArray(introduction?.outcomes) ? introduction!.outcomes as unknown[] : [];
   return list.filter((item): item is OutcomeRecord => Boolean(item) && typeof item === "object"
     && ((item as OutcomeRecord).by === "site" || (item as OutcomeRecord).by === "company")
-    && isOutcomeState((item as OutcomeRecord).state) && typeof (item as OutcomeRecord).atIso === "string");
+    && isOutcomeState((item as OutcomeRecord).state) && typeof (item as OutcomeRecord).atIso === "string")
+    // Only the three fields: the stored link digest (one record per link) is never read back out.
+    .map(item => ({ by: item.by, state: item.state, atIso: item.atIso }));
 }
 
 /** Either side said "Installed" or "Not going ahead": nothing more is asked. */

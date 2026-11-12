@@ -412,7 +412,7 @@ describe("description-only owner can explicitly authorize future footage", () =>
     await withRoutes(async baseUrl => {
       expect(await (await consent(baseUrl, "req-v4-paused", V4)).json()).toEqual({ ok: true, outcome: "upgraded" });
       expect(doc("req-v4-paused").workspace_task).toMatchObject({ paused: false, pilotIntent: "kept" });
-      expect(autoSend).toHaveBeenCalledWith("req-v4-paused");
+      await vi.waitFor(() => expect(autoSend).toHaveBeenCalledWith("req-v4-paused"));
     });
   });
   it("leaves the pause alone for an older statement, and never unpauses a withdrawn job", async () => {
@@ -456,6 +456,18 @@ describe("description-only owner can explicitly authorize future footage", () =>
       const response = await consent(baseUrl, "req-v4-recheck-fails", V4);
       expect(response.status).toBe(200);
       expect(doc("req-v4-recheck-fails").request.consent_attestation.statement_version).toBe("2026-11-12.v4");
+    });
+  });
+  it("answers the site without waiting for the automatic send (review S7)", async () => {
+    const record = seedDescription("req-v4-slow-send");
+    record.request.consent_attestation = { granted: true, statement_version: "2026-11-11.v3", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    let release!: () => void;
+    autoSend.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve(null); }));
+    await withRoutes(async baseUrl => {
+      const response = await Promise.race([consent(baseUrl, "req-v4-slow-send", V4).then(res => res.status),
+        new Promise(resolve => setTimeout(() => resolve("waited"), 2_000))]);
+      expect(response).toBe(200);
+      release?.();
     });
   });
   it("refuses v4 on a withdrawn job and writes nothing", async () => {

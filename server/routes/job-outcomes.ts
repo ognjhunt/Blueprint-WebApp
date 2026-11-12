@@ -54,6 +54,7 @@ router.post("/:token", async (req, res) => {
       return notWorking(res);
     }
     res.setHeader("Cache-Control", "no-store");
+    if (result.finalAlready) return res.redirect(303, `${OUTCOME_THANKS_PATH}?already=${result.finalAlready}`);
     return res.redirect(303, `${OUTCOME_THANKS_PATH}?answer=${result.state}`);
   } catch (error) {
     logger.warn({ error }, "Could not record an outcome answer");

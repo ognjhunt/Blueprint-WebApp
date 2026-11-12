@@ -596,10 +596,12 @@ function detailLine(value: unknown, max = 200): string {
 
 /** The `introduction_made_site` email's subject and body (PACKAGE_E E6): the introduced company's own details, nothing else. */
 export function introductionMadeSiteCopy(company: { name: string; contactName?: string | null; email: string; website?: string | null },
-  url: string): { subject: string; body: string } {
+  url: string, answerLabel?: string | null): { subject: string; body: string } {
   const name = detailLine(company.name, 120) || "the deployment company";
+  // The company's own stored answer, in its fixed label (review M2); with none, no answer is claimed.
+  const label = detailLine(answerLabel, 60);
   const lines = [
-    `${name} answered Interested about your job, and you asked us to introduce you.`,
+    label ? `${name} answered ${label} about your job, and you asked us to introduce you.` : `You asked us to introduce you to ${name}.`,
     "",
     ...(detailLine(company.contactName) ? [`Contact: ${detailLine(company.contactName)}`] : []),
     `Email: ${detailLine(company.email)}`,
@@ -618,12 +620,13 @@ export function introductionMadeSiteCopy(company: { name: string; contactName?: 
  * while the job is visible to companies and the introduction is on record.
  */
 export function buildIntroductionMadeSiteNotification(params: { requestId: string; to: string; companyId: string;
-  company: { name: string; contactName?: string | null; email: string; website?: string | null }; captureUrl?: string }): Parameters<typeof enqueueOutbox>[0] {
+  company: { name: string; contactName?: string | null; email: string; website?: string | null }; captureUrl?: string;
+  answerLabel?: string | null }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   const companyId = params.companyId.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   if (!companyId) throw new Error("introduction_company_invalid");
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
-  const { subject, body } = introductionMadeSiteCopy(params.company, url);
+  const { subject, body } = introductionMadeSiteCopy(params.company, url, params.answerLabel);
   const companyEmail = detailLine(params.company.email);
   return { idempotencyKey: `${requestId}:introduction_made_site:${companyId}`, requestId, kind: "introduction_made_site",
     to: params.to, subject, body,
@@ -1140,8 +1143,9 @@ export async function notifySummarySharedIfVisible(requestId: string): Promise<{
     await ref.set({ summary_shared_notice: { owed: false, settled_reason: settled, settled_at_iso: new Date().toISOString() } }, { merge: true });
     return { enqueued: false, reason: settled };
   }
-  const { teamJobAccess } = await import("./teamJobAccess");
-  if (!teamJobAccess(record).listed) return { enqueued: false, reason: "not_visible" };
+  // The whole rule a company's own reads use (review M1), so this never says companies can see a job they cannot.
+  const { loadCompanyJobAccess } = await import("./teamJobAccess");
+  if (!(await loadCompanyJobAccess(requestId, record)).access.listed) return { enqueued: false, reason: "not_visible" };
   const attempt = attempts + 1;
   await ref.set({ summary_shared_notice: { owed: true, attempts: attempt } }, { merge: true });
   const result = await enqueueTaskLifecycleNotification({ requestId, milestone: "listing_live", eventId: `summary-${attempt}` });

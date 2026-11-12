@@ -167,8 +167,9 @@ describe("the two emails", () => {
     expect(site.subject).toBe(`How did it go with ${PLANT.company}?`);
     expect(company.subject).toBe(`How did it go with ${PLANT.siteName}?`);
     const lines = (body: string) => body.split("\n");
-    expect(lines(site.body)[0]).toBe(`One click tells us where things stand with ${PLANT.company}.`);
-    expect(lines(company.body)[0]).toBe(`One click tells us where things stand with ${PLANT.siteName}.`);
+    // Two presses (the link, then the button on its page): never "one click" (review S2).
+    expect(lines(site.body)[0]).toBe(`Press one to tell us what happened with ${PLANT.company}.`);
+    expect(lines(company.body)[0]).toBe(`Press one to tell us what happened with ${PLANT.siteName}.`);
     for (const row of [site, company]) {
       const body = lines(row.body);
       expect(body[1]).toBe("");
@@ -217,14 +218,16 @@ describe("signed links", () => {
 describe("recording an answer", () => {
   it("appends { by, state, atIso }; a later answer from the same side appends; the latest per side is current", async () => {
     seedJob(); seedIntro();
-    const token = (by: "site" | "company", state: any) => createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by, state });
+    // Each email's links are issued at its own time; a later question's link is a different link.
+    const token = (by: "site" | "company", state: any, issuedDay = 14) =>
+      createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by, state, nowMs: at(issuedDay).getTime() });
     expect(await recordOutcomeAnswer(token("site", "still_talking"), at(14))).toEqual({ ok: true, state: "still_talking", recorded: true });
     expect(await recordOutcomeAnswer(token("company", "quote_given"), at(15))).toMatchObject({ recorded: true });
     // A second click on the same link soon after is one answer.
     expect(await recordOutcomeAnswer(token("site", "still_talking"), new Date(at(14).getTime() + 60_000))).toMatchObject({ recorded: false });
-    expect(await recordOutcomeAnswer(token("site", "still_talking"), at(45))).toMatchObject({ recorded: true });
-    expect(await recordOutcomeAnswer(token("site", "going_ahead"), at(46))).toMatchObject({ recorded: true });
-    expect(intro().outcomes).toEqual([
+    expect(await recordOutcomeAnswer(token("site", "still_talking", 45), at(45))).toMatchObject({ recorded: true });
+    expect(await recordOutcomeAnswer(token("site", "going_ahead", 45), at(46))).toMatchObject({ recorded: true });
+    expect(intro().outcomes.map(({ link: _link, ...row }: Record<string, unknown>) => row)).toEqual([
       { by: "site", state: "still_talking", atIso: at(14).toISOString() },
       { by: "company", state: "quote_given", atIso: at(15).toISOString() },
       { by: "site", state: "still_talking", atIso: at(45).toISOString() },
@@ -234,6 +237,27 @@ describe("recording an answer", () => {
       company: { by: "company", state: "quote_given", atIso: at(15).toISOString() },
       latest: { by: "site", state: "going_ahead", atIso: at(46).toISOString() } });
     expect(latestOutcome(null)).toEqual({ site: null, company: null, latest: null });
+  });
+
+  // Review S3 (planner: a final answer is final) and the review's probe P5, as asserting tests.
+  it("records nothing after a final answer from either side, and says what is on record", async () => {
+    seedJob(); seedIntro();
+    const token = (by: "site" | "company", state: any) => createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by, state, nowMs: at(14).getTime() });
+    expect(await recordOutcomeAnswer(token("company", "installed"), at(15))).toMatchObject({ ok: true, recorded: true });
+    // An older "Still talking" link from the same email, still within its 30 days, from either side.
+    expect(await recordOutcomeAnswer(token("site", "still_talking"), at(20)))
+      .toEqual({ ok: true, state: "still_talking", recorded: false, finalAlready: "installed" });
+    expect(await recordOutcomeAnswer(token("company", "going_ahead"), at(21))).toMatchObject({ recorded: false, finalAlready: "installed" });
+    expect(intro().outcomes).toHaveLength(1);
+    expect(latestOutcome(intro()).latest).toMatchObject({ state: "installed" });
+  });
+
+  it("records the same link once, however long apart it is used again", async () => {
+    seedJob(); seedIntro();
+    const link = createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by: "site", state: "still_talking", nowMs: at(14).getTime() });
+    expect(await recordOutcomeAnswer(link, at(15))).toMatchObject({ recorded: true });
+    expect(await recordOutcomeAnswer(link, at(21))).toMatchObject({ recorded: false });
+    expect(intro().outcomes).toHaveLength(1);
   });
 
   it("refuses after a withdrawal, for a missing introduction, and for a bad link", async () => {

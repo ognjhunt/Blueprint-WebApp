@@ -710,7 +710,7 @@ function jobCardListed(request: Record<string, any>): boolean {
 }
 
 /** Why a shared job is not in front of companies yet, as opposed to held: the video check or the job sentence. */
-const PREPARING_REASONS = new Set(["privacy_screen_pending", "no_job_sentence", "not_listed"]);
+const PREPARING_REASONS = new Set<string>(["privacy_screen_pending", "no_job_sentence", "not_listed"]);
 
 /**
  * Where the job stands with deployment companies (2026-11-12, sharing is the service). A job is shared if, and only if,
@@ -721,7 +721,9 @@ const PREPARING_REASONS = new Set(["privacy_screen_pending", "no_job_sentence", 
  * - `not_shared`: never shared. `olderStatement` says the site agreed to an older statement and its page offers v4.
  * The date is when the site accepted the statement that shares the job.
  */
-export function jobSharingOf(request: Record<string, any>): JobSharing {
+export function jobSharingOf(request: Record<string, any>,
+  /** The whole rule's answer (`loadCompanyJobAccess`), when the caller read it; else the record-only rule. */
+  wholeAccess?: { listed: boolean; reason: string | null }): JobSharing {
   if (!jobIsShared(request)) {
     const older = isRecord(request.request) && request.request.buyerType === "site_operator"
       && hasCurrentRecordingConsent(request.request.consent_attestation) && !projectWebsiteCaptureRights(request).consent_revoked;
@@ -729,7 +731,7 @@ export function jobSharingOf(request: Record<string, any>): JobSharing {
   }
   const listing = request.public_task_listing as Record<string, unknown>;
   const sharedAtIso = text(listing.approvedAtIso) ?? text(listing.wentLiveIso);
-  const access = teamJobAccess(request);
+  const access = wholeAccess ?? teamJobAccess(request);
   if (access.listed) return { state: "visible", sharedAtIso };
   return { state: access.reason && PREPARING_REASONS.has(access.reason) ? "preparing" : "not_visible", sharedAtIso };
 }
