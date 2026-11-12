@@ -99,7 +99,7 @@ describe("the Pipeline's early task hold", () => {
       const row = rows[0][1] as Record<string, string>;
       expect(rows[0][0]).toBe(`captureOutbox/req-1:preparation_needs_attention:${EVENT.replace(":", "_")}`);
       expect(row.subject).toBe("The simulation of your job is on hold");
-      expect(row.body.startsWith(`${sentence} No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it. Your answer stays on your job page.`)).toBe(true);
+      expect(row.body.startsWith(`${sentence} No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it. Your first look stays on your job page.`)).toBe(true);
       expect(row.body).toMatch(/Reference: bp-prep-0123456789abcdef\./);
       expect(row.body).not.toMatch(/needs our team's review|could not finish|website_|we'll|email you|rerun/i);
       expect(send).not.toHaveBeenCalled();

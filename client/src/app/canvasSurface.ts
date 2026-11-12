@@ -12,7 +12,7 @@
  * Blueprint's paper (`#f6f5ef`) is the default because the public site, the
  * auth pages, the `/app` workspace, and the 404 all render on it, and because
  * legacy marketing paths are `MarketingRedirect`s whose destinations are those
- * same paper surfaces, as do public job records under `/sites/`. The Runway
+ * same paper surfaces. The Runway
  * instrument surfaces — capture, admin/ops, internal, and beta instruments —
  * opt into the dark ground below.
  *

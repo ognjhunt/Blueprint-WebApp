@@ -1,7 +1,6 @@
 import { Router, Request, Response } from "express";
 import { HOW_SEO_DESCRIPTION, PARTNERS_SEO_DESCRIPTION, QUESTIONS_SEO_DESCRIPTION, ROBOT_TEAM_SEO_DESCRIPTION, START_SEO_DESCRIPTION } from "../../client/src/lib/publicCopy";
 import { captureGroundedPublicCopy } from "../../client/src/lib/captureGroundedLanguage";
-import { pilotReplacementPolicy } from "../../client/src/lib/evaluationPricing";
 
 const router = Router();
 
@@ -120,19 +119,11 @@ const pages = [
     path: "/beta",
     title: "Questions",
     description:
-      `${QUESTIONS_SEO_DESCRIPTION} Free for sites and partners. ${pilotReplacementPolicy} Blueprint runs the candidate evaluations itself; a technology provider can give Blueprint free access to its policy or an integration. The beta has no private paid evaluations, balances or top-ups.`,
+      `${QUESTIONS_SEO_DESCRIPTION} Free for sites. Nothing is charged today.`,
   },
   { path: "/contact/site-operator", title: "Start a job", description: START_SEO_DESCRIPTION },
   { path: "/contact/robot-team", title: "Apply to see jobs", description: ROBOT_TEAM_SEO_DESCRIPTION },
-  {
-    path: "/sites",
-    title: "Job library",
-    description:
-      "Site-approved recurring jobs shared for compatible technology assessment and delivery planning.",
-  },
-  { path: "/partners", title: "For robot companies", description: PARTNERS_SEO_DESCRIPTION },
-  { path: "/partners/deployment", title: "Deployment partners", description: "Apply to set robots up for Blueprint's site jobs, and support them." },
-  { path: "/partners/technology", title: "Robot technology providers", description: "Make a robot, control software or model API available for Blueprint to test on real site jobs in simulation." },
+  { path: "/partners", title: "For deployment companies", description: PARTNERS_SEO_DESCRIPTION },
   {
     path: "/privacy",
     title: "Privacy",

@@ -12,6 +12,7 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'evaluation_outcome','scene_outcome','robot_access_question',
  'awaiting_evaluations','no_team_passed','no_qualified_evaluation','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed','answer_ready','video_too_large',
+ 'listing_live',
 ]);
 /** Notices about evaluations a robot team asked for (`evaluationRuns`). Blueprint runs the
  * evaluations itself now, so these no longer belong on a site's journey. Their rows are still
@@ -150,6 +151,12 @@ export async function taskLifecycleNotificationIsCurrent(
  const ref=db.collection('inboundRequests').doc(entry.requestId);
  const snapshot=transaction?await transaction.get(ref):await ref.get();
  if(!snapshot.exists||projectWebsiteCaptureRights(snapshot.data()).consent_revoked)return false;
+ // "Deployment companies we approve can now see a summary of your job": sent only while that is true, by the one
+ // predicate that decides what a company can see (paused by Blueprint or under a rights hold, it is not).
+ if(entry.kind==='listing_live'){
+  const {teamJobAccess}=await import('./teamJobAccess');
+  return teamJobAccess(snapshot.data()??null).listed;
+ }
  // A waiting notice is sent only while what it says is still true.
  if(entry.kind==='footage_before_account'){
   const notices=await import('./taskLifecycleNotifications');

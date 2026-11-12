@@ -138,19 +138,30 @@ export const sceneOutrankedNote = (name: string) =>
 export const SITE_ANSWER_NOTE =
   "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
 /**
- * The limits in one line, at the foot of the job page and the emails, chosen by what the headline is: a test
- * result, a test still running, or the paper check. Each is true for every state that shows it.
+ * The limits in one line, at the foot of the emails, chosen by what the email says: our early trial's result, a trial
+ * still running, or the first look. Each is true for every state that shows it.
  */
 export const LIMITS_TESTED = "Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 /** While the test runs nothing has been tested yet, so the line says it is being tested. */
 export const LIMITS_TESTING = "Being tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 /** While the simulation of the site is being built: nothing has been tested yet. */
 export const LIMITS_GETTING_READY = "To be tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
-export const LIMITS_PAPER = "A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const LIMITS_PAPER = "A first look on paper, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/** The job page's one limits line, true in every state it has: whatever the page shows, none of it is a test at the site. */
+export const LIMITS_JOB_PAGE = "Nothing here is a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+
+/** The first look in one sentence, on the job page and in the email that says it is ready (frame of 2026-11-12). */
+export function firstLookSentence(pick: Pick<AnswerRobot, "manufacturer" | "name" | "verdict">): string {
+  const robot = `${pick.manufacturer} ${pick.name}`;
+  return pick.verdict === "fits" || pick.verdict === "fits_on_paper"
+    ? `On paper, the robot most likely to fit: ${robot}.` : `On paper, the closest robot: ${robot}. No robot clearly fits.`;
+}
+/** What the first look rests on, said under it. */
+export const FIRST_LOOK_SOURCE = "From published specifications and where it has been used.";
 /** The same lines as an approved deployment company reads them on the card, with the full note in the card's details. */
 export const JOB_CARD_LIMITS_TESTED = "Tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 export const JOB_CARD_LIMITS_TESTING = "Being tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
-export const JOB_CARD_LIMITS = "A paper check, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const JOB_CARD_LIMITS = "A first look on paper, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 
 /** How sure, in words: the one map the job page, the job card and the emails all read. */
 export const SURENESS_WORDS: Readonly<Record<AnswerConfidenceLevel, string>> = { low: "Not sure yet", fair: "Fairly sure", good: "Sure" };
@@ -228,10 +239,28 @@ export interface SiteAnswer {
   note: string;
   checked: { models: number; makers: number; specsRetrievedOn: string };
   introductionRequestedAtIso: string | null;
-  /** Whether the job card is visible to approved deployment companies, as stored. */
+  /** Whether the job card is switched on, as stored (it may still be hidden: see `sharing`). */
   jobCardListed: boolean;
+  /**
+   * Where the job's summary stands with deployment companies, decided on the server by the same predicate that decides
+   * what a company can see (`teamJobAccess`): not shared; shared and visible to approved companies; or shared but not
+   * visible right now (paused by Blueprint, or a rights hold). A site shares on the start form or from its job page.
+   */
+  sharing: JobSharing;
   /** sha256 of the inputs the answer was composed from. */
   basisDigest: string;
+}
+
+export type JobSharingState = "not_shared" | "visible" | "not_visible";
+export interface JobSharing {
+  state: JobSharingState;
+  sharedAtIso: string | null;
+  /**
+   * What the shared summary leaves out under the statement the site agreed to (review, 2026-11-12): a site that shared
+   * on the start form agreed to the card without the first look; one that pressed the button under statement v1 or v2
+   * agreed to the first look only, never a later trial result. Absent on answers composed before it existed.
+   */
+  leavesOut?: { firstLook: boolean; trialResult: boolean };
 }
 
 const isString = (value: unknown): value is string => typeof value === "string";
@@ -245,5 +274,6 @@ export function isSiteAnswer(value: unknown): value is SiteAnswer {
     && (value.state === "reading" || value.state === "ready" || value.state === "cannot_assess")
     && isRecord(value.job) && Array.isArray(value.facts) && Array.isArray(value.alsoFit)
     && Array.isArray(value.ruledOut) && Array.isArray(value.unknowns)
-    && isRecord(value.confidence) && isRecord(value.nextStep) && isRecord(value.checked);
+    && isRecord(value.confidence) && isRecord(value.nextStep) && isRecord(value.checked)
+    && isRecord(value.sharing) && (value.sharing.state === "not_shared" || value.sharing.state === "visible" || value.sharing.state === "not_visible");
 }

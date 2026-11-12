@@ -57,8 +57,8 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(notice).toMatchObject({ status: "sent", kind: "evaluation_outcome", to: "owner@example.com" });
     // Rewritten in round 7: a run that did not give a test result says the job page's own line for why
     // (`testNotRunLine`), then, when the job has a paper check, gives it as the one answer.
-    const paper = notice.body.includes("So the paper check is your answer.");
-    if (outcome !== "estimate") expect(notice.body, notice.body).toMatch(/^The simulation test did not (run|finish)\. /);
+    const paper = notice.body.includes("On paper, the robot most likely to fit:");
+    if (outcome !== "estimate") expect(notice.body, notice.body).toMatch(/^Our early trial did not (run|finish)\. /);
     void simulationOutcomeEmailSentence;
     // The site already has its answer: the email never says the job is held, and never names internal terms.
     expect(notice.body).not.toMatch(/\bheld\b|your job is|episodes|candidates|screening/i);
@@ -76,14 +76,14 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
       // be identified as AI robots (a scripted motion is never a contender): no option, no result, the page's own line.
       // Rewritten (review, 2026-11-11): a finished test that scored no AI robot is an ending, not a result. Its email
       // takes the paper slot, says why, and says plainly whether there is a paper check.
-      expect(notice.subject).toBe(paper ? "Your job's paper check is ready" : "An update on the simulation of your job");
+      expect(notice.subject).toBe(paper ? "Your first look is ready" : "An update on the simulation of your job");
       expect(notice).toMatchObject({ answerSlot: "paper" });
-      expect(notice.body.startsWith("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted. "
-        + (paper ? "So the paper check is your answer." : "There is no paper check for this job. Nothing is needed from you.\n\n"))).toBe(true);
-      expect(notice.body).not.toMatch(/did best|was ahead|proof|test result comes later/i);
+      expect(notice.body.startsWith("Our early trial finished, but none of its runs could be identified as a robot we tried, so none is counted. "
+        + (paper ? "On paper, the robot most likely to fit:" : "There is no first look for this job. Nothing is needed from you.\n\n"))).toBe(true);
+      expect(notice.body).not.toMatch(/did best|was ahead|proof|result later/i);
       expect(notice.body).not.toContain(SIMULATION_TRUST_LINE);
     } else {
-      expect(notice.subject).toBe(paper ? "Your job's paper check is ready" : "An update on the simulation of your job");
+      expect(notice.subject).toBe(paper ? "Your first look is ready" : "An update on the simulation of your job");
       expect(notice.body).not.toMatch(/estimate|proof|result is ready/);
     }
     expect(run().outcome_notification_pending).toBe(false);
@@ -108,7 +108,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     // The fixture's rows are not in our list and carry no learned-policy evidence: none can be identified as an AI robot.
     // Scoring none is an ending, so the email is a paper answer (rewritten, review 2026-11-11).
     expect(notice.subject).toBe("An update on the simulation of your job");
-    expect(notice.body.startsWith("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted. There is no paper check for this job. Nothing is needed from you.")).toBe(true);
+    expect(notice.body.startsWith("Our early trial finished, but none of its runs could be identified as a robot we tried, so none is counted. There is no first look for this job. Nothing is needed from you.")).toBe(true);
     expect(notice.body).not.toMatch(/estimate|proof|has a result|did best|was ahead|pilot|introduc|deployment company|episodes|candidates|screening/i);
     // With no paper check, the fine print is the simulation disclaimer.
     expect(notice.body).toMatch(/never certifies physical performance or safety/);

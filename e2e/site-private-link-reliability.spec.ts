@@ -237,13 +237,13 @@ test("the current simulation result leads as proof, open, while every detail and
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
-  const proof = page.getByRole("region", { name: "Tested in simulation" });
+  const proof = page.getByRole("region", { name: "Early trial of openly available robot software" });
   // Its one scored row is not in the closed map and carries no learned-policy evidence: it cannot be identified as an
   // AI robot (a scripted motion is never a contender), so it is never an option and is said in one plain line.
-  await expect(proof.getByText("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted.", { exact: true })).toBeVisible();
+  await expect(proof.getByText("Our early trial finished, but none of its runs could be identified as a robot we tried, so none is counted.", { exact: true })).toBeVisible();
   const result = proof.getByRole("region", { name: "Ranked", exact: true });
-  await expect(result).toContainText("1 other run could not be identified as an AI robot, so it is not counted.");
-  await expect(result).not.toContainText(/AI robot A|Arm with suction gripper|Finished 2 of 3/);
+  await expect(result).toContainText("1 other run could not be identified as a robot we tried, so it is not counted.");
+  await expect(result).not.toContainText(/Unlisted robot software A|Arm with suction gripper|Finished 2 of 3/);
   await expect(proof.getByRole("region", { name: "Published tests", exact: true })).toBeVisible();
   // The full result is one click away, in the folded details.
   const details = page.locator("summary", { hasText: "Simulation details" });
@@ -295,8 +295,8 @@ test("a held result says the same plain sentence as the headline, with plain rea
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
   // The proof says, open and in one plain line, that the simulation test did not run and why.
-  const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("The simulation test did not run. None of the robots we can test matched this job. At least one couldn't reach it in the simulation of your site.", { exact: true })).toBeVisible();
+  const proof = page.getByRole("region", { name: "Early trial of openly available robot software" });
+  await expect(proof.getByText("Our early trial did not run. None of the robots we can try matched this job. At least one couldn't reach it in the simulation of your site.", { exact: true })).toBeVisible();
   expect(await proof.textContent()).not.toMatch(/[a-z]_[a-z]|your job is held|estimate|budget|\$/i);
   await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });
@@ -381,7 +381,7 @@ test("a job we can't simulate yet is held in one plain sentence, never as a proc
     status: { decision: outcome.category, headline: outcome.title, operatorAction: null, missingViews: [], outcome } }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("The simulation is held: we can't simulate this kind of job yet.", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it\. Your answer stays on your job page\./).first()).toBeVisible();
+  await expect(page.getByText(/No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it\. Your first look stays on your job page\./).first()).toBeVisible();
   const body = await page.locator("body").textContent();
   expect(body).not.toMatch(/could not finish processing|website_native|preparation_required|we'll run|email you when|Next step|next step is with Blueprint/i);
   expect(writes).toEqual([]);
@@ -655,8 +655,8 @@ test("a run with only scripted reference baselines is not called an estimate on 
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
   // The proof never calls a reference-only run an estimate, and names no policy.
-  const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("The simulation test did not run. Only our own test moves ran. No robot program could be tried yet.", { exact: true })).toBeVisible();
+  const proof = page.getByRole("region", { name: "Early trial of openly available robot software" });
+  await expect(proof.getByText("Our early trial did not run. Only our own test moves ran. No robot program could be tried yet.", { exact: true })).toBeVisible();
   expect(await proof.textContent()).not.toMatch(/estimate|did best|tries/i);
   await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });

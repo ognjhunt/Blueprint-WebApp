@@ -2,7 +2,6 @@ import { newWebsiteCaptureOwnerBinding } from "../utils/websiteCaptureOwner";
 import { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } from "../utils/sceneScreenGate";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
-import { newJobFanoutIntent } from "../utils/newJobAlerts";
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
 import { hasCurrentDescriptionAuthority } from "../utils/descriptionAuthority";
 import { createInboundRequestWithReceipt } from "../utils/inboundRequestCommit";
@@ -31,7 +30,7 @@ import { isValidEmailAddress } from "../utils/validation";
 import { checkEmail, EMAIL_REFUSAL_SENTENCES, type EmailRefusal } from "../../client/src/lib/emailAddress";
 import { getRateLimitRedisClient, isRedisCommandReady, withRedisTimeout } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
-import { createRequestReviewToken, createSiteClaimToken } from "../utils/request-review-auth";
+import { createSiteClaimToken } from "../utils/request-review-auth";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import {
   inferHandoffChannel,
@@ -988,11 +987,6 @@ function writeDevInboundRequest(payload: Record<string, unknown>) {
   fs.appendFileSync(DEV_INBOUND_REQUEST_LOG, `${JSON.stringify(payload)}\n`, "utf8");
 }
 
-function buyerReviewUrl(requestId: string, token: string) {
-  const baseUrl = (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
-  return `${baseUrl}/requests/${encodeURIComponent(requestId)}?access=${encodeURIComponent(token)}`;
-}
-
 /**
  * Whether we can send the job link to this address: the shared rule the start form also checks before sending
  * (`client/src/lib/emailAddress.ts`). Any well-formed address is accepted (a Gmail name of an unusual length is only a
@@ -1749,8 +1743,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
     const submittedAtIso = new Date().toISOString();
     const ownerBinding = buyerType === "site_operator"
       ? newWebsiteCaptureOwnerBinding(payload.requestId, res.locals.workspaceIntake?.account_owner_uid, submittedAtIso) : null;
-    const reviewToken = createRequestReviewToken(payload.requestId);
-    const reviewUrl = buyerReviewUrl(payload.requestId, reviewToken);
     const inboundRequest: Omit<InboundRequest, "createdAt"> & {
       createdAt: FirebaseFirestore.FieldValue;
     } = {
@@ -1897,11 +1889,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
         siteTaskTriage?.disposition === "needs_conversation"),
       automation_confidence: null,
       terms_acceptance: buildTermsAcceptance(now),
-      buyer_review_access: {
-        buyer_review_url: reviewUrl,
-        token_issued_at: now as never,
-        last_sent_at: null,
-      },
       ops: {
         assigned_region_id: "managed-alpha",
         rights_status: "unknown",
@@ -1998,7 +1985,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
       await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
         ops_notice: initialIntakeOpsNotice(opsNoticeMeta),
         ...(messageSuppression ? { intake_message_suppression: messageSuppression } : {}),
-        ...(initialPublicListing ? { public_task_listing: initialPublicListing, newJobAlertFanout: newJobFanoutIntent(String(initialPublicListing.approvedAtIso)) } : {}),
+        // Shared on the start form: the "summary is shared" email is owed until the summary is first visible.
+        ...(initialPublicListing ? { public_task_listing: initialPublicListing, summary_shared_notice: { owed: true } } : {}),
         // A confirmed brief takes no later reading of its description, so it
         // queues none; its confirmation is projected onto the job instead,
         // keeping any workspace fields the intake already set.

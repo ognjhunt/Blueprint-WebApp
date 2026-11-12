@@ -1,3 +1,4 @@
+import { SHARE_REFUSAL_SENTENCES, shareRefusalReason } from "../../client/src/lib/jobOutlook";
 import { destinationPictureUrl } from "../utils/websiteDestinationPicture";
 import { placeKindOf } from "../utils/taskTargetChoiceContract";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
@@ -315,8 +316,10 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
       error: "The wording on this page has changed. Reload the page to read it, then press the button again." });
   // Sharing follows the job's outlook: only once the job has an answer (a test result, or the paper check after a
   // recorded ending). When the outlook cannot be read for certain it is "not yet", never a server error.
-  const waits = (phase: string) => res.status(409).json({ code: "introduction_waits_for_answer", phase,
-    error: "You can share this job once it has an answer. We'll email you when it does." });
+  const waits = (phase: string) => {
+    const reason = shareRefusalReason(phase);
+    return res.status(409).json({ code: "introduction_waits_for_answer", phase, reason, error: SHARE_REFUSAL_SENTENCES[reason] });
+  };
   const decision = await import("../utils/jobOutlook").then(({ loadJobOutlookDecision }) => loadJobOutlookDecision(verified.requestId))
     .catch(() => null);
   const alreadyAsked = await (db?.collection("inboundRequests").doc(verified.requestId).get()
@@ -372,7 +375,7 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
         const brief = await getBrief(verified.requestId).catch(() => null);
         const summary = brief && !isPlaceholderSummary(brief.summary) ? brief.summary : "";
         await applyOwnerTaskListing(verified.requestId, { enabled: true, consent: true, details: anonymizedOpportunityDraft(summary) },
-          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION, alertTeams: false });
+          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
         listed = true;
       }
     } catch (error) {
@@ -390,7 +393,11 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
     } catch (error) {
       logger.warn({ error, requestId: verified.requestId }, "Could not ring Blueprint about an introduction request");
     }
-    return res.json({ ok: true, requestedAtIso, listed });
+    // What the site's page says next follows what a company can actually see (`teamJobAccess`), read again now.
+    const sharing = await Promise.all([ref.get(), import("../utils/siteAnswer")])
+      .then(([snapshot, { jobSharingOf }]) => jobSharingOf(snapshot.data() ?? {}))
+      .catch(() => ({ state: "not_shared" as const, sharedAtIso: null }));
+    return res.json({ ok: true, requestedAtIso, listed, sharing });
   } catch (error) {
     logger.error({ error, requestId: verified.requestId }, "Could not record an introduction request");
     return res.status(503).json({ code: "introduction_request_unavailable", error: "Your request could not be saved. Try again shortly." });

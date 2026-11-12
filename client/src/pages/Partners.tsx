@@ -1,36 +1,35 @@
-import { BareBack, BareButton, BareFine, BareGroup, BareLabel, BareLinks, BareScreen, BareTicks } from "@/components/bare/Bare";
+import { BareBack, BareFine, BareGroup, BareLabel, BareRows, BareScreen } from "@/components/bare/Bare";
 import { SEO } from "@/components/SEO";
-import { PARTNERS_SEO_DESCRIPTION } from "@/lib/publicCopy";
+import { PartnerApplication } from "@/components/site/PartnerApplication";
+import { FOR_DEPLOYMENT_COMPANIES, PARTNERS_SEO_DESCRIPTION } from "@/lib/publicCopy";
 
 /**
- * For robot companies, bare bones: one question ("Can my company see these jobs?") and one button. The answer rides
- * on a card only when the site shared it (design note, "The deployment opportunity"), so the tick says so.
+ * For deployment companies, bare bones (frame of 2026-11-12): what a company gets for each job, how it is approved,
+ * what it sends back, and the application form itself (folded in from the old `/partners/deployment` page). Every
+ * permission a site has recorded so far keeps its video private, so the page says only what a summary carries: the
+ * kind of job, the first look and the early trial's result where one exists, as the site approved it; never the
+ * video or the simulation. No price is stated.
  */
 export default function Partners() {
   return <>
-    <SEO title="For robot companies | Blueprint" description={PARTNERS_SEO_DESCRIPTION} canonical="/partners" />
-    <div className="bare-page">
+    <SEO title={`${FOR_DEPLOYMENT_COMPANIES} | Blueprint`} description={PARTNERS_SEO_DESCRIPTION} canonical="/partners" />
+    <div className="bare-page bare-forms">
       <BareScreen>
         <BareBack href="/" />
         <BareGroup>
-          <BareLabel>For robot companies</BareLabel>
-          <h1>See jobs that sites choose to share.</h1>
+          <BareLabel>{FOR_DEPLOYMENT_COMPANIES}</BareLabel>
+          <h1 id="partner-title">Real jobs from real sites.</h1>
+          <p>Each job comes as a summary: the kind of job, a first look at which robots could fit, and our early trial's result where one exists. You tell us whether you'd take it.</p>
         </BareGroup>
-        <BareGroup>
-          <BareTicks label="What you see" items={[
-            { key: "summary", state: "yes", text: "A summary of the job, without the site's name" },
-            { key: "answer", state: "yes", text: "Our answer, when the site shares it" },
-            { key: "free", state: "yes", text: "Free during the beta" },
-          ]} />
-        </BareGroup>
-        <BareGroup>
-          <BareButton href="/contact/robot-team" helper="We approve each company by hand and email you. You agree any work with the site directly.">Apply to see jobs</BareButton>
-        </BareGroup>
-        <BareLinks links={[
-          { key: "deployment", label: "Set robots up for sites", href: "/partners/deployment" },
-          { key: "technology", label: "Make robots or robot software", href: "/partners/technology" },
+        <BareRows title="How it works" rows={[
+          { key: "approval", label: "How to be approved", value: "Apply below. We approve each company by hand." },
+          { key: "response", label: "What you send back", value: "Interested or not a fit, and why." },
+          { key: "cost", label: "Cost", value: "Nothing is charged today." },
         ]} />
-        <BareFine>Our answers are a fit check and a simulation. Not a test at the site, and not a safety check.</BareFine>
+        <div id="partner-application" className="bare-group">
+          <PartnerApplication role="deployment" />
+        </div>
+        <BareFine>A job summary is not a site visit or a safety check. Any work is agreed between you and the site.</BareFine>
       </BareScreen>
     </div>
   </>;

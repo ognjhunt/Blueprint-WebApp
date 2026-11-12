@@ -3,15 +3,13 @@ import { test, expect } from "@playwright/test";
 
 test.beforeEach(mockExternalFonts);
 
-test("legacy marketplace route redirects to the Sites library", async ({
+test("legacy marketplace route redirects to the deployment-company page", async ({
   page,
 }) => {
   await page.goto("/marketplace");
 
-  await expect(page).toHaveURL(/\/sites$/);
-  await expect(
-    page.getByRole("heading", { name: "Job library" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/partners$/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
 test("legacy environments route redirects to proof instead of the removed catalog", async ({
@@ -21,7 +19,7 @@ test("legacy environments route redirects to proof instead of the removed catalo
 
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
-    page.getByRole("heading", { name: /Which robot could do your job\?/i }),
+    page.getByRole("heading", { name: /Film a job once\. We turn it into a job packet/i }),
   ).toBeVisible();
 });
 
@@ -77,7 +75,7 @@ test("legacy proof, docs and help URLs reach their destination in one hop", asyn
 });
 
 test("private links and ops tooling are not indexable", async ({ request }) => {
-  for (const path of ["/claim/example-token", "/capture-upload/example-token", "/app/results/example", "/ops/task-evaluation-launches", "/internal/design-system", "/sign-in"]) {
+  for (const path of ["/claim/example-token", "/capture-upload/example-token", "/app/results/example", "/ops/task-evaluation-launches", "/admin/jobs", "/sign-in"]) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.headers()["x-robots-tag"], path).toMatch(/noindex/);
   }
@@ -93,7 +91,7 @@ test("public routes work with trailing slashes", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Which robot could do your job\?/i,
+      name: /Film a job once\. We turn it into a job packet/i,
     }),
   ).toBeVisible();
 });
@@ -104,7 +102,7 @@ test("FAQ redirects to the compact method section", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Which robot could do your job\?/i,
+      name: /Film a job once\. We turn it into a job packet/i,
     }),
   ).toBeVisible();
 });
@@ -121,4 +119,66 @@ test("robots and sitemap are publicly reachable", async ({ request }) => {
   expect(sitemapText).toContain("https://tryblueprint.io/contact/robot-team");
   expect(sitemapText).toContain("https://tryblueprint.io/beta");
   expect(sitemapText).not.toContain("https://tryblueprint.io/world-models");
+});
+
+// The job packet frame (2026-11-12) removed these surfaces. Each old URL
+// answers with one 301 to a live page, and a browser lands there.
+const retiredSurfaceRedirects: Array<[string, string]> = [
+  ["/internal/opportunity-board", "/"],
+  ["/internal/opportunity-board/listing-1", "/"],
+  ["/internal/opportunity-board/listing-1/offer", "/"],
+  ["/partners/deployment", "/partners"],
+  ["/partners/technology", "/partners"],
+  ["/sites", "/partners"],
+  ["/sites/some-site", "/partners"],
+  ["/beta/buyer-guide", "/partners"],
+  ["/requests/req-1", "/"],
+  ["/requests/req-1/evidence", "/"],
+  ["/app/library", "/partners"],
+  ["/app/opportunities/task-1", "/partners"],
+  ["/app/evaluations/application-1", "/partners"],
+  ["/app/runs", "/partners"],
+  ["/app/runs/new", "/partners"],
+  ["/app/advanced/runs/new", "/partners"],
+  ["/app/runs/run-1", "/partners"],
+  ["/app/runs/run-1/policy-candidate/new", "/partners"],
+  ["/app/packs", "/partners"],
+  ["/app/packs/policy-packet", "/partners"],
+  ["/app/packs/source-one/evaluate", "/partners"],
+  ["/app/packs/source-one/policy-canary", "/partners"],
+  ["/app/entitlements", "/partners"],
+  ["/app/history", "/"],
+  ["/admin/company-metrics", "/"],
+  ["/ops/spend", "/"],
+  ["/internal/design-system", "/"],
+];
+
+test("retired surfaces answer with one 301 to a live page", async ({ request }) => {
+  for (const [path, location] of retiredSurfaceRedirects) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(301);
+    expect(response.headers().location, path).toBe(location);
+  }
+});
+
+test("a browser opening a retired surface lands on its redirect", async ({ page }) => {
+  for (const [path, location] of retiredSurfaceRedirects) {
+    await page.goto(path, { waitUntil: "domcontentloaded" });
+    await expect(page, path).toHaveURL(new RegExp(`^[^?#]*//[^/]+${location === "/" ? "/" : location}$`));
+    await expect(page.getByRole("heading", { level: 1 }), path).toBeVisible();
+  }
+});
+
+test("an old buyer review link drops its access token on the way to the home page", async ({ request, page }) => {
+  for (const path of ["/requests/req-1", "/requests/req-1/evidence", "/requests/req-1/preview"]) {
+    const response = await request.get(`${path}?access=secret-token&x=1`, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(301);
+    expect(response.headers().location, path).toBe("/");
+  }
+  await page.goto("/requests/req-1?access=secret-token", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/^[^?#]*\/\/[^/]+\/$/);
+  expect(page.url()).not.toContain("secret-token");
+  // Other retired URLs still carry their query (source context survives).
+  const kept = await request.get("/sites?source=newsletter", { maxRedirects: 0 });
+  expect(kept.headers().location).toBe("/partners?source=newsletter");
 });

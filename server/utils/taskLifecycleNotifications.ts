@@ -39,7 +39,7 @@ import { PLAIN_SETUP_CAVEAT, projectSimulationProof, testHeadline, testNotRunLin
   type SimulationProof } from "../../client/src/lib/simulationProof";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
-import { LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, type SiteAnswer } from "../../client/src/lib/siteAnswer";
+import { FIRST_LOOK_SOURCE, LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, firstLookSentence, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
 
 export type TaskLifecycleMilestone = Extract<
@@ -136,27 +136,26 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     body: (url) => `We have your job.\n\nIf you haven't sent the video yet, send it from your job page. This link opens your job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
   },
   // The first email after upload is a receipt (owner, 2026-11-11): what happens next, true whichever way the job goes.
-  // It never gives an answer; the one answer email is the test result, or, when no test can run, the paper check.
+  // It promises nothing a company will do (frame of 2026-11-12): it says what we build next and where to look.
   video_received: {
     subject: "We have your video",
-    body: (url) => `Your video arrived safely. Next, we build a simulation of your site and test AI robots on your job in it. We'll email you the result, or, if a test can't run, why not and what we found on paper.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your video arrived safely. Next, we build your job packet: a first look and a simulation of your site. Your job page shows where it stands.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
-    subject: "Your 3D view of the work area is ready",
+    subject: "The simulation of your site is ready to view",
     body: (url) => `You can look around the work area you filmed on your job page.\n\nOpen your job:\n${url}`,
   },
   // Owner decision 2026-10-22: "ready" only once the task objects are in and
   // our first internal test has started, never when the room alone is built.
   scene_tests_started: {
     subject: "The simulation of your site is ready",
-    body: (url) => `Your work area and its objects are in place. We are running our first tests on it now.\n\nNothing is needed from you. We will email you at the next step.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your work area and its objects are in place. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
+  // The one email when a site's summary becomes visible to approved deployment companies (frame of 2026-11-12), however
+  // it was shared: Share settings or "Share my job". Read again at dispatch: sent only while the summary is visible.
   listing_live: {
-    subject: "Your job card is now shared",
-    // The link below is the owner's job page, which carries the listing control.
-    // A site that came in by link alone may have no account, so the account
-    // workspace is not the way to hide it.
-    body: (url) => `Approved companies can now see the job card you approved, without your name. Your video, address and contacts stay private.\n\nTo stop sharing it, open your job and untick "Show this card in the job library". If the link has expired, the page sends you a fresh one.\n\nOpen your job:\n${url}`,
+    subject: "Your job summary is shared",
+    body: (url) => `Deployment companies we approve can now see a summary of your job. Your video, address and contacts stay private.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",
@@ -169,7 +168,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   // One per result outcome of the job's evaluation and scene (F-01). The detail
   // is only the outcome's sentence about the simulation, or for an estimate the
   // job page's own simulation proof, and the results disclaimer, built from typed
-  // values, never caller text. An estimate's subject is its own (`estimateSubject`).
+  // values, never caller text. A finished trial's subject is its own (`TRIAL_FINISHED_SUBJECT`).
   evaluation_outcome: {
     subject: "An update on the simulation of your job",
     body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See the result")}`,
@@ -216,10 +215,10 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     // No later email follows this one, so it promises none.
     body: (url, _detail, workspaceUrl) => `${FOOTAGE_BEFORE_ACCOUNT_SENTENCE}\n\nFollow the same job:\n${workspaceUrl || url}`,
   },
-  // Once per job, when the site's answer first settles. The detail is only the
-  // answer's own sentences (`answerReadyDetail`), built from the composed answer.
+  // Once per job, when the site's first look first settles. The detail is only the
+  // first look's own sentences (`answerReadyDetail`), built from the composed answer.
   answer_ready: {
-    subject: "Your job's paper check is ready",
+    subject: "Your first look is ready",
     body: (url, detail) => `${detail}\n\nOpen your job:\n${url}`,
   },
   pilot_request: {
@@ -553,7 +552,7 @@ export function buildTaskLifecycleNotification(params: {
     ...(scoredNone ? { answerSlot: "paper" as const } : {}),
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !scoredNone
-      ? estimateSubject(params.simulationProof)
+      ? TRIAL_FINISHED_SUBJECT
       : params.milestone === "evaluation_outcome" && paperAnswerLine(params.siteAnswer) ? PAPER_ANSWER_SUBJECT
       : params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
@@ -599,13 +598,13 @@ function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifec
   };
 }
 
-/** The subject of the one answer email when no test result will come: the paper check is the answer. */
-const PAPER_ANSWER_SUBJECT = "Your job's paper check is ready";
+/** The subject of the email that gives the first look when no trial result will come. */
+const PAPER_ANSWER_SUBJECT = "Your first look is ready";
 const SIMULATION_DISCLAIMER = "A simulation is not a physical test, and it never certifies physical performance or safety.";
 /** An estimate's email when the job's results could not be read: true whatever they show. */
-const SIMULATION_FINISHED = "The simulation test of your job has finished. Your job page shows how each AI robot did.";
+const SIMULATION_FINISHED = "Our early trial on your job has finished. Your job page shows how each robot did.";
 /** The page's own headline when a stored caveat is all that can be read: it is only ever set when none finished. */
-const NONE_FINISHED_HEADLINE = "No AI robot finished your job.";
+const NONE_FINISHED_HEADLINE = "No robot finished the job in our trial.";
 
 /** The test result the job page leads with, once the simulation has finished. */
 const finishedResult = (proof: SimulationProof | null | undefined) => {
@@ -613,11 +612,10 @@ const finishedResult = (proof: SimulationProof | null | undefined) => {
   return result && result.kind !== "testing" ? result : null;
 };
 
-/** "A result" when some AI robot finished the job, as on the page; otherwise the test has simply finished. */
-function estimateSubject(proof: SimulationProof | null | undefined): string {
-  const result = finishedResult(proof);
-  return result && result.kind !== "none_finished" ? "Your simulation test has a result" : "The simulation test of your job has finished";
-}
+/** One subject for every finished trial, whatever it found: a zero is a valid result of the trial. */
+const TRIAL_FINISHED_SUBJECT = "Our early trial on your job has finished";
+/** The trial email's first line: whose trial it was, and whose robot it was not. */
+export const TRIAL_EMAIL_OPENING = "This was our own trial of openly available robot software, not a deployment company's robot.";
 
 /**
  * A finished simulation, in the job page's own words (`projectSimulationProof`, `testResultOf`, `testHeadline`):
@@ -631,7 +629,7 @@ function estimateDetail(proof: SimulationProof | null | undefined, caveat: Scree
     : proof?.state === "done" && testNotRunLine(proof)
       ? [testNotRunLine(proof), proof.options.setupFlag || caveat ? PLAIN_SETUP_CAVEAT : null]
     : caveat ? [NONE_FINISHED_HEADLINE, PLAIN_SETUP_CAVEAT] : [SIMULATION_FINISHED];
-  return `${said.filter(Boolean).join(" ")} Nothing is needed from you.`;
+  return `${TRIAL_EMAIL_OPENING} ${said.filter(Boolean).join(" ")} Nothing is needed from you.`;
 }
 
 /** The job's composed answer, for an email that gives the paper check as the answer; undefined when it cannot be read. */
@@ -694,12 +692,14 @@ function withPaperAnswer(reason: string, paper: string): string {
   return `${reason} ${paper}`;
 }
 
-/** The paper check said as the answer, or null when there is none: the composer's own headline. */
+/** The first look in the job page's own sentence, or null when it names no robot. */
 function paperAnswerLine(answer: SiteAnswer | null | undefined, hold = false): string | null {
   return answer?.state === "ready" && answer.pick
-    ? `So ${hold ? "for now " : ""}the paper check is your answer. ${answer.headline}${answer.sceneNote ? ` ${answer.sceneNote}` : ""}${hold ? ` ${PAPER_LATER}` : ""}`
+    ? `${firstLookSentence(answer.pick)} ${FIRST_LOOK_SOURCE}${answer.sceneNote ? ` ${answer.sceneNote}` : ""}${hold ? ` ${PAPER_LATER}` : ""}`
     : null;
 }
+/** Said after the first look when the site may now share its job (the job page offers the button exactly then). */
+export const SHARE_FROM_JOB_PAGE = "You can share a summary of your job with deployment companies from your job page.";
 /**
  * An ending email's line about the paper check (review, 2026-11-11): the paper check as the answer when there is one,
  * else a plain statement that there is none, and why when the reader said why. "If a test result comes later" is said
@@ -712,10 +712,10 @@ function paperLine(answer: SiteAnswer | null | undefined, options: { hold: boole
   const why = answer?.state === "cannot_assess" && answer.reason ? ` ${answer.reason}` : "";
   return `${NO_PAPER_CHECK}${why}`;
 }
-/** A hold's paper-check answer ends with this: a test result may still come. */
-export const PAPER_LATER = "If a test result comes later, we'll email it.";
-export const NO_PAPER_CHECK = "There is no paper check for this job.";
-export const NO_PAPER_UNREAD = "We could not finish reading your video, so there is no paper check for this job.";
+/** A hold's first look ends with this: a trial result may still come. */
+export const PAPER_LATER = "If our early trial gives a result later, we'll email it.";
+export const NO_PAPER_CHECK = "There is no first look for this job.";
+export const NO_PAPER_UNREAD = "We could not finish reading your video, so there is no first look for this job.";
 
 /**
  * The job page's own sentence for a terminal scene outcome and its closing
@@ -768,9 +768,11 @@ function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookVi
   if (unread && outlook && endingEmailDue(outlook)) return `${outlook.sentence ?? ""} ${NO_PAPER_UNREAD}`.trim();
   if (!answerEmailDue(answer, outlook)) throw new Error("answer_ready_notice_invalid");
   // Kept on file: its own sentence, then plainly whether there is a paper check, with the reader's reason.
-  if (outlook!.reason === "kept_on_file") return `${outlook!.sentence} ${paperLine(answer, { hold: false })}`;
+  // The job page offers sharing exactly when the first look names a robot and the ending lets it (`outlookHasAnswer`).
+  const share = paperAnswerLine(answer) && answer.nextStep.kind === "introduction" ? ` ${SHARE_FROM_JOB_PAGE}` : "";
+  if (outlook!.reason === "kept_on_file") return `${outlook!.sentence} ${paperLine(answer, { hold: false })}${share}`;
   if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
-  return `${outlook!.sentence ?? "A simulation test has not run on your job."} ${paperLine(answer, { hold: false })}\n\n${finePrint(LIMITS_PAPER)}`;
+  return `${outlook!.sentence ?? "Our early trial has not run on your job."} ${paperLine(answer, { hold: false })}${share}\n\n${finePrint(LIMITS_PAPER)}`;
 }
 type JobOutlookView = { phase: string; reason?: string | null; sentence: string | null };
 
@@ -896,9 +898,11 @@ function robotAccessQuestionDetail(params: { eventId?: string; robotAccessCounts
  * opened a job (a Pipeline sync, a published card) call this; it is a no-op
  * otherwise, and the outbox key keeps it to one email per job.
  */
-export async function notifyIfOpenForEvaluations(requestId: string): Promise<{ enqueued: boolean }> {
-  if (!(await openAndAwaitingEvaluations(requestId))) return { enqueued: false };
-  return enqueueTaskLifecycleNotification({ requestId, milestone: "awaiting_evaluations" });
+export async function notifyIfOpenForEvaluations(_requestId: string): Promise<{ enqueued: boolean }> {
+  // Frame of 2026-11-12: no company can request an evaluation any more, so "Your job is ready for evaluation" is never
+  // queued. A site whose summary becomes visible hears it once, by `listing_live`. Rows queued before this change are
+  // cancelled at dispatch (`TEAM_RUN_EVALUATION_NOTICES`), never sent.
+  return { enqueued: false };
 }
 
 /** True while the job is open to evaluation requests and no team has requested one. Read again at dispatch. */
@@ -1122,6 +1126,84 @@ export async function notifySceneTestsStartedForLaunch(launchId: string): Promis
 }
 
 /** Recover scene notices even when the controller stops polling a ready world. */
+/**
+ * "Your job summary is shared" (frame of 2026-11-12): sent once, at the first moment the summary is visible to approved
+ * deployment companies, never before and never twice. A card that goes live marks the notice owed
+ * (`SUMMARY_SHARED_OWED`); this sends it when `teamJobAccess` says the card is listed, which may be at once or later
+ * (a card that went live while paused, or under a rights hold, becomes visible when that lifts). Each attempt has its
+ * own key; one that went out, or may have, settles it for good, and the dispatch check cancels an attempt that is no
+ * longer true (hidden again before it went out), after which a later attempt is made when it is visible again.
+ */
+export const SUMMARY_SHARED_OWED = { owed: true } as const;
+export const summarySharedNoticeKey = (requestId: string, attempt: number) => `${requestId}:listing_live:summary-${attempt}`;
+
+export async function notifySummarySharedIfVisible(requestId: string): Promise<{ enqueued: boolean; reason?: string }> {
+  if (!db) return { enqueued: false, reason: "unavailable" };
+  const ref = db.collection("inboundRequests").doc(requestId);
+  const record = (await ref.get()).data();
+  const notice = record?.summary_shared_notice as { owed?: boolean; attempts?: number } | undefined;
+  if (!record || notice?.owed !== true) return { enqueued: false, reason: "not_owed" };
+  const attempts = Number.isSafeInteger(notice.attempts) && notice.attempts! > 0 ? notice.attempts! : 0;
+  const { OUTBOX_WENT_OUT } = await import("./outboxWentOut");
+  const rows = await Promise.all(Array.from({ length: attempts }, (_, index) =>
+    db!.collection(CAPTURE_OUTBOX_COLLECTION).doc(summarySharedNoticeKey(requestId, index + 1)).get().then(doc => doc.data())));
+  // One went out, or may have: never a second.
+  if (rows.some(row => row && OUTBOX_WENT_OUT.has(String(row.status)))) {
+    await ref.set({ summary_shared_notice: { owed: false } }, { merge: true });
+    return { enqueued: false, reason: "already_sent" };
+  }
+  // One is waiting to go out: let it.
+  if (rows.some(row => row && !["cancelled", "failed"].includes(String(row.status)))) return { enqueued: false, reason: "queued" };
+  // Never visible again: the site withdrew its permission, or closed the job (a closed job takes no further decision).
+  // Settled as not owed, with the reason, so it never holds a place in the sweep. Only not visible right now (a rights
+  // hold, a pause, a card awaiting review) stays owed.
+  const settled = await summarySharedNoticeSettledReason(record);
+  if (settled) {
+    await ref.set({ summary_shared_notice: { owed: false, settled_reason: settled, settled_at_iso: new Date().toISOString() } }, { merge: true });
+    return { enqueued: false, reason: settled };
+  }
+  const { teamJobAccess } = await import("./teamJobAccess");
+  if (!teamJobAccess(record).listed) return { enqueued: false, reason: "not_visible" };
+  const attempt = attempts + 1;
+  await ref.set({ summary_shared_notice: { owed: true, attempts: attempt } }, { merge: true });
+  const result = await enqueueTaskLifecycleNotification({ requestId, milestone: "listing_live", eventId: `summary-${attempt}` });
+  return { enqueued: Boolean(result.enqueued) };
+}
+
+/** Why an owed "summary is shared" notice can never be sent, or null while it still may be. */
+export async function summarySharedNoticeSettledReason(record: Record<string, any>): Promise<"permission_withdrawn" | "job_closed" | null> {
+  const { projectWebsiteCaptureRights } = await import("./websiteTaskContext");
+  if (projectWebsiteCaptureRights(record).consent_revoked) return "permission_withdrawn";
+  if (record.workspace_task?.archived === true) return "job_closed";
+  return null;
+}
+
+/** Where the sweep below continues from; stored so every owed row is reached across passes and restarts. */
+export const SUMMARY_SHARED_SWEEP_CURSOR = "outboxSweepState/summary_shared_notice";
+
+/**
+ * The owed "summary is shared" notices, tried each outbox pass (a card's visibility can change on any write). Pages
+ * through every owed row in document-id order, at most `limit` per pass, continuing after the last row it read and
+ * starting over once it reaches the end, so no set of rows that are not visible yet can hide another.
+ */
+export async function reconcileSummarySharedNotices(limit = 20): Promise<void> {
+  if (!db) return;
+  const cursorRef = db.doc(SUMMARY_SHARED_SWEEP_CURSOR);
+  const stored = (await cursorRef.get()).data()?.after;
+  const cursor = typeof stored === "string" && stored ? stored : null;
+  let query = db.collection("inboundRequests").where("summary_shared_notice.owed", "==", true).orderBy("__name__").limit(limit);
+  if (cursor) query = query.startAfter(cursor);
+  const owed = await query.get();
+  for (const doc of owed.docs) {
+    try { await notifySummarySharedIfVisible(doc.id); }
+    catch (error) { logger.warn({ error, requestId: doc.id }, "Could not settle a summary-shared notice"); }
+  }
+  // A short page is the end of the list: the next pass starts from the beginning. Written only when it changes (a
+  // missing document reads as null), so a pass with nothing owed writes nothing.
+  const next = owed.docs.length < limit ? null : owed.docs[owed.docs.length - 1].id;
+  if (next !== cursor) await cursorRef.set({ after: next }, { merge: true });
+}
+
 export async function reconcileSceneReadyNotifications(limit = 20): Promise<void> {
   if (!db) return;
   const pending = await db.collection("captureUploadSessions")

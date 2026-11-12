@@ -328,8 +328,8 @@ export const RUN_ENDED_WITHOUT_RESULT = "The simulation run ended before it gave
 const RUNNING_CANDIDATE_STATES = new Set(["launching", "running", "reconciliation_required"]);
 /** A row that is running or still going to run; unavailable, infeasible, blocked and deferred rows will not. */
 const STILL_TO_RUN = new Set(["pending", "waitlisted", "preparing", "launching", "running", "reconciliation_required"]);
-/** The name of an option whose policy our closed list does not name, with a letter: "AI robot A". */
-export const UNLISTED_OPTION = "AI robot";
+/** The name of an option whose software our closed list does not name, with a letter: "Unlisted robot software A". */
+export const UNLISTED_OPTION = "Unlisted robot software";
 
 const isRecord = (value: unknown): value is Record<string, any> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const count = (value: unknown) => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0);
@@ -742,11 +742,11 @@ export function optionParts(label: string): string[] {
 export function testSubLine(result: TestResult): string | null {
   if (!result) return null;
   if (result.kind === "no_clear_winner") {
-    return `Top: ${result.top.label}, did your job in ${result.top.succeeded} of ${result.top.scored} ${result.top.scored === 1 ? "try" : "tries"}.`;
+    return `Top: ${result.top.label}, did the job in ${result.top.succeeded} of ${result.top.scored} ${result.top.scored === 1 ? "try" : "tries"}.`;
   }
   if (result.kind === "none_finished") {
     return result.top.furthestText ? `Closest: ${result.top.label} ${result.top.furthestText}.`
-      : `${result.count} AI ${result.count === 1 ? "robot" : "robots"} tried; none finished your job.`;
+      : `${result.count} ${result.count === 1 ? "robot" : "robots"} tried; none finished the job.`;
   }
   return null;
 }
@@ -759,11 +759,11 @@ export function testHeadline(result: TestResult): string | null {
   if (!result) return null;
   const tries = (option: SimulationOption) => `${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}`;
   switch (result.kind) {
-    case "testing": return `Testing now: ${result.entered} AI ${result.entered === 1 ? "robot" : "robots"} on your job.`;
-    case "winner": return `${result.wording === "did_best" ? "Did best" : "Was ahead"} on your job: ${result.top.label}, doing your job in ${tries(result.top)}.`;
-    case "one_option": return `Tested on your job: ${result.top.label} did your job in ${tries(result.top)}, the only AI robot tested.`;
-    case "no_clear_winner": return "Tested on your job: no clear winner yet.";
-    case "none_finished": return "No AI robot finished your job.";
+    case "testing": return `Our early trial is running: ${result.entered} ${result.entered === 1 ? "robot" : "robots"} on your job.`;
+    case "winner": return `${result.wording === "did_best" ? "Did best" : "Was ahead"} in our early trial: ${result.top.label}, doing your job in ${tries(result.top)}.`;
+    case "one_option": return `In our early trial: ${result.top.label} did your job in ${tries(result.top)}, the only robot tried.`;
+    case "no_clear_winner": return "In our early trial: no clear winner yet.";
+    case "none_finished": return "No robot finished the job in our trial.";
   }
 }
 
@@ -774,18 +774,18 @@ export function testHeadline(result: TestResult): string | null {
  */
 export const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
   reference_only: "Only our own test moves ran. No robot program could be tried yet.",
-  held_capability: "Our simulation test can't do this kind of job yet.",
-  held_unprepared: "The robots that could do this job aren't set up in our simulation test yet.",
-  infeasible: "In the simulation of your site, none of the robots we can test could reach the job.",
-  no_match: "None of the robots we can test matched this job. At least one couldn't reach it in the simulation of your site.",
+  held_capability: "Our trial can't do this kind of job yet.",
+  held_unprepared: "The robots that could do this job aren't set up in our simulation yet.",
+  infeasible: "In the simulation of your site, none of the robots we can try could reach the job.",
+  no_match: "None of the robots we can try matched this job. At least one couldn't reach it in the simulation of your site.",
   held_setup: "A problem on our side stopped it.",
   held_budget: "It stopped at a limit on our side.",
   held_scene_check: "The simulation of your site failed our check, so no robot was tested in it.",
 };
 export const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
-  awaiting_spend_approval: "Testing is paused on our side.",
-  setup_repair: "An update on our side stopped the test before it finished. If a later test finishes, it shows here.",
-  superseded: "The test goes on in a newer run.",
+  awaiting_spend_approval: "The trial is paused on our side.",
+  setup_repair: "An update on our side stopped the trial before it finished. If a later trial finishes, it shows here.",
+  superseded: "The trial goes on in a newer run.",
 };
 /** The set-up caveat in plain words: it changes what a result means, so it is said beside the line. */
 export const PLAIN_SETUP_CAVEAT = "This result may come from how we set up the simulation of your site, not from the robots.";
@@ -793,22 +793,22 @@ export const PLAIN_SETUP_CAVEAT = "This result may come from how we set up the s
 const outcomeOf = (table: Partial<Record<JobScreeningOutcome, string>>, sentence: string) =>
   (Object.keys(table) as JobScreeningOutcome[]).find(key => table[key] === sentence) ?? null;
 
-/** The paper screen's one line on why the simulation test is not the answer, or null when nothing is known. */
+/** The one line on why our early trial gave no result, or null when nothing is known. */
 export function testNotRunLine(proof: SimulationProof | null | undefined): string | null {
   if (!proof || proof.state === "not_started") return null;
   if (proof.state === "could_not_run") {
     const outcome = outcomeOf(COULD_NOT_RUN, proof.headline);
-    if (proof.headline === RUN_ENDED_WITHOUT_RESULT) return "The simulation test stopped before it gave a result.";
+    if (proof.headline === RUN_ENDED_WITHOUT_RESULT) return "Our early trial stopped before it gave a result.";
     // A test stopped part way (a problem on our side, or the free beta's limit) did not finish; the others did not run.
     const stopped = outcome === "held_setup" || outcome === "held_budget";
-    return `The simulation test did not ${stopped ? "finish" : "run"}. ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? ""}`.trim();
+    return `Our early trial did not ${stopped ? "finish" : "run"}. ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? ""}`.trim();
   }
   if (proof.state !== "done") {
     const waiting = outcomeOf(WAITING, proof.headline);
-    return waiting && PLAIN_WAITING[waiting] ? `Simulation test: ${PLAIN_WAITING[waiting]}` : null;
+    return waiting && PLAIN_WAITING[waiting] ? `Early trial: ${PLAIN_WAITING[waiting]}` : null;
   }
   if (proof.options.options.length) return null;
   return proof.options.unidentified
-    ? "The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted."
-    : "The simulation test finished, but no AI robot could be scored in it.";
+    ? "Our early trial finished, but none of its runs could be identified as a robot we tried, so none is counted."
+    : "Our early trial finished, but no robot could be scored in it.";
 }

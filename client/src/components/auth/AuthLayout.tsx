@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { RobotScene } from "@/components/site/PilotPreview";
+import { RobotScene } from "@/components/site/RobotScene";
 
 export function AuthLayout({ children, wide = false }: PropsWithChildren<{ wide?: boolean }>) {
   return (

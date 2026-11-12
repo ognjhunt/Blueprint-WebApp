@@ -240,8 +240,8 @@ describe("the confirmation says what our screen decided", () => {
     // Only the job kind a robot team's evaluation can run (audit N4).
     expect(sent.body).toMatch(/these kinds of job:\n- Picking up one rigid object and placing it on a supported destination surface\n- Opening one door, drawer or lid of a fixture\n\n/);
     expect(sent.body).not.toMatch(/door or drawer/);
-    expect(sent.body).toMatch(/holding it while we prepare an evaluation for its kind/);
-    expect(sent.subject).toBe("Your job: we are preparing its evaluation");
+    expect(sent.body).toMatch(/holding it while we prepare a simulation for its kind/);
+    expect(sent.subject).toBe("Your job: we are preparing its job packet");
     expect(`${sent.subject}\n${sent.body}`).not.toMatch(/\bmatch|\$|price/i);
     expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({

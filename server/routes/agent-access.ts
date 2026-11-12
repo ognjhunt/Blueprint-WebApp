@@ -25,7 +25,7 @@ export const RETIRED_STANDALONE_COMMERCE_RESPONSE = {
   current_product: "Task Evaluation Run",
   request_url: "/contact/robot-team?interest=task-evaluation-run",
   truth:
-    "Historical orders and entitlements remain readable. Evaluations are free during the beta and start from a Task Evaluation Run request; no Stripe session, order, charge, or entitlement was created.",
+    "Historical orders and entitlements remain readable. Nothing is charged today; no Stripe session, order, charge, or entitlement was created.",
 } as const;
 
 function retiredStandaloneCommerce(_req: Request, res: Response) {

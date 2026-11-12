@@ -23,14 +23,14 @@ export default function Contact() {
           <BareScreen>
             <BareBack href="/partners" />
             <BareGroup>
-              <BareLabel>For robot companies</BareLabel>
+              <BareLabel>For deployment companies</BareLabel>
               <h1 id="robot-team-title">Apply to see jobs</h1>
               <p>We approve each company by hand and email you. Approved companies see the jobs sites choose to share.</p>
             </BareGroup>
             <section className="bare-group ms-beta-access" id="robot-team-access" aria-label="Robot-team access">
               <TaskBrowse />
             </section>
-            <p className="bare-fine">Free during the beta. Operate a site? <a href="/contact/site-operator">Start a job</a>.</p>
+            <p className="bare-fine">Nothing is charged today. Operate a site? <a href="/contact/site-operator">Start a job</a>.</p>
           </BareScreen>
         </div>
       </>

@@ -36,11 +36,10 @@ export default defineConfig({
   testIgnore: ['**/site-intake-first.spec.ts', '**/site-intake-durability.spec.ts', '**/reliability-program-intake.spec.ts', '**/site-intake-backend-reliability.spec.ts', '**/site-intake-recovery.spec.ts', '**/site-private-link-reliability.spec.ts', '**/site-answer-journey.spec.ts', '**/invited-site-beta.spec.ts', ...(operatorQaFakeAuthEnabled
     ? taskEvaluationRunE2eEnabled
       ? ['**/operator-surfaces.spec.ts', '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
-      : ['**/task-evaluation-run.spec.ts', '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
+      : ['**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
     : [
         '**/operator-surfaces.spec.ts',
         '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts',
-        '**/task-evaluation-run.spec.ts',
         '**/capture-task-review.spec.ts',
         '**/adp-agent-tasks.spec.ts',
       ])],

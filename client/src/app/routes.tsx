@@ -1,4 +1,4 @@
-import { minimalMarketingRedirects } from "../data/minimalPublicSite";
+import { minimalMarketingRedirects, queryDroppingRedirects } from "../data/minimalPublicSite";
 import { lazy } from "react";
 import type { ComponentType, LazyExoticComponent } from "react";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
@@ -42,8 +42,6 @@ function lazyRoute<P = any>(
 
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const Partners = lazyRoute(() => import("../pages/Partners"));
-const DeploymentPartners = lazyRoute(() => import("../pages/DeploymentPartners"));
-const TechnologyProviders = lazyRoute(() => import("../pages/TechnologyProviders"));
 // Keep the historical Pricing component for a later commercial release.
 const Beta = lazyRoute(() => import("../pages/Beta"));
 const Home = lazyRoute(() => import("../pages/Home"));
@@ -53,8 +51,6 @@ const ClaimSite = lazyRoute(() => import("../pages/ClaimSite"));
 const BusinessSignUpFlow = lazyRoute(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazyRoute(() => import("../pages/OnboardingChecklist"));
 // /robot-team/eval merged into /for-robot-teams (#intake); keep the URL as a redirect.
-const Sites = lazyRoute(() => import("../pages/Sites"));
-const SiteDetail = lazyRoute(() => import("../pages/SiteDetail"));
 const Contact = lazyRoute(() => import("../pages/Contact"));
 const Login = lazyRoute(() => import("../pages/Login"));
 const ForgotPassword = lazyRoute(() => import("../pages/ForgotPassword"));
@@ -63,10 +59,8 @@ const Terms = lazyRoute(() => import("../pages/Terms"));
 const Refunds = lazyRoute(() => import("../pages/Refunds"));
 const PrivacyPrevious = lazyRoute(() => import("../pages/PrivacyPrevious"));
 const TermsPrevious = lazyRoute(() => import("../pages/TermsPrevious"));
-const BetaBuyerGuide = lazyRoute(() => import("../pages/BetaBuyerGuide"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
 const AdminLeads = lazyRoute(() => import("../pages/AdminLeads"));
-const AdminCompanyMetrics = lazyRoute(() => import("../pages/AdminCompanyMetrics"));
 // The launch control room behind its access gate (admin/ops role or the
 // server-enforced launch-lab bearer link).
 const TaskEvaluationLaunchesGate = lazyRoute(
@@ -74,40 +68,20 @@ const TaskEvaluationLaunchesGate = lazyRoute(
 );
 const AdminRobotTeamAccess = lazyRoute(() => import("../pages/AdminRobotTeamAccess"));
 const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
-const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
-const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
-const OpportunityBoard = lazyRoute(() => import("../pages/internal/OpportunityBoard"));
-const OpportunityListing = lazyRoute(() => import("../pages/internal/OpportunityListing"));
-const OpportunityAnonymous = lazyRoute(() => import("../pages/internal/OpportunityAnonymous"));
-const OpportunityPackage = lazyRoute(() => import("../pages/internal/OpportunityPackage"));
-const OpportunityOffer = lazyRoute(() => import("../pages/internal/OpportunityOffer"));
-const OpportunityOffers = lazyRoute(() => import("../pages/internal/OpportunityOffers"));
 
 // Redesign — public pages (distinct surfaces per SCREENS.md)
 
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/workspace/Overview"));
-const WorkspaceLibrary = lazyRoute(() => import("../pages/workspace/Library"));
-const WorkspaceRequestStart = lazyRoute(() => import("../pages/workspace/RequestStart"));
 const WorkspaceTasks = lazyRoute(() => import("../pages/workspace/Tasks"));
 const WorkspaceTaskDetail = lazyRoute(() => import("../pages/workspace/TaskDetail"));
-const WorkspaceHistory = lazyRoute(() => import("../pages/workspace/History"));
-const WorkspaceOpeningDetail = lazyRoute(() => import("../pages/workspace/OpeningDetail"));
-const WorkspaceEvaluation = lazyRoute(() => import("../pages/workspace/Evaluation"));
 const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
-const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
 const ConnectChatGPT = lazyRoute(() => import("../pages/app/ConnectChatGPT"));
-const AppRunIntake = lazyRoute(() => import("../pages/app/RunIntake"));
-const AppPolicyCandidateIntake = lazyRoute(() => import("../pages/app/PolicyCandidateIntake"));
-const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
-const AppEvaluationRunSetup = lazyRoute(() => import("../pages/app/EvaluationRunSetup"));
-const AppPolicyCanarySetup = lazyRoute(() => import("../pages/app/PolicyCanarySetup"));
 const AppEvaluationRunProgress = lazyRoute(() => import("../pages/app/EvaluationRunProgress"));
 const AppTaskEvaluationResultDetail = lazyRoute(
   () => import("../pages/app/TaskEvaluationResultDetail"),
 );
 const AppNativeG1PrivateReview = lazyRoute(() => import("../pages/app/NativeG1PrivateReview"));
-const AppSitePacks = lazyRoute(() => import("../pages/app/SitePacks"));
 
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
 
@@ -126,7 +100,7 @@ const ProofRedirect = () => <MarketingRedirect to="/#how-it-works" />;
 // server's 301 for /help sends the same place.
 const HelpRedirect = () => <MarketingRedirect to="/contact/site-operator" />;
 
-const SitesRedirect = () => <MarketingRedirect to="/sites" />;
+const SitesRedirect = () => <MarketingRedirect to="/partners" />;
 
 const ContactRedirect = () => {
   const search =
@@ -167,9 +141,9 @@ const LegacySiteLibraryDetailRedirect = ({
   params: _params,
 }: {
   params?: { slug?: string };
-}) => <MarketingRedirect to="/sites" />;
+}) => <MarketingRedirect to="/partners" />;
 
-const LegacySiteWorldsRedirect = () => <MarketingRedirect to="/sites" />;
+const LegacySiteWorldsRedirect = () => <MarketingRedirect to="/partners" />;
 
 const LegacyReadinessPackRedirect = () => (
   <MarketingRedirect to="/#how-it-works" />
@@ -184,7 +158,7 @@ const LegacyQualifiedOpportunitiesRedirect = () => (
 );
 
 const LegacyForRobotIntegratorsRedirect = () => (
-  <MarketingRedirect to="/partners/deployment" />
+  <MarketingRedirect to="/partners" />
 );
 
 const LegacyForSiteOperatorsRedirect = () => (
@@ -216,11 +190,6 @@ const LegacyLoginRedirect = () => (
 );
 
 const BuyerAppRedirect = () => <MarketingRedirect to="/app" />;
-// Retired buyer pages nothing links to: purchased access now sits on Runs,
-// account and robot settings on Settings, and each task on the Tasks list.
-const AppRunsRedirect = () => <MarketingRedirect to="/app/runs" />;
-const AppSettingsRedirect = () => <MarketingRedirect to="/settings" />;
-const AppTasksListRedirect = () => <MarketingRedirect to="/app/packs" />;
 
 const SiteOperatorCaptureRedirect = () => <MarketingRedirect to="/contact/site-operator" />;
 
@@ -240,13 +209,11 @@ const LegacyDocsRedirect = () => (
 
 export const appRoutes: AppRoute[] = [
   ...Object.entries(minimalMarketingRedirects).map(([path, to]): AppRoute => ({
-    path, layout: "public", component: () => <MarketingRedirect to={to} />,
+    path, layout: "public", component: () => <MarketingRedirect to={to} preserveQuery={!queryDroppingRedirects.has(path)} />,
   })),
   { path: "/", layout: "public", component: Home },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/partners", layout: "public", component: Partners },
-  { path: "/partners/deployment", layout: "public", component: DeploymentPartners },
-  { path: "/partners/technology", layout: "public", component: TechnologyProviders },
   { path: "/beta", layout: "public", component: Beta },
   // The capturer network, its app and Blueprint filming visits are retired
   // (2026-11-11): sites film their own tasks. Old entry points go to the site
@@ -278,11 +245,7 @@ export const appRoutes: AppRoute[] = [
   // City landing aliases stay request-first instead of implying open city coverage.
   { path: "/city/:citySlug", layout: "public", component: ContactRedirect },
 
-  // Site library is the public discovery surface; site-world internals remain backend/API vocabulary.
-  { path: "/sites", layout: "public", component: Sites },
-  { path: "/sites/:slug", layout: "public", component: SiteDetail },
-
-  // Legacy world-model catalog/detail URLs map into the Sites library.
+  // Legacy world-model catalog/detail URLs: the job library page is gone (2026-11-12).
   { path: "/world-models", layout: "public", component: SitesRedirect },
   { path: "/world-models/:slug", layout: "public", component: LegacySiteLibraryDetailRedirect },
   { path: "/world-models/:slug/start", layout: "public", component: LegacySiteLibraryDetailRedirect },
@@ -354,77 +317,18 @@ export const appRoutes: AppRoute[] = [
   // The versions in force until an announced update takes effect.
   { path: "/privacy/previous", layout: "public", component: PrivacyPrevious },
   { path: "/terms/previous", layout: "public", component: TermsPrevious },
-  { path: "/beta/buyer-guide", layout: "public", shell: "bare", component: BetaBuyerGuide },
   { path: "/settings", layout: "protected", shell: "bare", component: Settings },
-  { path: "/requests/:requestId", layout: "public", shell: "bare", component: RequestConsole },
-  { path: "/requests/:requestId/evidence", layout: "public", shell: "bare", component: RequestConsole },
-  { path: "/requests/:requestId/qualification", layout: "public", shell: "bare", component: RequestConsole },
-  { path: "/requests/:requestId/preview", layout: "public", shell: "bare", component: RequestConsole },
 
   // Admin
   { path: "/admin/leads", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/leads/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/submissions", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/submissions/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/admin/company-metrics", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },
   { path: "/admin/jobs", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
 
   // Legacy logged-in and signup aliases resolve to the maintained flows.
   { path: "/dashboard", layout: "protected", shell: "bare", component: BuyerAppRedirect },
-  // Internal reference for designers; not a public page.
-  { path: "/internal/design-system", layout: "protected", requireRoles: ADMIN_ROLES, shell: "bare", component: DesignSystem },
-  // The opportunity board carries a different commercial model from the one
-  // that ships: $1,000 to evaluate a site-task and $10,000 on award, against
-  // the free beta, where nobody is charged and the run length is ours to set. It was
-  // reachable by URL on a public layout, with an offer flow attached, so a
-  // robot team could read one price here and be quoted another by the API.
-  //
-  // Protected rather than deleted: it is ops tooling for a model we may still
-  // want, and the path already says `/internal`. What it must not be is a
-  // second public price.
-  {
-    path: "/internal/opportunity-board",
-    layout: "protected",
-    requireRoles: ADMIN_ROLES,
-    shell: "bare",
-    component: OpportunityBoard,
-  },
-  {
-    path: "/internal/opportunity-board/:id/anonymous",
-    layout: "protected",
-    requireRoles: ADMIN_ROLES,
-    shell: "bare",
-    component: OpportunityAnonymous,
-  },
-  {
-    path: "/internal/opportunity-board/:id/package",
-    layout: "protected",
-    requireRoles: ADMIN_ROLES,
-    shell: "bare",
-    component: OpportunityPackage,
-  },
-  {
-    path: "/internal/opportunity-board/:id/offer",
-    layout: "protected",
-    requireRoles: ADMIN_ROLES,
-    shell: "bare",
-    component: OpportunityOffer,
-  },
-  {
-    path: "/internal/opportunity-board/:id/offers",
-    layout: "protected",
-    requireRoles: ADMIN_ROLES,
-    shell: "bare",
-    component: OpportunityOffers,
-  },
-  {
-    path: "/internal/opportunity-board/:id",
-    layout: "protected",
-    requireRoles: ADMIN_ROLES,
-    shell: "bare",
-    component: OpportunityListing,
-  },
   {
     path: "/off-waitlist-signup",
     layout: "public",
@@ -440,36 +344,17 @@ export const appRoutes: AppRoute[] = [
   // the workspace follows it once it exists.
   { path: "/app/tasks/new", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/app/tasks/:taskId", layout: "protected", shell: "bare", component: WorkspaceTaskDetail },
-  { path: "/app/history", layout: "protected", shell: "bare", component: WorkspaceHistory },
-  { path: "/app/opportunities/:opportunityId", layout: "protected", shell: "bare", component: WorkspaceOpeningDetail },
-  { path: "/app/evaluations/:evaluationId", layout: "protected", shell: "bare", component: WorkspaceEvaluation },
   { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
-  { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
   { path: "/app/connect/chatgpt", layout: "protected", shell: "bare", component: ConnectChatGPT },
-  { path: "/app/library", layout: "protected", shell: "bare", component: WorkspaceLibrary },
-  { path: "/app/opportunities", layout: "protected", shell: "bare", component: WorkspaceLibrary },
-  { path: "/app/runs/new", layout: "protected", shell: "bare", component: WorkspaceRequestStart },
-  { path: "/app/advanced/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },
   { path: "/app/results/:recordId", layout: "public", shell: "bare", component: AppTaskEvaluationResultDetail },
   { path: "/app/g1-reviews/:runId", layout: "protected", shell: "bare", component: AppNativeG1PrivateReview },
-  { path: "/app/runs/:runId/policy-candidate/new", layout: "protected", shell: "bare", component: AppPolicyCandidateIntake },
-  { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
-  { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
-  { path: "/app/packs/policy-packet", layout: "protected", shell: "bare", component: AppPolicyCanarySetup },
-  { path: "/app/packs/:sourceLaunchId/evaluate", layout: "protected", shell: "bare", component: AppEvaluationRunSetup },
-  { path: "/app/packs/:sourceLaunchId/policy-canary", layout: "protected", shell: "bare", component: AppPolicyCanarySetup },
-  { path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppTasksListRedirect },
-  { path: "/app/policies", layout: "protected", shell: "bare", component: AppSettingsRedirect },
-  { path: "/app/data", layout: "protected", shell: "bare", component: AppRunsRedirect },
-  { path: "/app/entitlements", layout: "protected", shell: "bare", component: AppRunsRedirect },
 
   // Legacy ops aliases route to protected admin/operator truth surfaces.
   { path: "/ops", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/supply", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/evidence", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/handoff", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/ops/spend", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
   // Gated in TaskEvaluationLaunchesGate: an admin/ops role, or the temporary
   // launch-lab bearer capability that the server enforces.
   { path: "/ops/task-evaluation-launches", layout: "public", component: TaskEvaluationLaunchesGate },

@@ -6,8 +6,8 @@ import { QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 /**
- * Questions, bare bones: the one details screen for the public pages, in short labelled rows. It holds what the beta
- * page, "Jobs we support" and "About" said (both redirect here or to How it works).
+ * Questions, bare bones: the one details screen for the public pages, in short labelled rows: what a site pays (nothing),
+ * the job packet, how deployment companies respond, the video's privacy, and who we are.
  */
 export default function Beta() {
   return (
@@ -20,21 +20,24 @@ export default function Beta() {
         <BareScreen>
           <BareBack href="/how-it-works" />
           <h1>Questions</h1>
-          <BareRows id="scope" title="The beta" rows={[
-            { key: "cost", label: "Cost", value: <>The beta is free for sites and partners. Blueprint takes no cut of any work you agree. <a href="/refunds">Refunds and cancellations</a></> },
+          <BareRows id="scope" title="For sites" rows={[
+            { key: "cost", label: "Cost", value: <>Free for sites. <a href="/refunds">Refunds and cancellations</a></> },
             { key: "reply", label: "Reply", value: REPLY_TIMELINE },
-            { key: "company", label: "Setting it up", value: "A company we've approved quotes it. You agree the price and terms with them." },
+            { key: "jobs", label: "Jobs", value: "One job that repeats, with known objects. Pick-up-and-put-down jobs fit best; other jobs we keep and hold." },
           ]} />
-          <BareRows title="Your answer" rows={[
-            { key: "jobs", label: "Jobs", value: "One job that repeats, with known objects. We check jobs where something is picked up and put down; other jobs we keep and hold." },
-            { key: "test", label: "What do you test?", value: "Robots driven by AI software that sees through cameras. Not pre-programmed motion." },
-            { key: "simulation", label: "Simulation", value: "A simulation of your site, built from your video. Each option gets about ten tries, with things moved between tries." },
-            { key: "see", label: "You see", value: "Which did best · how sure we are · what was ruled out · who already uses it" },
+          <BareRows title="Your job packet" rows={[
+            { key: "packet", label: "What's in it", value: "Your sentence for the job, a first look on paper, a simulation of your site, and what counts as done." },
+            { key: "first-look", label: "First look", value: "The robot most likely to fit, from published specifications and where it has been used." },
+            { key: "trial", label: "Early trial", value: "Sometimes we also try openly available robot software in the simulation. It is a trial, not a prediction of any company's robot." },
             { key: "isnt", label: "It isn't", value: "A test at your site. It does not certify performance or safety." },
           ]} />
+          <BareRows title="Deployment companies" rows={[
+            { key: "responses", label: "Responses", value: "A company can say it is interested or that the job is not a fit. We can't promise any will say yes." },
+            { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
+          ]} />
           <BareRows title="Your video" rows={[
-            { key: "private", label: "Private", value: "Your video, address and contacts stay private." },
-            { key: "sharing", label: "Sharing", value: "Only if you press the button, and without your name." },
+            { key: "private", label: "Your video", value: "It stays private. Companies see a summary of your job, without your name or address." },
+            { key: "sharing", label: "Sharing", value: "Only if you choose to: on the start form, or with the button on your job page." },
             { key: "stop", label: "Stopping", value: "You can stop us using your video at any time, from your job page." },
           ]} />
           <BareRows id="who-we-are" title="Who we are" rows={[

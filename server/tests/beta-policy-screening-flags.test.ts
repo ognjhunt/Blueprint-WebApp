@@ -52,7 +52,7 @@ const PIPELINE_V3_FIXTURE_SHA256 = "1b95db35f7b61b89be966d2512707b3c11e7fa3c6f9f
  * What the site's email says for this fixture, in the job page's own words: its two rows are not in our list and carry
  * no learned-policy evidence, so none can be identified as an AI robot; a flagged scene adds the set-up notice.
  */
-const NOT_COMPARED = "The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted.";
+const NOT_COMPARED = "Our early trial finished, but none of its runs could be identified as a robot we tried, so none is counted.";
 const PLAIN_SETUP = "This result may come from how we set up the simulation of your site, not from the robots.";
 const ESTIMATE = "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result.";
 const CAVEAT = "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.";
@@ -202,7 +202,7 @@ describe("what the site reads", () => {
     // Rewritten (review, 2026-11-11): a finished test that scored no AI robot is an ending, so its email is a paper
     // answer: why, the set-up notice, and, with no paper check for this job, a plain line saying so.
     expect(notice).toMatchObject({ status: "sent", subject: "An update on the simulation of your job", to: "owner@example.com", answerSlot: "paper" });
-    expect(notice.body.startsWith(`${NOT_COMPARED} ${PLAIN_SETUP} There is no paper check for this job. Nothing is needed from you.`)).toBe(true);
+    expect(notice.body.startsWith(`${NOT_COMPARED} ${PLAIN_SETUP} There is no first look for this job. Nothing is needed from you.`)).toBe(true);
     expect(notice.body).not.toMatch(/estimate|episodes|candidates|introduc|pilot/i);
     expect(notice.body).toMatch(/never certifies physical performance or safety/);
     expect(notice.body.slice(0, notice.body.indexOf("on your private job page"))).not.toMatch(/[a-z]_[a-z]|sha256|\bflag/i);
@@ -251,7 +251,7 @@ describe("what the site reads", () => {
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     const delivered = (state.docs.get(key) as Record<string, string>).body;
-    expect(delivered.startsWith(`${NOT_COMPARED} There is no paper check for this job. Nothing is needed from you.`)).toBe(true);
+    expect(delivered.startsWith(`${NOT_COMPARED} There is no first look for this job. Nothing is needed from you.`)).toBe(true);
     await ingestBetaPolicyScreening(rebound(pipelineV3, { revision: pipelineV3.revision + 1 }));
     expect(run()).toMatchObject({ screening_outcome_caveat: "scene_setup", outcome_notification_pending: false });
     expect(run().outcome_notification_intent.caveat).toBeUndefined();
@@ -277,7 +277,7 @@ describe("what the site reads", () => {
     expect(page.screening!.setupNotes).toBeUndefined();
     await deliverOutbox();
     const notice = state.docs.get(`captureOutbox/job-one:evaluation_outcome:estimate-${scene}`) as Record<string, string>;
-    expect(notice.body.startsWith(`${NOT_COMPARED} There is no paper check for this job. Nothing is needed from you.`)).toBe(true);
+    expect(notice.body.startsWith(`${NOT_COMPARED} There is no first look for this job. Nothing is needed from you.`)).toBe(true);
     expect(notice.body).not.toMatch(/scene check|set-up|set up/i);
     const progression = projectWebsiteSceneProgression({ state: "completed" },
       sceneScreeningResult(sceneScreening([{ id: "campaign-one", run: run() }], run().team_namespace)));

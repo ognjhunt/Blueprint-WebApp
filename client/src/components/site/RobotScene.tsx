@@ -1,32 +1,19 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
-import { BareTicks, type BareTickState } from "@/components/bare/Bare";
 
 /**
- * What a site receives: one answer for its job (the robot that most likely
- * fits, a runner-up, what was ruled out, what was tested in simulation, how sure, the
- * next step), or "held", shown for a few kinds of site. The packaging example
- * comes first because it is the kind of job the answer covers best. Examples, not
- * bookings or results. Four original illustrative scenes are restored verbatim;
- * simulation scope is assessed per task rather than implied by the artwork.
- * Warehouse, Laundromat, Factory and Hotel source: 288822160^.
- * Café and Lab retain their current artwork and motion.
- * Preserve that artwork and motion when revising evaluation scope or copy.
+ * The moving robot illustration beside the sign-in and account forms. Every scene is an illustration only: no
+ * result, product or booking is shown or implied. Warehouse, Laundromat, Factory and Hotel source: 288822160^.
+ * Café and Lab retain their current artwork and motion. Preserve that artwork and motion when revising copy.
+ *
+ * It used to share a file with the home page's animated example of an invented result ("PilotPreview"), which was
+ * removed with the frame of 2026-11-12.
  */
 
 type P = [number, number];
 type Scene = (props: { t: number }) => JSX.Element;
-/**
- * One illustrative answer, drawn as a small version of the real answer screen (bare bones, 2026-11-11): the site's
- * answer is the simulation test result (owner's premise, 2026-11-11), so each example shows which option did best on
- * the job, or that none clearly did yet, or that the test is still running. The results are
- * invented, so no example names a real product: every option is a made-up, neutral name.
- */
-type Example = {
-  site: string; embodiment: string; job: string; Art: Scene;
-  result?: { label: string; name: string }; ticks?: Array<{ key: string; state: BareTickState; text: string }>;
-  sure?: { filled: 1 | 2 | 3; word: string }; held?: string;
-};
+type Illustration = { site: string; embodiment: string; Art: Scene };
+
 
 const LOOP = 10; // seconds per task loop; one rotation shows one full loop
 const STILL = 4.5; // the frame shown before motion starts, when paused, and under reduced motion
@@ -385,96 +372,15 @@ function Lab({ t }: { t: number }) {
   );
 }
 
-function Carton({ c, opacity = 1 }: { c: P; opacity?: number }) {
-  return <g {...ink} opacity={opacity}>
-    <rect x={c[0] - 13} y={c[1] - 9} width={26} height={18} fill={tint} />
-    <path d={`M${c[0]} ${c[1] - 9} V${c[1] - 3}`} strokeWidth={1.5} />
-  </g>;
-}
-
-/** Fixed arm on a pedestal takes cartons off the end of a conveyor and stacks them on a pallet. */
-function Palletizing({ t }: { t: number }) {
-  const shoulder: P = [170, 118];
-  const pickAt: P = [236, 99];
-  const slots: P[] = [[132, 147], [104, 147], [76, 147]];
-  const start = (i: number) => 0.3 + i * 3;
-  let hand: P = [236, 92];
-  let open = true;
-  for (let i = 0; i < slots.length; i++) {
-    const u = t - start(i);
-    if (u < 0 || u > 3) continue;
-    const drop = slots[i];
-    hand = trackP(u, [[0, [236, 92]], [0.4, pickAt], [0.8, [236, 86]], [1.8, [drop[0], 86]], [2.3, drop], [2.6, [drop[0], 100]], [3, [236, 92]]]);
-    open = u < 0.4 || u > 2.3;
-  }
-  const reset = fade(t, 9.6, 10);
-  const next = slots.findIndex((_, i) => t < start(i) + 0.4);
-  return (
-    <g>
-      <g {...ink}>
-        <rect x={58} y={168} width={92} height={6} fill={tint} />
-        <path d="M58 174 H150 M62 174 V180 M104 174 V180 M146 174 V180" />
-        <rect x={160} y={118} width={20} height={62} fill={paper} />
-        <rect x={206} y={120} width={104} height={10} />
-        <path d="M214 130 V180 M302 130 V180" />
-      </g>
-      {[220, 244, 268, 292].map(rx => <Wheel key={rx} c={[rx, 125]} r={4} turn={-t * 3} />)}
-      {slots.map((slot, i) => {
-        const u = t - start(i);
-        if (u >= 0.4 && u < 2.3) return <Carton key={i} c={[hand[0], hand[1] + 12]} />;
-        if (u >= 2.3) return <Carton key={i} c={[slot[0], 159]} opacity={1 - reset} />;
-        return null;
-      })}
-      {next >= 0 && <Carton c={[track(t, [[start(next) - 2.6, 300], [start(next), 236]]), 111]} />}
-      {t >= 9.6 && <Carton c={[300, 111]} opacity={reset} />}
-      <RobotArm shoulder={shoulder} hand={hand} l1={56} l2={56} open={open} />
-    </g>
-  );
-}
-
-// Every name, job and result below is made up for illustration. Each job is one our simulation test can run today
-// (review, 2026-11-11): one light object, well under 3 kg, picked up and put down within an arm's reach. The numbers
-// vary, one example has no clear winner and one is still being tested, so the set does not suggest there is always
-// a winner.
-const DID_BEST = "Did best on your job";
-const examples: Example[] = [
-  { site: "Packaging", embodiment: "Fixed robot arm", job: "Packing small boxes, under 1 kg each, from a conveyor into a carton", Art: Palletizing,
-    result: { label: DID_BEST, name: "Robot B + AI software 2" },
-    ticks: [{ key: "tries", state: "yes", text: "Did your job in 8 of 10 tries" },
-      { key: "ahead", state: "yes", text: "Ahead of the 3 other AI robots we tested" }],
-    sure: { filled: 2, word: "Fairly sure" } },
-  { site: "Warehouse", embodiment: "Humanoid robot", job: "Picking small parcels off a shelf into a tote within arm's reach", Art: Warehouse,
-    result: { label: DID_BEST, name: "Robot D + AI software 1" },
-    ticks: [{ key: "tries", state: "yes", text: "Did your job in 6 of 10 tries" },
-      { key: "ahead", state: "yes", text: "Ahead of the 2 other AI robots we tested" }],
-    sure: { filled: 1, word: "Not sure yet" } },
-  { site: "Café", embodiment: "Fixed robot arm", job: "Moving clean cups from the dish rack onto a tray", Art: Cafe,
-    result: { label: "Tested on your job", name: "No clear winner yet" },
-    ticks: [{ key: "tries", state: "yes", text: "Robot A and Robot C each did it in 5 of 10 tries" },
-      { key: "close", state: "unsure", text: "Too close to tell apart yet" }],
-    sure: { filled: 1, word: "Not sure yet" } },
-  { site: "Laundromat", embodiment: "Wheeled humanoid", job: "Stacking folded towels onto a shelf", Art: Laundromat,
-    result: { label: DID_BEST, name: "Robot F + AI software 2" },
-    ticks: [{ key: "tries", state: "yes", text: "Did your job in 7 of 10 tries" },
-      { key: "ahead", state: "yes", text: "Ahead of the 1 other AI robot we tested" }],
-    sure: { filled: 2, word: "Fairly sure" } },
-  { site: "Factory", embodiment: "Mobile manipulator", job: "Placing small parts from a conveyor into a fixture", Art: Factory,
-    result: { label: DID_BEST, name: "Robot E + AI software 3" },
-    ticks: [{ key: "tries", state: "yes", text: "Did your job in 9 of 10 tries" },
-      { key: "ahead", state: "yes", text: "Ahead of the 4 other AI robots we tested" }],
-    sure: { filled: 3, word: "Sure" } },
-  { site: "Hotel", embodiment: "Mobile robot", job: "Placing folded napkins onto a tray", Art: Hotel,
-    result: { label: DID_BEST, name: "Robot A + AI software 1" },
-    ticks: [{ key: "tries", state: "yes", text: "Did your job in 7 of 10 tries" }], sure: { filled: 1, word: "Not sure yet" } },
-  { site: "Lab", embodiment: "Fixed robot arm", job: "Placing sample tubes into a rack", Art: Lab,
-    result: { label: "Testing now", name: "4 AI robots" },
-    ticks: [{ key: "pending", state: "unsure", text: "The result appears here when the tests finish" }] },
+/** The scenes the robot animation beside forms plays, in order. */
+const scenes: Illustration[] = [
+  { site: "Warehouse", embodiment: "Humanoid robot", Art: Warehouse },
+  { site: "Café", embodiment: "Fixed robot arm", Art: Cafe },
+  { site: "Laundromat", embodiment: "Wheeled humanoid", Art: Laundromat },
+  { site: "Factory", embodiment: "Mobile manipulator", Art: Factory },
+  { site: "Hotel", embodiment: "Mobile robot", Art: Hotel },
+  { site: "Lab", embodiment: "Fixed robot arm", Art: Lab },
 ];
-
-/** The examples the home page rotates through. */
-const tabs: Example[] = examples.filter(example => example.site !== "Hotel");
-/** The scenes the robot animation beside forms plays, unchanged by the packaging example. */
-const scenes: Example[] = examples.filter(example => example.site !== "Packaging");
 
 /** Seconds into the current loop. Starts at the still frame; restarts at 0 when the scene changes. */
 function useSceneClock(running: boolean, scene: string) {
@@ -505,85 +411,8 @@ function useSceneClock(running: boolean, scene: string) {
   return t;
 }
 
-export function PilotPreview() {
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [pinned, setPinned] = useState(false);
-  // Keyboard focus on the tabs holds the example. Hover does not: a cursor resting on it after a page load would
-  // stop rotation indefinitely.
-  const [held, setHeld] = useState(false);
-  const [inView, setInView] = useState(true);
-  const artRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) setPaused(true);
-    if (typeof IntersectionObserver === "undefined" || !artRef.current) return;
-    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting));
-    observer.observe(artRef.current);
-    return () => observer.disconnect();
-  }, []);
-  useEffect(() => {
-    if (paused || pinned || held || !inView) return;
-    const id = window.setTimeout(() => setActive(i => (i + 1) % tabs.length), LOOP * 1000);
-    return () => window.clearTimeout(id);
-  }, [active, paused, pinned, held, inView]);
-
-  const example = tabs[active];
-  const t = useSceneClock(!paused && inView, example.site);
-  const { Art } = example;
-  return (
-    <section className="bare-example" aria-label="Example answers">
-      <svg ref={artRef} className="bare-example-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
-        <g key={example.site} className="ms-pilot-art-scene">
-          <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-          <Art t={t} />
-        </g>
-      </svg>
-      <div className="bare-example-head">
-        <div role="tablist" aria-label="Example sites" className="bare-example-tabs"
-          onFocus={() => setHeld(true)}
-          onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false); }}
-          onKeyDown={event => {
-            const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-            const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : direction ? (active + direction + tabs.length) % tabs.length : null;
-            if (next === null) return;
-            event.preventDefault();
-            setActive(next);
-            setPinned(true);
-            event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
-          }}>
-          {tabs.map((item, i) => (
-            <button key={item.site} type="button" role="tab" id={`pilot-tab-${i}`} aria-selected={i === active} aria-controls="pilot-example" tabIndex={i === active ? 0 : -1}
-              onClick={() => { setActive(i); setPinned(true); }}>{item.site}</button>
-          ))}
-        </div>
-        <button type="button" className="bare-example-pause" onClick={() => { setPaused(p => !p); setPinned(false); }} aria-label={paused ? "Play examples" : "Pause examples"}>
-          {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
-        </button>
-      </div>
-      <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel">
-        <p className="bare-example-tag">Example</p>
-        <p className="bare-example-job">{example.job}</p>
-        {example.result ? <>
-          <p className="bare-label">{example.result.label}</p>
-          <p className="bare-example-name">{example.result.name}</p>
-          {example.ticks && <BareTicks label="The test" items={example.ticks} />}
-          {example.sure && <div className="bare-sure"><p className="bare-sure-line">How sure are we?{" "}
-            <span className="bare-dots" aria-hidden="true">{[1, 2, 3].map(dot => <span key={dot} className={dot <= example.sure!.filled ? "bare-dot bare-dot-on" : "bare-dot"} />)}</span>{" "}
-            <strong>{example.sure.word}</strong></p></div>}
-        </> : <>
-          <p className="bare-label">Answer</p>
-          <p className="bare-example-name">Held.</p>
-          <p className="bare-example-by">{example.held}</p>
-        </>}
-      </div>
-      <p className="bare-example-foot">The names, jobs and results are made up.</p>
-    </section>
-  );
-}
-
 /**
- * The home pilot examples on their own, for pages that carry the robot without the pilot card.
+ * The robot illustration on its own, for pages that carry it beside a form (sign-in and account set-up).
  * Each example plays one loop, then the next one starts. It holds the first still frame under
  * reduced motion, pauses while scrolled out of view, and has a pause control, since it keeps
  * moving beside forms.

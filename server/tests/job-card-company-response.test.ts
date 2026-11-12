@@ -103,7 +103,7 @@ describe("POST /api/site-worlds/tasks/:taskId/interest", () => {
     expect(headline).toMatch(/^Most likely to fit: /);
     expect(bells()[0]).toContain(`\`${ID}\``);
     expect(bells()[0]).toContain("Company: Northwind Automation (is interested)");
-    expect(bells()[0]).toContain(`Answer: ${headline}`);
+    expect(bells()[0]).toContain(`First look: ${headline}`);
     expect(bells()[0]).not.toMatch(/owner@example\.com|lee@robots\.example|conveyor/);
     // A person makes the introduction: no email to the site or the company.
     expect(seams.sendEmail).not.toHaveBeenCalled();

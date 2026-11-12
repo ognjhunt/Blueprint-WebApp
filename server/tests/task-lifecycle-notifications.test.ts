@@ -17,8 +17,10 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 vi.mock("../utils/field-encryption", () => ({
   decryptFieldValue: vi.fn(async (value: string) => value.replace(/^encrypted:/, "")),
 }));
-const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false }));
-vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: () => jobAccess }));
+const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false, listed: true }));
+// A record on a rights hold is not listed, as the real predicate says; every other record follows `jobAccess`.
+vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: (record?: { pipeline?: { rights_review_status?: string } }) =>
+  record?.pipeline?.rights_review_status === "needs_review" ? { listed: false, evaluationAvailable: false, reason: "rights_needs_review" } : jobAccess }));
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 // The site's answer, as the composer would give it; null until a test sets one.
@@ -57,8 +59,8 @@ describe("task lifecycle notifications", () => {
     expect(row.kind).toBe("video_received");
     // Bare bones (2026-11-11): one idea, one button, no sign-off.
     expect(row.subject).toBe("We have your video");
-    // The receipt says what happens next, true whichever way the job goes, and gives no answer.
-    expect(row.body).toBe(`Your video arrived safely. Next, we build a simulation of your site and test AI robots on your job in it. We'll email you the result, or, if a test can't run, why not and what we found on paper.\n\nOpen your job:\n${row.body.split("Open your job:\n")[1]}`);
+    // The receipt says what happens next, true whichever way the job goes, and promises nothing a company will do.
+    expect(row.body).toBe(`Your video arrived safely. Next, we build your job packet: a first look and a simulation of your site. Your job page shows where it stands.\n\nOpen your job:\n${row.body.split("Open your job:\n")[1]}`);
     expect(`${row.subject} ${row.body}`).not.toMatch(/confirm|create an account|save this site to your account|proposal/i);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
@@ -68,7 +70,7 @@ describe("task lifecycle notifications", () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
 
     const scene = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_ready") as Record<string, unknown>;
-    expect(scene.subject).toBe("Your 3D view of the work area is ready");
+    expect(scene.subject).toBe("The simulation of your site is ready to view");
     expect(scene.body).toMatch(/^You can look around the work area you filmed on your job page\./);
     expect(scene.body).not.toMatch(/has started an evaluation run|succeeded|result:/i);
     expect(scene.body).toMatch(/Open your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
@@ -142,6 +144,129 @@ describe('withdrawal fences capture-derived notices without suppressing recovery
  });
 });
 
+// Review, 2026-11-12: "Your job summary is shared" goes out once, at the first moment the summary is visible to approved
+// companies (whenever that is), never before and never twice.
+describe("the summary-shared email follows visibility", () => {
+  const owe = () => { (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice = { owed: true }; };
+  const sentSubjects = () => send.mock.calls.map(call => (call[0] as { subject: string }).subject).filter(subject => subject === "Your job summary is shared");
+  const pass = async () => {
+    const { reconcileSummarySharedNotices } = await import("../utils/taskLifecycleNotifications");
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    await reconcileSummarySharedNotices(); await deliverOutbox();
+  };
+
+  it("sends at once when the card goes live visible, and never again", async () => {
+    jobAccess.listed = true; owe();
+    await pass(); await pass();
+    expect(sentSubjects()).toHaveLength(1);
+    owe(); await pass();
+    expect(sentSubjects()).toHaveLength(1);
+  });
+
+  it("waits while the card is live but paused, sends when it is un-paused, and not again after a second pause", async () => {
+    jobAccess.listed = false; owe();
+    await pass(); await pass();
+    expect(sentSubjects()).toHaveLength(0);
+    jobAccess.listed = true; await pass();
+    expect(sentSubjects()).toHaveLength(1);
+    jobAccess.listed = false; await pass();
+    jobAccess.listed = true; owe(); await pass(); await pass();
+    expect(sentSubjects()).toHaveLength(1);
+  });
+
+  it("tries again later when an attempt was cancelled because the card was hidden before it went out", async () => {
+    const { notifySummarySharedIfVisible } = await import("../utils/taskLifecycleNotifications");
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    jobAccess.listed = true; owe();
+    expect((await notifySummarySharedIfVisible("req-1")).enqueued).toBe(true);
+    jobAccess.listed = false; await deliverOutbox();
+    expect(sentSubjects()).toHaveLength(0);
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:listing_live:summary-1")).toMatchObject({ status: "cancelled" });
+    jobAccess.listed = true; await pass();
+    expect(sentSubjects()).toHaveLength(1);
+    jobAccess.listed = true;
+  });
+
+  // Review, 2026-11-12: the sweep must not starve. Rows that can never be sent are settled; rows that are only not
+  // visible yet stay owed; and the sweep pages through every owed row, so no number of stuck rows hides another.
+  const owedJob = (id: string, extra: Record<string, unknown> = {}) => sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, {
+    contact: { email: `encrypted:${id}@example.com` }, request: { buyerType: "site_operator" }, summary_shared_notice: { owed: true }, ...extra });
+  const sentTo = () => send.mock.calls.filter(call => (call[0] as { subject: string }).subject === "Your job summary is shared")
+    .map(call => (call[0] as { to: string }).to);
+
+  it("reaches a sendable row behind 25 rows that are not visible, in the same or the next pass", async () => {
+    jobAccess.listed = true;
+    sharedFakeFirestoreState.docs.delete("inboundRequests/req-1");
+    for (let index = 0; index < 25; index += 1)
+      owedJob(`a-stuck-${String(index).padStart(2, "0")}`, { pipeline: { rights_review_status: "needs_review" } });
+    owedJob("z-sendable");
+    await pass();
+    if (sentTo().length === 0) await pass();
+    expect(sentTo()).toEqual(["z-sendable@example.com"]);
+    // The stuck rows are only not visible right now: they stay owed.
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/a-stuck-00") as Record<string, any>).summary_shared_notice.owed).toBe(true);
+  });
+
+  it("writes no document on a pass with nothing owed, and writes the cursor only when it moves", async () => {
+    const { reconcileSummarySharedNotices, SUMMARY_SHARED_SWEEP_CURSOR } = await import("../utils/taskLifecycleNotifications");
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const cursorWrites: unknown[] = [];
+    const realDoc = sharedFakeFirestore.doc.bind(sharedFakeFirestore);
+    const spy = vi.spyOn(sharedFakeFirestore, "doc").mockImplementation((docPath: string) => {
+      const ref = realDoc(docPath);
+      if (docPath !== SUMMARY_SHARED_SWEEP_CURSOR) return ref;
+      const set = ref.set.bind(ref);
+      return Object.assign(Object.create(ref), { set: (value: unknown, options?: unknown) => { cursorWrites.push(value); return set(value, options); } });
+    });
+    try {
+      sharedFakeFirestoreState.docs.delete("inboundRequests/req-1");
+      const before = [...sharedFakeFirestoreState.docs.keys()].sort();
+      await reconcileSummarySharedNotices(2); await reconcileSummarySharedNotices(2);
+      expect([...sharedFakeFirestoreState.docs.keys()].sort()).toEqual(before);
+      expect(cursorWrites).toEqual([]);
+      // Three rows not visible yet, two per pass: written when it advances, cleared once at the end, then left alone.
+      for (const id of ["a-1", "a-2", "a-3"]) owedJob(id, { pipeline: { rights_review_status: "needs_review" } });
+      await reconcileSummarySharedNotices(2);
+      expect(cursorWrites).toEqual([{ after: "a-2" }]);
+      await reconcileSummarySharedNotices(2);
+      expect(cursorWrites).toEqual([{ after: "a-2" }, { after: null }]);
+      sharedFakeFirestoreState.docs.delete("inboundRequests/a-3");
+      sharedFakeFirestoreState.docs.delete("inboundRequests/a-2");
+      await reconcileSummarySharedNotices(2); await reconcileSummarySharedNotices(2);
+      expect(cursorWrites).toEqual([{ after: "a-2" }, { after: null }]);
+    } finally { spy.mockRestore(); }
+  });
+
+  it("settles a withdrawn job's row with its reason and never emails it", async () => {
+    jobAccess.listed = true;
+    owedJob("req-1", { request: { buyerType: "site_operator", consent_attestation: { withdrawn_at_iso: "2026-11-12T00:00:00.000Z" } } });
+    await pass(); await pass();
+    expect(sentTo()).toEqual([]);
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice)
+      .toMatchObject({ owed: false, settled_reason: "permission_withdrawn" });
+  });
+
+  it("settles a closed job's row with its reason and never emails it", async () => {
+    jobAccess.listed = true;
+    owedJob("req-1", { workspace_task: { archived: true } });
+    await pass();
+    expect(sentTo()).toEqual([]);
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice)
+      .toMatchObject({ owed: false, settled_reason: "job_closed" });
+  });
+
+  it("emails a row on a rights hold once, after the hold lifts", async () => {
+    jobAccess.listed = true;
+    owedJob("req-1", { pipeline: { rights_review_status: "needs_review" } });
+    await pass(); await pass();
+    expect(sentTo()).toEqual([]);
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice.owed).toBe(true);
+    (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).pipeline = { rights_review_status: "cleared" };
+    await pass(); await pass(); await pass();
+    expect(sentTo()).toEqual(["req-1@example.com"]);
+  });
+});
+
 describe("listing notices describe the free beta", () => {
   const build = async (milestone: "listing_live", detail?: string) => {
     const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
@@ -149,9 +274,11 @@ describe("listing notices describe the free beta", () => {
       captureUrl: "https://tryblueprint.io/capture-upload/owner-token", detail });
   };
 
-  it("tells a link-only site how to hide its card without an account", async () => {
+  // The frame of 2026-11-12: the one email when a summary becomes visible, true and promising nothing.
+  it("tells the site its summary is shared, and that its video stays private", async () => {
     const notice = await build("listing_live");
-    expect(notice.body).toContain('untick "Show this card in the job library"');
+    expect(notice.subject).toBe("Your job summary is shared");
+    expect(notice.body.startsWith("Deployment companies we approve can now see a summary of your job. Your video, address and contacts stay private.\n\nOpen your job:\n")).toBe(true);
     expect(notice.body).toContain("https://tryblueprint.io/capture-upload/owner-token");
     expect(notice.body).not.toMatch(/Blueprint account|\/app\/tasks/);
   });
@@ -184,21 +311,15 @@ describe("a waiting job hears what it is waiting on", () => {
     ...(succeeded === null ? {} : { result: { scoring: scored(200), episodeOutcomes: syntheticEpisodeOutcomes(200, succeeded),
       observed: { episodesRun: 200, episodesSucceeded: succeeded, medianCycleSeconds: null } } }) });
 
-  it("tells the site once that its job is ready for evaluation, only while true and before any run", async () => {
+  // The frame of 2026-11-12: no company can request an evaluation, so "Your job is ready for evaluation" is never queued,
+  // whatever the job's access says; the site hears its summary is shared by `listing_live` alone.
+  it("never queues the ready-for-evaluation email", async () => {
     const { notifyIfOpenForEvaluations } = await import("../utils/taskLifecycleNotifications");
-    jobAccess.evaluationAvailable = false;
-    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
-    jobAccess.evaluationAvailable = true;
-    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(true);
-    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
-    const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:awaiting_evaluations") as Record<string, string>;
-    expect(row.subject).toBe("Your job is ready for evaluation");
-    // Blueprint runs the candidates; partners can ask to be evaluated too (owner, 2026-10-26).
-    expect(row.body).toMatch(/^Your job is ready for evaluation in a simplified simulation of your task, informed by your footage\. Nothing is needed from you\./);
-    expect(row.body).not.toMatch(/robot teams?/i);
-    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:awaiting_evaluations");
-    run("run_q", "requested", null);
-    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
+    for (const available of [false, true]) {
+      jobAccess.evaluationAvailable = available;
+      expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
+    }
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:awaiting_evaluations")).toBe(false);
   });
 
   it("tells the site once its scene is ready and its first test started, only while true", async () => {
@@ -224,7 +345,8 @@ describe("a waiting job hears what it is waiting on", () => {
     await notifySceneTestsStartedForLaunch("launch-a");
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_tests_started") as Record<string, string>;
     expect(row.subject).toBe("The simulation of your site is ready");
-    expect(row.body).toMatch(/^Your work area and its objects are in place\. We are running our first tests on it now\.\n\nNothing is needed from you\./);
+    expect(row.body).toMatch(/^Your work area and its objects are in place\. Nothing is needed from you\.\n\nOpen your job:/);
+    expect(row.body).not.toMatch(/first tests|test AI robots|We will email you at the next step/);
     expect(row.body).not.toMatch(/pass|recommend|robot team/i);
     expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(false);
     // The reconciler repairs a lost enqueue, once.
@@ -254,7 +376,7 @@ describe("a waiting job hears what it is waiting on", () => {
     expect(notice.idempotencyKey).toBe(`req-1:evaluation_outcome:${event}`);
     expect(notice.subject).toBe("An update on the simulation of your job");
     // With no paper check given, it says plainly that there is none (review, 2026-11-11).
-    expect(notice.body.startsWith(`${simulationOutcomeEmailSentence("no_match")} There is no paper check for this job. Nothing is needed from you.`)).toBe(true);
+    expect(notice.body.startsWith(`${simulationOutcomeEmailSentence("no_match")} There is no first look for this job. Nothing is needed from you.`)).toBe(true);
     expect(notice.body.startsWith("None of the robots the simulation can run matched this task.")).toBe(true);
     // No email offers an introduction: a person at Blueprint makes it, from the job page's own request.
     expect(notice.body).not.toMatch(/introduction|\bheld\b/i);
@@ -372,19 +494,19 @@ describe("a finished simulation's email says what the job page's simulation resu
     const { testHeadline, testResultOf } = await import("../../client/src/lib/simulationProof");
     const proof = await proofOf(evaluation([["pi05_droid", 4, 5], ["groot_n17_droid", 1, 5]]));
     const notice = await build(proof, "https://example.invalid/app/tasks/req-1");
-    expect(notice.subject).toBe("Your simulation test has a result");
+    expect(notice.subject).toBe("Our early trial on your job has finished");
     // 4 of 5 against 1 of 5 is about 0.96 under the probability rule: ahead, not "did best".
-    expect(notice.body).toBe(`${testHeadline(testResultOf(proof))} Nothing is needed from you.\n\n`
+    expect(notice.body).toBe(`This was our own trial of openly available robot software, not a deployment company's robot. ${testHeadline(testResultOf(proof))} Nothing is needed from you.\n\n`
       + "See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1\n\n" + finePrint(LIMITS_TESTED));
-    expect(notice.body.startsWith("Was ahead on your job: Franka arm + π0.5, doing your job in 4 of 5 tries. Nothing is needed from you.")).toBe(true);
+    expect(notice.body.startsWith("This was our own trial of openly available robot software, not a deployment company's robot. Was ahead in our early trial: Franka arm + π0.5, doing your job in 4 of 5 tries. Nothing is needed from you.")).toBe(true);
     expect(notice.body).not.toMatch(banned);
     expect(notice.body).not.toContain("private-owner-link");
     // "Did best" only by the probability rule.
     const clear = await build(await proofOf(evaluation([["pi05_droid", 9, 10], ["groot_n17_droid", 2, 10]])));
-    expect(clear.body.startsWith("Did best on your job: Franka arm + π0.5, doing your job in 9 of 10 tries. ")).toBe(true);
+    expect(clear.body.startsWith("This was our own trial of openly available robot software, not a deployment company's robot. Did best in our early trial: Franka arm + π0.5, doing your job in 9 of 10 tries. ")).toBe(true);
     const close = await build(await proofOf(evaluation([["pi05_droid", 1, 1], ["groot_n17_droid", 0, 1]])));
-    expect(close.subject).toBe("Your simulation test has a result");
-    expect(close.body.startsWith("Tested on your job: no clear winner yet. Top: Franka arm + π0.5, did your job in 1 of 1 try. Nothing is needed from you.")).toBe(true);
+    expect(close.subject).toBe("Our early trial on your job has finished");
+    expect(close.body.startsWith("This was our own trial of openly available robot software, not a deployment company's robot. In our early trial: no clear winner yet. Top: Franka arm + π0.5, did the job in 1 of 1 try. Nothing is needed from you.")).toBe(true);
     for (const email of [notice, clear, close]) {
       expect(`${email.subject} ${email.body}`).not.toMatch(/\bproo?f|\bprove/i);
       expect(email.body.match(/:\nhttps?:\/\//g)).toHaveLength(1);
@@ -394,12 +516,12 @@ describe("a finished simulation's email says what the job page's simulation resu
   it("says none finished, with the set-up notice when flagged, and no pilot offer, when no AI robot finished the job", async () => {
     const note = "The place point was beyond the simulated arm's reach.";
     const notice = await build(await proofOf(evaluation([["pi05_droid", 0, 5], ["groot_n17_droid", 0, 5]], { setupNotes: [note], outcomeCaveat: "scene_setup" })));
-    expect(notice.subject).toBe("The simulation test of your job has finished");
-    expect(notice.body.startsWith("No AI robot finished your job. 2 AI robots tried; none finished your job. "
+    expect(notice.subject).toBe("Our early trial on your job has finished");
+    expect(notice.body.startsWith("This was our own trial of openly available robot software, not a deployment company's robot. No robot finished the job in our trial. 2 robots tried; none finished the job. "
       + "This result may come from how we set up the simulation of your site, not from the robots. Nothing is needed from you.\n\n")).toBe(true);
     expect(notice.body.endsWith("[fine] Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBe(true);
     expect(notice.body).not.toMatch(banned);
-    expect(notice.body).not.toMatch(/did best|was ahead|has a result|proof|deployment company/i);
+    expect(notice.body).not.toMatch(/did best|was ahead|has a result|proof/i);
   });
 
   // Rewritten (review, 2026-11-11): whether an estimate scored an AI robot decides its slot, so an estimate whose
@@ -415,8 +537,8 @@ describe("a finished simulation's email says what the job page's simulation resu
       eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate", screeningCounts: { ran: 2, total: 36, scored: 6 },
       screeningCaveat: "scene_setup", simulationProof: null, captureUrl: "https://example.invalid/capture-upload/x" });
     expect(flagged).toMatchObject({ answerSlot: "paper" });
-    expect(flagged.body.startsWith("The simulation test finished, but no AI robot could be scored in it. "
-      + "This result may come from how we set up the simulation of your site, not from the robots. There is no paper check for this job.")).toBe(true);
+    expect(flagged.body.startsWith("Our early trial finished, but no robot could be scored in it. "
+      + "This result may come from how we set up the simulation of your site, not from the robots. There is no first look for this job.")).toBe(true);
     expect(flagged.body).not.toMatch(banned);
   });
 });
@@ -430,7 +552,7 @@ describe("a job the window sweep ended is told under its own fixed key", () => {
     expect(notice).toMatchObject({ idempotencyKey: "req-1:scene_outcome:job_window_ended", kind: "scene_outcome",
       subject: "The simulation of your site has stopped", replyTo: "hello@tryblueprint.io" });
     // With no paper check given, it says so plainly; a final ending never says a test result may follow.
-    expect(notice.body).toBe(`${JOB_WINDOW_ENDING_MESSAGE} There is no paper check for this job.\n\nOpen your job on your private job page:\n`
+    expect(notice.body).toBe(`${JOB_WINDOW_ENDING_MESSAGE} There is no first look for this job.\n\nOpen your job on your private job page:\n`
       + "https://example.invalid/private-owner-link");
     const claimed = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
       eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link",
@@ -478,9 +600,9 @@ describe("a website job's scene outcome is emailed once (C-04)", () => {
   const pending = (id = "scene-1") => (docs.get(`taskEvaluationSceneIntakes/${id}`) as Record<string, any>).scene_outcome_notification_pending;
 
   it.each([
-    ["held", "task_family_unsupported", "The simulation of your job is held for now", "Your answer stays on your job page. Nothing is needed from you."],
+    ["held", "task_family_unsupported", "The simulation of your job is held for now", "Your first look stays on your job page. Nothing is needed from you."],
     ["withdrawn", "consent_expired", "Your Blueprint job has stopped", "You don't need to do anything; this job has stopped."],
-    ["setup_repair", "retry_cap_exhausted", "We stopped building the simulation of your site", "Your answer stays on your job page. Nothing is needed from you."],
+    ["setup_repair", "retry_cap_exhausted", "We stopped building the simulation of your site", "Your first look stays on your job page. Nothing is needed from you."],
   ] as const)("sends %s once, in the page's own sentence, with the job link", async (kind, reasonCode, subject, closing) => {
     const { deliverOutbox } = await import("../utils/captureOutbox");
     const { sceneOutcomeMessage } = await import("../utils/sceneIntentOutcome");
@@ -493,7 +615,7 @@ describe("a website job's scene outcome is emailed once (C-04)", () => {
     const row = rows()[0][1];
     expect(row).toMatchObject({ status: "sent", kind: "scene_outcome", to: "owner@example.com", subject });
     // An ending with no paper check says so plainly; the site's own withdrawal says nothing about an answer.
-    expect(row.body.startsWith(`${sceneOutcomeMessage(kind)}${kind === "withdrawn" ? "" : " There is no paper check for this job."}\n\nOpen your job on your private job page:\n`)).toBe(true);
+    expect(row.body.startsWith(`${sceneOutcomeMessage(kind)}${kind === "withdrawn" ? "" : " There is no first look for this job."}\n\nOpen your job on your private job page:\n`)).toBe(true);
     expect(sceneOutcomeMessage(kind).endsWith(closing)).toBe(true);
     expect(row.body).toMatch(/\/capture-upload\//);
     // Before the link: no code, no money and nothing Blueprint does next.
@@ -622,7 +744,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
   const answer = (changes: Record<string, unknown> = {}) => ({
     schemaVersion: "site_answer.v1", state: "ready", headline: "Most likely to fit: Universal Robots UR10e.",
     job: { sentence: "Move cartons from the conveyor to the pallet", drafted: true, family: "palletizing", familyLabel: "palletizing" },
-    facts: [], pick: { modelId: "ur10e", name: "UR10e", manufacturer: "Universal Robots" },
+    facts: [], pick: { modelId: "ur10e", name: "UR10e", manufacturer: "Universal Robots", verdict: "fits_on_paper" },
     runnerUp: { modelId: "crx-10ia", name: "CRX-10iA", manufacturer: "FANUC" }, alsoFit: [], ruledOut: [], ruledOutMore: 0,
     formNote: null, approach: null, unknowns: [],
     confidence: { level: "fair", reasons: ["The weight and distances are estimated from your video.", "Second reason."], raiseIt: [] },
@@ -654,14 +776,14 @@ describe("the site's answer is emailed once, when it first settles", () => {
   // Rewritten (review, 2026-11-11): `answer_ready` carries only the endings with no email of their own, each final, so
   // it never says a test result may follow.
   it("gives the paper check after an ending with no email of its own: why no test ran, then the paper check", async () => {
-    const notice = await build(answer(), { phase: "no_test", reason: "run_ended", sentence: "The simulation test stopped before it gave a result." });
-    expect(notice.subject).toBe("Your job's paper check is ready");
-    expect(notice.body.startsWith("The simulation test stopped before it gave a result. So the paper check is your answer. "
-      + "Most likely to fit: Universal Robots UR10e.\n\n")).toBe(true);
-    expect(notice.body).not.toContain("If a test result comes later");
+    const notice = await build(answer(), { phase: "no_test", reason: "run_ended", sentence: "Our early trial stopped before it gave a result." });
+    expect(notice.subject).toBe("Your first look is ready");
+    expect(notice.body.startsWith("Our early trial stopped before it gave a result. "
+      + "On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used. You can share a summary of your job with deployment companies from your job page.\n\n")).toBe(true);
+    expect(notice.body).not.toContain("If our early trial gives a result later");
     // An ended authority has no email of its own either: the window's sentence, then the paper check.
-    const ended = await build(answer(), { phase: "no_test", reason: "authority_ended", sentence: "The time for this job ran out before a simulation test could run." });
-    expect(ended.body.startsWith("The time for this job ran out before a simulation test could run. So the paper check is your answer.")).toBe(true);
+    const ended = await build(answer(), { phase: "no_test", reason: "authority_ended", sentence: "The time for this job ran out before our early trial could run." });
+    expect(ended.body.startsWith("The time for this job ran out before our early trial could run. On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used.")).toBe(true);
     for (const reason of ["window_expired", "no_grant", "scene_held", null])
       await expect(build(answer(), { phase: "no_test", reason, sentence: "x" }), String(reason)).rejects.toThrow("answer_ready_notice_invalid");
   });
@@ -675,11 +797,11 @@ describe("the site's answer is emailed once, when it first settles", () => {
       eventId: `held_capability-${"a".repeat(24)}`, screeningOutcome: "held_capability", siteAnswer: answer({ sceneNote: note }) as never,
       simulationProof: projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_capability" }] as never, pick: null }),
       captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
-    expect(notice.subject).toBe("Your job's paper check is ready");
+    expect(notice.subject).toBe("Your first look is ready");
     // Rewritten (review, 2026-11-11): the paper check is the answer "for now", and the email says a later result would come.
-    expect(notice.body.startsWith("The simulation test did not run. Our simulation test can't do this kind of job yet. "
-      + `So for now the paper check is your answer. Most likely to fit: Universal Robots UR10e. ${note} If a test result comes later, we'll email it.\n\n`)).toBe(true);
-    expect(notice.body.endsWith("[fine] A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBe(true);
+    expect(notice.body.startsWith("Our early trial did not run. Our trial can't do this kind of job yet. "
+      + `On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used. ${note} If our early trial gives a result later, we'll email it.\n\n`)).toBe(true);
+    expect(notice.body.endsWith("[fine] A first look on paper, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBe(true);
     expect(notice.body.match(/:\nhttps?:\/\//g)).toHaveLength(1);
   });
 
@@ -770,12 +892,17 @@ describe("the site's answer is emailed once, when it first settles", () => {
       for (const kind of ["results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"] as const)
         expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind }, transaction)).toBe(false);
       expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "scene_ready" }, transaction)).toBe(true);
+      // "Can now see a summary" goes out only while the summary is visible (`teamJobAccess(...).listed`).
+      jobAccess.listed = true;
       expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "listing_live" }, transaction)).toBe(true);
+      jobAccess.listed = false;
+      expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "listing_live" }, transaction)).toBe(false);
+      jobAccess.listed = true;
     });
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your 3D view of the work area is ready");
+    expect(send.mock.calls[0][0].subject).toBe("The simulation of your site is ready to view");
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a")).toMatchObject({ status: "cancelled" });
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:run_no_result:run_b")).toMatchObject({ status: "cancelled" });
   });
@@ -799,11 +926,11 @@ describe("the site's answer is emailed once, when it first settles", () => {
     expect(await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "pilot_request", eventId: "application-2" }))
       .toMatchObject({ enqueued: false });
     await enqueueOutbox({ idempotencyKey: "req-1:brief-screening:task-not-yet-supported", requestId: "req-1", to: "owner@example.com",
-      kind: "screening_not_now", subject: "Your job: we are preparing its evaluation", body: "Kept" });
+      kind: "screening_not_now", subject: "Your job: we are preparing its job packet", body: "Kept" });
     await deliverOutbox({ limit: 20 });
     for (const row of ended) expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${row.key}`)).toMatchObject({ status: "cancelled" });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your job: we are preparing its evaluation");
+    expect(send.mock.calls[0][0].subject).toBe("Your job: we are preparing its job packet");
   });
 });
 
@@ -811,11 +938,11 @@ describe("the site's answer is emailed once, when it first settles", () => {
 // paper check with the true reason, except the site's own ending (withdrawn, or a run it closed), which gives none.
 describe("one answer email for every way a job ends", () => {
   const paperAnswer = { schemaVersion: "site_answer.v1", state: "ready", headline: "Most likely to fit: Universal Robots UR10e.",
-    pick: { modelId: "ur10e", name: "UR10e", manufacturer: "Universal Robots" }, sceneNote: null } as never;
+    pick: { modelId: "ur10e", name: "UR10e", manufacturer: "Universal Robots", verdict: "fits_on_paper" }, sceneNote: null } as never;
   // After a hold the paper check is the answer for now and a later result would be emailed; after a final ending it is
   // the answer, with no such promise (review, 2026-11-11).
-  const HOLD_PAPER = "So for now the paper check is your answer. Most likely to fit: Universal Robots UR10e. If a test result comes later, we'll email it.";
-  const PAPER = "So the paper check is your answer. Most likely to fit: Universal Robots UR10e.";
+  const HOLD_PAPER = "On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used. If our early trial gives a result later, we'll email it.";
+  const PAPER = "On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used.";
   const build = async (params: Record<string, unknown>) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
     requestId: "req-1", to: "owner@example.com", captureUrl: "https://tryblueprint.io/capture-upload/owner-token", ...params } as never);
   const digest = `sha256:${"d".repeat(64)}`;
@@ -832,12 +959,12 @@ describe("one answer email for every way a job ends", () => {
       const notice = await build({ ...params, siteAnswer: paperAnswer });
       // The reason is said first, unchanged; the paper check follows it as the answer, in the no-test email's words.
       // Without one, the email says plainly that there is none.
-      const reason = without.body.split("\n\n")[0].replace(" There is no paper check for this job.", "");
-      expect(without.body.split("\n\n")[0].endsWith(" There is no paper check for this job."), label).toBe(true);
+      const reason = without.body.split("\n\n")[0].replace(" There is no first look for this job.", "");
+      expect(without.body.split("\n\n")[0].endsWith(" There is no first look for this job."), label).toBe(true);
       const paper = label === "scene held" ? HOLD_PAPER : PAPER;
       expect(notice.body.startsWith(`${reason} ${paper}`), label).toBe(true);
-      expect(label === "scene held" || !notice.body.includes("If a test result comes later"), label).toBe(true);
-      expect(without.body, label).not.toContain("paper check is your answer");
+      expect(label === "scene held" || !notice.body.includes("If our early trial gives a result later"), label).toBe(true);
+      expect(without.body, label).not.toContain("On paper, the robot most likely to fit");
       expect(notice.body.match(/:\nhttps?:\/\//g), label).toHaveLength(1);
     }
     // A preparation that stopped for good: its reason, then the paper check.
@@ -846,7 +973,7 @@ describe("one answer email for every way a job ends", () => {
     // The site's own withdrawal gives no answer, even when one exists.
     const withdrawn = await build({ milestone: "scene_outcome", sceneOutcomeKind: "withdrawn",
       eventId: sceneOutcomeNoticeEventId("withdrawn", digest), siteAnswer: paperAnswer });
-    expect(withdrawn.body).not.toContain("paper check is your answer");
+    expect(withdrawn.body).not.toContain("On paper, the robot most likely to fit");
   });
 
   // Rewritten (review, 2026-11-11) from "the first answer email wins": a job gets at most one paper-check email and one
@@ -973,7 +1100,7 @@ describe("one answer email for every way a job ends", () => {
     const [slot] = Object.keys(job()[ANSWER_NOTICES_WAITING_FIELD]);
     job()[ANSWER_NOTICES_WAITING_FIELD][slot].since_iso = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
     await releaseWaitingAnswerNotices("req-1", Date.now() + 60 * 60 * 1000);
-    expect(outbox()[0][1].body).toContain("We could not finish reading your video, so there is no paper check for this job.");
+    expect(outbox()[0][1].body).toContain("We could not finish reading your video, so there is no first look for this job.");
   });
 
   // Rewritten (review, 2026-11-11) with two real paper answers: the no-grant ending's email and a held evaluation's.
@@ -1049,7 +1176,7 @@ describe("one answer email for every way a job ends", () => {
     // While the video is being read it stays owed; past the reading's limit it goes, saying there is no paper check.
     composedAnswer.current = { state: "reading" };
     const outlookModule = await import("../utils/jobOutlook");
-    const ending = { phase: "no_test", reason: "run_ended", sentence: "The simulation test stopped before it gave a result." } as const;
+    const ending = { phase: "no_test", reason: "run_ended", sentence: "Our early trial stopped before it gave a result." } as const;
     const decided = vi.spyOn(outlookModule, "loadJobOutlookDecision").mockResolvedValue({
       outlook: { phase: "reading", reason: null, sentence: null }, certain: true, ending, resultUnknown: false });
     try {
@@ -1061,7 +1188,7 @@ describe("one answer email for every way a job ends", () => {
       await reconcileWaitingAnswerNotices(20, Date.now() + 60 * 60 * 1000);
       expect(outbox()).toContain("captureOutbox/req-1:answer_ready:run_ended");
       expect((sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready:run_ended") as any).body)
-        .toContain("The simulation test stopped before it gave a result. We could not finish reading your video, so there is no paper check for this job.");
+        .toContain("Our early trial stopped before it gave a result. We could not finish reading your video, so there is no first look for this job.");
     } finally { decided.mockRestore(); }
   });
 
@@ -1116,7 +1243,7 @@ describe("one answer email for every way a job ends", () => {
     const { notifyIfAnswerSettled, READING_WAIT_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
     composedAnswer.current = { state: "reading" };
     const outlookModule = await import("../utils/jobOutlook");
-    const kept = { phase: "cannot_match", reason: "kept_on_file", sentence: "We can't test this kind of job yet. We've kept your job on file." } as const;
+    const kept = { phase: "cannot_match", reason: "kept_on_file", sentence: "We can't build a simulation for this kind of job yet. We've kept your job on file." } as const;
     const decided = vi.spyOn(outlookModule, "loadJobOutlookDecision").mockResolvedValue({
       outlook: { phase: "reading", reason: null, sentence: null }, certain: true, ending: kept, resultUnknown: false });
     const old = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
@@ -1139,7 +1266,7 @@ describe("one answer email for every way a job ends", () => {
       .mockRejectedValue(new Error("answer_store_unavailable"));
     const decide = async (ending: Record<string, unknown> | null) => vi.spyOn(await import("../utils/jobOutlook"), "loadJobOutlookDecision")
       .mockResolvedValue({ outlook: { phase: "reading", reason: null, sentence: null }, certain: true, ending: ending as never, resultUnknown: false });
-    const runEnded = { phase: "no_test", reason: "run_ended", sentence: "The simulation test stopped before it gave a result." };
+    const runEnded = { phase: "no_test", reason: "run_ended", sentence: "Our early trial stopped before it gave a result." };
 
     it("queues the recorded ending's email past the reading's limit, saying there is no paper check, and dispatch lets it go", async () => {
       const { reconcileWaitingAnswerNotices, waitingAnswerNoticeFields, READING_WAIT_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
@@ -1151,7 +1278,7 @@ describe("one answer email for every way a job ends", () => {
           milestone: "answer_ready" }, new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString(), job) });
         await reconcileWaitingAnswerNotices();
         const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready:run_ended") as Record<string, any>;
-        expect(row.body).toContain("The simulation test stopped before it gave a result. We could not finish reading your video, so there is no paper check for this job.");
+        expect(row.body).toContain("Our early trial stopped before it gave a result. We could not finish reading your video, so there is no first look for this job.");
         await deliverOutbox();
         expect(send).toHaveBeenCalledTimes(1);
         expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready:run_ended")).toMatchObject({ status: "sent" });
@@ -1175,7 +1302,7 @@ describe("one answer email for every way a job ends", () => {
     it("sends a row queued earlier with a real answer while its recorded ending still stands", async () => {
       const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
       await enqueueOutbox({ idempotencyKey: "req-1:answer_ready:run_ended", requestId: "req-1", to: "owner@example.com",
-        kind: "answer_ready", subject: "Your job's paper check is ready", body: "Queued with the paper check" });
+        kind: "answer_ready", subject: "Your first look is ready", body: "Queued with the paper check" });
       const [answer, decided] = [await unreadableAnswer(), await decide(runEnded)];
       try {
         await deliverOutbox();

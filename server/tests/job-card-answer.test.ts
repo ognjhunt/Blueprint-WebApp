@@ -183,7 +183,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
       screening: { candidates: [row("pi05_droid", [9, 6, 5, 4, 2, 0, 0]), row("groot_n17_droid", [0, 0, 0, 0, 0, 0, 0])] } }] }));
     const none = (await get(`/tasks/${ID}`)).body.item;
-    expect(none.answerSummary.headline).toBe("No AI robot finished the job.");
+    expect(none.answerSummary.headline).toBe("No robot finished the job in our trial.");
     expect(none.answerHeadline).toBe(none.answerSummary.headline);
     expect(none.answerSummary.test).toMatchObject({ kind: "none_finished", wording: null,
       options: [{ label: "Franka arm + π0.5", maker: "Physical Intelligence", succeeded: 0, scored: 10, furthestText: "lifted and carried the object" },
@@ -193,7 +193,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
       screening: { candidates: [row("pi05_droid", [10, 10, 10, 10, 10, 10, 10], 10), row("groot_n17_droid", [0, 0, 0, 0, 0, 0, 0])] } }] }));
     const won = (await get(`/tasks/${ID}`)).body.item.answerSummary;
-    expect(won.headline).toBe("Did best on the job: Franka arm + π0.5, doing the job in 10 of 10 tries.");
+    expect(won.headline).toBe("Did best in our early trial: Franka arm + π0.5, doing the job in 10 of 10 tries.");
     expect(won.test).toMatchObject({ kind: "winner", wording: "did_best" });
     expect(JSON.stringify(won)).not.toMatch(/stored |\byour\b/i);
   });
@@ -211,7 +211,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
         introduction_request: { ...job().introduction_request, statement_version: version, statement_text: text } }));
       // Before a result: the paper check, whatever the version.
       const before = (await get(`/tasks/${ID}`)).body.item.answerSummary;
-      expect(before.headline).toMatch(/^Most likely to fit: |^No robot clearly fits yet\.|^None of the /);
+      expect(before.headline).toMatch(/^Most likely to fit: |^No robot clearly fits\.|^None of the /);
       expect(before.test).toBeNull();
       // A result arrives after the choice.
       seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
@@ -220,13 +220,13 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
           failed: 10, void: 0, blockers: [] }] } }] }));
       const after = (await get(`/tasks/${ID}`)).body.item;
       if (carriesTest) {
-        expect(after.answerSummary.headline).toBe("Did best on the job: Franka arm + π0.5, doing the job in 10 of 10 tries.");
+        expect(after.answerSummary.headline).toBe("Did best in our early trial: Franka arm + π0.5, doing the job in 10 of 10 tries.");
         expect(after.answerSummary.test).toMatchObject({ kind: "winner" });
       } else {
         expect(after.answerSummary.headline).toBe(before.headline);
         expect(after.answerSummary.test).toBeNull();
         expect(after.answerSummary.simulation).toBeNull();
-        expect(JSON.stringify(after)).not.toMatch(/π0\.5|Did best|Tested on the job/);
+        expect(JSON.stringify(after)).not.toMatch(/π0\.5|Did best|In our early trial/);
       }
       expect(after.answerHeadline).toBe(after.answerSummary.headline);
     });

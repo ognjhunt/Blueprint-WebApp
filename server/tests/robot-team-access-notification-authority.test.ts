@@ -15,7 +15,7 @@ vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotif
 vi.mock("../utils/agentRunResultNotifications", () => ({ reconcileAgentRunResultNotifications: vi.fn() }));
 vi.mock("../utils/taskEvaluationNotificationRetry", () => ({ reconcileTaskEvaluationNotificationRetries: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotificationAuthority", () => ({ taskLifecycleNotificationIsCurrent: vi.fn(async () => true) }));
-vi.mock("../utils/newJobAlerts", () => ({ jobAlertIsCurrent: vi.fn(async () => true), resumeNewJobFanout: vi.fn() }));
+vi.mock("../utils/newJobAlerts", () => ({ jobAlertIsCurrent: vi.fn(async () => true) }));
 
 import { buildOutboxEntry, deliverOutbox } from "../utils/captureOutbox";
 import { accessRecordId } from "../utils/robotTeamEarlyAccess";

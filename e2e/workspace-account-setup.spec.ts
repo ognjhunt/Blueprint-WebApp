@@ -219,8 +219,9 @@ for (const role of ["site_operator", "robot_team"] as const) {
     await page.goto("/settings");
     if (role === "robot_team") {
       await page.getByRole("link", { name: "Task library →", exact: true }).click();
-      await expect(page).toHaveURL(/\/app\/library$/);
-      await expect(page.getByRole("heading", { name: "Task library", exact: true })).toBeVisible();
+      // The robot-team library pages under /app are gone (2026-11-12); the job library is the robot-team page.
+      await expect(page).toHaveURL(/\/contact\/robot-team$/);
+      await expect(page.locator("#robot-team-title")).toBeVisible();
     } else {
       await expect(page.getByRole("link", { name: "Task library →", exact: true })).toHaveCount(0);
     }

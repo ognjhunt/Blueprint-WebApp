@@ -1,5 +1,5 @@
 /**
- * The simulation test leads the answer: options are robot + AI software, compared across robots, in one display
+ * Our early trial's options are robot + robot software, compared across robots, in one display
  * order, with "did best" and "was ahead" only from the probability rule. Seeded generated inputs.
  */
 import { render } from "@testing-library/react";
@@ -80,7 +80,7 @@ describe("the simulation test's options", () => {
         expect(["option", "unmapped"], label).toContain(kinds.get(option.id));
         expect(option.scored, label).toBeGreaterThan(0);
         if (kinds.get(option.id) === "option") expect(option.label, label).toBe(`${SIMULATION_POLICIES[option.id].robot.short} + ${SIMULATION_POLICIES[option.id].policy}`);
-        else expect(option.label, label).toMatch(/^AI robot [A-Z]+$/);
+        else expect(option.label, label).toMatch(/^Unlisted robot software [A-Z]+$/);
       }
       const learnedScored = evaluation.screening!.candidates.filter(row => ["option", "unmapped"].includes(kinds.get(row.candidateId)!) && row.scored > 0);
       expect(options.length, label).toBe(learnedScored.length);
@@ -114,9 +114,9 @@ describe("the simulation test's options", () => {
         if (result!.kind === "winner") {
           seen.winners++;
           expect(text, label).toContain(top.label);
-          expect(text, label).toContain(`Did your job in ${top.succeeded} of ${top.scored} ${top.scored === 1 ? "try" : "tries"}`);
-          expect(text, label).toContain(winner === "did_best" ? "Did best on your job" : "Was ahead on your job");
-        } else expect(text, label).not.toMatch(/Did best on your job|Was ahead on your job/);
+          expect(text, label).toContain(`Did the job in ${top.succeeded} of ${top.scored} ${top.scored === 1 ? "try" : "tries"}`);
+          expect(text, label).toContain(winner === "did_best" ? "Did best in our trial" : "Was ahead in our trial");
+        } else expect(text, label).not.toMatch(/Did best in our trial|Was ahead in our trial/);
         if (result!.kind === "none_finished") seen.none++;
         if (result!.kind === "no_clear_winner") seen.noClear++;
         if (result!.kind === "one_option") seen.one++;

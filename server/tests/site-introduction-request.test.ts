@@ -135,7 +135,8 @@ describe("POST /:token/introduction-request", () => {
   it("records once, turns the card on under its consent version, and rings once", async () => {
     const first = await ask();
     expect(first.status).toBe(200);
-    expect(first.body).toEqual({ ok: true, requestedAtIso: expect.any(String), listed: true });
+    expect(first.body).toEqual({ ok: true, requestedAtIso: expect.any(String), listed: true,
+      sharing: { state: "visible", sharedAtIso: first.body.requestedAtIso, leavesOut: { firstLook: false, trialResult: false } } });
     const stored = row("inboundRequests/req-1");
     // The choice is recorded with the exact sentence shown under the button, and its version.
     expect(stored.introduction_request).toEqual({ requested_at_iso: first.body.requestedAtIso, requested_by: "signed_owner_link",
@@ -156,7 +157,8 @@ describe("POST /:token/introduction-request", () => {
     expect(enqueueOutbox.mock.calls.filter(call => (call as unknown as [{ kind: string }])[0].kind === "listing_live")).toHaveLength(1);
 
     const second = await ask();
-    expect(second.body).toEqual({ ok: true, requestedAtIso: first.body.requestedAtIso, listed: true });
+    expect(second.body).toEqual({ ok: true, requestedAtIso: first.body.requestedAtIso, listed: true,
+      sharing: { state: "visible", sharedAtIso: first.body.requestedAtIso, leavesOut: { firstLook: false, trialResult: false } } });
     expect(sendSlackMessage).toHaveBeenCalledTimes(1);
     expect(row("inboundRequests/req-1").public_task_listing.approvedAtIso).toBe(stored.public_task_listing.approvedAtIso);
   });
@@ -266,7 +268,8 @@ describe("POST /:token/introduction-request", () => {
   it("still records the request when the card cannot be turned on", async () => {
     row("inboundRequests/req-1").request.buyerType = "robot_team";
     const response = await ask();
-    expect(response.body).toEqual({ ok: true, requestedAtIso: expect.any(String), listed: false });
+    expect(response.body).toEqual({ ok: true, requestedAtIso: expect.any(String), listed: false,
+      sharing: { state: "not_shared", sharedAtIso: null } });
     expect(row("inboundRequests/req-1").introduction_request.requested_at_iso).toBe(response.body.requestedAtIso);
     expect(row("inboundRequests/req-1").public_task_listing).toBeUndefined();
     expect(sendSlackMessage).toHaveBeenCalledTimes(1);
@@ -275,7 +278,6 @@ describe("POST /:token/introduction-request", () => {
   it("lists the card in the job library without alerting any deployment company, and tells Blueprint so", async () => {
     const { buildUpdatePreferences } = await import("../utils/updatePreferences");
     const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
-    const { resumeNewJobFanout } = await import("../utils/newJobAlerts");
     // An approved team that has opted in to new-job alerts, which "Manage opportunity sharing" would email.
     sharedFakeFirestoreState.docs.set(`robotTeamAccess/${accessRecordId("team@example.com")}`, { name: "Ada", email: "team@example.com",
       status: "approved", decidedAtIso: "2026-11-01T00:00:00.000Z", decidedBy: "fixture-ops", appliedAtIso: "2026-11-01T00:00:00.000Z",
@@ -285,7 +287,6 @@ describe("POST /:token/introduction-request", () => {
     const stored = row("inboundRequests/req-1");
     expect(stored.public_task_listing).toMatchObject({ enabled: true, wentLiveIso: expect.any(String) });
     expect(stored).not.toHaveProperty("newJobAlertFanout");
-    await resumeNewJobFanout();
     const outbox = [...sharedFakeFirestoreState.docs].filter(([key]) => key.startsWith("captureOutbox/"));
     expect(outbox.filter(([, entry]) => (entry as { kind?: string }).kind === "robot_team_new_task")).toEqual([]);
     expect(enqueueOutbox.mock.calls.map(call => (call as unknown as [{ kind: string }])[0].kind)).not.toContain("robot_team_new_task");
@@ -295,12 +296,15 @@ describe("POST /:token/introduction-request", () => {
       .toContain("No deployment company has been emailed; whether to alert them is your decision.");
   });
 
-  it("the ordinary listing grant still records the team alert intent when the card goes live", async () => {
+  // The frame of 2026-11-12: every approach to an outside company needs the owner's go-ahead, so the ordinary listing
+  // grant ("Manage opportunity sharing") no longer records a team alert intent either (it used to).
+  it("the ordinary listing grant records no team alert intent when the card goes live", async () => {
     const { applyOwnerTaskListing } = await import("../routes/task-listings");
     const { anonymizedOpportunityDraft } = await import("../../client/src/types/taskBrowse");
     const { wentLive } = await applyOwnerTaskListing("req-1", { enabled: true, consent: true,
       details: anonymizedOpportunityDraft("Move cartons from the conveyor to the pallet") });
     expect(wentLive).toEqual(expect.any(String));
-    expect(row("inboundRequests/req-1").newJobAlertFanout).toMatchObject({ eventId: wentLive, status: "pending" });
+    expect(row("inboundRequests/req-1")).not.toHaveProperty("newJobAlertFanout");
+    expect(enqueueOutbox.mock.calls.map(call => (call as unknown as [{ kind: string }])[0].kind)).not.toContain("robot_team_new_task");
   });
 });

@@ -9,7 +9,7 @@ test("docs page is publicly reachable", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Which robot could do your job\?/i,
+      name: /Film a job once\. We turn it into a job packet/i,
     }),
   ).toBeVisible();
 });
@@ -20,7 +20,7 @@ test("blog alias redirects to home", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: /Which robot could do your job\?/i,
+      name: /Film a job once\. We turn it into a job packet/i,
     }),
   ).toBeVisible();
 });

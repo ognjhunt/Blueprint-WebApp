@@ -13,8 +13,8 @@
  * unnoticed rather than why it was harmless.
  *
  * These tests pin the two facts that keep that from happening again: the
- * opportunity board is not public, and no module feeding a public page names
- * the other model's numbers.
+ * opportunity board and its pricing module are gone (2026-11-12), and no
+ * module feeding a public page names the other model's numbers.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -27,22 +27,17 @@ import { appRoutes } from "@/app/routes";
 const repoRoot = path.resolve(__dirname, "../../..");
 
 describe("the public surface carries one pricing model", () => {
-  it("keeps every opportunity-board route off the public layout", () => {
-    // Some entries carry no path (catch-alls), so this is optional-chained
-    // rather than assumed.
-    const boardRoutes = appRoutes.filter((route) =>
-      route.path?.startsWith("/internal/opportunity-board"),
+  it("ships no opportunity board and no award-fee pricing module", async () => {
+    // The board and its price model were deleted under the job packet frame
+    // (2026-11-12: no price is stated anywhere). Its old URLs only redirect.
+    const { minimalMarketingRedirects } = await import("@/data/minimalPublicSite");
+    const boardPaths = Object.keys(minimalMarketingRedirects).filter((url) =>
+      url.startsWith("/internal/opportunity-board"),
     );
-
-    // If this is zero the test has stopped testing anything -- either the
-    // routes were renamed or deleted, and either way the assertion below is
-    // vacuous. Fail loudly rather than pass silently.
-    expect(boardRoutes.length).toBeGreaterThanOrEqual(6);
-
-    for (const route of boardRoutes) {
-      expect(route.layout, `${route.path} must not be public`).toBe("protected");
-      expect(route.requireRoles, `${route.path} must require a role`).toBeTruthy();
-    }
+    expect(boardPaths.length).toBeGreaterThanOrEqual(6);
+    for (const url of boardPaths) expect(minimalMarketingRedirects[url]).toBe("/");
+    expect(fs.existsSync(path.join(repoRoot, "client/src/lib/deploymentPricing.ts"))).toBe(false);
+    expect(fs.existsSync(path.join(repoRoot, "client/src/pages/internal"))).toBe(false);
   });
 
   it("keeps the award-fee model out of the modules that feed public pages", () => {

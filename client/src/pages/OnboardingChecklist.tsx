@@ -234,22 +234,6 @@ export default function OnboardingChecklist() {
             },
           },
           {
-            id: "package-path",
-            title: "Define the evaluation decision",
-            description:
-              "Describe the site-task, decision, candidates when applicable, thresholds, false-safe consequence, deadline, evidence, and restrictions.",
-            completed: Boolean(
-              progress.packageOrHostedPathSelected ||
-              progress.defineSiteSubmission,
-            ),
-            icon: FileSearch,
-            action: {
-              label: "Start run intake",
-              href: "/app/runs/new",
-              updateField: "onboardingProgress.packageOrHostedPathSelected",
-            },
-          },
-          {
             id: "proof-ready-intake",
             title: proofReadyIntakeComplete
               ? "Proof-ready intake measured"

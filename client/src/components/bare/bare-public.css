@@ -69,37 +69,12 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
   background: none; font: inherit; font-size: 17px; color: var(--bare-ink, #22251e); text-decoration: none; cursor: pointer; text-align: left; justify-content: flex-start; }
 .bare-site-foot button { text-align: left; }
 
-/* Home: the text column, and the moving example beside it on a desktop, below the button on a phone. */
-.bare-home { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; gap: 48px; width: min(100% - 40px, 1120px); margin: 0 auto; }
+/* Home: one text column. */
+.bare-home { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; width: min(100% - 40px, 1120px); margin: 0 auto; }
 .bare-home > .bare-screen { margin: 0; }
-@media (min-width: 960px) {
-  .bare-home { grid-template-columns: minmax(0, 520px) minmax(0, 480px); justify-content: space-between; align-items: start; }
-}
-.bare-home .bare-screen .bare-big { font-size: 40px; line-height: 1.08; letter-spacing: -1.1px; }
-@media (min-width: 960px) { .bare-home .bare-screen .bare-big { font-size: 52px; } }
+.bare-home .bare-screen .bare-big { font-size: 36px; line-height: 1.1; letter-spacing: -1px; }
+@media (min-width: 960px) { .bare-home .bare-screen .bare-big { font-size: 44px; } }
 
-/* The example answer card (illustrative). */
-.bare-example { position: relative; border: 1px solid var(--bare-rule, #cfd1c8); border-radius: 6px; background: #fbfaf5; padding: 16px 20px 20px; }
-.bare-example-art { display: block; width: 100%; height: auto; max-height: 200px; color: var(--ms-ink, #22251e); }
-.bare-example-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
-.bare-example-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
-.bare-example-tabs [role="tab"] { min-height: 36px; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; background: none; font: inherit;
-  font-size: 14px; color: var(--ms-muted, #5d5f58); cursor: pointer; }
-.bare-example-tabs [role="tab"][aria-selected="true"] { border-color: var(--bare-green, #203d2e); color: var(--bare-green, #203d2e); font-weight: 600; }
-.bare-example-pause { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid var(--bare-rule, #cfd1c8);
-  border-radius: 50%; background: #fffffb; color: var(--ms-ink, #22251e); cursor: pointer; flex: none; }
-.bare-example-panel { margin-top: 8px; }
-.bare-example-panel .bare-label { display: block; }
-.bare-example-panel .bare-example-name { margin: 8px 0 0; font-size: 28px; line-height: 1.05; font-weight: 600; letter-spacing: -1px; }
-.bare-example-panel .bare-example-by { margin: 8px 0 0; font-size: 16px; color: var(--ms-muted, #5d5f58); }
-.bare-example-panel .bare-example-job { margin: 0 0 12px; font-size: 15px; color: var(--ms-muted, #5d5f58); }
-.bare-example-panel .bare-ticks { margin-top: 16px; }
-.bare-example-panel .bare-tick { font-size: 16px; }
-.bare-example-panel .bare-sure { margin-top: 16px; }
-.bare-example-panel .bare-sure-line { font-size: 16px; }
-.bare-example-tag { font-size: 12px; font-weight: 650; letter-spacing: .7px; text-transform: uppercase; color: var(--bare-amber, #8a6d1f); }
-.bare-example-foot { margin: 16px 0 0; font-size: 13px; line-height: 1.45; color: var(--ms-muted, #5d5f58); }
-.bare-example .ms-pilot-art-scene { transition: opacity 300ms ease; }
 
 /* Auth screens: the bare form beside the kept illustration; on a phone the illustration is a short band. */
 .auth-shell.auth-bare h1 { font-size: 30px; font-weight: 500; letter-spacing: -.7px; line-height: 1.15; }
@@ -138,10 +113,6 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
 .bare-forms .ms-form .ms-button svg { display: none; }
 .bare-forms .ms-partner-receipt h2 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
 
-/* The shared tokens where a bare part sits outside a .bare-screen (the home example). */
-.bare-example { --bare-s1: 4px; --bare-s2: 8px; --bare-s12: 12px; --bare-s3: 16px; --bare-s4: 32px; --bare-s5: 48px;
-  --bare-ink: var(--ms-ink, #22251e); --bare-muted: var(--ms-muted, #5d5f58); --bare-green: var(--ms-green, #203d2e);
-  --bare-paper: var(--ms-paper, #f6f5ef); --bare-rule: #cfd1c8; --bare-tint: #f3eedf; --bare-amber: #8a6d1f; }
 /* The site's link colour must not override the filled button's text. */
 .minimal-site a.bare-button, .bare-page a.bare-button, .bare-page a.bare-button:visited { color: var(--bare-paper, #f6f5ef); }
 

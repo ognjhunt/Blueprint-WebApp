@@ -1,3 +1,4 @@
+import { SHARE_REFUSAL_SENTENCES, shareRefusalReason } from "../../client/src/lib/jobOutlook";
 import { sanitizeTaskThumbnail } from "../utils/taskThumbnail";
 import { Router } from "express";
 import { z } from "zod";
@@ -7,9 +8,7 @@ import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { LISTING_CONSENT_VERSIONS, listingConsentVersion, taskListingSchema, taskListingDraft } from "../utils/taskListingDetails";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { getBrief } from "../utils/siteTaskBrief";
-import { enqueueTaskLifecycleNotification, notifyIfOpenForEvaluations } from "../utils/taskLifecycleNotifications";
-import { newJobFanoutIntent } from "../utils/newJobAlerts";
-import { enqueueNewTaskAlerts } from "../utils/robotTeamAccessEmails";
+import { SUMMARY_SHARED_OWED, notifySummarySharedIfVisible } from "../utils/taskLifecycleNotifications";
 import { SUPPORTED_TASK_SCOPE } from "../utils/siteTaskScope";
 
 const router = Router();
@@ -55,7 +54,7 @@ router.route("/owner/:token")
         const decision = await loadJobOutlookDecision(res.locals.requestId).catch(() => null);
         if (!decision || !decision.certain || !outlookHasAnswer(decision.outlook))
           return res.status(409).json({ code: "share_waits_for_answer", phase: decision?.outlook.phase ?? "building",
-            error: "You can share this job once it has an answer. We'll email you when it does." });
+            reason: shareRefusalReason(decision?.outlook.phase), error: SHARE_REFUSAL_SENTENCES[shareRefusalReason(decision?.outlook.phase)] });
       }
       await applyOwnerTaskListing(res.locals.requestId, parsed.data);
       return res.json({ ok: true });
@@ -72,18 +71,17 @@ export type OwnerTaskListingGrant = z.infer<typeof grantSchema>;
 /**
  * The owner's grant for the job card, recorded under the card's consent
  * statement version, and what follows it going live. "Manage opportunity
- * sharing" and the job page's "Find a deployment company" both record it here,
- * so consent is recorded one way.
+ * sharing" and the job page's "Share my job" both record it here, so consent
+ * is recorded one way.
  *
- * `alertTeams` (default true) decides whether approved robot teams are emailed
- * when the card goes live. With `alertTeams: false` the card is listed in the
- * job library only: no `newJobAlertFanout` intent is written and no team alert
- * is queued, so no outside company is emailed. The site's own `listing_live`
- * notice and the open-for-evaluations notice still go to the site.
+ * No outside company is emailed when the card goes live (frame of 2026-11-12:
+ * every approach to an outside company needs the owner's go-ahead, so the
+ * automatic "New site job" email to opted-in companies no longer sends). The
+ * card is listed in the job library only. The site hears it once, by `listing_live`, sent only while
+ * the summary is visible; no open-for-evaluations notice is sent any more.
  */
 export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskListingGrant,
-  options: { consentVersion?: string; alertTeams?: boolean } = {}): Promise<{ wentLive: string | null }> {
-  const alertTeams = options.alertTeams !== false;
+  options: { consentVersion?: string } = {}): Promise<{ wentLive: string | null }> {
   const consentVersion = options.consentVersion && LISTING_CONSENT_VERSIONS.includes(options.consentVersion)
     ? options.consentVersion : listingConsentVersion;
   const parsed = grantSchema.safeParse(grant);
@@ -109,8 +107,6 @@ export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskL
     const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
     wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
     transaction.update(ref, {
-      // The team fan-out intent is written only when teams are to be alerted; its resume sweep reads nothing else.
-      ...(wentLive && alertTeams ? { newJobAlertFanout: newJobFanoutIntent(wentLive) } : {}),
       public_task_listing: {
       wentLiveIso: wentLive ?? current.data()?.public_task_listing?.wentLiveIso ?? null,
       enabled: parsed.data.enabled, details: parsed.data.details,
@@ -125,14 +121,9 @@ export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskL
   });
   // The site hears the moment its card goes live, once per time it is switched on.
   if (wentLive) {
-    await enqueueTaskLifecycleNotification({ requestId, milestone: "listing_live", eventId: wentLive })
-      .catch(() => undefined);
-    // Approved robot teams are emailed only when the caller asks for it ("Manage opportunity sharing"
-    // does); "Find a deployment company" lists the card without emailing any outside company.
-    if (alertTeams) await enqueueNewTaskAlerts({ requestId, card: parsed.data.details, wentLiveIso: wentLive })
-      .catch(() => undefined);
-    // Publishing can be what opens a runnable job to evaluations.
-    try { await notifyIfOpenForEvaluations(requestId); } catch { /* best-effort */ }
+    // Owed until the summary is first visible to approved companies, then sent once (`notifySummarySharedIfVisible`).
+    await ref.set({ summary_shared_notice: SUMMARY_SHARED_OWED }, { merge: true }).catch(() => undefined);
+    await notifySummarySharedIfVisible(requestId).catch(() => undefined);
   }
   return { wentLive };
 }

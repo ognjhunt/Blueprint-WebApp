@@ -25,9 +25,6 @@ function publicCard(
   ) return null;
   const evaluationReady = offering.status === "evaluation_ready"
     && offering.evaluation_admission?.learned_policy_evaluation_admitted === true;
-  const evaluationHref = evaluationReady
-    ? `/app/packs/${encodeURIComponent(sourceLaunchId)}/evaluate`
-    : null;
   return {
     id: display.public_slug,
     sourceLaunchId,
@@ -60,7 +57,8 @@ function publicCard(
     evaluationAction: {
       enabled: evaluationReady,
       label: evaluationReady ? "Configure evaluation" : "Evaluation locked until controls pass",
-      href: evaluationHref,
+      // The page it opened (/app/packs/:id/evaluate) is gone (2026-11-12); nothing on the site links it.
+      href: null,
     },
     proofBoundary: {
       configurationIsPolicyEvaluation: false,

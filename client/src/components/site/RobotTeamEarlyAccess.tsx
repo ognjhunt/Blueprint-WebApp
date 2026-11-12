@@ -154,7 +154,7 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
     try {
       const user = await currentAuthUser();
       if (!user || !email || user.email?.toLowerCase() !== email.toLowerCase()) throw new Error("account_changed");
-      await sendAccountVerification(user, `${window.location.origin}/sites`);
+      await sendAccountVerification(user, `${window.location.origin}/contact/robot-team`);
       setVerification("sent");
     } catch {
       setVerification("error");

@@ -26,7 +26,7 @@ export default function Tasks() {
       {query.data?.role !== "site_operator" && !tasks.length ? (
         <Empty
           title="Find site tasks"
-          href="/app/library"
+          href="/contact/robot-team"
           action="Task library"
         >
           Site tasks are in the task library.

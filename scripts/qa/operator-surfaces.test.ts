@@ -18,44 +18,36 @@ describe("operator surfaces QA harness contract", () => {
       "mobile",
     ]);
     expect(harness.operatorQaSurfaces.map((surface: { path: string }) => surface.path)).toEqual([
-      "/admin/company-metrics",
-      "/requests/op-qa-ready",
-      "/requests/op-qa-ready/evidence",
-      "/requests/op-qa-ready/qualification",
-      "/requests/op-qa-provider-blocked/preview",
       "/admin/leads",
     ]);
 
     expect(harness.operatorQaApiFixtures.map((fixture: { id: string }) => fixture.id)).toEqual(
       expect.arrayContaining([
-        "company-metrics",
-        "request-console-ready",
-        "request-console-provider-blocked",
         "admin-leads",
       ]),
     );
 
     const routeSlug = harness.operatorQaArtifactSlugForSurface(
-      "/requests/op-qa-provider-blocked/preview",
+      "/admin/leads",
       "mobile",
     );
-    expect(routeSlug).toBe("requests-op-qa-provider-blocked-preview-mobile");
+    expect(routeSlug).toBe("admin-leads-mobile");
 
     const report = harness.buildOperatorQaReportMarkdown({
       generatedAt: "2026-05-26T12:00:00.000Z",
       baseUrl: "http://127.0.0.1:4173",
       routeResults: [
         {
-          surfaceLabel: "Company Metrics",
-          routePath: "/admin/company-metrics",
+          surfaceLabel: "Admin Leads",
+          routePath: "/admin/leads",
           viewportName: "desktop",
-          screenshotPath: "output/qa/operator-surfaces/latest/screenshots/admin-company-metrics-desktop.png",
+          screenshotPath: "output/qa/operator-surfaces/latest/screenshots/admin-leads-desktop.png",
           status: "pass",
           checks: [{ name: "Fixture boundary", status: "pass", detail: "local API fixture used" }],
         },
       ],
       issues: [],
-      apiFixtureHits: { "company-metrics": 1 },
+      apiFixtureHits: { "admin-leads": 1 },
       blockedLiveEndpoints: [],
     });
 

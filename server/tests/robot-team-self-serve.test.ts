@@ -486,9 +486,10 @@ describe("registration to plan, without an operator", () => {
     // The settings tab that manages a team's checkpoints; "agent" no longer exists.
     expect(next.join(" ")).toContain("/settings?tab=robots");
     expect(next.join(" ")).not.toContain("tab=agent");
-    expect(next.join(" ")).toContain("/app");
+    // The robot-team workspace pages are removed (2026-11-12): nothing sends a team there.
+    expect(next.join(" ")).not.toMatch(/\/app\b/);
     expect(next.join(" ")).toContain("/contact/robot-team");
-    expect(next.join(" ")).toContain("Blueprint runs it free during the beta");
+    expect(next.join(" ")).toContain("Running your own software on a site's job is not offered yet");
     expect(next.join(" ")).not.toContain("invited evaluation");
     expect(next.join(" ")).not.toMatch(/\/api\/agent-team\/(?:plan|runs|funding|policy)\b/);
   });

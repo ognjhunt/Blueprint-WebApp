@@ -56,8 +56,10 @@ describe("sharing waits for the job's answer", () => {
     state.docs.set("inboundRequests/req1", record() as never);
     const refused = await post(true);
     expect(refused.status).toBe(409);
+    // The refusal says which case it is; a job its owner closed is worded as closed (review, 2026-11-12).
     expect(await refused.json()).toMatchObject({ code: "share_waits_for_answer", phase,
-      error: "You can share this job once it has an answer. We'll email you when it does." });
+      ...(phase === "ended_by_site" ? { reason: "job_closed", error: "This job is closed, so it cannot be shared." }
+        : { reason: "packet_not_ready", error: "You can share your job once its job packet is ready." }) });
     expect((state.docs.get("inboundRequests/req1") as any).public_task_listing).toBeUndefined();
     expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
   });

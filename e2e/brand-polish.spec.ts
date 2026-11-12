@@ -4,7 +4,6 @@ import { expect, test } from "@playwright/test";
 import type { APIRequestContext, Page } from "@playwright/test";
 import {
   artifactSlugForRoute,
-  brandPolishSiteFixtureSlug,
   buildBrandPolishReportMarkdown,
   buildNotionLayoutChecklistMarkdown,
   normalizeCheckableInternalHref,
@@ -57,10 +56,6 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
   // library, while onboarding specs separately cover real cards and outages.
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({
     status: 200, contentType: "application/json", body: JSON.stringify({ items: [] }),
-  }));
-  // One published job record, so the detail page is audited like any other.
-  await page.route(`**/api/site-worlds/${brandPolishSiteFixtureSlug}`, route => route.fulfill({
-    status: 200, contentType: "application/json", body: JSON.stringify(brandPolishSiteFixture),
   }));
   // 15 routes x 2 viewports of navigation + metrics + screenshot, plus a
   // trailing internal-link audit, comfortably exceeds 180s now that several
@@ -532,43 +527,6 @@ async function collectPageMetrics(page: Page): Promise<PageMetrics> {
     };
   }, { posturePatterns: publicLaunchPosturePatterns, bannedPatterns: publicBannedCopyPatterns });
 }
-
-const brandPolishSiteFixture = {
-  id: brandPolishSiteFixtureSlug,
-  siteCode: "BP-1",
-  siteName: "Brand polish sample warehouse",
-  siteAddress: "Private location",
-  sceneId: "scene-brand-polish",
-  captureId: "capture-brand-polish",
-  siteSubmissionId: "submission-brand-polish",
-  pipelinePrefix: "gs://pipeline/brand-polish",
-  category: "Logistics",
-  industry: "Warehouse",
-  taskLane: "Tote handling",
-  tone: "slate",
-  accent: "blue",
-  thumbnailKind: "parcel",
-  summary: "A recorded warehouse job: moving full totes from the packing line to an outbound cart, shared by the site for invited robot teams to evaluate.",
-  bestFor: "Tote handling",
-  startStates: [],
-  runtime: "request-scoped",
-  defaultRuntimeBackend: "mujoco",
-  availableRuntimeBackends: ["mujoco"],
-  sampleRobot: "Example robot",
-  sampleRobotProfile: { id: "example", name: "Example robot" },
-  sampleTask: "Move a tote",
-  samplePolicy: "Team supplied",
-  scenarioVariants: [],
-  exportArtifacts: [],
-  runtimeManifest: {},
-  taskCatalog: [{ id: "task-1", taskId: "move-tote", taskText: "Move a full tote from the packing line to the outbound cart", taskCategory: "Transport" }],
-  scenarioCatalog: [],
-  startStateCatalog: [],
-  robotProfiles: [],
-  exportModes: [],
-  packages: [],
-  dataSource: "pipeline",
-};
 
 async function auditRequiredCtas(
   page: Page,

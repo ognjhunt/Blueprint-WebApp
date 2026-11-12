@@ -20,6 +20,11 @@ export interface TaskListingDetails {
 export interface TaskBrowseCard extends TaskListingDetails {
   id: string;
   stage: "capture" | "preparing" | "ready";
+  /**
+   * Where the job's simulation stands, read from its real state (`libraryJobStage`), for the card's label. Null, and
+   * no label, when that state cannot be read for certain.
+   */
+  simulationStage?: LibraryJobStage | null;
   evaluationAvailable: boolean;
   costUsd: number | null;
   publishedAtIso: string;
@@ -103,8 +108,13 @@ export interface TeamEvaluationTerms {
     parameterBounds: Record<string, [number, number]> };
   policyInterfaces: Array<{ policyInterfaceId: string; robot: "droid_franka" | "team_declared"; summary: string }>;
 }
-export const taskStageLabels = { capture: "Being captured", preparing: "Scene in preparation", ready: "Ready to evaluate" };
-export const opportunityLabels = { open: "Open to a pilot", past: "Past opportunity", not_seeking: "Evaluation only" };
+export type LibraryJobStage = "no_video" | "video_received" | "simulation_building" | "simulation_built" | "no_simulation";
+/** The card's label for where the job's simulation stands, true in each state; no label when the state is unknown. */
+export const libraryStageLabels: Readonly<Record<LibraryJobStage, string>> = {
+  no_video: "No video yet", video_received: "Video received", simulation_building: "Simulation being built",
+  simulation_built: "Simulation built", no_simulation: "No simulation for this kind of job",
+};
+export const opportunityLabels = { open: "Open", past: "Past", not_seeking: "Not looking for a company yet" };
 
 /** Conservative, non-identifying text only. Never publish arbitrary intake prose. */
 export function anonymizedOpportunityDraft(description: string): TaskListingDetails {

@@ -1,25 +1,22 @@
 # Blueprint
 
-> Which robot could do your job? Send an email and a video of one job that repeats. Blueprint tests the top AI robots on it (a robot plus the camera-driven AI software that controls it, never pre-programmed motion) in a simulation of your site, about ten tries each with things moved between tries, shows you which did best and how sure it is, and then lets you share the job with companies it has approved to set robots up. Published specifications and a cited track record decide which options are entered.
+> Film a job once. We turn it into a job packet. A site sends a video of one job that repeats. Blueprint turns it into a job packet: what the job is, a first look at which robots could fit, and a simulation of the site. With the site's permission, robot deployment companies it approves can see a summary of it. The site's video stays private. Free for sites.
 
-Blueprint starts with video of recurring work and drafts the job description from it. The site's answer comes first, minutes after the video is read: the robot that most likely fits, a runner-up from another maker, what was ruled out and why, published uses of those robots on similar work, and how sure Blueprint is. Blueprint then reconstructs the site in simulation, checks the picked robot's reach and arm path there and compares public control policies on the job on a research robot, and shows what the simulation found with a cited statement of how far that can be trusted, or “held” for the simulation when it can't simulate that kind of job yet; the answer stays on the job page either way. Video is required before the site assessment can continue; a description alone does not replace it. With one click the site can share an anonymised job card, with the answer and the simulation result, with deployment companies Blueprint has approved, and Blueprint works alongside a deployment company on the real site. Customers contract with the deployment company, which installs and supports the system. Deployment partners and robot technology providers have separate reviewed application paths. The beta remains free for sites and partners, with no Blueprint cut of physical pilot costs. Simulation is a bounded estimate and never certifies physical performance or safety. Customer-reported pilot outcomes remain separate from authoritative scientific Physical Outcome Joins.
+The job packet holds the site's own sentence for the job, a first look on paper (the robot most likely to fit, from published specifications and where it has been used), a simulation of the site built from its video, and what counts as done. Sometimes Blueprint also tries openly available robot software on the job in that simulation; this is labelled an early trial, it is not the site's answer, and it does not predict what a deployment company's robot would do. A zero is a valid result of the trial. Some jobs are held when Blueprint can't build a simulation for that kind of job yet; the first look stays on the job page.
+
+With the site's permission, deployment companies Blueprint approves by hand can see a summary of the job. Each job comes as a summary: the kind of job, a first look at which robots could fit, and our early trial's result where one exists. A company tells us whether it would take the job. A company sees only the summary the site approved. It never sees the video or the simulation. A company can say it is interested or that the job is not a fit; Blueprint can't promise any will say yes. Any work is agreed between the site and the company. Nothing is charged today. A simulation is a bounded estimate and never certifies physical performance or safety.
 
 ## Public pages
-
-- [For robot companies](https://tryblueprint.io/partners)
-- [Deployment partners](https://tryblueprint.io/partners/deployment)
-- [Technology providers](https://tryblueprint.io/partners/technology)
 
 - [Home](https://tryblueprint.io/)
 - [How it works](https://tryblueprint.io/how-it-works)
 - [Questions: cost, jobs that fit, privacy, who we are](https://tryblueprint.io/beta)
 - [Start a job (sites)](https://tryblueprint.io/contact/site-operator)
-- [Robot teams: apply for access](https://tryblueprint.io/contact/robot-team)
-- [Job library](https://tryblueprint.io/sites)
+- [For deployment companies: apply to receive jobs](https://tryblueprint.io/partners)
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams register interest through the existing application to give Blueprint access to a policy or an integration. Applications remain pending until manual approval for a real site task; applying or creating an account does not grant access. Approved teams see only job cards sites chose to share. Blueprint runs each evaluation; a team supplies access to its policy or robot, or an integration, free during the beta. Teams do not run their own evaluations of a site's job. Approval does not promise a run or a deployment. Paid self-service evaluations and top-ups are disabled during the beta. Beta program: https://tryblueprint.io/beta. Contact: hello@tryblueprint.io.
+Deployment companies apply on the page for deployment companies. Applications stay pending until Blueprint approves the company by hand; applying does not grant access or promise a job. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

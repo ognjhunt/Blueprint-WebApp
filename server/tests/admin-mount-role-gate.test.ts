@@ -92,8 +92,9 @@ afterAll(async () => {
 
 describe("admin mounts in server/routes.ts", () => {
   it("finds the admin mounts", () => {
-    // 14 since the capturer-application and field-ops mounts were deleted (2026-11-11).
-    expect(mounts.length).toBeGreaterThanOrEqual(14);
+    // 14 since the capturer-application and field-ops mounts were deleted (2026-11-11);
+    // 13 since the company-metrics mount was deleted (2026-11-12).
+    expect(mounts.length).toBeGreaterThanOrEqual(13);
     expect(mounts.map((mount) => mount.path)).toContain("/api/admin/sla");
   });
 
@@ -121,31 +122,6 @@ describe("routers that import a role gate", () => {
   it("gate every handler they declare", () => {
     expect(ungatedHandlersInGatedRouters()).toEqual([]);
   });
-});
-
-describe("G1 development campaign spending authority", () => {
-  it("mounts the entire namespace behind current execution authority", () => {
-    const source = readFileSync(path.resolve(__dirname, "../routes.ts"), "utf8");
-    const mount = /app\.use\(\s*"\/api\/native-g1-team-campaigns"\s*,([\s\S]*?)\);/.exec(source);
-    expect(mount?.[1]).toMatch(/verifyFirebaseToken,[\s\S]*requireExecutionRole,\s*nativeG1TeamCampaignsRouter/);
-  });
-
-  it.each(["", "/policy-runs", "/policy-deliveries"])(
-    "refuses a signed-in non-operator before forwarding %s",
-    async (suffix) => {
-      const response = await fetch(`${baseUrl}/api/native-g1-team-campaigns${suffix}`, {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer ordinary-user-token",
-          "x-blueprint-native-client": "ios",
-          "content-type": "application/json",
-        },
-        body: "{}",
-      });
-      expect(response.status).toBe(403);
-      await expect(response.json()).resolves.toMatchObject({ error: "Verified execution authority required" });
-    },
-  );
 });
 
 describe("SLA trackers", () => {

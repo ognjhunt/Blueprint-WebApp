@@ -750,7 +750,7 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     vi.stubGlobal("fetch", mockFetchWithStatus(results, null, "https://viewer.example/world-1"));
     render(<SelfCaptureUpload />);
 
-    const link = await screen.findByRole("link", { name: /view your scene/i });
+    const link = await screen.findByRole("link", { name: /view the simulation of your site/i });
     expect(link).toHaveAttribute("href", "https://viewer.example/world-1");
   });
 
@@ -759,7 +759,7 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     vi.stubGlobal("fetch", mockFetchWithStatus({ ...results, decision: "assessing",
       headline: "Preparing your task", operatorAction: null }, "/claim/scene-owner", "https://viewer.example/world-1"));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByRole("link", { name: "View your scene" })).toBeVisible();
+    expect(await screen.findByRole("link", { name: "View the simulation of your site" })).toBeVisible();
     const optional = screen.getByText("Save this job to an account (optional)");
     expect(optional.closest("details")).not.toHaveAttribute("open");
     expect(screen.getByText("Save this job to your account")).not.toBeVisible();
@@ -1141,32 +1141,33 @@ describe("the site's answer leads its job page", () => {
     });
   }
 
-  it("says it is getting ready while the job's preparation status says the simulation is being built, with nothing to share", async () => {
+  it("says the simulation is being built while the job's preparation status says so, with the first look and nothing to share", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer, decision: "assessing", headline: "We are preparing your job. Keep your original recording.",
       outlook: { phase: "building", reason: null, sentence: null } }));
     render(<SelfCaptureUpload />);
-    const answer = await screen.findByRole("region", { name: "Your answer" });
-    expect(await within(answer).findByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
-    expect(within(answer).getByText("Building your simulation")).toBeVisible();
-    expect(within(answer).queryByRole("button", { name: "Find a company to set it up" })).toBeNull();
-    expect(within(answer).queryByText(/UR10e|On paper/)).toBeNull();
-    // The paper check is still one tap away under Details.
-    fireEvent.click(within(answer).getByRole("button", { name: "See details ›" }));
-    expect(await screen.findByRole("button", { name: "On paper: why this robot" })).toBeVisible();
+    const job = await screen.findByRole("region", { name: "Your job" });
+    expect(await within(job).findByText("We're building the simulation of your site.")).toBeVisible();
+    expect(within(job).getByText("We're building your job packet. Nothing has been shared.")).toBeVisible();
+    expect(within(job).queryByRole("button", { name: "Share my job" })).toBeNull();
+    // The first look shows while the simulation is built; it does not wait for a trial.
+    expect(within(job).getByText("On paper, the robot most likely to fit: Universal Robots UR10e.")).toBeVisible();
+    fireEvent.click(within(job).getByRole("button", { name: "See details ›" }));
+    expect(await screen.findByRole("button", { name: "First look: why this robot" })).toBeVisible();
   });
 
   it("shows the answer under the title instead of the separate robot fit, with no status card repeating a wait", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));
     render(<SelfCaptureUpload />);
-    const answer = await screen.findByRole("region", { name: "Your answer" });
+    const answer = await screen.findByRole("region", { name: "Your job" });
     const title = screen.getByRole("heading", { level: 1, name: "Your job" });
     expect(title.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Nothing is asked of the site, so the card does not speak as if the job were waiting.
     expect(screen.queryByText("We have your recording.")).toBeNull();
-    expect(screen.getByText("UR10e")).toBeVisible();
-    expect(screen.getByText("by Universal Robots")).toBeVisible();
+    expect(screen.getByText("On paper, the robot most likely to fit: Universal Robots UR10e.")).toBeVisible();
+    // Deployment companies come first under the title.
+    expect(within(answer).getAllByRole("heading", { level: 2 })[0]).toHaveTextContent("Deployment companies");
     // The drafted job, in grey under the title, said as what we read.
     expect(screen.getByText("We read your job as: “Move cartons from the end of the conveyor onto the pallet.”")).toBeVisible();
     expect(screen.queryByRole("region", { name: "Robot fit" })).toBeNull();
@@ -1213,12 +1214,12 @@ describe("the site's answer leads its job page", () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer, ...card }));
     render(<SelfCaptureUpload />);
-    const answer = await screen.findByRole("region", { name: "Your answer" });
+    const answer = await screen.findByRole("region", { name: "Your job" });
     const headline = await screen.findByText(card.headline, { selector: "strong" });
     expect(headline).toBeVisible();
-    // The site's own step comes first, and the answer's button stays, quiet, with its sentence: one filled button at most.
+    // The site's own step comes first, and the share button stays, quiet, with its sentence: one filled button at most.
     expect(headline.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const find = screen.getByRole("button", { name: "Find a company to set it up" });
+    const find = screen.getByRole("button", { name: "Share my job" });
     expect(find).toHaveClass("bare-quiet-button");
     expect(screen.getByText(/^Shares a summary of your job and your answer, including later test results, without saying who you are/)).toBeVisible();
   });
@@ -1228,9 +1229,9 @@ describe("the site's answer leads its job page", () => {
     window.history.replaceState(null, "", "/capture-upload/test");
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));
     const { container } = render(<SelfCaptureUpload />);
-    await screen.findByRole("region", { name: "Your answer" });
-    // The answer screen: one filled button, two quiet links, one h1.
-    expect([...container.querySelectorAll(".bare-button, .ms-button")].map(button => button.textContent)).toEqual(["Find a company to set it up"]);
+    await screen.findByRole("region", { name: "Your job" });
+    // The job page: one filled button, two quiet links, one h1.
+    expect([...container.querySelectorAll(".bare-button, .ms-button")].map(button => button.textContent)).toEqual(["Share my job"]);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.queryByText("Video received.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Job settings ›" }));
@@ -1240,37 +1241,39 @@ describe("the site's answer leads its job page", () => {
     expect(within(settings).getAllByRole("listitem").map(item => item.querySelector("summary, a, button")?.textContent)).toEqual([
       "Send a new video", "Change my job description", "Share settings", "Contact Blueprint about this job", "Stop using my video"]);
     expect(within(settings).getByText("Stop using my video").closest("details")).not.toHaveAttribute("open");
-    expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Your job" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
-    await screen.findByRole("region", { name: "Your answer" });
+    await screen.findByRole("region", { name: "Your job" });
     // Details is a short menu; each row opens its own screen, and focus follows the screens both ways.
     const seeDetails = screen.getByRole("button", { name: "See details ›" });
     fireEvent.click(seeDetails);
     const menuTitle = await screen.findByRole("heading", { level: 1, name: "Details" });
     await waitFor(() => expect(document.activeElement).toBe(menuTitle));
-    fireEvent.click(screen.getByRole("button", { name: "On paper: why this robot" }));
+    fireEvent.click(screen.getByRole("button", { name: "First look: why this robot" }));
     expect(window.location.hash).toBe("#details/why");
-    const whyTitle = await screen.findByRole("heading", { level: 1, name: "On paper: why this robot" });
+    const whyTitle = await screen.findByRole("heading", { level: 1, name: "First look: why this robot" });
     await waitFor(() => expect(document.activeElement).toBe(whyTitle));
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "On paper: why this robot" })));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "First look: why this robot" })));
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
-    expect(await screen.findByRole("region", { name: "Your answer" })).toBeVisible();
+    expect(await screen.findByRole("region", { name: "Your job" })).toBeVisible();
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "See details ›" })));
     window.history.replaceState(null, "", "/capture-upload/test");
   });
 
-  it("says the job is shared without this answer when Share settings re-saved the card under the older box, and offers the button again", async () => {
+  // Review, 2026-11-12: the page says what the server decided is true of the card (`answer.sharing`), not a guess.
+  it("says the summary is shared, or shared but hidden, as the server decided, and offers no button either way", async () => {
     setUserAgent(DESKTOP_UA);
-    window.history.replaceState(null, "", "/capture-upload/test");
-    const base = answerFetch({ answer: { ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true } });
-    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => String(input) === `/api/task-listings/owner/${TOKEN}`
-      ? Promise.resolve({ ok: true, json: async () => ({ listing: { enabled: true, consentVersion: "public-task-card-v1" }, thumbnailPng: null }) })
-      : base(input, init)));
-    render(<SelfCaptureUpload />);
-    expect(await screen.findByText("Your job is shared without this answer. Press the button to share the answer too.")).toBeVisible();
-    expect(screen.queryByText(/✓ Shared/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Find a company to set it up" })).toBeVisible();
+    for (const [sharing, line] of [
+      [{ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "Shared on November 10, 2026. Deployment companies we approve can see a summary of your job. Nothing more is needed from you."],
+      [{ state: "not_visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "You shared a summary of your job on November 10, 2026. It is not visible to companies right now."],
+    ] as const) {
+      vi.stubGlobal("fetch", answerFetch({ answer: { ...readyAnswer, jobCardListed: true, sharing } }));
+      const { unmount } = render(<SelfCaptureUpload />);
+      expect(await screen.findByText(line)).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Share my job" })).toBeNull();
+      unmount();
+    }
   });
 
   it("offers an older job's finished processing details from Job settings under an answer, with no retry", async () => {
@@ -1330,22 +1333,26 @@ describe("the site's answer leads its job page", () => {
     expect(screen.queryByText(/Your video is saved|Video received\.|Planning details/)).toBeNull();
   });
 
-  it("puts the proof in simulation inside the answer from the workspace's one workflow read", async () => {
+  it("puts our early trial, folded, inside the job page from the workspace's one workflow read", async () => {
     setUserAgent(DESKTOP_UA);
     const fetchMock = answerFetch({ answer: readyAnswer, workflow: jobWorkflow([winnerEvaluation]) });
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
-    const answer = await screen.findByRole("region", { name: "Your answer" });
-    // The test leads: the fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best".
-    expect(await within(answer).findByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
-    expect(answer.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
-    expect(screen.queryByRole("region", { name: "Tested in simulation" })).toBeNull();
-    // The ranked list is the first details screen; the scene's line about the paper pick is on the paper screen.
+    const trial = await screen.findByRole("region", { name: "Early trial of openly available robot software" });
+    // Folded by default, under its fixed line; the first look still leads the page.
+    expect(trial.querySelector("details")).not.toHaveAttribute("open");
+    trial.querySelector("details")!.setAttribute("open", "");
+    // The fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best".
+    expect(await within(trial).findByRole("heading", { level: 3, name: "Was ahead in our trial" })).toBeVisible();
+    expect(trial.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
+    expect(within(trial).getByText("This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.")).toBeVisible();
+    expect(screen.getByText("On paper, the robot most likely to fit: Universal Robots UR10e.")).toBeVisible();
+    // The ranked list is a details screen after the first look's; the scene's line about the pick is on the first look's.
     fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
-    fireEvent.click(await screen.findByRole("button", { name: "The simulation test" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Our early trial" }));
     expect(await screen.findByRole("region", { name: "Ranked" })).toHaveTextContent("1. Franka arm + π0.5");
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
-    fireEvent.click(await screen.findByRole("button", { name: "On paper: why this robot" }));
+    fireEvent.click(await screen.findByRole("button", { name: "First look: why this robot" }));
     expect(await screen.findByText(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     fireEvent.click(await screen.findByRole("button", { name: "‹ Back" }));
@@ -1358,11 +1365,12 @@ describe("the site's answer leads its job page", () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: null, workflow: jobWorkflow([allZeroEvaluation]) }));
     render(<SelfCaptureUpload />);
-    const proof = await screen.findByRole("region", { name: "Tested in simulation" });
-    expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
+    const proof = await screen.findByRole("region", { name: "Early trial of openly available robot software" });
+    expect(screen.queryByRole("region", { name: "Your job" })).toBeNull();
     expect(proof.closest("details")).toBeNull();
-    // None of the AI robots finished: said in one line, with the ranked list behind it.
-    expect(proof.textContent).toMatch(/None of the AI robots finished your job yet\./);
+    // No robot finished: said in one line under the trial's fixed line, with the ranked list behind it.
+    expect(proof.textContent).toMatch(/Early trial: No robot finished the job in our trial\./);
+    expect(proof.textContent).toMatch(/It does not predict what a deployment company's robot would do\./);
     // With no answer, the status card stays as it was.
     expect(screen.getByText("We have your recording.", { selector: "strong" })).toBeVisible();
   });
@@ -1380,7 +1388,7 @@ describe("the site's answer leads its job page", () => {
     vi.stubGlobal("fetch", answerFetch({ answer: { ...readyAnswer, schemaVersion: "site_answer.v0" } }));
     render(<SelfCaptureUpload />);
     expect(await screen.findByRole("region", { name: "Robot fit" })).toBeVisible();
-    expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Your job" })).toBeNull();
     expect(screen.getByText(CONFIRM_STEP)).toBeInTheDocument();
     expect(screen.getByText("Blueprint will update this job as the work progresses.")).toBeVisible();
   });
@@ -1391,5 +1399,6 @@ describe("the site's answer leads its job page", () => {
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("We have your recording.", { selector: "strong" })).toBeVisible();
     expect(screen.queryByText(readyAnswer.headline)).toBeNull();
+    expect(screen.queryByText(/On paper, the robot most likely to fit/)).toBeNull();
   });
 });

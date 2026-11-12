@@ -120,13 +120,13 @@ describe("a job past its window with no outcome", () => {
 
     // The page and the email say the same, exact sentence.
     expect(JOB_WINDOW_ENDING_MESSAGE).toBe("The simulation of your site has stopped because the time Blueprint was authorized to work on this job ran out. "
-      + "Blueprint did not finish the simulation in that time, and no more simulation work will run on this job. Your answer stays on your job page. "
+      + "Blueprint did not finish the simulation in that time, and no more simulation work will run on this job. Your first look stays on your job page. "
       + "Nothing more is needed from you. Keep your original recording; to have Blueprint work on this site again, you can start a new job.");
     expect(JOB_WINDOW_ENDING_SUBJECT).toBe("The simulation of your site has stopped");
     expect(await page()).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null, stage: null });
     const body: string = outbox()[0][1].body;
     // With no paper check for the job, the email says so plainly after the ending (review, 2026-11-11).
-    expect(body.startsWith(`${JOB_WINDOW_ENDING_MESSAGE} There is no paper check for this job.\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
+    expect(body.startsWith(`${JOB_WINDOW_ENDING_MESSAGE} There is no first look for this job.\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
     expect(body).toMatch(/\/capture-upload\/\S+$/);
     // It promises nothing a person or a timer would have to do.
     expect(body).not.toMatch(/we will|we'll|our team|review|follow up|email you/i);

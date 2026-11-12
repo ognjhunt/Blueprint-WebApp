@@ -1,3 +1,4 @@
+import { SHARE_REFUSAL_SENTENCES, shareRefusalReason } from "@/lib/jobOutlook";
 import { TaskThumbnail } from "./TaskThumbnail";
 import { TaskThumbnailEditor } from "./TaskThumbnailEditor";
 import { useEffect, useRef, useState } from "react";
@@ -6,15 +7,15 @@ import { TaskFacts } from "./TaskFacts";
 const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking" };
 
 /** Listing authorization is separate from capture rights; reviewed edits retain their own consent. */
-/** Said in place of the publish box while the job has no answer yet (building or testing). */
-export const SHARE_AFTER_ANSWER = "You can share this job once it has an answer. We'll email you when it does.";
+/** Said in place of the publish box while sharing waits, by why it waits (the job's phase). */
+export const SHARE_AFTER_ANSWER = SHARE_REFUSAL_SENTENCES.packet_not_ready;
 
 export function PublicTaskListing(props: { token: string; jobRevision?: string; summaryLabel?: string;
   /** The job has no answer yet (the outlook is reading, building or testing): publishing waits; hiding never does. */
-  publishWaits?: boolean }) {
+  publishWaits?: boolean; waitPhase?: string | null }) {
   return <PublicTaskListingForToken key={props.token} {...props} />;
 }
-function PublicTaskListingForToken({ token, jobRevision, summaryLabel = "Manage opportunity sharing (optional)", publishWaits = false }: { token: string; jobRevision?: string; summaryLabel?: string; publishWaits?: boolean }) {
+function PublicTaskListingForToken({ token, jobRevision, summaryLabel = "Manage opportunity sharing (optional)", publishWaits = false, waitPhase = null }: { token: string; jobRevision?: string; summaryLabel?: string; publishWaits?: boolean; waitPhase?: string | null }) {
   const dirty = useRef(false);
   const [revision, setRevision] = useState<string>();
   const [error, setError] = useState("");
@@ -90,7 +91,7 @@ function PublicTaskListingForToken({ token, jobRevision, summaryLabel = "Manage 
         </select></label>
         <TaskThumbnailEditor existing={existingThumbnail} onChange={png => { dirty.current = true; setThumbnailPng(png); setConsent(false); setState("idle"); }} />
         <div className="ms-task-preview" aria-label="Public card preview"><p className="ms-field-hint">Public preview · {opportunityLabels[details.opportunity]}</p><div className="ms-task-heading"><h3>{details.title || "Your job"}</h3><TaskThumbnail src={previewThumbnail ? `data:image/png;base64,${previewThumbnail}` : null} title={details.title || "Your job"} taskFamily={details.taskFamily} /></div><p>{details.taskFamily}</p><TaskFacts details={details} /></div>
-        {publishWaits && !published ? <p className="ms-field-hint">{SHARE_AFTER_ANSWER}</p> : <>
+        {publishWaits && !published ? <p className="ms-field-hint">{SHARE_REFUSAL_SENTENCES[shareRefusalReason(waitPhase)]}</p> : <>
         <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => { dirty.current = true; setEnabled(e.target.checked); setConsent(false); }} />Show this card in the job library</label>
         {enabled && details.opportunity === "open" && <p className="ms-field-hint">Opening the job to a pilot is free. Any later work needs separately agreed scope and cost. <a href="/beta#scope" target="_blank" rel="noreferrer">Beta program scope</a></p>}
         <label className="ms-check-row"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} required={enabled} />I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time.</label>

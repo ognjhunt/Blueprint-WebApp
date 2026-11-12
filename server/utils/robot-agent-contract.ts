@@ -113,7 +113,7 @@ export function buildRobotAgentAccessManifest() {
         runtimes: ["policy_endpoint", "customer_hosted", "container_image", "controller_adapter", "model_artifact", "skill_trace"],
         modelUpload: "Multipart model, interface JSON, and optional label. The approved ONNX runner is onnx_state_mlp_cpu_v1; upload requires a verified account bound to the team.",
         privateCredentials: "After registering a checkpoint, attach {kind:registry,username,secret} for a private container/controller image or {kind:bearer,token} for an HTTPS policy. Account-bound team ownership is required. Responses contain a version reference only. DELETE revokes that version.",
-        newEvaluation: "Offer your policy on a job from the workspace; Blueprint runs it free during the beta. Execution requires Blueprint's approval of the exact team, policy, task and sponsor limits.",
+        newEvaluation: "Running your own software on a site's job is not offered yet; ask about a job at /contact/robot-team. Nothing is charged today. Any future execution requires Blueprint's approval of the exact team, policy, task and sponsor limits.",
         observationAccess: "Blueprint retains scene files and the scoring harness. Controlled policies receive the permitted observations and return actions. Compatible task, robot, and runner profiles are required; a skill trace alone is not execution evidence.",
       },
       /**
@@ -138,7 +138,7 @@ export function buildRobotAgentAccessManifest() {
 
       },
       spendModel: {
-        summary: "Evaluations are free during the beta and Blueprint runs each one itself; nothing is charged to the team. Paid and private runs are disabled. Blueprint-funded execution requires separately authorized limits.",
+        summary: "Nothing is charged today; Blueprint runs any evaluation itself. Paid and private runs are disabled. Blueprint-funded execution requires separately authorized limits.",
       },
     },
     siteWorldSearch: {
@@ -297,9 +297,9 @@ export function buildRobotAgentOpenApiContract() {
     info: {
       title: "Blueprint Robot-Team Agent API",
       version: ROBOT_AGENT_CONTRACT_VERSION,
-      summary: "Headless discovery of scoped site jobs and bounded evaluation tools for robot teams.",
+      summary: "Headless discovery of the site job summaries approved deployment companies can see, and grounded questions.",
       description:
-        "Blueprint starts with required site video, drafts the job description from its analysis, reconstructs the work area in simulation, checks suitable robots for reach and arm path there and compares public control policies on the job on a research robot itself, and shows the site how the policies compared and whether one was clearly ahead, as a bounded estimate, or “held” when it can't simulate that kind of job yet. Blueprint then works alongside a deployment company on the real site; the customer contracts with the deployment company. The beta is free for sites and partners; Blueprint takes no cut of pilot costs. This API exposes capture-backed job discovery, grounded questions and bounded Task Evaluation Run intake. It does not grant an invitation, authorize physical access or award a contract. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement and hosted-session access controls remain unchanged; standalone purchasing is retired.",
+        "A site films one recurring job and Blueprint turns the video into a job packet: the site's sentence for the job, a first look on paper at which robots could fit, a simulation of the site, and what counts as done. Sometimes Blueprint also tries openly available robot software in that simulation; that early trial is not a prediction of any company's robot. With the site's permission, deployment companies Blueprint approves by hand can see the summary the site approved, never the video or the simulation, and say whether they are interested or the job is not a fit. Any work is agreed between the site and the company. Free for sites. Nothing is charged today. Running a company's own software on a site's job is not offered yet. This API exposes job discovery, grounded questions and request drafting. It does not grant an invitation, authorize physical access or award a contract. Simulation results are bounded estimates, not proof of physical performance or safety. Historical order, entitlement and hosted-session access controls remain unchanged; standalone purchasing is retired.",
     },
     servers: [
       {
@@ -315,7 +315,7 @@ export function buildRobotAgentOpenApiContract() {
       { name: "Discovery", description: "Public site and API discovery for agents." },
       { name: "Ask", description: "Grounded, citation-backed question answering for agents." },
       { name: "Catalog", description: "Public site-world catalog and detail endpoints." },
-      { name: "Team", description: "Register an approved robot team and manage its agent key. Robot teams apply to give Blueprint access to a policy; after application review, registration needs the invitation from the approval email (or an approved account). It grants no evaluation: Blueprint runs each evaluation itself, free during the beta, after its approval." },
+      { name: "Team", description: "Register an approved deployment company's team and manage its agent key. Companies apply at /partners; after application review, registration needs the invitation from the approval email (or an approved account). It grants no evaluation: running a company's own software on a site's job is not offered yet. Nothing is charged today." },
       { name: "Legacy commerce", description: "Read-only compatibility for historical orders and entitlements; the purchase endpoints are retired and return 410." },
       { name: "Hosted sessions", description: "Compatibility lifecycle for previously entitled hosted-session records." },
     ],
@@ -339,7 +339,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "registerRobotTeam",
           summary: "Register an approved robot team and receive an agent key.",
           description:
-            "Registration is by invitation, rate limited per address. Robot teams apply at /contact/robot-team; once Blueprint approves the application, register with the `invitation` from the approval email, or send the approved, verified Blueprint account's Firebase ID token as `Authorization: Bearer`. Without either the call is refused (401 registration_invitation_required; 403 registration_invitation_invalid or registration_not_approved), and one approval registers one team (409 registration_team_exists). The approval is bound to the team it registers. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates a team record with status self_registered and returns an agent key exactly once; only a SHA-256 is stored. Registration does not start an evaluation: each evaluation runs only after Blueprint approves the exact team, policy, and job; evaluations are free during the beta. A team evaluation calls only an HTTPS policy endpoint (runtime policy_endpoint) with a bearer token attached through /api/agent-team/checkpoints/{checkpointId}/credentials; containers and private checkpoints are not admitted. Manage keys from the team's verified Blueprint account; Blueprint issues and revokes account-bound keys on request (hello@tryblueprint.io). A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+            "Registration is by invitation, rate limited per address. Deployment companies apply at /partners; once Blueprint approves the application, register with the `invitation` from the approval email, or send the approved, verified Blueprint account's Firebase ID token as `Authorization: Bearer`. Without either the call is refused (401 registration_invitation_required; 403 registration_invitation_invalid or registration_not_approved), and one approval registers one team (409 registration_team_exists). The approval is bound to the team it registers. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates a team record with status self_registered and returns an agent key exactly once; only a SHA-256 is stored. Registration does not start an evaluation: running a company's own software on a site's job is not offered yet, and any future run would need Blueprint's approval of the exact team, policy, and job. Nothing is charged today. A team evaluation calls only an HTTPS policy endpoint (runtime policy_endpoint) with a bearer token attached through /api/agent-team/checkpoints/{checkpointId}/credentials; containers and private checkpoints are not admitted. Manage keys from the team's verified Blueprint account; Blueprint issues and revokes account-bound keys on request (hello@tryblueprint.io). A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
           security: [{}],
           requestBody: {
             required: true,
@@ -685,7 +685,7 @@ export function buildRobotAgentOpenApiContract() {
           summary: "Retired standalone live checkout endpoint.",
           deprecated: true,
           description:
-            "Evaluations are free during the beta and start from a Task Evaluation Run request. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
+            "Nothing is charged today. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
           security: [{}],
           requestBody: {
             required: true,

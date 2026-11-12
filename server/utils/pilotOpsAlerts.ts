@@ -65,7 +65,7 @@ export type IntroductionRequestAlert = { requestId: string; headline: string | n
 
 export function introductionRequestAlertText(params: IntroductionRequestAlert): string {
   return `:handshake: *A site asked Blueprint to find a deployment company* — job \`${safeId(params.requestId)}\`.\n`
-    + `Job: ${answerLine(params.familyLabel)}\nAnswer: ${answerLine(params.headline)}\nPick: ${answerLine(params.pick)}\n`
+    + `Job: ${answerLine(params.familyLabel)}\nFirst look: ${answerLine(params.headline)}\nPick: ${answerLine(params.pick)}\n`
     + `Runner-up: ${answerLine(params.runnerUp)}\n`
     + "Its card is in the job library. No deployment company has been emailed; whether to alert them is your decision.";
 }
@@ -78,7 +78,7 @@ export async function alertOpsIntroductionRequested(params: IntroductionRequestA
 export function companyResponseAlertText(params: { requestId: string; company: string | null; state: string; headline: string | null }): string {
   const said = params.state === "declined" ? "declined" : "is interested";
   return `:incoming_envelope: *An approved company responded about a job its site asked us to find a deployment company for* — `
-    + `job \`${safeId(params.requestId)}\`.\nCompany: ${answerLine(params.company)} (${said})\nAnswer: ${answerLine(params.headline)}\n`
+    + `job \`${safeId(params.requestId)}\`.\nCompany: ${answerLine(params.company)} (${said})\nFirst look: ${answerLine(params.headline)}\n`
     + "A person at Blueprint makes the introduction; nothing was sent to the site or the company.";
 }
 

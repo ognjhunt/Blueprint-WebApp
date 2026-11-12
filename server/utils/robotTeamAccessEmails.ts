@@ -64,17 +64,15 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
       "This invitation is bound to your approved email and expires in seven days. If it expires, ask for a new link at:",
       `${base}/contact/robot-team`,
       "",
-      "Your workspace then opens with your team set up, and its job library shows the site jobs open to your team.",
+      `Once you are signed in, the job library at ${base}/contact/robot-team shows summaries of the site jobs shared with approved companies. For each one you can tell us you are interested or that it is not a fit.`,
       "",
       ...(invited ? [] : [
-        "Reply with the site or customer you would most want to test at, and we will look for a job that fits.",
         call
           ? `If a call would help, book one here: ${call}`
           : "If a call would help, say so in your reply and we will find a time.",
         "",
       ]),
-      "Any evaluation needs a separately agreed task scope. Approval does not guarantee a run, introduction, or deployment.",
-      "Optional new-job alerts and Blueprint updates are controlled separately in Settings.",
+      "Approval does not guarantee a job, an introduction, or a deployment. Nothing is charged today.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
@@ -216,16 +214,3 @@ export function newTaskEmail(record: Pick<RobotTeamAccessRecord, "name">, card: 
   };
 }
 
-/** Record fanout intent; the existing outbox worker owns bounded continuation. */
-export async function enqueueNewTaskAlerts(params: { requestId: string; card: ListedCard; wentLiveIso: string }): Promise<{ enqueued: number }> {
-  if (!db) return { enqueued: 0 };
-  const { newJobFanoutIntent } = await import("./newJobAlerts");
-  const ref = db.collection("inboundRequests").doc(params.requestId);
-  await db.runTransaction(async tx => {
-    const source = (await tx.get(ref)).data();
-    if (source?.public_task_listing?.wentLiveIso !== params.wentLiveIso
-      || source?.newJobAlertFanout?.eventId === params.wentLiveIso) return;
-    tx.update(ref, { newJobAlertFanout: newJobFanoutIntent(params.wentLiveIso) });
-  });
-  return { enqueued: 0 };
-}

@@ -186,10 +186,10 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(evaluated.headline).toBe("Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result. Nothing is needed from you.");
     const held = projectTaskStatus({ ...handedOff, sceneProgression: { state: "held" } } as never);
     expect(held.decision).toBe("assessing");
-    expect(held.headline).toBe("The simulation can't model this kind of task yet. It counts as demand for what we build next. Your answer stays on your job page. Nothing is needed from you.");
+    expect(held.headline).toBe("The simulation can't model this kind of task yet. It counts as demand for what we build next. Your first look stays on your job page. Nothing is needed from you.");
     const outOfReach = projectTaskStatus({ ...handedOff, sceneProgression: { state: "held", heldReason: "infeasible" } } as never);
     expect(outOfReach.decision).toBe("assessing");
-    expect(outOfReach.headline).toBe("From the robot position planned in the scene built from your video, none of the robots the simulation can run could reach the task. Your answer stays on your job page. Nothing is needed from you.");
+    expect(outOfReach.headline).toBe("From the robot position planned in the scene built from your video, none of the robots the simulation can run could reach the task. Your first look stays on your job page. Nothing is needed from you.");
     expect(outOfReach.headline).not.toMatch(/setup blockers|rerun|can't do|cannot do|anywhere/);
     const built = projectTaskStatus({ ...handedOff, sceneProgression: { state: "completed" } } as never);
     expect(built.decision).toBe("assessing");
@@ -226,7 +226,7 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     // as the site's email does, and reminds it that its answer stays: the simulation is held, never the job.
     expect(summary.slice(0, sentence.length)).toBe(sentence);
     if (isScreeningHeldOutcome(outcome)) {
-      expect(headline).toBe(`${simulationOutcomeEmailSentence(outcome)} Your answer stays on your job page. Nothing is needed from you.`);
+      expect(headline).toBe(`${simulationOutcomeEmailSentence(outcome)} Your first look stays on your job page. Nothing is needed from you.`);
       expect(headline).not.toMatch(/^Held|job is held|No match/);
     } else expect(headline).toBe(`${sentence} Nothing is needed from you.`);
     if (outcome === "no_match") expect(headline).toMatch(/^None of the robots the simulation can run matched this task\./);
@@ -239,7 +239,7 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
       [{ state: "held", heldReason: "reference_only" }, "reference_only"], [{ state: "evaluated" }, "estimate"]] as const) {
       const status = projectTaskStatus({ ...handedOff, sceneProgression } as never);
       expect(status.decision).toBe("not_listed");
-      const said = isScreeningHeldOutcome(outcome) ? `${simulationOutcomeEmailSentence(outcome)} Your answer stays on your job page.`
+      const said = isScreeningHeldOutcome(outcome) ? `${simulationOutcomeEmailSentence(outcome)} Your first look stays on your job page.`
         : screeningOutcomeSentence(outcome);
       expect(status.headline.startsWith(`${said} Your job card is not published`)).toBe(true);
     }
@@ -310,10 +310,10 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
   });
 
   it.each([
-    ["held", "task_family_unsupported", "The simulation can't model this kind of task yet. It counts as demand for what we build next. Your answer stays on your job page. Nothing is needed from you."],
+    ["held", "task_family_unsupported", "The simulation can't model this kind of task yet. It counts as demand for what we build next. Your first look stays on your job page. Nothing is needed from you."],
     ["withdrawn", "consent_expired", "Permission to use this video for your job was withdrawn or has expired. You don't need to do anything; this job has stopped."],
-    ["setup_repair", "retry_cap_exhausted", "We could not finish building the simulation of your site, and we have stopped trying. Your answer stays on your job page. Nothing is needed from you."],
-    ["setup_repair", "authority_expired", "We could not finish building the simulation of your site, and we have stopped trying. Your answer stays on your job page. Nothing is needed from you."],
+    ["setup_repair", "retry_cap_exhausted", "We could not finish building the simulation of your site, and we have stopped trying. Your first look stays on your job page. Nothing is needed from you."],
+    ["setup_repair", "authority_expired", "We could not finish building the simulation of your site, and we have stopped trying. Your first look stays on your job page. Nothing is needed from you."],
   ] as const)("a terminal %s outcome (%s) says on the page exactly what its one email says", async (kind, reasonCode, sentence) => {
     const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
     const outcome = sealed(kind, true, reasonCode);
@@ -325,7 +325,7 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
       expect(status.headline).toBe(sentence);
       // The email adds one line the page does not: with no paper check read for it, it says so plainly (review, 2026-11-11).
       // A withdrawal is the site's own ending and says nothing about an answer.
-      expect(notice.body.startsWith(kind === "withdrawn" ? `${status.headline}\n\n` : `${status.headline} There is no paper check for this job.\n\n`)).toBe(true);
+      expect(notice.body.startsWith(kind === "withdrawn" ? `${status.headline}\n\n` : `${status.headline} There is no first look for this job.\n\n`)).toBe(true);
       expect(status.decision).toBe(kind === "held" ? "assessing" : "footage_received");
       expect(status.operatorAction).toBeNull();
       // No processing-failure card under a withdrawal or a stop it does not describe.

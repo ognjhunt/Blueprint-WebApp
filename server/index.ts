@@ -1,4 +1,4 @@
-import { minimalMarketingRedirects } from "../client/src/data/minimalPublicSite";
+import { minimalMarketingRedirects, queryDroppingRedirects } from "../client/src/data/minimalPublicSite";
 import express, { type Request, Response, NextFunction } from "express";
 import fs from "fs";
 import path from "path";
@@ -511,10 +511,10 @@ app.use((req, res, next) => {
     { from: "/readiness", to: "/" },
     { from: "/readiness-pack", to: "/" },
     { from: "/quality-standard", to: "/" },
-    { from: "/for-robot-integrators", to: "/partners/deployment" },
+    { from: "/for-robot-integrators", to: "/partners" },
     { from: "/contact", to: (req) => ["robot_team", "robot-team"].includes(String(req.query.persona || req.query.buyerType || "")) ? "/contact/robot-team" : "/contact/site-operator" },
-    { from: "/world-models", to: "/sites" },
-    { from: "/world-models/:slug", to: "/sites" },
+    { from: "/world-models", to: "/partners" },
+    { from: "/world-models/:slug", to: "/partners" },
     { from: "/agents", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
     // The capturer network and its app pages are retired for now: sites film
     // their own tasks. Every old entry point lands on the site start page.
@@ -566,17 +566,18 @@ app.use((req, res, next) => {
     { from: "/about", to: "/beta#who-we-are" },
     { from: "/blog", to: "/" },
     { from: "/environments", to: "/#how-it-works" },
-    { from: "/marketplace", to: "/sites" },
-    { from: "/site-worlds", to: "/sites" },
-    { from: "/site-worlds/:slug", to: "/sites" },
-    { from: "/site-worlds/:slug/start", to: "/sites" },
-    { from: "/site-worlds/:slug/workspace", to: "/sites" },
+    { from: "/marketplace", to: "/partners" },
+    { from: "/site-worlds", to: "/partners" },
+    { from: "/site-worlds/:slug", to: "/partners" },
+    { from: "/site-worlds/:slug/start", to: "/partners" },
+    { from: "/site-worlds/:slug/workspace", to: "/partners" },
   ];
 
   legacyPublicRedirects.forEach(({ from, to }) => {
     app.get([from, `${from}/`], (req, res) => {
       const queryStart = req.originalUrl.indexOf("?");
-      const query = queryStart >= 0 ? req.originalUrl.slice(queryStart + 1) : "";
+      // A retired link that carried a credential loses its query on the way out.
+      const query = queryStart >= 0 && !queryDroppingRedirects.has(from) ? req.originalUrl.slice(queryStart + 1) : "";
       const target = typeof to === "function" ? to(req) : to;
       const [targetPath, targetHash] = target.split("#");
       const separator = query ? (targetPath.includes("?") ? "&" : "?") : "";

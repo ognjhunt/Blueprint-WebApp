@@ -19,7 +19,7 @@ import {
   ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, sceneOutrankedNote,
   UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, UNKNOWN_SCENE_NOT_COVERED,
   type AnswerBasis, type AnswerCheck, type AnswerEvidence, type AnswerRobot, type AnswerVerdict, type JobFamily,
-  type SiteAnswer,
+  type JobSharing, type SiteAnswer,
 } from "../../client/src/lib/siteAnswer";
 import { REQUIREMENT_SOURCE_LABELS, ROBOT_FORM_COPY, type RequirementSource } from "../../client/src/data/robotFit";
 import { sameRobot } from "../../client/src/lib/robotNameMatch";
@@ -35,6 +35,8 @@ import { multiStepEvidence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasurements";
 import type { PublicRobotFit } from "./websitePreparationStatus";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { teamJobAccess } from "./teamJobAccess";
+import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "../../client/src/lib/jobCardAnswerConsent";
 
 /** The Pipeline's model table from the measured scene, as the status read projects it. */
 export type SceneRobotFit = Pick<PublicRobotFit, "models"> | null;
@@ -54,11 +56,11 @@ export interface SiteAnswerInputs {
   evidenceFor?: EvidenceLookup;
 }
 
-const HEADLINE_READING = "We are reading your video. Your answer will appear here.";
+const HEADLINE_READING = "We are reading your video. Your first look will appear here.";
 const HEADLINE_CANNOT = "We can't check robots against this job yet.";
 /** The reason for a video that did not show the job clearly enough to size it; the answer email and the page key on it. */
 export { REASON_UNSIZED, UNKNOWN_JOB_KIND };
-const NEXT_STEP_INTRODUCTION = "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site.";
+const NEXT_STEP_INTRODUCTION = "Share a summary of this job with deployment companies Blueprint has approved.";
 /** Wrist and mounting margin an arm standing between the spots needs beyond half the span. */
 const REACH_MARGIN_M = 0.10;
 /** A length the video reader estimated as one figure is checked across this band. */
@@ -706,6 +708,25 @@ function jobCardListed(request: Record<string, any>): boolean {
   return isRecord(request.public_task_listing) && request.public_task_listing.enabled === true;
 }
 
+/**
+ * Where the job's summary stands with deployment companies: shared when the site turned its card on (on the start form,
+ * from Share settings or with "Share my job"), and visible only when the one predicate that decides what an approved
+ * company can see (`teamJobAccess`) says the card is listed. The date is when the site chose to share.
+ */
+export function jobSharingOf(request: Record<string, any>): JobSharing {
+  if (!jobCardListed(request)) return { state: "not_shared", sharedAtIso: null };
+  const listing = request.public_task_listing as Record<string, unknown>;
+  const sharedAtIso = introductionAt(request) ?? text(listing.approvedAtIso) ?? text(listing.wentLiveIso);
+  // What the site agreed the card carries, read as `jobCardAnswer.ts` reads it to build the card.
+  const intro = isRecord(request.introduction_request) ? request.introduction_request : null;
+  const answerShared = Boolean(text(intro?.requested_at_iso)) && isJobCardAnswerStatementVersion(intro?.statement_version)
+    && isJobCardAnswerStatementVersion(listing.consentVersion);
+  const trialShared = answerShared && jobCardStatementSharesTestResults(intro?.statement_version)
+    && jobCardStatementSharesTestResults(listing.consentVersion);
+  return { state: teamJobAccess(request).listed ? "visible" : "not_visible", sharedAtIso,
+    leavesOut: { firstLook: !answerShared, trialResult: !trialShared } };
+}
+
 function coverageDone(request: Record<string, any>, inputs: RobotFitInputs): boolean {
   return Boolean(request.capture_coverage) || Boolean(videoEvidence(inputs)?.estimates);
 }
@@ -760,6 +781,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     checked: { models: catalog.models.length, makers: makers.size, specsRetrievedOn: catalog.retrieved_on },
     introductionRequestedAtIso: introductionAt(request),
     jobCardListed: jobCardListed(request),
+    sharing: jobSharingOf(request),
   };
   const basis = {
     facts: known.map(({ key, display, source, min, max }) => ({ key, display, source, min, max })),
@@ -795,7 +817,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     reason: reason!.text, estimated: reason!.estimated }));
 
   const headline = !pick ? `None of the ${catalog.models.length} robots we checked fits this job on the numbers we have.`
-    : pick.verdict === "possible" ? `No robot clearly fits yet. The closest is ${displayName(pick.model)}.`
+    : pick.verdict === "possible" ? `No robot clearly fits. The closest is ${displayName(pick.model)}.`
       : `Most likely to fit: ${displayName(pick.model)}.`;
   // Said only while no arm that stays in one place passed its reach check (the measured scene can show one does).
   const fixedArmReaches = rated.some((entry) => entry.model.body_type === "fixed_arm"

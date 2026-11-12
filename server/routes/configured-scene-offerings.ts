@@ -137,8 +137,6 @@ router.get("/job/:jobId/managed-evaluations", async (req, res) => {
         next_action: setup?.ok ? "Use the published fixed-arm setup below. Existing resource authority remains required before it runs."
           : "Resolve the scene's remaining evidence limitations before treating a policy run as an evaluation.",
         diagnostic_only: offering.data.status === "configured_controls_pending",
-        diagnostic_href: offering.data.status === "configured_controls_pending"
-          ? `/app/packs/${encodeURIComponent(document.id)}/policy-canary` : null,
       });
     }
     return res.json({ schema_version: "job_managed_evaluations.v1", binding: parsed.data, offerings, runs,

@@ -74,13 +74,13 @@ describe("the job's outlook, from the rule", () => {
       expect(outlook.sentence, label).toBeTruthy();
       expect(outlookHasAnswer(outlook), label).toBe(phase !== "ended_by_site");
     }
-    expect(jobOutlook(base({ windowEnded: true })).sentence).toBe("The time for this job ran out before a simulation test could run.");
+    expect(jobOutlook(base({ windowEnded: true })).sentence).toBe("The time for this job ran out before our early trial could run.");
     expect(jobOutlook(base({ noGrantEnded: true })).sentence).toBe("We have not built a simulation for this job.");
-    expect(jobOutlook(base({ scene: { state: "held" } })).sentence).toBe("The simulation test of your job is on hold.");
+    expect(jobOutlook(base({ scene: { state: "held" } })).sentence).toBe("Work on the simulation of your job is on hold.");
     expect(jobOutlook(base({ answer: OTHER, noGrantEnded: true })).sentence).toBe(OTHER.reason);
     expect(jobOutlook(base({ preparation: { state: "authority_ended", geometryOnlyEnd: false }, windowEnded: true })).sentence)
       .toBe(jobOutlook(base({ windowEnded: true })).sentence);
-    expect(jobOutlook(base({ answer: OTHER, keptOnFile: true })).sentence).toBe("We can't test this kind of job yet. We've kept your job on file.");
+    expect(jobOutlook(base({ answer: OTHER, keptOnFile: true })).sentence).toBe("We can't build a simulation for this kind of job yet. We've kept your job on file.");
     // A published result outranks both.
     expect(jobOutlook(base({ keptOnFile: true, proof: proofOf({}) })).phase).toBe("result");
     expect(jobOutlook(base({ preparation: { state: "authority_ended", geometryOnlyEnd: false }, proof: proofOf({}) })).phase).toBe("result");
@@ -154,7 +154,7 @@ describe("the job's outlook, from the rule", () => {
     }
     const blocked = proofOf({ state: "blocked", outcome: null, screening: { candidates: [] } });
     expect(jobOutlook(base({ windowEnded: true, runStoppedByWindow: true, proof: blocked }))).toEqual({ phase: "no_test",
-      reason: "window_ended_during_test", sentence: "The time for this job ran out during the simulation test." });
+      reason: "window_ended_during_test", sentence: "The time for this job ran out during our early trial." });
     // A run that ended on its own, before or after the window passed, keeps its own line.
     expect(jobOutlook(base({ windowEnded: true, windowEndedAtEpoch: 1, proof: blocked })).reason).toBe("run_ended");
     expect(jobOutlook(base({ windowEnded: true, proof: proofOf({}) })).phase).toBe("result");
@@ -207,7 +207,7 @@ describe("the job's outlook, from the rule", () => {
 
 describe("the review's small items", () => {
   it("says what a lost policy server means, and labels a try it did not count", () => {
-    expect(setupFlagSentence("session_policy_server_lost")).toBe("This AI robot's software stopped during the test, so only some tries were counted.");
-    expect(screeningReasonLabel("policy_server_unavailable").toLowerCase()).toBe("not counted: the ai robot's software was not running.");
+    expect(setupFlagSentence("session_policy_server_lost")).toBe("This robot's software stopped during the trial, so only some tries were counted.");
+    expect(screeningReasonLabel("policy_server_unavailable").toLowerCase()).toBe("not counted: the robot's software was not running.");
   });
 });

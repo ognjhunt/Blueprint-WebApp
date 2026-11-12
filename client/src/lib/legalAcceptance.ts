@@ -37,6 +37,22 @@ export const PREVIOUS_TERMS_VERSION = "2026-11-02.1";
 export const PREVIOUS_PRIVACY_VERSION = "2026-11-02.1";
 
 /**
+ * SHA-256 of each legal page's source file, pinned to the version above it. A change to a page's text needs a new
+ * version approved by the owner; `client/tests/legalPages.pinned.test.ts` fails on any byte change until both the
+ * version and this digest are updated together.
+ */
+export const LEGAL_PAGE_DIGESTS = {
+  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "2834da6ea5aa90a961902fe151ba78b2a0b633a7d66bf4f4dc45a58467d55a78" },
+  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "3e741f10340e795a7579f09baf59ed3d3734a1307d4809f6e288aed843bae991" },
+  "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" },
+  "client/src/pages/PrivacyPrevious.tsx": { version: PREVIOUS_PRIVACY_VERSION, sha256: "cad7fcac5cc1ec468ab74471a13a5e61a208b697deafd97b4039f01ab38eab3c" },
+} as const;
+/** The versions the digests above were recorded against; a version bump without a new digest fails the same test. */
+export const LEGAL_PAGE_DIGEST_VERSIONS = {
+  terms: "2026-11-25.1", privacy: "2026-11-25.1", previousTerms: "2026-11-02.1", previousPrivacy: "2026-11-02.1",
+} as const;
+
+/**
  * The date printed from a version. The pages print their effective date
  * from the same constant acceptance records, so the date a visitor reads is
  * always the version they accept.

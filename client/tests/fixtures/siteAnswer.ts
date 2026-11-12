@@ -15,6 +15,7 @@ const base = {
   checked: { models: 22, makers: 13, specsRetrievedOn: "2026-11-11" },
   introductionRequestedAtIso: null,
   jobCardListed: false,
+  sharing: { state: "not_shared", sharedAtIso: null },
   basisDigest: DIGEST,
 } as const;
 
@@ -117,7 +118,7 @@ export const readyAnswer: SiteAnswer = {
     ],
     raiseIt: ["Tell us the cartons' weight.", "A measured scene of your work area.", "A pilot at your site."],
   },
-  nextStep: { kind: "introduction", text: "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site." },
+  nextStep: { kind: "introduction", text: "Share a summary of this job with deployment companies Blueprint has approved." },
   reason: null,
 };
 
@@ -167,7 +168,7 @@ export const cannotAssessAnswer: SiteAnswer = {
 export const readingAnswer: SiteAnswer = {
   ...cannotAssessAnswer,
   state: "reading",
-  headline: "We are reading your video. Your answer will appear here.",
+  headline: "We are reading your video. Your first look will appear here.",
   reason: null,
 };
 

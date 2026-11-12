@@ -91,14 +91,12 @@ export function AppShell({
       ? [
           ["overview", "Overview", "/app"],
           ["tasks", "Tasks", "/app/tasks"],
-          ["history", "History", "/app/history"],
           ["settings", "Settings", "/settings"],
         ]
       : [
           ["overview", "Overview", "/app"],
           ...(hasOwnedSites ? [["tasks", "Owned sites", "/app/tasks"]] : []),
-          ["opportunities", "Task library", "/app/library"],
-          ["history", "History", "/app/history"],
+          ["opportunities", "Task library", "/contact/robot-team"],
           ["settings", "Settings", "/settings"],
         ];
   const selected = ["captures", "packs"].includes(active)

@@ -28,14 +28,11 @@ describe("brand polish QA harness contract", () => {
         "Live availability, rights, and fulfillment are confirmed per site/request.",
       ),
     ).toEqual([]);
-    const canonicalPaths = ["/how-it-works", "/beta", "/", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"];
+    const canonicalPaths = ["/how-it-works", "/beta", "/", "/partners", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"];
     expect(harness.publicQaRoutes.slice(0, canonicalPaths.length).map((route: { path: string }) => route.path)).toEqual(canonicalPaths);
     const auditedPaths = [
       ...canonicalPaths,
       "/about",
-      "/sites",
-      `/sites/${harness.brandPolishSiteFixtureSlug}`,
-      "/beta/buyer-guide",
       "/sign-in",
       "/forgot-password",
       "/this-page-does-not-exist",
@@ -56,7 +53,7 @@ describe("brand polish QA harness contract", () => {
       canonicalPath: "/contact/robot-team", expectedHeading: "Apply to see jobs",
     });
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq")).toMatchObject({
-      canonicalPath: "/", expectedHeading: "Which robot could do your job?",
+      canonicalPath: "/", expectedHeading: "Film a job once. We turn it into a job packet.",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({

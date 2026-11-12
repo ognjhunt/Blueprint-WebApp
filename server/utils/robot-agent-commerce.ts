@@ -523,8 +523,8 @@ export function createAgentDryRunCheckout(input: AgentDryRunCheckoutInput, siteW
       total_amount_cents: quote.totalAmountCents,
     },
     checkout: {
-      success_url: `/app/entitlements?dry_run_order=${encodeURIComponent(orderId)}`,
-      cancel_url: "/app/entitlements?dry_run_checkout=cancel",
+      success_url: `/partners?dry_run_order=${encodeURIComponent(orderId)}`,
+      cancel_url: "/partners?dry_run_checkout=cancel",
     },
     stripe: {
       checkout_session_id: null,

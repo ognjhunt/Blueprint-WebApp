@@ -4,8 +4,8 @@ import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, preparingEvaluation, readyA
 import { projectSimulationProof } from "../client/src/lib/simulationProof";
 
 /**
- * The site's job page leads with its answer. Every API the page reads is
- * mocked here; no request leaves the browser.
+ * The site's job page (frame of 2026-11-12): deployment companies first, then the first look, the simulation of the
+ * site and, folded, our own early trial. Every API the page reads is mocked here; no request leaves the browser.
  */
 const token = "site-answer-fixture";
 
@@ -15,10 +15,20 @@ const simulationRun = { ...winnerEvaluation, screening: { ...winnerEvaluation.sc
     chosen: { candidateId: "pi05_droid", name: "π0.5 DROID", successRate: 0.7, scored: 10, succeeded: 7, configurationId: null,
       policyRouteId: null, deploymentCompanies: [], relationship: null, evidenceUrl: null, relatedTeams: [], partnerBlockers: [], registryTeams: [] },
     candidates: [{ candidateId: "pi05_droid", resultRank: 1, choiceBlocker: null }] } } };
-const FIND = "Find a company to set it up";
+const FIND = "Share my job";
+const QUESTION = "May we share a summary of your job with deployment companies we approve?";
+/** The recorded statement, word for word: only the words around it changed. */
 const CONSENT = "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
-const LISTED = "✓ Shared. We'll email you when a company replies.";
-const UNLISTED = "You asked on November 11, 2026. Blueprint will set up your job card and email you.";
+const LISTED = "Shared on November 11, 2026. Deployment companies we approve can see a summary of your job. Nothing more is needed from you.";
+const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
+const TRIAL_LINE = "This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.";
+/** Opens the folded early trial, as a site would. */
+async function openTrial(page: Page) {
+  const trial = page.getByRole("region", { name: "Early trial of openly available robot software" });
+  await expect(trial.locator("details")).not.toHaveAttribute("open", "");
+  await trial.locator("summary").click();
+  return trial;
+}
 /** Visible words on the page body: what a person reads before tapping anything. */
 const visibleWords = (page: Page) => page.evaluate(() => ((document.querySelector(".ms-capture-body") as HTMLElement).innerText.match(/[^\s]+/g) ?? [])
   .filter(word => /[\p{L}\p{N}]/u.test(word)).length);
@@ -50,14 +60,17 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
     if (path === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: true, scope: "owner", account: null, brief: {
       summary: readyAnswer.job.sentence, captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } });
     if (path === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
-      scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso, jobCardListed: requestedAtIso !== null && listed },
+      scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso, jobCardListed: requestedAtIso !== null && listed,
+        // The server's own reading of what a company can see (`jobSharingOf`).
+        sharing: requestedAtIso !== null && listed ? { state: "visible", sharedAtIso: requestedAtIso } : { state: "not_shared", sharedAtIso: null } },
       // The job's outlook as the server decides it for this answer and evaluation (the page renders by it).
       outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: (evaluation ? [evaluation] : []) as never, pick: null })),
       status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } });
     if (path === `/api/site-task-brief/${token}/introduction-request` && method === "POST") {
       introductions.push({ csrf: route.request().headers()["x-csrf-token"] });
       requestedAtIso ??= "2026-11-11T15:00:00.000Z";
-      return route.fulfill({ json: { ok: true, requestedAtIso, listed } });
+      return route.fulfill({ json: { ok: true, requestedAtIso, listed,
+        sharing: listed ? { state: "visible", sharedAtIso: requestedAtIso } : { state: "not_shared", sharedAtIso: null } } });
     }
     if (path === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: { ok: true, summary: null, report: null,
       briefPath: null, tracker: { steps: [], meanwhile: null } } });
@@ -72,62 +85,73 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
 
 test.use({ serviceWorkers: "block" });
 
-test("the simulation test leads the job page, bare bones: the option, plain ticks, how sure, the paper pick a tap away, one button", async ({ page }) => {
+test("the job page leads with deployment companies and the first look, with our early trial folded under its fixed line", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  const answer = page.getByRole("region", { name: "Your answer" });
-  // 7 of 10 against 3 of 10 is about 0.96 under the probability rule: ahead, not "did best".
-  await expect(answer.getByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
-  await expect(answer.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
-  await expect(answer.getByText("AI software by Physical Intelligence", { exact: true })).toBeVisible();
+  const job = page.getByRole("region", { name: "Your job" });
+  const companies = page.getByRole("region", { name: "Deployment companies" });
+  await expect(companies.getByText(QUESTION, { exact: true })).toBeVisible();
+  await expect(job.locator("h2, summary")).toHaveText(["Deployment companies", "First look", "Simulation of your site", "Early trial of openly available robot software"]);
   const titleBox = await page.getByRole("heading", { level: 1, name: "Your job" }).boundingBox();
-  expect(titleBox!.y).toBeLessThan((await answer.boundingBox())!.y);
-  // Nothing is asked of the site: no status card repeating a wait under the answer.
+  expect(titleBox!.y).toBeLessThan((await job.boundingBox())!.y);
+  const firstLook = page.getByRole("region", { name: "First look" });
+  await expect(firstLook.getByText(FIRST_LOOK, { exact: true })).toBeVisible();
+  await expect(firstLook.getByText("From published specifications and where it has been used.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Simulation of your site" }).getByText("The simulation of your site is ready.", { exact: true })).toBeVisible();
+  // Nothing is asked of the site: no status card repeating a wait.
   await expect(page.getByText("We have your recording.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Robot fit" })).toHaveCount(0);
   await expect(page.getByText("Blueprint will update this job as the work progresses.", { exact: true })).toHaveCount(0);
-  await expect(answer.getByRole("list", { name: "Why" })).toHaveText(/Did your job in 7 of 10 tries.*Ahead of the 2 other AI robots we tested/s);
-  await expect(answer).toContainText("How sure are we? Fairly sure");
   await expect(page.locator(".bare-button, .ms-button").filter({ visible: true })).toHaveText([FIND]);
-  // About 70 words is the aim; the consent line (25 words) and the limits line (19) may not be dropped, and a
-  // drafted job sentence adds its own. This pins it from growing.
-  expect(await visibleWords(page)).toBeLessThanOrEqual(140);
-  const answerText = await answer.textContent();
-  expect(answerText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256|payload|anonymi[sz]ed/i);
+  // The recorded statement (30 words), the share question, the first look's source and the limits line may not be
+  // dropped, and a drafted job sentence adds its own. This pins it from growing. (140 before 2026-11-12, when the
+  // test result led and the first look sat behind Details.)
+  expect(await visibleWords(page)).toBeLessThanOrEqual(160);
+  const jobText = await job.textContent();
+  expect(jobText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256|payload|anonymi[sz]ed|AI robot|paper check|which did best/i);
 
-  // The paper check lives under Details (round 7): no "On paper" line on the answer screen.
-  await expect(answer.getByText(/^On paper/)).toHaveCount(0);
-  await answer.getByRole("button", { name: "See details ›" }).click();
-  await page.getByRole("button", { name: "On paper: why this robot" }).click();
+  // The trial: folded, labelled, never the answer. 7 of 10 against 3 of 10 is about 0.96 under the probability rule:
+  // ahead, not "did best".
+  const trial = await openTrial(page);
+  await expect(trial.getByText(TRIAL_LINE, { exact: true })).toBeVisible();
+  await expect(trial.getByRole("heading", { level: 3, name: "Was ahead in our trial" })).toBeVisible();
+  await expect(trial.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
+  await expect(trial.getByText("Robot software by Physical Intelligence", { exact: true })).toBeVisible();
+  await expect(trial.getByRole("list", { name: "Why" })).toHaveText(/Did the job in 7 of 10 tries.*Ahead of the 2 other robots we tried/s);
+  await expect(trial).toContainText("How sure are we? Fairly sure");
+
+  await job.getByRole("button", { name: "See details ›" }).click();
+  await page.getByRole("button", { name: "First look: why this robot" }).click();
   await expect(page).toHaveURL(/#details\/why$/);
-  await expect(page.getByRole("heading", { level: 1, name: "On paper: why this robot" })).toBeFocused();
+  await expect(page.getByRole("heading", { level: 1, name: "First look: why this robot" })).toBeFocused();
   await page.goBack();
   await page.goBack();
 
   // Every detail is on its own screen, with a way back; the browser's back button returns too.
-  await answer.getByRole("button", { name: "See details ›" }).click();
+  await job.getByRole("button", { name: "See details ›" }).click();
   await expect(page).toHaveURL(/#details$/);
   await expect(page.getByRole("heading", { level: 1, name: "Details" })).toBeFocused();
-  await page.getByRole("button", { name: "The simulation test" }).click();
+  await page.getByRole("button", { name: "Our early trial" }).click();
   await expect(page).toHaveURL(/#details\/test$/);
+  await expect(page.getByText(TRIAL_LINE, { exact: true })).toBeVisible();
   const ranked = page.getByRole("region", { name: "Ranked", exact: true });
-  await expect(ranked).toContainText("We ran 3 AI robots on your job, about 10 tries each, in a simulation of your site.");
+  await expect(ranked).toContainText("In our early trial we ran 3 robots on your job, about 10 tries each, in a simulation of your site.");
   await expect(ranked.locator("dt").filter({ hasText: /^\d+\. / })).toHaveText(["1. Franka arm + π0.5 · Physical Intelligence",
     "2. Franka arm + GR00T N1.7 · NVIDIA", "3. Franka arm + MolmoAct 2 · Ai2"]);
-  await expect(ranked).toContainText("1 more AI robot was planned but did not run. Job settings › Simulation details says why.");
+  await expect(ranked).toContainText("1 more robot was planned but did not run. Job settings › Simulation details says why.");
   await expect(ranked).toContainText(/Finished 7 of 10 tries · likely between \d+% and \d+% · Ahead/);
   await page.goBack();
-  await expect(page.getByRole("button", { name: "The simulation test" })).toBeFocused();
-  await page.getByRole("button", { name: "How far to trust it" }).click();
+  await expect(page.getByRole("button", { name: "Our early trial" })).toBeFocused();
+  await page.getByRole("button", { name: "How far to trust the trial" }).click();
   await expect(page.getByRole("region", { name: "Published tests", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "PolaRiS: Scalable Real-to-Sim Evaluations for Generalist Robot Policies" })).toHaveAttribute("target", "_blank");
   await page.goBack();
   await page.goBack();
-  await expect(answer.getByRole("button", { name: "See details ›" })).toBeFocused();
-  await expect(answer.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
+  await expect(job.getByRole("button", { name: "See details ›" })).toBeFocused();
+  await expect(firstLook.getByText(FIRST_LOOK, { exact: true })).toBeVisible();
   // Every policy's set-up detail stays one screen away, folded, on Job settings.
-  await answer.getByRole("button", { name: "Job settings ›" }).click();
+  await job.getByRole("button", { name: "Job settings ›" }).click();
   const details = page.locator("summary", { hasText: "Simulation details" });
   await expect(details.locator("xpath=..")).not.toHaveAttribute("open", "");
   await expect(page.getByText(simulationRun.summary, { exact: true })).toBeHidden();
@@ -139,23 +163,22 @@ test("the simulation test leads the job page, bare bones: the option, plain tick
   expect(await chosen.evaluate(cell => { const range = document.createRange(); range.selectNodeContents(cell);
     return new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size; })).toBe(1);
   await page.getByRole("button", { name: "‹ Back" }).click();
-  await expect(answer.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
+  await expect(firstLook.getByText(FIRST_LOOK, { exact: true })).toBeVisible();
   expect(unexpected).toEqual([]);
 });
 
-test("when no AI robot finished the job, the answer says so with the set-up notice, and the ranked list says why", async ({ page }) => {
+test("when no robot finished the job in our trial, the trial says so with the set-up notice, and the first look still stands", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page, { evaluation: allZeroEvaluation });
   await page.goto(`/capture-upload/${token}?video=existing`);
-  const answer = page.getByRole("region", { name: "Your answer" });
-  await expect(answer.getByRole("heading", { level: 2, name: "Tested on your job" })).toBeVisible();
-  await expect(answer.getByText("No AI robot finished your job", { exact: true })).toBeVisible();
-  await expect(answer.getByText("This result may come from how we set up the simulation of your site, not from the robots.", { exact: true })).toBeVisible();
-  await expect(answer.getByText(/Did best|Was ahead/)).toHaveCount(0);
-  // The paper check lives under Details while a test result leads (round 7).
-  await expect(answer.getByRole("button", { name: /^On paper/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();
+  const trial = await openTrial(page);
+  await expect(trial.getByRole("heading", { level: 3, name: "Tried in our trial" })).toBeVisible();
+  await expect(trial.getByText("No robot finished the job in our trial.", { exact: true })).toBeVisible();
+  await expect(trial.getByText("This result may come from how we set up the simulation of your site, not from the robots.", { exact: true })).toBeVisible();
+  await expect(trial.getByText(/Did best|Was ahead/)).toHaveCount(0);
   await page.getByRole("button", { name: "See details ›" }).click();
-  await page.getByRole("button", { name: "The simulation test" }).click();
+  await page.getByRole("button", { name: "Our early trial" }).click();
   const ranked = page.getByRole("region", { name: "Ranked", exact: true });
   await expect(ranked).toContainText("Finished 0 of 9 tries");
   await expect(ranked.getByText(SCENE_NOTE_BEYOND_REACH, { exact: true })).toBeVisible();
@@ -164,27 +187,28 @@ test("when no AI robot finished the job, the answer says so with the set-up noti
   expect(unexpected).toEqual([]);
 });
 
-test("while the simulation of the site is being built, the answer says so, with only the two links and nothing to share", async ({ page }) => {
+test("while the simulation of the site is being built, the page says so, with the first look and nothing to share", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page, { evaluation: { ...preparingEvaluation, screening: { candidates: [] } } });
   await page.goto(`/capture-upload/${token}?video=existing`);
-  const answer = page.getByRole("region", { name: "Your answer" });
-  await expect(answer.getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
-  await expect(answer.getByText("Building your simulation", { exact: true })).toBeVisible();
-  await expect(answer.getByText("Then we test AI robots on your job in it. We'll email you the result.", { exact: true })).toBeVisible();
-  await expect(answer.getByRole("navigation", { name: "More" })).toHaveText("See details ›Job settings ›");
+  const job = page.getByRole("region", { name: "Your job" });
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText("We're building your job packet. Nothing has been shared.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Simulation of your site" }).getByText("We're building the simulation of your site.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();
+  await expect(job.getByRole("navigation", { name: "More" })).toHaveText("See details ›Job settings ›");
   await expect(page.getByRole("button", { name: FIND })).toHaveCount(0);
   await expect(page.getByText(CONSENT, { exact: true })).toHaveCount(0);
-  await expect(answer.getByText(/UR10e|On paper/)).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Early trial of openly available robot software" })).toHaveCount(0);
   expect(unexpected).toEqual([]);
 });
 
-test("the deployment-company button says what it shares, posts once and shows the confirmation", async ({ page }) => {
+test("the share button asks first, carries the recorded statement, posts once and shows the confirmation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { introductions, unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
   const button = page.getByRole("button", { name: FIND, exact: true });
   await expect(button).toBeVisible();
+  await expect(page.getByText(QUESTION, { exact: true })).toBeVisible();
   await expect(page.getByText(CONSENT, { exact: true })).toBeVisible();
   await expect(button).toHaveAttribute("aria-describedby", await page.getByText(CONSENT, { exact: true }).getAttribute("id") ?? "");
   await button.dblclick();
@@ -199,24 +223,26 @@ test("the deployment-company button says what it shares, posts once and shows th
   expect(unexpected).toEqual([]);
 });
 
-test("when the job card could not be listed, the confirmation says Blueprint will set it up", async ({ page }) => {
+test("when the request is saved but nothing is listed, the page says the summary is not visible right now", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { introductions } = await mockJob(page, { listed: false });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await page.getByRole("button", { name: FIND, exact: true }).click();
-  await expect(page.getByText(UNLISTED, { exact: true })).toBeVisible();
-  await expect(page.getByText(/Shared\./)).toHaveCount(0);
+  // The request is saved (review, 2026-11-12): never "we could not send your request".
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByRole("status"))
+    .toHaveText("You shared a summary of your job on November 11, 2026. It is not visible to companies right now.");
+  await expect(page.getByText(/could not send|can see a summary/)).toHaveCount(0);
   expect(introductions).toHaveLength(1);
 });
 
-test("the answer, its details and the job settings read at phone width without scrolling sideways, the button on the first screen", async ({ browser }) => {
+test("the job page, its details and the job settings read at phone width without scrolling sideways, the button on the first screen", async ({ browser }) => {
   const { defaultBrowserType: _, ...phone } = devices["iPhone 14"];
   // The owner's first-screen rule is set on a 390 × 844 phone screen.
   const context = await browser.newContext({ ...phone, viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
   const page = await context.newPage();
   await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
+  await expect(page.getByText(FIRST_LOOK, { exact: true })).toBeVisible();
   const button = await page.getByRole("button", { name: FIND }).boundingBox();
   expect(button!.y + button!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   for (const screen of ["See details ›", "‹ Back", "Job settings ›"]) {
@@ -238,7 +264,7 @@ test("a job waiting for its sentence shows the form to name it under the answer 
       sentence: "Tell us in one sentence what the robot should do, so we can build the simulation of your job." },
     status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } }));
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.locator(".site-answer-bare .bare-lead")).toHaveText("Tell us in one sentence what the robot should do, so we can build the simulation of your job.");
+  await expect(page.getByRole("region", { name: "Simulation of your site" }).locator(".bare-lead")).toHaveText("Tell us in one sentence what the robot should do, so we can build the simulation of your job.");
   const form = page.getByRole("form", { name: "Name the job" });
   await expect(form).toBeVisible();
   await expect(form.getByRole("textbox")).toBeVisible();
@@ -383,15 +409,15 @@ const withCounts = (pairs: Array<[number, number]>) => ({ ...simulationRun, scre
 const RHYTHM_STATES: Array<{ name: string; evaluation: unknown; hash?: string; mode?: "withdrawn" | "film" }> = [
   { name: "recording permission withdrawn", evaluation: null, mode: "withdrawn" },
   { name: "before the video", evaluation: null, mode: "film" },
-  { name: "paper check", evaluation: null },
+  { name: "first look only", evaluation: null },
   { name: "was ahead", evaluation: simulationRun },
   { name: "did best", evaluation: withCounts([[10, 10]]) },
   { name: "one option", evaluation: { ...simulationRun, screening: { ...simulationRun.screening, candidates: [simulationRun.screening.candidates[0]] } } },
   { name: "no clear winner", evaluation: withCounts([[1, 1], [0, 1], [0, 1]]) },
   { name: "none finished, with the set-up notice", evaluation: allZeroEvaluation },
   { name: "none finished", evaluation: { ...allZeroEvaluation, outcomeCaveat: undefined, screening: { ...allZeroEvaluation.screening!, setupNotes: [] } } },
-  { name: "testing now", evaluation: preparingEvaluation },
-  { name: "getting ready", evaluation: { ...preparingEvaluation, screening: { candidates: [] } } },
+  { name: "early trial running", evaluation: preparingEvaluation },
+  { name: "simulation being built", evaluation: { ...preparingEvaluation, screening: { candidates: [] } } },
   { name: "the ranked test screen", evaluation: simulationRun, hash: "#details/test" },
   { name: "the details menu", evaluation: simulationRun, hash: "#details" },
 ];
@@ -405,7 +431,7 @@ for (const state of RHYTHM_STATES) {
     await page.locator(state.mode === "withdrawn" ? ".bare-withdrawn [role=status]" : state.mode === "film" ? ".bare-upload-alt"
       : state.hash === "#details" ? "h1:text-is('Details')" : state.hash ? ".site-answer-details h1"
       : ".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
-    if (!state.hash && state.evaluation) await page.locator(".site-answer-bare h2.bare-label", { hasText: /tested|did best|was ahead|testing now|getting ready/i }).waitFor();
+    if (!state.hash && state.evaluation) await page.locator(".site-answer-bare h2.bare-label", { hasText: /^Simulation of your site$/ }).waitFor();
     if (state.hash === "#details/test") await page.getByRole("region", { name: "Ranked", exact: true }).waitFor();
     const found = await bareRhythmFindings(page);
     expect(found.blocks).toBeGreaterThanOrEqual(3);

@@ -27,7 +27,7 @@ describe("partner applications", () => {
     completeRequiredFields("deployment");
     fireEvent.change(screen.getByLabelText("Where can you install and support systems?"), { target: { value: "Central Texas" } });
     fireEvent.change(screen.getByLabelText("Supported robots and software"), { target: { value: "Franka with a supported policy stack" } });
-    fireEvent.click(screen.getByRole("button", { name: "Apply as a deployment partner" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(application.save).toHaveBeenCalledWith(expect.objectContaining({
       partnerRole: "deployment", region: "Central Texas", supportedSystems: "Franka with a supported policy stack",
       name: "Alex Example", email: "alex@example.com", company: "Example Robotics", acceptedTerms: true, optionalUpdates: false,

@@ -638,7 +638,6 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
     ["client/src/components", "webapp_components"],
     ["client/src/lib/captureGroundedLanguage.ts", "public_product_copy"],
     ["client/src/lib/evaluationPricing.ts", "public_product_copy"],
-    ["client/src/lib/betaCohortGuides.ts", "public_product_copy"],
     // Sentences a site reads on its job page, in its emails and on its job card (review, 2026-11-11).
     ["client/src/lib/jobOutlook.ts", "customer_messages"],
     ["client/src/lib/siteAnswer.ts", "customer_messages"],

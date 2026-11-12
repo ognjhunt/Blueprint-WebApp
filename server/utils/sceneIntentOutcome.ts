@@ -108,7 +108,7 @@ export const sceneOutcomeReading = (outcome: SceneIntentOutcome): SceneOutcomeRe
 
 const NOTHING_NEEDED = "Nothing is needed from you.";
 /** The site has its answer whatever happens to the simulation; an ending of the simulation says so. */
-export const ANSWER_STAYS = "Your answer stays on your job page.";
+export const ANSWER_STAYS = "Your first look stays on your job page.";
 /**
  * One sentence and its closing per ending, said the same on the job page and
  * in the email. A hold or a stop is said about the simulation, never about the

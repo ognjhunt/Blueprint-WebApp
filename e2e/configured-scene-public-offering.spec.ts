@@ -42,6 +42,8 @@ const taskCard = {
   pilotBudget: "Not published",
   opportunity: "not_seeking",
   stage: "preparing",
+  // The server reads where the job's simulation stands from its real state (`libraryJobStage`).
+  simulationStage: "simulation_building",
   evaluationAvailable: false,
   costUsd: null,
   publishedAtIso: "2026-09-19T00:00:00.000Z",
@@ -77,21 +79,12 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("shows an authorized controls-pending configuration and keeps evaluation locked", async ({ page }) => {
-  await page.goto("/sites");
+  await page.goto("/contact/robot-team");
 
   await expect(page.getByRole("heading", { name: "Scene 839873 simple relocation" })).toBeVisible();
-  await expect(page.getByText("Scene in preparation", { exact: true })).toBeVisible();
-  // Locked: the row's meta line says so, and the row offers no "Offer your system" link.
-  await expect(page.getByText("Evaluation not ready yet", { exact: true })).toBeVisible();
+  await expect(page.getByText("Simulation being built", { exact: true })).toBeVisible();
+  // Nothing to run: no evaluation line, and no "Offer your system" link (frame of 2026-11-12).
+  await expect(page.getByRole("listitem").filter({ hasText: "Scene 839873 simple relocation" }).getByText(/evaluat/i)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
   await expect(page.getByAltText("Owner-approved job view: Scene 839873 simple relocation")).toBeVisible();
-});
-
-test("shows the public proof boundary on the offering detail page", async ({ page }) => {
-  await page.goto("/sites/scene-839873-simple-relocation");
-
-  await expect(page.getByRole("heading", { name: "Scene 839873 simple relocation" })).toBeVisible();
-  await expect(page.getByText("Scene in preparation", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Owner accepted|AI review rejected|controls pending/)).toHaveCount(0);
-  await expect(page.getByText(/It is not a result: it says nothing about how any robot performed/)).toBeVisible();
 });

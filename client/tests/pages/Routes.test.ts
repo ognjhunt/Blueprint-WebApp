@@ -1,5 +1,5 @@
 import { appRoutes, matchAppRoute } from "@/app/routes";
-import { minimalMarketingRedirects } from "@/data/minimalPublicSite";
+import { minimalMarketingRedirects, queryDroppingRedirects } from "@/data/minimalPublicSite";
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,8 +10,12 @@ describe("Route registration", () => {
     const source = fs.readFileSync(routesPath, "utf-8");
 
     expect(source).toContain('path: "/"');
-    expect(source).toContain('path: "/sites"');
-    expect(source).toContain('path: "/sites/:slug"');
+    expect(source).toContain('path: "/partners"');
+    // Retired under the job packet frame (2026-11-12): only redirects remain.
+    for (const retired of ["/sites", "/sites/:slug", "/partners/deployment", "/partners/technology", "/beta/buyer-guide", "/requests/:requestId"]) {
+      expect(source).not.toContain(`path: "${retired}"`);
+      expect(minimalMarketingRedirects[retired]).toMatch(/^\/(partners)?$/);
+    }
     // Pricing is preserved in source while its public URL leads to beta information.
     expect(source).toContain('path: "/beta"');
     expect(minimalMarketingRedirects["/pricing"]).toBe("/beta");
@@ -30,7 +34,7 @@ describe("Route registration", () => {
     const paths = appRoutes.map((route) => route.path).filter(Boolean);
     expect(new Set(paths).size).toBe(paths.length);
     for (const path of Object.keys(minimalMarketingRedirects)) expect(matchAppRoute(path)?.layout).toBe("public");
-    expect(matchAppRoute("/app/runs")?.layout).toBe("protected");
+    expect(matchAppRoute("/app/tasks")?.layout).toBe("protected");
     expect(matchAppRoute("/app/results/example")?.shell).toBe("bare");
   });
 
@@ -77,38 +81,47 @@ describe("Route registration", () => {
 
     for (const route of [
       "/app",
-      "/app/runs",
-      "/app/runs/new",
-      "/app/runs/:runId",
-      "/app/packs",
-      "/app/packs/:siteId",
-      "/app/policies",
-      "/app/data",
-      "/app/entitlements",
+      "/app/tasks",
+      "/app/tasks/:taskId",
+      "/app/captures",
+      "/app/evaluation-runs/:runId",
+      "/app/g1-reviews/:runId",
     ]) {
       expect(source).toContain(`path: "${route}", layout: "protected"`);
       expect(source).not.toContain(`path: "${route}", layout: "public"`);
     }
   });
 
-  it("redirects retired buyer pages to where their content lives now", () => {
+  it("sends the retired robot-team workspace pages to the deployment-company page", () => {
+    // Robot teams running their own software is "later" (job packet frame, 2026-11-12).
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('const AppRunsRedirect = () => <MarketingRedirect to="/app/runs" />;');
-    expect(source).toContain('const AppSettingsRedirect = () => <MarketingRedirect to="/settings" />;');
-    expect(source).toContain('const AppTasksListRedirect = () => <MarketingRedirect to="/app/packs" />;');
-    expect(source).toContain('{ path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppTasksListRedirect }');
-    expect(source).toContain('{ path: "/app/policies", layout: "protected", shell: "bare", component: AppSettingsRedirect }');
-    expect(source).toContain('{ path: "/app/data", layout: "protected", shell: "bare", component: AppRunsRedirect }');
-    expect(source).toContain('{ path: "/app/entitlements", layout: "protected", shell: "bare", component: AppRunsRedirect }');
-    for (const page of ["SiteDetail", "Policies", "DataPackages", "Entitlements"]) {
+    for (const route of [
+      "/app/library",
+      "/app/opportunities",
+      "/app/opportunities/:opportunityId",
+      "/app/evaluations/:evaluationId",
+      "/app/runs",
+      "/app/runs/new",
+      "/app/advanced/runs/new",
+      "/app/runs/:runId",
+      "/app/runs/:runId/policy-candidate/new",
+      "/app/packs",
+      "/app/packs/policy-packet",
+      "/app/packs/:sourceLaunchId/evaluate",
+      "/app/packs/:sourceLaunchId/policy-canary",
+      "/app/packs/:siteId",
+      "/app/policies",
+      "/app/data",
+      "/app/entitlements",
+    ]) {
+      expect(source).not.toContain(`path: "${route}"`);
+      expect(minimalMarketingRedirects[route], route).toBe("/partners");
+    }
+    expect(minimalMarketingRedirects["/app/history"]).toBe("/");
+    for (const page of ["Runs", "RunDetail", "RunIntake", "PolicyCandidateIntake", "EvaluationRunSetup", "PolicyCanarySetup", "SitePacks"]) {
       expect(source).not.toContain(`import("../pages/app/${page}")`);
     }
-    // A task's own setup pages still win over the retired pack-detail alias.
-    expect(matchAppRoute("/app/packs/source-one/evaluate")?.path).toBe("/app/packs/:sourceLaunchId/evaluate");
-    expect(matchAppRoute("/app/packs/source-one/policy-canary")?.path).toBe("/app/packs/:sourceLaunchId/policy-canary");
-    expect(matchAppRoute("/app/packs/legacy-pack")?.path).toBe("/app/packs/:siteId");
   });
 
   it("keeps ops aliases protected and off the mock-data console", () => {
@@ -120,7 +133,6 @@ describe("Route registration", () => {
       "/ops/supply",
       "/ops/evidence",
       "/ops/handoff",
-      "/ops/spend",
     ]) {
       expect(source).toContain(`path: "${route}", layout: "protected"`);
       expect(source).not.toContain(`path: "${route}", layout: "public"`);
@@ -196,5 +208,15 @@ describe("Route registration", () => {
     ]) {
       expect(source).toContain(`{ path: "${route}", layout: "public", component: LegacyOfferRedirect }`);
     }
+  });
+
+  it("drops the query only on the retired buyer review links, which carried an access token", () => {
+    expect([...queryDroppingRedirects].sort()).toEqual([
+      "/requests/:requestId",
+      "/requests/:requestId/evidence",
+      "/requests/:requestId/preview",
+      "/requests/:requestId/qualification",
+    ]);
+    for (const path of queryDroppingRedirects) expect(minimalMarketingRedirects[path], path).toBe("/");
   });
 });

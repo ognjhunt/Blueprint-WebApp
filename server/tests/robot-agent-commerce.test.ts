@@ -176,7 +176,7 @@ describe("robot agent dry-run commerce", () => {
       });
       const bestAnswer = payload.bestAnswer as { citations: string[]; actions: Array<{ endpoint: string }> };
       expect(bestAnswer.citations.length).toBeGreaterThan(0);
-      expect(bestAnswer.actions.map((action) => action.endpoint).join(" ")).toContain("task-evaluation-run");
+      expect(bestAnswer.actions.map((action) => action.endpoint)).toEqual(["/partners", "/contact/site-operator"]);
 
       const missing = await fetch(`${baseUrl}/api/agent-access/ask`);
       expect(missing.status).toBe(400);

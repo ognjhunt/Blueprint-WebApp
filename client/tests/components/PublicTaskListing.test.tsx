@@ -37,14 +37,26 @@ describe("the task page's public card", () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ listing: null, draft: { details: { title: "Move cartons onto a pallet", taskFamily: "Palletizing", opportunity: "not_seeking" } }, thumbnailPng: null }) });
     const { unmount } = render(<PublicTaskListing token="tok" publishWaits />);
     fireEvent.click(await screen.findByText("Manage opportunity sharing (optional)"));
-    expect(await screen.findByText("You can share this job once it has an answer. We'll email you when it does.")).toBeVisible();
+    expect(await screen.findByText("You can share your job once its job packet is ready.")).toBeVisible();
     expect(screen.queryByRole("button", { name: /publish reviewed card/i })).toBeNull();
     expect(screen.queryByLabelText(/show this card in the job library/i)).toBeNull();
     unmount();
     fetchMock.mockResolvedValueOnce(savedCard("not_seeking"));
     render(<PublicTaskListing token="tok" publishWaits />);
     expect(await screen.findByRole("button", { name: /publish reviewed card/i })).toBeInTheDocument();
-    expect(screen.queryByText(/once it has an answer/)).toBeNull();
+    expect(screen.queryByText(/once its job packet is ready/)).toBeNull();
+  });
+
+  // Review, 2026-11-12: why sharing waits is said by the job's phase.
+  it.each([
+    ["ended_by_site", "This job is closed, so it cannot be shared."],
+    ["waiting_on_site", "Tell us what the job is first. Then you can share it."],
+    ["building", "You can share your job once its job packet is ready."],
+  ])("says why publishing waits for a job that is %s", async (phase, line) => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ listing: null, draft: { details: { title: "Move cartons onto a pallet", taskFamily: "Palletizing", opportunity: "not_seeking" } }, thumbnailPng: null }) });
+    render(<PublicTaskListing token="tok" publishWaits waitPhase={phase} />);
+    fireEvent.click(await screen.findByText("Manage opportunity sharing (optional)"));
+    expect(await screen.findByText(line)).toBeVisible();
   });
 
   it("saves the card with a pilot price left unknown", async () => {

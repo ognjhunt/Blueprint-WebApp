@@ -29,7 +29,7 @@ describe("Header", () => {
     render(<Header />);
 
     expect(screen.queryByRole("link", { name: /^Jobs we support$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^For robot companies$/i })).toHaveAttribute("href", "/partners");
+    expect(screen.getByRole("link", { name: /^For deployment companies$/i })).toHaveAttribute("href", "/partners");
     expect(screen.getByRole("link", { name: /^How it works$/i })).toHaveAttribute(
       "href",
       "/how-it-works",
