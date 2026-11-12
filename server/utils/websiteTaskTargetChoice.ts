@@ -69,12 +69,16 @@ export function taskTargetSelection(session: Record<string, any> | null | undefi
   }));
   const prior = parseStoredTaskTargetChoice(session?.website_task_target_choice_prior);
   const restoringGuess = Boolean(prior?.choice.kind === 'none_of_these' && answers.some(row => row.choice.kind === 'confirm_guess'
-    && row.question_digest === prior.question_digest && crossRuntimeDigest(selectorOf(row)) === crossRuntimeDigest(selectorOf(prior))));
+    && row.target_id !== TASK_DESTINATION_TARGET_ID && row.question_digest === prior.question_digest && crossRuntimeDigest(selectorOf(row)) === crossRuntimeDigest(selectorOf(prior))));
   const destinationPlace = place && place.choice.kind === "other_candidate"
     ? {target_id: place.target_id, question_digest: place.question_digest, candidate_id: place.choice.candidate_id} : null;
-  return { answers, restoringGuess, rejected: answers.some(row => row.choice.kind === "none_of_these"),
-    correctionsDigest: destinationPlace ? crossRuntimeDigest({corrections, destination_place: destinationPlace})
-      : corrections.length ? crossRuntimeDigest({corrections}) : null };
+  const objectCorrectionsDigest = corrections.length ? crossRuntimeDigest({corrections}) : null;
+  const placeAnswer = answers.find(row => row.target_id === TASK_DESTINATION_TARGET_ID)?.choice.kind ?? null;
+  return { answers, restoringGuess,
+    rejected: answers.some(row => row.target_id !== TASK_DESTINATION_TARGET_ID && row.choice.kind === "none_of_these"),
+    // The Pipeline's binding (object corrections and the place); the object corrections alone; and the place answer.
+    correctionsDigest: destinationPlace ? crossRuntimeDigest({corrections, destination_place: destinationPlace}) : objectCorrectionsDigest,
+    objectCorrectionsDigest, placeAnswer: placeAnswer as "confirm_guess" | "other_candidate" | null };
 }
 
 export function taskTargetSelectionApplies(session: Record<string, any> | null | undefined,
@@ -82,19 +86,25 @@ export function taskTargetSelectionApplies(session: Record<string, any> | null |
   const selection = taskTargetSelection(session);
   if (selection.rejected) return false;
   if (!selection.correctionsDigest) return true;
+  const sent = intake?.request?.task?.subject?.website_preparation_revision?.corrections_digest;
+  // A place answer alone changes nothing the page shows (2026-11-12): the scene made before it still applies.
+  if (!selection.objectCorrectionsDigest && !sent) return true;
   const context = selection.answers[0]?.task_context_digest;
   const taskId = context ? `website-${context.slice(7, 27)}` : null;
   return Boolean(taskId && [taskId, `${taskId}-development`].includes(intake?.request?.task?.task_id)
-    && intake?.request?.task?.subject?.website_preparation_revision?.corrections_digest === selection.correctionsDigest);
+    && (sent === selection.correctionsDigest || (selection.objectCorrectionsDigest !== null && sent === selection.objectCorrectionsDigest)));
 }
 
-/** The site's stored answer to the question the Pipeline currently reports, or null. */
+/**
+ * The site's stored answer about the OBJECT, for the question the Pipeline currently reports, or null. A place answer
+ * is never one (2026-11-12): it is `currentPlaceAnswer`'s, and it changes nothing the page says about the job.
+ */
 export function currentTaskTargetChoiceAnswer(session: Record<string, any> | undefined,
   status: {state: string; question?: TaskTargetChoiceQuestion | null}): TaskTargetChoice["kind"] | null {
   if (["authority_ended", "unavailable"].includes(status.state) || !session) return null;
-  if (!status.question) {
+  if (!status.question || status.question.kind === "task_destination_choice") {
     const selection = taskTargetSelection(session);
-    return selection.rejected ? "none_of_these" : selection.correctionsDigest ? "other_candidate" : null;
+    return selection.rejected ? "none_of_these" : selection.objectCorrectionsDigest ? "other_candidate" : null;
   }
   const stored = session[WEBSITE_TASK_TARGET_CHOICES_FIELD]?.[status.question.question_digest]
     ?? session[WEBSITE_TASK_TARGET_CHOICE_FIELD];
@@ -102,6 +112,20 @@ export function currentTaskTargetChoiceAnswer(session: Record<string, any> | und
   const selector = session.website_preparation?.selector;
   return answer && selector && crossRuntimeDigest(selectorOf(answer)) === crossRuntimeDigest(selectorOf(selector))
     ? answer.choice.kind : null;
+}
+
+/** The site's stored answer about the PLACE for this source (the current place question's, else any), or null. */
+export function currentPlaceAnswer(session: Record<string, any> | undefined,
+  status: {state: string; question?: TaskTargetChoiceQuestion | null}): "confirm_guess" | "other_candidate" | null {
+  if (["authority_ended", "unavailable"].includes(status.state) || !session) return null;
+  if (status.question?.kind === "task_destination_choice") {
+    const answer = answerForQuestion(session[WEBSITE_TASK_TARGET_CHOICES_FIELD]?.[status.question.question_digest]
+      ?? session[WEBSITE_TASK_TARGET_CHOICE_FIELD], status.question);
+    const selector = session.website_preparation?.selector;
+    return answer && selector && crossRuntimeDigest(selectorOf(answer)) === crossRuntimeDigest(selectorOf(selector))
+      && answer.choice.kind !== "none_of_these" ? answer.choice.kind : null;
+  }
+  return taskTargetSelection(session).placeAnswer;
 }
 
 export function buildTaskTargetChoiceAnswer(selector: WebsitePreparationSelector, question: TaskTargetChoiceQuestion,

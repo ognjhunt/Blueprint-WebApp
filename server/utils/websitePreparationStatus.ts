@@ -203,8 +203,10 @@ export function unknownPreparationCodes(status: WebsitePreparationReceipt): Arra
   // (kept, since the status digest seals it; never shown): staff hear, the read goes on.
   const cause = outcome && outcome.reason === PREPARATION_NOT_POSSIBLE_REASON ? (outcome as {cause?: string}).cause : undefined;
   if (cause && !Object.hasOwn(PREPARATION_NOT_POSSIBLE_CAUSES, cause)) found.push(["preparation.outcome.cause", cause]);
-  for (const key of Object.keys(outcome ?? {})) if (!PREPARATION_OUTCOME_KEYS.includes(key)) found.push(["preparation.outcome.key", key]);
-  const asked = "question" in status ? status.question as Record<string, any> | null : null;
+  for (const key of Object.keys(outcome ?? {})) if (!PREPARATION_OUTCOME_KEYS.includes(key)) found.push(["preparation.outcome.key", key.slice(0, 64)]);
+  const sent = "question" in status ? status.question as Record<string, any> | null : null;
+  // Extra keys are looked for on a question this release reads; one it does not know is alerted once, as a whole.
+  const asked = isKnownTaskChoiceQuestion(sent) ? sent as Record<string, any> : null;
   for (const key of Object.keys(asked ?? {})) if (!TASK_CHOICE_QUESTION_KEYS.includes(key)) found.push(["preparation.question.key", key]);
   for (const row of Array.isArray(asked?.candidates) ? asked!.candidates : [])
     for (const key of Object.keys(row ?? {})) if (!TASK_CHOICE_CANDIDATE_KEYS.includes(key)) found.push(["preparation.question.candidate_key", key]);
@@ -213,7 +215,9 @@ export function unknownPreparationCodes(status: WebsitePreparationReceipt): Arra
   if (fit?.reason && !known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason)) found.push(["robot_fit.reason", fit.reason]);
   for (const row of fit?.models ?? []) if (!known(ROBOT_FIT_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
   const question = "question" in status ? status.question as {kind?: unknown} | null : null;
-  if (question && typeof question.kind === "string" && !isKnownTaskChoiceQuestion(question)) found.push(["preparation.question.kind", question.kind]);
+  if (question && typeof question.kind === "string" && !isKnownTaskChoiceQuestion(question))
+    found.push(question.kind === "task_destination_choice" ? ["preparation.question.malformed", question.kind]
+      : ["preparation.question.kind", /^[a-z][a-z0-9_:.-]{0,63}$/.test(question.kind) ? question.kind : "unreadable"]);
   const precheck = "robot_fit_precheck" in status ? status.robot_fit_precheck : null;
   for (const row of precheck?.embodiments ?? []) {
     if (!known(ROBOT_FIT_PRECHECK_EMBODIMENTS, row.embodiment)) found.push(["robot_fit_precheck.embodiment", row.embodiment]);
@@ -241,7 +245,9 @@ export type WebsitePreparationIntent = {requestId: string; captureId: string; ev
    * delivered Atlas preview carries: the notice waits for that preview until this time, then goes out generic. */
   awaitEarlyHoldUntilMs?: number;
   /** Set when the status's outcome is a stop only a new video clears: the notice is then the page's new-video ask. */
-  recaptureReason?: RecaptureReason};
+  recaptureReason?: RecaptureReason;
+  /** Set when the status's outcome is a part-6 ending: the notice then says the page's own words for it. */
+  preparationEnding?: {reason: "website_preparation_not_possible" | "website_preparation_retries_spent"; cause?: string}};
 /**
  * How long a needs-attention notice that may be an early task hold waits for the Atlas preview naming its reason.
  * The Pipeline retries a failed preview delivery after min(3600, 30 * 2^attempts) seconds
@@ -680,6 +686,10 @@ export async function drainPendingWebsitePreparationNotifications(
         milestone: notice.milestone, terminalReason: knownTerminalReason(terminalReasonOf(current.status)),
         ...(notice.milestone === "preparation_needs_attention" && "outcome" in current.status
           && isRecaptureReason(current.status.outcome?.reason) ? {recaptureReason: current.status.outcome!.reason as RecaptureReason} : {}),
+        ...(notice.milestone === "preparation_needs_attention" && "outcome" in current.status && current.status.outcome
+          && (current.status.outcome.reason === PREPARATION_NOT_POSSIBLE_REASON || current.status.outcome.reason === PREPARATION_RETRIES_SPENT_REASON)
+          ? {preparationEnding: {reason: current.status.outcome.reason,
+            ...(typeof (current.status.outcome as {cause?: unknown}).cause === "string" ? {cause: (current.status.outcome as {cause: string}).cause} : {})}} : {}),
         ...(notice.milestone === "preparation_needs_attention" && mayBeEarlyTaskHold(current.status)
           && row.owedSinceMs !== undefined ? {awaitEarlyHoldUntilMs: row.owedSinceMs + EARLY_HOLD_PREVIEW_WAIT_MS} : {})});
       if (result === "unavailable") {pending++; continue;}

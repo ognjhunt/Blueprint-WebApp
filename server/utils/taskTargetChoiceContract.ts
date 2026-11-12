@@ -22,8 +22,8 @@ export const taskObjectChoiceQuestionSchema = z.object({
     candidate_id: objectCandidateId,
     label: z.string().min(1).max(120),
     reference_time_ms: z.number().int().min(0).max(86_400_000).nullable(),
-  }).passthrough()).min(1).max(8),
-}).passthrough().refine(value => new Set(value.candidates.map(row => row.candidate_id)).size === value.candidates.length
+  }).strict()).min(1).max(8),
+}).strict().refine(value => new Set(value.candidates.map(row => row.candidate_id)).size === value.candidates.length
   && value.candidates.some(row => row.candidate_id === value.guessed_candidate_id), "candidate ids repeat or miss the guess");
 
 /**
@@ -76,8 +76,10 @@ export const KNOWN_TASK_CHOICE_KINDS = ["task_target_choice", "task_destination_
  * A question of a kind this release does not know: read (it never fails the status, review 2026-11-12) and never
  * shown or answered.
  */
-const unknownTaskChoiceQuestionSchema = z.object({ kind: z.string().regex(/^[a-z][a-z0-9_:.-]{0,63}$/) }).passthrough()
-  .refine(value => !(KNOWN_TASK_CHOICE_KINDS as readonly string[]).includes(value.kind), "a known kind keeps its own shape");
+const unknownTaskChoiceQuestionSchema = z.object({ kind: z.string().min(1).max(64) }).passthrough()
+  // The object question keeps its strictness exactly as before (a malformed one fails the read). A place question
+  // that does not keep its shape is read like a kind this release does not know: not shown, alerted, never a failed read.
+  .refine(value => value.kind !== "task_target_choice", "the object question keeps its own shape");
 /** The status's one optional question: the object question, the place question, or one this release does not know. */
 export const taskTargetChoiceQuestionSchema = z.union([taskObjectChoiceQuestionSchema, taskDestinationChoiceQuestionSchema,
   unknownTaskChoiceQuestionSchema]);

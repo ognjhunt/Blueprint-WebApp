@@ -457,7 +457,13 @@ export const screeningReferenceControl = (rows: readonly ScreeningCandidateRow[]
 };
 export function screeningReferenceCheck(rows: readonly ScreeningCandidateRow[]): ScreeningReferenceCheck | null {
   const control = screeningReferenceControl(rows);
-  return control ? screeningReferenceCheckFromCounts(control.episodes_scored, control.episodes_succeeded) : null;
+  if (!control) return null;
+  // An earlier check of the same scene, reused (`:reused`): this publication carries no counts of its own, so the
+  // earlier check's class is the flag's (review, 2026-11-12).
+  const reused = control.episodes_scored === 0
+    ? (control.setup_quality_flags ?? []).map(code => /^known_good_control_(passed|partly|failed):reused$/.exec(code)?.[1]).find(Boolean) : undefined;
+  if (reused) return reused as ScreeningReferenceCheck;
+  return screeningReferenceCheckFromCounts(control.episodes_scored, control.episodes_succeeded);
 }
 /** Flags that are facts about one robot and the object (`screeningSetupFlagSentences`): never a set-up doubt. */
 export const ROBOT_FACT_FLAG_CODES: ReadonlySet<string> = new Set(["task_object_wider_than_gripper", "task_object_heavier_than_grip",

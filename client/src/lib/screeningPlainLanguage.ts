@@ -40,6 +40,7 @@ const REASONS: Record<string, string> = {
   // Waits on our side that need nothing from the site (review, 2026-11-12).
   beta_screening_work_disk_wait: "In line for processing on our side.",
   account_monthly_spend_job_start_wait: "In line for processing on our side.",
+  beta_screening_output_cannot_land_on_work_disk: "We could not test this robot: our machine had no room to store the test's recording.",
   beta_screening_waiting_for_control: "Waiting to confirm this job can still run.",
   beta_screening_transport_retry_cap_exhausted: "Not run: we could not confirm this job can still run. This is ours to fix.",
   beta_screening_static_preflight_blocked: "Could not start in our simulator. This is ours to fix.",

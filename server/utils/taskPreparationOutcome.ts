@@ -149,23 +149,36 @@ export const PREPARATION_NOT_POSSIBLE_CAUSES: Readonly<Record<string, string>> =
   website_assembly_whole_object_coverage_required: "Your video does not show the whole of the object the job assembles.",
   website_synthetic_subject_start_unplaceable: "We could not place the object where it starts in the simulated scene.",
 };
+/**
+ * The words for the part-6 endings, as constants so one line changes when the Pipeline confirms what happens next.
+ * Nothing here says the job is looked at or tried again: no code confirmed yet does either (review, 2026-11-12).
+ */
 export const PREPARATION_NOT_POSSIBLE_SENTENCES = {
   title: "We cannot prepare the simulation of your job yet",
-  reason: "Preparing the simulation of your job needs a step we cannot do yet, so it has stopped. We look at it again when we change that step.",
+  /** After a cause's own sentence. */
+  withCause: "We cannot prepare the simulation of your job, so it has stopped.",
+  /** With no cause, or one without words. */
+  general: "Preparing the simulation of your job needs a step we cannot do yet, so it has stopped.",
   nextStep: "Nothing is needed from you now. Your recording is saved.",
 } as const;
+/** A next step of its own, by cause. The page offers "Update walkthrough" to the owner in every preparation state. */
+const NOT_POSSIBLE_NEXT_STEPS: Readonly<Record<string, string>> = {
+  website_assembly_whole_object_coverage_required: "A new video that shows the whole object would let us try again. Your recording is saved.",
+  website_registration_scale_conflicts_declared: "Your recording is saved.",
+};
 export function preparationNotPossible(cause: string | undefined, evidenceDigest: string): TaskOutcome {
-  const why = cause && Object.hasOwn(PREPARATION_NOT_POSSIBLE_CAUSES, cause) ? `${PREPARATION_NOT_POSSIBLE_CAUSES[cause]} ` : "";
+  const known = cause !== undefined && Object.hasOwn(PREPARATION_NOT_POSSIBLE_CAUSES, cause);
   return { category: "insufficient_evidence", basis: "missing_evidence", title: PREPARATION_NOT_POSSIBLE_SENTENCES.title,
-    reason: `${why}${PREPARATION_NOT_POSSIBLE_SENTENCES.reason}`,
+    reason: known ? `${PREPARATION_NOT_POSSIBLE_CAUSES[cause!]} ${PREPARATION_NOT_POSSIBLE_SENTENCES.withCause}`
+      : PREPARATION_NOT_POSSIBLE_SENTENCES.general,
     scope: "This preparation only. It is not a finding about any robot or about your site.",
-    nextStep: PREPARATION_NOT_POSSIBLE_SENTENCES.nextStep, actionOwner: "blueprint",
-    evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
+    nextStep: known && Object.hasOwn(NOT_POSSIBLE_NEXT_STEPS, cause!) ? NOT_POSSIBLE_NEXT_STEPS[cause!] : PREPARATION_NOT_POSSIBLE_SENTENCES.nextStep,
+    actionOwner: "blueprint", evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
 }
 export const PREPARATION_RETRIES_SPENT_SENTENCES = {
   title: "We could not finish preparing your job",
   reason: "We could not finish preparing your job after several tries, for a reason on our side.",
-  nextStep: "We try again each time we update our software. Nothing is needed from you; your recording is saved.",
+  nextStep: "Nothing is needed from you now. Your recording is saved.",
 } as const;
 export function preparationRetriesSpent(evidenceDigest: string): TaskOutcome {
   return { category: "processing_failure", basis: "execution_failure", title: PREPARATION_RETRIES_SPENT_SENTENCES.title,
@@ -174,6 +187,16 @@ export function preparationRetriesSpent(evidenceDigest: string): TaskOutcome {
     nextStep: PREPARATION_RETRIES_SPENT_SENTENCES.nextStep, actionOwner: "blueprint",
     evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
 }
+/** The part-6 endings say all there is: the page adds nothing beside them. */
+export const isCompletePreparationOutcome = (outcome: Pick<TaskOutcome, "title"> | null | undefined) =>
+  outcome?.title === PREPARATION_NOT_POSSIBLE_SENTENCES.title || outcome?.title === PREPARATION_RETRIES_SPENT_SENTENCES.title;
+
+/** The planner held back and the preparation status names no outcome: said with no promise (review, 2026-11-12). */
+export const PLANNER_ABSTAINED_SENTENCES = {
+  title: "We could not confirm the 3D scene covers your job",
+  reason: "The views in your video did not show enough of the scene for this job.",
+  nextStep: "Nothing is needed from you now. Your recording stays saved.",
+} as const;
 
 export function processingFailure(evidence?: {label: string; digest: string}): TaskOutcome {
   return { category: "processing_failure", basis: "execution_failure", title: "Blueprint could not finish processing this attempt",
@@ -458,9 +481,13 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
   if (preview.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(preview.preview_digest);
   if (preview.state === "needs_input" && isRecaptureReason(preview.reason))
     return recaptureNeeded(preview.reason, preview.preview_digest);
-  // The planner held back (review, 2026-11-12): the preparation status's own outcome says what is true for the job,
-  // so the preview adds no card of its own (it used to promise a review nobody does).
-  if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? "")) return null;
+  // The planner held back (review, 2026-11-12). The preparation status's own outcome, when it has one, takes this
+  // card's place on the page; without one, this card says what is true and promises nothing.
+  if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? "")) return { category: "insufficient_evidence",
+    basis: "missing_evidence", title: PLANNER_ABSTAINED_SENTENCES.title, reason: PLANNER_ABSTAINED_SENTENCES.reason,
+    scope: "The current capture and task evidence. It is not a finding about any robot or about your site.",
+    nextStep: PLANNER_ABSTAINED_SENTENCES.nextStep, actionOwner: "blueprint",
+    evidence: [{ label: "Scene coverage finding", digest: preview.preview_digest }] };
   if (preview.state === "needs_input" && preview.reason === "atlas_scene_requires_preserved_capture")
     return evidenceNeeded("The scene-preparation plan could not preserve the captured objects required by this task.",
       preview.preview_digest, "Scene preservation finding");

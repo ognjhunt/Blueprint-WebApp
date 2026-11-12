@@ -49,6 +49,7 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   // flag read on its own.
   known_good_control_partly: "A scripted reference arm that reads exact positions from the simulation did the job in only some of its tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots.",
   "known_good_control_unavailable:task_kind": "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
+  "known_good_control_unavailable:reach": "Our scripted reference robot cannot reach both places in this scene, so nothing confirmed beforehand that the simulated scene can record a success.",
   "known_good_control_unavailable:backend": "We have no scripted reference that runs in the simulator this job used yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   // A run's own record that an AI robot's software stopped mid-test (Pipeline `session_policy_server_lost`).
   session_policy_server_lost: "This AI robot's software stopped during the test, so only some tries were counted.",
@@ -72,7 +73,8 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "scene_estimate:support_height_differs_from_picture": "In the simulated scene, the object rests slightly above or below the surface the cameras show.",
   "scene_estimate:support_guessed": "We could not find the surface the object rests on in your video, so the simulated scene uses the nearest one.",
   // Our paper check gave no verdict (no arm enabled, no clear standing place, or out of reach from every place found).
-  "scene_estimate:capability_unassessed": "We could not work out on paper what each robot can do in this scene; the tests ran anyway.",
+  // Never says a test already ran: these notes also show on publications where none has (review, 2026-11-12).
+  "scene_estimate:capability_unassessed": "We could not work out on paper what each robot can do in this scene. We test them anyway.",
   // A run's camera and set-up checks, per camera where the code names one.
   task_object_partly_hidden: "In the simulation, the job's object was partly hidden from one of the robot's cameras.",
   task_target_marker_partly_hidden: "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras.",
@@ -93,7 +95,7 @@ const ROBOT_FACT_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.en
   task_object_heavier_than_grip: "The object is heavier than this robot's grip is rated to hold.",
   task_object_grip_depends_on_weight: "Whether this robot can hold the object depends on its weight, which we estimated from your video.",
   task_object_needs_edge_grip: "This robot can only hold the object by its edge.",
-  fixed_arm_reach_cannot_span_pick_and_place: "From one position, this robot's arm cannot reach both where the object starts and where it goes.",
+  fixed_arm_reach_cannot_span_pick_and_place: "On paper, this robot's arm cannot reach both the pick-up and the put-down place from one position. We test it anyway.",
 }));
 /** The box-fit flags (`task_object_box_fit_*`): one sentence for the family. */
 const BOX_FIT_PREFIX = "task_object_box_fit_";
@@ -103,15 +105,23 @@ const BOX_FIT_SENTENCE = "In the simulated scene, the object's size or outline d
  * cause when it has words (an unknown cause keeps the general sentence).
  */
 const ROBOT_FIT_NONE_PREFIX = "scene_estimate:robot_fit_none";
-export const ROBOT_FIT_NONE_SENTENCE = "On paper, none of the robots we tested fits this job, so a low result is expected. We ran the test anyway.";
+// The Pipeline names the cause that ruled out the MOST robots, not all of them.
+export const ROBOT_FIT_NONE_SENTENCE = "On paper, none of the robots fits this job, so a low result is expected. We test them anyway.";
 export const ROBOT_FIT_NONE_CAUSES: Readonly<Record<string, string>> = {
-  reach: "No robot's arm can reach the job from any position we found.",
-  task_kind: "No robot's software lists this kind of job.",
-  gpu_memory: "The robots' software needs more computing memory than any machine we rent.",
+  reach: "The most common reason: the arm cannot reach the job from any position we found.",
+  task_kind: "The most common reason: the robot's software does not list this kind of job.",
+  gpu_memory: "The most common reason: the robot's software needs more computing memory than any machine we rent.",
   no_candidate_available: "No robot was available from our catalog.",
 };
+/** `scene_estimate:success_height_adjusted:<mm>mm`, 1 to 25 mm as digits; anything else is a flag without words. */
+const SUCCESS_HEIGHT = /^scene_estimate:success_height_adjusted:([1-9]|1[0-9]|2[0-5])mm$/;
+export const successHeightSentence = (mm: string) =>
+  `We moved the height at which a put-down counts as a success by ${mm} mm, to match the surface in the simulated scene.`;
 const familySentence = (code: string) => {
   if (code.split(":")[0].startsWith(BOX_FIT_PREFIX)) return BOX_FIT_SENTENCE;
+  const height = SUCCESS_HEIGHT.exec(code);
+  if (height) return successHeightSentence(height[1]);
+  if (code.startsWith("scene_estimate:success_height_adjusted")) return undefined;
   if (code !== ROBOT_FIT_NONE_PREFIX && !code.startsWith(`${ROBOT_FIT_NONE_PREFIX}:`)) return undefined;
   const cause = code.slice(ROBOT_FIT_NONE_PREFIX.length + 1);
   return Object.hasOwn(ROBOT_FIT_NONE_CAUSES, cause) ? `${ROBOT_FIT_NONE_SENTENCE} ${ROBOT_FIT_NONE_CAUSES[cause]}` : ROBOT_FIT_NONE_SENTENCE;
@@ -150,7 +160,7 @@ export function screeningSetupNotes(publication: BetaPolicyScreeningPublication)
   type Entry = { code: string; sentence?: undefined } | { code?: undefined; sentence: string };
   const codes: Entry[] = [...(screeningSceneFeasibility(publication)?.flags ?? []).map(code => ({ code })),
     ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => (row[key] ?? []).map(code =>
-      row === control && controlCode(code) && code !== KNOWN_GOOD_CONTROL_PENDING
+      row === control && controlCode(code) && code !== KNOWN_GOOD_CONTROL_PENDING && !/:reused$/.test(code)
         && (reference || /^known_good_control_(passed|failed)(:|$)/.test(code))
         ? { sentence: reference ?? REFERENCE_NOT_SCORED } : { code })))];
   return [...new Set(codes.filter(entry => entry.code === undefined || (entry.code !== KNOWN_GOOD_CONTROL_PENDING && !isRobotFactFlag(entry.code)))

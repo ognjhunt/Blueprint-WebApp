@@ -29,7 +29,8 @@ import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
-  jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome } from "./taskPreparationOutcome";
+  jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome,
+  isCompletePreparationOutcome } from "./taskPreparationOutcome";
 import { isScreeningHeldOutcome, screeningOutcomeSentenceWithWindow, simulationOutcomeEmailSentence, type ScreeningHeldOutcome, type ScreeningOutcome,
   type ScreeningOutcomeCaveat , simulationHoldSentence, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
@@ -482,13 +483,15 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...(/^bp-prep-[a-f0-9]{16}$/.test(input.preparationStatus?.correlationId ?? "") ? {reference: input.preparationStatus!.correlationId!} : {}),
       nextStep: input.hasStoredCapture ? capacityEnd.nextStep : capacityEnd.nextStep
         .replace("Your recording is saved;", "Keep your original recording;") } : {...stopped,
-      reason: input.preparationStatus?.state === "failed_terminal"
+      // The part-6 endings say all there is; nothing is added beside them (review, 2026-11-12).
+      reason: input.preparationStatus?.state === "failed_terminal" && !isCompletePreparationOutcome(stopped)
         ? `${stopped.reason} Automatic preparation retries have stopped.${ended ? ` ${ended}` : ""}` : stopped.reason,
       ...(/^bp-prep-[a-f0-9]{16}$/.test(input.preparationStatus?.correlationId ?? "")
         ? {reference: input.preparationStatus!.correlationId!} : {}),
       nextStep: input.hasStoredCapture ? stopped.nextStep : stopped.nextStep
         .replace("Your recording is saved;", "Keep your original recording;")
-        .replace("Your recording and findings remain saved.", "The retained findings remain available. Keep your original recording."),
+        .replace("Your recording and findings remain saved.", "The retained findings remain available. Keep your original recording.")
+        .replace(/Your recording (is|stays) saved\.$/, "Keep your original recording."),
     };
     return { decision: outcome.category, stage: null, headline: outcome.title,
       operatorAction: outcome.actionOwner === "site" ? outcome.nextStep : null,
@@ -670,7 +673,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     const headlines: Record<Exclude<TaskPreparationStatus["state"], "handed_off">, string> = {
       preparing: "We are preparing your job. Keep your original recording.",
       awaiting_inputs: !fitCheckEnd
-        ? "Job preparation needs more information. Keep your original recording; our team needs to review it."
+        // Rewritten (review, 2026-11-12): no staff review backs this state when it is shown (the watch alerts after it
+        // stays unchanged for a day), so nothing promises one.
+        ? "Preparing your job has paused. Keep your original recording. Nothing is needed from you now."
         : preparation.robotFit?.status === "completed"
           ? "Your robot fit check is ready: the robots that fit your job on paper are listed below. It is an estimate from published specs and your video; no robot has been tried on this job."
           : "Blueprint could not check robot fit for this job. The reason is below. Keep your original recording.",
