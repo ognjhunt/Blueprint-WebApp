@@ -229,20 +229,31 @@ it("v6 does not accept a v7 stop, and v7 reads a new reason it does not know ins
 
 // Review, 2026-11-12: never throw on a code the website does not know.
 describe("a code the website does not know never breaks the read", () => {
-  it("reads an outcome reason it does not know as one general sentence, keeps the job's state, and tells staff once", async () => {
+  // Rewritten (review, 2026-11-12): staff hear where the receipt is ingested, never on a read. N reads, and a replay
+  // of the same receipt, record nothing; an unknown category reads as the same general sentence.
+  it("reads an outcome reason or category it does not know as one general sentence, keeps the job's state, and tells staff at ingest only", async () => {
     const alerts = await import("../utils/unknownPipelineCode");
-    const noted = vi.spyOn(alerts, "noteUnknownPipelineCode").mockResolvedValue(true);
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCodes").mockResolvedValue(undefined);
     try {
       const h = harness();
-      h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_brand_new_stop", basis: "missing_evidence",
+      h.ledger(v7("awaiting_inputs", {category: "brand_new_category", reason: "website_brand_new_stop", basis: "missing_evidence",
         robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
       await syncWebsitePreparationStatus(selector, h.deps);
-      const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
-      expect(projected.state).toBe("awaiting_inputs");
-      expect(projected.outcome).toMatchObject({ title: "The preparation of your simulation stopped",
-        reason: "Preparing the simulation of your site stopped, for a reason this page can't describe yet. Our team has been told." });
-      expect(JSON.stringify(projected)).not.toContain("website_brand_new_stop");
-      expect(noted).toHaveBeenCalledWith("r1", "preparation.outcome.reason", "website_brand_new_stop");
+      expect(noted).toHaveBeenCalledTimes(1);
+      expect(noted).toHaveBeenCalledWith("r1", [["preparation.outcome.reason", "website_brand_new_stop"],
+        ["preparation.outcome.category", "brand_new_category"]]);
+      const stored = JSON.stringify(h.stored);
+      for (let read = 0; read < 5; read++) {
+        const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+        expect(projected.state).toBe("awaiting_inputs");
+        expect(projected.outcome).toMatchObject({ title: "The preparation of your simulation stopped",
+          reason: "Preparing the simulation of your site stopped, for a reason this page cannot show yet. Our team is alerted when this happens." });
+        expect(JSON.stringify(projected)).not.toMatch(/website_brand_new_stop|brand_new_category/);
+      }
+      // A replay of the receipt already stored is no new ingest.
+      await syncWebsitePreparationStatus(selector, h.deps);
+      expect(noted).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(h.stored)).toBe(stored);
     } finally { noted.mockRestore(); }
   });
   it("reads unknown robot-fit reasons, verdicts, robot bodies and terminal reasons without failing", async () => {

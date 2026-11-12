@@ -227,6 +227,24 @@ test("the answer, its details and the job settings read at phone width without s
   await context.close();
 });
 
+// Review, 2026-11-12: a job that waits for its sentence says so AND shows the form to give it. The server decides both
+// from one function (`jobWaitsForItsSentence`); here they arrive together, as it sends them.
+test("a job waiting for its sentence shows the form to name it, open, under the answer that asks for it", async ({ page }) => {
+  const { unexpected } = await mockJob(page, { evaluation: null });
+  await page.route(`**/api/site-task-brief/${token}`, route => route.fulfill({ json: { ready: true, scope: "owner", account: null,
+    taskStatementNeeded: true, brief: { summary: "", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } }));
+  await page.route(`**/api/site-task-brief/${token}/status`, route => route.fulfill({ json: { scope: "owner", captureReceived: true,
+    answer: readyAnswer, outlook: { phase: "waiting_on_site", reason: "task_not_named",
+      sentence: "Tell us in one sentence what the robot should do, so we can build the simulation of your job." },
+    status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } }));
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.locator(".site-answer-bare .bare-lead")).toHaveText("Tell us in one sentence what the robot should do, so we can build the simulation of your job.");
+  const form = page.getByRole("form", { name: "Name the job" });
+  await expect(form).toBeVisible();
+  await expect(form.getByRole("textbox")).toBeVisible();
+  expect(unexpected).toEqual([]);
+});
+
 /** The withdrawn and before-the-video modes of the same job, as the server sends them; registered after mockJob, so they win. */
 async function mockMode(page: Page, mode: "withdrawn" | "film") {
   await page.route(`**/api/self-capture/uploads/${token}/status`, route => route.fulfill({ json: mode === "withdrawn"

@@ -140,6 +140,15 @@ describe("preparation ended for good: one email per terminal transition (beta L3
     expect(unknown.body).not.toContain("provider said no");
     expect(() => buildTaskLifecycleNotification({...ended, eventId: undefined, to: "owner@example.test"})).toThrow();
   });
+  it("PREP-NOTICE-010b says a capacity_blocked ending as ours, the video kept, nothing the site did, and no limit", () => {
+    const row = buildTaskLifecycleNotification({...ended, terminalReason: "capacity_blocked", to: "owner@example.test"});
+    expect(row.subject).toBe("We could not prepare your job in time");
+    expect(row.body.startsWith("We could not start or finish preparing your job in time, for a reason on our side, and we have stopped trying. "
+      + "Nothing you did caused it. Your video is kept.")).toBe(true);
+    expect(row.body).toContain("Reference: bp-prep-1234567890abcdef.");
+    expect(row.body).toContain("Nothing is needed from you.");
+    expect(row.body).not.toMatch(/budget|limit|capacity|month|consent|permission|expired|could not finish building/i);
+  });
   it("PREP-NOTICE-011 enqueues once, re-checks the same current ending at dispatch and sends once", async () => {
     expect((await enqueueTaskLifecycleNotification(ended)).enqueued).toBe(true);
     expect((await enqueueTaskLifecycleNotification(ended)).enqueued).toBe(false);
@@ -169,7 +178,8 @@ describe("preparation ended for good: one email per terminal transition (beta L3
     });
     await reconcileWebsitePreparationNotifications();
     const row = sharedFakeFirestoreState.docs.get(`captureOutbox/${endedKey}`) as any;
-    expect(row.body).toContain("capacity stayed full");
+    // Rewritten (review, 2026-11-12): a capacity_blocked ending has its own email, said as ours.
+    expect(row.body).toContain("We could not start or finish preparing your job in time, for a reason on our side");
   });
 });
 

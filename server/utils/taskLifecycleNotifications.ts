@@ -25,7 +25,7 @@ import { decryptFieldValue } from "./field-encryption";
 import { finePrint, finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
-import { preparationEndedSentence } from "./taskStatusProjection";
+import { CAPACITY_ENDED_HEADLINE, preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_NO_GRANT_SITE_ENDING_SUBJECT, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
   isRecaptureReason, LARGE_VIDEO_RECAPTURE_SENTENCES, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf, TASK_NOT_NAMED_REASON,
@@ -105,6 +105,15 @@ function whereRunsAre(url: string, workspaceUrl: string | null, action: string):
 
 // Bare bones (2026-11-11): each notice says one thing in at most three short lines, then one button
 // ("Label:\nURL"); a line the site must read but that is not the news is fine print (`finePrint`).
+/**
+ * `preparation_ended` for `capacity_blocked` (review, 2026-11-12): every cause the Pipeline sends it for is ours (its
+ * disk or staging stayed short, or the job waited for room until its grant ran out), so the email says so, says the
+ * video is kept, and offers nothing the page cannot do. Staff see the code in the preparation watch.
+ */
+const CAPACITY_ENDED_COPY = {
+  subject: "We could not prepare your job in time",
+  body: (url: string, detail: string) => `${CAPACITY_ENDED_HEADLINE}${detail ? ` ${detail}` : ""}\n\nNothing is needed from you.\n\nOpen your job:\n${url}`,
+};
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, workspaceUrl: string | null) => string }> = {
   preparation_needs_attention: {
     subject: "An update on your Blueprint job preparation",
@@ -288,7 +297,7 @@ export async function enqueueTaskLifecycleNotification(params: {
   const earlyTaskHold = earlyTaskHoldOf(preview);
   // A job waiting for its sentence needs the site, not our team: no "needs attention" email; the page asks for it.
   if (params.milestone === "preparation_needs_attention"
-    && (await import("./jobSentenceWait")).jobWaitsForItsSentence({ requestId, record: snapshot.data() }))
+    && await (await import("./jobSentenceWait")).loadJobWaitsForItsSentence(requestId, snapshot.data()))
     return { enqueued: false, reason: "awaiting_site_sentence" };
   // The Pipeline delivers the preview separately and can be late: until it says how this capture's Atlas lane
   // ended, or the wait runs out, owe the notice rather than send a generic one the page would contradict.
@@ -507,7 +516,8 @@ export function buildTaskLifecycleNotification(params: {
     ? params.earlyTaskHold : null;
   const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
     ? params.recaptureReason : null;
-  const message = held ? earlyTaskHoldCopy(held) : recapture ? recaptureCopy(recapture) : copy[params.milestone];
+  const capacityEnded = params.milestone === "preparation_ended" && params.terminalReason === "capacity_blocked";
+  const message = held ? earlyTaskHoldCopy(held) : recapture ? recaptureCopy(recapture) : capacityEnded ? CAPACITY_ENDED_COPY : copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   // Preparation notices never carry caller text: only a validated reference and,
@@ -515,7 +525,7 @@ export function buildTaskLifecycleNotification(params: {
   const reference = /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : "";
   // A stopped simulation means no test result will come: the paper check, when there is one, is the answer.
   const preparationDetail = params.milestone === "preparation_ended"
-    ? [preparationEndedSentence(params.terminalReason), paperLine(params.siteAnswer, { hold: false, unread: params.paperUnread }), reference]
+    ? [capacityEnded ? "" : preparationEndedSentence(params.terminalReason), paperLine(params.siteAnswer, { hold: false, unread: params.paperUnread }), reference]
       .filter(Boolean).join(" ") : reference;
   // A finished test that scored no AI robot is an ending, so its email takes the paper slot (review, 2026-11-11).
   const scoredNone = params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !proofScoredAnyRobot(params.simulationProof);

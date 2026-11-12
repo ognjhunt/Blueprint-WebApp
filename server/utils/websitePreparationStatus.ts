@@ -193,7 +193,10 @@ export function unknownPreparationCodes(status: WebsitePreparationReceipt): Arra
   if (terminal && !known(WEBSITE_PREPARATION_TERMINAL_REASONS, terminal)) found.push(["preparation.terminal_reason", terminal]);
   const outcome = "outcome" in status ? status.outcome : null;
   if (outcome && !KNOWN_PREPARATION_OUTCOME_REASONS.has(outcome.reason) && !(PREPARATION_RECAPTURE_REASONS as readonly string[]).includes(outcome.reason)
-    && outcome.reason !== TASK_NOT_NAMED_REASON) found.push(["preparation.outcome.reason", outcome.reason]);
+    && outcome.reason !== TASK_NOT_NAMED_REASON) {
+    found.push(["preparation.outcome.reason", outcome.reason]);
+    if (!known(["robot_incompatibility", "insufficient_evidence"], outcome.category)) found.push(["preparation.outcome.category", outcome.category]);
+  }
   const fit = "robot_fit" in status ? status.robot_fit : null;
   if (fit?.reason && !known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason)) found.push(["robot_fit.reason", fit.reason]);
   for (const row of fit?.models ?? []) if (!known(ROBOT_FIT_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
@@ -513,8 +516,8 @@ export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultD
   const selector = websitePreparationSelectorSchema.parse(raw);
   const {latest, authority} = await boundedRead(signal => latestVerified(selector, deps, signal));
   // Recorded at ingest only, and only for a receipt this job has not stored before (never on a read or a replay).
-  const prior = await deps.readStored(selector.capture_id).catch(() => null);
-  if (crossRuntimeDigest(prior?.status ?? null) !== crossRuntimeDigest(latest))
+  const prior = await Promise.resolve().then(() => deps.readStored(selector.capture_id)).catch(() => null);
+  if (prior?.status?.status_digest !== latest.status_digest)
     void noteUnknownPipelineCodes(selector.request_id, unknownPreparationCodes(latest));
   await deps.commit(selector, latest, authority);
   // A geometry-only job ends at its robot fit check, and an ended authority ends the job before a test ran: either

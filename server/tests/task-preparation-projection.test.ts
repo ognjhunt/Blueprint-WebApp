@@ -117,7 +117,6 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
   it.each([
     ["retry_exhausted", "tried several times"],
     ["budget_exhausted", "Preparation stopped at a limit on our side."],
-    ["capacity_blocked", "capacity stayed full"],
     ["permanent_invalid", "could not read this recording"],
     ["out_of_scope", "outside what the beta can build"],
   ])("failed_terminal %s says preparation could not finish, and why", (terminalReason, phrase) => {
@@ -131,6 +130,19 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(status.outcome?.nextStep).toContain("do not need to record or upload it again");
     expect(status.outcome?.reference).toBe(reference);
     expect(status.headline).not.toMatch(/budget|we are preparing|needs more information/i);
+    expect(status.operatorAction).toBeNull();
+  });
+  // Rewritten out of the list above (review, 2026-11-12): `capacity_blocked` covers every cause the Pipeline sends it
+  // for (disk or staging short through its retries; a job that waited for room until its grant ran out), all ours.
+  it("failed_terminal capacity_blocked says we could not prepare the job in time, on our side, and nothing the site did", () => {
+    const status = preparing("failed_terminal", { terminalReason: "capacity_blocked", hasStoredCapture: true });
+    expect(status.decision).toBe("processing_failure");
+    expect(status.headline).toBe("We could not prepare your job in time");
+    expect(status.outcome).toMatchObject({ actionOwner: "blueprint", reference,
+      reason: "We could not start or finish preparing your job in time, for a reason on our side. Nothing you did caused it, and it says nothing about whether a robot suits your site.",
+      nextStep: "Nothing is needed from you. Your recording is saved; you do not need to record or upload it again." });
+    const said = `${status.headline} ${status.outcome?.reason} ${status.outcome?.nextStep}`;
+    expect(said).not.toMatch(/budget|limit|capacity|month|retr|consent|permission|expired|send .* again|resubmit/i);
     expect(status.operatorAction).toBeNull();
   });
   it("an unknown or missing reason adds no sentence of its own", () => {

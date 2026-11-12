@@ -793,7 +793,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   ) : null;
 
   const settingsOpen = scope === "owner" && (link.status === "valid" || link.status === "held");
-  const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || undefined}
+  const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || taskStatementNeeded || undefined}
     onToggle={event => { if ((event.currentTarget as HTMLDetailsElement).open) setEditingBrief(true); }}>
     <summary>{EDIT_JOB_LABEL}</summary>
     {taskStatementForm}

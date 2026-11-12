@@ -12,7 +12,7 @@
  * `external:task_object:composition_support_...`). The sentence is that of the
  * whole code, else of its first part that has one.
  */
-import { isRobotFactFlagCode, screeningReferenceCheck, screeningRowFlagFields, screeningSceneFeasibility, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { isRobotFactFlagCode, screeningReferenceCheckFromCounts, screeningReferenceControl, screeningRowFlagFields, screeningSceneFeasibility, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 
 export const SETUP_FLAG_UNCLASSIFIED_SENTENCE = "Our scene check raised a point we could not classify.";
 
@@ -44,8 +44,6 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "known_good_control_unavailable:embodiment": "We have no scripted reference for the robots tested on this job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   "known_good_control_unavailable:budget": "We did not run our scripted reference check, so that this job's budget could go to testing robots; nothing confirmed beforehand that the simulated scene can record a success.",
   known_good_control_interrupted: "Our scripted reference check did not finish, so it could not confirm that the simulated scene can record a success.",
-  // Said from the check's counts, never from its flag (review, 2026-11-12): it did the job once in three tries.
-  known_good_control_partly: "A scripted reference arm that reads exact positions from the simulation did the job only once in three tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots.",
   // A run's own record that an AI robot's software stopped mid-test (Pipeline `session_policy_server_lost`).
   session_policy_server_lost: "This AI robot's software stopped during the test, so only some tries were counted.",
   // What the simulated scene was built on that was estimated, not observed (Pipeline `atlas_scene_estimates`,
@@ -108,12 +106,37 @@ export function setupFlagSentence(code: string): string {
  * first, then each candidate's own flags in row order. Each sentence once; none when nothing was flagged.
  */
 export function screeningSetupNotes(publication: BetaPolicyScreeningPublication): string[] {
-  // The reference check's sentence follows its counts (`screeningReferenceCheck`), never its passed or failed flag:
-  // a released Pipeline flags 1 of 3 as passed.
-  const reference = screeningReferenceCheck(publication.candidates);
-  const counted = reference === "passed" || reference === "partly" || reference === "failed";
-  const codes = [...(screeningSceneFeasibility(publication)?.flags ?? []),
-    ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => (row[key] ?? [])
-      .map(code => counted && /^known_good_control_(passed|failed)(:|$)/.test(code) ? `known_good_control_${reference}` : code)))];
-  return [...new Set(codes.filter(code => code !== KNOWN_GOOD_CONTROL_PENDING && !isRobotFactFlag(code)).map(setupFlagSentence))];
+  // The reference check's sentence states its real counts (`referenceCheckSentence`), never its passed or failed
+  // flag: a released Pipeline flags 1 of 3 as passed. Only a check that could not run keeps its own flag's sentence
+  // (no reference, budget, interrupted), and one flagged passed or failed with nothing scored gets the plain one.
+  const control = screeningReferenceControl(publication.candidates);
+  const reference = control ? referenceCheckSentence(control.episodes_scored, control.episodes_succeeded, control.episodes_void) : null;
+  const controlCode = (code: string) => /^known_good_control_/.test(code);
+  type Entry = { code: string; sentence?: undefined } | { code?: undefined; sentence: string };
+  const codes: Entry[] = [...(screeningSceneFeasibility(publication)?.flags ?? []).map(code => ({ code })),
+    ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => (row[key] ?? []).map(code =>
+      row === control && controlCode(code) && code !== KNOWN_GOOD_CONTROL_PENDING
+        && (reference || /^known_good_control_(passed|failed)(:|$)/.test(code))
+        ? { sentence: reference ?? REFERENCE_NOT_SCORED } : { code })))];
+  return [...new Set(codes.filter(entry => entry.code === undefined || (entry.code !== KNOWN_GOOD_CONTROL_PENDING && !isRobotFactFlag(entry.code)))
+    .map(entry => entry.code !== undefined ? setupFlagSentence(entry.code) : entry.sentence))];
+}
+
+const REFERENCE_ARM = "a scripted reference arm that reads exact positions from the simulation";
+const REFERENCE_NOT_SCORED = "None of our scripted reference check's tries could be scored, so it could not confirm that the simulated scene can record a success.";
+/**
+ * The reference check in one sentence with its real numbers: successes of its scored tries, and how many could not be
+ * scored when any. Null when none was scored (its flag's own sentence says why). The verdict is
+ * `screeningReferenceCheckFromCounts` of the same numbers.
+ */
+export function referenceCheckSentence(scored: number, succeeded: number, voided: number): string | null {
+  const check = screeningReferenceCheckFromCounts(scored, succeeded);
+  if (check === "could_not_run") return null;
+  const done = `did the job in ${succeeded === 0 ? "none" : succeeded} of ${scored} scored ${scored === 1 ? "try" : "tries"} in the simulated scene`
+    + (voided > 0 ? ` (${voided} more ${voided === 1 ? "try" : "tries"} could not be scored)` : "");
+  if (check === "passed") return `Before testing robots, ${REFERENCE_ARM} ${done}, so the simulated scene can record a success.`;
+  const arm = REFERENCE_ARM[0].toUpperCase() + REFERENCE_ARM.slice(1);
+  return check === "partly"
+    ? `${arm} ${done}, so a low result here may partly reflect our simulation rather than the robots.`
+    : `${arm} ${done}, so a low result here may reflect our simulation rather than the robots.`;
 }

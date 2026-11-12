@@ -7,7 +7,11 @@ import { describe, expect, it } from "vitest";
 import { SETUP_FLAG_UNCLASSIFIED_SENTENCE, isKnownFlag, isRobotFactFlag, robotFactNotes, setupFlagSentence } from "../utils/screeningSetupFlagSentences";
 import { screeningReasonLabel } from "../../client/src/lib/screeningPlainLanguage";
 import { betaPolicyScreeningHoldSchema, isKnownHoldReason, screeningHoldOutcome } from "../utils/betaPolicyScreeningHold";
-import { adoptedSceneOutcome, sceneIntentOutcomeSchema } from "../utils/sceneIntentOutcome";
+import { adoptedSceneOutcome, sceneIntentOutcomeSchema, sceneOutcomeMessage, sceneOutcomeNoticeIntent } from "../utils/sceneIntentOutcome";
+import { projectWebsiteSceneProgression } from "../utils/websiteSceneProgression";
+import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { parseWebsitePreparationWatch } from "../utils/websitePreparationWatch";
+import { referenceCheckSentence } from "../utils/screeningSetupFlagSentences";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { jobOutlook, type JobOutlookInput } from "../utils/jobOutlook";
 import { projectAtlasPreparationOutcome, recaptureSentences, TASK_NOT_NAMED_REASON } from "../utils/taskPreparationOutcome";
@@ -69,10 +73,35 @@ describe("scene outcome kinds", () => {
       decided_at_epoch: 1793000000.25 };
     return { ...value, outcome_digest: crossRuntimeArtifactDigest(value, "outcome_digest") };
   };
-  it("parses an outcome kind it does not know, and does not adopt it: the job keeps the state its status shows", () => {
-    expect(sceneIntentOutcomeSchema.safeParse(sealed("brand_new_kind")).success).toBe(true);
-    expect(adoptedSceneOutcome({ state: "accepted", pipeline_status: { status: "blocked", outcome: sealed("brand_new_kind") } })).toBeNull();
+  // Rewritten (review, 2026-11-12): an unknown TERMINAL kind is the general ending; an unknown wait is not adopted.
+  it("does not adopt a wait whose kind it does not know: the job keeps the state its status shows", () => {
+    expect(sceneIntentOutcomeSchema.safeParse(sealed("brand_new_kind", false)).success).toBe(true);
+    const record = { state: "accepted", website_request_id: "job-1", pipeline_status: { status: "running", outcome: sealed("brand_new_kind", false) } };
+    expect(adoptedSceneOutcome(record)).toBeNull();
+    expect(sceneOutcomeNoticeIntent("intake-1", record)).toBeNull();
+    expect(projectWebsiteSceneProgression(record)).toEqual({ state: "in_progress" });
     expect(adoptedSceneOutcome({ state: "accepted", pipeline_status: { status: "blocked", outcome: sealed("held") } })?.kind).toBe("held");
+  });
+  it("adopts an ending whose kind it does not know as the general ending: one email, and never 'time ran out'", () => {
+    const record = { state: "blocked", website_request_id: "job-1", pipeline_status: { status: "blocked", outcome: sealed("brand_new_kind") } };
+    expect(adoptedSceneOutcome(record)?.kind).toBe("stopped");
+    const progression = projectWebsiteSceneProgression(record)!;
+    expect(progression.state).toBe("ended");
+    const notice = sceneOutcomeNoticeIntent("intake-1", record)!;
+    expect(notice).toMatchObject({ kind: "stopped", request_id: "job-1" });
+    expect(sceneOutcomeNoticeIntent("intake-1", record)).toEqual(notice);
+    const sentence = "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens. "
+      + "Your answer stays on your job page. Nothing is needed from you.";
+    expect(sceneOutcomeMessage("stopped")).toBe(sentence);
+    const email = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "scene_outcome", eventId: notice.event_id,
+      sceneOutcomeKind: "stopped", to: "owner@example.test" });
+    expect(email.subject).toBe("The simulation of your job stopped");
+    expect(email.body).toContain(sentence);
+    expect(`${email.subject} ${email.body}`).not.toMatch(/time .*ran out|expired|window/i);
+    const outlook = jobOutlook({ consentRevoked: false, closedByOwner: false, answer: { state: "ready", unsized: false, reason: null }, windowEnded: false, noGrantEnded: false,
+      preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "ended", endingKind: "stopped" }, proof: null });
+    expect(outlook).toMatchObject({ phase: "no_test", reason: "simulation_stopped",
+      sentence: "The simulation of your job stopped, for a reason this page cannot show yet." });
   });
 });
 
@@ -95,4 +124,30 @@ describe("a job waiting for its sentence", () => {
     expect(recaptureSentences("website_task_object_not_observed", null).reason).toBe("We could not find the object the job moves in your video.");
     expect(recaptureSentences("website_task_object_not_observed", "<script>").reason).toBe("We could not find the object the job moves in your video.");
   });
+});
+
+describe("a capacity_blocked ending in the job outlook", () => {
+  it("says we could not prepare the job in time, on our side; any other ending keeps its own reason", () => {
+    const input = (terminalReason: string | null): JobOutlookInput => ({ consentRevoked: false, closedByOwner: false,
+      answer: { state: "ready", unsized: false, reason: null },
+      windowEnded: false, noGrantEnded: false, preparation: { state: "failed_terminal", geometryOnlyEnd: false, terminalReason }, scene: null, proof: null });
+    expect(jobOutlook(input("capacity_blocked"))).toEqual({ phase: "no_test", reason: "not_processed_in_time",
+      sentence: "We could not start or finish preparing your job in time, for a reason on our side. Nothing you did caused it." });
+    expect(jobOutlook(input("retry_exhausted")).reason).toBe("preparation_failed");
+    expect(jobOutlook(input(null)).reason).toBe("preparation_failed");
+  });
+});
+
+describe("the preparation watch keeps a long reason code", () => {
+  const watch = (terminal_reason: string) => ({ schema_version: "website_preparation_watch.v1", request_id: "job-1", capture_id: "cap-1",
+    kind: "ended", state: "failed_terminal", terminal_reason, attempt_count: 1, since_iso: "2026-11-12T00:00:00.000Z", due_at_ms: 1,
+    alerted_at_iso: null, delivery: null });
+  it.each([40, 41, 128])("parses a %i-character reason, as long as any Pipeline code", length => {
+    const code = `r${"x".repeat(length - 1)}`;
+    expect(parseWebsitePreparationWatch(watch(code))?.terminal_reason).toBe(code);
+  });
+});
+
+describe("the reference check's sentence never says a verdict its counts do not show", () => {
+  it("adds nothing when no try was scored", () => expect(referenceCheckSentence(0, 0, 3)).toBeNull());
 });

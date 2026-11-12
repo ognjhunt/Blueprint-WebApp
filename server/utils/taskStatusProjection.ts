@@ -29,7 +29,7 @@ import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
-  jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
+  jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded } from "./taskPreparationOutcome";
 import { isScreeningHeldOutcome, screeningOutcomeSentenceWithWindow, simulationOutcomeEmailSentence, type ScreeningHeldOutcome, type ScreeningOutcome,
   type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
@@ -264,10 +264,15 @@ export function resultOutranksWindowEnding(input: { screening?: SceneScreening |
 const ENDED_REASON: Record<string, string> = {
   retry_exhausted: "We tried several times and could not get past a problem on our side.",
   budget_exhausted: "Preparation stopped at a limit on our side.",
-  capacity_blocked: "Our processing capacity stayed full for too long.",
+  // Every cause the Pipeline sends it for is ours: its disk or staging stayed short, or the job waited for room until
+  // its grant ran out. Said without naming either (review, 2026-11-12).
+  capacity_blocked: "Nothing you did caused it: we could not start or finish preparing your job in time, for a reason on our side.",
   permanent_invalid: "We could not read this recording.",
   out_of_scope: "This job is outside what the beta can build a scene for.",
 };
+/** A `capacity_blocked` ending, as the page and its email open: ours, the video kept, nothing the site did. */
+export const CAPACITY_ENDED_HEADLINE = "We could not start or finish preparing your job in time, for a reason on our side, and we have stopped trying. "
+  + "Nothing you did caused it. Your video is kept.";
 export function preparationEndedSentence(reason: string | null | undefined): string {
   return reason && Object.hasOwn(ENDED_REASON, reason) ? ENDED_REASON[reason] : "";
 }
@@ -457,10 +462,16 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
       || input.scenePreparationFailed && !nativeProgress
       || input.sceneProgression?.state === "ended" && !sceneEnding ? processingFailure() : null);
+  // A `capacity_blocked` ending is said as ours, with no retry or processing step to speak of (`capacityEnded`).
+  const capacityEnd = input.preparationStatus?.state === "failed_terminal" && input.preparationStatus.terminalReason === "capacity_blocked"
+    && !input.preparationStatus.outcome && stopped ? capacityEnded() : null;
   if (stopped && !hasRuns) {
     const ended = input.preparationStatus?.state === "failed_terminal"
       ? preparationEndedSentence(input.preparationStatus.terminalReason) : "";
-    const outcome = {...stopped,
+    const outcome = capacityEnd ? { ...capacityEnd,
+      ...(/^bp-prep-[a-f0-9]{16}$/.test(input.preparationStatus?.correlationId ?? "") ? {reference: input.preparationStatus!.correlationId!} : {}),
+      nextStep: input.hasStoredCapture ? capacityEnd.nextStep : capacityEnd.nextStep
+        .replace("Your recording is saved;", "Keep your original recording;") } : {...stopped,
       reason: input.preparationStatus?.state === "failed_terminal"
         ? `${stopped.reason} Automatic preparation retries have stopped.${ended ? ` ${ended}` : ""}` : stopped.reason,
       ...(/^bp-prep-[a-f0-9]{16}$/.test(input.preparationStatus?.correlationId ?? "")
@@ -656,7 +667,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       // One sentence for every capacity wait the Pipeline reports this way (this month's room, disk or staging).
       capacity_delayed: "Your recording is saved and your job is in line for processing on our side; nothing is needed from you. Keep your original recording.",
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
-      failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
+      failed_terminal: preparation.terminalReason === "capacity_blocked"
+        ? `${CAPACITY_ENDED_HEADLINE} Nothing more is needed from you.`
+        : `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
       // Final, never a hold: the job's own window says whether its time ran out.
       authority_ended: `${input.jobWindowEnded ? `${JOB_WINDOW_ENDED_SENTENCE} ${ANSWER_STAYS_ON_JOB_PAGE}` : AUTHORITY_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
       unavailable: "Your recording is saved. We could not verify the latest preparation status. Keep your original recording and check again shortly.",

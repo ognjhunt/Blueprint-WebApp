@@ -38,10 +38,10 @@ export interface JobOutlookInput {
   /** A job of a kind we can't simulate yet, with no grant: the no-grant sweep keeps it on file (`websiteJobKeptOnFile`). */
   keptOnFile?: boolean;
   /** The Pipeline's preparation status, as verified. */
-  preparation: { state: string; geometryOnlyEnd: boolean } | null;
+  preparation: { state: string; geometryOnlyEnd: boolean; terminalReason?: string | null } | null;
   /** The scene's progression after hand-off; `waiting` when its test waits on an outcome (approval, a re-plan);
    * `attemptFailed` when a build attempt failed and another is coming. */
-  scene: { state: string; waiting?: boolean; attemptFailed?: boolean } | null;
+  scene: { state: string; waiting?: boolean; attemptFailed?: boolean; endingKind?: string } | null;
   /** The job's simulation proof (`projectSimulationProof`), or null when there is no evaluation to read. */
   proof: SimulationProof | null;
   /** Something the decision needs could not be read. An unknown is never an ending, and never hides a recorded one. */
@@ -151,8 +151,12 @@ function recordedEnding(input: JobOutlookInput,
     return outlook("no_test", ended ? "run_ended" : "run_held", testNotRunLine(proof));
   }
   if (input.scene?.state === "held") return outlook("no_test", "scene_held");
-  if (input.scene?.state === "ended") return outlook("no_test", "scene_stopped");
-  if (input.preparation?.state === "failed_terminal") return outlook("no_test", "preparation_failed");
+  // An ending whose kind this release does not know (`stopped`): it says only that the simulation stopped.
+  if (input.scene?.state === "ended") return outlook("no_test", input.scene.endingKind === "stopped" ? "simulation_stopped" : "scene_stopped");
+  // `capacity_blocked` covers every cause the Pipeline sends it for (its disk or staging stayed short; the job waited
+  // for room until its grant ran out): all ours, so it is said as ours.
+  if (input.preparation?.state === "failed_terminal")
+    return outlook("no_test", input.preparation.terminalReason === "capacity_blocked" ? "not_processed_in_time" : "preparation_failed");
   // The Pipeline's status names no reason for an ended authority. A revoked source is the site's own withdrawal,
   // decided above; a job whose window ending is recorded says its time ran out; anything else says only that it ended.
   if (input.preparation?.state === "authority_ended") return outlook("no_test", input.windowEnded === true ? "authority_ended" : "job_ended");
@@ -207,14 +211,16 @@ export async function loadJobOutlookDecision(requestId: string):
     const status = await loadCurrentWebsitePreparationStatus(requestId, captureId).catch(() => null);
     // A status that cannot be read or verified is unknown, not "before its first status".
     if (!status || status.state === "unavailable") uncertain = true;
-    preparation = status ? { state: status.state, geometryOnlyEnd: status.state === "awaiting_inputs" && status.robotFit?.route === "geometry_only" } : null;
+    preparation = status ? { state: status.state, geometryOnlyEnd: status.state === "awaiting_inputs" && status.robotFit?.route === "geometry_only",
+      terminalReason: status.terminalReason ?? null } : null;
     preparationTaskNotNamed = status?.taskNotNamed === true;
     if (status?.state === "handed_off") {
       const { loadWebsiteSceneProgression } = await import("./websiteSceneProgression");
       const progression = await loadWebsiteSceneProgression(requestId, captureId).then(value => ({ value }))
         .catch(() => { uncertain = true; return { value: null }; });
       scene = progression.value ? { state: progression.value.state, waiting: Boolean(progression.value.progressOutcome),
-        attemptFailed: progression.value.attemptFailed === true } : null;
+        attemptFailed: progression.value.attemptFailed === true,
+        ...(progression.value.sceneOutcome ? { endingKind: progression.value.sceneOutcome.kind } : {}) } : null;
     }
   }
   let proof: SimulationProof | null = null;

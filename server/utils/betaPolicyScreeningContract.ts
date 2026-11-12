@@ -439,21 +439,25 @@ export const KNOWN_GOOD_CONTROL_FLAG_PREFIX = "known_good_control_";
 export const screeningKnownGoodControl = (row: { execution_evidence_kind?: string; setup_quality_flags?: readonly string[] }) =>
   scriptedBaseline(row) && (row.setup_quality_flags ?? []).some(code => code.startsWith(KNOWN_GOOD_CONTROL_FLAG_PREFIX));
 /**
- * What our scripted reference check found, from its published row: passed (at least 2 in 3 tries succeeded), partly
- * (fewer, but at least one), failed (none), could not run (its own flag says so), or null when there is no such row
- * or it has not ended.
+ * What our scripted reference check found, from its published counts alone (review, 2026-11-12): could not run when
+ * none of its tries was scored; failed when none of the scored tries succeeded; passed when at least two were scored
+ * and at least two thirds of them succeeded; otherwise partly. Null when there is no such row, or it has not ended
+ * (it carries only its pending flag).
  */
 export type ScreeningReferenceCheck = "passed" | "partly" | "failed" | "could_not_run";
-export function screeningReferenceCheck(rows: readonly ScreeningCandidateRow[]): ScreeningReferenceCheck | null {
+export function screeningReferenceCheckFromCounts(scored: number, succeeded: number): ScreeningReferenceCheck {
+  if (scored <= 0) return "could_not_run";
+  if (succeeded <= 0) return "failed";
+  return scored >= 2 && succeeded * 3 >= scored * 2 ? "passed" : "partly";
+}
+export const screeningReferenceControl = (rows: readonly ScreeningCandidateRow[]) => {
   const control = rows.find(screeningKnownGoodControl);
-  if (!control) return null;
-  const flags = control.setup_quality_flags ?? [];
-  if (flags.some(code => /^known_good_control_(unavailable|interrupted)(:|$)/.test(code))) return "could_not_run";
-  if (control.episodes_scored > 0) {
-    if (control.episodes_succeeded === 0) return "failed";
-    return control.episodes_succeeded * 3 >= control.episodes_scored * 2 ? "passed" : "partly";
-  }
-  return flags.some(code => /^known_good_control_failed(:|$)/.test(code)) ? "failed" : null;
+  return control && (control.setup_quality_flags ?? []).some(code => code.startsWith(KNOWN_GOOD_CONTROL_FLAG_PREFIX)
+    && !/^known_good_control_pending(:|$)/.test(code)) ? control : null;
+};
+export function screeningReferenceCheck(rows: readonly ScreeningCandidateRow[]): ScreeningReferenceCheck | null {
+  const control = screeningReferenceControl(rows);
+  return control ? screeningReferenceCheckFromCounts(control.episodes_scored, control.episodes_succeeded) : null;
 }
 /** Flags that are facts about one robot and the object (`screeningSetupFlagSentences`): never a set-up doubt. */
 export const ROBOT_FACT_FLAG_CODES: ReadonlySet<string> = new Set(["task_object_wider_than_gripper", "task_object_heavier_than_grip",

@@ -14,13 +14,14 @@ const taskEvidenceIncomplete = z.object({ reason: z.literal("task_evidence_incom
   basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict();
 /**
  * An outcome whose reason this release does not know (review, 2026-11-12): it never fails the status read. Its shape
- * is still checked (a known category and a sealed evidence digest); the site sees one general sentence for it
+ * is still checked (a code-shaped category and basis, and a sealed evidence digest); the site sees one general sentence for it
  * (`unknownOutcome`) and staff hear once per job and code. A known reason must keep its own exact shape.
  */
 export const KNOWN_PREPARATION_OUTCOME_REASONS = new Set<string>(["robot_carry_path_rejected", "task_evidence_incomplete",
   "robot_fit_none"]);
 const unknownReasonOutcome = z.object({ reason: z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/),
-  category: z.enum(["robot_incompatibility", "insufficient_evidence"]), basis: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+  // Open too (review, 2026-11-12): a category this release does not know reads as the same general sentence.
+  category: z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/), basis: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
   robot_id: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/).nullable(), evidence_digest: digest }).strict()
   .refine(value => !KNOWN_PREPARATION_OUTCOME_REASONS.has(value.reason) && !isRecaptureReason(value.reason)
     && value.reason !== TASK_NOT_NAMED_REASON, "A known reason keeps its own shape");
@@ -110,6 +111,19 @@ export function processingFailure(evidence?: {label: string; digest: string}): T
     reason: "A processing step stopped before a usable robot evaluation was produced. This does not establish that the robot or your site is unsuitable.",
     scope: "This preparation attempt only. No robot pass, failure or physical-world validation is established by this outcome.",
     nextStep: "Blueprint needs to resolve the processing issue and reconcile any unfinished work before an authorized retry. Your recording is saved; you do not need to record or upload it again.",
+    actionOwner: "blueprint", evidence: evidence ? [evidence] : [] };
+}
+
+/**
+ * Preparation ended `capacity_blocked` (review, 2026-11-12). Every cause the Pipeline sends it for is ours: its disk or
+ * staging stayed short through its retries, or the job waited for room until its grant ran out. So it is said as ours,
+ * without naming either, and offers nothing the page cannot do. Staff see the code in the preparation watch.
+ */
+export function capacityEnded(evidence?: {label: string; digest: string}): TaskOutcome {
+  return { category: "processing_failure", basis: "execution_failure", title: "We could not prepare your job in time",
+    reason: "We could not start or finish preparing your job in time, for a reason on our side. Nothing you did caused it, and it says nothing about whether a robot suits your site.",
+    scope: "This preparation attempt only. No robot pass, failure or physical-world validation is established by this outcome.",
+    nextStep: "Nothing is needed from you. Your recording is saved; you do not need to record or upload it again.",
     actionOwner: "blueprint", evidence: evidence ? [evidence] : [] };
 }
 
@@ -224,7 +238,7 @@ export function taskNotNamedOutcome(evidenceDigest: string): TaskOutcome {
 /** An outcome whose reason this release does not know: one true, general sentence, and no claim about why. */
 export const UNKNOWN_OUTCOME_SENTENCES = {
   title: "The preparation of your simulation stopped",
-  reason: "Preparing the simulation of your site stopped, for a reason this page can't describe yet. Our team has been told.",
+  reason: "Preparing the simulation of your site stopped, for a reason this page cannot show yet. Our team is alerted when this happens.",
   nextStep: "We'll email you if anything is needed from you. Your recording is saved.",
 } as const;
 export function unknownOutcome(evidenceDigest: string): TaskOutcome {

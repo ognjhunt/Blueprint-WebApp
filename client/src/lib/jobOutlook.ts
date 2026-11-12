@@ -9,7 +9,8 @@ export type JobOutlookReason =
   | "permission_withdrawn" | "closed_by_owner"
   | "window_expired" | "no_grant" | "preparation_failed" | "scene_held" | "scene_stopped"
   | "run_held" | "run_ended" | "no_ai_robot_scored" | "robot_fit_only" | "unsized"
-  | "step_failed" | "other_kind" | "authority_ended" | "kept_on_file" | "job_ended" | "window_ended_during_test" | "task_not_named";
+  | "step_failed" | "other_kind" | "authority_ended" | "kept_on_file" | "job_ended" | "window_ended_during_test" | "task_not_named"
+  | "not_processed_in_time" | "simulation_stopped";
 export interface JobOutlook {
   phase: JobPhase;
   reason: JobOutlookReason | null;
@@ -33,6 +34,10 @@ export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_h
   window_ended_during_test: "The time for this job ran out during the simulation test.",
   no_grant: "We have not built a simulation for this job.",
   preparation_failed: "We could not build a simulation of your site.",
+  // Preparation ended `capacity_blocked`: every cause of it is on our side (review, 2026-11-12).
+  not_processed_in_time: "We could not start or finish preparing your job in time, for a reason on our side. Nothing you did caused it.",
+  // A simulation ending whose kind this release does not know.
+  simulation_stopped: "The simulation of your job stopped, for a reason this page cannot show yet.",
   // True for every hold it covers: a scene outcome held, and an evaluation held for capability, set-up, budget or a
   // scene check (review, 2026-11-11).
   scene_held: "The simulation test of your job is on hold.",
