@@ -12,6 +12,11 @@ const MEASURED = "Measured out of reach from the robot position planned in your 
 const NOT_SET_UP = "Not set up in our simulator yet.";
 const NOT_RUN = "Not run in this evaluation.";
 /**
+ * Held back at the job's limit (owner decision 2026-11-11: a limit is ours to look at). Every
+ * publication carrying it raises one ops alert per job on ingest (`recordScreeningPublicationAlerts`).
+ */
+const JOB_LIMIT_NOT_RUN = "Not run: this job reached a limit on our side. Our team has been told; nothing is needed from you.";
+/**
  * The Pipeline's harness failures: the candidate ran in our simulator (it was
  * set up), but the run gave nothing that could be scored. Ours to fix, and the
  * Pipeline plans it again once a fix is deployed.
@@ -33,7 +38,7 @@ const REASONS: Record<string, string> = {
   runtime_candidate_binding_missing: NOT_SET_UP,
   site_screening_budget_insufficient: NOT_RUN,
   beta_screening_site_budget_exhausted: NOT_RUN,
-  website_job_ceiling_insufficient: NOT_RUN,
+  website_job_ceiling_insufficient: JOB_LIMIT_NOT_RUN,
   beta_screening_waiting_for_capacity: "Waiting for room in our simulator.",
   beta_screening_waiting_for_control: "Waiting to confirm this job can still run.",
   beta_screening_transport_retry_cap_exhausted: "Not run: we could not confirm this job can still run. This is ours to fix.",

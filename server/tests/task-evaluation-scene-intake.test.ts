@@ -919,9 +919,8 @@ it("grants a new prepared scene its native allowance only while the job's one ce
   expect(refused.status).toBe(409);
   expect(await refused.json()).toEqual({ code: "website_scene_preparation_budget_exhausted" });
   expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(0);
-  // The job's one safety-limit alert is recorded with the refusal (owner decision 2026-11-11).
-  expect(store.rows.get("opsWebsiteJobOverBudgetAlerts/req1-safety-limit")?.safety_limit).toMatchObject({
-    stage: "scene_intake", job_ceiling_usd: 100, job_reserved_or_settled_before_usd: 80.5, additional_cost_usd: 20 });
+  // An unflagged refusal at the ceiling is exactly as before: no safety-limit alert (owner decision 2026-11-11).
+  expect(store.rows.has("opsWebsiteJobOverBudgetAlerts/req1-safety-limit")).toBe(false);
   // Settling the hold below its maximum makes room; nothing was reset or rewritten.
   record.website_preparation_reservations["b".repeat(64)].settlement = { actual_cost_usd: 80, status: "settled" };
   expect((await post("prepared-scene", { request })).status).toBe(202);

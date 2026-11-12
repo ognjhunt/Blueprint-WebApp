@@ -72,7 +72,7 @@ describe("projectSimulationProof", () => {
   it("is preparing while queued or waiting, and running once a policy runs or is scored", () => {
     expect(projectSimulationProof({ evaluation: evaluation({ outcome: null, state: "queued" }), pick: ur10e }).state).toBe("preparing");
     const waiting = projectSimulationProof({ evaluation: evaluation({ outcome: "awaiting_spend_approval", state: "blocked" }), pick: ur10e });
-    expect(waiting).toMatchObject({ state: "preparing", headline: "Blueprint is deciding whether to continue the simulation." });
+    expect(waiting).toMatchObject({ state: "preparing", headline: "The simulation is paused on our side. Nothing is needed from you." });
     expect(projectSimulationProof({ evaluation: evaluation({ outcome: "setup_repair" }), pick: ur10e }).state).toBe("preparing");
     const running = projectSimulationProof({ evaluation: evaluation({ outcome: null, state: "running" },
       [candidate("pi05_droid", "π0.5 DROID", 0, 0, { state: "running" })]), pick: ur10e });

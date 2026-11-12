@@ -1,10 +1,7 @@
 import { Router, type Response } from "express";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
-import { betaPolicyScreeningPublicationSchema, parseBetaPolicyScreeningPublication,
-  screeningPublicationWithinJobCeilingSchema } from "../utils/betaPolicyScreeningContract";
-import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { SCENE_INTAKE_COLLECTION } from "../utils/taskEvaluationSceneIntake";
-import { websiteJobCeiling } from "../utils/websiteJobCeiling";
+import { betaPolicyScreeningPublicationSchema, parseBetaPolicyScreeningPublication } from "../utils/betaPolicyScreeningContract";
+import { recordScreeningPublicationAlerts } from "../utils/screeningPublicationAlerts";
 import { ingestBetaCandidateSelection, ingestBetaPolicyScreening, observeBetaScreeningExecutionControl,
   parseBetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
 import { parseBetaCandidateSelection } from "../utils/betaCandidateSelection";
@@ -32,22 +29,6 @@ async function refuseUnparsed(res: Response, args: { kind: QuarantinedPayloadKin
     return res.status(503).json({ code: "screening_store_unavailable" });
   }
 }
-/**
- * The job ceiling of the website job a publication's scene intake names, read the way every admission
- * for the job reads it (`websiteJobCeiling`, without an Atlas authorization in hand: never below the
- * figure the Pipeline planned under). Null when the intake or its job cannot be found: ingest then
- * refuses the publication by name, as before. Throws when the store cannot be read.
- */
-async function screeningPublicationJobCeilingUsd(source: { scene_intent_id: string; capture_id: string }) {
-  if (!db) throw new Error("screening_store_unavailable");
-  const matches = await db.collection(SCENE_INTAKE_COLLECTION).where("receipt.intent_id", "==", source.scene_intent_id).limit(2).get();
-  if (matches.docs.length !== 1) return null;
-  const requestId = matches.docs[0].data()?.website_request_id;
-  if (typeof requestId !== "string" || !requestId) return null;
-  const record = (await db.collection("inboundRequests").doc(requestId).get()).data();
-  if (!record) return null;
-  return websiteJobCeiling({ record, captureId: source.capture_id, requestId }).maximum_cost_usd;
-}
 router.post("/beta-policy-screening-runs", createPipelineSyncRateLimiter(), async (req, res) => {
   const auth = verifyPipelineSyncRequest(req);
   if (!auth.ok) return res.status(auth.status).json({ error: auth.message, code: auth.code });
@@ -55,19 +36,11 @@ router.post("/beta-policy-screening-runs", createPipelineSyncRateLimiter(), asyn
   if (!publication) return refuseUnparsed(res, { kind: "beta_policy_screening_publication", digestField: "publication_digest",
     body: req.body, schema: betaPolicyScreeningPublicationSchema, invalidCode: "screening_publication_invalid" });
   try {
-    // Owner decision 2026-11-11: screening is bounded by its job's one safety limit, read now. A publication
-    // naming more is refused exactly as a publication past the old $30 site allowance was.
-    const ceiling = await screeningPublicationJobCeilingUsd(publication.source);
-    if (ceiling !== null) {
-      const schema = screeningPublicationWithinJobCeilingSchema(ceiling);
-      if (!schema.safeParse(req.body).success) return refuseUnparsed(res, { kind: "beta_policy_screening_publication",
-        digestField: "publication_digest", body: req.body, schema, invalidCode: "screening_publication_invalid" });
-    }
-  } catch {
-    return res.status(503).json({ code: "screening_store_unavailable" });
-  }
-  try {
     const receipt = await ingestBetaPolicyScreening(publication);
+    // Owner decision 2026-11-11: a result is never refused for its budget figures. Testing reported above
+    // the job's safety limit, or robots held back at the job's limit, raise one ops alert per job. A store
+    // failure here is a 503 so the Pipeline delivers again; the replay records what was missed.
+    if (receipt.status !== "superseded") await recordScreeningPublicationAlerts(publication);
     return res.status(receipt.status === "created" ? 201 : 200).json(receipt);
   } catch (error) {
     const code = error instanceof Error ? error.message : "";

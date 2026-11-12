@@ -58,7 +58,7 @@ describe("a website evaluation held before any campaign started", () => {
     expect(holdRun()).toMatchObject({ state: "blocked", screening_outcome: "awaiting_spend_approval" });
     expect(holdRun().outcome_notification_pending).toBeUndefined();
     expect(await progression()).toEqual({ state: "completed", progressOutcome: "awaiting_spend_approval" });
-    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe("Blueprint is deciding whether to continue simulating your job.");
+    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe("Your job is paused on our side. Nothing is needed from you.");
     await deliverOutbox();
     expect(send).not.toHaveBeenCalled();
     // Any other detail of the same reason is still the setup hold it was.

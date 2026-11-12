@@ -132,7 +132,7 @@ describe("preparation ended for good: one email per terminal transition (beta L3
     expect(row).toMatchObject({idempotencyKey: endedKey, kind: "preparation_ended", preparationEventId: endedId,
       subject: "We stopped building the simulation of your site"});
     expect(row.body).toContain("We could not finish building the simulation of your site, and we have stopped trying");
-    expect(row.body).toContain("more processing than the free beta provides for one job");
+    expect(row.body).toContain("Preparation stopped at a limit on our side.");
     expect(row.body).toContain("Reference: bp-prep-1234567890abcdef.");
     expect(row.body).toContain("Keep your original video");
     expect(row.body).not.toMatch(/budget|completed|automatically retry|robot can|PRIVATE|\/path/i);
