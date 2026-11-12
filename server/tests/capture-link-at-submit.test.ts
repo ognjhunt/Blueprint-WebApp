@@ -2112,17 +2112,24 @@ describe("one link, two pages", () => {
 
   it("turns the same link live when the thing in the way resolves", async () => {
     // The whole reason a held link is worth issuing: nobody sends a second one.
-    seedRequest("req-flip", { disposition: "needs_conversation" }, "site_visit");
-    (sharedFakeFirestoreState.docs.get("inboundRequests/req-flip") as Record<string, any>).request.capture_region = "non_us";
-    const url = captureUploadUrlFor("req-flip");
+    // A link's expiry is counted in whole seconds from the moment it is made, so the clock is held still here: this is
+    // about the job's state never changing the link, not about two links made either side of a second.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now());
+    try {
+      seedRequest("req-flip", { disposition: "needs_conversation" }, "site_visit");
+      (sharedFakeFirestoreState.docs.get("inboundRequests/req-flip") as Record<string, any>).request.capture_region = "non_us";
+      const url = captureUploadUrlFor("req-flip");
 
-    await expect(authorizeCaptureUpload("req-flip")).resolves.toMatchObject({ allowed: false });
+      await expect(authorizeCaptureUpload("req-flip")).resolves.toMatchObject({ allowed: false });
 
-    seedRequest("req-flip", { disposition: "needs_conversation" }, "site_visit");
+      seedRequest("req-flip", { disposition: "needs_conversation" }, "site_visit");
 
-    await expect(authorizeCaptureUpload("req-flip")).resolves.toMatchObject({ allowed: true });
-    // Same URL throughout.
-    expect(captureUploadUrlFor("req-flip")).toBe(url);
+      await expect(authorizeCaptureUpload("req-flip")).resolves.toMatchObject({ allowed: true });
+      // Same URL throughout.
+      expect(captureUploadUrlFor("req-flip")).toBe(url);
+    } finally {
+      clock.mockRestore();
+    }
   });
 });
 
