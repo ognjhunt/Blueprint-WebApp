@@ -301,7 +301,8 @@ export const TASK_NOT_NAMED_SENTENCES = {
 /** The site has given its sentence and the Pipeline has not re-read the job yet. Ours, not the site's. */
 export const TASK_NAMED_SENTENCES = {
   title: "We have your job's sentence",
-  reason: "We have the sentence you gave us, and we are starting to build the simulation of your job.",
+  // Not "starting": the Pipeline picks the job up on its own next read (review, 2026-11-12).
+  reason: "We have your job's sentence and will start building its simulation.",
   nextStep: "Nothing more is needed from you.",
 } as const;
 export function taskNamedOutcome(): TaskOutcome {

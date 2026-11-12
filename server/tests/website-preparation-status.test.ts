@@ -778,7 +778,13 @@ describe("no new video is needed, through the stored row", () => {
     runtime.records.set("captureUploadSessions/a-bad", {website_preparation_notification_pending: true,
       website_preparation: {selector: f.selected, status, notification: {eventId, state: "pending"}}});
     const enqueue = vi.fn(async () => "enqueued" as const);
-    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
+    const alerts = await import("../utils/unknownPipelineCode");
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCode").mockResolvedValue(true);
+    try {
+      expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
+      // Staff hear of the unreadable row: one ops alert for its job (the marker keeps later passes quiet).
+      expect(noted).toHaveBeenCalledWith("r1", "preparation.stored_row", "unreadable");
+    } finally { noted.mockRestore(); }
     expect(enqueue).toHaveBeenCalledTimes(1);
     expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention"}));
     // The bad row itself is refused wherever it is read.

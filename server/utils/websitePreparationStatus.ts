@@ -5,7 +5,7 @@ import { z } from "zod";
 import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { KNOWN_PREPARATION_OUTCOME_CATEGORIES, KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS,
   PREPARATION_NOT_POSSIBLE_REASON, PREPARATION_NOT_POSSIBLE_CAUSES, PREPARATION_OUTCOME_KEYS, PREPARATION_RETRIES_SPENT_REASON, TASK_NOT_NAMED_REASON, pipelineAsksForSentence } from "./taskPreparationOutcome";
-import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
+import { noteUnknownPipelineCode, noteUnknownPipelineCodes } from "./unknownPipelineCode";
 import { logger } from "../logger";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
@@ -514,8 +514,15 @@ const defaultDeps: WebsitePreparationDeps = {
       // One row that does not parse is skipped and logged; it never fails the other jobs' rows (review, 2026-11-12).
       let stored: StoredWebsitePreparation | null;
       try { stored = parseStored(row.data().website_preparation); }
-      catch { logger.error({captureId: row.id, alert: "website_preparation_row_unreadable"},
-        "A stored website preparation row could not be read; it was skipped."); return []; }
+      catch {
+        logger.error({captureId: row.id, alert: "website_preparation_row_unreadable"},
+          "A stored website preparation row could not be read; it was skipped.");
+        // ONE ops alert per job for it (the marker makes later passes silent), so staff know (review, 2026-11-12).
+        const raw = row.data().website_preparation?.selector?.request_id;
+        const job = typeof raw === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(raw) ? raw : `capture:${row.id}`;
+        void noteUnknownPipelineCode(job, "preparation.stored_row", "unreadable");
+        return [];
+      }
       if (!stored) return [];
       const owed = owedSchema.safeParse(row.data()[WEBSITE_PREPARATION_NOTICE_OWED_FIELD]);
       return [owed.success && owed.data.event_id === stored.notification?.eventId

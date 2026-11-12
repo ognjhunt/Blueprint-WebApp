@@ -109,7 +109,8 @@ describe("the page once the site has named its job", () => {
     const named = projectTaskStatus({ ...base, siteNamedTask: true } as never);
     expect(named.headline).toBe("We have your job's sentence");
     expect(named.outcome).toMatchObject({ actionOwner: "blueprint",
-      reason: "We have the sentence you gave us, and we are starting to build the simulation of your job.",
+      // Rewritten (review, 2026-11-12): "starting" overstated it.
+      reason: "We have your job's sentence and will start building its simulation.",
       nextStep: "Nothing more is needed from you." });
     expect(named.operatorAction).toBeNull();
   });

@@ -220,3 +220,32 @@ describe("the scripted reference row, first or last", () => {
     }
   });
 });
+
+describe("the part-6 preparation endings", () => {
+  const sha = `sha256:${"e".repeat(64)}`;
+  it("words a not-possible ending by its cause, the general sentence for an unknown one, and never fails on extra keys", async () => {
+    const { preparationOutcomeV7Schema, projectPreparationOutcome } = await import("../utils/taskPreparationOutcome");
+    const read = (value: Record<string, unknown>) => {
+      const parsed = preparationOutcomeV7Schema.safeParse(value);
+      expect(parsed.success).toBe(true);
+      return projectPreparationOutcome(parsed.data as never);
+    };
+    const base = { category: "insufficient_evidence", reason: "website_preparation_not_possible", basis: "missing_evidence",
+      robot_id: null, evidence_digest: sha };
+    const known = read({ ...base, cause: "support_surface_not_found_under_subject" });
+    expect(known).toMatchObject({ title: "We cannot prepare the simulation of your job yet", actionOwner: "blueprint",
+      reason: "We could not find the surface the object rests on in your video. Preparing the simulation of your job needs a step we cannot do yet, so it has stopped. We look at it again when we change that step.",
+      nextStep: "Nothing is needed from you now. Your recording is saved." });
+    const unknown = read({ ...base, cause: "brand_new_blocker" });
+    expect(unknown.reason).toBe("Preparing the simulation of your job needs a step we cannot do yet, so it has stopped. We look at it again when we change that step.");
+    expect(JSON.stringify(unknown)).not.toContain("brand_new_blocker");
+    // An extra key never fails the read.
+    expect(read({ ...base, cause: "support_surface_not_found_under_subject", later_key: 1 }).title).toBe(known.title);
+    const spent = read({ category: "processing_failure", reason: "website_preparation_retries_spent", basis: "execution_failure",
+      robot_id: null, evidence_digest: sha });
+    expect(spent).toMatchObject({ title: "We could not finish preparing your job",
+      reason: "We could not finish preparing your job after several tries, for a reason on our side.",
+      nextStep: "We try again each time we update our software. Nothing is needed from you; your recording is saved." });
+    for (const outcome of [known, unknown, spent]) expect(JSON.stringify(outcome)).not.toMatch(/will review|review/i);
+  });
+});
