@@ -5,6 +5,7 @@ import { z } from "zod";
 import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON } from "./taskPreparationOutcome";
 import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
+import { logger } from "../logger";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
 import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
@@ -338,9 +339,17 @@ function parseStored(value: unknown): StoredWebsitePreparation | null {
     notification: z.object({eventId: digest, state: z.enum(["pending", "enqueued"])}).strict().nullable(),
   }).strict().parse(value);
   parseReceipt(parsed.status, parsed.selector);
-  if (parsed.notification && parsed.notification.eventId !== websitePreparationEventId(parsed.selector)
-    && parsed.notification.eventId !== noticeFor(parsed.selector, parsed.status)?.eventId) throw unavailable();
+  if (parsed.notification && !storedNoticeAllowed(parsed.selector, parsed.status, parsed.notification.eventId)) throw unavailable();
   return parsed;
+}
+/**
+ * The one rule for which notice id a stored row may hold (review, 2026-11-12): the attention id, or the id
+ * `currentNotice` gives for this status (the status's own notice, or "no new video is needed" on a `handed_off`
+ * status). The parser and the drain read the same rule, so a row the merge writes is always one they accept.
+ */
+function storedNoticeAllowed(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt, eventId: string): boolean {
+  return eventId === websitePreparationEventId(selector)
+    || currentNotice({selector, notification: {eventId, state: "pending"}}, status)?.eventId === eventId;
 }
 /** An exact lower/reused revision cannot downgrade newer persisted authority. The same
  * revision read in the other receipt version is the same ledger state, not a replay. */
@@ -489,7 +498,11 @@ const defaultDeps: WebsitePreparationDeps = {
     const rows = await automationBatch(db, db.collection("captureUploadSessions")
       .where("website_preparation_notification_pending", "==", true), "website_preparation_notifications", limit);
     return rows.docs.flatMap(row => {
-      const stored = parseStored(row.data().website_preparation);
+      // One row that does not parse is skipped and logged; it never fails the other jobs' rows (review, 2026-11-12).
+      let stored: StoredWebsitePreparation | null;
+      try { stored = parseStored(row.data().website_preparation); }
+      catch { logger.error({captureId: row.id, alert: "website_preparation_row_unreadable"},
+        "A stored website preparation row could not be read; it was skipped."); return []; }
       if (!stored) return [];
       const owed = owedSchema.safeParse(row.data()[WEBSITE_PREPARATION_NOTICE_OWED_FIELD]);
       return [owed.success && owed.data.event_id === stored.notification?.eventId

@@ -672,6 +672,62 @@ describe("explicit supplementary rotating-notification scan control",()=>{
   });
 });
 
+// Review, 2026-11-12: the "no new video is needed" notice through the REAL stored-row path: written by the merge in the
+// commit transaction, read back by the parser in the pending load, findEvent and acknowledge.
+describe("no new video is needed, through the stored row", () => {
+  const stop = (selected: WebsitePreparationSelector) => v7("awaiting_inputs", {category: "insufficient_evidence",
+    reason: "website_registration_poor_fit", basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}, 3, selected);
+  const row = () => runtime.records.get("captureUploadSessions/walkthrough-r1");
+  // The pending scan rotates (PREP-041): two passes cover every row whatever cursor an earlier test left.
+  const drain = async (enqueue: Parameters<typeof drainPendingWebsitePreparationNotifications>[0]) => {
+    const first = await drainPendingWebsitePreparationNotifications(enqueue);
+    const second = await drainPendingWebsitePreparationNotifications(enqueue);
+    return {enqueued: first.enqueued + second.enqueued, pending: second.pending};
+  };
+  it("is accepted, owed once, marked sent, and kept by a replay", async () => {
+    const f = productionFixture(); f.ledger(stop(f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    const enqueue = vi.fn(async () => "enqueued" as const);
+    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
+    expect(row().website_preparation.notification).toEqual({eventId: websitePreparationEventId(f.selected), state: "enqueued"});
+    const resumed = websitePreparationResumedEventId(f.selected);
+    f.ledger(v7("handed_off", null, 4, f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "pending"});
+    expect(row().website_preparation_notification_pending).toBe(true);
+    expect(await canNotifyCurrentWebsitePreparationIssue("r1", resumed)).toBe(true);
+    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
+    expect(enqueue).toHaveBeenLastCalledWith(expect.objectContaining({milestone: "preparation_resumed", eventId: resumed}));
+    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "enqueued"});
+    expect(row().website_preparation_notification_pending).toBe(false);
+    // A replay of the same status keeps it, sent; nothing more is owed.
+    await syncWebsitePreparationStatus(f.selected);
+    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "enqueued"});
+    expect(await drain(enqueue)).toEqual({enqueued: 0, pending: 0});
+    expect(enqueue).toHaveBeenCalledTimes(2);
+  });
+  it.each([
+    ["the resumed id on a status that is not handed_off", (selected: WebsitePreparationSelector) =>
+      ({status: stop(selected), eventId: websitePreparationResumedEventId(selected)})],
+    ["a foreign id", (selected: WebsitePreparationSelector) =>
+      ({status: v7("handed_off", null, 4, selected), eventId: `sha256:${"9".repeat(64)}`})],
+  ])("refuses %s, and that one row never fails the other jobs' rows", async (_label, make) => {
+    const f = productionFixture(); f.ledger(stop(f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    const {status, eventId} = make(f.selected);
+    runtime.records.set("captureUploadSessions/a-bad", {website_preparation_notification_pending: true,
+      website_preparation: {selector: f.selected, status, notification: {eventId, state: "pending"}}});
+    const enqueue = vi.fn(async () => "enqueued" as const);
+    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention"}));
+    // The bad row itself is refused wherever it is read.
+    runtime.records.set("captureUploadSessions/walkthrough-r1", {...row(),
+      website_preparation: {selector: f.selected, status, notification: {eventId, state: "pending"}}});
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1")).state).toBe("unavailable");
+  });
+});
+
 function purposeStatusFixture() {
   const f=productionFixture();delete (f.request as any).account_owner_uid;(f.brief as any).confirmedAtIso=null;
   const context=projectWebsiteTaskContext(f.brief as never,projectWebsiteCaptureRights(f.request),{purpose:"scene_preparation"} as any);
