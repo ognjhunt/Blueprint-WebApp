@@ -18,6 +18,8 @@ import {
   PRIVACY_VERSION,
   isCurrentLegalAcceptance,
   acceptedVersionsAreCurrent,
+  shownVersionsCount,
+  START_FORM_VERSIONS_BEFORE_SENT,
 } from "../../client/src/lib/legalAcceptance";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
@@ -90,8 +92,9 @@ const accountSetupSchema = z
     name: short,
     organization: short,
     acceptedTerms: z.boolean().optional(),
-    termsVersion: z.literal(TERMS_VERSION).optional(),
-    privacyVersion: z.literal(PRIVACY_VERSION).optional(),
+    // The versions the form showed: recorded exactly when they still count as current, refused otherwise.
+    termsVersion: z.string().max(40).optional(),
+    privacyVersion: z.string().max(40).optional(),
     optionalUpdates: z.boolean().optional(),
     siteClaimToken: z.string().min(1).max(4000).optional(),
   })
@@ -198,11 +201,16 @@ router.post(
       }
       const needsTerms = !currentTermsAccepted(user);
       const intakeTermsApply = Boolean(auth.email_verified === true && siteIntake && isCurrentLegalAcceptance(siteIntake.terms_acceptance));
+      const sentVersions = input.termsVersion !== undefined || input.privacyVersion !== undefined;
+      const shown = sentVersions ? shownVersionsCount(input.termsVersion, input.privacyVersion) : null;
+      if (sentVersions && !shown)
+        refuse(400, "The Terms or Privacy Policy changed while this page was open. Reload the page to see the current versions.",
+          "workspace_terms_versions_not_current");
       // Old unverified claim clients used true for prior-intake reuse. On that
       // path, creating a new record requires the displayed document versions.
       const acceptsDisplayedTerms = input.acceptedTerms === true && (auth.email_verified === true
         || (!siteIntake && !input.siteClaimToken)
-        || input.termsVersion === TERMS_VERSION && input.privacyVersion === PRIVACY_VERSION);
+        || Boolean(shown));
       if (needsTerms && !intakeTermsApply && !acceptsDisplayedTerms)
         refuse(
           400,
@@ -211,7 +219,7 @@ router.post(
         );
       const now = admin.firestore.FieldValue.serverTimestamp();
       const termsAcceptance = needsTerms
-        ? intakeTermsApply ? siteIntake!.terms_acceptance : buildLegalAcceptanceRecord({ acceptedAt: now })
+        ? intakeTermsApply ? siteIntake!.terms_acceptance : buildLegalAcceptanceRecord({ acceptedAt: now, shown })
         : null;
       const reuseSiteDetails = Boolean(siteIntake && input.siteClaimToken && !user.workspaceSetupCompletedAt);
       const submittedName = [siteIntake?.contact?.firstName, siteIntake?.contact?.lastName]
@@ -262,6 +270,11 @@ router.post(
   handle(async (req, res, next) => {
     const { user, auth } = res.locals.workspaceAccount;
     if (typedProfile(user) || req.body?.acceptedTerms !== true) return next();
+    // What the form showed; a form that sends no versions was opened before forms sent them. Versions that no longer
+    // count are refused by the intake that follows, before anything is recorded here.
+    const sent = typeof req.body?.termsVersion === "string" || typeof req.body?.privacyVersion === "string";
+    const shown = sent ? shownVersionsCount(req.body.termsVersion, req.body.privacyVersion) : START_FORM_VERSIONS_BEFORE_SENT;
+    if (!shown) return next();
     const organization = text(req.body?.company).trim().slice(0, 160) || "My site";
     const now = admin.firestore.FieldValue.serverTimestamp();
     const profile = {
@@ -274,9 +287,9 @@ router.post(
       buyerType: "site_operator",
       workspaceSetupCompletedAt: now,
       acceptedTerms: true,
-      termsVersion: TERMS_VERSION,
-      privacyVersion: PRIVACY_VERSION,
-      termsAcceptance: buildLegalAcceptanceRecord({ acceptedAt: now }),
+      termsVersion: shown.terms_version,
+      privacyVersion: shown.privacy_version,
+      termsAcceptance: buildLegalAcceptanceRecord({ acceptedAt: now, shown }),
     };
     const profileRef = db!.collection("users").doc(auth.uid);
     const siteSetup = new Set(["buyerType", "workspaceSetupCompletedAt", "acceptedTerms", "termsVersion", "privacyVersion", "termsAcceptance"]);
@@ -563,6 +576,9 @@ router.post(
       consentAttestation: z.object({ granted: z.literal(true), statementVersion: z.enum(RECORDING_RIGHTS_STATEMENT_VERSIONS) }).nullable().optional(),
       descriptionOnly: z.boolean().optional(),
       acceptedTerms: z.boolean().optional(),
+      // The versions the form showed beside its line (recorded exactly by the intake; see inbound-request.ts).
+      termsVersion: z.string().max(40).optional(),
+      privacyVersion: z.string().max(40).optional(),
       descriptionAuthority: z.object({ granted: z.literal(true), statementVersion: z.enum(DESCRIPTION_AUTHORITY_VERSIONS) }).optional(),
       // The start form's one box (2026-11-07); the intake records it as the brief's confirmation.
       taskConfirmation: z.object({ granted: z.literal(true), statementVersion: z.literal(TASK_CONFIRMATION_VERSION) }).optional(),

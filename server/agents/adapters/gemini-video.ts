@@ -560,7 +560,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
   const receipts: Array<Record<string, unknown>> = [], usageSamples: Array<Record<string, unknown>> = [];
   const historyCalls: Array<Record<string, unknown>> = [];
   const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples, company_history_tool_calls: historyCalls, coverage_inference_reservations: coverageReservations };
-  const historyAccess = await getCompanyHistoryAccess(task);
+  const historyAccess = await getCompanyHistoryAccess(task, "gemini_video");
   const historyTools = historyAccess ? openAiResponsesHistoryTools : [];
   let retainedVideo: Awaited<ReturnType<typeof openVideo>> | undefined;
   let providerVideo: AudioFreeVideo | undefined;

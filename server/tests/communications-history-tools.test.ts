@@ -143,7 +143,7 @@ describe("owner-authorized cancelled same-session continuation", () => {
     Object.assign(f.child, { gmailMcp: mcp, historyConfigurationDigest: mcp.configurationDigest, initialTurnId: "cancelled-turn" });
     f.authority.binding.originalCheckpointDigest = communicationsDigest(f.checkpoint);
     f.authority.scope.existingMcpDigest = communicationsDigest(mcp);
-    f.authority.scope.existingHistoryBindingDigest = communicationsDigest(await getCompanyHistoryAccess({ kind: "outbound_outreach" }));
+    f.authority.scope.existingHistoryBindingDigest = communicationsDigest(await getCompanyHistoryAccess({ kind: "outbound_outreach" }, "openai_agents_api"));
     const raw = Buffer.from(JSON.stringify(f.authority)), ref = { ...f.ref, sha256: outputTextDigest(raw.toString()) };
     let posted = false, event: any, latest: any, failRead = false, historyAnswered = false;
     const usage = { input_tokens: 100, output_tokens: 10, total_tokens: 110 };

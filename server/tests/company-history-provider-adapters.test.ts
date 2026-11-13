@@ -15,9 +15,14 @@ vi.mock("../agents/adapters/public-video-fetch", () => ({
 const { anthropicCreate, historyRun, retained } = vi.hoisted(() => ({ anthropicCreate: vi.fn(), historyRun: vi.fn(), retained: {learning:null as any} }));
 vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:()=>({get:async()=>({data:()=>({learning:retained.learning})})})}}));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { stream: (params: unknown, options: unknown) => ({ finalMessage: () => anthropicCreate(params, options) }) } }; } }));
-vi.mock("../agents/operator-tools", async importOriginal => ({
-  ...await importOriginal<typeof import("../agents/operator-tools")>(), runOperatorTool: historyRun,
-}));
+// These tests exercise each adapter's history tool loop as it would run under a Privacy Policy that named the provider
+// for what company history exposes. No version does today, so the real rule withholds the tools from Anthropic and
+// Gemini; that rule is tested in company-history-provider.test.ts.
+vi.mock("../agents/operator-tools", async importOriginal => {
+  const real = await importOriginal<typeof import("../agents/operator-tools")>();
+  return { ...real, runOperatorTool: historyRun, companyHistoryWithheld: () => null,
+    getCompanyHistoryAccess: (task: { kind: any }) => real.getCompanyHistoryAccess(task, "openai_responses") };
+});
 
 const task = (kind = "capture_dispatch", mode: "AGENTIC" | "STATIC" = "AGENTIC") => ({
   kind, input: { taskVideoUrl: "https://example.com/clip.mp4", companyWide: true },

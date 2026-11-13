@@ -263,7 +263,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       openAIClient: client as unknown as NonNullable<ConstructorParameters<typeof OpenAIProvider>[0]>["openAIClient"] });
     instance = await createSiteAssessmentAgent(modelInput, {
       history_access: await (async () => {
-        const access = await getCompanyHistoryAccess(task);
+        const access = await getCompanyHistoryAccess(task, "openai_responses");
         // Experiments authorize Sol/Gemini only. Preserve read scope, suppress optional paid embeddings.
         return access && host.experiment ? { ...access, embeddingAuthority: { enabled: false,
           model: "text-embedding-3-small", dimensions: 1536, maxInputCharacters: 1 } } : access;

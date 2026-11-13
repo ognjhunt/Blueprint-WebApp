@@ -18,7 +18,7 @@ import {
   requestAccessInvitation,
 } from "../utils/robotTeamEarlyAccess";
 import { applicationTermsAcceptance, recordCompanyTermsAcceptance } from "../utils/companyTerms";
-import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
+import { shownVersionsCount } from "../../client/src/lib/legalAcceptance";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
@@ -63,8 +63,9 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
       code: "application_invalid",
     });
   }
-  if (parsed.data.termsVersion !== TERMS_VERSION || parsed.data.privacyVersion !== PRIVACY_VERSION)
-    return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
+  // What the form showed, recorded exactly when it still counts as current; refused otherwise.
+  const shown = shownVersionsCount(parsed.data.termsVersion, parsed.data.privacyVersion);
+  if (!shown) return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
   const { acceptedTerms: _accepted, termsVersion: _terms, privacyVersion: _privacy, ...fields } = parsed.data;
   const application = { ...fields, supportedSystems: Object.prototype.hasOwnProperty.call(req.body, "supportedSystems")
     ? fields.supportedSystems : undefined };
@@ -75,7 +76,7 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
     // The tick on this unsigned form is recorded on the application as what it is (the versions it showed and the
     // time). It never lets a company see a job: every company agrees once, signed in, on its first visit (G1).
     const { record, created, unchanged, notification } = await recordAccessApplication(application, { fit,
-      applicationTermsAcceptance: applicationTermsAcceptance() });
+      applicationTermsAcceptance: applicationTermsAcceptance(undefined, shown) });
     // A decided record is left as it is, and the answer is the same as for a new application (G1).
     if (unchanged) return res.status(202).json({ status: "applied", notificationStatus: "queued" });
     // Registration records interest; only the existing staff decision/invite routes grant admission.
@@ -119,18 +120,20 @@ router.post("/invitation", applyLimiter, async (req: Request, res: Response) => 
  * account and its access record (`companyTerms.ts`), with the versions taken from the server, never the client.
  */
 const TERMS_ACCEPTANCE_INVALID = { error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" };
-const acceptTermsSchema = z.object({ acceptedTerms: z.literal(true), termsVersion: z.literal(TERMS_VERSION),
-  privacyVersion: z.literal(PRIVACY_VERSION) }).strict();
+const acceptTermsSchema = z.object({ acceptedTerms: z.literal(true), termsVersion: z.string().max(40),
+  privacyVersion: z.string().max(40) }).strict();
 router.post("/accept-terms", applyLimiter, verifyFirebaseToken, async (req: Request, res: Response) => {
   const user = res.locals.firebaseUser;
-  if (!acceptTermsSchema.safeParse(req.body).success)
-    return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
+  const body = acceptTermsSchema.safeParse(req.body);
+  // The versions the prompt showed, recorded exactly when they still count as current; refused otherwise.
+  const shown = body.success ? shownVersionsCount(body.data.termsVersion, body.data.privacyVersion) : null;
+  if (!shown) return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
   if (!user?.uid || !user.email || user.email_verified !== true)
     return res.status(403).json({ error: "Use your approved company's verified account.", code: "terms_acceptance_account_required" });
   try {
-    const recorded = await recordCompanyTermsAcceptance({ uid: user.uid, email: user.email }, accessRecordId(user.email));
+    const recorded = await recordCompanyTermsAcceptance({ uid: user.uid, email: user.email }, accessRecordId(user.email), shown);
     if (!recorded) return res.status(403).json({ error: "Only an approved deployment company can accept here.", code: "terms_acceptance_not_approved" });
-    return res.json({ ok: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
+    return res.json({ ok: true, termsVersion: shown.terms_version, privacyVersion: shown.privacy_version });
   } catch (error) {
     logger.warn({ error }, "Could not record a company's Terms acceptance");
     return res.status(503).json({ error: "Your agreement could not be saved. Try again shortly.", code: "terms_acceptance_unavailable" });

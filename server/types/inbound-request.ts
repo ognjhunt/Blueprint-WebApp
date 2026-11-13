@@ -1075,6 +1075,8 @@ export interface InboundRequest {
   evaluation_readiness?: EvaluationReadinessSummary;
   // R047: recorded Terms of Service / Privacy Policy acceptance for the buyer/operator.
   terms_acceptance?: TermsAcceptanceRecord | null;
+  /** The Privacy Policy version the job was submitted under, written once at creation (see inbound-request.ts). */
+  privacy_version_at_submission?: string;
   debug: {
     schemaVersion: number;
     autoCreatedByPipeline?: boolean;

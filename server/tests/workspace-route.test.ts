@@ -421,6 +421,25 @@ describe("workspace access and projections", () => {
     } finally { clock.mockRestore(); }
   });
 
+  // Privacy 2026-11-13.1 changes only what may happen to jobs started from now on, and the Terms do not change: a site
+  // that accepted Terms and Privacy 2026-11-12.2 is asked nothing, and nothing is recorded for it.
+  it.each(["nested", "legacy"])("asks nothing of a %s account that accepted Terms and Privacy 2026-11-12.2", async shape => {
+    const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-11-12T23:00:00Z" }),
+      terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" };
+    const record = { ...state.records.get("users/site-1"), ...(shape === "nested"
+      ? { termsAcceptance: acceptance }
+      : { acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" }) };
+    state.records.set("users/site-1", record);
+    const retained = structuredClone(record);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-13T09:00:00Z"));
+    try {
+      const response = await api("/setup", "site-1");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ termsRequired: false });
+      expect(state.records.get("users/site-1")).toEqual(retained);
+    } finally { clock.mockRestore(); }
+  });
+
   it("withholds persisted capture derivatives on the owner's return after withdrawal", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), consent_revoked: true,
       site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
@@ -963,7 +982,8 @@ describe("capture-first workspace intake", () => {
   it("sets up a brand-new account as a site workspace with its first job, accepting the shown Terms", async () => {
     const response = await fetch(`${base}/capture-start`, { method: "POST",
       headers: { "Content-Type": "application/json", "x-user": "new-site", "x-unverified": "1" },
-      body: JSON.stringify({ ...capture, hasExistingFootage: true, acceptedTerms: true, company: "Acme Foods" }) });
+      body: JSON.stringify({ ...capture, hasExistingFootage: true, acceptedTerms: true, company: "Acme Foods",
+        termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }) });
     expect(response.status).toBe(201);
     expect(state.intakes.at(-1)).toMatchObject({ body: { email: "new-site@example.com", buyerType: "site_operator", company: "Acme Foods" },
       metadata: { account_owner_uid: "new-site" } });
@@ -971,6 +991,36 @@ describe("capture-first workspace intake", () => {
       buyerType: "site_operator", company: "Acme Foods", acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION,
       termsAcceptance: { accepted_terms: true, terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION } });
     expect((await api("/tasks/capture-owned/task-link", "new-site", {})).status).toBe(200);
+  });
+  // D2b: a start form opened before forms sent their versions showed Terms and Privacy 2026-11-12.2; that is recorded.
+  it("records Privacy 2026-11-12.2 for a start form that sends no versions, never the current one", async () => {
+    const response = await fetch(`${base}/capture-start`, { method: "POST",
+      headers: { "Content-Type": "application/json", "x-user": "old-form", "x-unverified": "1" },
+      body: JSON.stringify({ ...capture, hasExistingFootage: true, acceptedTerms: true, company: "Acme Foods" }) });
+    expect(response.status).toBe(201);
+    expect(state.records.get("users/old-form")).toMatchObject({ termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2",
+      termsAcceptance: { terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" } });
+  });
+  it.each([
+    ["an older Privacy version", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-02.1" }],
+    ["an older Terms version", { termsVersion: "2026-11-02.1", privacyVersion: "2026-11-13.1" }],
+  ])("/setup refuses a page that showed %s and writes nothing", async (_name, versions) => {
+    state.records.set("inboundRequests/submitted-job", { ...task(), account_owner_uid: null,
+      contact: { email: "new-site@example.com" } });
+    const response = await api("/setup", "new-site", { name: "Owner", organization: "Site", workspaceType: "site_operator",
+      acceptedTerms: true, siteClaimToken: createSiteClaimToken("submitted-job"), ...versions });
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("workspace_terms_versions_not_current");
+    expect(state.records.has("users/new-site")).toBe(false);
+    expect(state.records.get("inboundRequests/submitted-job").account_owner_uid).toBeNull();
+  });
+  it("the start form's account setup records nothing for a page that showed versions that no longer count", async () => {
+    const response = await fetch(`${base}/capture-start`, { method: "POST",
+      headers: { "Content-Type": "application/json", "x-user": "stale-form", "x-unverified": "1" },
+      body: JSON.stringify({ ...capture, hasExistingFootage: true, acceptedTerms: true, company: "Acme Foods",
+        termsVersion: "2026-11-12.2", privacyVersion: "2026-11-02.1" }) });
+    expect(response.status).not.toBe(201);
+    expect(state.records.has("users/stale-form")).toBe(false);
   });
   // Ordinary sign-up writes a profile with no workspace type; it is set up the
   // same way and keeps what sign-up wrote.

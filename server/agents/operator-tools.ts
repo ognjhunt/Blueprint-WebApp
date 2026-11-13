@@ -1,4 +1,5 @@
-import type { AgentTaskKind } from "./types";
+import type { AgentProvider, AgentTaskKind } from "./types";
+import { STRICTEST_PRIVACY_TABLE, privacyDecisionForClasses, type AgentDataClass } from "./provider-privacy";
 import type { CompanyHistoryAccess } from "../research-learning/company-history";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 
@@ -7,8 +8,24 @@ import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 // model input/metadata or an automatically renewed runtime grant.
 const companyTaskKinds = new Set<AgentTaskKind>(["operator_thread", "adp_run_operator", "external_harness_thread",
   "capture_dispatch", "robot_capability_extraction", "outbound_outreach", "support_triage", "site_assessment"]);
-export async function getCompanyHistoryAccess(task: { kind: AgentTaskKind }): Promise<CompanyHistoryAccess | null> {
-  if (!companyTaskKinds.has(task.kind)) return null;
+/**
+ * What company history exposes: other requests' records, their descriptions and the people in them. The lanes given
+ * the history tools state these classes in the gate's lane table (provider-privacy.ts).
+ */
+export const COMPANY_HISTORY_DATA_CLASSES: readonly AgentDataClass[] = ["job_records", "personal_info", "site_job_text"];
+export const HISTORY_TOOLS_WITHHELD = "provider_not_permitted";
+/**
+ * Whether the provider serving a run may be given the company-history tools: only when the STRICTEST table permits it
+ * every class the history exposes. History spans jobs of every Privacy version, so the version of a job the run is
+ * bound to never widens this. Null when the tools may be given (or the lane gets none); otherwise the reason.
+ */
+export function companyHistoryWithheld(kind: AgentTaskKind, provider: AgentProvider | string): typeof HISTORY_TOOLS_WITHHELD | null {
+  if (!companyTaskKinds.has(kind)) return null;
+  return privacyDecisionForClasses(provider, COMPANY_HISTORY_DATA_CLASSES, STRICTEST_PRIVACY_TABLE).permitted ? null : HISTORY_TOOLS_WITHHELD;
+}
+export async function getCompanyHistoryAccess(task: { kind: AgentTaskKind },
+  provider: AgentProvider | string): Promise<CompanyHistoryAccess | null> {
+  if (!companyTaskKinds.has(task.kind) || companyHistoryWithheld(task.kind, provider)) return null;
   try {
     if (!dbAdmin) return null;
     const retained = (await dbAdmin.doc("blueprintDailyResearch/sites-first").get()).data()?.learning;

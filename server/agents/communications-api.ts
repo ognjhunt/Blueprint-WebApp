@@ -253,7 +253,7 @@ export class CommunicationsAgentsAPI {
       || communicationsDigest(original.gmailMcp) !== authority.scope.existingMcpDigest) {
       throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
     }
-    const access = await getCompanyHistoryAccess({ kind: "outbound_outreach" });
+    const access = await getCompanyHistoryAccess({ kind: "outbound_outreach" }, "openai_agents_api");
     if (!access || communicationsDigest(access) !== authority.scope.existingHistoryBindingDigest
       || Date.parse(access.expiresAt) < Date.parse(authority.expiresAt)) throw new CommunicationsRuntimeError("communications_continuation_history_changed");
     const checkpoint = await this.hydrateHistoryCheckpoint(original, job.jobId);
@@ -929,7 +929,7 @@ export class CommunicationsAgentsAPI {
       receipt.delivery = "submitted"; // verified provider no longer requests it
       await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
     }
-    const historyAccess = actions.length ? await getCompanyHistoryAccess({ kind: "outbound_outreach" }) : null;
+    const historyAccess = actions.length ? await getCompanyHistoryAccess({ kind: "outbound_outreach" }, "openai_agents_api") : null;
     for (const action of actions) {
       const requestDigest = communicationsDigest({ sessionId: checkpoint.sessionId, turnId: turn.id,
         callId: action.call_id, name: action.name, arguments: action.arguments });
@@ -975,7 +975,7 @@ export class CommunicationsAgentsAPI {
       // Sensitive cached output cannot outlive or widen its original retained
       // read binding, including after an unknown provider acknowledgment.
       if (receipt.historyAccessDigest || receipt.success) {
-        const currentAccess = await getCompanyHistoryAccess({ kind: "outbound_outreach" });
+        const currentAccess = await getCompanyHistoryAccess({ kind: "outbound_outreach" }, "openai_agents_api");
         if (!historyAccess || Date.parse(historyAccess.expiresAt) <= Date.now() || !currentAccess
           || Date.parse(currentAccess.expiresAt) <= Date.now()
           || receipt.historyAccessDigest !== communicationsDigest(currentAccess)) {

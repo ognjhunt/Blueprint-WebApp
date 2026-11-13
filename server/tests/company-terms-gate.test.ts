@@ -291,10 +291,24 @@ const simPkg = () => {
 };
 const introduce = (alias: string) => requestIntroduction({ requestId: ID, alias, actor: "site",
   statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
-const SHOWN = { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" };
+const SHOWN = { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" };
 const apply = (body: Record<string, unknown>) => realFetch(`${base}/api/robot-team-access/apply`, { method: "POST",
   headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Mallory", company: "Mallory Corp", robot: "arm",
     workWanted: "pick", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
+
+describe("Privacy 2026-11-13.1 asks no approved company to agree again", () => {
+  // The Terms keep 2026-11-12.2; Privacy 2026-11-13.1 changes only what may happen to jobs started from now on.
+  const record = (privacyVersion: string, termsVersion = "2026-11-12.2") => ({ status: "approved", partnerRole: "deployment",
+    termsAcceptedByUid: "uid-company", termsAcceptance: { ...currentTermsAcceptance(), terms_version: termsVersion, privacy_version: privacyVersion } });
+  it("a company holding Terms 2026-11-12.2 keeps seeing jobs, whatever Privacy version it recorded since 2026-11-12.2", () => {
+    expect(companyMaySeeJobs(record("2026-11-12.2") as never)).toBe(true);
+    expect(companyMaySeeJobs(record("2026-11-13.1") as never)).toBe(true);
+  });
+  it("a Terms change still asks again", () => {
+    expect(companyMaySeeJobs(record("2026-11-13.1", "2026-11-12.1") as never)).toBe(false);
+    expect(companyMaySeeJobs(record("2026-11-02.1", "2026-11-12.2") as never)).toBe(false);
+  });
+});
 
 describe("T1 every company surface refuses without a current signed-in acceptance, and says nothing of any job", () => {
   it.each(STALE)("%s", async (_label, terms, keepUid) => {
@@ -356,7 +370,7 @@ describe("T2 the unsigned application form cannot create, replace or carry an ac
   it("stores what the form showed on a pending application only; it never satisfies the gate", async () => {
     expect((await apply({ email: "new-company@new.example" })).status).toBe(202);
     const record = recordOf({ email: "new-company@new.example" });
-    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" });
+    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1" });
     expect(record).not.toHaveProperty("termsAcceptance");
     // Even if it were approved as it stands, the application's tick would not let it see a job.
     expect(companyMaySeeJobs({ ...record, status: "approved" } as never)).toBe(false);
@@ -381,11 +395,24 @@ describe("T3 the accept route", () => {
     expect(companyMaySeeJobs(recordOf(NORTH) as never)).toBe(false);
     expect((await post(NORTH, good)).status).toBe(200);
     const rec = recordOf(NORTH);
-    // The stored acceptance is the server's own record of the current versions; the body's versions were only checked.
-    expect(rec.termsAcceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2",
+    // The stored acceptance records the versions the prompt showed (here the current ones), checked as still current.
+    expect(rec.termsAcceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1",
       terms_url: "/terms", privacy_url: "/privacy" });
     expect(Object.keys(rec.termsAcceptance)).not.toContain("extra");
     expect(rec.termsAcceptedByUid).toBe(`uid-${NORTH.email}`);
+    expect((await page()).status).toBe(200);
+  });
+
+  // D2b: a prompt opened before Privacy 2026-11-13.1 records exactly what it showed; an older or unknown version is refused.
+  it("records the versions a prompt opened before the Privacy change showed, and refuses older ones", async () => {
+    setTerms(NORTH, undefined, false);
+    expect((await post(NORTH, { ...good, privacyVersion: "2026-11-02.1" })).status).toBe(400);
+    expect((await post(NORTH, { ...good, termsVersion: "2026-11-12.1" })).status).toBe(400);
+    expect(recordOf(NORTH).termsAcceptance).toBeUndefined();
+    expect(await post(NORTH, { ...good, privacyVersion: "2026-11-12.2" })).toMatchObject({ status: 200,
+      body: { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" } });
+    expect(recordOf(NORTH).termsAcceptance).toMatchObject({ terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" });
+    expect(companyMaySeeJobs(recordOf(NORTH) as never)).toBe(true);
     expect((await page()).status).toBe(200);
   });
 

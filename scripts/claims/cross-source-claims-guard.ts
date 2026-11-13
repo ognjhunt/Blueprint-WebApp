@@ -390,7 +390,7 @@ const rules: ClaimRule[] = [
       "Capture-to-scene registration and measured geometry provenance for the exact task; manually authored or synthesized scene content must be disclosed.",
     safeReplacement:
       "Use `a simplified simulation of your task, informed by your footage` until the exact scene derivation is established.",
-    matches: (line, context) => !/\/(?:PrivacyPrevious|TermsPrevious)\.tsx$/.test(context.relativeFile)
+    matches: (line, context) => !/\/(?:PrivacyPrevious|PrivacyEarlier|TermsPrevious)\.tsx$/.test(context.relativeFile)
       && /\b(?:simulation|scene)\s+built\s+from\s+(?:your\s+(?:site|capture|footage)|the\s+site(?:'s|&rsquo;s)?(?:\s+(?:capture|footage))?)/i.test(line),
   },
   {

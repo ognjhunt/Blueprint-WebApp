@@ -305,6 +305,8 @@ export interface PersistedAgentRun {
   openclaw_session_id?: string | null;
   openclaw_run_id?: string | null;
   dedupe_fingerprint?: string | null;
+  /** The stored request the run's data was loaded from, set only by server code (runtime.ts PrivacyRequestBinding). */
+  privacy_request_binding?: { request_id: string } | null;
   tool_policy: ToolPolicy;
   approval_policy: ApprovalPolicy;
   outcome_contract?: OutcomeContract | null;

@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
-import { getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
+import { companyHistoryWithheld, getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
 import {
   ACCOUNTING_ONLY_TASK_KINDS,
   ANTHROPIC_API_BASE_URL,
@@ -233,7 +233,11 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
   ];
 
   const messages: MessageParam[] = [{ role: "user", content: task.definition.build_prompt(task.input) }];
-  const historyAccess = await getCompanyHistoryAccess(task);
+  const historyAccess = await getCompanyHistoryAccess(task, "anthropic_agent_sdk");
+  const historyWithheld = companyHistoryWithheld(task.kind, "anthropic_agent_sdk");
+  if (historyWithheld) traceLogs.push({ event_type: "provider.history_tools.withheld", status: "info",
+    summary: "Company-history tools withheld: the policy does not name this provider for what the history exposes",
+    history_tools_withheld: historyWithheld });
   const historyTools: Anthropic.Beta.BetaTool[] = historyAccess ? openAiResponsesHistoryTools.map(tool => ({
     name: tool.name, description: tool.description, input_schema: tool.parameters as Anthropic.Beta.BetaTool.InputSchema,
   })) : [];
@@ -267,6 +271,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
       raw_output_text: rawText, logs: traceLogs, error: error ?? null,
       requires_human_review: Boolean(error) || inferRequiresHumanReview(output), requires_approval: false,
       artifacts: { output_repairs: receipts, usage_samples: usageSamples, provider_responses: providerResponses, company_history_tool_calls: historyCalls,
+        ...(historyWithheld ? { history_tools_withheld: historyWithheld } : {}),
         served_models: servedModels,
         ...(providerError ? { provider_error: providerError } : {}),
         ...(stopDetails ? { stop_details: stopDetails } : {}),

@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LEGAL_PAGE_DIGESTS, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
 import {
-  LANE_DATA_CLASSES, NON_LANE_SENDS, PRIVACY_POLICY_PROVIDER_ROWS, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
+  LANE_DATA_CLASSES, NON_LANE_SENDS, PAGE_ROWS_WITHOUT_A_ROUTE, PRIVACY_POLICY_PROVIDER_ROWS, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
   STRICTEST_PRIVACY_TABLE, assertPrivacyTableCoversVersion, privacyDecision, privacyDecisionForClasses, resolvePrivacyVersion,
 } from "../agents/provider-privacy";
 import { taskDefinitions } from "../agents/tasks";
@@ -56,7 +56,7 @@ describe("the gate's tables", () => {
       expect(onPage.length, entry.page).toBeGreaterThan(0);
       expect(Object.fromEntries(onPage), `${version} ${entry.page}`)
         .toEqual(Object.fromEntries(Object.entries(entry.rows).map(([row, value]) => [row, value.words])));
-      expect((LEGAL_PAGE_DIGESTS as Record<string, { version: string }>)[entry.page].version, entry.page).toBe(version);
+      expect((LEGAL_PAGE_DIGESTS as Record<string, { version: string }>)[entry.page].version, entry.page).toBe(entry.same_text_as ?? version);
     }
     expect(PRIVACY_POLICY_PROVIDER_ROWS[PRIVACY_VERSION].page).toBe("client/src/pages/Privacy.tsx");
     // A provider's policy row exists on the page of every version.
@@ -65,6 +65,21 @@ describe("the gate's tables", () => {
       if (!row) continue;
       for (const entry of Object.values(PRIVACY_POLICY_PROVIDER_ROWS)) expect(entry.rows[row], `${provider} ${entry.page}`).toBeDefined();
     }
+  });
+
+  it("keeps a page row no website provider routes to only by a named exception, and it permits nothing", () => {
+    const routed = new Set(PROVIDERS.map((provider) => PROVIDER_DESTINATIONS[provider].policy_row).filter(Boolean));
+    for (const [version, entry] of Object.entries(PRIVACY_POLICY_PROVIDER_ROWS)) {
+      for (const [row, value] of Object.entries(entry.rows)) {
+        if (routed.has(row)) continue;
+        expect(PAGE_ROWS_WITHOUT_A_ROUTE[row], `${version} ${row}: a row with no route needs a named exception`).toBeDefined();
+        expect(value.classes, `${version} ${row}`).toEqual([]);
+      }
+    }
+    // The DeepSeek row of 2026-11-13.1 is the row of 2026-11-12.2, word for word.
+    expect(PRIVACY_POLICY_PROVIDER_ROWS[PRIVACY_VERSION].rows.DeepSeek)
+      .toEqual(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-12.2"].rows.DeepSeek);
+    for (const provider of PROVIDERS) expect(PROVIDER_DESTINATIONS[provider].policy_row, provider).not.toBe("DeepSeek");
   });
 
   it("applies the version recorded on the data when known, and the strictest table when it is absent or unknown", () => {
@@ -93,15 +108,29 @@ describe("the gate's decisions under every version", () => {
   const versions = Object.keys(PRIVACY_POLICY_PROVIDER_ROWS);
   const restricted = ["site_job_text", "job_records", "personal_info", "staff_tools", "site_frames", "site_video"] as const;
 
-  it("never lets Anthropic, or a provider whose destination the policy does not name, receive restricted data", () => {
-    for (const version of versions) {
+  it("never lets a provider whose destination the policy does not name receive restricted data, nor Anthropic under an older version", () => {
+    for (const version of [...versions, STRICTEST_PRIVACY_TABLE]) {
       for (const kind of ALL_KINDS) {
         const sendsRestricted = LANE_DATA_CLASSES[kind].classes.some((dataClass) => (restricted as readonly string[]).includes(dataClass));
-        for (const provider of ["anthropic_agent_sdk", "acp_harness", "openclaw", "codex_local"] as const) {
+        const providers = version === PRIVACY_VERSION ? ["acp_harness", "openclaw", "codex_local"] as const
+          : ["anthropic_agent_sdk", "acp_harness", "openclaw", "codex_local"] as const;
+        for (const provider of providers) {
           if (sendsRestricted) expect(privacyDecision(provider, kind, version).permitted, `${version} ${kind} ${provider}`).toBe(false);
         }
       }
     }
+  });
+
+  it("under 2026-11-13.1, Anthropic may receive what OpenAI may for site data, and still not the staff thread or footage", () => {
+    expect(PRIVACY_VERSION).toBe("2026-11-13.1");
+    for (const kind of ALL_KINDS) {
+      const openAi = privacyDecision("openai_responses", kind, PRIVACY_VERSION).permitted;
+      expect(privacyDecision("anthropic_agent_sdk", kind, PRIVACY_VERSION).permitted, kind).toBe(openAi);
+    }
+    expect(privacyDecision("anthropic_agent_sdk", "operator_thread", PRIVACY_VERSION).permitted).toBe(false);
+    expect(privacyDecision("anthropic_agent_sdk", "site_video_evidence", PRIVACY_VERSION).permitted).toBe(false);
+    // Lane resolution and failover run on the strictest table: Anthropic is not chosen for site data by a setting.
+    expect(privacyDecision("anthropic_agent_sdk", "site_task_brief_reading").permitted).toBe(false);
   });
 
   it("does not break a lane whose provider today is one the policy permits for its data", () => {
@@ -225,7 +254,7 @@ describe("the gate wherever a provider is chosen for a lane", () => {
   it("skips the shadow comparison when its provider may not receive the lane's data, and reports it", async () => {
     const { config } = await lanes({ OPENAI_API_KEY: "x", ACP_HARNESS_URL: "http://harness.invalid" });
     expect(config.describeAutoAgentShadowProvider("support_triage")).toMatchObject({ provider: "acp_harness",
-      refused: { reason: "privacy_not_permitted", blocked_by: ["personal_info"] } });
+      refused: { reason: "privacy_not_permitted", blocked_by: ["personal_info", "job_records", "site_job_text"] } });
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "deepseek_chat");
     vi.resetModules();
     const removed = (await import("../agents/provider-config")).describeAutoAgentShadowProvider("waitlist_triage");

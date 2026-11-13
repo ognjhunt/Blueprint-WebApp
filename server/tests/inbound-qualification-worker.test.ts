@@ -193,6 +193,8 @@ describe("inbound qualification worker", () => {
           humanGateTopics: "Rights review and delivery scope.",
         }),
       }),
+      // The server binds the run to the request it loaded, for the Privacy gate.
+      { privacyRequestBinding: { request_id: "request-1" } },
     );
     expect(executePhase2WorkflowActions).toHaveBeenCalledWith(
       expect.objectContaining({

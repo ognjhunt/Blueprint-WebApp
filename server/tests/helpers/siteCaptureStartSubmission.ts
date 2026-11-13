@@ -11,6 +11,7 @@
  * records by hand are what hid the request-step blocker (audit P0-5).
  */
 import { TASK_CONFIRMATION_VERSION } from "../../../client/src/lib/taskConfirmationStatement";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../../../client/src/lib/legalAcceptance";
 
 /**
  * What the person types into the start form. The job is the one kind a robot
@@ -57,6 +58,9 @@ export function siteCaptureStartSubmission(params: {
     buyerType: "site_operator",
     accountSignup: false,
     acceptedTerms: true,
+    // The versions the form shows beside its line (D2b: the server records exactly these).
+    termsVersion: TERMS_VERSION,
+    privacyVersion: PRIVACY_VERSION,
     requestedLanes: [],
     siteName: SITE_CAPTURE_START_FORM.location,
     siteLocation: SITE_CAPTURE_START_FORM.location,

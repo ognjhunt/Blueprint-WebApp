@@ -1241,7 +1241,7 @@ describe("a company must accept the current Terms and Privacy Policy before it s
   async function accept(record = NORTH) {
     const response = await realFetch(`${base}/api/robot-team-access/accept-terms`, { method: "POST",
       headers: { ...signIn(record), "content-type": "application/json" },
-      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" }) });
+      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }) });
     return { status: response.status, body: await response.json() as Record<string, any> };
   }
 
@@ -1266,11 +1266,11 @@ describe("a company must accept the current Terms and Privacy Policy before it s
     }
     expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toBe(false);
     // Accepting records the current versions on the account and the access record, then everything works.
-    expect(await accept()).toMatchObject({ status: 200, body: { ok: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" } });
+    expect(await accept()).toMatchObject({ status: 200, body: { ok: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" } });
     expect(state.docs.get(`users/uid-${NORTH.email}`)).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.2",
-      privacyVersion: "2026-11-12.2", termsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.2" } });
+      privacyVersion: "2026-11-13.1", termsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.2" } });
     expect((state.docs.get(`robotTeamAccess/${sha(NORTH.email)}`) as Record<string, any>).termsAcceptance)
-      .toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" });
+      .toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1" });
     expect((await page()).status).toBe(200);
     expect((await list()).body.items).toHaveLength(1);
     expect((await media(item.video.url)).status).toBe(200);
