@@ -316,12 +316,10 @@ App bundle uploads through the capture link take optional limits:
 
 ### Agent Runtime (server)
 - one of:
+  - `DEEPSEEK_API_KEY` (preferred for structured autonomous agents)
   - `OPENAI_API_KEY`
-  - `ANTHROPIC_API_KEY` (Anthropic's own API; leave `ANTHROPIC_BASE_URL` unset. Set to any host other than `https://api.anthropic.com`, Anthropic is treated as not configured and nothing is sent.)
+  - `ANTHROPIC_API_KEY`
   - `ACP_HARNESS_URL`
-- DeepSeek, Z.ai and OpenRouter are no longer used. Their keys and settings
-  (`DEEPSEEK_*`, `ZAI_*`, `OPENROUTER_*`, `BLUEPRINT_OPENROUTER_VIDEO_MODEL`) are
-  read by nothing and should be deleted from the hosting settings.
 - Optional provider selection:
   - `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER` — global; moves every structured lane at once
   - `BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER`
@@ -342,6 +340,14 @@ App bundle uploads through the capture link take optional limits:
   `tsx scripts/agent-runtime-smoke.ts`). Check there before concluding a lane is
   on the model you set — `task_providers` and `task_models` name what each lane
   will actually use.
+- Optional: `DEEPSEEK_BASE_URL`, `DEEPSEEK_DEFAULT_MODEL`, `DEEPSEEK_MAX_TOKENS`, `DEEPSEEK_REASONING_EFFORT`, `DEEPSEEK_THINKING`
+  - `DEEPSEEK_MAX_TOKENS` defaults to `16000` and should not be set below it.
+    Reasoning and the answer share this budget; the old `2000` made
+    `inbound_qualification` return successful, empty responses. Setting it
+    explicitly overrides the fix.
+  - Default structured-agent model: `deepseek-v4-pro` through the official DeepSeek API.
+- Optional for Anthropic-compatible DeepSeek clients: `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_EFFORT_LEVEL=max`
+  - Default Hermes model: `deepseek-v4-pro[1m]` with `deepseek-v4-flash` as the next ladder fallback.
 - Optional: `OPENAI_DEFAULT_MODEL`
 - Optional OpenAI budget and deadline: `BLUEPRINT_OPENAI_AGENT_MAX_OUTPUT_TOKENS`
   (default `16000`), `OPENAI_TIMEOUT_MS` (default `120000`). Reasoning tokens
@@ -372,6 +378,14 @@ App bundle uploads through the capture link take optional limits:
   `OPENAI_PAYOUT_EXCEPTION_MODEL`,
   `OPENAI_PREVIEW_DIAGNOSIS_MODEL`,
   `OPENAI_OPERATOR_THREAD_MODEL`
+- DeepSeek per-lane overrides are preferred for structured-agent lanes:
+  `DEEPSEEK_WAITLIST_AUTOMATION_MODEL`,
+  `DEEPSEEK_INBOUND_QUALIFICATION_MODEL`,
+  `DEEPSEEK_POST_SIGNUP_MODEL`,
+  `DEEPSEEK_SUPPORT_TRIAGE_MODEL`,
+  `DEEPSEEK_PAYOUT_EXCEPTION_MODEL`,
+  `DEEPSEEK_PREVIEW_DIAGNOSIS_MODEL`,
+  `DEEPSEEK_OPERATOR_THREAD_MODEL`
 - Anthropic per-lane overrides are also supported:
   `ANTHROPIC_WAITLIST_AUTOMATION_MODEL`,
   `ANTHROPIC_INBOUND_QUALIFICATION_MODEL`,
@@ -547,7 +561,10 @@ Important:
 ### Creative Pipeline
 - Codex-executed image generation is the default lane for image-heavy brand, marketing, and frontend work.
 - Server-side autonomous workers no longer use paid image APIs.
-- The OpenRouter video generation helper is removed.
+- Optional OpenRouter video generation:
+  `OPENROUTER_API_KEY`
+  `OPENROUTER_BASE_URL`
+  `BLUEPRINT_OPENROUTER_VIDEO_MODEL`
 
 ### Voice Concierge (retired)
 The web voice concierge and PSTN intake (`/api/voice/*`) were retired on

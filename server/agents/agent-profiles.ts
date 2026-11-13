@@ -27,7 +27,6 @@ function normalizeRecord<T extends Record<string, unknown>>(value: unknown) {
   return value && typeof value === "object" ? (value as T) : undefined;
 }
 
-// A profile that names no provider runs on the lane's own resolution (provider-config).
 const builtInAgentProfiles: AgentProfileRecord[] = [
   {
     id: "built-in-ops-operator",
@@ -35,6 +34,9 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
     name: "Ops Operator",
     description: "General bounded operator thread for internal investigation and execution planning.",
     task_kind: "operator_thread",
+    default_provider: "zai_glm",
+    default_runtime: "zai_glm",
+    default_model: "deepseek-v4-pro",
     lane: "session",
     default_environment_profile_id: "built-in-session-default",
     capabilities: [
@@ -84,6 +86,9 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
     name: "Support Triage Specialist",
     description: "Structured support investigation profile with stronger guardrails.",
     task_kind: "support_triage",
+    default_provider: "zai_glm",
+    default_runtime: "zai_glm",
+    default_model: "deepseek-v4-pro",
     lane: "support",
     default_environment_profile_id: "built-in-support-guarded",
     capabilities: [
@@ -124,6 +129,9 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
     name: "Preview Diagnosis Specialist",
     description: "Structured preview-failure specialist with isolated browser-backed evidence posture.",
     task_kind: "preview_diagnosis",
+    default_provider: "zai_glm",
+    default_runtime: "zai_glm",
+    default_model: "deepseek-v4-pro",
     lane: "preview",
     default_environment_profile_id: "built-in-preview-browser-shadow",
     capabilities: [
@@ -164,6 +172,9 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
     name: "Research Subagent",
     description: "Short-lived worker for evidence gathering and concise synthesis.",
     task_kind: "operator_thread",
+    default_provider: "zai_glm",
+    default_runtime: "zai_glm",
+    default_model: "deepseek-v4-pro",
     lane: "session",
     default_environment_profile_id: "built-in-web-research",
     capabilities: ["web-backed research", "evidence extraction", "comparison briefs"],
@@ -195,6 +206,9 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
     name: "Browser Research Subagent",
     description: "Short-lived worker for supervised, read-only browser research and proof capture.",
     task_kind: "operator_thread",
+    default_provider: "zai_glm",
+    default_runtime: "zai_glm",
+    default_model: "deepseek-v4-pro",
     lane: "session",
     default_environment_profile_id: "built-in-browser-research-guarded",
     capabilities: [
@@ -267,6 +281,9 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
     name: "Launch QA Subagent",
     description: "Short-lived worker for supervised launch-surface verification using isolated browser evidence.",
     task_kind: "operator_thread",
+    default_provider: "zai_glm",
+    default_runtime: "zai_glm",
+    default_model: "deepseek-v4-pro",
     lane: "review",
     default_environment_profile_id: "built-in-launch-qa-browser",
     capabilities: ["launch-surface QA", "browser verification", "console and screenshot capture"],
@@ -298,6 +315,9 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
     name: "Review Subagent",
     description: "Short-lived worker for QA and review passes on prior work.",
     task_kind: "operator_thread",
+    default_provider: "zai_glm",
+    default_runtime: "zai_glm",
+    default_model: "deepseek-v4-pro",
     lane: "review",
     default_environment_profile_id: "built-in-session-default",
     capabilities: ["qa review", "risk listing", "verification notes"],

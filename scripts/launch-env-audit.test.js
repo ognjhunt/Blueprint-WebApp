@@ -45,14 +45,4 @@ describe("launch env audit", () => {
     expect(section(elsewhere, "Required-ready")).not.toContain("Structured runtime provider");
     expect(section(elsewhere, "Blocked-by-env")).toContain("Structured runtime provider");
   });
-
-  it("asks for the removed providers' settings to be deleted, naming them and never their values", () => {
-    const stdout = runAudit([], { DEEPSEEK_API_KEY: "left-over-value", ZAI_API_KEY: "left-over-value",
-      ANTHROPIC_BASE_URL: "https://api.other-company.example" }).stdout;
-    expect(stdout).toContain("Settings of removed providers");
-    expect(stdout).toContain("DEEPSEEK_API_KEY, ZAI_API_KEY, ANTHROPIC_BASE_URL");
-    expect(stdout).not.toContain("left-over-value");
-    expect(stdout).not.toContain("other-company");
-    expect(runAudit([], { ANTHROPIC_BASE_URL: "https://api.anthropic.com" }).stdout).not.toContain("Settings of removed providers");
-  });
 });

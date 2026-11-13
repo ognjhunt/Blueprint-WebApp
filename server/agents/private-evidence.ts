@@ -105,7 +105,6 @@ export async function projectAgentEvidence(record: RecordData, scope: Scope, sto
   if (scope.collection === "agentRuns") result.agent_evidence_accounting_identity = {
     run_id: scope.id, session_id: record.session_id ?? null, task_kind: record.task_kind ?? null,
     provider: record.provider ?? null, requested_model: record.model ?? null,
-    // `openrouter_model` is read for stored runs of removed providers only (history; see agentCostTelemetry).
     resolved_model: typeof record.artifacts?.openrouter_model === "string" ? record.artifacts.openrouter_model : record.model ?? null,
     sha256,
   };

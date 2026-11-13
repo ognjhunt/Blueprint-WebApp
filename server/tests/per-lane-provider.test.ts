@@ -20,6 +20,8 @@ const ENV_KEYS = [
   "BLUEPRINT_OPERATOR_THREAD_PROVIDER",
   "OPENAI_DEFAULT_MODEL",
   "CODEX_LOCAL_AVAILABLE",
+  "DEEPSEEK_API_KEY",
+  "ZAI_API_KEY",
   "OPENAI_API_KEY",
   "ANTHROPIC_API_KEY",
   "ACP_HARNESS_URL",
@@ -44,22 +46,22 @@ afterEach(() => {
 
 /** The shape the founder would actually set on Render. */
 function lunaOnQualificationOnly() {
-  process.env.ANTHROPIC_API_KEY = "anthropic-key";
+  process.env.DEEPSEEK_API_KEY = "deepseek-key";
   process.env.OPENAI_API_KEY = "openai-key";
-  process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+  process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
   process.env.BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER = "openai_responses";
   vi.resetModules();
 }
 
 describe("per-lane provider override", () => {
-  it("moves one lane to OpenAI and leaves lanes without a default on the global provider", async () => {
+  it("moves one lane to OpenAI and leaves lanes without a default on DeepSeek", async () => {
     lunaOnQualificationOnly();
     const { getStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(getStructuredAutomationProvider("inbound_qualification")).toBe("openai_responses");
-    expect(getStructuredAutomationProvider("operator_thread")).toBe("anthropic_agent_sdk");
-    expect(getStructuredAutomationProvider("preview_diagnosis")).toBe("anthropic_agent_sdk");
-    expect(getStructuredAutomationProvider()).toBe("anthropic_agent_sdk");
+    expect(getStructuredAutomationProvider("operator_thread")).toBe("deepseek_chat");
+    expect(getStructuredAutomationProvider("preview_diagnosis")).toBe("deepseek_chat");
+    expect(getStructuredAutomationProvider()).toBe("deepseek_chat");
   });
 
   it("pairs the moved lane with that provider's own model", async () => {
@@ -73,9 +75,9 @@ describe("per-lane provider override", () => {
   });
 
   it("sends the lanes that write to people to OpenAI by default, and nothing else", async () => {
-    process.env.ANTHROPIC_API_KEY = "anthropic-key";
+    process.env.DEEPSEEK_API_KEY = "deepseek-key";
     process.env.OPENAI_API_KEY = "openai-key";
-    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
     vi.resetModules();
     const { describeStructuredAutomationProvider, getStructuredAutomationProvider } = await import(
       "../agents/provider-config"
@@ -87,42 +89,42 @@ describe("per-lane provider override", () => {
         reason: "lane_default",
       });
     }
-    expect(getStructuredAutomationProvider("operator_thread")).toBe("anthropic_agent_sdk");
+    expect(getStructuredAutomationProvider("operator_thread")).toBe("deepseek_chat");
   });
 
   it("keeps an email lane running on the global provider when OpenAI has no key", async () => {
-    process.env.ANTHROPIC_API_KEY = "anthropic-key";
-    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+    process.env.DEEPSEEK_API_KEY = "deepseek-key";
+    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
     vi.resetModules();
     const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(describeStructuredAutomationProvider("outbound_outreach")).toMatchObject({
-      provider: "anthropic_agent_sdk",
+      provider: "deepseek_chat",
       lane_request_honored: false,
       reason: "lane_default_not_configured",
     });
   });
 
   it("keeps the lane running when the override names a provider with no key", async () => {
-    process.env.ANTHROPIC_API_KEY = "anthropic-key";
-    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+    process.env.DEEPSEEK_API_KEY = "deepseek-key";
+    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
     process.env.BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER = "openai_responses";
     vi.resetModules();
     const { getStructuredAutomationProvider } = await import("../agents/provider-config");
 
     // Falling back beats taking the most consequential lane offline.
-    expect(getStructuredAutomationProvider("inbound_qualification")).toBe("anthropic_agent_sdk");
+    expect(getStructuredAutomationProvider("inbound_qualification")).toBe("deepseek_chat");
   });
 
   it("says the override was not honoured rather than falling back silently", async () => {
-    process.env.ANTHROPIC_API_KEY = "anthropic-key";
-    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+    process.env.DEEPSEEK_API_KEY = "deepseek-key";
+    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
     process.env.BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER = "openai_responses";
     vi.resetModules();
     const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(describeStructuredAutomationProvider("inbound_qualification")).toEqual({
-      provider: "anthropic_agent_sdk",
+      provider: "deepseek_chat",
       lane_env_key: "BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER",
       lane_request: "openai_responses",
       lane_request_honored: false,
@@ -143,14 +145,14 @@ describe("per-lane provider override", () => {
   });
 
   it("ignores a provider name that is not a provider", async () => {
-    process.env.ANTHROPIC_API_KEY = "anthropic-key";
-    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+    process.env.DEEPSEEK_API_KEY = "deepseek-key";
+    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
     process.env.BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER = "luna";
     vi.resetModules();
     const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(describeStructuredAutomationProvider("inbound_qualification")).toMatchObject({
-      provider: "anthropic_agent_sdk",
+      provider: "deepseek_chat",
       lane_request: "luna",
       lane_request_honored: false,
       reason: "lane_request_unrecognized",
@@ -164,7 +166,7 @@ describe("per-lane provider override", () => {
     );
 
     expect(getStructuredAutomationFallbackProvider("inbound_qualification")).toBe(
-      "anthropic_agent_sdk",
+      "deepseek_chat",
     );
   });
 });
@@ -188,7 +190,7 @@ describe("task definitions", () => {
     const { previewDiagnosisTask } = await import("../agents/tasks/preview-diagnosis");
 
     expect(supportTriageTask.default_provider).toBe("openai_responses");
-    expect(previewDiagnosisTask.default_provider).toBe("anthropic_agent_sdk");
+    expect(previewDiagnosisTask.default_provider).toBe("deepseek_chat");
   });
 });
 
@@ -202,15 +204,15 @@ describe("runtime connectivity metadata", () => {
     const metadata = getAgentRuntimeConnectionMetadata();
     expect(metadata.task_providers.inbound_qualification).toBe("openai_responses");
     expect(metadata.task_providers.support_triage).toBe("openai_responses");
-    expect(metadata.task_providers.operator_thread).toBe("anthropic_agent_sdk");
+    expect(metadata.task_providers.operator_thread).toBe("deepseek_chat");
     expect(metadata.task_models.inbound_qualification).toBe("gpt-6-luna");
     expect(metadata.task_models.outbound_outreach).toBe("gpt-6-luna");
-    expect(metadata.task_models.operator_thread).toBe("claude-haiku-5-5");
+    expect(metadata.task_models.operator_thread).toBe("deepseek-v4-pro");
   });
 
   it("surfaces a lane override that did not take effect", async () => {
-    process.env.ANTHROPIC_API_KEY = "anthropic-key";
-    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+    process.env.DEEPSEEK_API_KEY = "deepseek-key";
+    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
     process.env.BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER = "openai_responses";
     vi.resetModules();
     const { getAgentRuntimeConnectionMetadata } = await import(
@@ -222,7 +224,7 @@ describe("runtime connectivity metadata", () => {
         task_kind: "inbound_qualification",
         env_key: "BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER",
         requested: "openai_responses",
-        using: "anthropic_agent_sdk",
+        using: "deepseek_chat",
         reason: "lane_request_not_configured",
       },
     ]);

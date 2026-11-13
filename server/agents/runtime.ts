@@ -666,31 +666,11 @@ function buildForkedSessionTitle(sourceTitle: string, phase: AgentThreadPhase, r
   return `${sourceTitle} · ${suffix}`;
 }
 
-/**
- * A provider id this runtime still has, or null. A record that names one it no
- * longer has (a session or profile saved before a provider was removed) is
- * treated as naming none, so the lane's own resolution applies; it is never
- * sent to an adapter that does not exist, nor rewritten to another pin.
- */
-function knownAgentProvider(provider?: string | null): AgentProvider | null {
-  switch (provider) {
-    case "codex_local":
-    case "openai_responses":
-    case "openai_agents_api":
-    case "openai_agents_sdk":
-    case "anthropic_agent_sdk":
-    case "acp_harness":
-    case "openclaw":
-    case "gemini_video":
-      return provider;
-    default:
-      return null;
-  }
-}
-
 function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
   switch (provider) {
     case "codex_local":
+    case "deepseek_chat":
+    case "zai_glm":
     case "openai_responses":
     case "openai_agents_api":
     case "openai_agents_sdk":
@@ -711,6 +691,10 @@ function defaultModelForProvider(provider: AgentProvider) {
   switch (provider) {
     case "codex_local":
       return process.env.CODEX_DEFAULT_MODEL?.trim() || "gpt-5.4-mini";
+    case "deepseek_chat":
+      return process.env.DEEPSEEK_DEFAULT_MODEL?.trim() || "deepseek-v4-pro";
+    case "zai_glm":
+      return process.env.ZAI_DEFAULT_MODEL?.trim() || "glm-5.3";
     case "openai_responses":
       return process.env.OPENAI_DEFAULT_MODEL?.trim() || "gpt-5.4";
     case "openai_agents_api":
@@ -731,11 +715,10 @@ function normalizeTask<TInput, TOutput>(
   task: AgentTask<TInput>,
 ): NormalizedAgentTask<TInput, TOutput> {
   const definition = getTaskDefinition<TInput, TOutput>(task.kind);
-  const pinned = knownAgentProvider(task.provider);
-  const provider = pinned ?? normalizeAgentProvider(definition.default_provider);
-  const runtime = (pinned ? knownAgentProvider(task.runtime) : null) || definition.default_runtime || provider;
+  const provider = normalizeAgentProvider(task.provider || definition.default_provider);
+  const runtime = task.runtime || definition.default_runtime || provider;
   const model =
-    (pinned ? task.model : undefined) ||
+    task.model ||
     definition.model_by_provider?.[provider] ||
     defaultModelForProvider(provider);
 
@@ -943,7 +926,7 @@ async function executeTask<TInput, TOutput>(
   host?: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void> },
 ): Promise<AgentResult<TOutput>> {
   refuseRetiredSiteAssessment(task.kind);
-  if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && task.provider !== "openai_responses") {
+  if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && !["openai_responses", "deepseek_chat", "zai_glm"].includes(task.provider)) {
     return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
       tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
       error: `mutation_reconciliation_required: ${task.provider} cannot enforce the recorded mutation barrier. Inspect existing effects through the OpenAI Responses safe-read context or reconcile them before resuming this provider.`,
@@ -956,6 +939,13 @@ async function executeTask<TInput, TOutput>(
   if (task.provider === "openai_responses") {
     const { runOpenAIResponsesTask } = await import("./adapters/openai-responses");
     return runOpenAIResponsesTask(task);
+  }
+
+  if (task.provider === "deepseek_chat" || task.provider === "zai_glm") {
+    // One OpenAI-compatible chat transport, two destinations: DeepSeek's own
+    // API and Z.ai's GLM endpoint. The adapter picks the client by provider.
+    const { runDeepSeekChatTask } = await import("./adapters/deepseek-chat");
+    return runDeepSeekChatTask(task);
   }
 
   if (task.provider === "codex_local") {
@@ -1522,6 +1512,14 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
   const admissionSessionId = options?.sessionId || normalizedTask.session_id;
   if (admissionSessionId && await sessionRequiresMutationReconciliation(admissionSessionId)) {
     normalizedTask.metadata = { ...(normalizedTask.metadata || {}), mutation_reconciliation_required: true };
+  }
+  if (admissionSessionId && ["deepseek_chat", "zai_glm"].includes(normalizedTask.provider)) {
+    // Always prefer verified persisted session history over caller/queued copies.
+    // Strict hydration must succeed before this provider can resume inference.
+    const persistedSession = await getSession(admissionSessionId);
+    const { deepseek_replay_input: _callerReplay, ...metadata } = normalizedTask.metadata || {};
+    const savedReplay = persistedSession?.metadata?.deepseek_replay_input;
+    normalizedTask.metadata = { ...metadata, ...(Array.isArray(savedReplay) ? { deepseek_replay_input: savedReplay } : {}) };
   }
   const normalizedTaskForLogs = normalizedTask as unknown as NormalizedAgentTask<
     unknown,
@@ -2103,20 +2101,15 @@ export async function createAgentSession(params: {
       agentProfileSnapshot: buildProfileSnapshot(profile),
     },
   });
-  // A profile that pins no provider (or one that no longer exists) takes the
-  // lane's own resolution, the same as a task with none. Without a profile the
-  // session keeps its earlier default.
   const provider = normalizeAgentProvider(
-    knownAgentProvider(params.provider) ?? knownAgentProvider(profile?.default_provider)
-      ?? (profile ? getTaskDefinition(params.task_kind).default_provider
-        : params.task_kind === "site_assessment" ? "openai_responses" : undefined),
+    params.provider || profile?.default_provider || (params.task_kind === "site_assessment" ? "openai_responses" : undefined),
   );
   const session: PersistedAgentSession = {
     id: sessionId,
     title: params.title,
     task_kind: params.task_kind,
     provider,
-    runtime: knownAgentProvider(params.runtime) ?? provider,
+    runtime: normalizeAgentProvider(params.runtime || provider),
     status: "idle",
     session_key: params.session_key || `session:${sessionId}`,
     agent_profile_id: profile?.id || params.agent_profile_id || null,
@@ -2655,8 +2648,11 @@ export async function sendAgentSessionMessage(params: {
   const replayInput = Array.isArray(continuationState.openai_replay_input)
     ? continuationState.openai_replay_input
     : null;
+  const chatReplayInput = Array.isArray(continuationState.deepseek_replay_input)
+    ? continuationState.deepseek_replay_input : null;
   const nextSessionMetadata = {
     ...sessionMetadataWithoutOpenAIContinuation,
+    ...(chatReplayInput ? { deepseek_replay_input: chatReplayInput } : {}),
     ...(requiresMutationReconciliation(result as unknown as Record<string, unknown>)
       ? { mutation_reconciliation_required: true } : {}),
     ...(replayInput

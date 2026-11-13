@@ -216,7 +216,6 @@ function asTimestampMs(value: unknown): number | null {
 function inferRoute(run: AgentTelemetryRun, artifacts: Record<string, unknown>) {
   const explicit = asString(artifacts.route, "");
   if (explicit) return explicit;
-  // History only (removed providers, see deepSeekPricingForModel): stored runs keep their route.
   const model = asString(artifacts.openrouter_model ?? run.model, "");
   if (/^deepseek\//i.test(model)) return "deepseek_via_openrouter";
   if (run.provider === "deepseek_chat" || /^deepseek/i.test(model)) {
@@ -226,7 +225,6 @@ function inferRoute(run: AgentTelemetryRun, artifacts: Record<string, unknown>) 
 }
 
 function readProviderRoute(artifacts: Record<string, unknown>) {
-  // `openrouter_*` fields are read for stored runs only (history; see deepSeekPricingForModel).
   const direct = asString(artifacts.openrouter_provider ?? artifacts.provider_route, "");
   if (direct) return direct;
   const providerRouting =
@@ -565,16 +563,6 @@ type ModelPricing = {
   longContextOutputMultiplier?: number;
 };
 
-/*
- * HISTORY ONLY: removed providers (DeepSeek, Z.ai, OpenRouter). They cannot
- * be called: no adapter, provider id or setting for them exists any more.
- * These price rows, and the reads of the artifact fields their runs stored
- * (`openrouter_usage`, `openrouter_model`, `openrouter_provider`,
- * `openrouter_provider_routing`/`_preferences`, and the `deepseek_chat` /
- * `deepseek...` route inference), exist only so runs already stored keep
- * exactly the cost, tokens, route and model they had. Removing a provider
- * never changes what past runs cost.
- */
 function deepSeekPricingForModel(model: string): ModelPricing | null {
   const normalized = model.trim().toLowerCase();
   if (normalized.includes("deepseek-v4-pro")) {

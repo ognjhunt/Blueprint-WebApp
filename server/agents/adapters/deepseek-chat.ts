@@ -1,0 +1,690 @@
+import OpenAI from "openai";
+import { readOnlyOperatorTools, toolFailure, validationIssue } from "./tool-recovery";
+import { ZodError, type ZodType } from "zod";
+
+import { chatCompletionOperatorTools, chatCompletionHistoryTools, getCompanyHistoryAccess, runOperatorTool } from "../operator-tools";
+import type { AgentProvider, AgentResult, AgentTaskKind, NormalizedAgentTask } from "../types";
+
+const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+const OPENROUTER_BASE_URL_PATTERN = /openrouter\.ai/i;
+const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro";
+/**
+ * Enough room for the answer and the thinking that produces it.
+ *
+ * This was 2000, which is below what the largest task can legitimately emit:
+ * `inbound_qualification`'s schema declares maxima summing to 8,573 characters
+ * (~2,150 tokens) of JSON before a single reasoning token is spent, and
+ * reasoning comes out of the same budget. The model therefore spent the ceiling
+ * thinking and returned an empty answer, every time, for that lane.
+ *
+ * 16000 leaves the largest schema its full output plus real headroom to reason.
+ * Unused budget is not billed, so the cost of being generous here is nothing
+ * and the cost of being tight is a lane that never completes.
+ */
+const DEFAULT_DEEPSEEK_MAX_TOKENS = 16000;
+const DEFAULT_OPENROUTER_PROVIDER_ORDER = [
+  "deepseek",
+  "atlas-cloud/fp8",
+  "novita",
+  "siliconflow/fp8",
+] as const;
+const DEFAULT_OPENROUTER_PROVIDER_IGNORE = [
+  "parasail",
+  "parasail/fp8",
+  "akashml",
+  "akashml/fp8",
+  "deepinfra",
+  "deepinfra/fp4",
+] as const;
+const DEEPSEEK_STRUCTURED_SYSTEM_PROMPT =
+  "You are Blueprint's structured agent runtime. Return only valid JSON matching the requested schema. Keep outputs concise. Keep stable instructions in this system message so DeepSeek context caching can reuse common prefixes.";
+
+const deepSeekApiKey = process.env.DEEPSEEK_API_KEY?.trim();
+const deepSeekBaseUrl =
+  process.env.DEEPSEEK_BASE_URL?.trim() || DEFAULT_DEEPSEEK_BASE_URL;
+const deepSeekTimeoutMs = Number(process.env.DEEPSEEK_TIMEOUT_MS ?? 120_000);
+const deepSeekMaxTokens = Number(
+  process.env.DEEPSEEK_MAX_TOKENS ?? DEFAULT_DEEPSEEK_MAX_TOKENS,
+);
+
+const client = deepSeekApiKey
+  ? new OpenAI({
+      apiKey: deepSeekApiKey,
+      baseURL: deepSeekBaseUrl,
+      maxRetries: 2,
+      timeout: deepSeekTimeoutMs,
+    })
+  : null;
+
+/**
+ * Z.ai's GLM endpoint is OpenAI-compatible chat completions, so it rides the
+ * same transport with its own key and base URL. Nothing about the request body
+ * or parsing changes — only who serves it and which key authorizes it.
+ */
+const DEFAULT_ZAI_BASE_URL = "https://api.z.ai/api/paas/v4";
+const zaiClient = process.env.ZAI_API_KEY?.trim()
+  ? new OpenAI({
+      apiKey: process.env.ZAI_API_KEY.trim(),
+      baseURL: process.env.ZAI_BASE_URL?.trim() || DEFAULT_ZAI_BASE_URL,
+      maxRetries: 2,
+      timeout: deepSeekTimeoutMs,
+    })
+  : null;
+
+function clientForProvider(provider: AgentProvider) {
+  if (provider === "zai_glm") {
+    if (!zaiClient) throw new Error("ZAI_API_KEY is not configured");
+    return { client: zaiClient, baseUrl: process.env.ZAI_BASE_URL?.trim() || DEFAULT_ZAI_BASE_URL };
+  }
+  if (!client) throw new Error("DEEPSEEK_API_KEY is not configured");
+  return { client, baseUrl: deepSeekBaseUrl };
+}
+
+/**
+ * Why an empty response happened, not just that it did.
+ *
+ * `deepseek-v4-pro` is asked to think (`thinking` + `reasoning_effort` are sent
+ * below), and reasoning tokens are spent from the same `max_tokens` budget as
+ * the answer. When that budget runs out mid-thought the API returns a complete,
+ * successful response whose `content` is an empty string and whose
+ * `finish_reason` is "length" — which reads as "empty response" and sends
+ * whoever is debugging it looking at the key, the model name and the network
+ * before they look at the one field that says what happened.
+ *
+ * So the cause travels with the error.
+ */
+function describeEmptyResponse(choice: unknown, usage: unknown): string {
+  const finishReason = (choice as { finish_reason?: unknown } | null)?.finish_reason;
+  const reasoningTokens = usageNumberOrNull(
+    (usage as { completion_tokens_details?: { reasoning_tokens?: unknown } } | null)
+      ?.completion_tokens_details?.reasoning_tokens,
+  );
+
+  if (finishReason === "length") {
+    return `DeepSeek hit its token ceiling before writing any answer (finish_reason=length${
+      reasoningTokens ? `, ${reasoningTokens} reasoning tokens spent` : ""
+    }). Raise DEEPSEEK_MAX_TOKENS — reasoning and the answer share one budget.`;
+  }
+  return `DeepSeek returned an empty response (finish_reason=${
+    String(finishReason ?? "unknown")
+  })`;
+}
+
+function extractJsonPayload(rawText: string, emptyReason?: string) {
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    throw new Error(emptyReason || "DeepSeek returned an empty response");
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    throw new Error("DeepSeek returned non-JSON output");
+  }
+}
+
+function inferRequiresHumanReview<TOutput>(output: TOutput) {
+  return Boolean(
+    output
+    && typeof output === "object"
+    && "requires_human_review" in (output as Record<string, unknown>)
+    && (output as Record<string, unknown>).requires_human_review === true,
+  );
+}
+
+function defaultThinkingForTask(kind: AgentTaskKind) {
+  return kind === "operator_thread" || kind === "external_harness_thread" ? "enabled" : "disabled";
+}
+
+function defaultReasoningEffortForTask(kind: AgentTaskKind) {
+  if (kind === "operator_thread" || kind === "external_harness_thread") return "max";
+  if (kind === "preview_diagnosis") return "high";
+  return "low";
+}
+
+function deepSeekThinkingType(kind: AgentTaskKind) {
+  const configured = String(process.env.DEEPSEEK_THINKING ?? defaultThinkingForTask(kind))
+    .trim()
+    .toLowerCase();
+  return configured === "0" ||
+    configured === "false" ||
+    configured === "no" ||
+    configured === "off" ||
+    configured === "disabled"
+    ? "disabled"
+    : "enabled";
+}
+
+function deepSeekReasoningEffort(kind: AgentTaskKind) {
+  const configured = String(process.env.DEEPSEEK_REASONING_EFFORT ?? defaultReasoningEffortForTask(kind))
+    .trim()
+    .toLowerCase();
+  if (configured === "xhigh") return "max";
+  if (configured === "low" || configured === "medium" || configured === "high" || configured === "max") {
+    return configured;
+  }
+  return defaultReasoningEffortForTask(kind);
+}
+
+function extractRawText(message: unknown) {
+  const content = (message as { content?: unknown } | null)?.content;
+  return typeof content === "string" ? content.trim() : "";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function usageNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function usageNumberOrNull(value: unknown) {
+  return usageNumber(value);
+}
+
+function isOpenRouterRoute() {
+  return OPENROUTER_BASE_URL_PATTERN.test(deepSeekBaseUrl);
+}
+
+function parseEnvList(envKey: string, fallback: readonly string[]) {
+  const raw = process.env[envKey];
+  if (!raw || raw.trim().length === 0) return [...fallback];
+  const parsed = raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return parsed.length > 0 ? parsed : [...fallback];
+}
+
+function parseEnvBoolean(envKey: string, fallback: boolean) {
+  const raw = process.env[envKey];
+  if (!raw || raw.trim().length === 0) return fallback;
+  return /^(1|true|yes|on)$/i.test(raw.trim());
+}
+
+function inferRoute(model: string, response?: unknown) {
+  if (isOpenRouterRoute()) return "deepseek_via_openrouter";
+  const responseModel = asRecord(response)?.model;
+  const modelValue = typeof responseModel === "string" ? responseModel : model;
+  if (/^deepseek\//i.test(modelValue)) return "deepseek_via_openrouter";
+  return "deepseek_official_direct";
+}
+
+function openRouterProviderPreferences(model: string) {
+  const route = inferRoute(model);
+  if (route !== "deepseek_via_openrouter") return null;
+  const order = parseEnvList("DEEPSEEK_OPENROUTER_PROVIDER_ORDER", DEFAULT_OPENROUTER_PROVIDER_ORDER);
+  return {
+    only: parseEnvList("DEEPSEEK_OPENROUTER_PROVIDER_ONLY", order),
+    order,
+    ignore: parseEnvList("DEEPSEEK_OPENROUTER_PROVIDER_IGNORE", DEFAULT_OPENROUTER_PROVIDER_IGNORE),
+    allow_fallbacks: parseEnvBoolean("DEEPSEEK_OPENROUTER_ALLOW_FALLBACKS", false),
+  };
+}
+
+function extractProviderMetadata(response: unknown) {
+  const record = asRecord(response) || {};
+  return {
+    model: typeof record.model === "string" ? record.model : null,
+    provider: typeof record.provider === "string" ? record.provider : null,
+    provider_routing: asRecord(record.provider_routing) || asRecord(record.providerRouting),
+    provider_metadata:
+      asRecord(record.provider_metadata) ||
+      asRecord(record.providerMetadata) ||
+      asRecord(record.provider),
+  };
+}
+
+function extractUsage(response: unknown) {
+  const usage = asRecord((response as { usage?: unknown } | null)?.usage);
+  if (!usage || typeof usage !== "object") {
+    return null;
+  }
+  const promptTokensDetails = asRecord(usage.prompt_tokens_details);
+  const completionTokensDetails = asRecord(usage.completion_tokens_details);
+  const costDetails = asRecord(usage.cost_details);
+  const promptTokens = usageNumberOrNull(usage.prompt_tokens);
+  const cachedTokens = usageNumberOrNull(
+    promptTokensDetails?.cached_tokens ?? usage.cached_tokens ?? usage.cached_input_tokens,
+  );
+  const directHitTokens = usageNumberOrNull(usage.prompt_cache_hit_tokens);
+  const directMissTokens = usageNumberOrNull(usage.prompt_cache_miss_tokens);
+  const completionTokens = usageNumberOrNull(usage.completion_tokens);
+  const reasoningTokens = usageNumberOrNull(
+    completionTokensDetails?.reasoning_tokens ?? usage.reasoning_tokens,
+  );
+  const totalTokens = usageNumberOrNull(usage.total_tokens);
+  const costUsd = usageNumberOrNull(usage.cost ?? usage.cost_usd ?? usage.costUsd);
+  return {
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: totalTokens,
+    prompt_cache_hit_tokens: directHitTokens,
+    prompt_cache_miss_tokens: directMissTokens,
+    cached_tokens: cachedTokens,
+    cache_write_tokens: usageNumberOrNull(
+      promptTokensDetails?.cache_write_tokens ?? usage.cache_write_tokens,
+    ),
+    reasoning_tokens: reasoningTokens,
+    cost_usd: costUsd,
+    prompt_tokens_details: promptTokensDetails,
+    completion_tokens_details: completionTokensDetails,
+    cost_details: costDetails,
+  };
+}
+
+function promptCacheHitRatio(usage: ReturnType<typeof extractUsage>) {
+  const hit = usageNumber(usage?.cached_tokens ?? usage?.prompt_cache_hit_tokens);
+  const miss = usageNumber(usage?.prompt_cache_miss_tokens);
+  const promptTokens = usageNumber(usage?.prompt_tokens);
+  if (hit !== null && promptTokens !== null && promptTokens > 0) {
+    return hit / promptTokens;
+  }
+  if (hit === null || miss === null) return null;
+  const total = hit + miss;
+  return total > 0 ? hit / total : null;
+}
+
+type ExtractedUsage = NonNullable<ReturnType<typeof extractUsage>>;
+
+function sumNullable(values: Array<number | null | undefined>) {
+  const finiteValues = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (finiteValues.length === 0) return null;
+  const sum = finiteValues.reduce((total, value) => total + value, 0);
+  return Number(sum.toFixed(12));
+}
+
+function aggregateUsage(usages: ExtractedUsage[]) {
+  const promptTokens = sumNullable(usages.map((usage) => usage.prompt_tokens));
+  const completionTokens = sumNullable(usages.map((usage) => usage.completion_tokens));
+  const totalTokens =
+    sumNullable(usages.map((usage) => usage.total_tokens)) ??
+    (promptTokens !== null || completionTokens !== null
+      ? (promptTokens || 0) + (completionTokens || 0)
+      : null);
+  const cachedTokens = sumNullable(
+    usages.map((usage) => usage.cached_tokens ?? usage.prompt_cache_hit_tokens),
+  );
+  const promptCacheMissTokens = sumNullable(usages.map((usage) => usage.prompt_cache_miss_tokens));
+  const cacheWriteTokens = sumNullable(usages.map((usage) => usage.cache_write_tokens));
+  const reasoningTokens = sumNullable(usages.map((usage) => usage.reasoning_tokens));
+  const costUsd = sumNullable(usages.map((usage) => usage.cost_usd));
+  return {
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: totalTokens,
+    prompt_cache_hit_tokens: cachedTokens,
+    prompt_cache_miss_tokens: promptCacheMissTokens,
+    cached_tokens: cachedTokens,
+    cache_write_tokens: cacheWriteTokens,
+    reasoning_tokens: reasoningTokens,
+    cost_usd: costUsd,
+    prompt_cache_hit_ratio:
+      cachedTokens !== null && promptTokens !== null && promptTokens > 0
+        ? cachedTokens / promptTokens
+        : promptCacheHitRatio({
+            prompt_tokens: promptTokens,
+            completion_tokens: completionTokens,
+            total_tokens: totalTokens,
+            prompt_cache_hit_tokens: cachedTokens,
+            prompt_cache_miss_tokens: promptCacheMissTokens,
+            cached_tokens: cachedTokens,
+            cache_write_tokens: cacheWriteTokens,
+            reasoning_tokens: reasoningTokens,
+            cost_usd: costUsd,
+            prompt_tokens_details: null,
+            completion_tokens_details: null,
+            cost_details: null,
+          }),
+    calls: usages.length,
+  };
+}
+
+async function createDeepSeekCompletion(params: {
+  model: string;
+  messages: any[];
+  tools?: any[];
+  taskKind: AgentTaskKind;
+  provider: AgentProvider;
+  timeoutMs?: number;
+}) {
+  const { client: providerClient, baseUrl: activeBaseUrl } = clientForProvider(params.provider);
+  const providerPreferences = params.provider === "zai_glm"
+    ? null
+    : openRouterProviderPreferences(params.model);
+
+  return (providerClient.chat.completions.create as any)({
+    model: params.model || DEFAULT_DEEPSEEK_MODEL,
+    messages: params.messages,
+    tools: params.tools,
+    tool_choice: params.tools ? "auto" : undefined,
+    response_format: {
+      type: "json_object",
+    },
+    max_tokens: deepSeekMaxTokens,
+    extra_body: {
+      thinking: {
+        type: deepSeekThinkingType(params.taskKind),
+      },
+    },
+    reasoning_effort: deepSeekReasoningEffort(params.taskKind),
+    ...(providerPreferences ? { provider: providerPreferences } : {}),
+    stream: false,
+  }, params.timeoutMs === undefined ? undefined : { timeout: params.timeoutMs, maxRetries: 0,
+    signal: AbortSignal.timeout(Math.ceil(params.timeoutMs)) });
+}
+
+export async function runDeepSeekChatTask<TInput, TOutput>(
+  task: NormalizedAgentTask<TInput, TOutput>,
+): Promise<AgentResult<TOutput>> {
+  if (task.provider === "zai_glm" ? !zaiClient : !client) {
+    return {
+      status: "failed",
+      provider: task.provider,
+      runtime: task.runtime,
+      model: task.model,
+      tool_mode: task.tool_policy.mode,
+      error: task.provider === "zai_glm" ? "ZAI_API_KEY is not configured" : "DEEPSEEK_API_KEY is not configured",
+      requires_human_review: true,
+      requires_approval: false,
+    };
+  }
+
+  const historyAccess = await getCompanyHistoryAccess(task);
+  const tools = task.kind === "operator_thread" ? chatCompletionOperatorTools : historyAccess ? chatCompletionHistoryTools : undefined;
+  const savedReplay = task.metadata?.deepseek_replay_input;
+  if (savedReplay !== undefined && (!Array.isArray(savedReplay) || savedReplay[0]?.role !== "system"
+    || savedReplay[0]?.content !== DEEPSEEK_STRUCTURED_SYSTEM_PROMPT
+    || savedReplay.some((item: any, index: number) => !item || (index > 0 && !["user", "assistant", "tool"].includes(item.role))))) {
+    return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+      tool_mode: task.tool_policy.mode, error: "deepseek_saved_context_invalid_restore_canonical_conversation",
+      artifacts: { inference_not_invoked: true, mutation_reconciliation_required: task.metadata?.mutation_reconciliation_required === true },
+      requires_human_review: true, requires_approval: false };
+  }
+  const messages: any[] = savedReplay ? structuredClone(savedReplay) : [
+    { role: "system", content: DEEPSEEK_STRUCTURED_SYSTEM_PROMPT },
+  ];
+  messages.push({ role: "user", content: task.definition.build_prompt(task.input) });
+
+  const providerPreferences = openRouterProviderPreferences(task.model);
+  const traceLogs: Array<Record<string, unknown>> = [
+    {
+      event_type: "provider.request.prepared",
+      status: "info",
+      summary: "Prepared DeepSeek Chat Completions request",
+      provider: task.provider,
+      model: task.model,
+      base_url: deepSeekBaseUrl,
+      route: inferRoute(task.model),
+      response_cache_policy: isOpenRouterRoute()
+        ? "openrouter_response_cache_not_enabled_for_live_runtime"
+        : "deepseek_context_cache_enabled_by_provider_prefix_reuse",
+      max_tokens: deepSeekMaxTokens,
+      thinking: deepSeekThinkingType(task.kind),
+      reasoning_effort: deepSeekReasoningEffort(task.kind),
+      openrouter_provider_preferences: providerPreferences,
+    },
+  ];
+
+  const usageSamples: ExtractedUsage[] = [];
+  const generationIds: string[] = [];
+  let toolIterations = 0;
+  const seenToolCallIds = new Set<string>();
+  let mutationReconciliationRequired = task.metadata?.mutation_reconciliation_required === true;
+  let response: any;
+  const correctionDeadline = Date.now() + deepSeekTimeoutMs;
+  const outputRepairs: Array<Record<string, unknown>> = [];
+  let outputRepairIterations = 0;
+  let latestOutputFeedback: (Record<string, unknown> & { code: string }) | null = null;
+  try {
+  response = await createDeepSeekCompletion({
+    model: task.model,
+    messages,
+    tools,
+    taskKind: task.kind,
+    provider: task.provider,
+  });
+  const initialUsage = extractUsage(response);
+  if (initialUsage) usageSamples.push(initialUsage);
+  if ((response as any).id) generationIds.push((response as any).id);
+  traceLogs.push({
+    event_type: "provider.response.created",
+    status: "info",
+    summary: "Created DeepSeek response",
+    response_id: (response as any).id || null,
+    route: inferRoute(task.model, response),
+    provider_metadata: extractProviderMetadata(response),
+    usage: initialUsage,
+  });
+
+  while (tools && toolIterations < 5) {
+    const message = response.choices?.[0]?.message;
+    const toolCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
+    if (toolCalls.length === 0) {
+      break;
+    }
+
+    // Correlate the entire batch before executing siblings: missing/reused IDs
+    // cannot safely identify results or uncertain effects.
+    const batchIds = new Set<string>();
+    for (const call of toolCalls) {
+      if (typeof call.id !== "string" || !call.id.trim() || batchIds.has(call.id) || seenToolCallIds.has(call.id)) {
+        throw new Error("DeepSeek tool_call_identity missing or duplicated");
+      }
+      batchIds.add(call.id);
+    }
+    batchIds.forEach(id => seenToolCallIds.add(id));
+    messages.push(message);
+    for (const call of toolCalls) {
+      const toolName = typeof call.function?.name === "string" ? call.function.name : "";
+      let args: Record<string, unknown> = {}, result: unknown, failed = false;
+      if (!tools.some(tool => tool.function.name === toolName)) {
+        failed = true;
+        result = { status: "control_denied", code: "tool_not_allowed", retryAllowed: false,
+          allowedRepair: "Choose a declared tool within the existing authorized scope." };
+      } else if (mutationReconciliationRequired && !readOnlyOperatorTools.has(toolName)) {
+        failed = true;
+        result = { status: "reconciliation_required", code: "tool_mutation_reconciliation_required", retryAllowed: false,
+          allowedRepair: "A prior mutation has an unknown outcome. Read existing state; further mutations remain quarantined until verified reconciliation outside this run." };
+      } else {
+        try {
+          const raw = call.function?.arguments;
+          const parsed = typeof raw === "string" && raw.trim() ? JSON.parse(raw) : {};
+          if (raw !== undefined && typeof raw !== "string" || parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new SyntaxError("tool_arguments_not_object");
+          }
+          args = parsed;
+        } catch {
+          failed = true;
+          result = { status: "recoverable_issue", code: "tool_arguments_invalid_json", retryAllowed: true,
+            issues: [{ path: "/arguments", code: "invalid_json" }],
+            allowedRepair: "Return arguments as one JSON object using the declared tool schema." };
+        }
+      }
+      traceLogs.push({ event_type: "tool.call", status: "info", summary: `Invoked ${toolName}`,
+        tool_name: toolName, tool_args: args, call_id: call.id });
+      if (!failed) {
+        try { result = await runOperatorTool(toolName, args, ...(historyAccess && chatCompletionHistoryTools.some(tool => tool.function.name === toolName) ? [historyAccess] : [])); }
+        catch (error) {
+          failed = true; result = toolFailure(error, toolName);
+          if ((result as { status: string }).status === "reconciliation_required") mutationReconciliationRequired = true;
+        }
+      }
+      traceLogs.push({ event_type: "tool.result", status: failed ? "error" : "success",
+        summary: `${failed ? "Returned feedback for" : "Completed"} ${toolName}`,
+        tool_name: toolName, call_id: call.id, tool_result: result });
+      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
+    }
+
+    response = await createDeepSeekCompletion({
+      model: task.model,
+      messages,
+      tools,
+      taskKind: task.kind,
+      provider: task.provider,
+    });
+    const followUpUsage = extractUsage(response);
+    if (followUpUsage) usageSamples.push(followUpUsage);
+    if ((response as any).id) generationIds.push((response as any).id);
+    traceLogs.push({
+      event_type: "provider.response.created",
+      status: "info",
+      summary: "Created follow-up DeepSeek response",
+      response_id: (response as any).id || null,
+      iteration: toolIterations + 1,
+      route: inferRoute(task.model, response),
+      provider_metadata: extractProviderMetadata(response),
+      usage: followUpUsage,
+    });
+    toolIterations += 1;
+  }
+
+  let rawText = "";
+  let parsed!: TOutput;
+  while (true) {
+    rawText = extractRawText(response?.choices?.[0]?.message);
+    try {
+      const finalCalls = response?.choices?.[0]?.message?.tool_calls;
+      if (Array.isArray(finalCalls) && finalCalls.length) throw new Error("output_repair_tools_forbidden");
+      const payload = extractJsonPayload(rawText, describeEmptyResponse(response?.choices?.[0], response?.usage));
+      parsed = (task.definition.output_schema as ZodType<TOutput>).parse(payload);
+      break;
+    } catch (error) {
+      latestOutputFeedback = error instanceof ZodError
+        ? { status: "recoverable_issue", code: "output_schema_invalid", issues: error.issues.map(validationIssue),
+            allowedRepair: "Correct the identified output fields using existing evidence. Return only the final JSON object; do not repeat tools or request new authority." }
+        : { status: error instanceof Error && error.message === "output_repair_tools_forbidden" ? "control_denied" : "recoverable_issue",
+            code: error instanceof Error && error.message === "output_repair_tools_forbidden" ? "output_repair_tools_forbidden" : "output_invalid_json",
+            issues: [{ path: "/output", code: "invalid_json" }],
+            allowedRepair: "Return only a valid final JSON object matching the requested schema. Tools are disabled during output correction; retain existing results and unknown-write controls." };
+      outputRepairs.push({ rawOutput: rawText, originalMessage: response?.choices?.[0]?.message ?? null,
+        responseId: response?.id ?? null, feedback: latestOutputFeedback });
+      traceLogs.push({ event_type: "provider.output.feedback", status: "warning", summary: "Returned final-output correction feedback", feedback: latestOutputFeedback });
+      const remainingMs = correctionDeadline - Date.now();
+      if (toolIterations + outputRepairIterations >= 5 || !(remainingMs > 0)) {
+        throw new Error("output_correction_bounds_exhausted");
+      }
+      // Preserve all prior successful/failed tool results. This continuation is
+      // output-only; neither the prior batch nor model-requested tools execute.
+      messages.push({ role: "assistant", content: rawText });
+      messages.push({ role: "user", content: JSON.stringify({ outputCorrection: latestOutputFeedback,
+        mutationReconciliationRequired, instruction: "Correct the final output only. Preserve completed work. Do not perform or repeat any tool action." }) });
+      outputRepairIterations += 1;
+      response = await createDeepSeekCompletion({ model: task.model, messages, taskKind: task.kind,
+        provider: task.provider, timeoutMs: remainingMs });
+      const repairUsage = extractUsage(response);
+      if (repairUsage) usageSamples.push(repairUsage);
+      if (response?.id) generationIds.push(response.id);
+      traceLogs.push({ event_type: "provider.response.created", status: "info", summary: "Created output-only correction response",
+        response_id: response?.id ?? null, output_repair_iteration: outputRepairIterations, usage: repairUsage });
+    }
+  }
+  const finalUsage = extractUsage(response);
+  const aggregate = aggregateUsage(usageSamples);
+  const providerMetadata = extractProviderMetadata(response);
+  const route = inferRoute(task.model, response);
+  traceLogs.push({ event_type: "provider.telemetry.aggregated", status: "info", summary: "Aggregated DeepSeek usage telemetry",
+    route, generation_ids: generationIds, usage: aggregate });
+  traceLogs.push({ event_type: "provider.schema.validated", status: "success", summary: "Validated DeepSeek output against schema" });
+
+  return {
+    status: "completed",
+    provider: task.provider,
+    runtime: task.runtime,
+    model: task.model,
+    tool_mode: task.tool_policy.mode,
+    output: parsed,
+    raw_output_text: rawText,
+    artifacts: {
+      provider: task.provider,
+      model: task.model,
+      route,
+      generation_id: (response as any).id || null,
+      deepseek_response_id: (response as any).id || null,
+      openrouter_generation_id: route === "deepseek_via_openrouter" ? (response as any).id || null : null,
+      openrouter_model: route === "deepseek_via_openrouter" ? providerMetadata.model : null,
+      openrouter_provider: route === "deepseek_via_openrouter" ? providerMetadata.provider : null,
+      openrouter_provider_routing:
+        route === "deepseek_via_openrouter" ? providerMetadata.provider_routing : null,
+      openrouter_provider_preferences:
+        route === "deepseek_via_openrouter" ? providerPreferences : null,
+      deepseek_base_url: task.provider === "zai_glm"
+        ? (process.env.ZAI_BASE_URL?.trim() || DEFAULT_ZAI_BASE_URL)
+        : deepSeekBaseUrl,
+      max_tokens: deepSeekMaxTokens,
+      thinking: deepSeekThinkingType(task.kind),
+      reasoning_effort: deepSeekReasoningEffort(task.kind),
+      prompt_tokens: aggregate.prompt_tokens ?? finalUsage?.prompt_tokens ?? null,
+      completion_tokens: aggregate.completion_tokens ?? finalUsage?.completion_tokens ?? null,
+      total_tokens: aggregate.total_tokens ?? finalUsage?.total_tokens ?? null,
+      prompt_cache_hit_tokens: aggregate.prompt_cache_hit_tokens ?? finalUsage?.prompt_cache_hit_tokens ?? null,
+      prompt_cache_miss_tokens:
+        aggregate.prompt_cache_miss_tokens ?? finalUsage?.prompt_cache_miss_tokens ?? null,
+      cached_tokens: aggregate.cached_tokens ?? finalUsage?.cached_tokens ?? null,
+      cache_write_tokens: aggregate.cache_write_tokens ?? finalUsage?.cache_write_tokens ?? null,
+      reasoning_tokens: aggregate.reasoning_tokens ?? finalUsage?.reasoning_tokens ?? null,
+      cost_usd: aggregate.cost_usd ?? finalUsage?.cost_usd ?? null,
+      cost_details: finalUsage?.cost_details ?? null,
+      prompt_tokens_details: finalUsage?.prompt_tokens_details ?? null,
+      completion_tokens_details: finalUsage?.completion_tokens_details ?? null,
+      prompt_cache_hit_ratio: aggregate.prompt_cache_hit_ratio,
+      calls: aggregate.calls,
+      tool_iterations: toolIterations,
+      output_repair_iterations: outputRepairIterations,
+      output_repairs: outputRepairs,
+      deepseek_conversation_input: messages,
+      mutation_reconciliation_required: mutationReconciliationRequired,
+      response_cache: {
+        enabled: false,
+        reason: route === "deepseek_via_openrouter"
+          ? "X-OpenRouter-Cache is intentionally not enabled for live structured-agent runs."
+          : "DeepSeek context caching is provider-managed and reported through prompt cache hit/miss tokens.",
+      },
+      context_cache: {
+        enabled: route === "deepseek_official_direct",
+        mode: route === "deepseek_official_direct" ? "deepseek_provider_default_prefix_cache" : "provider_dependent",
+        prompt_cache_hit_tokens: aggregate.prompt_cache_hit_tokens ?? finalUsage?.prompt_cache_hit_tokens ?? null,
+        prompt_cache_miss_tokens:
+          aggregate.prompt_cache_miss_tokens ?? finalUsage?.prompt_cache_miss_tokens ?? null,
+      },
+    },
+    logs: traceLogs,
+    continuation_state: { mutation_reconciliation_required: mutationReconciliationRequired,
+      deepseek_replay_input: [...messages, { role: "assistant", content: rawText }] },
+    requires_human_review: inferRequiresHumanReview(parsed),
+    requires_approval: false,
+  };
+  } catch (error) {
+    // A later model/transport/identity/schema error must not erase successful
+    // siblings or discovered unknown mutation effects from the durable run.
+    const feedback = latestOutputFeedback ?? (error instanceof ZodError
+      ? { status: "recoverable_issue", code: "output_schema_invalid", issues: error.issues.map(validationIssue),
+          allowedRepair: "Correct the output fields using the existing conversation and canonical evidence." }
+      : { status: "recoverable_issue", code: error instanceof Error && error.message === "DeepSeek tool_call_identity missing or duplicated"
+          ? "tool_call_identity_invalid" : "provider_or_output_failure",
+          allowedRepair: "Inspect the retained provider response and conversation. Reconcile any uncertain mutation before further writes." });
+    traceLogs.push({ event_type: "provider.recovery.failed", status: "error", summary: "Retained recoverable failure evidence", feedback });
+    return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+      tool_mode: task.tool_policy.mode, error: feedback.code,
+      raw_output_text: extractRawText(response?.choices?.[0]?.message),
+      artifacts: { provider: task.provider, model: task.model, generation_ids: generationIds,
+        tool_iterations: toolIterations, output_repair_iterations: outputRepairIterations, output_repairs: outputRepairs,
+        correction_bounds_exhausted: error instanceof Error && error.message === "output_correction_bounds_exhausted",
+        mutation_reconciliation_required: mutationReconciliationRequired,
+        recovery_feedback: feedback, deepseek_conversation_input: messages, ...aggregateUsage(usageSamples) },
+      continuation_state: { mutation_reconciliation_required: mutationReconciliationRequired, deepseek_replay_input: messages },
+      logs: traceLogs, requires_human_review: true, requires_approval: false };
+  }
+
+}

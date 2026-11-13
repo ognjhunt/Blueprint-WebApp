@@ -8,6 +8,8 @@ import type { AgentProvider, AgentTaskKind } from "./types";
 
 export type StructuredProvider = Extract<
   AgentProvider,
+  | "deepseek_chat"
+  | "zai_glm"
   | "openai_responses"
   | "anthropic_agent_sdk"
   | "acp_harness"
@@ -16,6 +18,8 @@ export type StructuredProvider = Extract<
 >;
 
 const STRUCTURED_PROVIDER_VALUES = new Set<StructuredProvider>([
+  "deepseek_chat",
+  "zai_glm",
   "openai_responses",
   "anthropic_agent_sdk",
   "acp_harness",
@@ -82,13 +86,15 @@ export function isGeminiVideoConfigured(): boolean {
  *
  * Both defaults were sized for a short chat turn — 4,000 output tokens and a
  * 20-second deadline — and neither survives a lane running at reasoning effort
- * "max". On the Responses API reasoning tokens come out of `max_output_tokens`:
- * `inbound_qualification`'s schema
+ * "max". On the Responses API reasoning tokens come out of `max_output_tokens`,
+ * the same arithmetic that made DeepSeek return successful, empty responses
+ * until its ceiling moved from 2,000 to 16,000: `inbound_qualification`'s schema
  * declares maxima summing to 8,573 characters (~2,150 tokens) of JSON before a
  * single reasoning token is spent. 4,000 leaves max-effort reasoning almost no
  * room, and 20 seconds is not long enough for it to finish thinking.
  *
- * 16,000 tokens and 120 seconds are ceilings, not reservations: unused output tokens are not
+ * 16,000 tokens and 120 seconds match what the DeepSeek lane already runs with
+ * and works. Both are ceilings, not reservations: unused output tokens are not
  * billed, and a request that returns in two seconds still returns in two
  * seconds. The cost of being generous is nothing; the cost of being tight is a
  * lane that never completes.
@@ -330,6 +336,8 @@ const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
 
 // Anthropic's default is the tier table above (getDefaultAnthropicModel).
 const DEFAULT_MODELS: Record<Exclude<StructuredProvider, "anthropic_agent_sdk">, string> = {
+  deepseek_chat: "deepseek-v4-pro",
+  zai_glm: "glm-5.3",
   openai_responses: DEFAULT_OPENAI_MODEL,
   acp_harness: "codex",
   openclaw: "gpt-5.4",
@@ -377,6 +385,10 @@ export function isProviderConfigured(provider: StructuredProvider): boolean {
   switch (provider) {
     case "codex_local":
       return isCodexLocalConfigured();
+    case "deepseek_chat":
+      return Boolean(process.env.DEEPSEEK_API_KEY?.trim());
+    case "zai_glm":
+      return Boolean(process.env.ZAI_API_KEY?.trim());
     case "openai_responses":
       return Boolean(process.env.OPENAI_API_KEY?.trim());
     case "anthropic_agent_sdk":
@@ -397,7 +409,7 @@ export function isProviderConfigured(provider: StructuredProvider): boolean {
  * `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER` was the only lever and it moved
  * all seven lanes together. That is how `openai_responses: "gpt-5.6-luna"`
  * could ship and still never run: the lane it was meant for was routed to
- * another provider along with everything else.
+ * DeepSeek along with everything else.
  *
  * The key mirrors the model override it sits beside, so
  * `OPENAI_INBOUND_QUALIFICATION_MODEL` picks the model and
@@ -451,7 +463,7 @@ export type StructuredProviderResolution = {
  * A lane override that names an unkeyed provider falls through to the global
  * chain rather than taking the lane offline — the qualification lane going
  * quiet is worse than it running on the cheaper model. But falling through
- * silently is how you end up reading another provider in the logs
+ * silently is how you end up reading `provider: "deepseek_chat"` in the logs
  * while the config says OpenAI, so the fall-through is reported instead of
  * swallowed. `getAgentRuntimeConnectionMetadata` surfaces it.
  */
@@ -525,13 +537,16 @@ function selectGlobalStructuredProvider(): StructuredProvider {
   const candidates = [
     preferred,
     fallback,
+    // Z.ai GLM is the house default; when its key is present it outranks the
+    // remaining key-based candidates. DeepSeek stays behind it as a fallback,
+    // not because anything here prefers it — because a key being set is the
+    // only evidence the deployment still wants it.
+    normalizeProvider(process.env.ZAI_API_KEY ? "zai_glm" : null),
+    normalizeProvider(process.env.DEEPSEEK_API_KEY ? "deepseek_chat" : null),
     normalizeProvider(isCodexLocalConfigured() ? "codex_local" : null),
     normalizeProvider(process.env.ACP_HARNESS_URL ? "acp_harness" : null),
-    // OpenAI before Anthropic (owner, 2026-11-13: Anthropic goes first only
-    // once a paid test run has passed). Until then Anthropic is reached only
-    // without an OpenAI key, or where a setting names it.
-    normalizeProvider(process.env.OPENAI_API_KEY ? "openai_responses" : null),
     normalizeProvider(getAnthropicConfigurationIssue() === null ? "anthropic_agent_sdk" : null),
+    normalizeProvider(process.env.OPENAI_API_KEY ? "openai_responses" : null),
     normalizeProvider(process.env.OPENCLAW_BASE_URL ? "openclaw" : null),
     "codex_local" as StructuredProvider,
   ].filter((candidate, index, array): candidate is StructuredProvider => {
@@ -552,9 +567,10 @@ export function getStructuredAutomationFallbackProvider(
   const candidates = [
     preferredFallback,
     "codex_local" as StructuredProvider,
-    // The same order as the default chain: OpenAI before Anthropic.
-    "openai_responses" as StructuredProvider,
+    "zai_glm" as StructuredProvider,
+    "deepseek_chat" as StructuredProvider,
     "anthropic_agent_sdk" as StructuredProvider,
+    "openai_responses" as StructuredProvider,
     "acp_harness" as StructuredProvider,
     "openclaw" as StructuredProvider,
   ].filter((candidate, index, array): candidate is StructuredProvider => {
@@ -571,6 +587,10 @@ export function getTaskModelByProvider(taskKind: AgentTaskKind) {
       (suffix ? process.env[`CODEX_${suffix}`]?.trim() : null)
       || process.env.CODEX_DEFAULT_MODEL?.trim()
       || DEFAULT_MODELS.codex_local,
+    deepseek_chat:
+      (suffix ? process.env[`DEEPSEEK_${suffix}`]?.trim() : null)
+      || process.env.DEEPSEEK_DEFAULT_MODEL?.trim()
+      || DEFAULT_MODELS.deepseek_chat,
     openai_responses:
       (suffix ? process.env[`OPENAI_${suffix}`]?.trim() : null)
       || process.env.OPENAI_DEFAULT_MODEL?.trim()
