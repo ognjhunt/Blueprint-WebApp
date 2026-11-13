@@ -28,8 +28,11 @@ const KEPT_STRING = /^[A-Za-z0-9][A-Za-z0-9._:\/+-]{0,199}$/;
 const NUMERIC_ID_KEYS = new Set(["instance_id"]);
 const phoneShaped = (value: string) => /^[\d\s+\-.()]+$/.test(value)
   && (value.match(/\d/g)?.length ?? 0) >= 7 && (value.match(/\d/g)?.length ?? 0) <= 15;
+/** Times are not phone numbers: a key that holds a time, or an ISO date or date-time value, is exempt. */
+const TIME_KEY = /(_ms|_at|_iso)$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
 const keptString = (value: string, key = "") => KEPT_STRING.test(value) && !value.includes("://")
-  && !(phoneShaped(value) && !NUMERIC_ID_KEYS.has(key));
+  && !(phoneShaped(value) && !NUMERIC_ID_KEYS.has(key) && !TIME_KEY.test(key) && !ISO_DATE.test(value));
 /** Route labels chain providers with `>` ("openai>default"); otherwise the same rule. */
 const ROUTE_KEYS = new Set(["route", "provider_route", "upstream_provider", "openrouter_provider"]);
 const ROUTE_STRING = /^[A-Za-z0-9][A-Za-z0-9._:\/+>-]{0,199}$/;

@@ -62,7 +62,7 @@ const DOCUMENT_ID = "__name__";
 
 type Collection = EvidenceCollection | "opsActionLogs" | "agentCompactions";
 type Mode = "full" | "replay_copies" | "session_event";
-type Step = { collection: Collection; field: string; value: string; mode?: Mode };
+type Step = { collection: Collection; field: string; value: string; mode?: Mode | "recheck" };
 type ScanName = "offloaded" | "site_assessment";
 type Counts = Record<Collection, number>;
 const emptyCounts = (): Counts => ({ agentRuns: 0, agentSessions: 0, agentRuntimeEvents: 0, agentCheckpoints: 0, opsActionLogs: 0,
@@ -86,6 +86,8 @@ export type ModelRunRedactionState = {
   scans: Record<ScanName, { cursor: string | null; done: boolean }>;
   /** Job rows the scans found: every later sweep visits them by id, so the scans never need to run again. */
   scan_found: string[];
+  /** Scanned rows whose evidence could not be read (not "not found"): not known whose they are; re-checked every sweep. */
+  scan_retry: string[];
   passes: number; nextAttemptAtMs: number; leaseUntilMs: number; lease: string | null; attempts: number;
   redacted: Counts; already_redacted: number; replay_copies_redacted: number; evidence_objects_deleted: number;
   evidence_unreadable: number; other_rows_unreadable: number; sweep: Sweep; sweep_repeats: number; horizon_at_ms: number;
@@ -97,7 +99,7 @@ const emptySweep = (): Sweep => ({ started_at_ms: null, rows_failed: 0, objects_
 export function initialModelRunRedactionState(requestedAtMs: number): ModelRunRedactionState {
   return { phase: "pending", held: false, step: 0, cursor: null, dependents: null, passes: 0, nextAttemptAtMs: 0,
     leaseUntilMs: 0, lease: null, attempts: 0, redacted: emptyCounts(), already_redacted: 0, replay_copies_redacted: 0,
-    scans: initialScans(), scan_found: [], evidence_objects_deleted: 0, evidence_unreadable: 0, other_rows_unreadable: 0, sweep: emptySweep(),
+    scans: initialScans(), scan_found: [], scan_retry: [], evidence_objects_deleted: 0, evidence_unreadable: 0, other_rows_unreadable: 0, sweep: emptySweep(),
     sweep_repeats: 0, horizon_at_ms: requestedAtMs + RUN_HORIZON_MS,
     completed_at_iso: null };
 }
@@ -280,18 +282,24 @@ async function visitRow(collection: Collection, ref: FirebaseFirestore.DocumentR
   }
 }
 
-/** Whether a scanned row names the job, read from the row (and its evidence when offloaded). Another job's unreadable
- * row is counted on its own and skipped. */
-async function scannedRowIsJobs(scan: ScanName, doc: FirebaseFirestore.QueryDocumentSnapshot, requestId: string, counts: PassCounts) {
-  const raw = doc.data() as Record<string, any>;
-  if (withdrawalRedactionOf(raw)) return false;
-  if (scan === "site_assessment" && raw.agent_evidence_ref) return false; // the offloaded scan's
+/**
+ * Whether a scanned row names the job, read from the row (and its evidence when offloaded). A row whose evidence the
+ * store says is gone is skipped and counted on its own. Any other read failure means it is not known whose row it is:
+ * "retry" (the caller lists it; the job is not complete until it is known).
+ */
+async function scannedRowIsJobs(scan: ScanName | "recheck", raw: Record<string, any>, id: string, requestId: string,
+  counts: PassCounts): Promise<"job" | "not" | "retry"> {
+  if (withdrawalRedactionOf(raw)) return withdrawalRedactionOf(raw)?.request_id === requestId ? "job" : "not";
+  if (scan === "site_assessment" && raw.agent_evidence_ref) return "not"; // the offloaded scan's
   let full = raw;
   if (raw.agent_evidence_ref) {
-    try { full = await hydrateAgentEvidence(raw, { collection: "agentRuns", id: doc.id }); }
-    catch { counts.other_rows_unreadable++; return false; }
+    try { full = await hydrateAgentEvidence(raw, { collection: "agentRuns", id }); }
+    catch (error) {
+      if (error instanceof AgentEvidenceError && error.code === "agent_evidence_object_missing") { counts.other_rows_unreadable++; return "not"; }
+      return "retry";
+    }
   }
-  return namedRequestIds(full).includes(requestId);
+  return namedRequestIds(full).includes(requestId) ? "job" : "not";
 }
 
 /** One bounded pass over one job. Mutates and returns the state; writes nothing but the rows it redacts. */
@@ -300,9 +308,18 @@ export async function redactJobModelRunsPass(requestId: string, captureIds: stri
   const marker: WithdrawalRedactionMarker = { schema_version: WITHDRAWAL_REDACTION_SCHEMA, request_id: requestId,
     redacted_at_iso: new Date(deps.now()).toISOString() };
   state.scan_found ??= [];
+  state.scan_retry ??= [];
   const baseSteps = jobRunSteps(requestId, captureIds);
+  // Rows listed for a re-check come before the scan-found ones, so a row moved from one list to the other is not
+  // visited twice in the same place.
   const allSteps = (): Step[] => [...baseSteps,
+    ...state.scan_retry.map(id => ({ collection: "agentRuns" as const, field: "__name__", value: id, mode: "recheck" as const })),
     ...state.scan_found.map(id => ({ collection: "agentRuns" as const, field: "__name__", value: id }))];
+  const listRetry = (id: string) => {
+    if (!state.scan_retry.includes(id)) state.scan_retry.push(id);
+    counts.rows_failed++;
+    if (counts.failed_row_ids.length < MAX_FAILED_IDS) counts.failed_row_ids.push(`agentRuns/${id}`);
+  };
   const counts: PassCounts = { examined: 0, redacted: emptyCounts(), already_redacted: 0, replay_copies_redacted: 0,
     evidence_objects_deleted: 0, evidence_unreadable: 0, other_rows_unreadable: 0, rows_failed: 0, objects_failed: 0,
     objects_remaining: 0, failed_row_ids: [] };
@@ -323,13 +340,23 @@ export async function redactJobModelRunsPass(requestId: string, captureIds: stri
       const limit = budget - counts.examined;
       const docs = await page(step, dependents.cursor, limit);
       for (const doc of docs) {
-        await visitRow(step.collection, doc.ref, step.mode ?? "full", marker, requestId, deps, counts);
+        await visitRow(step.collection, doc.ref, (step.mode as Mode | undefined) ?? "full", marker, requestId, deps, counts);
         dependents.cursor = doc.id;
       }
       if (docs.length < limit) { dependents.step++; dependents.cursor = null; }
       continue;
     }
     const step = allSteps()[state.step];
+    if (step?.mode === "recheck") {
+      // A scanned row whose evidence could not be read: known whose it is only once it can be read.
+      counts.examined++;
+      const doc = (await db!.collection("agentRuns").doc(step.value).get()) as unknown as FirebaseFirestore.QueryDocumentSnapshot;
+      const verdict = doc.exists ? await scannedRowIsJobs("recheck", doc.data() as Record<string, any>, doc.id, requestId, counts) : "not";
+      if (verdict === "retry") { counts.rows_failed++; if (counts.failed_row_ids.length < MAX_FAILED_IDS) counts.failed_row_ids.push(`agentRuns/${doc.id}`); state.step++; continue; }
+      state.scan_retry = state.scan_retry.filter(id => id !== step.value); // removed: the next entry moves into this place
+      if (verdict === "job" && !state.scan_found.includes(step.value)) state.scan_found.push(step.value);
+      continue;
+    }
     if (step) {
       // The job's findable rows first, every sweep.
       const [doc] = await page(step, state.cursor, 1);
@@ -348,7 +375,9 @@ export async function redactJobModelRunsPass(requestId: string, captureIds: stri
     for (const doc of docs) {
       counts.examined++;
       scan.cursor = doc.id;
-      if (!(await scannedRowIsJobs(scanName, doc, requestId, counts))) continue;
+      const verdict = await scannedRowIsJobs(scanName, doc.data() as Record<string, any>, doc.id, requestId, counts);
+      if (verdict === "retry") { listRetry(doc.id); continue; }
+      if (verdict !== "job") continue;
       if (!state.scan_found.includes(doc.id)) state.scan_found.push(doc.id);
       const visit = await visitRow("agentRuns", doc.ref, "full", marker, requestId, deps, counts, false);
       if (visit === "redacted" || visit === "already") { followRun(doc, scanName); followed = true; break; }

@@ -681,3 +681,96 @@ describe("round 3", () => {
     expect(redacted.artifacts.instance_id).toBe("15551234567");
   });
 });
+
+describe("round 4", () => {
+  async function legacyOffloaded(id: string, requestId: string, text: string) {
+    const projected = await projectAgentEvidence(run(id, { task_kind: "support_triage", session_key: `session:${id}`,
+      metadata: { request_id: requestId, cost_telemetry: costTelemetry }, input: { big: `${text} `.repeat(30_000) } }, text),
+      { collection: "agentRuns", id });
+    delete (projected.metadata as any).request_id; // as the old projection stored it
+    state.docs.set(`agentRuns/${id}`, projected);
+    return (projected.agent_evidence_ref as any).object as string;
+  }
+  const passes = async (count: number) => {
+    for (let i = 0; i < count && redaction()?.phase !== "done"; i++) {
+      if (redaction()) redaction().nextAttemptAtMs = 0;
+      await runWebsiteJobModelRunRedactions({ deps: deps() }); clock += 1000;
+    }
+  };
+
+  it("keeps the job incomplete while a scanned row cannot be read, then redacts it once it can", async () => {
+    seedWithdrawn(); seedRows();
+    const object = await legacyOffloaded("run-legacy-job", "req1", MARK);
+    evidence.failReads.add(object);
+    await passes(8);
+    expect(redaction().phase).not.toBe("done");
+    expect(redaction().scan_retry).toEqual(["run-legacy-job"]);
+    expect(evidence.objects.get(object)).toContain(MARK);
+    expect(receipts().some(receipt => receipt.rows_remaining > 0)).toBe(true);
+    evidence.failReads.delete(object);
+    await passes(20);
+    expect(redaction()).toMatchObject({ phase: "done", scan_retry: [] });
+    expect(state.docs.get("agentRuns/run-legacy-job")?.withdrawal_redaction).toMatchObject({ request_id: "req1" });
+    expect(evidence.objects.has(object)).toBe(false);
+    for (const [name, content] of evidence.objects) expect(content, name).not.toContain(MARK);
+  });
+
+  it("drops a listed row untouched once it reads as another job's", async () => {
+    seedWithdrawn(); seedRows();
+    const object = await legacyOffloaded("run-legacy-other", "req2", OTHER);
+    evidence.failReads.add(object);
+    await passes(5);
+    expect(redaction().scan_retry).toEqual(["run-legacy-other"]);
+    const before = structuredClone(state.docs.get("agentRuns/run-legacy-other"));
+    evidence.failReads.delete(object);
+    await passes(20);
+    expect(redaction()).toMatchObject({ phase: "done", scan_retry: [] });
+    expect(state.docs.get("agentRuns/run-legacy-other")).toEqual(before);
+    expect(evidence.objects.has(object)).toBe(true);
+  });
+
+  it("retries a row the scan found whose first visit failed, by its id", async () => {
+    seedWithdrawn(); seedRows();
+    await legacyOffloaded("run-legacy-flaky", "req1", MARK);
+    const { sharedFakeFirestore: store } = await import("./helpers/fake-firestore");
+    const original = store.runTransaction.bind(store);
+    let failures = 1;
+    (store as any).runTransaction = async (fn: any) => original(async (tx: any) => fn({ ...tx, get: (ref: any) => tx.get(ref),
+      set: (ref: any, value: any, options?: any) => {
+        if (failures > 0 && ref.id === "run-legacy-flaky" && value?.withdrawal_redaction) { failures--; throw new Error("refused"); }
+        return tx.set(ref, value, options);
+      } }));
+    try {
+      await passes(30);
+      expect(redaction().phase).toBe("done");
+      expect(state.docs.get("agentRuns/run-legacy-flaky")?.withdrawal_redaction).toMatchObject({ request_id: "req1" });
+      expect(redaction().scans.offloaded.done).toBe(true);
+    } finally { (store as any).runTransaction = original; }
+  });
+
+  it("keeps a usage record deep inside a row that has to be collapsed without evidence storage", async () => {
+    seedWithdrawn();
+    let deep: any = { usage: { prompt_tokens: 1234, completion_tokens: 56 }, text: `deep ${MARK}`, grid: [[MARK]] };
+    for (let i = 0; i < 16; i++) deep = { level: deep }; // the usage record sits at depth 19, its numbers at 20
+    state.docs.set("agentRuns/run-deep", run("run-deep", { privacy_request_binding: { request_id: "req1" },
+      artifacts: { ...structuredClone(accounting), trace: deep } }));
+    evidence.unavailable = true;
+    await passes(10);
+    const stored = state.docs.get("agentRuns/run-deep") as any;
+    expect(stored.withdrawal_redaction).toBeDefined();
+    expect(fitsStore(stored)).toBe(true);
+    expect(JSON.stringify(stored)).not.toContain(MARK);
+    expect(JSON.stringify(stored)).toContain('"usage":{"prompt_tokens":1234,"completion_tokens":56}');
+  });
+
+  it("keeps times and dates, and still redacts a phone number, dashes included", () => {
+    const marker = { schema_version: "website_withdrawal_content_redaction.v1" as const, request_id: "req1", redacted_at_iso: "x" };
+    const redacted = redactWithdrawnRecord({ id: "+15551234567", artifacts: { day_iso: "2026-11-13", priced_at_ms: "1794650460000",
+      checked_at: "2026-11-13T09:00:00Z", reason: "+15551234567", contact_id: "+15551234567", dashed_id: "555-123-4567",
+      record_id: "2026-11-13" } }, marker) as any;
+    expect(redacted.artifacts).toMatchObject({ day_iso: "2026-11-13", priced_at_ms: "1794650460000", checked_at: "2026-11-13T09:00:00Z",
+      record_id: "2026-11-13" });
+    for (const value of [redacted.id, redacted.artifacts.reason, redacted.artifacts.contact_id, redacted.artifacts.dashed_id])
+      expect(value).toMatchObject({ redacted: true });
+  });
+});
