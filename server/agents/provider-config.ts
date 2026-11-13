@@ -40,6 +40,7 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
   robot_fit_ranking: "ROBOT_FIT_RANKING_MODEL",
   capture_dispatch: "CAPTURE_DISPATCH_MODEL",
   outbound_outreach: "OUTBOUND_OUTREACH_MODEL",
+  site_task_follow_up: "SITE_TASK_FOLLOW_UP_MODEL",
 };
 
 /**
@@ -154,6 +155,19 @@ export type OpenAiReasoningEffort = (typeof REASONING_EFFORTS)[number];
 
 const TASK_REASONING_EFFORT: Partial<Record<AgentTaskKind, OpenAiReasoningEffort>> = {
   inbound_qualification: "max",
+  // The follow-up picker chooses up to three ids from a short list: the small
+  // tier at low effort, as it ran before it went through the runtime.
+  site_task_follow_up: "low",
+};
+
+/**
+ * Lanes that keep their own OpenAI model and effort whatever the global
+ * settings say: `OPENAI_DEFAULT_MODEL` and `OPENAI_REASONING_EFFORT` do not
+ * apply to them. Only the lane's own settings (`OPENAI_<LANE>_MODEL`,
+ * `OPENAI_<LANE>_REASONING_EFFORT`) move them.
+ */
+const TASK_OPENAI_FIXED_DEFAULTS: Partial<Record<AgentTaskKind, { model: string }>> = {
+  site_task_follow_up: { model: "gpt-6-luna" },
 };
 
 function normalizeEffort(value: string | undefined | null): OpenAiReasoningEffort | null {
@@ -170,9 +184,10 @@ export function getOpenAiReasoningEffort(
   const perTask = suffix
     ? normalizeEffort(process.env[`OPENAI_${suffix.replace(/_MODEL$/, "")}_REASONING_EFFORT`])
     : null;
+  const fixed = taskKind ? TASK_OPENAI_FIXED_DEFAULTS[taskKind] : undefined;
   return (
     perTask ||
-    normalizeEffort(process.env.OPENAI_REASONING_EFFORT) ||
+    (fixed ? null : normalizeEffort(process.env.OPENAI_REASONING_EFFORT)) ||
     (taskKind ? TASK_REASONING_EFFORT[taskKind] : null) ||
     "medium"
   );
@@ -474,6 +489,8 @@ const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> 
   post_signup_scheduling: "openai_responses",
   // Long context (every research note at once) and careful quoting.
   robot_fit_ranking: "openai_responses",
+  // A site's own task text, at the small tier (gpt-6-luna by default).
+  site_task_follow_up: "openai_responses",
 };
 
 /**
@@ -854,6 +871,7 @@ export function describeAutoAgentShadowProvider(taskKind: AgentTaskKind): Shadow
 
 export function getTaskModelByProvider(taskKind: AgentTaskKind) {
   const suffix = TASK_MODEL_SUFFIXES[taskKind];
+  const fixedOpenAi = TASK_OPENAI_FIXED_DEFAULTS[taskKind];
   return {
     codex_local:
       (suffix ? process.env[`CODEX_${suffix}`]?.trim() : null)
@@ -861,7 +879,7 @@ export function getTaskModelByProvider(taskKind: AgentTaskKind) {
       || DEFAULT_MODELS.codex_local,
     openai_responses:
       (suffix ? process.env[`OPENAI_${suffix}`]?.trim() : null)
-      || process.env.OPENAI_DEFAULT_MODEL?.trim()
+      || (fixedOpenAi ? fixedOpenAi.model : process.env.OPENAI_DEFAULT_MODEL?.trim())
       || DEFAULT_MODELS.openai_responses,
     anthropic_agent_sdk:
       (suffix ? process.env[`ANTHROPIC_${suffix}`]?.trim() : null)

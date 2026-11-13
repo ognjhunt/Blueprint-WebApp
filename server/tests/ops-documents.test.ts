@@ -185,4 +185,20 @@ describe("ops documents", () => {
     expect(extracted?.openclaw_run_id).toBe("run-1");
     expect(fake.store.knowledgeChunks.size).toBeGreaterThan(0);
   });
+
+  it("never replaces a stored vector with an empty one when embeddings are not available (gate held open)", async () => {
+    gate.open = true;
+    extractPdf.mockResolvedValue({ accepted: true, openclaw_session_id: "session-1", openclaw_run_id: "run-1", status: "completed",
+      result: { summary: "Key SOP", text: "Step one. Step two. Step three." }, artifacts: {}, logs: [], error: null });
+    const { createOpsDocument, extractOpsDocument } = await import("../agents/ops-documents");
+    const created = await createOpsDocument({ title: "Launch SOP", source_file_uri: "gs://docs/launch-sop.pdf", blueprint_ids: ["bp-1"] });
+    embedTexts.mockResolvedValue([[0.1, 0.2, 0.3]]);
+    await extractOpsDocument(created.id);
+    const [key] = [...fake.store.knowledgeChunks.keys()];
+    expect(fake.store.knowledgeChunks.get(key)?.embedding).toEqual([0.1, 0.2, 0.3]);
+    embedTexts.mockResolvedValue([[]]);
+    const again = await extractOpsDocument(created.id);
+    expect(again?.indexing_status).toBe("partial");
+    expect(fake.store.knowledgeChunks.get(key)?.embedding).toEqual([0.1, 0.2, 0.3]);
+  });
 });

@@ -249,7 +249,9 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
   const costTotals = Object.fromEntries(ANTHROPIC_COST_FIELDS.map(field => [field, 0])) as Record<CostField, number>;
   let knownCostUsd = 0, unknownReservedUsd = 0, maxUnknownReservationUsd = 0, unknownRequests = 0;
   let stopDetails: unknown = null;
-  let rawText = "", remainingOutput = getAnthropicMaxOutputTokens(), promptTokens = 0, completionTokens = 0, usageComplete = true, cachedTokens = 0, cacheWriteTokens = 0;
+  // A lane's own output ceiling applies when it is the smaller one.
+  let rawText = "", remainingOutput = Math.min(getAnthropicMaxOutputTokens(),
+      task.definition.max_output_tokens_ceiling ?? Infinity), promptTokens = 0, completionTokens = 0, usageComplete = true, cachedTokens = 0, cacheWriteTokens = 0;
   const reconciledCostUsd = () => knownCostUsd + unknownReservedUsd;
   const round = (value: number) => Number(value.toFixed(12));
   const reserveUnknown = (sample: Record<string, unknown>, reservation: number) => {
@@ -457,7 +459,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
     catch (error) {
       const receipt = { responseId: response.id, ...outputCorrectionEvidence(rawText, error), usage };
       receipts.push(receipt);
-      if (correctionAttempts++ === 5) return result(undefined, "output_correction_limit");
+      if (correctionAttempts++ >= (task.definition.max_output_corrections ?? 5)) return result(undefined, "output_correction_limit");
       if (!usageComplete) return result(undefined, "output_correction_usage_unavailable");
       const echoed = echoContent(response.content);
       // A user turn, never a prefilled assistant turn, follows: the

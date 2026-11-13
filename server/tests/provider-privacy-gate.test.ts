@@ -204,8 +204,9 @@ describe("the gate wherever a provider is chosen for a lane", () => {
       .toBe("a Privacy Policy version that names a provider for internal staff work");
     expect(metadata.lanes_failing_closed.find((lane) => lane.task_kind === "external_harness_thread")?.enabled_by)
       .toContain("names the destination of its pinned provider (acp_harness)");
-    expect(metadata.non_lane_sends).toEqual([{ name: "ops_document_extraction", provider: "openclaw", permitted: false,
-      blocked_by: ["site_job_text", "job_records", "personal_info"] }]);
+    expect(metadata.non_lane_sends).toEqual([
+      { name: "retrieval_embeddings", provider: "openai_responses", permitted: true, blocked_by: [] },
+      { name: "ops_document_extraction", provider: "openclaw", permitted: false, blocked_by: ["site_job_text", "job_records", "personal_info"] }]);
     expect(Object.fromEntries(metadata.lanes_failing_closed.map((lane) => [lane.task_kind, lane.reason]))).toEqual({
       operator_thread: "no_permitted_provider",
       external_harness_thread: "no_permitted_provider",

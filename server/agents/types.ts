@@ -47,7 +47,9 @@ export type AgentTaskKind =
   | "capture_dispatch"
   | "outbound_outreach"
   /** A connectivity check whose prompt is fixed text (tasks/runtime-smoke-test.ts). */
-  | "runtime_smoke_test";
+  | "runtime_smoke_test"
+  /** Picks follow-up question topics for a site after it sent its task (tasks/site-task-follow-up.ts). */
+  | "site_task_follow_up";
 
 export type AgentRunStatus =
   | "queued"
@@ -205,6 +207,26 @@ export interface StructuredTaskDefinition<TInput = unknown, TOutput = unknown> {
   video_sampling_fps?: number;
   /** A fixed request ceiling; used to keep the privacy-only answer small. */
   video_max_output_tokens?: number;
+  /**
+   * A lane's own output ceiling. The OpenAI and Anthropic adapters use the
+   * smaller of it and their shared ceiling for every request and reservation.
+   */
+  max_output_tokens_ceiling?: number;
+  /**
+   * How many correction requests an adapter may send after an answer that is
+   * not valid for the output schema. Unset: the adapter's own limit.
+   */
+  max_output_corrections?: number;
+  /**
+   * "redacted": the stored run keeps lengths and a digest in place of the
+   * task's input and the model's output text; cost, model, provider, status,
+   * timings and failover fields are kept as they are, and a failure is kept
+   * as its class, status and code with a digest of its message. Such a lane
+   * runs at once: the runtime refuses it with a session, a session key, an
+   * existing run, a resume or approval (`redacted_content_not_replayable`),
+   * since those replay the stored input.
+   */
+  persist_content?: "redacted";
   output_schema: z.ZodType<TOutput>;
   build_prompt: (input: TInput) => string;
   build_outcome_contract?: (input: TInput) => OutcomeContract;

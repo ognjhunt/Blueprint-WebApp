@@ -57,20 +57,19 @@ describe("OpenAI host pin", () => {
     expect(constructed.at(-1)).toMatchObject({ baseURL: "https://api.openai.com/v1" });
   });
 
-  it("embeddings and the follow-up selector build no client under another host, and pin the host otherwise", async () => {
+  it("embeddings build no client under another host, and pin the host otherwise", async () => {
     vi.stubEnv("OPENAI_BASE_URL", OTHER);
     const { embedTexts } = await import("../retrieval/embeddings");
     expect(await embedTexts(["a"])).toEqual([[]]);
-    const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
-    const eligible = ["a", "b", "c", "d"] as never[];
-    expect(await selectFollowUps({ taskStatement: "t", briefSummary: "b", itemLabels: [], eligible })).toEqual(eligible.slice(0, 3));
     expect(constructed).toEqual([]);
     vi.stubEnv("OPENAI_BASE_URL", "");
     vi.resetModules();
     await (await import("../retrieval/embeddings")).embedTexts(["a"]);
-    await (await import("../utils/siteTaskFollowUp")).selectFollowUps({ taskStatement: "t", briefSummary: "b", itemLabels: [], eligible });
-    expect(constructed.length).toBe(2);
-    for (const options of constructed) expect(options).toMatchObject({ baseURL: "https://api.openai.com/v1" });
+    expect(constructed.length).toBe(1);
+    expect(constructed[0]).toMatchObject({ baseURL: "https://api.openai.com/v1" });
+    // The follow-up picker builds no client of its own: it goes through the runtime's pinned adapter.
+    const source = (await import("node:fs")).readFileSync(new URL("../utils/siteTaskFollowUp.ts", import.meta.url), "utf8");
+    expect(source).not.toMatch(/new OpenAI\(/);
   });
 
   it("the communications client sends nothing, not even the key, under another host", async () => {

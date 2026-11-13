@@ -391,6 +391,16 @@ export async function buildVenueIndex(blueprintId: string, rawSources: Knowledge
         );
         continue;
       }
+      // An empty vector means embeddings were not available. The build stops
+      // before any write: stored vectors are never replaced by empty ones or
+      // deleted, and the index is not marked as built.
+      if (embeddings.some((embedding) => !Array.isArray(embedding) || embedding.length === 0)) {
+        logger.warn(
+          { blueprintId, url: source.url },
+          "Embeddings not available for a knowledge source; the index is left as it was",
+        );
+        return;
+      }
 
       chunkTexts.forEach((chunk, index) => {
         const chunkId = hashChunk(source.url, chunk, index);

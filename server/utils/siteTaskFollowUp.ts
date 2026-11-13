@@ -1,6 +1,3 @@
-import OpenAI from "openai";
-import { OPENAI_API_BASE_URL, getUsableOpenAiApiKey } from "./openaiApiHost";
-
 export const FOLLOW_UP_IDS = ["success_target", "item_photos", "item_weight", "item_make_model"] as const;
 export type FollowUpId = (typeof FOLLOW_UP_IDS)[number];
 
@@ -31,40 +28,53 @@ export function allowedFollowUps(value: unknown, eligible: readonly FollowUpId[]
   ))].slice(0, 3);
 }
 
-/** The model selects topics only. Copy, authority, and the question limit stay in code. */
+/** How long a site's page waits for the picker before it uses the fixed list. */
+const FOLLOW_UP_DEADLINE_MS = 12_000;
+
+/**
+ * The model selects topics only. Copy, authority, and the question limit stay
+ * in code. The call goes through the agent runtime as the
+ * `site_task_follow_up` lane: the same provider settings, data-class gate,
+ * per-run cost cap, spend accounting and "no funds" handling as every lane.
+ * With no provider configured that may receive the site's text, the fixed
+ * list is returned at once and no run is started or stored. The run carries
+ * the request id so its row can be found for the job. Whenever the lane does
+ * not answer in time, or answers with an error, the fixed list is used.
+ */
 export async function selectFollowUps(input: {
+  requestId?: string;
   taskStatement: string;
   briefSummary: string;
   itemLabels: string[];
   eligible: FollowUpId[];
 }): Promise<FollowUpId[]> {
   if (!input.eligible.length) return [];
-  // Null unless OpenAI is usable here (OPENAI_BASE_URL unset or OpenAI's own host).
-  const apiKey = getUsableOpenAiApiKey();
-  if (!apiKey) return input.eligible.slice(0, 3);
+  const fixedList = input.eligible.slice(0, 3);
 
   try {
-    const client = new OpenAI({ apiKey, baseURL: OPENAI_API_BASE_URL, timeout: 12_000, maxRetries: 0 });
-    const response = await client.responses.create({
-      model: "gpt-6-luna",
-      reasoning: { effort: "low" },
-      max_output_tokens: 600,
-      input: [
-        { role: "developer", content: "Select at most 3 useful missing topics for a site operator after they submitted a robot task and video. Use only eligible IDs. Prefer questions that change how the task or its success is understood. Do not infer answers or invent objects. Return JSON only: {\"question_ids\":[\"id\"]}." },
-        { role: "user", content: JSON.stringify({
-          taskStatement: input.taskStatement.slice(0, 3000),
-          briefSummary: input.briefSummary.slice(0, 300),
-          itemLabels: input.itemLabels.slice(0, 12),
-          eligible: input.eligible,
-        }) },
-      ],
-    });
-    const parsed = JSON.parse(response.output_text || "{}");
-    const selected = allowedFollowUps(parsed.question_ids, input.eligible);
+    const { getStructuredProviderOrder } = await import("../agents/provider-config");
+    if (!getStructuredProviderOrder("site_task_follow_up").length) return fixedList;
+    const { runAgentTask } = await import("../agents/runtime");
+    const run = runAgentTask<{ taskStatement: string; briefSummary: string; itemLabels: string[]; eligible: string[] },
+      { question_ids?: unknown }>({
+      kind: "site_task_follow_up",
+      input: {
+        taskStatement: input.taskStatement.slice(0, 3000),
+        briefSummary: input.briefSummary.slice(0, 300),
+        itemLabels: input.itemLabels.slice(0, 12),
+        eligible: input.eligible,
+      },
+      ...(input.requestId ? { metadata: { request_id: input.requestId } } : {}),
+    }, { dispatchQueuedOnFinish: false });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), FOLLOW_UP_DEADLINE_MS); });
+    const result = await Promise.race([run, deadline]).finally(() => clearTimeout(timer));
+    if (!result || result.status !== "completed" || !result.output) return fixedList;
+    const selected = allowedFollowUps(result.output.question_ids, input.eligible);
     const essentials = input.eligible.filter((id) => id === "success_target" || id === "item_photos");
     return [...new Set([...essentials, ...(selected.length ? selected : input.eligible)])].slice(0, 3);
   } catch {
     // Missing questions should still be usable when the model is unavailable.
-    return input.eligible.slice(0, 3);
+    return fixedList;
   }
 }

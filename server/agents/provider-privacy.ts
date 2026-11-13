@@ -79,6 +79,8 @@ export const LANE_DATA_CLASSES: Record<AgentTaskKind, DataClassRow> = {
     source: "tasks/robot-fit-ranking.ts: one site's job with Blueprint's research notes on robot teams" },
   capture_dispatch: { classes: ["site_job_text"],
     source: "tasks/capture-dispatch.ts: what the site typed, its gate answers and site description" },
+  site_task_follow_up: { classes: ["site_job_text"],
+    source: "tasks/site-task-follow-up.ts: the site's task statement, its brief summary and item labels" },
   runtime_smoke_test: { classes: ["fixed_text"],
     source: "tasks/runtime-smoke-test.ts: a prompt written in the code; no input is read, no tools" },
   outbound_outreach: { classes: ["personal_info"],
@@ -272,6 +274,12 @@ export const ENABLED_BY: Partial<Record<AgentDataClass, string>> = {
  * and where; the caller checks it before anything leaves.
  */
 export const NON_LANE_SENDS = {
+  retrieval_embeddings: {
+    classes: ["site_job_text", "job_records", "personal_info"] as readonly AgentDataClass[],
+    provider: "openai_responses" as AgentProvider,
+    source: "retrieval/embeddings.ts embedTexts: venue knowledge, site search text, ops-document chunks and company history, "
+      + "sent to OpenAI's embeddings endpoint (OpenAI only; no other provider here offers embeddings)",
+  },
   ops_document_extraction: {
     classes: ["site_job_text", "job_records", "personal_info"] as readonly AgentDataClass[],
     provider: "openclaw" as AgentProvider,
