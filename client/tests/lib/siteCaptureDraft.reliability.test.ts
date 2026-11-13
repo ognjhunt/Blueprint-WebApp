@@ -133,3 +133,60 @@ it("retains private handling across local autosave and durable restoration witho
   await hydrateSiteCaptureRecovery(key);
   expect(readSiteCaptureRecovery(key)).toMatchObject({ requestId: value.requestId, retryToken: value.retryToken, draft: { privateHandling: true } });
 });
+
+// Owner, 2026-11-12: restoring never stops the start form. A copy that is expired, unreadable or in conflict with its
+// durable mirror is replaced, in both stores, by a fresh draft; a usable copy is restored exactly as before.
+it.each([
+  ["an unreadable local copy", () => { localStorage.setItem(key, "{torn"); }],
+  ["an expired copy in both stores", () => {
+    const old = base(); old.savedAt = fixedTime - SITE_CAPTURE_DRAFT_TTL_MS;
+    localStorage.setItem(key, JSON.stringify(old)); durability.rows.set(key, { value: JSON.parse(JSON.stringify(old)), retired: false });
+  }],
+  ["an expired durable copy with no local copy", () => {
+    const old = pending(base()); old.savedAt = fixedTime - SITE_CAPTURE_DRAFT_TTL_MS - 1;
+    durability.rows.set(key, { value: JSON.parse(JSON.stringify(old)), retired: false });
+  }],
+  ["local and durable copies of two different jobs", () => {
+    writeSiteCaptureRecovery(key, pending(base()));
+    const other = pending(base()); durability.rows.set(key, { value: JSON.parse(JSON.stringify(other)), retired: false });
+  }],
+])("hydration replaces %s with a fresh draft in both stores", async (_name, arrange) => {
+  vi.stubGlobal("navigator", { locks: { request: async (_scope: string, action: () => unknown) => action() } });
+  const { hydrateSiteCaptureRecovery } = await import("@/lib/siteCaptureDraft");
+  arrange();
+  const before = localStorage.getItem(key), mirrored = durability.rows.get(key)?.value?.requestId;
+  await expect(hydrateSiteCaptureRecovery(key)).resolves.toBeUndefined();
+  const fresh = readSiteCaptureRecovery(key)!;
+  expect(fresh).toMatchObject({ pending: null, draft: { task: "", location: "", email: "" } });
+  expect(localStorage.getItem(key)).not.toBe(before);
+  if (mirrored) expect(fresh.requestId).not.toBe(mirrored);
+  expect(durability.rows.get(key)).toMatchObject({ retired: false, value: { requestId: fresh.requestId, retryToken: fresh.retryToken, pending: null } });
+});
+
+// "Start a new job" (review of PR 1286): the reset tombstones and forgets the saved job's copy before it writes the fresh
+// draft, so a failure there must write the saved job back rather than leave "Return to saved job" pointing at nothing.
+it("a replace whose fresh write fails puts the saved job back in both stores", async () => {
+  vi.stubGlobal("navigator", { locks: { request: async (_scope: string, action: () => unknown) => action() } });
+  const { writeSiteCaptureRecoveryDurably, replaceSiteCaptureRecoveryDurably } = await import("@/lib/siteCaptureDraft");
+  const saved = pending(base()); saved.pending!.acknowledged = true;
+  expect(await writeSiteCaptureRecoveryDurably(key, saved)).toBe(true);
+  const fresh = newSiteCaptureRecovery();
+  const setItem = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, name: string, value: string) {
+    if (value.includes(fresh.requestId)) throw new DOMException("Storage is full", "QuotaExceededError");
+    return setItem.call(this, name, value);
+  });
+  await expect(replaceSiteCaptureRecoveryDurably(key, saved, fresh)).resolves.toBe(false);
+  expect(readSiteCaptureRecovery(key)).toMatchObject({ requestId: saved.requestId, retryToken: saved.retryToken, pending: { acknowledged: true } });
+  expect(durability.rows.get(key)).toMatchObject({ retired: false, value: { requestId: saved.requestId, pending: { acknowledged: true } } });
+});
+it("a replace that commits leaves only the fresh generation in both stores", async () => {
+  vi.stubGlobal("navigator", { locks: { request: async (_scope: string, action: () => unknown) => action() } });
+  const { writeSiteCaptureRecoveryDurably, replaceSiteCaptureRecoveryDurably } = await import("@/lib/siteCaptureDraft");
+  const saved = pending(base()); saved.pending!.acknowledged = true;
+  expect(await writeSiteCaptureRecoveryDurably(key, saved)).toBe(true);
+  const fresh = newSiteCaptureRecovery();
+  await expect(replaceSiteCaptureRecoveryDurably(key, saved, fresh)).resolves.toBe(true);
+  expect(readSiteCaptureRecovery(key)).toMatchObject({ requestId: fresh.requestId, pending: null });
+  expect(durability.rows.get(key)).toMatchObject({ retired: false, value: { requestId: fresh.requestId, pending: null } });
+});

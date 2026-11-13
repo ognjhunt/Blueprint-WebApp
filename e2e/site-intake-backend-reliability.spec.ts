@@ -44,7 +44,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
   try {
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
     // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
-    await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet."); await page.getByRole("button", { name: "Done", exact: true }).click();
+    if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet.");
     await page.locator("#start-location").fill(parameters.location);
     await page.locator("#start-email").fill(`reliability-${index + 1}@example.invalid`);
     // The video choice is one quiet link (bare bones, 2026-11-11): "I have a video ›" switches to the upload.

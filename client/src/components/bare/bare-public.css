@@ -69,6 +69,20 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
   background: none; font: inherit; font-size: 17px; color: var(--bare-ink, #22251e); text-decoration: none; cursor: pointer; text-align: left; justify-content: flex-start; }
 .bare-site-foot button { text-align: left; }
 
+/* An inline disclosure (owner, 2026-11-12): a quiet link that opens its content in place, never a screen of its own.
+   Its mark points right while closed and down while open. */
+.bare-disclosure > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; list-style: none; cursor: pointer;
+  border-bottom: 1px solid var(--bare-ink, #22251e); font-size: 17px; color: var(--bare-ink, #22251e); }
+.bare-disclosure > summary::-webkit-details-marker { display: none; }
+.bare-disclosure > summary::after { content: "›"; display: inline-block; }
+.bare-disclosure[open] > summary::after { transform: rotate(90deg); }
+/* Closed, its content is not laid out at all (a closed <details> otherwise keeps unpainted boxes): autofill, password
+   managers and form-filling scripts skip it, as they did when these parts were a hidden screen of their own. */
+.bare-disclosure:not([open]) > :not(summary) { display: none; }
+.bare-disclosure-body { margin-top: var(--bare-s2, 8px); }
+.bare-disclosure-body > * + * { margin-top: var(--bare-s2, 8px); }
+.bare-disclosure-body > * + .bare-label { margin-top: var(--bare-s3, 16px); }
+
 /* Home: the text column, and the moving example beside it on a desktop, below the button on a phone (11 Nov layout,
    restored 2026-11-12). */
 .bare-home { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; gap: 48px; width: min(100% - 40px, 1120px); margin: 0 auto; }
