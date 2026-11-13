@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { OPENAI_API_BASE_URL, getUsableOpenAiApiKey } from "./openaiApiHost";
 
 export const FOLLOW_UP_IDS = ["success_target", "item_photos", "item_weight", "item_make_model"] as const;
 export type FollowUpId = (typeof FOLLOW_UP_IDS)[number];
@@ -38,11 +39,12 @@ export async function selectFollowUps(input: {
   eligible: FollowUpId[];
 }): Promise<FollowUpId[]> {
   if (!input.eligible.length) return [];
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  // Null unless OpenAI is usable here (OPENAI_BASE_URL unset or OpenAI's own host).
+  const apiKey = getUsableOpenAiApiKey();
   if (!apiKey) return input.eligible.slice(0, 3);
 
   try {
-    const client = new OpenAI({ apiKey, timeout: 12_000, maxRetries: 0 });
+    const client = new OpenAI({ apiKey, baseURL: OPENAI_API_BASE_URL, timeout: 12_000, maxRetries: 0 });
     const response = await client.responses.create({
       model: "gpt-6-luna",
       reasoning: { effort: "low" },

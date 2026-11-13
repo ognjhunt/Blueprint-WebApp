@@ -27,16 +27,44 @@ function normalizeRecord<T extends Record<string, unknown>>(value: unknown) {
   return value && typeof value === "object" ? (value as T) : undefined;
 }
 
+/**
+ * A profile whose pinned provider was removed is disabled, not moved. Seven
+ * built-in profiles were pinned to Z.ai. Without a Z.ai key they failed and
+ * sent nothing; following their lane instead would make them run on OpenAI
+ * with live operator tools. They stay disabled, with this reason, wherever
+ * profiles and connectivity are listed, until a provider is named for them (a
+ * stored profile with the same key and a provider). Nothing is rerouted. A
+ * stored profile that still names a removed provider is disabled the same way.
+ */
+export const AGENT_PROFILE_PROVIDER_REMOVED = "agent_profile_provider_removed";
+
+const REMOVED_PIN = { disabled_reason: AGENT_PROFILE_PROVIDER_REMOVED, removed_provider: "zai_glm" } as const;
+
+const REMOVED_PROFILE_PROVIDER_IDS = new Set(["deepseek_chat", "zai_glm", "openrouter"]);
+
+/** The profile as stored, with `disabled_reason` set when it pins a removed provider. */
+export function withProfileProviderStatus(record: AgentProfileRecord): AgentProfileRecord {
+  if (record.disabled_reason) return record;
+  const pinned = [record.default_provider, record.default_runtime]
+    .map((value) => String(value ?? "").trim())
+    .find((value) => REMOVED_PROFILE_PROVIDER_IDS.has(value));
+  return pinned ? { ...record, disabled_reason: AGENT_PROFILE_PROVIDER_REMOVED, removed_provider: pinned } : record;
+}
+
+/** Thrown before any session, run or provider call for a disabled profile. */
+export function assertAgentProfileUsable(profile: AgentProfileRecord | null | undefined) {
+  const checked = profile ? withProfileProviderStatus(profile) : null;
+  if (checked?.disabled_reason) throw new Error(`${checked.disabled_reason}: ${checked.key}`);
+}
+
 const builtInAgentProfiles: AgentProfileRecord[] = [
   {
     id: "built-in-ops-operator",
     key: "ops-operator",
+    ...REMOVED_PIN,
     name: "Ops Operator",
     description: "General bounded operator thread for internal investigation and execution planning.",
     task_kind: "operator_thread",
-    default_provider: "zai_glm",
-    default_runtime: "zai_glm",
-    default_model: "deepseek-v4-pro",
     lane: "session",
     default_environment_profile_id: "built-in-session-default",
     capabilities: [
@@ -83,12 +111,10 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
   {
     id: "built-in-support-triage",
     key: "support-triage-specialist",
+    ...REMOVED_PIN,
     name: "Support Triage Specialist",
     description: "Structured support investigation profile with stronger guardrails.",
     task_kind: "support_triage",
-    default_provider: "zai_glm",
-    default_runtime: "zai_glm",
-    default_model: "deepseek-v4-pro",
     lane: "support",
     default_environment_profile_id: "built-in-support-guarded",
     capabilities: [
@@ -126,12 +152,10 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
   {
     id: "built-in-preview-diagnosis-specialist",
     key: "preview-diagnosis-specialist",
+    ...REMOVED_PIN,
     name: "Preview Diagnosis Specialist",
     description: "Structured preview-failure specialist with isolated browser-backed evidence posture.",
     task_kind: "preview_diagnosis",
-    default_provider: "zai_glm",
-    default_runtime: "zai_glm",
-    default_model: "deepseek-v4-pro",
     lane: "preview",
     default_environment_profile_id: "built-in-preview-browser-shadow",
     capabilities: [
@@ -169,12 +193,10 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
   {
     id: "built-in-research-subagent",
     key: "research-subagent",
+    ...REMOVED_PIN,
     name: "Research Subagent",
     description: "Short-lived worker for evidence gathering and concise synthesis.",
     task_kind: "operator_thread",
-    default_provider: "zai_glm",
-    default_runtime: "zai_glm",
-    default_model: "deepseek-v4-pro",
     lane: "session",
     default_environment_profile_id: "built-in-web-research",
     capabilities: ["web-backed research", "evidence extraction", "comparison briefs"],
@@ -203,12 +225,10 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
   {
     id: "built-in-browser-research-subagent",
     key: "browser-research-subagent",
+    ...REMOVED_PIN,
     name: "Browser Research Subagent",
     description: "Short-lived worker for supervised, read-only browser research and proof capture.",
     task_kind: "operator_thread",
-    default_provider: "zai_glm",
-    default_runtime: "zai_glm",
-    default_model: "deepseek-v4-pro",
     lane: "session",
     default_environment_profile_id: "built-in-browser-research-guarded",
     capabilities: [
@@ -278,12 +298,10 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
   {
     id: "built-in-launch-qa-subagent",
     key: "launch-qa-subagent",
+    ...REMOVED_PIN,
     name: "Launch QA Subagent",
     description: "Short-lived worker for supervised launch-surface verification using isolated browser evidence.",
     task_kind: "operator_thread",
-    default_provider: "zai_glm",
-    default_runtime: "zai_glm",
-    default_model: "deepseek-v4-pro",
     lane: "review",
     default_environment_profile_id: "built-in-launch-qa-browser",
     capabilities: ["launch-surface QA", "browser verification", "console and screenshot capture"],
@@ -312,12 +330,10 @@ const builtInAgentProfiles: AgentProfileRecord[] = [
   {
     id: "built-in-review-subagent",
     key: "review-subagent",
+    ...REMOVED_PIN,
     name: "Review Subagent",
     description: "Short-lived worker for QA and review passes on prior work.",
     task_kind: "operator_thread",
-    default_provider: "zai_glm",
-    default_runtime: "zai_glm",
-    default_model: "deepseek-v4-pro",
     lane: "review",
     default_environment_profile_id: "built-in-session-default",
     capabilities: ["qa review", "risk listing", "verification notes"],
@@ -387,6 +403,11 @@ function normalizeProfileRecord(
   };
 }
 
+/** The built-in profiles, as listed (no stored overrides). */
+export function listBuiltInAgentProfiles(): AgentProfileRecord[] {
+  return [...builtInAgentProfiles];
+}
+
 export async function listAgentProfiles(limit = 100) {
   const builtIns = [...builtInAgentProfiles];
   if (!db) {
@@ -399,7 +420,7 @@ export async function listAgentProfiles(limit = 100) {
     .limit(Math.max(1, Math.min(limit, 200)))
     .get();
 
-  const stored = snapshot.docs.map((doc) => doc.data() as AgentProfileRecord);
+  const stored = snapshot.docs.map((doc) => withProfileProviderStatus(doc.data() as AgentProfileRecord));
   const storedKeys = new Set(stored.map((record) => record.key));
   return [...stored, ...builtIns.filter((record) => !storedKeys.has(record.key))].slice(0, limit);
 }
@@ -417,7 +438,7 @@ export async function getAgentProfile(profileId: string) {
   if (!doc.exists) {
     return null;
   }
-  return doc.data() as AgentProfileRecord;
+  return withProfileProviderStatus(doc.data() as AgentProfileRecord);
 }
 
 export async function createAgentProfile(

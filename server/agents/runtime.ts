@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { getAgentProfile } from "./agent-profiles";
+import { assertAgentProfileUsable, getAgentProfile, withProfileProviderStatus } from "./agent-profiles";
+import { LANE_DATA_CLASSES, NO_PERMITTED_PROVIDER, PRIVACY_NOT_PERMITTED, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
+  privacyDecisionForClasses, privacyVersionForTask, type AgentDataClass } from "./provider-privacy";
 import { AgentEvidenceError, hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence, persistAgentEvidenceFailure, requiresMutationReconciliation } from "./private-evidence";
 import { createAgentCheckpoint, getAgentCheckpoint, listAgentCheckpoints } from "./checkpoints";
 import { createAgentCompaction, listAgentCompactions } from "./compactions";
@@ -38,7 +40,7 @@ import {
   readPaperclipGoalCloseoutMetadata,
 } from "./goal-closeout-contract";
 import { getTaskDefinition } from "./tasks";
-import { ACCOUNTING_ONLY_TASK_KINDS, getDefaultAnthropicModel } from "./provider-config";
+import { ACCOUNTING_ONLY_TASK_KINDS, getDefaultAnthropicModel, isRemovedProviderId } from "./provider-config";
 import type {
   AgentResult,
   AgentProvider,
@@ -666,11 +668,31 @@ function buildForkedSessionTitle(sourceTitle: string, phase: AgentThreadPhase, r
   return `${sourceTitle} · ${suffix}`;
 }
 
+/**
+ * A provider id this runtime still has, or null. A record that names one it no
+ * longer has (a session or profile saved before a provider was removed) is
+ * treated as naming none, so the lane's own resolution applies; it is never
+ * sent to an adapter that does not exist, nor rewritten to another pin.
+ */
+function knownAgentProvider(provider?: string | null): AgentProvider | null {
+  switch (provider) {
+    case "codex_local":
+    case "openai_responses":
+    case "openai_agents_api":
+    case "openai_agents_sdk":
+    case "anthropic_agent_sdk":
+    case "acp_harness":
+    case "openclaw":
+    case "gemini_video":
+      return provider;
+    default:
+      return null;
+  }
+}
+
 function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
   switch (provider) {
     case "codex_local":
-    case "deepseek_chat":
-    case "zai_glm":
     case "openai_responses":
     case "openai_agents_api":
     case "openai_agents_sdk":
@@ -691,10 +713,6 @@ function defaultModelForProvider(provider: AgentProvider) {
   switch (provider) {
     case "codex_local":
       return process.env.CODEX_DEFAULT_MODEL?.trim() || "gpt-5.4-mini";
-    case "deepseek_chat":
-      return process.env.DEEPSEEK_DEFAULT_MODEL?.trim() || "deepseek-v4-pro";
-    case "zai_glm":
-      return process.env.ZAI_DEFAULT_MODEL?.trim() || "glm-5.3";
     case "openai_responses":
       return process.env.OPENAI_DEFAULT_MODEL?.trim() || "gpt-5.4";
     case "openai_agents_api":
@@ -715,15 +733,20 @@ function normalizeTask<TInput, TOutput>(
   task: AgentTask<TInput>,
 ): NormalizedAgentTask<TInput, TOutput> {
   const definition = getTaskDefinition<TInput, TOutput>(task.kind);
-  const provider = normalizeAgentProvider(task.provider || definition.default_provider);
-  const runtime = task.runtime || definition.default_runtime || provider;
+  const pinned = knownAgentProvider(task.provider);
+  const provider = pinned ?? normalizeAgentProvider(definition.default_provider);
+  const runtime = (pinned ? knownAgentProvider(task.runtime) : null) || definition.default_runtime || provider;
   const model =
-    task.model ||
+    (pinned ? task.model : undefined) ||
     definition.model_by_provider?.[provider] ||
     defaultModelForProvider(provider);
 
+  // A task saved under a removed provider keeps that fact, so the common
+  // execution check refuses it rather than running it on the lane.
+  const savedRemoved = [task.provider, task.runtime].find((value) => isRemovedProviderId(value as string | undefined));
   return {
     ...task,
+    ...(savedRemoved ? { metadata: { ...(task.metadata || {}), saved_removed_provider: savedRemoved } } : {}),
     provider,
     runtime,
     model,
@@ -921,12 +944,94 @@ function refuseRetiredSiteAssessment(kind: string): void {
   if (kind === "site_assessment") throw new Error("site_assessment_retired");
 }
 
+/**
+ * The data-class gate at the one place every provider call passes through.
+ * Whatever chose the provider (the lane's resolution, a saved session, a
+ * profile, the shadow setting, a caller's pin), a provider the Privacy Policy
+ * that applies to the task's data does not name for every kind of data the
+ * task sends is never called.
+ */
+function privacyGateForTask(task: NormalizedAgentTask<unknown, unknown>) {
+  const version = privacyVersionForTask(task);
+  const managedRuntime = (task.metadata?.managedRuntime ?? null) as Record<string, unknown> | null;
+  const snapshot = (managedRuntime?.profileSnapshot ?? null) as Record<string, unknown> | null;
+  const profileKey = typeof managedRuntime?.agentProfileKey === "string" ? managedRuntime.agentProfileKey
+    : typeof snapshot?.key === "string" ? snapshot.key : null;
+  const classes = [...new Set([...(LANE_DATA_CLASSES[task.kind]?.classes ?? ["site_job_text", "job_records", "personal_info", "staff_tools"]),
+    ...((profileKey && PROFILE_DATA_CLASSES[profileKey]?.classes) || [])])] as AgentDataClass[];
+  const decide = (provider: AgentProvider) => privacyDecisionForClasses(provider, classes, version);
+  const decision = decide(task.provider);
+  const anyPermitted = (Object.keys(PROVIDER_DESTINATIONS) as AgentProvider[]).some((provider) => decide(provider).permitted);
+  return { ...decision, reason: decision.permitted ? null : anyPermitted ? PRIVACY_NOT_PERMITTED : NO_PERMITTED_PROVIDER };
+}
+
+/**
+ * The profile a run belongs to, from everything a run can carry: the profile
+ * named in its managed-runtime metadata (id, key or snapshot) and the profile
+ * of its session. Returns the first one that is disabled (its pinned provider
+ * was removed), or null. A run with no profile is not refused here: it
+ * follows its lane, through the data-class gate.
+ */
+async function disabledProfileForRun(task: { provider?: unknown; runtime?: unknown; metadata?: Record<string, unknown> | null;
+  session_id?: string | null }, sessionId?: string | null): Promise<RetainedRefusal | null> {
+  const sessionRecord = sessionId || task.session_id ? await getSession((sessionId || task.session_id)!) : null;
+  const managedRuntime = (task.metadata?.managedRuntime ?? null) as Record<string, unknown> | null;
+  const snapshots = [managedRuntime?.profileSnapshot, managedRuntime?.agentProfileSnapshot]
+    .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === "object");
+  const references = new Set<string>([managedRuntime?.agentProfileId, managedRuntime?.agentProfileKey,
+    ...snapshots.flatMap((snapshot) => [snapshot.id, snapshot.key])]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0));
+  const session = sessionRecord;
+  if (session?.agent_profile_id) references.add(session.agent_profile_id);
+  for (const reference of references) {
+    const profile = await getAgentProfile(reference);
+    const checked = profile ? withProfileProviderStatus(profile) : null;
+    if (checked?.disabled_reason) {
+      return { reason: checked.disabled_reason, profile_id: checked.id, profile_key: checked.key,
+        removed_provider: checked.removed_provider ?? null, saved_on: "profile" };
+    }
+  }
+  // Saved under a removed provider: the run's own record (its saved provider
+  // or runtime, kept in metadata once normalized) or its session.
+  const savedOnRun = [task.provider, task.runtime, task.metadata?.saved_removed_provider]
+    .find((value) => typeof value === "string" && isRemovedProviderId(value));
+  const savedOnSession = sessionRecord ? [sessionRecord.provider, sessionRecord.runtime]
+    .find((value) => typeof value === "string" && isRemovedProviderId(value)) : undefined;
+  if (savedOnRun || savedOnSession) {
+    return { reason: "agent_session_provider_removed", removed_provider: String(savedOnRun ?? savedOnSession),
+      saved_on: savedOnRun ? "run" : "session", profile_id: null, profile_key: null };
+  }
+  return null;
+}
+
+type RetainedRefusal = {
+  reason: "agent_profile_provider_removed" | "agent_session_provider_removed";
+  removed_provider: string | null;
+  saved_on: "run" | "session" | "profile";
+  profile_id: string | null;
+  profile_key: string | null;
+};
+
+function disabledProfileResult<TOutput>(task: { provider?: AgentProvider; runtime?: AgentProvider; model?: string;
+  tool_policy?: { mode?: string } }, refusal: RetainedRefusal): AgentResult<TOutput> {
+  return { status: "failed", provider: (task.provider ?? "codex_local") as AgentProvider,
+    runtime: (task.runtime ?? task.provider ?? "codex_local") as AgentProvider, model: task.model ?? "unknown",
+    tool_mode: (task.tool_policy?.mode ?? "api") as AgentResult<TOutput>["tool_mode"], requires_approval: false, requires_human_review: true,
+    error: refusal.reason === "agent_profile_provider_removed" ? `${refusal.reason}: ${refusal.profile_key}`
+      : `${refusal.reason}: saved under ${refusal.removed_provider} on the ${refusal.saved_on}`,
+    artifacts: { inference_not_invoked: true, agent_profile_refusal: refusal } };
+}
+
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
   host?: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void> },
 ): Promise<AgentResult<TOutput>> {
   refuseRetiredSiteAssessment(task.kind);
-  if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && !["openai_responses", "deepseek_chat", "zai_glm"].includes(task.provider)) {
+  // The one point every provider call and every operator tool passes: a run of
+  // a disabled profile (agent-profiles) is refused here whatever started it.
+  const profileRefusal = await disabledProfileForRun(task);
+  if (profileRefusal) return disabledProfileResult<TOutput>(task, profileRefusal);
+  if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && task.provider !== "openai_responses") {
     return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
       tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
       error: `mutation_reconciliation_required: ${task.provider} cannot enforce the recorded mutation barrier. Inspect existing effects through the OpenAI Responses safe-read context or reconcile them before resuming this provider.`,
@@ -936,16 +1041,17 @@ async function executeTask<TInput, TOutput>(
       },
     };
   }
+  const privacyGate = privacyGateForTask(task as unknown as NormalizedAgentTask<unknown, unknown>);
+  if (!privacyGate.permitted) {
+    return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+      tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
+      error: `${privacyGate.reason}: Privacy Policy ${privacyGate.version} does not name ${task.provider} for ${privacyGate.blocked_by.join(", ")}`,
+      artifacts: { inference_not_invoked: true, privacy_gate: { reason: privacyGate.reason, provider: task.provider,
+        privacy_policy_version: privacyGate.version, data_classes: privacyGate.data_classes, blocked_by: privacyGate.blocked_by } } };
+  }
   if (task.provider === "openai_responses") {
     const { runOpenAIResponsesTask } = await import("./adapters/openai-responses");
     return runOpenAIResponsesTask(task);
-  }
-
-  if (task.provider === "deepseek_chat" || task.provider === "zai_glm") {
-    // One OpenAI-compatible chat transport, two destinations: DeepSeek's own
-    // API and Z.ai's GLM endpoint. The adapter picks the client by provider.
-    const { runDeepSeekChatTask } = await import("./adapters/deepseek-chat");
-    return runDeepSeekChatTask(task);
   }
 
   if (task.provider === "codex_local") {
@@ -1508,18 +1614,27 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
   // The per-job site assessment ended (owner decision 2026-11-11). No path,
   // queued or direct, may start one: refuse before any run record or spend.
   refuseRetiredSiteAssessment(task.kind);
+  // A run of a disabled profile (saved before its provider was removed, then
+  // dispatched from the queue, approved, resumed, retried, forked, delegated
+  // or woken) is refused before its saved provider is rerouted to the lane,
+  // before approval, and before any adapter or tool. A retained run record
+  // ends failed, with the reason, so it is never dispatched again.
+  {
+    const refusal = await disabledProfileForRun(task as { metadata?: Record<string, unknown> | null; session_id?: string | null },
+      options?.sessionId);
+    if (refusal) {
+      const refused = disabledProfileResult<TOutput>(task as never, refusal);
+      if (db && options?.runId && await getRun(options.runId)) {
+        await markRunStatus(options.runId, "failed", { error: refused.error, artifacts: refused.artifacts,
+          requires_human_review: true });
+      }
+      return refused;
+    }
+  }
   const normalizedTask = normalizeTask<TInput, TOutput>(task);
   const admissionSessionId = options?.sessionId || normalizedTask.session_id;
   if (admissionSessionId && await sessionRequiresMutationReconciliation(admissionSessionId)) {
     normalizedTask.metadata = { ...(normalizedTask.metadata || {}), mutation_reconciliation_required: true };
-  }
-  if (admissionSessionId && ["deepseek_chat", "zai_glm"].includes(normalizedTask.provider)) {
-    // Always prefer verified persisted session history over caller/queued copies.
-    // Strict hydration must succeed before this provider can resume inference.
-    const persistedSession = await getSession(admissionSessionId);
-    const { deepseek_replay_input: _callerReplay, ...metadata } = normalizedTask.metadata || {};
-    const savedReplay = persistedSession?.metadata?.deepseek_replay_input;
-    normalizedTask.metadata = { ...metadata, ...(Array.isArray(savedReplay) ? { deepseek_replay_input: savedReplay } : {}) };
   }
   const normalizedTaskForLogs = normalizedTask as unknown as NormalizedAgentTask<
     unknown,
@@ -2083,6 +2198,12 @@ export async function createAgentSession(params: {
   refuseRetiredSiteAssessment(params.task_kind);
   const sessionId = crypto.randomUUID();
   const profile = params.agent_profile_id ? await getAgentProfile(params.agent_profile_id) : null;
+  // A profile whose provider was removed starts nothing (agent-profiles), and
+  // neither does a session asked for on a removed provider (a fork of one included).
+  assertAgentProfileUsable(profile);
+  if ([params.provider, params.runtime].some((value) => isRemovedProviderId(value as string | undefined))) {
+    throw new Error("agent_session_provider_removed");
+  }
   if (params.task_kind === "site_assessment" && profile && profile.task_kind !== "site_assessment") {
     throw new Error("site_assessment_profile_incompatible");
   }
@@ -2101,15 +2222,20 @@ export async function createAgentSession(params: {
       agentProfileSnapshot: buildProfileSnapshot(profile),
     },
   });
+  // A profile that pins no provider (or one that no longer exists) takes the
+  // lane's own resolution, the same as a task with none. Without a profile the
+  // session keeps its earlier default.
   const provider = normalizeAgentProvider(
-    params.provider || profile?.default_provider || (params.task_kind === "site_assessment" ? "openai_responses" : undefined),
+    knownAgentProvider(params.provider) ?? knownAgentProvider(profile?.default_provider)
+      ?? (profile ? getTaskDefinition(params.task_kind).default_provider
+        : params.task_kind === "site_assessment" ? "openai_responses" : undefined),
   );
   const session: PersistedAgentSession = {
     id: sessionId,
     title: params.title,
     task_kind: params.task_kind,
     provider,
-    runtime: normalizeAgentProvider(params.runtime || provider),
+    runtime: knownAgentProvider(params.runtime) ?? provider,
     status: "idle",
     session_key: params.session_key || `session:${sessionId}`,
     agent_profile_id: profile?.id || params.agent_profile_id || null,
@@ -2214,6 +2340,12 @@ export async function sendAgentSessionMessage(params: {
   const agentProfile = session.agent_profile_id
     ? await getAgentProfile(session.agent_profile_id)
     : null;
+  // A saved session follows its profile: a disabled profile runs nothing, before any run record.
+  assertAgentProfileUsable(agentProfile);
+  // A session saved under a removed provider is refused, never moved to its lane.
+  if ([session.provider, session.runtime].some((value) => isRemovedProviderId(value as string | undefined))) {
+    throw new Error("agent_session_provider_removed");
+  }
   const environmentProfile = session.environment_profile_id
     ? await getEnvironmentProfile(session.environment_profile_id)
     : null;
@@ -2648,11 +2780,8 @@ export async function sendAgentSessionMessage(params: {
   const replayInput = Array.isArray(continuationState.openai_replay_input)
     ? continuationState.openai_replay_input
     : null;
-  const chatReplayInput = Array.isArray(continuationState.deepseek_replay_input)
-    ? continuationState.deepseek_replay_input : null;
   const nextSessionMetadata = {
     ...sessionMetadataWithoutOpenAIContinuation,
-    ...(chatReplayInput ? { deepseek_replay_input: chatReplayInput } : {}),
     ...(requiresMutationReconciliation(result as unknown as Record<string, unknown>)
       ? { mutation_reconciliation_required: true } : {}),
     ...(replayInput
@@ -2710,6 +2839,11 @@ export async function forkAgentSessionWithHandoff(params: {
   const sourceSession = await getSession(params.sessionId);
   if (!sourceSession) {
     throw new Error("Agent session not found");
+  }
+  // A fork carries the work on; a session of a disabled profile cannot be forked onto its lane.
+  if (sourceSession.agent_profile_id) assertAgentProfileUsable(await getAgentProfile(sourceSession.agent_profile_id));
+  if ([sourceSession.provider, sourceSession.runtime].some((value) => isRemovedProviderId(value as string | undefined))) {
+    throw new Error("agent_session_provider_removed");
   }
 
   let sourceRun =

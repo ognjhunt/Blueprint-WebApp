@@ -11,8 +11,7 @@ beforeEach(() => {
   // Provider preference tests must not depend on the developer's configured
   // house provider or local auth. Restore ambient values without reading them.
   for (const name of ["CODEX_LOCAL_AVAILABLE", "CODEX_AUTH_FILE", "CODEX_DEFAULT_MODEL",
-    "DEEPSEEK_API_KEY", "DEEPSEEK_DEFAULT_MODEL", "DEEPSEEK_OPERATOR_THREAD_MODEL", "DEEPSEEK_TIMEOUT_MS",
-    "ZAI_API_KEY", "ZAI_DEFAULT_MODEL", "ZAI_OPERATOR_THREAD_MODEL", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+    "DEEPSEEK_API_KEY", "ZAI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
     "ACP_HARNESS_URL", "OPENCLAW_BASE_URL", "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER",
     "BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER", "ANTHROPIC_OPERATOR_THREAD_MODEL", "OPENAI_OPERATOR_THREAD_MODEL",
     "ANTHROPIC_BASE_URL"]) {
@@ -50,10 +49,12 @@ describe("runtime connectivity", () => {
       "../agents/runtime-connectivity"
     );
 
+    // The default model is the smoke test's: its fixed-text lane follows the
+    // setting to Anthropic, on Anthropic's default model for a lane of its tier.
     expect(getAgentRuntimeConnectionMetadata()).toMatchObject({
       provider: "anthropic_agent_sdk",
       configured: true,
-      default_model: "claude-sonnet-test",
+      default_model: "claude-haiku-5-5",
     });
   });
 
@@ -86,23 +87,28 @@ describe("runtime connectivity", () => {
     expect(result.ok).toBe(true);
     expect(runAgentTask).toHaveBeenCalledWith(
       expect.objectContaining({
+        // Its own fixed-text lane, whose input is never read.
+        kind: "runtime_smoke_test",
+        input: {},
         provider: "anthropic_agent_sdk",
         runtime: "anthropic_agent_sdk",
       }),
     );
   });
 
-  it("prefers DeepSeek when a DeepSeek key is configured", async () => {
-    process.env.DEEPSEEK_API_KEY = "deepseek-key";
+  it("ignores a key left set for a removed provider", async () => {
+    // DeepSeek and Z.ai are removed: a key still set in a deployment selects nothing.
+    process.env.DEEPSEEK_API_KEY = "left-over-key";
+    process.env.ZAI_API_KEY = "left-over-key";
+    process.env.OPENAI_API_KEY = "openai-key";
 
     const { getAgentRuntimeConnectionMetadata } = await import(
       "../agents/runtime-connectivity"
     );
 
     expect(getAgentRuntimeConnectionMetadata()).toMatchObject({
-      provider: "deepseek_chat",
+      provider: "openai_responses",
       configured: true,
-      default_model: "deepseek-v4-pro",
     });
   });
 
@@ -114,10 +120,12 @@ describe("runtime connectivity", () => {
       "../agents/runtime-connectivity"
     );
 
+    // Local Codex is the global report; the smoke test may not run there, so
+    // its model is OpenAI's (with no key it sends nothing).
     expect(getAgentRuntimeConnectionMetadata()).toMatchObject({
       provider: "codex_local",
       configured: true,
-      default_model: "gpt-5.4-mini",
+      default_model: "gpt-6-luna",
     });
   });
 });

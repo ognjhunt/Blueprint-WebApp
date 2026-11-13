@@ -136,7 +136,8 @@ describe("agent cost telemetry", () => {
   });
 
 
-  it("summarizes cache ratio and cost across direct DeepSeek and OpenRouter usage schemas", () => {
+  // History: stored runs of removed providers (they cannot be called) keep their cost.
+  it("summarizes cache ratio and cost across direct DeepSeek and OpenRouter usage schemas (history)", () => {
     const summary = summarizeAgentCostTelemetry([
       {
         task_kind: "support_triage",
@@ -199,13 +200,13 @@ describe("agent cost telemetry", () => {
   it("parses raw nested provider usage and identifies local waste signals", () => {
     const runs = [
       {
-        id: "run-openrouter-nested",
+        id: "run-nested-usage",
         task_kind: "operator_thread",
-        provider: "deepseek_chat",
-        model: "deepseek/deepseek-v4-flash",
+        provider: "openai_responses",
+        // A different model from the other runs, so it is its own summary row.
+        model: "gpt-6.1-sol",
         artifacts: {
-          route: "deepseek_via_openrouter",
-          openrouter_provider: "DeepSeek",
+          route: "openai_responses",
           usage: {
             prompt_tokens: 1_000,
             completion_tokens: 100,
@@ -224,8 +225,8 @@ describe("agent cost telemetry", () => {
       {
         id: "run-no-change",
         task_kind: "operator_thread",
-        provider: "deepseek_chat",
-        model: "deepseek/deepseek-v4-flash",
+        provider: "openai_responses",
+        model: "gpt-6-luna",
         output: {
           movement: "no_change",
           summary: "No material movement since the previous check.",
@@ -240,8 +241,8 @@ describe("agent cost telemetry", () => {
       {
         id: "run-duplicate-suppressed",
         task_kind: "operator_thread",
-        provider: "deepseek_chat",
-        model: "deepseek/deepseek-v4-flash",
+        provider: "openai_responses",
+        model: "gpt-6-luna",
         status: "cancelled",
         metadata: {
           runtime_suppression: {
@@ -253,9 +254,9 @@ describe("agent cost telemetry", () => {
     ];
 
     const summary = summarizeAgentCostTelemetry(runs);
-    expect(summary.rows[0]).toMatchObject({
+    expect(summary.rows.find((row) => row.model === "gpt-6.1-sol")).toMatchObject({
       task_kind: "operator_thread",
-      route: "deepseek_via_openrouter",
+      route: "openai_responses",
       prompt_tokens: 1_000,
       cached_tokens: 250,
       cache_write_tokens: 50,
@@ -299,8 +300,8 @@ describe("agent cost telemetry", () => {
       id: "run-1",
       session_id: "session-1",
       task_kind: "operator_thread",
-      provider: "deepseek_chat",
-      model: "deepseek/deepseek-v4-pro",
+      provider: "anthropic_agent_sdk",
+      model: "claude-opus-5-5",
       metadata: {
         issue_id: "BLU-123",
         managedRuntime: {
@@ -310,9 +311,8 @@ describe("agent cost telemetry", () => {
         },
       },
       artifacts: {
-        route: "deepseek_via_openrouter",
-        openrouter_provider: "DeepSeek",
-        openrouter_model: "deepseek/deepseek-v4-pro",
+        route: "anthropic_agent_sdk",
+        upstream_provider: "Anthropic",
         prompt_tokens: 32_000,
         completion_tokens: 500,
         cached_tokens: 24_000,
@@ -328,10 +328,10 @@ describe("agent cost telemetry", () => {
       issue_id: "BLU-123",
       agent_key: "blueprint-chief-of-staff",
       task_kind: "operator_thread",
-      provider: "deepseek_chat",
-      route: "deepseek_via_openrouter",
-      model: "deepseek/deepseek-v4-pro",
-      upstream_provider: "DeepSeek",
+      provider: "anthropic_agent_sdk",
+      route: "anthropic_agent_sdk",
+      model: "claude-opus-5-5",
+      upstream_provider: "Anthropic",
       prompt_tokens: 32_000,
       completion_tokens: 500,
       cached_tokens: 24_000,
@@ -341,7 +341,8 @@ describe("agent cost telemetry", () => {
       cost_usd: 0,
     });
     expect(telemetry.cost_estimate_usd).toBeGreaterThan(0);
-    expect(telemetry.cost_estimate_usd).toBeCloseTo(0.004002, 6);
+    // 2,000 uncached x $4 + 6,000 written x $5 + 24,000 read x $0.20 + 500 out x $20, per million.
+    expect(telemetry.cost_estimate_usd).toBeCloseTo(0.0528, 9);
   });
 
   it("prices Claude runs from the published list rows instead of the flat estimate", () => {
@@ -368,24 +369,24 @@ describe("agent cost telemetry", () => {
         {
           id: "run-new",
           task_kind: "operator_thread",
-          provider: "deepseek_chat",
-          model: "deepseek/deepseek-v4-flash",
+          provider: "openai_responses",
+          model: "gpt-6-luna",
           artifacts: { cost_usd: 0.04, prompt_tokens: 1000 },
           created_at: "2026-05-05T16:00:00.000Z",
         },
         {
           id: "run-hour",
           task_kind: "operator_thread",
-          provider: "deepseek_chat",
-          model: "deepseek/deepseek-v4-flash",
+          provider: "openai_responses",
+          model: "gpt-6-luna",
           artifacts: { cost_usd: 0.03, prompt_tokens: 1000 },
           created_at: "2026-05-05T15:30:00.000Z",
         },
         {
           id: "run-day",
           task_kind: "support_triage",
-          provider: "deepseek_chat",
-          model: "deepseek/deepseek-v4-pro",
+          provider: "openai_responses",
+          model: "gpt-6-luna",
           artifacts: { cost_usd: 0.2, prompt_tokens: 1000 },
           created_at: "2026-05-05T08:00:00.000Z",
         },
@@ -435,7 +436,8 @@ describe("offloaded agent cost accounting", () => {
     expect(summarizeRollingAgentSpend([projected], { nowMs: now, stopUsd: { lastHour: 1 } }).windows.lastHour)
       .toMatchObject({ cost_usd: 2, prompt_tokens: 100000, status: "stop" });
   });
-  it("binds a legitimate resolved OpenRouter model separately from the requested alias", async () => {
+  // History: a stored run of a removed provider keeps its resolved model through projection.
+  it("binds a legitimate resolved OpenRouter model separately from the requested alias (history)", async () => {
     const run = { ...original(), provider: "openrouter", model: "requested-provider-alias",
       artifacts: { ...original().artifacts, openrouter_model: "deepseek/deepseek-v4-pro" } };
     const telemetry = extractAgentCostTelemetry(run), objects = new Map<string, string>();

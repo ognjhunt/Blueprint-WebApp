@@ -8,6 +8,21 @@ vi.mock("openai", () => ({ default: class { chat = { completions: { create: (inp
 } } }; responses = { create: (input:any) => {
   responseReplayMocks.requests.push(structuredClone(input)); return responseReplayMocks.create(input);
 } }; } }));
+/**
+ * Most tests here exercise runtime mechanics (quarantine, evidence offload,
+ * spend stops) through the operator lane, whose data the current Privacy
+ * Policy names for no provider. The data-class gate is held open for them and
+ * closed (the real gate) in the tests marked "privacy gate"; the gate's own
+ * decisions are tested in provider-privacy-gate.test.ts.
+ */
+const privacyGateState = vi.hoisted(() => ({ open: true }));
+vi.mock("../agents/provider-privacy", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../agents/provider-privacy")>();
+  return { ...actual, privacyDecisionForClasses: ((...args: Parameters<typeof actual.privacyDecisionForClasses>) => {
+    const decision = actual.privacyDecisionForClasses(...args);
+    return privacyGateState.open ? { ...decision, permitted: true, blocked_by: [] } : decision;
+  }) as typeof actual.privacyDecisionForClasses };
+});
 vi.mock("../agents/operator-tools", async (importOriginal) => ({
   ...await importOriginal<typeof import("../agents/operator-tools")>(), chatCompletionOperatorTools: [
   {type:"function",function:{name:"list_growth_campaigns"}},
@@ -48,28 +63,6 @@ const runOpenAIResponsesTask = vi.hoisted(() =>
     requires_approval: false,
   }),
 );
-const runDeepSeekChatTask = vi.hoisted(() =>
-  vi.fn().mockResolvedValue({
-    status: "completed",
-    provider: "deepseek_chat",
-    runtime: "deepseek_chat",
-    model: "deepseek-v4-pro",
-    tool_mode: "mixed",
-    output: {
-      reply: "Managed profile completed.",
-      summary: "Profile task accepted.",
-      suggested_actions: ["Record the checkpoint"],
-      requires_human_review: false,
-    },
-    raw_output_text:
-      '{"reply":"Managed profile completed.","summary":"Profile task accepted.","suggested_actions":["Record the checkpoint"],"requires_human_review":false}',
-    artifacts: {
-      deepseek_request_id: "ds_123",
-    },
-    requires_human_review: false,
-    requires_approval: false,
-  }),
-);
 const resolveStartupContext = vi.hoisted(() =>
   vi.fn().mockResolvedValue({
     attached_startup_packs: [],
@@ -87,10 +80,6 @@ vi.mock("../agents/adapters/openai-responses", () => ({
 }));
 const runSiteAssessmentTask = vi.hoisted(() => vi.fn());
 vi.mock("../agents/adapters/site-assessment", () => ({ runSiteAssessmentTask }));
-
-vi.mock("../agents/adapters/deepseek-chat", () => ({
-  runDeepSeekChatTask,
-}));
 
 vi.mock("../agents/knowledge", () => ({
   resolveStartupContext,
@@ -272,13 +261,148 @@ beforeEach(() => {
 
 afterEach(() => {
   runOpenAIResponsesTask.mockClear();
-  runDeepSeekChatTask.mockClear();
   resolveStartupContext.mockClear();
   vi.unstubAllEnvs();
   vi.resetModules();
 });
 
+/** Stored profiles naming no provider: the lane's own resolution applies. */
+function seedEnabledProfiles() {
+  for (const [id, key, taskKind] of [["test-ops-operator", "test-ops-operator", "operator_thread"],
+    ["test-research-subagent", "test-research-subagent", "operator_thread"]] as const) {
+    fake.store.agentProfiles.set(id, { id, key, name: key, task_kind: taskKind, capabilities: [], human_gates: [],
+      allowed_subagent_profile_ids: [], built_in: false, created_at: "timestamp", updated_at: "timestamp" });
+  }
+}
+
 describe("agent session runtime", () => {
+  it("privacy gate: refuses a pinned or saved provider the policy does not name for the lane's data, calling nothing", async () => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      const runtime = await import("../agents/runtime");
+      const pinned = await runtime.runAgentTask({ kind: "support_triage", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+        input: { message: "Help" } } as never, { dispatchQueuedOnFinish: false });
+      expect(pinned).toMatchObject({ status: "failed", artifacts: { inference_not_invoked: true,
+        privacy_gate: { reason: "privacy_not_permitted", provider: "anthropic_agent_sdk", blocked_by: ["personal_info"] } } });
+      expect(pinned.error).toContain("privacy_not_permitted");
+      // A session saved before, pinned to a provider not named for the lane's data, is refused the same way.
+      const session = await runtime.createAgentSession({ title: "Saved", task_kind: "support_triage", provider: "openai_responses" });
+      const saved = fake.store.agentSessions.get(session.id)!;
+      saved.provider = "acp_harness"; saved.runtime = "acp_harness";
+      const sent = await runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "support_triage", input: { message: "Help" } } });
+      expect(sent.result?.artifacts).toMatchObject({ privacy_gate: { reason: "privacy_not_permitted", provider: "acp_harness" } });
+      // The staff thread: the policy names no provider for it, so it fails closed on OpenAI too.
+      const staff = await runtime.runAgentTask({ kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses",
+        input: { message: "Status?" } }, { dispatchQueuedOnFinish: false });
+      expect(staff).toMatchObject({ status: "failed", artifacts: { privacy_gate: { reason: "no_permitted_provider",
+        blocked_by: ["staff_tools"] } } });
+      // A lane whose data OpenAI may receive still runs on it.
+      const allowed = await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+        input: { message: "Help" } } as never, { dispatchQueuedOnFinish: false });
+      expect(allowed.status).toBe("completed");
+      expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+    } finally {
+      privacyGateState.open = true;
+    }
+  }, 20_000);
+
+  it("starts nothing for a built-in profile whose provider was removed: no session, no run, no provider call", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    const runtime = await import("../agents/runtime");
+    await expect(runtime.createAgentSession({ title: "Ops", task_kind: "operator_thread", agent_profile_id: "built-in-ops-operator" }))
+      .rejects.toThrow("agent_profile_provider_removed");
+    await expect(runtime.delegateManagedAgentTask({ title: "Research", message: "Look", agentProfileId: "built-in-research-subagent" }))
+      .rejects.toThrow("agent_profile_provider_removed");
+    expect(fake.store.agentSessions.size).toBe(0);
+    // A session saved before, with that profile, follows the same rule, and cannot be forked onto its lane.
+    const session = await runtime.createAgentSession({ title: "Saved", task_kind: "support_triage", provider: "openai_responses" });
+    const saved = fake.store.agentSessions.get(session.id)!;
+    saved.agent_profile_id = "built-in-support-triage"; saved.provider = "zai_glm"; saved.runtime = "zai_glm";
+    const runsBefore = fake.store.agentRuns.size;
+    await expect(runtime.sendAgentSessionMessage({ sessionId: session.id,
+      task: { kind: "support_triage", input: { message: "Help" } } })).rejects.toThrow("agent_profile_provider_removed");
+    await expect(runtime.forkAgentSessionWithHandoff({ sessionId: session.id, phase: "implementation" } as never))
+      .rejects.toThrow("agent_profile_provider_removed");
+    expect(fake.store.agentRuns.size).toBe(runsBefore);
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+  });
+
+  it("refuses a session saved under a removed provider (a fork of a disabled profile with no profile id), never moving it to its lane", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
+    vi.stubEnv("ZAI_API_KEY", "left-over");
+    const runtime = await import("../agents/runtime");
+    const session = await runtime.createAgentSession({ title: "Forked before the removal", task_kind: "support_triage",
+      provider: "openai_responses", runtime: "openai_responses" });
+    const saved = fake.store.agentSessions.get(session.id)!;
+    saved.provider = "zai_glm"; saved.runtime = "zai_glm"; saved.agent_profile_id = null;
+    await expect(runtime.sendAgentSessionMessage({ sessionId: session.id,
+      task: { kind: "support_triage", input: { message: "Status?" } } })).rejects.toThrow("agent_session_provider_removed");
+    await expect(runtime.forkAgentSessionWithHandoff({ sessionId: session.id, phase: "implementation" } as never))
+      .rejects.toThrow("agent_session_provider_removed");
+    await expect(runtime.createAgentSession({ title: "New", task_kind: "support_triage", provider: "zai_glm" as never }))
+      .rejects.toThrow("agent_session_provider_removed");
+    // Through the common path too (a direct run, a resume or a scheduled wake carrying that session).
+    const direct = await runtime.runAgentTask({ kind: "support_triage", input: { message: "Status?" }, session_id: session.id } as never,
+      { sessionId: session.id, dispatchQueuedOnFinish: false });
+    expect(direct).toMatchObject({ status: "failed", artifacts: { inference_not_invoked: true,
+      agent_profile_refusal: { reason: "agent_session_provider_removed", removed_provider: "zai_glm", saved_on: "session" } } });
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+    // New work with no saved provider still follows its lane, through the gate.
+    const ran = await runtime.runAgentTask({ kind: "support_triage", input: { message: "Help" } } as never, { dispatchQueuedOnFinish: false });
+    expect(ran.status).toBe("completed");
+    expect(runOpenAIResponsesTask.mock.calls[0][0]).toMatchObject({ provider: "openai_responses" });
+  }, 20_000);
+
+  it.each(["queued", "pending_approval"] as const)("refuses a retained %s run of a disabled profile naming zai_glm, ending it failed, calling no adapter or tool", async (status) => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
+      const runtime = await import("../agents/runtime");
+      const session = await runtime.createAgentSession({ title: "Retained", task_kind: "support_triage", provider: "openai_responses",
+        session_key: `session:retained-${status}` });
+      const saved = fake.store.agentSessions.get(session.id)!;
+      saved.agent_profile_id = "built-in-ops-operator"; saved.provider = "zai_glm"; saved.runtime = "zai_glm";
+      fake.store.agentRuns.set(`retained-${status}`, { id: `retained-${status}`, session_id: session.id,
+        session_key: `session:retained-${status}`, task_kind: "operator_thread", provider: "zai_glm", runtime: "zai_glm",
+        model: "deepseek-v4-pro", status, created_at: "timestamp", updated_at: "timestamp",
+        input: { kind: "operator_thread", provider: "zai_glm", runtime: "zai_glm", model: "deepseek-v4-pro",
+          input: { message: "Queue the campaign send." }, session_id: session.id,
+          metadata: { managedRuntime: { agentProfileId: "built-in-ops-operator", agentProfileKey: "ops-operator" } } } });
+      const result = status === "pending_approval"
+        ? await runtime.approveAgentRun(`retained-${status}`)
+        // A finished run on the same session key dispatches the queue.
+        : (await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+          session_key: `session:retained-${status}`, input: { message: "Next" } } as never), null);
+      if (result) expect(result).toMatchObject({ status: "failed", error: expect.stringContaining("agent_profile_provider_removed") });
+      expect(fake.store.agentRuns.get(`retained-${status}`)).toMatchObject({ status: "failed",
+        error: expect.stringContaining("agent_profile_provider_removed") });
+      const calls = runOpenAIResponsesTask.mock.calls.map((call) => (call[0] as { kind: string }).kind);
+      expect(calls).not.toContain("operator_thread");
+      expect(chatReplayMocks.tool).not.toHaveBeenCalled();
+    } finally {
+      privacyGateState.open = true;
+    }
+  }, 20_000);
+
+  it("a retained queued run with no profile that names a removed provider is refused the same way, as a saved run", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    const runtime = await import("../agents/runtime");
+    fake.store.agentRuns.set("retained-plain", { id: "retained-plain", session_id: null, session_key: "session:retained-plain",
+      task_kind: "support_triage", provider: "deepseek_chat", runtime: "deepseek_chat", model: "deepseek-v4-pro", status: "queued",
+      created_at: "timestamp", updated_at: "timestamp",
+      input: { kind: "support_triage", provider: "deepseek_chat", runtime: "deepseek_chat", input: { message: "Help" } } });
+    await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+      session_key: "session:retained-plain", input: { message: "Next" } } as never);
+    expect(fake.store.agentRuns.get("retained-plain")).toMatchObject({ status: "failed",
+      error: expect.stringContaining("agent_session_provider_removed") });
+    expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+  }, 20_000);
+
   // The per-job site assessment ended (owner decision 2026-11-11).
   it("refuses a site assessment on every path before any run, session or provider call", async () => {
     const runtime = await import("../agents/runtime");
@@ -442,11 +566,10 @@ describe("agent session runtime", () => {
   it.each(["acp_harness", "anthropic_agent_sdk"] as const)("blocks unsupported provider switch to %s from escaping a saved quarantine", async provider => {
     const runtime = await import("../agents/runtime");
     const session = await runtime.createAgentSession({ title: "Saved unknown mutation", task_kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses", metadata: { mutation_reconciliation_required: true, source_evidence: "existing" } });
-    const denied = await runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "operator_thread", provider, runtime: "deepseek_chat", input: { message: "Continue existing task" } } });
+    const denied = await runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "operator_thread", provider, runtime: provider, input: { message: "Continue existing task" } } });
     expect(denied.result?.status).toBe("failed");
     expect(denied.result?.error).toContain("mutation_reconciliation_required");
     expect(denied.result?.artifacts).toMatchObject({ mutation_reconciliation_required: true, inference_not_invoked: true });
-    expect(runDeepSeekChatTask).not.toHaveBeenCalled();
     expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
     expect((await runtime.getAgentSession(session.id))?.metadata?.source_evidence).toBe("existing");
   }, 20_000);
@@ -524,8 +647,8 @@ describe("agent session runtime", () => {
     const session = await createAgentSession({
       title: "Duplicate suppression session",
       task_kind: "operator_thread",
-      provider: "deepseek_chat",
-      runtime: "deepseek_chat",
+      provider: "openai_responses",
+      runtime: "openai_responses",
       session_key: "session:dedupe",
     });
     const repeatedInput = {
@@ -537,17 +660,17 @@ describe("agent session runtime", () => {
       session_id: session.id,
       session_key: "session:dedupe",
       task_kind: "operator_thread",
-      provider: "deepseek_chat",
-      runtime: "deepseek_chat",
-      model: "deepseek-v4-pro",
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-6-luna",
       status: "running",
       dispatch_mode: "collect",
       input: {
         kind: "operator_thread",
         input: repeatedInput,
-        provider: "deepseek_chat",
-        runtime: "deepseek_chat",
-        model: "deepseek-v4-pro",
+        provider: "openai_responses",
+        runtime: "openai_responses",
+        model: "gpt-6-luna",
         session_key: "session:dedupe",
         session_policy: {
           dispatch_mode: "collect",
@@ -561,8 +684,8 @@ describe("agent session runtime", () => {
       sessionId: session.id,
       task: {
         kind: "operator_thread",
-        provider: "deepseek_chat",
-        runtime: "deepseek_chat",
+        provider: "openai_responses",
+        runtime: "openai_responses",
         input: repeatedInput,
         session_policy: {
           dispatch_mode: "collect",
@@ -573,7 +696,7 @@ describe("agent session runtime", () => {
     expect(result.suppressed).toBe(true);
     expect(result.queued).toBe(false);
     expect(result.activeRunId).toBe("run-active");
-    expect(runDeepSeekChatTask).not.toHaveBeenCalled();
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
     expect(resolveStartupContext).not.toHaveBeenCalled();
     expect([...fake.store.agentRuns.values()].filter((run) => run.status === "queued")).toHaveLength(0);
     expect([...fake.store.agentRuns.values()]).toEqual(
@@ -681,6 +804,7 @@ describe("agent session runtime", () => {
   });
 
   it("applies managed runtime profiles and records runtime events and checkpoints", async () => {
+    seedEnabledProfiles();
     const {
       createAgentSession,
       sendAgentSessionMessage,
@@ -691,7 +815,7 @@ describe("agent session runtime", () => {
     const session = await createAgentSession({
       title: "Managed runtime session",
       task_kind: "operator_thread",
-      agent_profile_id: "built-in-ops-operator",
+      agent_profile_id: "test-ops-operator",
       environment_profile_id: "built-in-session-default",
       metadata: {
         startupContext: {
@@ -747,6 +871,7 @@ describe("agent session runtime", () => {
   });
 
   it("delegates a bounded subagent task from a parent session", async () => {
+    seedEnabledProfiles();
     const {
       createAgentSession,
       delegateManagedAgentTask,
@@ -756,19 +881,19 @@ describe("agent session runtime", () => {
     const parentSession = await createAgentSession({
       title: "Parent session",
       task_kind: "operator_thread",
-      agent_profile_id: "built-in-ops-operator",
+      agent_profile_id: "test-ops-operator",
       environment_profile_id: "built-in-session-default",
     });
 
     const delegated = await delegateManagedAgentTask({
       title: "Delegated research task",
       message: "Collect the narrow evidence needed for the issue.",
-      agentProfileId: "built-in-research-subagent",
+      agentProfileId: "test-research-subagent",
       environmentProfileId: "built-in-web-research",
       parentSessionId: parentSession.id,
     });
 
-    expect(delegated.session.agent_profile_id).toBe("built-in-research-subagent");
+    expect(delegated.session.agent_profile_id).toBe("test-research-subagent");
 
     const parentEvents = await listRuntimeEventsForSession(parentSession.id);
     expect(parentEvents.some((event) => event.kind === "subagent.spawned")).toBe(true);
@@ -819,40 +944,6 @@ describe("agent session runtime", () => {
     expect(compactions[0]?.target_session_id).toBeTruthy();
   });
 });
-
-it.each(["deepseek_chat", "zai_glm"] as const)("resumes %s through verified private replay and the real adapter while refusing another uncertain write",async provider=>{
- privateStorage.available=true;vi.stubEnv("DEEPSEEK_API_KEY","offline-fixture");vi.stubEnv("ZAI_API_KEY","offline-fixture");
- chatReplayMocks.create.mockReset();chatReplayMocks.tool.mockReset();chatReplayMocks.requests.length=0;
- const response=(calls:any[],content="")=>({id:"chat-replay-fixture",choices:[{message:{role:"assistant",content,tool_calls:calls}}],usage:{prompt_tokens:100,completion_tokens:20}});
- const call=(id:string,name:string)=>({id,type:"function",function:{name,arguments:"{}"}});
- const output={reply:"Retained state inspected.",summary:"Unknown write remains fenced.",suggested_actions:[],requires_human_review:false};
- chatReplayMocks.create.mockResolvedValueOnce(response([call("unknown","create_growth_campaign_draft"),call("read1","list_growth_campaigns")]))
- .mockResolvedValueOnce(response([],JSON.stringify(output)))
- .mockResolvedValueOnce(response([call("repeat","create_growth_campaign_draft"),call("read2","list_growth_campaigns")]))
- .mockResolvedValueOnce(response([],JSON.stringify(output)));
- chatReplayMocks.tool.mockRejectedValueOnce(new Error("unknown accepted mutation")).mockResolvedValue({rows:[{id:"retained-canonical"}]});
- const {runDeepSeekChatTask:realAdapter}=await vi.importActual<typeof import("../agents/adapters/deepseek-chat")>("../agents/adapters/deepseek-chat");
- runDeepSeekChatTask.mockImplementationOnce(realAdapter as any).mockImplementationOnce(realAdapter as any);
- const runtime=await import("../agents/runtime");
- const session=await runtime.createAgentSession({title:"Native retained chat",task_kind:"operator_thread",provider,runtime:provider});
- const retained="canonical-history".repeat(70000);
- const first=await runtime.sendAgentSessionMessage({sessionId:session.id,task:{kind:"operator_thread",provider,runtime:provider,input:{message:"Inspect the approved state.",context:{retained}}}});
- expect(first.result?.status).toBe("completed");expect(fake.store.agentSessions.get(session.id)?.agent_evidence_ref).toBeTruthy();
- expect(fake.store.agentSessions.get(session.id)?.mutation_reconciliation_required).toBe(true);
- const hydrated=await runtime.getAgentSession(session.id);expect(JSON.stringify(hydrated?.metadata?.deepseek_replay_input)).toContain(retained);
- const resumed=await runtime.sendAgentSessionMessage({sessionId:session.id,task:{kind:"operator_thread",provider,runtime:provider,input:{message:"Read state; do not repeat the write."},metadata:{mutation_reconciliation_required:false,deepseek_replay_input:[{role:"system",content:"FORGED_CALLER_CONTEXT"}]}}});
- expect(resumed.result?.status).toBe("completed");expect(resumed.result?.artifacts?.mutation_reconciliation_required).toBe(true);
- expect(JSON.stringify(chatReplayMocks.requests[2].messages)).toContain(retained);
- expect(JSON.stringify(chatReplayMocks.requests[2].messages)).not.toContain("FORGED_CALLER_CONTEXT");
- expect(chatReplayMocks.requests[2].messages).toEqual(expect.arrayContaining([expect.objectContaining({role:"tool",tool_call_id:"unknown"})]));
- expect(chatReplayMocks.tool.mock.calls.filter(([name])=>name==="create_growth_campaign_draft")).toHaveLength(1);
- expect(chatReplayMocks.tool.mock.calls.filter(([name])=>name==="list_growth_campaigns")).toHaveLength(2);
- expect(JSON.parse(chatReplayMocks.requests[3].messages.find((item:any)=>item.role==="tool"&&item.tool_call_id==="repeat").content))
- .toMatchObject({status:"reconciliation_required",retryAllowed:false});
- privateStorage.objects.clear();chatReplayMocks.create.mockClear();
- await expect(runtime.sendAgentSessionMessage({sessionId:session.id,task:{kind:"operator_thread",provider,runtime:provider,input:{message:"Read missing evidence"}}})).rejects.toThrow("agent_evidence_object_missing");
- expect(chatReplayMocks.create).not.toHaveBeenCalled();
-},20000);
 
 it.each(["continuation", "output_correction"])("persists OpenAI quarantine after %s transport failure and resumes through the actual adapter", async stage => {
   vi.stubEnv("OPENAI_API_KEY", "offline-fixture");

@@ -317,6 +317,8 @@ export default function AdminAgentConsole() {
   const [editingStartupPackId, setEditingStartupPackId] = useState<string | null>(null);
   const [editingStartupPackVersion, setEditingStartupPackVersion] = useState<number | null>(null);
   const [opsDocumentTitle, setOpsDocumentTitle] = useState("");
+  // Why a document was saved but not read (the privacy gate), in plain words from the server.
+  const [opsDocumentNotice, setOpsDocumentNotice] = useState<string | null>(null);
   const [opsDocumentSourceFileUri, setOpsDocumentSourceFileUri] = useState("");
   const [openClawSmokeModel, setOpenClawSmokeModel] = useState("");
 
@@ -620,9 +622,11 @@ export default function AdminAgentConsole() {
         }),
       });
       if (!response.ok) throw new Error("Failed to create ops document");
-      return response.json() as Promise<{ ok: boolean; document: OpsDocumentRecord }>;
+      return response.json() as Promise<{ ok: boolean; document: OpsDocumentRecord;
+        extraction_refused?: { error: string; message: string } }>;
     },
     onSuccess: (data) => {
+      setOpsDocumentNotice(data.extraction_refused?.message ?? null);
       queryClient.invalidateQueries({ queryKey: ["admin-agent-context-options"] });
       setSelectedDocumentIds((current) =>
         current.includes(data.document.id)
@@ -1339,6 +1343,7 @@ export default function AdminAgentConsole() {
                   <option key={profile.id} value={profile.id}>
                     {profile.name}
                     {profile.built_in ? " · built-in" : ""}
+                    {profile.disabled_reason ? ` · disabled (${profile.disabled_reason})` : ""}
                   </option>
                 ))}
               </select>
@@ -1356,7 +1361,9 @@ export default function AdminAgentConsole() {
                 ))}
               </select>
               <div className="border border-runway-line bg-runway-black px-3 py-2 text-sm text-runway-mute">
-                Execution backend: {selectedProfile?.default_provider || "openai_responses"}
+                {selectedProfile?.disabled_reason
+                  ? `Disabled: ${selectedProfile.disabled_reason}. No session or run starts for this profile until a provider is named for it.`
+                  : `Execution backend: ${selectedProfile?.default_provider || "the lane's own resolution"}`}
               </div>
               {selectedProfile ? (
                 <div className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body">
@@ -1759,6 +1766,9 @@ export default function AdminAgentConsole() {
                     )}
                     Create and extract document
                   </button>
+                  {opsDocumentNotice ? (
+                    <p className="mt-2 text-xs text-runway-mute" role="status">{opsDocumentNotice}</p>
+                  ) : null}
                 </div>
               </div>
 
@@ -1772,7 +1782,10 @@ export default function AdminAgentConsole() {
                       <div key={profile.id} className="flex items-start justify-between gap-3 border border-runway-line p-2 text-sm">
                         <div>
                           <p className="font-medium text-runway-text">{profile.name}</p>
-                          <p className="text-xs text-runway-faint">{profile.task_kind}</p>
+                          <p className="text-xs text-runway-faint">
+                            {profile.task_kind}
+                            {profile.disabled_reason ? ` · disabled (${profile.disabled_reason})` : ""}
+                          </p>
                         </div>
                         <button
                           type="button"

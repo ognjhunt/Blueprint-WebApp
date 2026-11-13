@@ -119,6 +119,16 @@ vi.mock("../retrieval/embeddings", () => ({
   embedTexts,
 }));
 
+/** The data-class gate, held open only for the test of the extraction mechanics. */
+const gate = vi.hoisted(() => ({ open: false }));
+vi.mock("../agents/provider-privacy", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../agents/provider-privacy")>();
+  return { ...actual, privacyDecisionForClasses: ((...args: Parameters<typeof actual.privacyDecisionForClasses>) => {
+    const decision = actual.privacyDecisionForClasses(...args);
+    return gate.open ? { ...decision, permitted: true, blocked_by: [] } : decision;
+  }) as typeof actual.privacyDecisionForClasses };
+});
+
 beforeEach(() => {
   fake.store.opsDocuments.clear();
   fake.store.knowledgeChunks.clear();
@@ -131,7 +141,22 @@ afterEach(() => {
 });
 
 describe("ops documents", () => {
-  it("extracts a document, persists OpenClaw metadata, and writes knowledge chunks", async () => {
+  it("refuses document reading through OpenClaw under today's Privacy Policy, sending nothing and saying why", async () => {
+    gate.open = false;
+    const { createOpsDocument, extractOpsDocument, OpsDocumentExtractionRefusedError } = await import("../agents/ops-documents");
+    const created = await createOpsDocument({ title: "Site SOP", source_file_uri: "gs://docs/site-sop.pdf", blueprint_ids: [] });
+    const refusal = await extractOpsDocument(created.id).catch((error) => error);
+    expect(refusal).toBeInstanceOf(OpsDocumentExtractionRefusedError);
+    expect(refusal).toMatchObject({ code: "ops_document_extraction_not_permitted",
+      blockedBy: ["site_job_text", "job_records", "personal_info"] });
+    expect(refusal.plainMessage).toContain("Nothing was sent");
+    expect(extractPdf).not.toHaveBeenCalled();
+    expect(fake.store.opsDocuments.get(created.id)).toMatchObject({ extraction_status: "failed",
+      error: expect.stringContaining("ops_document_extraction_not_permitted") });
+  });
+
+  it("extracts a document, persists OpenClaw metadata, and writes knowledge chunks (gate held open)", async () => {
+    gate.open = true;
     extractPdf.mockResolvedValue({
       accepted: true,
       openclaw_session_id: "session-1",

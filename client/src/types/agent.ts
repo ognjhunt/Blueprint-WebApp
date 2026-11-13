@@ -267,6 +267,9 @@ export interface AgentProfileRecord {
   human_gates?: string[];
   allowed_subagent_profile_ids?: string[];
   built_in?: boolean;
+  /** Set when the profile cannot be used (for example its provider was removed). */
+  disabled_reason?: "agent_profile_provider_removed";
+  removed_provider?: string;
   created_at: string | null;
   updated_at: string | null;
 }

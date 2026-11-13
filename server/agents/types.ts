@@ -1,10 +1,6 @@
 import type { z } from "zod";
 
 export type AgentProvider =
-  | "deepseek_chat"
-  // Z.ai GLM — the default structured-automation provider. OpenAI-compatible
-  // chat completions served through the shared chat adapter.
-  | "zai_glm"
   | "openclaw"
   | "openai_responses"
   | "openai_agents_api"
@@ -49,7 +45,9 @@ export type AgentTaskKind =
   /** Ranks researched robot teams for one site job from their notes; internal, quote-checked. */
   | "robot_fit_ranking"
   | "capture_dispatch"
-  | "outbound_outreach";
+  | "outbound_outreach"
+  /** A connectivity check whose prompt is fixed text (tasks/runtime-smoke-test.ts). */
+  | "runtime_smoke_test";
 
 export type AgentRunStatus =
   | "queued"
@@ -417,6 +415,10 @@ export interface AgentProfileRecord {
   human_gates?: string[];
   allowed_subagent_profile_ids?: string[];
   built_in?: boolean;
+  /** Set when the profile cannot be used; no session or run starts for it. */
+  disabled_reason?: "agent_profile_provider_removed";
+  /** The removed provider id the profile pinned (a removed id, never a key or value). */
+  removed_provider?: string;
   created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
 }

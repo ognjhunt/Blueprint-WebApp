@@ -13,16 +13,6 @@ vi.mock("../utils/elevenlabs", () => ({
   }),
 }));
 
-vi.mock("../utils/runway", () => ({
-  getRunwayStatus: () => ({
-    configured: true,
-    baseUrl: "https://openrouter.ai/api/v1",
-    version: "videos/v1",
-    provider: "openrouter",
-    defaultModel: "bytedance/seedance-2.0-fast",
-  }),
-}));
-
 describe("provider-status", () => {
   beforeEach(() => {
     vi.stubEnv("GOOGLE_GENAI_API_KEY", "test-key");
@@ -52,7 +42,8 @@ describe("provider-status", () => {
     expect(summary.googleImage.configured).toBe(false);
     expect(summary.googleImage.model).toBe("disabled_by_policy");
     expect(summary.googleImage.apiKeySource).toBeNull();
-    expect(summary.runway.configured).toBe(true);
+    // The OpenRouter video integration is removed: no status row for it.
+    expect(summary).not.toHaveProperty("runway");
     expect(summary.elevenlabs.configured).toBe(true);
     expect(summary.analytics.ga4.configured).toBe(true);
     expect(summary.analytics.ga4.liveAccessConfigured).toBe(true);

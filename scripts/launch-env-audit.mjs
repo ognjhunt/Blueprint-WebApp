@@ -119,6 +119,43 @@ function anthropicKeyUsable() {
   }
 }
 
+/**
+ * An OpenAI key counts only when OPENAI_BASE_URL is unset or names OpenAI's
+ * own host: the website builds no OpenAI client otherwise and sends nothing
+ * (server/utils/openaiApiHost.ts). Only the reason is reported, never a value.
+ */
+function openAiBaseUrlNamesAnotherHost() {
+  const baseUrl = envValue("OPENAI_BASE_URL");
+  if (!baseUrl) return false;
+  try {
+    const parsed = new URL(baseUrl);
+    return !(parsed.protocol === "https:" && parsed.hostname.toLowerCase() === "api.openai.com");
+  } catch {
+    return true;
+  }
+}
+
+function openAiKeyUsable() {
+  return Boolean(envValue("OPENAI_API_KEY")) && !openAiBaseUrlNamesAnotherHost();
+}
+
+const REMOVED_PROVIDER_IDS = new Set(["deepseek_chat", "zai_glm", "openrouter"]);
+
+/**
+ * Settings of the removed providers (DeepSeek, Z.ai, OpenRouter) that are
+ * still set, by NAME only: their keys, base URLs and other settings, and any
+ * provider setting (global, fallback, shadow, per lane) whose value names a
+ * removed provider. The website treats each as not set.
+ */
+function listRemovedProviderSettingNames(env = process.env) {
+  const names = Object.keys(env).filter((key) => String(env[key] || "").trim() && (
+    /^(DEEPSEEK|ZAI|OPENROUTER)_/.test(key)
+    || key === "BLUEPRINT_OPENROUTER_VIDEO_MODEL"
+    || (/^BLUEPRINT_[A-Z0-9_]+_PROVIDER$/.test(key) && REMOVED_PROVIDER_IDS.has(String(env[key]).trim()))
+  ));
+  return names.sort();
+}
+
 function isTruthy(value) {
   return truthyValues.has(String(value || "").trim().toLowerCase());
 }
@@ -139,8 +176,8 @@ const checks = [
   },
   {
     label: "Structured runtime provider",
-    ok: hasAny("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ACP_HARNESS_URL") || anthropicKeyUsable(),
-    required: ["DEEPSEEK_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY (only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com) | ACP_HARNESS_URL"],
+    ok: openAiKeyUsable() || hasAny("ACP_HARNESS_URL") || anthropicKeyUsable(),
+    required: ["OPENAI_API_KEY (only while OPENAI_BASE_URL is unset or https://api.openai.com/v1) | ANTHROPIC_API_KEY (only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com) | ACP_HARNESS_URL"],
   },
   {
     label: "Stripe checkout + payout wiring",
@@ -259,11 +296,9 @@ const recommendedChecks = [
 
 function configuredProviderKeys() {
   return [
-    "DEEPSEEK_API_KEY",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "ACP_HARNESS_URL",
-    "OPENROUTER_API_KEY",
     "ELEVENLABS_API_KEY",
     "TWILIO_ACCOUNT_SID",
     "HIGGSFIELD_API_KEY",
@@ -279,6 +314,37 @@ function buildNeedsHumanChecks() {
       label: "City-launch sender verification",
       detail:
         "Sender env is present, but local env cannot prove provider-side domain/sender verification. Confirm in the mail provider and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified.",
+    });
+  }
+
+  // Settings of providers the website no longer uses (DeepSeek, Z.ai,
+  // OpenRouter), by name only: the website treats each as not set, so they
+  // belong deleted from the hosting settings. A base URL that sends a kept
+  // provider's calls to another host is listed with them.
+  const leftOverKeys = listRemovedProviderSettingNames();
+  const anthropicBaseUrl = envValue("ANTHROPIC_BASE_URL");
+  if (anthropicBaseUrl) {
+    let ownHost = false;
+    try {
+      const parsed = new URL(anthropicBaseUrl);
+      ownHost = parsed.protocol === "https:" && parsed.hostname.toLowerCase() === "api.anthropic.com";
+    } catch {
+      ownHost = false;
+    }
+    if (!ownHost) leftOverKeys.push("ANTHROPIC_BASE_URL");
+  }
+  if (openAiBaseUrlNamesAnotherHost()) leftOverKeys.push("OPENAI_BASE_URL");
+  if (leftOverKeys.length > 0) {
+    needsHuman.push({
+      label: "Settings of removed providers",
+      detail:
+        `Settings for providers that are no longer used, or that send a kept provider's calls to another host, are still set (${leftOverKeys.join(", ")}). The website treats each as not set and sends nothing on them; delete them from the hosting settings.`,
+    });
+  }
+  if (envValue("OPENAI_API_KEY") && openAiBaseUrlNamesAnotherHost()) {
+    needsHuman.push({
+      label: "OpenAI not configured",
+      detail: "OPENAI_BASE_URL names a host other than OpenAI's own (openai_base_url_names_another_host): no OpenAI client is built and nothing is sent.",
     });
   }
 

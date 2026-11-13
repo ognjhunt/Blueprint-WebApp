@@ -76,6 +76,43 @@ function anthropicKeyUsable() {
   }
 }
 
+/**
+ * An OpenAI key counts only when OPENAI_BASE_URL is unset or names OpenAI's
+ * own host: the website builds no OpenAI client otherwise and sends nothing
+ * (server/utils/openaiApiHost.ts). Only the reason is reported, never a value.
+ */
+function openAiBaseUrlNamesAnotherHost() {
+  const baseUrl = envValue("OPENAI_BASE_URL");
+  if (!baseUrl) return false;
+  try {
+    const parsed = new URL(baseUrl);
+    return !(parsed.protocol === "https:" && parsed.hostname.toLowerCase() === "api.openai.com");
+  } catch {
+    return true;
+  }
+}
+
+function openAiKeyUsable() {
+  return Boolean(envValue("OPENAI_API_KEY")) && !openAiBaseUrlNamesAnotherHost();
+}
+
+const REMOVED_PROVIDER_IDS = new Set(["deepseek_chat", "zai_glm", "openrouter"]);
+
+/**
+ * Settings of the removed providers (DeepSeek, Z.ai, OpenRouter) that are
+ * still set, by NAME only: their keys, base URLs and other settings, and any
+ * provider setting (global, fallback, shadow, per lane) whose value names a
+ * removed provider. The website treats each as not set.
+ */
+function listRemovedProviderSettingNames(env = process.env) {
+  const names = Object.keys(env).filter((key) => String(env[key] || "").trim() && (
+    /^(DEEPSEEK|ZAI|OPENROUTER)_/.test(key)
+    || key === "BLUEPRINT_OPENROUTER_VIDEO_MODEL"
+    || (/^BLUEPRINT_[A-Z0-9_]+_PROVIDER$/.test(key) && REMOVED_PROVIDER_IDS.has(String(env[key]).trim()))
+  ));
+  return names.sort();
+}
+
 function isTruthy(value) {
   return truthyValues.has(String(value || "").trim().toLowerCase());
 }
@@ -138,9 +175,22 @@ requireCheck(
 );
 
 requireCheck(
-  hasCodexLocalProvider() || Boolean(envValue("OPENAI_API_KEY", "ACP_HARNESS_URL")) || anthropicKeyUsable(),
-  "One structured automation provider is required for alpha launch. Configure local Codex OAuth or set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ACP_HARNESS_URL. ANTHROPIC_API_KEY counts only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com.",
+  hasCodexLocalProvider() || openAiKeyUsable() || Boolean(envValue("ACP_HARNESS_URL")) || anthropicKeyUsable(),
+  "One structured automation provider is required for alpha launch. Configure local Codex OAuth or set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ACP_HARNESS_URL. OPENAI_API_KEY counts only while OPENAI_BASE_URL is unset or https://api.openai.com/v1; ANTHROPIC_API_KEY counts only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com.",
 );
+
+warnCheck(
+  !(envValue("OPENAI_API_KEY") && openAiBaseUrlNamesAnotherHost()),
+  "OpenAI is not configured: OPENAI_BASE_URL names a host other than OpenAI's own (openai_base_url_names_another_host). No OpenAI client is built and nothing is sent; delete OPENAI_BASE_URL from the hosting settings.",
+);
+
+{
+  const removedSettings = listRemovedProviderSettingNames();
+  warnCheck(
+    removedSettings.length === 0,
+    `Settings of removed providers are still set (${removedSettings.join(", ")}). The website treats each as not set; delete them from the hosting settings.`,
+  );
+}
 
 requireCheckWithWaiver("stripe", Boolean(envValue("STRIPE_SECRET_KEY")), "STRIPE_SECRET_KEY is required for checkout.");
 requireCheckWithWaiver(

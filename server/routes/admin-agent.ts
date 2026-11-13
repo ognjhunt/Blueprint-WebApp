@@ -13,6 +13,7 @@ import {
   createStartupPack,
   delegateManagedAgentTask,
   extractOpsDocument,
+  OpsDocumentExtractionRefusedError,
   interruptAgentSession,
   forkAgentSessionWithHandoff,
   getAgentProfile,
@@ -1076,12 +1077,21 @@ router.post("/documents", requireAdminRole, async (req: Request, res: Response) 
         email: actor.email,
       },
     });
-    const nextDocument =
-      payload.autoExtract === true ? await extractOpsDocument(document.id) : document;
+    let nextDocument: typeof document | Awaited<ReturnType<typeof extractOpsDocument>> = document;
+    let extractionRefused: { error: string; message: string } | null = null;
+    if (payload.autoExtract === true) {
+      try {
+        nextDocument = await extractOpsDocument(document.id);
+      } catch (error) {
+        if (!(error instanceof OpsDocumentExtractionRefusedError)) throw error;
+        extractionRefused = { error: error.code, message: error.plainMessage };
+      }
+    }
 
     return res.status(201).json({
       ok: true,
       document: normalizeOpsDocument(nextDocument),
+      ...(extractionRefused ? { extraction_refused: extractionRefused } : {}),
     });
   } catch (error) {
     const message =
@@ -1145,6 +1155,9 @@ router.post(
       const document = await extractOpsDocument(req.params.id);
       return res.json({ ok: true, document: normalizeOpsDocument(document) });
     } catch (error) {
+      if (error instanceof OpsDocumentExtractionRefusedError) {
+        return res.status(403).json({ ok: false, error: error.code, message: error.plainMessage });
+      }
       const message =
         error instanceof Error ? error.message : "Failed to extract ops document";
       return res.status(400).json({ ok: false, error: message });

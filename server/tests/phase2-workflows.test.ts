@@ -198,7 +198,7 @@ describe("Phase 2 workflow execution", () => {
   it("runs a support AutoAgent shadow pass when enabled", async () => {
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "support_triage");
-    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "openai_responses");
 
     runAgentTask
       .mockResolvedValueOnce({
@@ -227,8 +227,8 @@ describe("Phase 2 workflow execution", () => {
       })
       .mockResolvedValueOnce({
         status: "completed",
-        provider: "acp_harness",
-        runtime: "acp_harness",
+        provider: "openai_responses",
+        runtime: "openai_responses",
         model: "codex",
         tool_mode: "external_harness",
         requires_human_review: false,
@@ -265,7 +265,7 @@ describe("Phase 2 workflow execution", () => {
       2,
       expect.objectContaining({
         kind: "support_triage",
-        provider: "acp_harness",
+        provider: "openai_responses",
         session_key: "support:contact-1:shadow:autoagent",
       }),
     );
@@ -275,7 +275,7 @@ describe("Phase 2 workflow execution", () => {
           shadow_runs: expect.objectContaining({
             autoagent: expect.objectContaining({
               kind: "support_triage",
-              provider: "acp_harness",
+              provider: "openai_responses",
               status: "completed",
               comparison: expect.objectContaining({
                 lane: "support_triage",
@@ -318,7 +318,7 @@ describe("Phase 2 workflow execution", () => {
   it("records a hold recommendation when the support shadow pass fails", async () => {
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "support_triage");
-    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "openai_responses");
 
     runAgentTask
       .mockResolvedValueOnce({

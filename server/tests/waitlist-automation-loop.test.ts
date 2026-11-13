@@ -172,7 +172,7 @@ describe("waitlist automation loop", () => {
   it("runs an AutoAgent shadow pass when the lane is enabled", async () => {
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "waitlist_triage");
-    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "openai_responses");
 
     runAgentTask
       .mockResolvedValueOnce({
@@ -205,8 +205,8 @@ describe("waitlist automation loop", () => {
       })
       .mockResolvedValueOnce({
         status: "completed",
-        provider: "acp_harness",
-        runtime: "acp_harness",
+        provider: "openai_responses",
+        runtime: "openai_responses",
         model: "codex",
         tool_mode: "external_harness",
         requires_human_review: false,
@@ -246,7 +246,7 @@ describe("waitlist automation loop", () => {
       2,
       expect.objectContaining({
         kind: "waitlist_triage",
-        provider: "acp_harness",
+        provider: "openai_responses",
         session_key: "waitlist:submission-1:shadow:autoagent",
       }),
     );
@@ -256,7 +256,7 @@ describe("waitlist automation loop", () => {
           shadow_runs: expect.objectContaining({
             autoagent: expect.objectContaining({
               kind: "waitlist_triage",
-              provider: "acp_harness",
+              provider: "openai_responses",
               status: "completed",
             }),
           }),
@@ -264,5 +264,28 @@ describe("waitlist automation loop", () => {
       }),
       expect.objectContaining({ merge: true }),
     );
+  }, 15_000);
+
+  it("skips the shadow pass, sending nothing, when its provider may not receive the lane's personal information", async () => {
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "waitlist_triage");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+    runAgentTask.mockResolvedValueOnce({
+      status: "completed", provider: "openai_responses", runtime: "openai_responses", model: "gpt-6-luna", tool_mode: "api",
+      requires_human_review: false, requires_approval: false,
+      output: { automation_status: "completed", block_reason_code: null, retryable: false, recommendation: "invite_now",
+        confidence: 0.91, market_fit_score: 88, device_fit_score: 93, invite_readiness_score: 90,
+        recommended_queue: "capturer_beta_invite_review", next_action: "Send invite", rationale: "Strong fit.",
+        market_summary: "Strong local market.", requires_human_review: false, draft_email: { subject: "Invite", body: "Welcome" } },
+    });
+    const { runWaitlistAutomationLoop } = await import("../utils/waitlistAutomation");
+    executePhase2WorkflowActions.mockResolvedValue({ records: [], lastResult: null, lastState: "sent" });
+
+    await runWaitlistAutomationLoop({ submissionId: "submission-1" });
+
+    expect(runAgentTask).toHaveBeenCalledTimes(1);
+    expect(docSet).toHaveBeenCalledWith(expect.objectContaining({ ops_automation: expect.objectContaining({
+      shadow_runs: expect.objectContaining({ autoagent: expect.objectContaining({ provider: "acp_harness", status: "skipped",
+        error: "privacy_not_permitted: personal_info", inference_not_invoked: true }) }) }) }), expect.objectContaining({ merge: true }));
   }, 15_000);
 });
