@@ -15,7 +15,7 @@ const create = vi.hoisted(() => vi.fn());
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { stream: (params: unknown, options: unknown) => ({ finalMessage: () => create(params, options) }) } }; } }));
 // This suite isolates output correction from the company-history tool phase.
 // Company-lane correction and transport evidence have their own adapter tests.
-const task = (provider: string) => ({ kind: "preview_diagnosis", provider, runtime: provider, model: provider === "gemini_video" ? "gemini-3.8-flash" : "claude-test",
+const task = (provider: string) => ({ kind: "preview_diagnosis", provider, runtime: provider, model: provider === "gemini_video" ? "gemini-3.8-flash" : "claude-haiku-5-5",
   input: { taskVideoUrl: "https://example.com/clip.mp4" }, tool_policy: { mode: "api" },
   definition: { build_prompt: () => "Report observed count as JSON: {count:number}", output_schema: z.object({ count: z.number() }), video_processing_mode: "STATIC" } });
 const anthropic = (text: string, tokens = 10) => ({ id: "message", content: [{ type: "text", text }], usage: { input_tokens: 20, output_tokens: tokens }, stop_reason: "end_turn" });
@@ -112,7 +112,15 @@ describe("provider output correction retains paid evidence", () => {
       : await (await import("../agents/adapters/anthropic-agent-sdk")).runAnthropicAgentSdkTask(task(provider) as never);
     expect(result.status).toBe("failed");
     expect(result.raw_output_text).toBe("not-json");
-    expect(result.artifacts?.usage).toMatchObject({ completion_tokens: 10, total_tokens: 30 });
+    if (provider === "anthropic_agent_sdk") {
+      // A request that failed without an HTTP answer may have been billed: the
+      // run's usage is unknown, never a complete zero, and that request counts
+      // at its full reservation beside the paid one.
+      expect(result.artifacts).toMatchObject({ output_usage_complete: false,
+        usage: { prompt_tokens: null, completion_tokens: null, estimated_total_cost_usd: null },
+        inference_reservation: { reconciled_cost_status: "includes_worst_case_reservations" } });
+      expect((result.artifacts?.usage_samples as any[])[0]).toMatchObject({ output_tokens: 10 });
+    } else expect(result.artifacts?.usage).toMatchObject({ completion_tokens: 10, total_tokens: 30 });
     expect(result.error).not.toContain("PRIVATE");
     expect((result.artifacts?.output_repairs as any[])[0]).toMatchObject({ rawOutput: "not-json" });
   });

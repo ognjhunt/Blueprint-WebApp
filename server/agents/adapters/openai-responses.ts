@@ -6,6 +6,9 @@ import { ZodError, type ZodType } from "zod";
 
 import { openAiResponsesOperatorTools, openAiResponsesHistoryTools, getCompanyHistoryAccess, runOperatorTool } from "../operator-tools";
 import {
+  ACCOUNTING_ONLY_TASK_KINDS,
+  getAgentMaxInferenceCostUsd,
+  getAgentMaxInputTokens,
   getOpenAiMaxOutputTokens,
   getOpenAiReasoningEffort,
   getOpenAiTimeoutMs,
@@ -49,22 +52,11 @@ function replayInputMatchesPolicy(input: unknown[], taskKind: string, enabled: b
 const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
 const openAiTimeoutMs = getOpenAiTimeoutMs();
 
-function boundedPositiveNumber(value: string | undefined, fallback: number, maximum: number) {
-  const parsed = Number(value ?? fallback);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback;
-}
-
-const openAiMaxInputTokens = Math.floor(boundedPositiveNumber(
-  process.env.BLUEPRINT_OPENAI_AGENT_MAX_INPUT_TOKENS,
-  100_000,
-  1_000_000,
-));
+// The per-run cap and input ceiling are shared with every adapter that
+// enforces them (provider-config); their settings and defaults are unchanged.
+const openAiMaxInputTokens = getAgentMaxInputTokens();
 const openAiMaxOutputTokens = getOpenAiMaxOutputTokens();
-const openAiMaxInferenceCostUsd = boundedPositiveNumber(
-  process.env.BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD,
-  5,
-  100,
-);
+const openAiMaxInferenceCostUsd = getAgentMaxInferenceCostUsd();
 
 const client = openAiApiKey
   ? new OpenAI({
@@ -247,7 +239,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     ? [...replayInput, { role: "user", content: dynamicPrompt }]
     : cacheInput;
   const { input: _unusedCacheInput, ...baseCacheControls } = cacheRequest;
-  const accountingOnly = ["site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification"].includes(task.kind);
+  const accountingOnly = ACCOUNTING_ONLY_TASK_KINDS.has(task.kind);
   const initialCacheControls = baseCacheControls;
   const actualInputBytes = conservativeOpenAIInputTokenCeiling(initialInput, tools);
   if (!accountingOnly && actualInputBytes > openAiMaxInputTokens) {

@@ -190,6 +190,55 @@ export function getOpenAiReasoningEffort(
  * compatible endpoint is its own provider id with its own privacy row.
  */
 export const ANTHROPIC_API_BASE_URL = "https://api.anthropic.com";
+const ANTHROPIC_API_HOST = "api.anthropic.com";
+
+/**
+ * Why Anthropic cannot be used here, or null when it can. A deployment whose
+ * `ANTHROPIC_BASE_URL` names another host was sending its calls, and its key,
+ * to that host; the adapter now sends to Anthropic only, so such a key is
+ * presumed to be another company's credential and is never sent anywhere.
+ * The value of the variable is never reported, only the reason.
+ */
+export type AnthropicConfigurationIssue = "anthropic_api_key_missing" | "anthropic_base_url_names_another_host";
+
+export function getAnthropicConfigurationIssue(): AnthropicConfigurationIssue | null {
+  if (!process.env.ANTHROPIC_API_KEY?.trim()) return "anthropic_api_key_missing";
+  const baseUrl = process.env.ANTHROPIC_BASE_URL?.trim();
+  if (baseUrl) {
+    let host: string | null = null;
+    try {
+      const parsed = new URL(baseUrl);
+      host = parsed.protocol === "https:" ? parsed.hostname.toLowerCase() : null;
+    } catch {
+      host = null;
+    }
+    if (host !== ANTHROPIC_API_HOST) return "anthropic_base_url_names_another_host";
+  }
+  return null;
+}
+
+/**
+ * One per-run inference cost cap and one input ceiling, whichever provider
+ * does the work (owner, 2026-11-13: the same caps apply). Read from the
+ * settings the OpenAI lane has always used, with the same defaults and
+ * ceilings, so a deployment that sets them keeps exactly its value.
+ */
+export function getAgentMaxInferenceCostUsd(): number {
+  return boundedPositiveNumber(process.env.BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD, 5, 100);
+}
+
+export function getAgentMaxInputTokens(): number {
+  return Math.floor(boundedPositiveNumber(process.env.BLUEPRINT_OPENAI_AGENT_MAX_INPUT_TOKENS, 100_000, 1_000_000));
+}
+
+/**
+ * Lanes whose spend is recorded but not gated per run (their accounting lives
+ * with the job). Every adapter that enforces the per-run cap reads this one
+ * list, and so does the runtime's rolling spend stop.
+ */
+export const ACCOUNTING_ONLY_TASK_KINDS: ReadonlySet<AgentTaskKind> = new Set<AgentTaskKind>([
+  "site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification",
+]);
 
 /**
  * Same level of model. A lane that runs on OpenAI's small model maps to
@@ -254,9 +303,10 @@ export function getAnthropicTimeoutMs(): number {
 }
 
 /**
- * Effort per lane, always sent explicitly: the default differs by model. The
- * lane defaults are the OpenAI lane defaults, so a lane thinks as hard on
- * either provider. `ANTHROPIC_<LANE>_EFFORT` and `ANTHROPIC_EFFORT` override.
+ * Effort per lane, always sent explicitly: the default differs by model.
+ * `ANTHROPIC_<LANE>_EFFORT` and `ANTHROPIC_EFFORT` set it for Anthropic;
+ * otherwise it is the lane's OpenAI effort, its environment overrides
+ * included, so a lane thinks as hard on either provider.
  */
 const ANTHROPIC_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type AnthropicEffort = (typeof ANTHROPIC_EFFORTS)[number];
@@ -277,18 +327,18 @@ export function getAnthropicEffort(taskKind: AgentTaskKind | undefined): Anthrop
   return (
     perTask
     || normalizeAnthropicEffort(process.env.ANTHROPIC_EFFORT)
-    || normalizeAnthropicEffort(taskKind ? TASK_REASONING_EFFORT[taskKind] : null)
+    || normalizeAnthropicEffort(getOpenAiReasoningEffort(taskKind))
     || "medium"
   );
 }
 
 const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
 
-const DEFAULT_MODELS: Record<StructuredProvider, string> = {
+// Anthropic's default is the tier table above (getDefaultAnthropicModel).
+const DEFAULT_MODELS: Record<Exclude<StructuredProvider, "anthropic_agent_sdk">, string> = {
   deepseek_chat: "deepseek-v4-pro",
   zai_glm: "glm-5.3",
   openai_responses: DEFAULT_OPENAI_MODEL,
-  anthropic_agent_sdk: ANTHROPIC_TOP_MODEL,
   acp_harness: "codex",
   openclaw: "gpt-5.4",
   codex_local: "gpt-5.4-mini",
@@ -342,7 +392,7 @@ export function isProviderConfigured(provider: StructuredProvider): boolean {
     case "openai_responses":
       return Boolean(process.env.OPENAI_API_KEY?.trim());
     case "anthropic_agent_sdk":
-      return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+      return getAnthropicConfigurationIssue() === null;
     case "acp_harness":
       return Boolean(process.env.ACP_HARNESS_URL?.trim());
     case "openclaw":
@@ -495,7 +545,7 @@ function selectGlobalStructuredProvider(): StructuredProvider {
     normalizeProvider(process.env.DEEPSEEK_API_KEY ? "deepseek_chat" : null),
     normalizeProvider(isCodexLocalConfigured() ? "codex_local" : null),
     normalizeProvider(process.env.ACP_HARNESS_URL ? "acp_harness" : null),
-    normalizeProvider(process.env.ANTHROPIC_API_KEY ? "anthropic_agent_sdk" : null),
+    normalizeProvider(getAnthropicConfigurationIssue() === null ? "anthropic_agent_sdk" : null),
     normalizeProvider(process.env.OPENAI_API_KEY ? "openai_responses" : null),
     normalizeProvider(process.env.OPENCLAW_BASE_URL ? "openclaw" : null),
     "codex_local" as StructuredProvider,

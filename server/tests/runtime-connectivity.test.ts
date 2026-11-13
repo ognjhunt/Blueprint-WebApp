@@ -14,7 +14,8 @@ beforeEach(() => {
     "DEEPSEEK_API_KEY", "DEEPSEEK_DEFAULT_MODEL", "DEEPSEEK_OPERATOR_THREAD_MODEL", "DEEPSEEK_TIMEOUT_MS",
     "ZAI_API_KEY", "ZAI_DEFAULT_MODEL", "ZAI_OPERATOR_THREAD_MODEL", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
     "ACP_HARNESS_URL", "OPENCLAW_BASE_URL", "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER",
-    "BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER", "ANTHROPIC_OPERATOR_THREAD_MODEL", "OPENAI_OPERATOR_THREAD_MODEL"]) {
+    "BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER", "ANTHROPIC_OPERATOR_THREAD_MODEL", "OPENAI_OPERATOR_THREAD_MODEL",
+    "ANTHROPIC_BASE_URL"]) {
     vi.stubEnv(name, "");
   }
   vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
@@ -27,6 +28,18 @@ afterEach(() => {
 });
 
 describe("runtime connectivity", () => {
+  it("does not select Anthropic when ANTHROPIC_BASE_URL names another host, and says why without the value", async () => {
+    process.env.ANTHROPIC_API_KEY = "anthropic-key";
+    process.env.OPENAI_API_KEY = "openai-key";
+    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+    vi.stubEnv("ANTHROPIC_BASE_URL", "https://api.other-company.example/anthropic");
+    const { getAgentRuntimeConnectionMetadata } = await import("../agents/runtime-connectivity");
+    const metadata = getAgentRuntimeConnectionMetadata();
+    expect(metadata).toMatchObject({ provider: "openai_responses",
+      anthropic_not_configured_reason: "anthropic_base_url_names_another_host" });
+    expect(JSON.stringify(metadata)).not.toContain("other-company");
+  });
+
   it("prefers configured Anthropic runtime metadata when selected", async () => {
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
     process.env.OPENAI_API_KEY = "openai-key";

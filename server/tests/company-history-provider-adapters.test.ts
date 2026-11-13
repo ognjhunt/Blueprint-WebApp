@@ -22,7 +22,7 @@ vi.mock("../agents/operator-tools", async importOriginal => ({
 const task = (kind = "capture_dispatch", mode: "AGENTIC" | "STATIC" = "AGENTIC") => ({
   kind, input: { taskVideoUrl: "https://example.com/clip.mp4", companyWide: true },
   metadata: { company_history_access: { companyWide: true } },
-  provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", model: "fixture-model",
+  provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", model: "claude-haiku-5-5",
   tool_policy: { mode: "api" }, definition: { build_prompt: () => "Original task; return JSON with answer.",
     output_schema: z.object({ answer: z.string() }), video_processing_mode: mode, video_sampling_fps: 2,
     video_max_output_tokens: 1000 },
@@ -120,7 +120,11 @@ describe("Anthropic read-only company history", () => {
     expect(result.status).toBe(fails ? "failed" : "completed");
     if (fails) expect(result.error).not.toContain("PRIVATE_PROVIDER_URL");
     else expect(result.error).toBeNull();
-    expect(result.artifacts?.usage).toMatchObject({ prompt_tokens: fails ? 40 : 60, completion_tokens: fails ? 20 : 30, total_tokens: fails ? 60 : 90 });
+    // A request that failed without an HTTP answer leaves the run's usage unknown, never a complete zero.
+    expect(result.artifacts?.usage).toMatchObject(fails ? { prompt_tokens: null, completion_tokens: null, total_tokens: null }
+      : { prompt_tokens: 60, completion_tokens: 30, total_tokens: 90 });
+    if (fails) expect(result.artifacts).toMatchObject({ output_usage_complete: false,
+      inference_reservation: { reconciled_cost_status: "includes_worst_case_reservations" } });
     expect(result.artifacts?.provider_responses).toHaveLength(fails ? 2 : 3);
     expect(result.artifacts?.output_repairs).toEqual([expect.objectContaining({ rawOutput: invalid })]);
     expect(result.artifacts?.company_history_tool_calls).toEqual([expect.objectContaining({ result: evidence, result_sha256: digest(evidence) })]);

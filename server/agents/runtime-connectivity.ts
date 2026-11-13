@@ -3,6 +3,7 @@ import type { AgentTaskKind } from "./types";
 import {
   describeStructuredAutomationProvider,
   getStructuredAutomationFallbackProvider,
+  getAnthropicConfigurationIssue,
   getAnthropicTimeoutMs,
   getOpenAiTimeoutMs,
   getStructuredAutomationProvider,
@@ -85,6 +86,8 @@ export function getAgentRuntimeConnectionMetadata() {
     task_providers: taskProviders,
     task_models: taskModels,
     unhonored_lane_providers: unhonoredLaneProviders,
+    // Why Anthropic is not available, when it is not (the reason, never a value).
+    anthropic_not_configured_reason: getAnthropicConfigurationIssue(),
   };
 }
 

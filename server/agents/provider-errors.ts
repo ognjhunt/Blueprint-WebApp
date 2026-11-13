@@ -1,15 +1,24 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 
+import type { AgentProvider } from "./types";
+
 /**
  * One closed set of reasons a provider call failed, for the Anthropic and
  * OpenAI SDK error objects and the adapters' own typed stop failures.
  *
  * Only `no_funds` may ever move a call to another provider. Everything here is
  * read from typed fields (HTTP status, `error.type`, `error.code` or
- * `error.details.error_code`), never from message wording: both providers say
+ * `error.details.error_code`), with ONE exception below; both providers say
  * their messages can change. A shape the documentation does not settle is not
- * `no_funds`; it falls to the class its status gives.
+ * `no_funds` (for example a "credit balance is too low" message, until a paid
+ * run records what it returns); it falls to the class its status gives. The
+ * table is the same in the website and the Pipeline.
+ *
+ * The caller names the provider the call went to. Anthropic's rows apply only
+ * to `anthropic_agent_sdk` and OpenAI's only to `openai_responses`: another
+ * company reached through the `openai` SDK (DeepSeek, Z.ai) is never reported
+ * as out of funds, because no documented row for it exists here.
  *
  * Sources, 2026-11-13:
  * - Anthropic: SDK 1.8.0 types (`ErrorType`, `EnforcedSpendLimitReachedError`,
@@ -18,10 +27,11 @@ import OpenAI from "openai";
  *   `enforced_spend_limit_reached` is the tier's monthly spend cap: no
  *   `retry-after`, and it keeps failing until the next month or a tier change.
  *   A spend limit the organization sets itself is a 400
- *   `invalid_request_error` told apart only by its message, so it is NOT
- *   recognised here (`bad_request`).
+ *   `invalid_request_error` told apart only by its message: the one
+ *   message-based row. It matches only when the message STARTS WITH one of the
+ *   two documented texts, so a change of wording can only fail to switch.
  * - OpenAI: SDK 6.49.0 `APIError` (`status`, `code`, `type`) and the live
- *   Error codes page: 429 with code `credit_balance_exhausted`,
+ *   Error codes page: 429 with code `insufficient_quota`, `credit_balance_exhausted`,
  *   `organization_spend_limit_exceeded`, `project_spend_limit_exceeded` or
  *   `organization_usage_limit_exceeded`, or with type `insufficient_quota`.
  *   429 `slow_down` and a plain rate limit are not funds.
@@ -37,6 +47,8 @@ export type ProviderErrorClass =
 
 export type ProviderErrorClassification = {
   error_class: ProviderErrorClass;
+  /** The provider the call was made to, as the caller said. */
+  provider: AgentProvider | null;
   sdk: "anthropic" | "openai" | "adapter" | "unknown";
   status: number | null;
   type: string | null;
@@ -55,6 +67,17 @@ export class ProviderRefusalError extends Error {
   }
 }
 
+/** The turn ended with a stop reason the adapter does not accept, or none. */
+export class ProviderUnexpectedStopError extends Error {
+  constructor(
+    readonly stopReason: string | null,
+    readonly responseId: string | null,
+  ) {
+    super("provider_unexpected_stop_reason");
+    this.name = "ProviderUnexpectedStopError";
+  }
+}
+
 /** The answer was cut off at the output ceiling (`stop_reason: "max_tokens"`). */
 export class ProviderOutputTruncatedError extends Error {
   readonly provider_stop_reason = "max_tokens" as const;
@@ -65,7 +88,13 @@ export class ProviderOutputTruncatedError extends Error {
 }
 
 const ANTHROPIC_NO_FUNDS_ERROR_CODES = new Set(["enforced_spend_limit_reached"]);
+/** The documented openings of the 400 for an organization's or a workspace's own spend limit (Rate limits page). */
+export const ANTHROPIC_OWN_SPEND_LIMIT_MESSAGE_PREFIXES = [
+  "You have reached your specified API usage limits",
+  "You have reached your specified workspace API usage limits",
+] as const;
 const OPENAI_NO_FUNDS_CODES = new Set([
+  "insufficient_quota",
   "credit_balance_exhausted",
   "organization_spend_limit_exceeded",
   "project_spend_limit_exceeded",
@@ -91,7 +120,7 @@ function byStatus(status: number | null): ProviderErrorClass {
   return "other";
 }
 
-function classifyAnthropic(error: InstanceType<typeof Anthropic.APIError>): ProviderErrorClassification {
+function classifyAnthropic(error: InstanceType<typeof Anthropic.APIError>, provider: AgentProvider | null): ProviderErrorClassification {
   const status = typeof error.status === "number" ? error.status : null;
   // `type` and `errorCode` are typed fields from SDK 1.x; the body is read as
   // well so the classification does not depend on which release produced it.
@@ -99,10 +128,17 @@ function classifyAnthropic(error: InstanceType<typeof Anthropic.APIError>): Prov
   const type = text((error as { type?: unknown }).type) ?? text(body?.type);
   const code = text((error as { errorCode?: unknown }).errorCode) ?? text(record(body?.details)?.error_code);
   const result = (error_class: ProviderErrorClass): ProviderErrorClassification =>
-    ({ error_class, sdk: "anthropic", status, type, code });
+    ({ error_class, provider, sdk: "anthropic", status, type, code });
+  // Anthropic's out-of-funds rows describe Anthropic's own API only.
+  const funds = provider === "anthropic_agent_sdk";
 
-  if (status === 402 || type === "billing_error") return result("no_funds");
-  if ((status === 429 || type === "rate_limit_error") && code && ANTHROPIC_NO_FUNDS_ERROR_CODES.has(code)) {
+  if (funds && (status === 402 || type === "billing_error")) return result("no_funds");
+  if (funds && (status === 429 || type === "rate_limit_error") && code && ANTHROPIC_NO_FUNDS_ERROR_CODES.has(code)) {
+    return result("no_funds");
+  }
+  const message = text((error as { apiMessage?: unknown }).apiMessage) ?? text(body?.message);
+  if (funds && status === 400 && type === "invalid_request_error" && message
+    && ANTHROPIC_OWN_SPEND_LIMIT_MESSAGE_PREFIXES.some(prefix => message.startsWith(prefix))) {
     return result("no_funds");
   }
   if (type === "overloaded_error") return result("overloaded");
@@ -114,14 +150,17 @@ function classifyAnthropic(error: InstanceType<typeof Anthropic.APIError>): Prov
   return result(byStatus(status));
 }
 
-function classifyOpenAI(error: InstanceType<typeof OpenAI.APIError>): ProviderErrorClassification {
+function classifyOpenAI(error: InstanceType<typeof OpenAI.APIError>, provider: AgentProvider | null): ProviderErrorClassification {
   const status = typeof error.status === "number" ? error.status : null;
   const type = text(error.type);
   const code = text(error.code);
   const result = (error_class: ProviderErrorClass): ProviderErrorClassification =>
-    ({ error_class, sdk: "openai", status, type, code });
+    ({ error_class, provider, sdk: "openai", status, type, code });
+  // Other companies reached through the same SDK (another base URL) have no
+  // documented out-of-funds row here, so none of theirs is ever no_funds.
+  const funds = provider === "openai_responses";
 
-  if (status === 429 && ((code && OPENAI_NO_FUNDS_CODES.has(code)) || type === "insufficient_quota")) {
+  if (funds && status === 429 && ((code && OPENAI_NO_FUNDS_CODES.has(code)) || type === "insufficient_quota")) {
     return result("no_funds");
   }
   if (status === 503 && code === "server_is_overloaded") return result("overloaded");
@@ -133,14 +172,31 @@ function isInstance(error: unknown, errorClass: unknown): boolean {
   return typeof errorClass === "function" && error instanceof (errorClass as new (...args: never[]) => unknown);
 }
 
-export function classifyProviderError(error: unknown): ProviderErrorClassification {
+/**
+ * A wrapped error is classified through its `cause` chain: the first link that
+ * is a typed adapter or SDK error decides. Nothing is read from log text.
+ */
+export function classifyProviderError(error: unknown, provider: AgentProvider | null): ProviderErrorClassification {
+  let link: unknown = error;
+  for (let depth = 0; depth < 8 && link && typeof link === "object"; depth += 1) {
+    const classified = classifyOne(link, provider);
+    if (classified) return classified;
+    link = (link as { cause?: unknown }).cause;
+  }
+  return { error_class: "other", provider, sdk: "unknown", status: null, type: null, code: null };
+}
+
+function classifyOne(error: unknown, provider: AgentProvider | null): ProviderErrorClassification | null {
   if (error instanceof ProviderRefusalError) {
-    return { error_class: "refused", sdk: "adapter", status: null, type: "refusal", code: error.category };
+    return { error_class: "refused", provider, sdk: "adapter", status: null, type: "refusal", code: error.category };
   }
   if (error instanceof ProviderOutputTruncatedError) {
-    return { error_class: "other", sdk: "adapter", status: null, type: "max_tokens", code: null };
+    return { error_class: "other", provider, sdk: "adapter", status: null, type: "max_tokens", code: null };
   }
-  if (isInstance(error, Anthropic?.APIError)) return classifyAnthropic(error as InstanceType<typeof Anthropic.APIError>);
-  if (isInstance(error, OpenAI?.APIError)) return classifyOpenAI(error as InstanceType<typeof OpenAI.APIError>);
-  return { error_class: "other", sdk: "unknown", status: null, type: null, code: null };
+  if (error instanceof ProviderUnexpectedStopError) {
+    return { error_class: "other", provider, sdk: "adapter", status: null, type: "unexpected_stop_reason", code: error.stopReason };
+  }
+  if (isInstance(error, Anthropic?.APIError)) return classifyAnthropic(error as InstanceType<typeof Anthropic.APIError>, provider);
+  if (isInstance(error, OpenAI?.APIError)) return classifyOpenAI(error as InstanceType<typeof OpenAI.APIError>, provider);
+  return null;
 }

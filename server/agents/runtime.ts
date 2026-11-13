@@ -38,7 +38,7 @@ import {
   readPaperclipGoalCloseoutMetadata,
 } from "./goal-closeout-contract";
 import { getTaskDefinition } from "./tasks";
-import { getDefaultAnthropicModel } from "./provider-config";
+import { ACCOUNTING_ONLY_TASK_KINDS, getDefaultAnthropicModel } from "./provider-config";
 import type {
   AgentResult,
   AgentProvider,
@@ -1683,7 +1683,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     }
   }
 
-  const accountingOnly = ["site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification"].includes(normalizedTask.kind);
+  const accountingOnly = ACCOUNTING_ONLY_TASK_KINDS.has(normalizedTask.kind);
   let preRunCostStop;
   try {
     if (!accountingOnly) preRunCostStop = await evaluatePreRunCostStop({
