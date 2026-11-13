@@ -1,6 +1,6 @@
 # Scripts Agent Guide
 
-This directory contains local checks, build helpers, launch gates, human-reply tools, graphify refresh and Render helpers.
+This directory contains local checks, build helpers, launch gates, human-reply tools and Render helpers.
 
 Read [`docs/architecture/command-safety-matrix.md`](../docs/architecture/command-safety-matrix.md) before running anything outside simple local checks.
 
@@ -12,7 +12,6 @@ Local conventions:
 - Treat `scripts/human-replies/` and `scripts/render/` as side-effect capable.
 - Do not run commands that send email, mutate provider state, deploy, import env, wake live Paperclip routines, or write Notion/Firebase/Stripe state unless the task explicitly asks for it.
 - Use dry-run flags when available and keep output artifacts under existing report/output paths.
-- If code files changed, run `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` before closeout.
 - Provider portability: migration, export, backup and release helpers keep company-controlled canonical storage, stable
   Blueprint IDs, standard formats, manifests/hashes/provenance and a documented
   replacement-agent recovery route. An optional Library delivery copy must not

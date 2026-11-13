@@ -56,8 +56,6 @@
     "audit:assets": "tsx scripts/audit-assets.ts",
     "qa:polish": "playwright test e2e/brand-polish.spec.ts --reporter=line",
     "qa:operator": "tsx scripts/qa/run-operator-surfaces.ts",
-    "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
-    "graphify:setup": "python3 scripts/graphify/ensure-environment.py",
     "notion-grounding:refresh": "tsx scripts/gemini/refresh-notion-grounding.ts",
     "test:coverage": "vitest run --coverage --exclude client/tests/build-output.test.ts",
     "test:build-output": "vitest run client/tests/build-output.test.ts",

@@ -25,7 +25,6 @@ explicit approval for the exact notice and recipient list. See
 | `npm run alpha:env` | local env audit | Reads env or a supplied env file and reports missing launch config. Do not paste secrets into logs. |
 | `npm run pipeline:forwarding:preflight -- --require-forwarding` | local env audit + optional read-only Pipeline GET | Reads `ROBOT_EVAL_JOB_REQUEST_FORWARD_*` env vars, validates URL/token/timeout/capture-root override shape, and writes `output/pipeline/robot_eval_job_requests/forwarding_preflight.json` with secrets redacted. Default mode makes no network request. `-- --probe-intake-audit` performs only an authenticated read-only `GET /api/live-pipeline/intake-audit`; it must not POST a job request, allocate GPUs, start providers, prove simulator execution, or upgrade public claims. |
 | Onboarding unfinished-marker scan over `docs/company`, `docs/onboarding`, `README.md`, and `docs/architecture` | local read only | Quality gate for draft residue before closeout. |
-| `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` | local generated output | Refreshes graphify architecture outputs. Required after code changes by repo instructions. |
 
 ## Heavier Tests
 

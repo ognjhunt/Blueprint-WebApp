@@ -116,6 +116,3 @@ npx vitest run <paths>   # tests for what you changed
 npm run test:e2e         # Playwright
 npm run build
 ```
-
-Graphify output in `graphify-out/` is optional reference;
-`bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` refreshes it.
