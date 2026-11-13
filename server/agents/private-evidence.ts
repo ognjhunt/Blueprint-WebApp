@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { resolveBundleStorage, type BundleStorage } from "../utils/siteCaptureBundleStorage";
+import { redactWithdrawnRecord, withdrawalRedactionOf } from "./withdrawal-redaction";
 
 // Leave ample room for Firestore names, timestamps, indexes and merged controls.
 export const AGENT_DOCUMENT_BYTE_BUDGET = 512_000;
@@ -47,6 +48,12 @@ export class AgentEvidenceError extends Error {
     super(`${code}: ${scope.collection}/${scope.id}`);
     this.name = "AgentEvidenceError";
   }
+}
+
+/** Every evidence object ever written for one row lives under this prefix (objects are content-addressed). */
+export function agentEvidencePrefix(scope: Scope) {
+  if (typeof scope.id !== "string" || !scope.id) throw new AgentEvidenceError("agent_evidence_scope_invalid", scope);
+  return `agent-runtime-evidence/v1/${scope.collection}/${digest(scope.id)}/`;
 }
 
 function objectName(scope: Scope, sha256: string) {
@@ -97,7 +104,8 @@ export async function projectAgentEvidence(record: RecordData, scope: Scope, sto
   for (const field of fields) result[field] = null;
   // Accounting remains queryable without downloading private evidence.
   if (scope.collection === "agentRuns") result.metadata = {
-    ...Object.fromEntries(["capture_id", "scene_id", "source_packet_digest"]
+    // The ids a withdrawal finds the row by stay inline too (websiteJobModelRunRedaction.ts).
+    ...Object.fromEntries(["capture_id", "scene_id", "source_packet_digest", "request_id", "inbound_request_id"]
       .filter(field => record.metadata?.[field] !== undefined).map(field => [field, record.metadata[field]])),
     ...(record.metadata?.cost_telemetry ? { cost_telemetry: record.metadata.cost_telemetry } : {}),
     ...(record.metadata?.cost_guardrail ? { cost_guardrail: record.metadata.cost_guardrail } : {}),
@@ -192,14 +200,18 @@ export async function persistAgentEvidence(document: Document, scope: Scope, upd
     if (scope.collection === "agentSessions" && options?.preserveCancelledSession && prior.status === "cancelled") {
       updates = { ...updates, status: "cancelled" };
     }
-    const merged = { ...prior, ...updates };
+    let merged = { ...prior, ...updates };
     if (plain(prior.metadata) && plain(updates.metadata)) merged.metadata = { ...prior.metadata, ...updates.metadata };
     if (requiresMutationReconciliation(prior) || requiresMutationReconciliation(updates)) merged.mutation_reconciliation_required = true;
+    // A row redacted because its job was withdrawn stays redacted: a run still in flight then writes its result in
+    // redacted form, never the content back (websiteJobModelRunRedaction.ts).
+    const withdrawn = withdrawalRedactionOf(rawPrior) ?? withdrawalRedactionOf(prior);
+    if (withdrawn) merged = redactWithdrawnRecord(merged, withdrawn);
     if (typeof database?.runTransaction !== "function") {
       // Small legacy test transports can retain native merge behavior. Never
       // synthesize false controls or attempt a non-atomic evidence migration.
       if (rawPrior.agent_evidence_ref || byteSize(merged) > AGENT_DOCUMENT_BYTE_BUDGET || !fitsFirestoreShape(merged)) throw new AgentEvidenceError("agent_evidence_atomic_writer_unavailable", scope);
-      await document.set(updates, { merge: true });
+      await document.set(withdrawn ? redactWithdrawnRecord(updates, withdrawn) : updates, { merge: true });
       return;
     }
     const projection = await projectAgentEvidence(merged, scope);
@@ -255,7 +267,9 @@ export async function persistAgentEvidenceFailure(document: Document, scope: Sco
           if (requiresMutationReconciliation(updates)) transaction.set(document, { mutation_reconciliation_required: true }, { merge: true });
           return true;
         }
-        transaction.set(document, { ...preserveCancelledControls(data, updates), ...diagnostic,
+        const withdrawn = withdrawalRedactionOf(data);
+        const kept = preserveCancelledControls(data, updates);
+        transaction.set(document, { ...(withdrawn ? redactWithdrawnRecord(kept, withdrawn) : kept), ...diagnostic,
           agent_evidence_ref: proof.evidenceReference,
           agent_evidence_accounting_sha256: proof.evidenceReference!.sha256,
           metadata: proof.recovery!.metadata, ...(proof.recovery!.accountingIdentity ? { agent_evidence_accounting_identity: proof.recovery!.accountingIdentity } : {}), agent_accounting_incomplete: false,
@@ -275,11 +289,17 @@ export async function persistAgentEvidenceFailure(document: Document, scope: Sco
         if (requiresMutationReconciliation(updates)) transaction.set(document, { mutation_reconciliation_required: true }, { merge: true });
         return;
       }
-      transaction.set(document, { ...preserveCancelledControls(data, updates), ...diagnostic, agent_accounting_incomplete: true }, { merge: true });
+      const withdrawn = withdrawalRedactionOf(data);
+      const kept = preserveCancelledControls(data, updates);
+      transaction.set(document, { ...(withdrawn ? redactWithdrawnRecord(kept, withdrawn) : kept), ...diagnostic,
+        agent_accounting_incomplete: true }, { merge: true });
     });
   } else {
     const current = await document.get();
-    await document.set({ ...preserveCancelledControls(current.exists ? current.data() : {}, updates), ...diagnostic, agent_accounting_incomplete: true }, { merge: true });
+    const data = current.exists ? current.data() : {};
+    const withdrawn = withdrawalRedactionOf(data);
+    const kept = preserveCancelledControls(data, updates);
+    await document.set({ ...(withdrawn ? redactWithdrawnRecord(kept, withdrawn) : kept), ...diagnostic, agent_accounting_incomplete: true }, { merge: true });
   }
   return false;
 }

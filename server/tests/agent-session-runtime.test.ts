@@ -555,6 +555,47 @@ describe("agent session runtime", () => {
     }
   }, 20_000);
 
+  it("never dispatches, approves, resumes, retries or forks a row redacted for a withdrawn job", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    const runtime = await import("../agents/runtime");
+    const marker = { schema_version: "website_withdrawal_content_redaction.v1", request_id: "job-gone", redacted_at_iso: "2026-11-13T12:00:00.000Z" };
+    const digest = { redacted: true, chars: 10, sha256: "f".repeat(64) };
+    const withdrawn = (id: string, status: string, extra: Record<string, unknown> = {}) => fake.store.agentRuns.set(id, { id,
+      session_id: null, session_key: `session:${id}`, task_kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+      model: "gpt-6-luna", status, created_at: "a", updated_at: "a", withdrawal_redaction: marker,
+      input: { kind: "support_triage", provider: "openai_responses", runtime: "openai_responses", session_key: `session:${id}`,
+        input: { message: digest } }, ...extra });
+    // Queued: the session's queue reaches it after another run finishes.
+    withdrawn("queued-gone", "queued");
+    await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+      session_key: "session:queued-gone", input: { message: "Next" } } as never);
+    expect(fake.store.agentRuns.get("queued-gone")?.status).toBe("failed");
+    // Pending approval: approving it starts nothing.
+    withdrawn("approval-gone", "pending_approval");
+    expect(await runtime.approveAgentRun("approval-gone")).toMatchObject({ status: "failed",
+      error: expect.stringContaining("redacted_content_not_replayable") });
+    expect(fake.store.agentRuns.get("approval-gone")?.status).toBe("failed");
+    // A retry or resume naming it.
+    const resumed = await runtime.runAgentTask({ kind: "support_triage", input: { message: "Again" }, resume_from_run_id: "approval-gone" } as never,
+      { dispatchQueuedOnFinish: false });
+    expect(resumed).toMatchObject({ status: "failed", artifacts: { refusal_reason: "redacted_content_not_replayable" } });
+    // Its session: neither resumed nor forked.
+    const session = await runtime.createAgentSession({ title: "Staff", task_kind: "support_triage", provider: "openai_responses" });
+    Object.assign(fake.store.agentSessions.get(session.id)!, { withdrawal_redaction: marker, title: digest });
+    await expect(runtime.resumeAgentSession({ sessionId: session.id })).rejects.toThrow("redacted_content_not_replayable");
+    await expect(runtime.forkAgentSessionWithHandoff({ sessionId: session.id, phase: "implementation" } as never))
+      .rejects.toThrow("redacted_content_not_replayable");
+    // Nor is a new message sent from it (start, steer and interrupt come through here).
+    await expect(runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "support_triage", input: { message: "Next" } } as never }))
+      .rejects.toThrow("redacted_content_not_replayable");
+    // A session that is not marked but whose last run is: resuming from that run is refused too.
+    const plain = await runtime.createAgentSession({ title: "Staff 2", task_kind: "support_triage", provider: "openai_responses" });
+    withdrawn("last-gone", "completed", { session_id: plain.id, session_key: (fake.store.agentSessions.get(plain.id) as any).session_key });
+    await expect(runtime.resumeAgentSession({ sessionId: plain.id })).rejects.toThrow("redacted_content_not_replayable");
+    // Only the one fresh run above reached a provider.
+    expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+  }, 20_000);
+
   it("privacy gate: an ordinary OpenAI run reads no stored request", async () => {
     vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
     await seedJobs();

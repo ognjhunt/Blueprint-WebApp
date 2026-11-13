@@ -722,6 +722,7 @@ router.get("/:token/follow-up", async (req: Request, res: Response) => {
         : "";
       questionIds = await selectFollowUps({
         requestId: payload.requestId,
+        consentRevoked: requestSnap.data()?.consent_revoked === true,
         taskStatement: taskStatement || "",
         briefSummary: brief.summary,
         itemLabels: items.map((item) => item.label),

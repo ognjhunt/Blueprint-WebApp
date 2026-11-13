@@ -1219,6 +1219,9 @@ export async function runInboundQualificationForRequest(
     throw new Error("Database not available");
   }
 
+  // A withdrawn job's details are never sent for qualification.
+  if ((request as unknown as Record<string, unknown>).consent_revoked === true) throw new Error("website_job_withdrawn");
+
   const docRef = db.collection("inboundRequests").doc(request.requestId);
 
   await docRef.set(
@@ -1468,6 +1471,8 @@ export async function runInboundQualificationLoop(params?: { limit?: number }) {
   let failedCount = 0;
 
   for (const doc of snapshot.docs) {
+    // A withdrawn job is skipped: its details are never sent again.
+    if (doc.data()?.consent_revoked === true) continue;
     try {
       const decrypted = (await decryptInboundRequestForAdmin(
         doc.data() as any,
@@ -1702,6 +1707,8 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
   let failedCount = 0;
 
   for (const doc of snapshot.docs) {
+    // A withdrawn job is skipped: its details are never sent again.
+    if (doc.data()?.consent_revoked === true) continue;
     const decrypted = (await decryptInboundRequestForAdmin(doc.data() as any)) as InboundRequest;
     const evaluationReadiness =
       decrypted.evaluation_readiness && typeof decrypted.evaluation_readiness === "object"

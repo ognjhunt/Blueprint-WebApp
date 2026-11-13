@@ -167,8 +167,10 @@ export async function readBriefFromDescription(params: {
   taskStatement: string;
   whatGoesWrong?: string | null;
   captureMode?: string | null;
+  /** The loaded request's withdrawal: a withdrawn job's text is never sent. */
+  consentRevoked?: boolean;
 }): Promise<boolean> {
-  if (!isSiteTaskBriefReadingEnabled()) return false;
+  if (!isSiteTaskBriefReadingEnabled() || params.consentRevoked === true) return false;
   const taskStatement = params.taskStatement.trim();
   if (!taskStatement) return false;
   const captureMode = normalizeMode(params.captureMode);

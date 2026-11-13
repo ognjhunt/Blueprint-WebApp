@@ -47,9 +47,12 @@ export async function selectFollowUps(input: {
   briefSummary: string;
   itemLabels: string[];
   eligible: FollowUpId[];
+  /** The loaded request's withdrawal: a withdrawn job's text is never sent (the fixed list instead). */
+  consentRevoked?: boolean;
 }): Promise<FollowUpId[]> {
   if (!input.eligible.length) return [];
   const fixedList = input.eligible.slice(0, 3);
+  if (input.consentRevoked === true) return fixedList;
 
   try {
     const { getStructuredProviderOrder } = await import("../agents/provider-config");
