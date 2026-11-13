@@ -25,7 +25,6 @@
   an introduction: the site asks for an introduction with one press, and
   Blueprint emails each side the other's details. Blueprint approves a company
   once.
-- **Paperclip:** every role is retired. Each agent's instruction files in
-  `ops/paperclip/blueprint-company/agents/` say "do nothing", and every routine
-  in `.paperclip.yaml` is paused. What actually runs on the Paperclip host is
-  not recorded in this repo.
+- **Paperclip:** every role is retired. Its agent instruction files and
+  routines are no longer in this repo. What actually runs on the Paperclip host
+  is not recorded in this repo.

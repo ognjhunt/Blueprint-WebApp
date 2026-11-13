@@ -61,7 +61,6 @@ ops/paperclip/research-grounding/notion/
 output/
 outputs/
 tmp/
-ops/paperclip/reports/
 issue-updates/
 create-research-stub.mjs
 scripts/gtm.bak/
