@@ -81,6 +81,26 @@ export function anthropicRequestCost(model: string | null | undefined, usage: {
 }
 
 /**
+ * The cost of one attempt that does not say which model ran it: each token
+ * class at the dearest of the candidate models' rates (long-prompt tier
+ * included), never lower than any of them. Null when a candidate has no row.
+ */
+export function anthropicDearestRequestCost(models: string[], usage: Parameters<typeof anthropicRequestCost>[1]): AnthropicRequestCost | null {
+  const costs = models.map(model => anthropicRequestCost(model, usage));
+  if (!costs.length || costs.some(cost => cost === null)) return null;
+  const known = costs as AnthropicRequestCost[];
+  const max = (field: keyof AnthropicRequestCost) => Math.max(...known.map(cost => cost[field]));
+  const uncached = max("uncached_input_cost_usd"), written = max("cache_write_cost_usd");
+  const read = max("cached_read_cost_usd"), output = max("output_cost_usd");
+  const total = uncached + written + read + output;
+  const withoutCaching = Math.max(max("estimated_cost_without_caching_usd"), total);
+  const round = (value: number) => Number(value.toFixed(12));
+  return { uncached_input_cost_usd: uncached, cache_write_cost_usd: written, cached_read_cost_usd: read, output_cost_usd: output,
+    estimated_total_cost_usd: round(total), estimated_cost_without_caching_usd: round(withoutCaching),
+    estimated_savings_usd: round(withoutCaching - total) };
+}
+
+/**
  * The most one request can cost: every input token up to the ceiling at the
  * dearest input rate, every output token up to `max_tokens` billed, at the
  * long-prompt tier when the ceiling crosses it. Null when the model has no row.

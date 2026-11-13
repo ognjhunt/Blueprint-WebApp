@@ -101,7 +101,7 @@ describe("Anthropic adapter: client", () => {
     vi.stubEnv("ANTHROPIC_CUSTOM_HEADERS", "X-From-Env: one\nanthropic-beta: from-env");
     stub.respond = () => message([json()]);
     await run("claude-haiku-5-5");
-    expect(stub.constructed[0]).toMatchObject({ logLevel: "warn", openTelemetry: false,
+    expect(stub.constructed[0]).toMatchObject({ logLevel: "warn", openTelemetry: { traces: false, propagation: false },
       defaultHeaders: { "X-From-Env": null, "anthropic-beta": null } });
   });
 });

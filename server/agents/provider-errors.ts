@@ -133,7 +133,9 @@ function classifyAnthropic(error: InstanceType<typeof Anthropic.APIError>, provi
   const funds = provider === "anthropic_agent_sdk";
 
   if (funds && (status === 402 || type === "billing_error")) return result("no_funds");
-  if (funds && (status === 429 || type === "rate_limit_error") && code && ANTHROPIC_NO_FUNDS_ERROR_CODES.has(code)) {
+  // HTTP 429 only: a stream error event (no status) or another status carrying
+  // the same code is not this documented shape.
+  if (funds && status === 429 && code && ANTHROPIC_NO_FUNDS_ERROR_CODES.has(code)) {
     return result("no_funds");
   }
   const message = text((error as { apiMessage?: unknown }).apiMessage) ?? text(body?.message);

@@ -140,7 +140,7 @@ const checks = [
   {
     label: "Structured runtime provider",
     ok: hasAny("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ACP_HARNESS_URL") || anthropicKeyUsable(),
-    required: ["DEEPSEEK_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY | ACP_HARNESS_URL"],
+    required: ["DEEPSEEK_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY (only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com) | ACP_HARNESS_URL"],
   },
   {
     label: "Stripe checkout + payout wiring",

@@ -25,6 +25,7 @@ import { logger } from "../../logger";
 import { digest } from "../../research-learning/contract";
 import {
   ANTHROPIC_COST_FIELDS,
+  anthropicDearestRequestCost,
   anthropicPricingForModel,
   anthropicRequestCost,
   anthropicWorstCaseRequestUsd,
@@ -66,7 +67,8 @@ const client = configurationIssue === null
       timeout: anthropicTimeoutMs,
       maxRetries: 2,
       logLevel: "warn",
-      openTelemetry: false,
+      // No spans and no trace context on the requests.
+      openTelemetry: { traces: false, propagation: false },
       defaultHeaders: Object.fromEntries(environmentHeaderNames().map(name => [name, null])),
     })
   : null;
@@ -315,12 +317,23 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
   while (true) {
     if (Date.now() >= deadline || remainingOutput <= 0) return result(undefined, "output_correction_budget_exhausted");
     // Reserve before every request: the input ceiling, then the most this
-    // request (and a fallback attempt inside it) could cost at list price.
-    if (!accountingOnly && conservativeOpenAIInputTokenCeiling(messages, historyTools) > maxInputTokens) {
+    // request (and a fallback attempt inside it) could cost at list price. The
+    // input side is the larger of the ceiling, where a lane has one, and this
+    // request's own conservative size (the bytes of the messages, the tools
+    // and the output schema), so a lane exempt from the ceiling is never
+    // reserved below its real input.
+    const estimatedInputTokens = conservativeOpenAIInputTokenCeiling(messages, historyTools)
+      + (format ? Buffer.byteLength(JSON.stringify(format), "utf8") : 0);
+    if (!accountingOnly && estimatedInputTokens > maxInputTokens) {
       return result(undefined, "inference_input_ceiling_exceeded");
     }
-    const projectedCostUsd = anthropicWorstCaseRequestUsd(task.model, maxInputTokens, remainingOutput)!
-      + (shape.fallbackModel ? anthropicWorstCaseRequestUsd(shape.fallbackModel, maxInputTokens, remainingOutput)! : 0);
+    const reservationUsd = (inputTokens: number) => anthropicWorstCaseRequestUsd(task.model, inputTokens, remainingOutput)!
+      + (shape.fallbackModel ? anthropicWorstCaseRequestUsd(shape.fallbackModel, inputTokens, remainingOutput)! : 0);
+    const reservedInputTokens = Math.max(accountingOnly ? 0 : maxInputTokens, estimatedInputTokens);
+    const projectedCostUsd = reservationUsd(reservedInputTokens);
+    // A request whose cost is unknown is reserved with the largest input any
+    // source reported for it.
+    const unknownReservationUsd = (reportedInputTokens: number) => reservationUsd(Math.max(reservedInputTokens, reportedInputTokens));
     if (!accountingOnly && reconciledCostUsd() + projectedCostUsd > maxInferenceCostUsd) {
       traceLogs.push({ event_type: "provider.request.skipped", status: "warning", code: "inference_cost_cap_refused",
         projected_max_cost_usd: projectedCostUsd, reconciled_cost_usd: reconciledCostUsd(), hard_cost_cap_usd: maxInferenceCostUsd });
@@ -346,17 +359,25 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
       if (mayHaveBeenBilled(error, Boolean(partial))) {
         // Usage seen so far, marked incomplete, at the full reservation.
         usageComplete = false;
+        const seen = partial?.usage as unknown as Record<string, unknown> | undefined;
+        const seenInput = (usageCount(seen?.input_tokens) ?? 0) + (usageCount(seen?.cache_read_input_tokens) ?? 0)
+          + (usageCount(seen?.cache_creation_input_tokens) ?? 0);
         reserveUnknown({ response_id: partial?.id ?? null, model: partial?.model ?? null,
           request_status: partial ? "stream_failed_after_open" : "request_attempted_response_unreceived",
-          usage_complete: false, ...(partial?.usage ? { partial_usage: partial.usage } : {}) }, projectedCostUsd);
+          usage_complete: false, ...(partial?.usage ? { partial_usage: partial.usage } : {}) }, unknownReservationUsd(seenInput));
       }
       return failWith(error, "anthropic_provider_request_failed");
     }
     rawText = extractText(response.content);
     const usage = (response.usage ?? {}) as unknown as Record<string, unknown>;
     providerResponses.push({ responseId: response.id, model: response.model ?? null, content: response.content, usage, stopReason: response.stop_reason });
-    if (typeof response.model === "string" && !servedModels.includes(response.model)) servedModels.push(response.model);
-    let requestCostUsd = 0, requestCostKnown = true, requestOutput: number | null = 0;
+    // The model that served: on a fallback inside the stream the message keeps
+    // the declined model's name, and the serving attempt names its own.
+    const servingAttempt = usageEntries(usage).find(entry => entry.type === "fallback_message" && typeof entry.model === "string");
+    const servedModel = typeof servingAttempt?.model === "string" ? servingAttempt.model
+      : typeof response.model === "string" ? response.model : null;
+    if (servedModel && !servedModels.includes(servedModel)) servedModels.push(servedModel);
+    let requestCostUsd = 0, requestCostKnown = true, requestOutput: number | null = 0, reportedInputTokens = 0;
     for (const entry of usageEntries(usage)) {
       const input = usageCount(entry.input_tokens), output = usageCount(entry.output_tokens);
       const cached = entry.cache_read_input_tokens === undefined ? 0 : usageCount(entry.cache_read_input_tokens);
@@ -364,9 +385,17 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
       if (input === null || output === null || cached === null || written === null) {
         usageComplete = false; requestCostKnown = false; requestOutput = null;
       } else {
-        const servedBy = typeof entry.model === "string" ? entry.model : typeof response.model === "string" ? response.model : task.model;
-        const cost = anthropicRequestCost(servedBy, { input_tokens: input, output_tokens: output,
-          cache_read_input_tokens: cached, cache_creation_input_tokens: written });
+        reportedInputTokens += input + cached + written;
+        const counters = { input_tokens: input, output_tokens: output, cache_read_input_tokens: cached, cache_creation_input_tokens: written };
+        // An attempt that names its model is priced at that model's rate; one
+        // that names none (a declined attempt may not) at the dearer of the
+        // requested and the fallback model's rates, never the cheaper.
+        const cost = typeof entry.model === "string"
+          ? anthropicRequestCost(entry.model, counters)
+          : entry === usage
+            // Top-level usage: one attempt, the one the message names.
+            ? anthropicRequestCost(typeof response.model === "string" ? response.model : task.model, counters)
+            : anthropicDearestRequestCost([task.model, ...(shape.fallbackModel ? [shape.fallbackModel] : [])], counters);
         if (!cost) requestCostKnown = false;
         else {
           for (const field of ANTHROPIC_COST_FIELDS) costTotals[field] += cost[field];
@@ -382,7 +411,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
       knownCostUsd += requestCostUsd;
       usageSamples.push({ ...sample, estimated_total_cost_usd: round(requestCostUsd) });
     } else {
-      reserveUnknown(sample, projectedCostUsd);
+      reserveUnknown(sample, unknownReservationUsd(reportedInputTokens));
     }
     if (!accountingOnly && reconciledCostUsd() > maxInferenceCostUsd + 1e-12) {
       traceLogs.push({ event_type: "provider.cost.exceeded", status: "error", code: "inference_cost_cap_exceeded",
@@ -392,7 +421,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
     // Every attempt's output counts against the task's output room.
     remainingOutput -= requestOutput ?? remainingOutput;
     traceLogs.push({ event_type: "provider.response.received", status: "info", response_id: response.id,
-      served_model: response.model ?? null, stop_reason: response.stop_reason, chars: rawText.length,
+      served_model: servedModel, stop_reason: response.stop_reason, chars: rawText.length,
       fallback_ran: lastFallbackIndex(response.content) >= 0 });
 
     // The stop reason is read before the content. A refusal's partial output is

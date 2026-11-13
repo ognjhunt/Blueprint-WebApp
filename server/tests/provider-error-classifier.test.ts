@@ -31,6 +31,9 @@ describe("provider error classifier: Anthropic", () => {
     ["402 billing_error", anthropicError(402, "billing_error"), "no_funds"],
     ["429 tier monthly spend cap", anthropicError(429, "rate_limit_error", "enforced_spend_limit_reached"), "no_funds"],
     ["mid-stream billing_error", anthropicError(undefined, "billing_error"), "no_funds"],
+    // The spend-cap code counts only on an HTTP 429.
+    ["spend-cap code on a stream error event (no status)", anthropicError(undefined, "rate_limit_error", "enforced_spend_limit_reached"), "rate_limited"],
+    ["spend-cap code on a 400", anthropicError(400, "invalid_request_error", "enforced_spend_limit_reached"), "bad_request"],
     ["429 rate limit", anthropicError(429, "rate_limit_error"), "rate_limited"],
     ["429 ramp limit", anthropicError(429, "rate_limit_error", "ramp_limit_exceeded"), "rate_limited"],
     ["529 overloaded", anthropicError(529, "overloaded_error"), "overloaded"],
