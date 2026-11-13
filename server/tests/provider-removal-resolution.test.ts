@@ -61,18 +61,21 @@ async function resolveAll(env: Record<string, string>) {
 type Keys = { openai?: boolean; anthropic?: boolean };
 /**
  * name, keys, then what a lane resolves to: a lane whose data only OpenAI may
- * receive (a site's job text, job records, personal information, the staff
- * thread), and the one lane of public material (OpenAI or Anthropic may
- * receive it). Without a usable key for a permitted provider the lane reports
- * that provider and sends nothing.
+ * receive (a site's job text, job records, personal information), the one
+ * lane of public material (OpenAI or Anthropic may receive it), and the staff
+ * lane, whose data the current Privacy Policy names for no provider (it is
+ * reported on the chain's answer and the runtime gate refuses every call).
+ * Without a usable key for a permitted provider the lane reports that
+ * provider and sends nothing.
  */
-const cases: Array<[string, Keys, string, string]> = [
-  ["only an OpenAI key", { openai: true }, "openai_responses", "openai_responses"],
-  ["only an Anthropic key", { anthropic: true }, "openai_responses", "anthropic_agent_sdk"],
-  ["both keys", { openai: true, anthropic: true }, "openai_responses", "openai_responses"],
-  ["no key", {}, "openai_responses", "openai_responses"],
+const cases: Array<[string, Keys, string, string, string]> = [
+  ["only an OpenAI key", { openai: true }, "openai_responses", "openai_responses", "openai_responses"],
+  ["only an Anthropic key", { anthropic: true }, "openai_responses", "anthropic_agent_sdk", "anthropic_agent_sdk"],
+  ["both keys", { openai: true, anthropic: true }, "openai_responses", "openai_responses", "openai_responses"],
+  ["no key", {}, "openai_responses", "openai_responses", "codex_local"],
 ];
-const PUBLIC_LANES: AgentTaskKind[] = ["robot_capability_extraction"];
+const PUBLIC_LANES: AgentTaskKind[] = ["robot_capability_extraction", "runtime_smoke_test"];
+const STAFF_LANES: AgentTaskKind[] = ["operator_thread"];
 
 function keyEnv(keys: Keys, leftOver: boolean): Record<string, string> {
   return {
@@ -95,10 +98,10 @@ describe("provider resolution after the removal", () => {
     expect(RESOLVED_LANES.length).toBeGreaterThanOrEqual(11);
   });
 
-  it.each(cases)("with %s, every lane resolves to a provider the gate permits, or to its fail-closed report", async (_name, keys, restricted, publicLane) => {
+  it.each(cases)("with %s, every lane resolves to a provider the gate permits, or to its fail-closed report", async (_name, keys, restricted, publicLane, staff) => {
     const resolved = await resolveAll(keyEnv(keys, false));
     for (const lane of RESOLVED_LANES) {
-      expect(resolved[lane], lane).toBe(PUBLIC_LANES.includes(lane) ? publicLane : restricted);
+      expect(resolved[lane], lane).toBe(PUBLIC_LANES.includes(lane) ? publicLane : STAFF_LANES.includes(lane) ? staff : restricted);
     }
   });
 

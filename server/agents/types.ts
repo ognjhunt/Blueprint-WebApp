@@ -45,7 +45,9 @@ export type AgentTaskKind =
   /** Ranks researched robot teams for one site job from their notes; internal, quote-checked. */
   | "robot_fit_ranking"
   | "capture_dispatch"
-  | "outbound_outreach";
+  | "outbound_outreach"
+  /** A connectivity check whose prompt is fixed text (tasks/runtime-smoke-test.ts). */
+  | "runtime_smoke_test";
 
 export type AgentRunStatus =
   | "queued"

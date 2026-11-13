@@ -5,7 +5,25 @@ import { extractPdf } from "../integrations/openclaw/client";
 import { logger } from "../logger";
 import { embedTexts } from "../retrieval/embeddings";
 import { recordOpsActionLog } from "./ops-action-logs";
+import { NON_LANE_SENDS, privacyDecisionForClasses } from "./provider-privacy";
 import type { OpsDocumentRecord } from "./types";
+
+/**
+ * Document extraction sends the uploaded document's location to the OpenClaw
+ * gateway. The document may hold site or personal data, so it passes the same
+ * data-class gate as every lane (provider-privacy.ts NON_LANE_SENDS); under
+ * today's Privacy Policy the gateway's destination is not named and nothing
+ * is sent.
+ */
+export class OpsDocumentExtractionRefusedError extends Error {
+  readonly code = "ops_document_extraction_not_permitted";
+  readonly plainMessage = "Document reading is switched off: the Privacy Policy does not name the service that reads "
+    + "uploaded documents, and a document can hold a site's or a person's information. Nothing was sent. The document is "
+    + "saved; it can be read once the policy names that service.";
+  constructor(readonly blockedBy: string[], readonly privacyVersion: string) {
+    super("ops_document_extraction_not_permitted");
+  }
+}
 
 const OPS_DOCUMENT_COLLECTION = "opsDocuments";
 const DEFAULT_DOCUMENT_CHUNK_SIZE = 1600;
@@ -257,6 +275,15 @@ export async function extractOpsDocument(documentId: string) {
 
   if (!db) {
     throw new Error("Database not available");
+  }
+
+  // The gate, before anything is sent: the document stays saved and is marked refused with the reason.
+  const send = NON_LANE_SENDS.ops_document_extraction;
+  const decision = privacyDecisionForClasses(send.provider, send.classes);
+  if (!decision.permitted) {
+    await db.collection(OPS_DOCUMENT_COLLECTION).doc(documentId).set({ extraction_status: "failed",
+      error: `ops_document_extraction_not_permitted: ${decision.blocked_by.join(", ")}`, updated_at: nowTimestamp() }, { merge: true });
+    throw new OpsDocumentExtractionRefusedError(decision.blocked_by, decision.version);
   }
 
   await db.collection(OPS_DOCUMENT_COLLECTION).doc(documentId).set(

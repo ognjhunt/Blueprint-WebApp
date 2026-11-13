@@ -10,8 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LEGAL_PAGE_DIGESTS, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
 import {
-  LANE_DATA_CLASSES, PRIVACY_POLICY_PROVIDER_ROWS, PRIVACY_STATUS_QUO_EXCEPTIONS, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
-  privacyDecision, resolvePrivacyVersion,
+  LANE_DATA_CLASSES, NON_LANE_SENDS, PRIVACY_POLICY_PROVIDER_ROWS, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
+  STRICTEST_PRIVACY_TABLE, assertPrivacyTableCoversVersion, privacyDecision, privacyDecisionForClasses, resolvePrivacyVersion,
 } from "../agents/provider-privacy";
 import { taskDefinitions } from "../agents/tasks";
 import type { AgentProvider, AgentTaskKind } from "../agents/types";
@@ -67,10 +67,25 @@ describe("the gate's tables", () => {
     }
   });
 
-  it("applies the version recorded on the data when known, and the current version otherwise", () => {
+  it("applies the version recorded on the data when known, and the strictest table when it is absent or unknown", () => {
     expect(resolvePrivacyVersion("2026-11-02.1")).toBe("2026-11-02.1");
-    expect(resolvePrivacyVersion("not-a-version")).toBe(PRIVACY_VERSION);
-    expect(resolvePrivacyVersion(undefined)).toBe(PRIVACY_VERSION);
+    expect(resolvePrivacyVersion("not-a-version")).toBe(STRICTEST_PRIVACY_TABLE);
+    expect(resolvePrivacyVersion(undefined)).toBe(STRICTEST_PRIVACY_TABLE);
+    // The strictest table permits nothing that any known version refuses.
+    for (const kind of ALL_KINDS) {
+      for (const provider of PROVIDERS) {
+        if (privacyDecision(provider, kind, STRICTEST_PRIVACY_TABLE).permitted) {
+          for (const version of Object.keys(PRIVACY_POLICY_PROVIDER_ROWS)) {
+            expect(privacyDecision(provider, kind, version).permitted, `${kind} ${provider} ${version}`).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it("fails at start-up, never per request, when the current Privacy version has no rows", () => {
+    expect(() => assertPrivacyTableCoversVersion(PRIVACY_POLICY_PROVIDER_ROWS, PRIVACY_VERSION)).not.toThrow();
+    expect(() => assertPrivacyTableCoversVersion({ [PRIVACY_VERSION]: {} }, "2099-01-01.1")).toThrow("privacy_table_missing_version: 2099-01-01.1");
   });
 });
 
@@ -83,8 +98,6 @@ describe("the gate's decisions under every version", () => {
       for (const kind of ALL_KINDS) {
         const sendsRestricted = LANE_DATA_CLASSES[kind].classes.some((dataClass) => (restricted as readonly string[]).includes(dataClass));
         for (const provider of ["anthropic_agent_sdk", "acp_harness", "openclaw", "codex_local"] as const) {
-          // The one named status-quo exception, tested below.
-          if (kind === "external_harness_thread" && provider === "acp_harness") continue;
           if (sendsRestricted) expect(privacyDecision(provider, kind, version).permitted, `${version} ${kind} ${provider}`).toBe(false);
         }
       }
@@ -97,7 +110,6 @@ describe("the gate's decisions under every version", () => {
       support_triage: "openai_responses", outbound_outreach: "openai_responses", robot_fit_ranking: "openai_responses",
       site_task_brief_reading: "openai_responses", capture_dispatch: "openai_responses", preview_diagnosis: "openai_responses",
       robot_capability_extraction: "openai_responses", adp_run_operator: "openai_agents_api",
-      operator_thread: "openai_responses", external_harness_thread: "acp_harness",
       site_video_evidence: "gemini_video", capture_video_privacy: "gemini_video", capture_coverage: "gemini_video",
     };
     for (const version of versions) {
@@ -108,24 +120,22 @@ describe("the gate's decisions under every version", () => {
     expect(privacyDecision("anthropic_agent_sdk", "robot_capability_extraction").permitted).toBe(true);
   });
 
-  it("permits the staff thread on OpenAI only, and the harness lane on its pinned harness only (a named exception)", () => {
+  it("lets the fixed-text smoke test run on a named provider, OpenAI first, and nowhere unnamed", () => {
+    expect(PROVIDERS.filter((provider) => privacyDecision(provider, "runtime_smoke_test").permitted))
+      .toEqual(["openai_responses", "openai_agents_api", "openai_agents_sdk", "anthropic_agent_sdk"]);
+  });
+
+  it("refuses the document reading through the OpenClaw gateway under every version", () => {
     for (const version of versions) {
-      // OpenAI's row, through any OpenAI provider id.
-      expect(PROVIDERS.filter((provider) => privacyDecision(provider, "operator_thread", version).permitted))
-        .toEqual(["openai_responses", "openai_agents_api", "openai_agents_sdk"]);
-      expect(PROVIDERS.filter((provider) => privacyDecision(provider, "external_harness_thread", version).permitted)).toEqual(["acp_harness"]);
-      expect(privacyDecision("acp_harness", "external_harness_thread", version).status_quo_exception)
-        .toMatchObject({ status: "status_quo_exception", code: "privacy_destination_not_named" });
-      // Exactly one exception, and only for that lane.
-      expect(PRIVACY_STATUS_QUO_EXCEPTIONS[version].map((entry) => `${entry.task_kind}:${entry.provider}`))
-        .toEqual(["external_harness_thread:acp_harness"]);
-      // No other lane may use the harness for restricted data.
-      for (const kind of ALL_KINDS.filter((entry) => entry !== "external_harness_thread" && entry !== "robot_capability_extraction")) {
-        expect(privacyDecision("acp_harness", kind, version).permitted, `${version} ${kind}`).toBe(false);
-      }
+      const send = NON_LANE_SENDS.ops_document_extraction;
+      expect(privacyDecisionForClasses(send.provider, send.classes, version).permitted, version).toBe(false);
     }
-    // The exception is not a policy row: the harness has none, and the drift test ties every row to the page.
-    expect(PROVIDER_DESTINATIONS.acp_harness.policy_row).toBeNull();
+  });
+
+  it("names no provider for a staff thread whose tools read jobs and company history", () => {
+    for (const kind of ["operator_thread", "external_harness_thread"] as const) {
+      expect(PROVIDERS.filter((provider) => privacyDecision(provider, kind).permitted), kind).toEqual([]);
+    }
   });
 });
 
@@ -159,7 +169,10 @@ describe("the gate wherever a provider is chosen for a lane", () => {
       vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
       const { resolved } = await lanes({ ANTHROPIC_API_KEY: "x", [leftOver]: "x" });
       for (const [kind, resolution] of Object.entries(resolved)) {
-        if (kind === "robot_capability_extraction") { expect(resolution.provider).toBe("anthropic_agent_sdk"); continue; }
+        if (kind === "robot_capability_extraction" || kind === "runtime_smoke_test") {
+          expect(resolution.provider, kind).toBe("anthropic_agent_sdk"); continue;
+        }
+        if (kind === "operator_thread") { expect(resolution.fails_closed, kind).toBe("no_permitted_provider"); continue; }
         expect(resolution, `${leftOver} ${kind}`).toMatchObject({ provider: "openai_responses",
           fails_closed: "permitted_provider_not_configured" });
       }
@@ -187,16 +200,18 @@ describe("the gate wherever a provider is chosen for a lane", () => {
     const metadata = getAgentRuntimeConnectionMetadata();
     expect(metadata.refused_provider_settings.some((refusal) => refusal.task_kind === "capture_dispatch"
       && refusal.env_key === "BLUEPRINT_CAPTURE_DISPATCH_PROVIDER" && refusal.blocked_by.includes("site_job_text"))).toBe(true);
+    expect(metadata.lanes_failing_closed.find((lane) => lane.task_kind === "operator_thread")?.enabled_by)
+      .toBe("a Privacy Policy version that names a provider for internal staff work");
+    expect(metadata.lanes_failing_closed.find((lane) => lane.task_kind === "external_harness_thread")?.enabled_by)
+      .toContain("names the destination of its pinned provider (acp_harness)");
+    expect(metadata.non_lane_sends).toEqual([{ name: "ops_document_extraction", provider: "openclaw", permitted: false,
+      blocked_by: ["site_job_text", "job_records", "personal_info"] }]);
     expect(Object.fromEntries(metadata.lanes_failing_closed.map((lane) => [lane.task_kind, lane.reason]))).toEqual({
+      operator_thread: "no_permitted_provider",
+      external_harness_thread: "no_permitted_provider",
       // Retired (2026-11-11): no one provider is named for footage together with the job's records.
       site_assessment: "no_permitted_provider",
     });
-    expect(metadata.lanes.find((lane) => lane.task_kind === "operator_thread")).toMatchObject({ provider: "openai_responses",
-      fails_closed: null });
-    // The harness lane is configured here: the view warns that its destination is not named, and does not refuse it.
-    expect(metadata.privacy_warnings).toEqual([{ code: "privacy_destination_not_named", task_kind: "external_harness_thread",
-      provider: "acp_harness", detail: expect.any(String) }]);
-    expect(metadata.lanes.find((lane) => lane.task_kind === "external_harness_thread")?.fails_closed).toBeNull();
   });
 
   it("the pre-existing order (local Codex and the ACP harness ahead of OpenAI) can no longer take a site's job text", async () => {

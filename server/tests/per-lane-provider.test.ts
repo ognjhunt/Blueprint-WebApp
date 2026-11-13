@@ -91,9 +91,7 @@ describe("per-lane provider override", () => {
         reason: "lane_default",
       });
     }
-    // The staff thread stays on OpenAI (the data-class gate); public material follows the setting.
-    expect(getStructuredAutomationProvider("operator_thread")).toBe("openai_responses");
-    expect(getStructuredAutomationProvider("robot_capability_extraction")).toBe("anthropic_agent_sdk");
+    expect(getStructuredAutomationProvider("operator_thread")).toBe("anthropic_agent_sdk");
   });
 
   it("fails an email lane closed when OpenAI has no key: Anthropic may not receive personal information", async () => {
@@ -218,10 +216,10 @@ describe("runtime connectivity metadata", () => {
     const metadata = getAgentRuntimeConnectionMetadata();
     expect(metadata.task_providers.inbound_qualification).toBe("openai_responses");
     expect(metadata.task_providers.support_triage).toBe("openai_responses");
-    expect(metadata.task_providers.operator_thread).toBe("openai_responses");
+    expect(metadata.task_providers.operator_thread).toBe("anthropic_agent_sdk");
     expect(metadata.task_models.inbound_qualification).toBe("gpt-6-luna");
     expect(metadata.task_models.outbound_outreach).toBe("gpt-6-luna");
-    expect(metadata.task_models.operator_thread).toBe("gpt-6-luna");
+    expect(metadata.task_models.operator_thread).toBe("claude-haiku-5-5");
   });
 
   it("surfaces a lane override that did not take effect", async () => {

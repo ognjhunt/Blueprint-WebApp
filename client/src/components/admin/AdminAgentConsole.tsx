@@ -317,6 +317,8 @@ export default function AdminAgentConsole() {
   const [editingStartupPackId, setEditingStartupPackId] = useState<string | null>(null);
   const [editingStartupPackVersion, setEditingStartupPackVersion] = useState<number | null>(null);
   const [opsDocumentTitle, setOpsDocumentTitle] = useState("");
+  // Why a document was saved but not read (the privacy gate), in plain words from the server.
+  const [opsDocumentNotice, setOpsDocumentNotice] = useState<string | null>(null);
   const [opsDocumentSourceFileUri, setOpsDocumentSourceFileUri] = useState("");
   const [openClawSmokeModel, setOpenClawSmokeModel] = useState("");
 
@@ -620,9 +622,11 @@ export default function AdminAgentConsole() {
         }),
       });
       if (!response.ok) throw new Error("Failed to create ops document");
-      return response.json() as Promise<{ ok: boolean; document: OpsDocumentRecord }>;
+      return response.json() as Promise<{ ok: boolean; document: OpsDocumentRecord;
+        extraction_refused?: { error: string; message: string } }>;
     },
     onSuccess: (data) => {
+      setOpsDocumentNotice(data.extraction_refused?.message ?? null);
       queryClient.invalidateQueries({ queryKey: ["admin-agent-context-options"] });
       setSelectedDocumentIds((current) =>
         current.includes(data.document.id)
@@ -1762,6 +1766,9 @@ export default function AdminAgentConsole() {
                     )}
                     Create and extract document
                   </button>
+                  {opsDocumentNotice ? (
+                    <p className="mt-2 text-xs text-runway-mute" role="status">{opsDocumentNotice}</p>
+                  ) : null}
                 </div>
               </div>
 

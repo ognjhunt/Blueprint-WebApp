@@ -15,7 +15,7 @@ import {
   type ProviderSettingRefusal,
   type StructuredProvider,
 } from "./provider-config";
-import { LANE_DATA_CLASSES, PROVIDER_DESTINATIONS, privacyDecision, statusQuoExceptionForLane } from "./provider-privacy";
+import { ENABLED_BY, LANE_DATA_CLASSES, NON_LANE_SENDS, PROVIDER_DESTINATIONS, privacyDecision, privacyDecisionForClasses } from "./provider-privacy";
 import type { AgentProvider } from "./types";
 import { listBuiltInAgentProfiles } from "./agent-profiles";
 import { getOpenAiConfigurationIssue } from "../utils/openaiApiHost";
@@ -40,15 +40,19 @@ const CONNECTIVITY_TASK_KINDS = [
 
 type ConnectivityTaskKind = (typeof CONNECTIVITY_TASK_KINDS)[number];
 
+/** The smoke test's model: the one its fixed-text lane resolves to. */
 function runtimeDefaultModel() {
-  const provider = getStructuredAutomationProvider("operator_thread");
-  return getTaskModelByProvider("operator_thread")[provider] || "gpt-5.4";
+  const provider = getStructuredAutomationProvider("runtime_smoke_test");
+  return getTaskModelByProvider("runtime_smoke_test")[provider] || "gpt-5.4";
 }
 
-/** Configured for any provider id the connectivity view reports (structured ones through provider-config). */
-function isAgentProviderConfigured(provider: AgentProvider): boolean {
-  return (["openai_responses", "anthropic_agent_sdk", "acp_harness", "openclaw", "codex_local"] as AgentProvider[]).includes(provider)
-    ? isProviderConfigured(provider as StructuredProvider) : false;
+/** What would let a lane that fails closed run, in words. */
+function enabledBy(lane: { pinned: boolean; provider: AgentProvider; data_classes: readonly string[]; permitted_providers: AgentProvider[] }) {
+  if (lane.pinned && !PROVIDER_DESTINATIONS[lane.provider]?.policy_row) {
+    return `a Privacy Policy version that names the destination of its pinned provider (${lane.provider})`;
+  }
+  const named = lane.data_classes.map((dataClass) => ENABLED_BY[dataClass as keyof typeof ENABLED_BY]).filter(Boolean);
+  return named[0] ?? "a Privacy Policy version that names one provider for all of this lane's data";
 }
 
 export function getAgentRuntimeConnectionMetadata() {
@@ -134,16 +138,12 @@ export function getAgentRuntimeConnectionMetadata() {
     lanes,
     refused_provider_settings: refusedProviderSettings,
     lanes_failing_closed: lanes.filter((lane) => lane.fails_closed)
-      .map((lane) => ({ task_kind: lane.task_kind, reason: lane.fails_closed! })),
+      .map((lane) => ({ task_kind: lane.task_kind, reason: lane.fails_closed!, enabled_by: enabledBy(lane) })),
     shadow_lanes: shadowLanes,
-    // A lane kept on a destination the Privacy Policy does not name (a status-quo
-    // exception), whenever that lane is configured: a warning, never a refusal.
-    privacy_warnings: lanes.flatMap((lane) => {
-      const exception = statusQuoExceptionForLane(lane.task_kind);
-      return exception && lane.provider === exception.provider && isAgentProviderConfigured(exception.provider)
-        ? [{ code: exception.code, task_kind: lane.task_kind, provider: exception.provider,
-          detail: "This lane's destination is not named in the Privacy Policy; it is kept as it runs today until the next version names it or ends it." }]
-        : [];
+    // Sends that are not lanes, through the same gate (for example document reading through OpenClaw).
+    non_lane_sends: Object.entries(NON_LANE_SENDS).map(([name, send]) => {
+      const decision = privacyDecisionForClasses(send.provider, send.classes);
+      return { name, provider: send.provider, permitted: decision.permitted, blocked_by: decision.blocked_by };
     }),
     // Built-in profiles that start nothing, with the reason.
     disabled_agent_profiles: listBuiltInAgentProfiles()
@@ -157,18 +157,18 @@ export async function runAgentRuntimeSmokeTest(params?: {
   model?: string;
 }) {
   const startedAt = Date.now();
-  // The smoke test runs on the operator lane, so it uses that lane's resolution
-  // (the data-class gate applied), not the global report.
-  const lane = describeStructuredAutomationProvider("operator_thread");
+  // Its own lane of fixed text (tasks/runtime-smoke-test.ts), resolved through
+  // the data-class gate on the default order: OpenAI first.
+  const lane = describeStructuredAutomationProvider("runtime_smoke_test");
   const connectivity = { provider: lane.provider };
 
   if (lane.fails_closed || !isProviderConfigured(lane.provider)) {
-    throw new Error(`Agent runtime provider ${lane.provider} is not configured for the operator lane`
+    throw new Error(`Agent runtime provider ${lane.provider} is not configured for the smoke test`
       + (lane.fails_closed ? ` (${lane.fails_closed})` : ""));
   }
 
   const result = await runAgentTask<
-    { message: string },
+    Record<string, never>,
     {
       reply: string;
       summary: string;
@@ -176,14 +176,11 @@ export async function runAgentRuntimeSmokeTest(params?: {
       requires_human_review: boolean;
     }
   >({
-    kind: "operator_thread",
+    kind: "runtime_smoke_test",
     provider: connectivity.provider,
     runtime: connectivity.provider,
     model: params?.model?.trim() || runtimeDefaultModel(),
-    input: {
-      message:
-        'Return JSON only with reply="Agent runtime smoke test passed.", summary="Smoke test completed successfully.", suggested_actions=["Continue integration"], requires_human_review=false.',
-    },
+    input: {},
   });
 
   return {

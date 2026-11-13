@@ -293,23 +293,16 @@ describe("agent session runtime", () => {
       saved.provider = "acp_harness"; saved.runtime = "acp_harness";
       const sent = await runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "support_triage", input: { message: "Help" } } });
       expect(sent.result?.artifacts).toMatchObject({ privacy_gate: { reason: "privacy_not_permitted", provider: "acp_harness" } });
-      // The staff thread may run on OpenAI only; pinned elsewhere it is refused.
-      const staff = await runtime.runAgentTask({ kind: "operator_thread", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+      // The staff thread: the policy names no provider for it, so it fails closed on OpenAI too.
+      const staff = await runtime.runAgentTask({ kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses",
         input: { message: "Status?" } }, { dispatchQueuedOnFinish: false });
-      expect(staff).toMatchObject({ status: "failed", artifacts: { privacy_gate: { reason: "privacy_not_permitted" } } });
-      // The harness lane keeps its one pinned destination and may use nothing else.
-      const harness = await runtime.runAgentTask({ kind: "external_harness_thread", provider: "openai_responses", runtime: "openai_responses",
-        input: { message: "Step", harness: "codex" } } as never, { dispatchQueuedOnFinish: false });
-      expect(harness).toMatchObject({ status: "failed", artifacts: { privacy_gate: { reason: "privacy_not_permitted",
-        provider: "openai_responses" } } });
-      // Lanes whose data OpenAI may receive still run on it, the staff thread included.
+      expect(staff).toMatchObject({ status: "failed", artifacts: { privacy_gate: { reason: "no_permitted_provider",
+        blocked_by: ["staff_tools"] } } });
+      // A lane whose data OpenAI may receive still runs on it.
       const allowed = await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
         input: { message: "Help" } } as never, { dispatchQueuedOnFinish: false });
       expect(allowed.status).toBe("completed");
-      const staffOnOpenAi = await runtime.runAgentTask({ kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses",
-        input: { message: "Status?" } }, { dispatchQueuedOnFinish: false });
-      expect(staffOnOpenAi.status).toBe("completed");
-      expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(2);
+      expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
     } finally {
       privacyGateState.open = true;
     }
@@ -336,21 +329,78 @@ describe("agent session runtime", () => {
     expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
   });
 
-  it("runs a session saved under a removed provider on the lane's own resolution, not on another pin", async () => {
+  it("refuses a session saved under a removed provider (a fork of a disabled profile with no profile id), never moving it to its lane", async () => {
     vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
     vi.stubEnv("ZAI_API_KEY", "left-over");
     const runtime = await import("../agents/runtime");
-    const session = await runtime.createAgentSession({ title: "Saved before the removal", task_kind: "operator_thread",
+    const session = await runtime.createAgentSession({ title: "Forked before the removal", task_kind: "support_triage",
       provider: "openai_responses", runtime: "openai_responses" });
     const saved = fake.store.agentSessions.get(session.id)!;
-    saved.provider = "zai_glm"; saved.runtime = "zai_glm";
-    const sent = await runtime.sendAgentSessionMessage({ sessionId: session.id,
-      task: { kind: "operator_thread", input: { message: "Status?" } } });
-    expect(sent.result?.status).toBe("completed");
+    saved.provider = "zai_glm"; saved.runtime = "zai_glm"; saved.agent_profile_id = null;
+    await expect(runtime.sendAgentSessionMessage({ sessionId: session.id,
+      task: { kind: "support_triage", input: { message: "Status?" } } })).rejects.toThrow("agent_session_provider_removed");
+    await expect(runtime.forkAgentSessionWithHandoff({ sessionId: session.id, phase: "implementation" } as never))
+      .rejects.toThrow("agent_session_provider_removed");
+    await expect(runtime.createAgentSession({ title: "New", task_kind: "support_triage", provider: "zai_glm" as never }))
+      .rejects.toThrow("agent_session_provider_removed");
+    // Through the common path too (a direct run, a resume or a scheduled wake carrying that session).
+    const direct = await runtime.runAgentTask({ kind: "support_triage", input: { message: "Status?" }, session_id: session.id } as never,
+      { sessionId: session.id, dispatchQueuedOnFinish: false });
+    expect(direct).toMatchObject({ status: "failed", artifacts: { inference_not_invoked: true,
+      agent_profile_refusal: { reason: "agent_session_provider_removed", removed_provider: "zai_glm", saved_on: "session" } } });
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+    // New work with no saved provider still follows its lane, through the gate.
+    const ran = await runtime.runAgentTask({ kind: "support_triage", input: { message: "Help" } } as never, { dispatchQueuedOnFinish: false });
+    expect(ran.status).toBe("completed");
+    expect(runOpenAIResponsesTask.mock.calls[0][0]).toMatchObject({ provider: "openai_responses" });
+  }, 20_000);
+
+  it.each(["queued", "pending_approval"] as const)("refuses a retained %s run of a disabled profile naming zai_glm, ending it failed, calling no adapter or tool", async (status) => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
+      const runtime = await import("../agents/runtime");
+      const session = await runtime.createAgentSession({ title: "Retained", task_kind: "support_triage", provider: "openai_responses",
+        session_key: `session:retained-${status}` });
+      const saved = fake.store.agentSessions.get(session.id)!;
+      saved.agent_profile_id = "built-in-ops-operator"; saved.provider = "zai_glm"; saved.runtime = "zai_glm";
+      fake.store.agentRuns.set(`retained-${status}`, { id: `retained-${status}`, session_id: session.id,
+        session_key: `session:retained-${status}`, task_kind: "operator_thread", provider: "zai_glm", runtime: "zai_glm",
+        model: "deepseek-v4-pro", status, created_at: "timestamp", updated_at: "timestamp",
+        input: { kind: "operator_thread", provider: "zai_glm", runtime: "zai_glm", model: "deepseek-v4-pro",
+          input: { message: "Queue the campaign send." }, session_id: session.id,
+          metadata: { managedRuntime: { agentProfileId: "built-in-ops-operator", agentProfileKey: "ops-operator" } } } });
+      const result = status === "pending_approval"
+        ? await runtime.approveAgentRun(`retained-${status}`)
+        // A finished run on the same session key dispatches the queue.
+        : (await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+          session_key: `session:retained-${status}`, input: { message: "Next" } } as never), null);
+      if (result) expect(result).toMatchObject({ status: "failed", error: expect.stringContaining("agent_profile_provider_removed") });
+      expect(fake.store.agentRuns.get(`retained-${status}`)).toMatchObject({ status: "failed",
+        error: expect.stringContaining("agent_profile_provider_removed") });
+      const calls = runOpenAIResponsesTask.mock.calls.map((call) => (call[0] as { kind: string }).kind);
+      expect(calls).not.toContain("operator_thread");
+      expect(chatReplayMocks.tool).not.toHaveBeenCalled();
+    } finally {
+      privacyGateState.open = true;
+    }
+  }, 20_000);
+
+  it("a retained queued run with no profile that names a removed provider is refused the same way, as a saved run", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    const runtime = await import("../agents/runtime");
+    fake.store.agentRuns.set("retained-plain", { id: "retained-plain", session_id: null, session_key: "session:retained-plain",
+      task_kind: "support_triage", provider: "deepseek_chat", runtime: "deepseek_chat", model: "deepseek-v4-pro", status: "queued",
+      created_at: "timestamp", updated_at: "timestamp",
+      input: { kind: "support_triage", provider: "deepseek_chat", runtime: "deepseek_chat", input: { message: "Help" } } });
+    await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+      session_key: "session:retained-plain", input: { message: "Next" } } as never);
+    expect(fake.store.agentRuns.get("retained-plain")).toMatchObject({ status: "failed",
+      error: expect.stringContaining("agent_session_provider_removed") });
     expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
-    expect(runOpenAIResponsesTask.mock.calls[0][0]).toMatchObject({ provider: "openai_responses", runtime: "openai_responses" });
   }, 20_000);
 
   // The per-job site assessment ended (owner decision 2026-11-11).

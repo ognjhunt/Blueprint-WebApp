@@ -30,6 +30,8 @@ import type { AgentProvider, AgentTaskKind } from "./types";
  * - `site_frames`, `site_video`: frames or footage from a site's capture.
  * - `public_material`: material already public (a robot company's published
  *   pages), with no site data and no personal information about a user.
+ * - `fixed_text`: text written in the code itself (the runtime smoke test),
+ *   carrying no data from anyone.
  */
 export type AgentDataClass =
   | "site_job_text"
@@ -38,7 +40,8 @@ export type AgentDataClass =
   | "staff_tools"
   | "site_frames"
   | "site_video"
-  | "public_material";
+  | "public_material"
+  | "fixed_text";
 
 export type DataClassRow = { classes: readonly AgentDataClass[]; source: string };
 
@@ -76,6 +79,8 @@ export const LANE_DATA_CLASSES: Record<AgentTaskKind, DataClassRow> = {
     source: "tasks/robot-fit-ranking.ts: one site's job with Blueprint's research notes on robot teams" },
   capture_dispatch: { classes: ["site_job_text"],
     source: "tasks/capture-dispatch.ts: what the site typed, its gate answers and site description" },
+  runtime_smoke_test: { classes: ["fixed_text"],
+    source: "tasks/runtime-smoke-test.ts: a prompt written in the code; no input is read, no tools" },
   outbound_outreach: { classes: ["personal_info"],
     source: "tasks/outbound-outreach.ts: a prospect facility's name, address and sourced facts, for the email drafted to it" },
 };
@@ -145,15 +150,11 @@ const AI_ROWS_2026_11: Record<string, PolicyRow> = {
     // "the job description" (site_job_text), "frames from a site capture"
     // (site_frames), "prepare the simulated scene" (the job's records, which
     // preview diagnosis and the ranking read), "drafting replies, and sorting
-    // incoming requests" (personal_info). Public material is not information
-    // collected from anyone.
-    // staff_tools (planner decision 2026-11-13, on the owner's list): a staff
-    // thread's tools return "the job description", the job's records and the
-    // requests and replies the row names ("drafting replies, and sorting
-    // incoming requests"), and the staff thread ran on OpenAI before this
-    // change in an OpenAI-only deployment. The new Privacy version must name
-    // internal staff work for OpenAI in words (Group D).
-    classes: ["site_job_text", "site_frames", "job_records", "personal_info", "public_material", "staff_tools"],
+    // incoming requests" (personal_info). Public material and fixed text are
+    // not information collected from anyone. Not "internal work": staff
+    // messages with tools that read jobs and company history (staff_tools)
+    // are named for no provider in this version (re-check, 2026-11-13).
+    classes: ["site_job_text", "site_frames", "job_records", "personal_info", "public_material", "fixed_text"],
   },
   "Google Gemini": {
     words: "Watching site footage, with its sound removed, and frames from it to draft and check the job brief and to find what the simulated scene needs",
@@ -166,7 +167,7 @@ const AI_ROWS_2026_11: Record<string, PolicyRow> = {
     // permission for any lane here. "Internal work" is read as work carrying
     // no site data and no one's personal information; staff_tools carries
     // both through its tools, so it is not named here either.
-    classes: ["public_material"],
+    classes: ["public_material", "fixed_text"],
   },
   DeepSeek: { words: "Drafting and sorting internal work, where we configure it", classes: [] },
   "World Labs": { words: "Rebuilding a work area as a 3D scene from site footage, with its sound removed", classes: [] },
@@ -186,44 +187,47 @@ export const PRIVACY_POLICY_PROVIDER_ROWS: Record<string, { page: string; rows: 
 };
 
 /**
- * A lane kept, unchanged, on a destination the policy does not name, because
- * it runs there today and only where the owner configured it. Not a general
- * permission: the lane may use this provider and nothing else, and no other
- * lane may use this provider for restricted data. The connectivity view warns
- * with `code` whenever the lane is configured. The next Privacy version must
- * either name this destination or end the exception.
+ * The strictest table: a row permits a class only where every known version
+ * permits it. It applies whenever the version of the data is absent or
+ * unknown here.
+ *
+ * Known limit: the version is taken from the caller's task metadata
+ * (`privacy_policy_version`), not from the stored job. While every version
+ * has the same rows this changes nothing; when a version first differs,
+ * reading it from the stored job is Group D's work. Until then an absent or
+ * unknown version can only make the gate stricter, never looser.
  */
-export type StatusQuoException = {
-  status: "status_quo_exception";
-  task_kind: AgentTaskKind;
-  provider: AgentProvider;
-  code: "privacy_destination_not_named";
-  why: string;
-};
+export const STRICTEST_PRIVACY_TABLE = "strictest_of_known_versions";
 
-const STATUS_QUO_EXCEPTIONS_2026_11: readonly StatusQuoException[] = [
-  { status: "status_quo_exception", task_kind: "external_harness_thread", provider: "acp_harness",
-    code: "privacy_destination_not_named",
-    why: "Pinned to the ACP harness in tasks/external-harness-thread.ts; runs only where ACP_HARNESS_URL is configured. "
-      + "The new Privacy version must name the harness's destination or end this lane." },
-];
-
-/** The exceptions per Privacy Policy version (the same versions as the provider rows). */
-export const PRIVACY_STATUS_QUO_EXCEPTIONS: Record<string, readonly StatusQuoException[]> = {
-  [PREVIOUS_PRIVACY_VERSION]: STATUS_QUO_EXCEPTIONS_2026_11,
-  [PRIVACY_VERSION]: STATUS_QUO_EXCEPTIONS_2026_11,
-  [ANNOUNCED_SUPERSEDED_VERSION]: STATUS_QUO_EXCEPTIONS_2026_11,
-};
-
-export function statusQuoExceptionForLane(taskKind: AgentTaskKind, version = PRIVACY_VERSION): StatusQuoException | null {
-  return PRIVACY_STATUS_QUO_EXCEPTIONS[resolvePrivacyVersion(version)]?.find((entry) => entry.task_kind === taskKind) ?? null;
+function strictestRows(): Record<string, PolicyRow> {
+  const versions = Object.values(PRIVACY_POLICY_PROVIDER_ROWS);
+  const names = new Set(versions.flatMap((entry) => Object.keys(entry.rows)));
+  return Object.fromEntries([...names].map((name) => {
+    const rows = versions.map((entry) => entry.rows[name]);
+    const classes = rows.every(Boolean) ? rows[0].classes.filter((dataClass) => rows.every((row) => row.classes.includes(dataClass))) : [];
+    return [name, { words: rows[0]?.words ?? "", classes }];
+  }));
 }
 
-/** The version whose promises apply: the one recorded on the data when known here, otherwise the current one. */
+function rowsFor(version: string): Record<string, PolicyRow> {
+  return version === STRICTEST_PRIVACY_TABLE ? strictestRows() : PRIVACY_POLICY_PROVIDER_ROWS[version].rows;
+}
+
+/** The table that applies: the version recorded on the data when known here, otherwise the strictest table. */
 export function resolvePrivacyVersion(recorded?: unknown): string {
   const value = typeof recorded === "string" ? recorded.trim() : "";
-  return value && PRIVACY_POLICY_PROVIDER_ROWS[value] ? value : PRIVACY_VERSION;
+  return value && PRIVACY_POLICY_PROVIDER_ROWS[value] ? value : STRICTEST_PRIVACY_TABLE;
 }
+
+/**
+ * Checked when this module loads (the web service and the worker at boot, and
+ * CI): the current Privacy Policy version must have its rows here, so a
+ * missing version fails at start-up, never on a request.
+ */
+export function assertPrivacyTableCoversVersion(table: Record<string, unknown>, version: string) {
+  if (!table[version]) throw new Error(`privacy_table_missing_version: ${version}`);
+}
+assertPrivacyTableCoversVersion(PRIVACY_POLICY_PROVIDER_ROWS, PRIVACY_VERSION);
 
 export function privacyVersionForTask(task: { metadata?: Record<string, unknown> | null }): string {
   const metadata = task.metadata && typeof task.metadata === "object" ? task.metadata : {};
@@ -237,40 +241,44 @@ export type PrivacyDecision = {
   /** The kinds of data the provider's policy row does not name. */
   blocked_by: AgentDataClass[];
   policy_row: string | null;
-  /** Set when the decision is a lane's status-quo exception, not a policy row. */
-  status_quo_exception?: StatusQuoException;
 };
 
 export function privacyDecisionForClasses(provider: AgentProvider | string, classes: readonly AgentDataClass[],
-  version = PRIVACY_VERSION): PrivacyDecision {
+  version: string = STRICTEST_PRIVACY_TABLE): PrivacyDecision {
   const resolved = resolvePrivacyVersion(version);
   const rowName = PROVIDER_DESTINATIONS[provider as AgentProvider]?.policy_row ?? null;
-  const row = rowName ? PRIVACY_POLICY_PROVIDER_ROWS[resolved].rows[rowName] : undefined;
+  const row = rowName ? rowsFor(resolved)[rowName] : undefined;
   const blocked = classes.filter((dataClass) => !row?.classes.includes(dataClass));
   return { permitted: blocked.length === 0, version: resolved, data_classes: classes, blocked_by: blocked, policy_row: rowName };
 }
 
-/**
- * A lane with a status-quo exception may use its one provider and nothing
- * else; otherwise the decision is the policy rows' for the classes given.
- */
-export function privacyDecisionForLane(provider: AgentProvider | string, taskKind: AgentTaskKind,
-  classes: readonly AgentDataClass[], version = PRIVACY_VERSION): PrivacyDecision {
-  const exception = statusQuoExceptionForLane(taskKind, version);
-  if (exception) {
-    const permitted = exception.provider === provider;
-    return { permitted, version: resolvePrivacyVersion(version), data_classes: classes,
-      blocked_by: permitted ? [] : [...classes], policy_row: PROVIDER_DESTINATIONS[provider as AgentProvider]?.policy_row ?? null,
-      ...(permitted ? { status_quo_exception: exception } : {}) };
-  }
+/** Whether a provider may receive a lane's data (a lane with no row is treated as sending everything). */
+export function privacyDecision(provider: AgentProvider | string, taskKind: AgentTaskKind,
+  version: string = STRICTEST_PRIVACY_TABLE): PrivacyDecision {
+  const classes = LANE_DATA_CLASSES[taskKind]?.classes ?? ["site_job_text", "job_records", "personal_info", "staff_tools"];
   return privacyDecisionForClasses(provider, classes, version);
 }
 
-/** Whether a provider may receive a lane's data (a lane with no row is treated as sending everything). */
-export function privacyDecision(provider: AgentProvider | string, taskKind: AgentTaskKind, version = PRIVACY_VERSION): PrivacyDecision {
-  const classes = LANE_DATA_CLASSES[taskKind]?.classes ?? ["site_job_text", "job_records", "personal_info", "staff_tools"];
-  return privacyDecisionForLane(provider, taskKind, classes, version);
-}
+/**
+ * What would let a lane that fails closed run: the class its data needs a
+ * provider for, in words, for the connectivity view.
+ */
+export const ENABLED_BY: Partial<Record<AgentDataClass, string>> = {
+  staff_tools: "a Privacy Policy version that names a provider for internal staff work",
+};
+
+/**
+ * Sends that are not agent lanes, gated the same way. Each says what it sends
+ * and where; the caller checks it before anything leaves.
+ */
+export const NON_LANE_SENDS = {
+  ops_document_extraction: {
+    classes: ["site_job_text", "job_records", "personal_info"] as readonly AgentDataClass[],
+    provider: "openclaw" as AgentProvider,
+    source: "ops-documents.ts extractOpsDocument: the location of a staff-uploaded document, which may contain site or personal "
+      + "data, sent to the OpenClaw gateway (integrations/openclaw/client.ts extractPdf) on an admin action",
+  },
+} as const;
 
 /** The typed failure when no provider the policy names for a lane's data is configured. */
 export const NO_PERMITTED_PROVIDER = "no_permitted_provider";

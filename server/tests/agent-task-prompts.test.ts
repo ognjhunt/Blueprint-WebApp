@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import { taskDefinitions } from "../agents/tasks";
 import type { AgentTaskKind } from "../agents/types";
+import { RUNTIME_SMOKE_TEST_MESSAGE } from "../agents/tasks/runtime-smoke-test";
 
 const sampleInputs: Record<AgentTaskKind, unknown> = {
+  // Fixed text: the smoke test's payload is written in its definition, whatever the input.
+  runtime_smoke_test: { message: RUNTIME_SMOKE_TEST_MESSAGE },
   adp_run_operator: { pipeline_task_id: "task-admitted-1" },
   waitlist_triage: {
     submission: {
@@ -181,6 +184,12 @@ describe("agent task prompts", () => {
       const policy = prompt.slice(0, prompt.lastIndexOf("Dynamic payload:")).replace(catalogue, "");
       expect(policy.match(particular), kind).toBeNull();
     }
+  });
+
+  it("sends only fixed text for the runtime smoke test, never its input", () => {
+    const fixed = taskDefinitions.runtime_smoke_test.build_prompt({} as never);
+    expect(taskDefinitions.runtime_smoke_test.build_prompt({ message: "a site's job text" } as never)).toBe(fixed);
+    expect(fixed).not.toContain("a site's job text");
   });
 
   it("keeps stable policy and return schema before dynamic JSON payloads", () => {
