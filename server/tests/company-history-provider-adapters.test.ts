@@ -14,7 +14,7 @@ vi.mock("../agents/adapters/public-video-fetch", () => ({
 
 const { anthropicCreate, historyRun, retained } = vi.hoisted(() => ({ anthropicCreate: vi.fn(), historyRun: vi.fn(), retained: {learning:null as any} }));
 vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:()=>({get:async()=>({data:()=>({learning:retained.learning})})})}}));
-vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create: anthropicCreate }; } }));
+vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { stream: (params: unknown, options: unknown) => ({ finalMessage: () => anthropicCreate(params, options) }) } }; } }));
 vi.mock("../agents/operator-tools", async importOriginal => ({
   ...await importOriginal<typeof import("../agents/operator-tools")>(), runOperatorTool: historyRun,
 }));
@@ -22,7 +22,7 @@ vi.mock("../agents/operator-tools", async importOriginal => ({
 const task = (kind = "capture_dispatch", mode: "AGENTIC" | "STATIC" = "AGENTIC") => ({
   kind, input: { taskVideoUrl: "https://example.com/clip.mp4", companyWide: true },
   metadata: { company_history_access: { companyWide: true } },
-  provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", model: "fixture-model",
+  provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", model: "claude-haiku-5-5",
   tool_policy: { mode: "api" }, definition: { build_prompt: () => "Original task; return JSON with answer.",
     output_schema: z.object({ answer: z.string() }), video_processing_mode: mode, video_sampling_fps: 2,
     video_max_output_tokens: 1000 },
@@ -41,6 +41,8 @@ beforeEach(() => {
   businessScope:{principalId:"blueprint-learning-host",subjectKeys:["blueprint:research-learning"],expiresAt:"2099-10-02T13:00:00.000Z"},
 };
   vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture"); vi.stubEnv("GEMINI_API_KEY", "offline-fixture");
+  // These cases spend against a 4,000-token allowance; the Anthropic allowance is a setting.
+  vi.stubEnv("BLUEPRINT_ANTHROPIC_AGENT_MAX_OUTPUT_TOKENS", "4000");
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
@@ -118,7 +120,11 @@ describe("Anthropic read-only company history", () => {
     expect(result.status).toBe(fails ? "failed" : "completed");
     if (fails) expect(result.error).not.toContain("PRIVATE_PROVIDER_URL");
     else expect(result.error).toBeNull();
-    expect(result.artifacts?.usage).toMatchObject({ prompt_tokens: fails ? 40 : 60, completion_tokens: fails ? 20 : 30, total_tokens: fails ? 60 : 90 });
+    // A request that failed without an HTTP answer leaves the run's usage unknown, never a complete zero.
+    expect(result.artifacts?.usage).toMatchObject(fails ? { prompt_tokens: null, completion_tokens: null, total_tokens: null }
+      : { prompt_tokens: 60, completion_tokens: 30, total_tokens: 90 });
+    if (fails) expect(result.artifacts).toMatchObject({ output_usage_complete: false,
+      inference_reservation: { reconciled_cost_status: "includes_worst_case_reservations" } });
     expect(result.artifacts?.provider_responses).toHaveLength(fails ? 2 : 3);
     expect(result.artifacts?.output_repairs).toEqual([expect.objectContaining({ rawOutput: invalid })]);
     expect(result.artifacts?.company_history_tool_calls).toEqual([expect.objectContaining({ result: evidence, result_sha256: digest(evidence) })]);

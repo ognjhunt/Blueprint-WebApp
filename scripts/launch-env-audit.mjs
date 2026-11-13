@@ -102,6 +102,23 @@ function envValue(...keys) {
   return "";
 }
 
+/**
+ * An Anthropic key counts only when ANTHROPIC_BASE_URL is unset or names
+ * Anthropic's own host: the website's adapter treats any other host as not
+ * configured and sends nothing (server/agents/provider-config.ts).
+ */
+function anthropicKeyUsable() {
+  if (!envValue("ANTHROPIC_API_KEY")) return false;
+  const baseUrl = envValue("ANTHROPIC_BASE_URL");
+  if (!baseUrl) return true;
+  try {
+    const parsed = new URL(baseUrl);
+    return parsed.protocol === "https:" && parsed.hostname.toLowerCase() === "api.anthropic.com";
+  } catch {
+    return false;
+  }
+}
+
 function isTruthy(value) {
   return truthyValues.has(String(value || "").trim().toLowerCase());
 }
@@ -122,8 +139,8 @@ const checks = [
   },
   {
     label: "Structured runtime provider",
-    ok: hasAny("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ACP_HARNESS_URL"),
-    required: ["DEEPSEEK_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY | ACP_HARNESS_URL"],
+    ok: hasAny("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ACP_HARNESS_URL") || anthropicKeyUsable(),
+    required: ["DEEPSEEK_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY (only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com) | ACP_HARNESS_URL"],
   },
   {
     label: "Stripe checkout + payout wiring",

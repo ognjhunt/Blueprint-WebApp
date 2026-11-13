@@ -344,6 +344,24 @@ describe("agent cost telemetry", () => {
     expect(telemetry.cost_estimate_usd).toBeCloseTo(0.004002, 6);
   });
 
+  it("prices Claude runs from the published list rows instead of the flat estimate", () => {
+    const base = { id: "run-claude", session_id: null, task_kind: "preview_diagnosis", provider: "anthropic_agent_sdk",
+      metadata: {}, created_at: "2026-11-13T00:00:00.000Z" };
+    const top = extractAgentCostTelemetry({ ...base, model: "claude-opus-5-5", artifacts: {
+      prompt_tokens: 32_000, completion_tokens: 500, cached_tokens: 24_000, cache_write_tokens: 6_000 } } as never);
+    // 2,000 uncached x $4 + 6,000 written x $5 + 24,000 read x $0.20 + 500 out x $20, per million.
+    expect(top.cost_estimate_usd).toBeCloseTo(0.0528, 9);
+    expect(top.cost_status).toBe("model_pricing_estimate_not_official_billing");
+    // Above a 100,000-token prompt the small model's rates are five times higher.
+    const small = extractAgentCostTelemetry({ ...base, model: "claude-haiku-5-5", artifacts: {
+      prompt_tokens: 200_000, completion_tokens: 1_000 } } as never);
+    expect(small.cost_estimate_usd).toBeCloseTo(0.1025, 9);
+    // One id is a prefix of another; the match is exact.
+    const unknown = extractAgentCostTelemetry({ ...base, model: "claude-opus-5-5-custom", artifacts: {
+      prompt_tokens: 1_000, completion_tokens: 0 } } as never);
+    expect(unknown.cost_status).toBe("model_pricing_unknown");
+  });
+
   it("summarizes rolling 15m/hour/day spend and classifies warn/stop thresholds", () => {
     const summary = summarizeRollingAgentSpend(
       [

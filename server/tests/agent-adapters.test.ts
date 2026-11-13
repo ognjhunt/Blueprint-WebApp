@@ -25,8 +25,10 @@ vi.mock("openai", () => ({
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class Anthropic {
-    messages = {
-      create: anthropicCreate,
+    beta = {
+      messages: {
+        stream: (params: unknown, options: unknown) => ({ finalMessage: () => anthropicCreate(params, options) }),
+      },
     };
   },
 }));
@@ -637,6 +639,8 @@ describe("agent adapters", () => {
           text: '{"reply":"Queued.","summary":"Handled.","suggested_actions":["Review"],"requires_human_review":true}',
         },
       ],
+      stop_reason: "end_turn",
+      usage: { input_tokens: 20, output_tokens: 10 },
     });
 
     const { runAnthropicAgentSdkTask } = await import("../agents/adapters/anthropic-agent-sdk");
@@ -647,7 +651,7 @@ describe("agent adapters", () => {
       input: { message: "Status?" },
       provider: "anthropic_agent_sdk",
       runtime: "anthropic_agent_sdk",
-      model: "claude-sonnet-4-5",
+      model: "claude-haiku-5-5",
       tool_policy: {
         mode: "local_tools",
         prefer_direct_api: true,

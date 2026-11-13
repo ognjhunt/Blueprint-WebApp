@@ -1,5 +1,6 @@
 import type { AgentTaskKind } from "../agents/types";
 import { pricingForOpenAIModel } from "./openaiPromptCache";
+import { anthropicPricingForModel } from "./anthropicPricing";
 
 export type AgentTelemetryRun = {
   id?: string | null;
@@ -586,6 +587,8 @@ function deepSeekPricingForModel(model: string): ModelPricing | null {
 function pricingForModel(model: string): ModelPricing | null {
   const deepSeek = deepSeekPricingForModel(model);
   if (deepSeek) return deepSeek;
+  const anthropic = anthropicPricingForModel(model);
+  if (anthropic) return anthropic;
   const openAI = pricingForOpenAIModel(model);
   if (!openAI) return null;
   return {

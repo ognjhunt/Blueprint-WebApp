@@ -38,6 +38,7 @@ import {
   readPaperclipGoalCloseoutMetadata,
 } from "./goal-closeout-contract";
 import { getTaskDefinition } from "./tasks";
+import { ACCOUNTING_ONLY_TASK_KINDS, getDefaultAnthropicModel } from "./provider-config";
 import type {
   AgentResult,
   AgentProvider,
@@ -700,7 +701,7 @@ function defaultModelForProvider(provider: AgentProvider) {
     case "openai_agents_sdk":
       return "server-admitted-model";
     case "anthropic_agent_sdk":
-      return process.env.ANTHROPIC_DEFAULT_MODEL?.trim() || "claude-sonnet-4-5";
+      return getDefaultAnthropicModel();
     case "acp_harness":
       return process.env.ACP_DEFAULT_HARNESS?.trim() || "codex";
     case "openclaw":
@@ -1682,7 +1683,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     }
   }
 
-  const accountingOnly = ["site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification"].includes(normalizedTask.kind);
+  const accountingOnly = ACCOUNTING_ONLY_TASK_KINDS.has(normalizedTask.kind);
   let preRunCostStop;
   try {
     if (!accountingOnly) preRunCostStop = await evaluatePreRunCostStop({
