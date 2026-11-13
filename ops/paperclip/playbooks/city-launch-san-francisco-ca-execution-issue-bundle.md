@@ -1,1 +1,0 @@
-Retired 2026-11-12. Do nothing: start no work, send nothing, change nothing. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/playbooks/city-launch-san-francisco-ca-execution-issue-bundle.md`. Current frame: the shared block of PLATFORM_CONTEXT.md.

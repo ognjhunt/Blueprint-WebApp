@@ -42,17 +42,6 @@ paperclip-desktop/
 .worktrees/
 .gstack/
 
-# Local graph generation artifacts
-graphify-out/
-.graphify_*
-.graphifyignore.local
-derived/graphify/*
-!derived/graphify/README.md
-!derived/graphify/webapp-architecture/
-derived/graphify/webapp-architecture/*
-!derived/graphify/webapp-architecture/README.md
-!derived/graphify/webapp-architecture/corpus.manifest.txt
-
 # Local Deep Research grounding cache
 ops/paperclip/research-grounding/notion/
 
@@ -61,7 +50,6 @@ ops/paperclip/research-grounding/notion/
 output/
 outputs/
 tmp/
-ops/paperclip/reports/
 issue-updates/
 create-research-stub.mjs
 scripts/gtm.bak/

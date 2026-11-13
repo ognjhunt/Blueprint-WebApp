@@ -48,8 +48,6 @@ Before substantial changes, read these in order:
 8. [`docs/onboarding/ai-agent-onboarding-runbook.md`](./docs/onboarding/ai-agent-onboarding-runbook.md)
 9. [`docs/onboarding/human-new-hire-start-here.md`](./docs/onboarding/human-new-hire-start-here.md)
 
-Use [`graphify-out/GRAPH_REPORT.md`](./graphify-out/GRAPH_REPORT.md) as a structural aid, not as authority.
-
 ## Company Handbook & Onboarding
 
 Start here for human and AI onboarding:
@@ -70,7 +68,6 @@ The policy packet lives in [`docs/company/`](./docs/company/). Legal, HR, payrol
 - `server/utils/`: business logic and provider utilities.
 - `server/agents/`: language-model task runtime and provider selection.
 - `scripts/`: local checks, smoke tests, deploy helpers.
-- `ops/paperclip/`: the retired Paperclip company package (stubs) and its host tooling.
 - `docs/company/`: employee handbook and policy packet drafts.
 - `docs/onboarding/`: onboarding paths.
 - `docs/archive/`: history. Not current.
@@ -90,18 +87,10 @@ npm run smoke:launch:local
 
 Read [`docs/architecture/command-safety-matrix.md`](./docs/architecture/command-safety-matrix.md) before running scripts that can touch live email, provider APIs, Paperclip, Notion, Stripe, Firebase, Render, or production-like targets.
 
-The required architecture refresh is `npm run graphify:pilot:webapp-architecture -- --no-viz`.
-It automatically provisions and reuses the pinned Graphify environment for each checkout;
-fresh sessions need no manual install or environment variable. First use needs Python
-3.10+ with venv/pip and package-download access. See [Graphify setup](./scripts/graphify/README.md)
-for offline reuse, recovery and interpreter overrides.
-
 ## Where Not To Look First
 
-- Do not start with `output/`, `ops/paperclip/reports/`, `.tmp/`, `dist/`, `coverage/`, or generated graph files when deciding current product truth.
-- `ops/paperclip/reports/` holds only files written at runtime and is ignored by git. The 949 reports that were once committed there (April to June 2026, mostly city-launch runs) were removed from the tree on 2026-11-10; `git show 2f9c773a5:ops/paperclip/reports/<path>` prints any of them. Older docs under `knowledge/`, `docs/` and `ops/paperclip/` still cite those paths as history.
-- Do not treat `ops/paperclip/external/` skill packs as architecture guidance.
-- Do not treat Hermes KB, old generated summaries, or graphify output as canonical.
+- Do not start with `output/`, `.tmp/`, `dist/`, `coverage/`, or generated graph files when deciding current product truth.
+- Do not treat Hermes KB or old generated summaries as canonical.
 - Do not start with archived docs or historical specs unless the task is explicitly historical.
 - Do not infer live readiness from static fixtures or demo flags.
 

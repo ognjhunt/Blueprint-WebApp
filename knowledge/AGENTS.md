@@ -25,7 +25,6 @@ Do not use this directory as the authority for:
 - Put task-specific outputs in `reports/`.
 - Keep `indexes/` current when a page introduces new gaps, stale findings, or contradictions.
 - Use the templates in `templates/`.
-- Run `npm run lint:hermes-kb` after substantial KB edits.
 - When a report yields reusable findings, promote them into `compiled/` in the same run or leave an explicit open question.
 - For reusable subject pages, keep the top section current and the signal trail append-only.
 
