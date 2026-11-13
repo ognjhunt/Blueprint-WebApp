@@ -1172,13 +1172,19 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
  * already holds; its one extra read is the site's own readings. Never fails the
  * status read: any error is logged and the answer is null.
  */
-async function siteAnswerForStatus(params: { requestId: string; request: Record<string, unknown>; brief: unknown;
-  videoReceived: boolean; robotFit: unknown } | null) {
+type StatusAnswerParams = { requestId: string; request: Record<string, unknown>; brief: unknown;
+  videoReceived: boolean; robotFit: unknown };
+/** The answer as composed from the job's records, before the company reads: all the outlook needs of it. */
+function bareSiteAnswerForStatus(params: StatusAnswerParams | null) {
+  if (!params) return Promise.resolve(null);
+  return import("../utils/siteAnswer").then(({ loadSiteAnswer }) => loadSiteAnswer(params.requestId, { request: params.request,
+    brief: (params.brief ?? null) as never, videoReceived: params.videoReceived, robotFit: (params.robotFit ?? null) as never }));
+}
+async function siteAnswerForStatus(params: StatusAnswerParams | null,
+  bare: Promise<Awaited<ReturnType<typeof bareSiteAnswerForStatus>>> = bareSiteAnswerForStatus(params)) {
   if (!params) return null;
   try {
-    const { loadSiteAnswer } = await import("../utils/siteAnswer");
-    const answer = await loadSiteAnswer(params.requestId, { request: params.request, brief: (params.brief ?? null) as never,
-      videoReceived: params.videoReceived, robotFit: (params.robotFit ?? null) as never });
+    const answer = await bare;
     if (!answer) return null;
     // Where the job stands with companies, by the whole rule a company's own reads use (review M1).
     const whole = await import("../utils/teamJobAccess").then(({ loadCompanyJobAccess }) =>
@@ -1201,8 +1207,32 @@ async function siteAnswerForStatus(params: { requestId: string; request: Record<
   }
 }
 
+/**
+ * One deadline, from the start of a status request, for the parts of its response the page renders without: the
+ * site advisory, the first-look words and the outlook. When it passes, each part not ready yet is null and the
+ * response goes out with the status. The status itself, the simulation link, the consent and rights fields and the
+ * answer never wait on it.
+ *
+ * 8 seconds: the outlook starts only once the Pipeline's preparation status is read (that read is capped at 5 s) and
+ * then needs only store reads, so 5 s plus about 3 s for those; the site advisory (capped at 4 s) starts at once and
+ * fits inside it. It also leaves the page's 15-second poll timeout room for the required reads.
+ */
+export const STATUS_OPTIONAL_DEADLINE_MS = 8_000;
+
+/** The deadline the status route reads per request; tests shorten it here so they need not wait it out. */
+export const statusRouteTiming = { optionalDeadlineMs: STATUS_OPTIONAL_DEADLINE_MS };
+
+/** An optional part of the status response: its value (null when it failed), or `late` once the deadline passes. */
+function optionalByDeadline<T>(work: Promise<T | null>, deadlineAtMs: number): Promise<{ value: T | null; late: boolean }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<{ value: null; late: true }>(resolve => {
+    timer = setTimeout(() => resolve({ value: null, late: true }), Math.max(0, deadlineAtMs - Date.now())); });
+  return Promise.race([work.then(value => ({ value, late: false })), late]).finally(() => clearTimeout(timer));
+}
+
 router.get("/:token/status", async (req: Request, res: Response) => {
   res.setHeader("Cache-Control", "no-store");
+  const deadlineAtMs = Date.now() + statusRouteTiming.optionalDeadlineMs;
   const verifiedPayload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!verifiedPayload) {
     return res.status(404).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
@@ -1216,12 +1246,29 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // A job link authenticates the same job after a video update. Current
     // progress follows the selected immutable revision; old receipts remain.
     if (request?.active_capture_id) payload = { ...payload, captureId: request.active_capture_id };
-    const captureSession = db ? await db.collection("captureUploadSessions").doc(payload.captureId).get().catch(() => null) : null;
-    // Best-effort: an unreadable run queue is a missing rung, not a broken page.
-    // Passes are counted against the pass mark the job itself set.
-    const screening = request
-      ? await loadSceneScreening(payload.requestId, passMarkForJob(request as never, brief as never)).catch(() => null)
-      : null;
+    // Optional parts that need only the request start now and never fail the read (`optionalByDeadline`).
+    const optional = <T>(label: string, work: () => Promise<T | null>): Promise<T | null> => work().catch(error => {
+      logger.warn({ error, requestId: payload.requestId }, `Could not read the status's ${label}`); return null; });
+    const siteAdvisoryWork = payload.scope === "owner"
+      ? optional("site advisory", () => loadCurrentSiteAdvisory(payload.requestId, payload.captureId,
+        { expectedOwnerUid: request?.account_owner_uid ?? null })) : Promise.resolve(null);
+    const firstLookWork = payload.scope === "owner" && request && !request.captureRights.consent_revoked
+      ? optional("first look", () => loadFirstLookWords(payload.requestId, request.answerSource)) : Promise.resolve(null);
+    // These reads depend only on the request, not on each other.
+    const [captureSession, screening, walkthrough, footageArrivedFirst] = await Promise.all([
+      db ? db.collection("captureUploadSessions").doc(payload.captureId).get().catch(() => null) : null,
+      // Best-effort: an unreadable run queue is a missing rung, not a broken page.
+      // Passes are counted against the pass mark the job itself set.
+      request
+        ? loadSceneScreening(payload.requestId, passMarkForJob(request as never, brief as never)).catch(() => null)
+        : null,
+      savedWalkthrough(payload),
+      // A video that arrived before the job's account cannot be prepared after
+      // the account exists; its status is never read as progress (2026-10-18).
+      Boolean(request) && !request?.captureRights.consent_revoked
+        ? footageArrivedBeforeAccount(payload.requestId, request) : false,
+    ]);
+    const footageBeforeAccount = footageArrivedFirst === true;
 
     // The readiness stage, when we can compute it. Absent when there is no
     // brief yet, which `projectTaskStatus` reads as "received".
@@ -1245,7 +1292,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       }).stage;
     }
 
-    const walkthrough = await savedWalkthrough(payload);
     if (!walkthrough) {
       return res.status(503).json({ error: "The recording status could not be checked. Keep your original video and check again shortly.",
         code: "task_status_unavailable" });
@@ -1260,10 +1306,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
         : null;
-    // A video that arrived before the job's account cannot be prepared after
-    // the account exists; its status is never read as progress (2026-10-18).
-    const footageBeforeAccount = Boolean(request) && !request?.captureRights.consent_revoked
-      && await footageArrivedBeforeAccount(payload.requestId, request) === true;
     // The site's own scene preview (owner ask 2026-11-07), in every state of its job: owner
     // links only, only while its rights allow derived scenes, and only through a 15-minute
     // view ticket this owner link mints. It changes no status; it is a way to look.
@@ -1279,19 +1321,43 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // state too long. It covers uploads the Pipeline never reported on.
     const preparationOverdue = payload.scope !== "film" && !request?.captureRights.consent_revoked
       && websitePreparationOverdue(captureSession?.data()?.website_preparation_watch);
-    const sceneProgression = preparationStatus?.state === "handed_off"
-      ? await loadWebsiteSceneProgression(payload.requestId, payload.captureId) : null;
-    // The job's proposed success thresholds, for the owner to confirm: they exist only once the scene is handed off.
-    const successThresholds = payload.scope === "owner" && preparationStatus?.state === "handed_off"
-      ? await loadOwnerSuccessView(payload.requestId, payload.captureId) : null;
-    // Blueprint's proposal to move chairs or stools out of the robot's way in the simulation, for the owner only.
-    // Not gated on the live preparation read being handed_off: the proposal itself is past hand-off (the Pipeline
-    // sends one only from a screening request's completed scene, kept only on this job's verified scene intake),
-    // while that read is a bounded round trip to the Pipeline that says "unavailable" whenever it cannot be
-    // confirmed. The owner was emailed this question, so the page must show it while it waits. Rights still hide it.
-    const robotAccess = payload.scope === "owner" && !request?.captureRights.consent_revoked && !footageBeforeAccount
-      && preparationStatus?.state !== "authority_ended"
-      ? await loadRobotAccessView(payload.requestId, payload.captureId) : null;
+    const sceneProgressionWork = preparationStatus?.state === "handed_off"
+      ? loadWebsiteSceneProgression(payload.requestId, payload.captureId) : Promise.resolve(null);
+    // The site's answer needs only the preparation status read above (its robot fit).
+    const answerParams = payload.scope === "owner" && request && !request.captureRights.consent_revoked
+      ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
+        robotFit: preparationStatus?.robotFit ?? null } : null;
+    // The outlook needs only the answer's state and reason: it gets the bare answer, not the company reads after it.
+    const bareAnswerWork = bareSiteAnswerForStatus(answerParams);
+    bareAnswerWork.catch(() => undefined);
+    const ownerAnswerWork = siteAnswerForStatus(answerParams, bareAnswerWork);
+    // The job's outlook, from the one shared loader every caller uses (review, 2026-11-11), given what this read
+    // already holds so it reads the Pipeline no second time. Where this read did not read the preparation status
+    // (a video before the account, withdrawn permission) or the capture session, the loader reads them itself. A
+    // read that fails gives no outlook, and the page then shows the working screen. Reading it never queues or
+    // sends anything. Optional: it waits on the response deadline only.
+    const preparationRead = !footageBeforeAccount && !request?.captureRights.consent_revoked;
+    const outlookWork = payload.scope === "owner" && request
+      ? optional("outlook", () => import("../utils/jobOutlook").then(({ loadJobOutlook }) => loadJobOutlook(payload.requestId,
+        preparationRead && captureSession ? { record: request.answerSource, captureId: payload.captureId,
+          session: captureSession.data(), preparationStatus, sceneProgression: sceneProgressionWork, answer: bareAnswerWork,
+          brief } : undefined)))
+      : Promise.resolve(null);
+    const [sceneProgression, successThresholds, robotAccess, ownerAnswer] = await Promise.all([
+      sceneProgressionWork,
+      // The job's proposed success thresholds, for the owner to confirm: they exist only once the scene is handed off.
+      payload.scope === "owner" && preparationStatus?.state === "handed_off"
+        ? loadOwnerSuccessView(payload.requestId, payload.captureId) : null,
+      // Blueprint's proposal to move chairs or stools out of the robot's way in the simulation, for the owner only.
+      // Not gated on the live preparation read being handed_off: the proposal itself is past hand-off (the Pipeline
+      // sends one only from a screening request's completed scene, kept only on this job's verified scene intake),
+      // while that read is a bounded round trip to the Pipeline that says "unavailable" whenever it cannot be
+      // confirmed. The owner was emailed this question, so the page must show it while it waits. Rights still hide it.
+      payload.scope === "owner" && !request?.captureRights.consent_revoked && !footageBeforeAccount
+        && preparationStatus?.state !== "authority_ended"
+        ? loadRobotAccessView(payload.requestId, payload.captureId) : null,
+      ownerAnswerWork,
+    ]);
     // The site's answer to the optional question about the guessed object to move, bound to this exact source.
     const targetChoiceAnswer = payload.scope === "owner" && preparationStatus
       ? currentTaskTargetChoiceAnswer(captureSession?.data(), preparationStatus) : null;
@@ -1368,18 +1434,14 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
       : null;
 
-    const siteAdvisory = payload.scope === "owner"
-      ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId, { expectedOwnerUid: request?.account_owner_uid ?? null }) : null;
+    // The optional parts: whatever is ready by the deadline; the rest is null and the status goes out without it.
     // The per-job site assessment ended (owner decision 2026-11-11): the
     // status never advertises a retry and wakes no queue. The fields stay,
     // constant, so older pages keep reading the same shape.
-    const ownerAnswer = await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
-      ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
-        robotFit: preparationStatus?.robotFit ?? null } : null);
-    // The job's outlook, from the one shared loader every caller uses (review, 2026-11-11). A read that fails gives
-    // no outlook, and the page then shows the working screen. Reading it never queues or sends anything.
-    const outlook = payload.scope === "owner" && request
-      ? await import("../utils/jobOutlook").then(({ loadJobOutlook }) => loadJobOutlook(payload.requestId)).catch(() => null) : null;
+    const [{ value: siteAdvisory }, { value: firstLookTable }, outlookRead] = await Promise.all([
+      optionalByDeadline(siteAdvisoryWork, deadlineAtMs), optionalByDeadline(firstLookWork, deadlineAtMs),
+      optionalByDeadline(outlookWork, deadlineAtMs)]);
+    const outlook = outlookRead.value;
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
@@ -1427,10 +1489,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // The site's tap answers to the few quick questions (PACKAGE_E E1), for the owner only.
       jobFacts: payload.scope === "owner" && request && !request.captureRights.consent_revoked ? readJobFacts(request.answerSource) : null,
       // The first look as the Pipeline's published table words it (conditional rows said plainly), for the owner only.
-      firstLookTable: payload.scope === "owner" && request && !request.captureRights.consent_revoked
-        ? await loadFirstLookWords(payload.requestId, request.answerSource).catch(() => null) : null,
+      firstLookTable,
       // The job's outlook (`jobOutlook`): the one decision the page shows its screen from, for the owner only.
       outlook,
+      // The outlook missed the deadline: the page keeps its last good one rather than show a phase it does not know.
+      ...(outlookRead.late && payload.scope === "owner" && request ? { outlookLate: true } : {}),
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");

@@ -22,6 +22,9 @@ import { RUN_ENDED_WITHOUT_RESULT, testNotRunLine, type SimulationProof } from "
 import { REASON_UNSIZED, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 // Static, as every other store reader: a dynamic import of this module can bind its admin handle before it is set.
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
+import type { PublicWebsitePreparationStatus } from "./websitePreparationStatus";
+import type { TaskSceneProgression } from "./taskStatusProjection";
+import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 
 export { OUTLOOK_SENTENCES, type JobOutlook, type JobOutlookReason, type JobPhase } from "../../client/src/lib/jobOutlook";
 import { OUTLOOK_SENTENCES, type JobOutlook, type JobOutlookReason, type JobPhase } from "../../client/src/lib/jobOutlook";
@@ -177,12 +180,34 @@ export const outlookAnswerOf = (answer: SiteAnswer | null | undefined): JobOutlo
   ? { state: answer.state, unsized: answer.state === "cannot_assess" && answer.reason === REASON_UNSIZED, reason: answer.reason ?? null } : null;
 
 /**
- * The outlook read from the job's stored records and the Pipeline's verified status, for callers that hold none of
- * them (the answer emails at queue and dispatch, the sharing routes). The status route builds the same input from
- * what it has already read.
+ * What a caller has already read for this job, so the outlook does not read it again (the status route: one Pipeline
+ * preparation read per status request). Each value is as the standalone loader would have read it; a promise is
+ * awaited, and one that rejects counts as a read that failed, exactly as it does there.
  */
-export async function loadJobOutlook(requestId: string): Promise<JobOutlook> {
-  return (await loadJobOutlookDecision(requestId)).outlook;
+export interface JobOutlookKnownReads {
+  /** `inboundRequests/{id}` as stored. */
+  record: Record<string, any>;
+  /** The capture the caller read under; the reads are used only when it is the job's current capture. */
+  captureId: string;
+  /** `captureUploadSessions/{captureId}` as read (undefined when the document does not exist). */
+  session: Record<string, any> | undefined;
+  /** The Pipeline's verified preparation status, read when the session holds a website preparation. */
+  preparationStatus: PublicWebsitePreparationStatus | null;
+  /** The scene's progression, read when the preparation is handed off. */
+  sceneProgression: TaskSceneProgression | null | PromiseLike<TaskSceneProgression | null>;
+  /** The job's answer as composed from its records; null, or a rejection, when it could not be composed. */
+  answer: SiteAnswer | null | PromiseLike<SiteAnswer | null>;
+  /** The job's brief as read. */
+  brief: SiteTaskBriefRecord | null;
+}
+
+/**
+ * The outlook read from the job's stored records and the Pipeline's verified status, for callers that hold none of
+ * them (the answer emails at queue and dispatch, the sharing routes). The status route passes what it has already
+ * read (`known`), so the outlook makes no second Pipeline read.
+ */
+export async function loadJobOutlook(requestId: string, known?: JobOutlookKnownReads): Promise<JobOutlook> {
+  return (await decideJobOutlook(requestId, known, true)).outlook;
 }
 
 /**
@@ -190,53 +215,84 @@ export async function loadJobOutlook(requestId: string): Promise<JobOutlook> {
  * outlook is then the working one, and a caller that must not act on an unknown (the dispatch check) sees `certain`
  * false. Throws only when the job's own record cannot be read.
  */
-export async function loadJobOutlookDecision(requestId: string):
+export async function loadJobOutlookDecision(requestId: string, known?: JobOutlookKnownReads):
+  Promise<{ outlook: JobOutlook; certain: boolean; ending: JobOutlook | null; resultUnknown: boolean }> {
+  return decideJobOutlook(requestId, known, false);
+}
+
+/** `outlookOnly`: the caller uses the outlook alone, so a withdrawal (the outlook's first rule) ends the reads there. */
+async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads | undefined, outlookOnly: boolean):
   Promise<{ outlook: JobOutlook; certain: boolean; ending: JobOutlook | null; resultUnknown: boolean }> {
   const [{ siteWalkthroughIdentity }, { projectWebsiteCaptureRights }, { websiteRunClosure },
     { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding }, { loadSiteAnswer }] = await Promise.all([
     import("./siteWalkthrough"), import("./websiteTaskContext"),
     import("./websiteRunClosure"), import("./websiteJobWindowEnding"), import("./siteAnswer")]);
   if (!dbAdmin) throw new Error("job_outlook_unavailable");
-  const record = (await dbAdmin.collection("inboundRequests").doc(requestId).get()).data();
+  // What the caller read is used only for the job's current capture; otherwise every read is made here.
+  const given = known && known.captureId === siteWalkthroughIdentity(requestId, known.record).captureId ? known : undefined;
+  const record = given ? given.record : (await dbAdmin.collection("inboundRequests").doc(requestId).get()).data();
   if (!record) throw new Error("job_outlook_request_missing");
+  // Withdrawn: the outlook is `ended_by_site` whatever else is read (`jobOutlook`), so nothing else is read for it.
+  if (outlookOnly && projectWebsiteCaptureRights(record).consent_revoked) {
+    const input: JobOutlookInput = { consentRevoked: true, closedByOwner: false, answer: null, windowEnded: false,
+      noGrantEnded: false, preparation: null, scene: null, proof: null };
+    return { outlook: jobOutlook(input), certain: true, ending: null, resultUnknown: false };
+  }
   let uncertain = false;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
-  const session = await dbAdmin.collection("captureUploadSessions").doc(captureId).get()
+  const session = given ? given.session : await dbAdmin.collection("captureUploadSessions").doc(captureId).get()
     .then(snapshot => snapshot.data()).catch(() => { uncertain = true; return undefined; });
   let preparation: JobOutlookInput["preparation"] = null;
   let preparationTaskNotNamed = false;
   let scene: JobOutlookInput["scene"] = null;
   if (session?.website_preparation) {
-    const { loadCurrentWebsitePreparationStatus } = await import("./websitePreparationStatus");
-    const status = await loadCurrentWebsitePreparationStatus(requestId, captureId).catch(() => null);
+    const status = given ? given.preparationStatus : await import("./websitePreparationStatus")
+      .then(({ loadCurrentWebsitePreparationStatus }) => loadCurrentWebsitePreparationStatus(requestId, captureId)).catch(() => null);
     // A status that cannot be read or verified is unknown, not "before its first status".
     if (!status || status.state === "unavailable") uncertain = true;
     preparation = status ? { state: status.state, geometryOnlyEnd: status.state === "awaiting_inputs" && status.robotFit?.route === "geometry_only",
       terminalReason: status.terminalReason ?? null } : null;
     preparationTaskNotNamed = status?.taskNotNamed === true;
     if (status?.state === "handed_off") {
-      const { loadWebsiteSceneProgression } = await import("./websiteSceneProgression");
-      const progression = await loadWebsiteSceneProgression(requestId, captureId).then(value => ({ value }))
+      const read = given ? Promise.resolve(given.sceneProgression)
+        : import("./websiteSceneProgression").then(({ loadWebsiteSceneProgression }) => loadWebsiteSceneProgression(requestId, captureId));
+      const progression = await read.then(value => ({ value }))
         .catch(() => { uncertain = true; return { value: null }; });
       scene = progression.value ? { state: progression.value.state, waiting: Boolean(progression.value.progressOutcome),
         attemptFailed: progression.value.attemptFailed === true,
         ...(progression.value.sceneOutcome ? { endingKind: progression.value.sceneOutcome.kind } : {}) } : null;
     }
   }
-  let proof: SimulationProof | null = null;
-  let resultUnknown = false;
-  let runStoppedByWindow = false;
-  try {
-    const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
-      import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
-    const { managedEvidence, managedEvidenceUnavailable } = await readSiteManagedEvidence(requestId);
-    if (managedEvidenceUnavailable) { uncertain = true; resultUnknown = true; }
-    proof = managedEvidence.length ? projectSimulationProof({ evaluation: managedEvidence as never, pick: null }) : null;
-    const current = managedEvidence.find(item => item.current) ?? managedEvidence[0];
-    runStoppedByWindow = Boolean(current?.screening?.candidates?.some(row => (row.blockers ?? [])
-      .some(code => String(code).split(":")[0] === "beta_screening_authority_expired")));
-  } catch { uncertain = true; resultUnknown = true; }
-  const answer = await loadSiteAnswer(requestId).catch(() => null);
+  // The remaining reads do not depend on each other: they run together.
+  const readProof = async () => {
+    try {
+      const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
+        import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
+      const { managedEvidence, managedEvidenceUnavailable } = await readSiteManagedEvidence(requestId);
+      const current = managedEvidence.find(item => item.current) ?? managedEvidence[0];
+      return { unknown: Boolean(managedEvidenceUnavailable),
+        proof: managedEvidence.length ? projectSimulationProof({ evaluation: managedEvidence as never, pick: null }) : null,
+        runStoppedByWindow: Boolean(current?.screening?.candidates?.some(row => (row.blockers ?? [])
+          .some(code => String(code).split(":")[0] === "beta_screening_authority_expired"))) };
+    } catch { return { unknown: true, proof: null as SimulationProof | null, runStoppedByWindow: false }; }
+  };
+  const readAwaitsSiteSentence = async () => {
+    const [{ jobWaitsForItsSentence }, { getBrief, isPlaceholderSummary }] = await Promise.all([import("./jobSentenceWait"), import("./siteTaskBrief")]);
+    // An unreadable brief is no proof the site has not answered: the job is not shown as waiting on it.
+    const brief = given ? { value: given.brief } : await getBrief(requestId).then(value => ({ value }), () => null);
+    return brief !== null && jobWaitsForItsSentence({ requestId, record, brief: brief.value, preparationTaskNotNamed, isPlaceholder: isPlaceholderSummary });
+  };
+  const [evidence, answer, keptOnFile, windowEndedAtEpoch, awaitsSiteSentence] = await Promise.all([
+    readProof(),
+    (given ? Promise.resolve(given.answer) : loadSiteAnswer(requestId)).catch(() => null),
+    import("./websiteJobWindowSweep").then(({ websiteJobKeptOnFile }) => websiteJobKeptOnFile(record)),
+    import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
+      .then(window => window.endedAtEpoch ?? null).catch(() => null),
+    readAwaitsSiteSentence(),
+  ]);
+  const { proof, runStoppedByWindow } = evidence;
+  const resultUnknown = evidence.unknown;
+  if (resultUnknown) uncertain = true;
   // A closure record that does not read is unknown: neither closed nor open.
   let closedByOwner = false;
   try { closedByOwner = Boolean(websiteRunClosure(record, requestId, captureId)); } catch { uncertain = true; }
@@ -246,16 +302,10 @@ export async function loadJobOutlookDecision(requestId: string):
     answer: outlookAnswerOf(answer),
     windowEnded: Boolean(recordedWebsiteJobWindowEnding(record)),
     noGrantEnded: Boolean(recordedWebsiteJobNoGrantEnding(record, requestId)),
-    keptOnFile: (await import("./websiteJobWindowSweep")).websiteJobKeptOnFile(record),
-    windowEndedAtEpoch: await import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
-      .then(window => window.endedAtEpoch ?? null).catch(() => null),
+    keptOnFile,
+    windowEndedAtEpoch,
     runStoppedByWindow, resultUnknown,
-    awaitsSiteSentence: await (async () => {
-      const [{ jobWaitsForItsSentence }, { getBrief, isPlaceholderSummary }] = await Promise.all([import("./jobSentenceWait"), import("./siteTaskBrief")]);
-      // An unreadable brief is no proof the site has not answered: the job is not shown as waiting on it.
-      const brief = await getBrief(requestId).then(value => ({ value }), () => null);
-      return brief !== null && jobWaitsForItsSentence({ requestId, record, brief: brief.value, preparationTaskNotNamed, isPlaceholder: isPlaceholderSummary });
-    })(),
+    awaitsSiteSentence,
     preparation, scene, proof, uncertain,
   };
   const outlook = jobOutlook(input);

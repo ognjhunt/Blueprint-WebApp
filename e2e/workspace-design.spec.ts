@@ -40,6 +40,9 @@ for (const width of [1440, 390]) for (const outcome of outcomeCases) {
       return route.fallback();
     });
     await page.setViewportSize({width, height: 1024});
+    // The failed-read case below steps through the page's poll and its hold on the page's own clock.
+    const failedRead = width === 1440 && outcome.category === "processing_failure";
+    if (failedRead) await page.clock.install();
     await page.goto(`/capture-upload/${token}`);
     await expect(page.getByRole("region", {name: "Preparation outcome"})).toContainText(outcome.scope);
     await expect(page.getByText("Next action · Blueprint", {exact: true})).toHaveCount(0);
@@ -55,14 +58,22 @@ for (const width of [1440, 390]) for (const outcome of outcomeCases) {
     expect(writes).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({path: info.outputPath(`owner-outcome-${outcome.category}-${width}.png`), fullPage: true});
-    if (width === 1440 && outcome.category === "processing_failure") {
+    if (failedRead) {
       statusAvailable = false;
+      // A 503 after a good read keeps that status, said as of the time it was read (LAST_STATUS_HOLD_MS, 45 s)...
+      await page.clock.fastForward(6_000);
+      await expect(page.getByText(/^This is your job as of .+\. We could not check for anything newer just now and are trying again\.$/)).toBeVisible();
+      await expect(page.getByRole("region", {name: "Preparation outcome"})).toContainText(outcome.scope);
+      // ...and past the hold the status is unknown again.
+      await page.clock.fastForward(45_000);
       await expect(page.getByText("Checking the current job status. Your saved job remains available.", {exact: true})).toBeVisible();
+      await expect(page.getByText(/^This is your job as of /)).toHaveCount(0);
       await expect(page.getByRole("region", {name: "Preparation outcome"})).toHaveCount(0);
       await expect(page.getByText(outcome.title, {exact: true})).toHaveCount(0);
       await expect(page.getByRole("region", {name: "Confirm your job brief"})).toHaveCount(0);
       statusAvailable = true;
       stopped = false;
+      await page.clock.fastForward(6_000);
       const correction = page.getByText("Confirm your task: the one step that lets Blueprint run it", {exact: true});
       await expect(correction).toBeVisible();
       await expect(page.getByText("Blueprint is preparing your reconstruction.", {exact: true})).toBeVisible();
