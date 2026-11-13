@@ -12,8 +12,11 @@ const MAX_NO_FUNDS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 type OutOfFunds = { since_ms: number; until_ms: number; error_type: string | null; error_code: string | null; http_status: number | null };
 const outOfFunds = new Map<AgentProvider, OutOfFunds>();
 
+/** Unset, empty or blank means the default; an explicit 0 means no cool-down. */
 export function getNoFundsCooldownMs(): number {
-  const parsed = Number(process.env.BLUEPRINT_PROVIDER_NO_FUNDS_COOLDOWN_MS ?? DEFAULT_NO_FUNDS_COOLDOWN_MS);
+  const raw = (process.env.BLUEPRINT_PROVIDER_NO_FUNDS_COOLDOWN_MS ?? "").trim();
+  if (!raw) return DEFAULT_NO_FUNDS_COOLDOWN_MS;
+  const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed >= 0 ? Math.min(parsed, MAX_NO_FUNDS_COOLDOWN_MS) : DEFAULT_NO_FUNDS_COOLDOWN_MS;
 }
 

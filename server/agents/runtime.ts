@@ -40,7 +40,7 @@ import {
   readPaperclipGoalCloseoutMetadata,
 } from "./goal-closeout-contract";
 import { getTaskDefinition } from "./tasks";
-import { ACCOUNTING_ONLY_TASK_KINDS, chooseFailoverProvider, getDefaultAnthropicModel, isRemovedProviderId,
+import { ACCOUNTING_ONLY_TASK_KINDS, chooseFailoverProvider, type FailoverDecision, getDefaultAnthropicModel, isRemovedProviderId,
   isStructuredProvider } from "./provider-config";
 import { isProviderCoolingDown, markProviderOutOfFunds } from "./provider-funds";
 import { classifyProviderError, type ProviderErrorClassification } from "./provider-errors";
@@ -920,6 +920,8 @@ async function logRunEvent(
     requiresApproval?: boolean;
     latencyMs?: number;
     metadata?: Record<string, unknown>;
+    /** The provider and runtime that served the run, when they differ from the task's (a switch on no funds). */
+    servedBy?: { provider: AgentProvider; runtime: AgentProvider } | null;
   },
 ) {
   await recordOpsActionLog({
@@ -929,8 +931,8 @@ async function logRunEvent(
     action_key: params.actionKey,
     status: params.status,
     summary: params.summary,
-    provider: task.provider,
-    runtime: task.runtime,
+    provider: params.servedBy?.provider ?? task.provider,
+    runtime: params.servedBy?.runtime ?? task.runtime,
     task_kind: task.kind,
     risk_level: riskLevelForTask(task),
     reversible: !task.approval_policy.sensitive_actions.includes("destructive"),
@@ -1058,13 +1060,18 @@ function attemptLeftNoTrace(result: AgentResult<unknown> | undefined): boolean {
 /**
  * Failover on "no funds" only. When the lane's provider answers that it has
  * no funds (classifyProviderError, the decided rows), or is cooling down after
- * saying so, the run moves once to the next provider in the lane's order that
- * the data-class gate permits for the lane's data, that is configured and
- * priced, and that enforces the per-run cap (chooseFailoverProvider). A run
- * switches at most once, never after its first provider answered, called a
- * tool or may have charged anything, and the switch is recorded in the run's
- * artifacts (`provider_failover`) and logs, which the cost telemetry and run
- * history read. Any other error is returned as it was.
+ * saying so while another provider can take the run, the run moves once to
+ * the next provider in the lane's order that the data-class gate permits for
+ * the lane's data, that is configured and priced, and that enforces the
+ * per-run cap (chooseFailoverProvider). A provider cooling down with nowhere
+ * else to go is asked again: asking a provider with no funds costs nothing,
+ * and the first run after a top-up must succeed. A run switches at most once,
+ * never after its first provider answered, called a tool or may have charged
+ * anything, and the switch is recorded in the run's artifacts
+ * (`provider_failover`, with how the second attempt ended) and logs, which the
+ * cost telemetry, run history and action log read. Any other error is
+ * returned as it was. Server log lines carry ids and error codes only, never
+ * the task's text.
  */
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
@@ -1073,15 +1080,22 @@ async function executeTask<TInput, TOutput>(
   const mutationReconciliationRequired = requiresMutationReconciliation(task as unknown as Record<string, unknown>);
   const switchTo = (provider: AgentProvider): NormalizedAgentTask<TInput, TOutput> => ({ ...task, provider, runtime: provider,
     model: task.definition.model_by_provider?.[provider] || defaultModelForProvider(provider) });
+  const chooseTarget = () => chooseFailoverProvider(task.kind, task.provider, { mutationReconciliationRequired });
   const structured = isStructuredProvider(task.provider);
   let classification: ProviderErrorClassification | null = null;
   let firstResult: AgentResult<TOutput> | undefined;
   let firstError: unknown;
   let trigger: "no_funds" | "cooling_down_no_funds" | null = null;
+  let decision: FailoverDecision | null = null;
 
   if (structured && isProviderCoolingDown(task.provider)) {
-    trigger = "cooling_down_no_funds";
-  } else {
+    const target = chooseTarget();
+    if (target.provider) {
+      trigger = "cooling_down_no_funds";
+      decision = target;
+    }
+  }
+  if (!trigger) {
     try {
       firstResult = await executeTaskOnProvider(task, host);
     } catch (error) {
@@ -1096,17 +1110,17 @@ async function executeTask<TInput, TOutput>(
       markProviderOutOfFunds(task.provider, classification);
       if (structured && attemptLeftNoTrace(firstResult as AgentResult<unknown> | undefined)) trigger = "no_funds";
     }
+    if (!trigger) {
+      if (firstError !== undefined) throw firstError;
+      return firstResult!;
+    }
   }
 
-  if (!trigger) {
-    if (firstError !== undefined) throw firstError;
-    return firstResult!;
-  }
-
-  const decision = chooseFailoverProvider(task.kind, task.provider, { mutationReconciliationRequired });
+  decision ??= chooseTarget();
+  const errorFields = (value: ProviderErrorClassification | null) => ({ error_class: value?.error_class ?? null,
+    http_status: value?.status ?? null, error_type: value?.type ?? null, error_code: value?.code ?? null });
   const record = { from_provider: task.provider, from_model: task.model, trigger,
-    error: classification ? { error_class: classification.error_class, http_status: classification.status,
-      error_type: classification.type, error_code: classification.code } : null,
+    error: classification ? errorFields(classification) : null,
     to_provider: decision.provider, to_model: decision.provider ? switchTo(decision.provider).model : null,
     skipped: decision.skipped, first_attempt: firstResult ? {
       inference_reservation: (firstResult.artifacts as Record<string, unknown> | undefined)?.inference_reservation ?? null,
@@ -1115,24 +1129,60 @@ async function executeTask<TInput, TOutput>(
   const log = { event_type: "provider.failover", status: decision.provider ? "info" : "error",
     summary: decision.provider ? `Switched from ${task.provider} to ${decision.provider} after no funds`
       : `${task.provider} has no funds and no other permitted, configured, priced provider is left`, ...record };
+  // Ids and error codes only.
+  const opsFields = { runId: host?.runId ?? null, taskKind: task.kind, fromProvider: task.provider,
+    toProvider: decision.provider, trigger, errorClass: record.error?.error_class ?? null,
+    httpStatus: record.error?.http_status ?? null, errorCode: record.error?.error_code ?? null };
 
   if (!decision.provider) {
+    logger.error(opsFields, "Agent task failed: no provider with funds");
     return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
       tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
       error: `${NO_PROVIDER_WITH_FUNDS}: ${task.provider} has no funds and no other provider is permitted, configured and priced for ${task.kind}`,
-      artifacts: { ...((firstResult?.artifacts as Record<string, unknown> | undefined) ?? {}), inference_not_invoked: !firstResult,
-        provider_failover: record },
+      // True only when no request was sent to any provider in this run.
+      artifacts: { ...((firstResult?.artifacts as Record<string, unknown> | undefined) ?? {}),
+        inference_not_invoked: trigger === "cooling_down_no_funds", provider_failover: record },
       logs: [...(firstResult?.logs ?? []), log] };
   }
 
+  logger.warn(opsFields, "Agent task switched provider after no funds");
   const switched = switchTo(decision.provider);
-  const second = await executeTaskOnProvider(switched, host);
-  const secondClassification = second.status === "failed"
-    ? ((second.artifacts as Record<string, unknown> | undefined)?.provider_error as ProviderErrorClassification | undefined) ?? null : null;
+  let second: AgentResult<TOutput> | undefined;
+  let secondError: unknown;
+  // The second attempt is the last: whatever it does, no further switch.
+  try {
+    second = await executeTaskOnProvider(switched, host);
+  } catch (error) {
+    secondError = error;
+  }
+  const threw = secondError !== undefined;
+  const secondClassification = threw ? classifyProviderError(secondError, switched.provider)
+    : second!.status === "failed"
+      ? ((second!.artifacts as Record<string, unknown> | undefined)?.provider_error as ProviderErrorClassification | undefined) ?? null
+      : null;
   if (secondClassification?.error_class === "no_funds") markProviderOutOfFunds(switched.provider, secondClassification);
-  return { ...second, provider: switched.provider, runtime: switched.runtime, model: second.model || switched.model,
-    artifacts: { ...((second.artifacts as Record<string, unknown> | undefined) ?? {}), provider_failover: record },
-    logs: [...(firstResult?.logs ?? []), log, ...(second.logs ?? [])] };
+  const failoverRecord = { ...record, second_attempt: { threw, status: threw ? null : second!.status,
+    ...errorFields(secondClassification) } };
+  if (threw || second!.status === "failed") {
+    logger.error({ ...opsFields, secondAttemptThrew: threw, secondErrorClass: secondClassification?.error_class ?? null,
+      secondHttpStatus: secondClassification?.status ?? null, secondErrorCode: secondClassification?.code ?? null },
+    "Agent task failed after switching provider");
+  }
+
+  if (threw) {
+    // Recorded under the provider that last ran, with the switch, as a failed
+    // run that needs a person, never as a cheaper or healthier run.
+    const message = secondError instanceof Error ? secondError.message : "Unknown agent runtime error";
+    return { status: "failed", provider: switched.provider, runtime: switched.runtime, model: switched.model,
+      tool_mode: switched.tool_policy.mode, requires_approval: false, requires_human_review: true, error: message,
+      artifacts: { provider_failover: failoverRecord, ...(secondClassification ? { provider_error: secondClassification } : {}) },
+      logs: [...(firstResult?.logs ?? []), log, { event_type: "provider.second_attempt", status: "error",
+        summary: `${switched.provider} failed on the second attempt`, provider: switched.provider, threw: true,
+        ...errorFields(secondClassification) }] };
+  }
+  return { ...second!, provider: switched.provider, runtime: switched.runtime, model: second!.model || switched.model,
+    artifacts: { ...((second!.artifacts as Record<string, unknown> | undefined) ?? {}), provider_failover: failoverRecord },
+    logs: [...(firstResult?.logs ?? []), log, ...(second!.logs ?? [])] };
 }
 
 async function executeTaskOnProvider<TInput, TOutput>(
@@ -2191,15 +2241,21 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       }
     }
 
+    // After a switch on no funds, the row names the provider that served the run and says so.
+    const failover = (result.artifacts as Record<string, unknown> | undefined)?.provider_failover as
+      { from_provider?: string; to_provider?: string | null } | undefined;
+    const outcomeSummary = status === "completed"
+      ? `${normalizedTask.kind} completed`
+      : result.error || `${normalizedTask.kind} finished with status ${status}`;
     await logRunEvent(normalizedTaskForLogs, {
       runId,
       sessionId: options?.sessionId || normalizedTask.session_id || null,
       actionKey: "agent.run.execute",
       status: status === "failed" ? "failed" : status === "pending_approval" ? "pending_approval" : "completed",
-      summary:
-        status === "completed"
-          ? `${normalizedTask.kind} completed`
-          : result.error || `${normalizedTask.kind} finished with status ${status}`,
+      summary: failover?.to_provider
+        ? `${outcomeSummary} (switched from ${failover.from_provider} to ${failover.to_provider} after no funds)`
+        : outcomeSummary,
+      servedBy: failover ? { provider: result.provider, runtime: result.runtime } : null,
       requiresApproval: result.requires_approval,
       latencyMs,
       metadata: {

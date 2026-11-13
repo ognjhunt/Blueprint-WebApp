@@ -19,6 +19,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 }));
 vi.mock("../agents/adapters/openai-responses", () => ({ runOpenAIResponsesTask }));
 vi.mock("../agents/adapters/anthropic-agent-sdk", () => ({ runAnthropicAgentSdkTask }));
+const recordOpsActionLog = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("../agents/ops-action-logs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../agents/ops-action-logs")>()), recordOpsActionLog }));
 
 const headers = () => new Headers({ "request-id": "req_fixture" });
 const openAiError = (status: number, type: string | undefined, code: string | undefined) =>
@@ -56,6 +59,8 @@ beforeEach(async () => {
 afterEach(() => {
   runOpenAIResponsesTask.mockReset();
   runAnthropicAgentSdkTask.mockReset();
+  recordOpsActionLog.mockClear();
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.resetModules();
 });
@@ -187,5 +192,181 @@ describe("ordered lists and the Anthropic model check (S2)", () => {
     const { getAgentRuntimeConnectionMetadata } = await import("../agents/runtime-connectivity");
     expect(getAgentRuntimeConnectionMetadata().lanes.find((entry) => entry.task_kind === "robot_capability_extraction"))
       .toMatchObject({ anthropic_model_not_supported: "claude-model-without-a-row", provider: null });
+  });
+});
+
+const anthropicFirst = async () => {
+  vi.stubEnv("BLUEPRINT_ROBOT_CAPABILITY_EXTRACTION_PROVIDERS", "anthropic_agent_sdk,openai_responses");
+  vi.resetModules();
+  (await import("../agents/provider-funds")).resetProviderFundsStateForTests();
+};
+const executeRow = () => recordOpsActionLog.mock.calls.map((call) => call[0] as Record<string, unknown>)
+  .filter((row) => row.action_key === "agent.run.execute" && row.status !== "started").at(-1);
+
+describe("a second attempt that throws", () => {
+  it.each([
+    ["a server error", () => openAiError(500, "server_error", undefined), false],
+    ["its own no-funds answer", () => openAiError(429, "insufficient_quota", "insufficient_quota"), true],
+  ])("keeps the switch record and names the second provider when it throws %s", async (_name, make, cooling) => {
+    await anthropicFirst();
+    runAnthropicAgentSdkTask.mockRejectedValue(anthropicNoFunds());
+    runOpenAIResponsesTask.mockRejectedValue(make());
+    const { runAgentTask } = await import("../agents/runtime");
+    const result = await runAgentTask(lane);
+    expect(result).toMatchObject({ status: "failed", provider: "openai_responses", runtime: "openai_responses",
+      requires_human_review: true });
+    expect(result.error).toBe((make() as Error).message);
+    expect(result.artifacts?.provider_failover).toMatchObject({ from_provider: "anthropic_agent_sdk", to_provider: "openai_responses",
+      second_attempt: { threw: true, status: null, error_class: cooling ? "no_funds" : expect.any(String), http_status: cooling ? 429 : 500 } });
+    expect(result.artifacts?.provider_error).toMatchObject({ error_class: cooling ? "no_funds" : expect.any(String) });
+    expect(result.logs?.map((log) => log.event_type)).toEqual(["provider.failover", "provider.second_attempt"]);
+    expect((await import("../agents/provider-funds")).isProviderCoolingDown("openai_responses")).toBe(cooling);
+    expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+    expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+  });
+
+  it("records how a second attempt that returned ended", async () => {
+    runOpenAIResponsesTask.mockRejectedValue(openAiError(429, "insufficient_quota", "insufficient_quota"));
+    runAnthropicAgentSdkTask.mockImplementation(async (task) => completed(task));
+    const { runAgentTask } = await import("../agents/runtime");
+    const result = await runAgentTask(lane);
+    expect(result.artifacts?.provider_failover).toMatchObject({ second_attempt: { threw: false, status: "completed",
+      error_class: null, http_status: null } });
+  });
+});
+
+describe("a switch is visible to operators", () => {
+  it("names the provider that served the run in the action log and writes one warning", async () => {
+    runOpenAIResponsesTask.mockRejectedValue(openAiError(429, "insufficient_quota", "insufficient_quota"));
+    runAnthropicAgentSdkTask.mockImplementation(async (task) => completed(task));
+    const { runAgentTask } = await import("../agents/runtime");
+    const { logger } = await import("../logger");
+    const warn = vi.spyOn(logger, "warn");
+    const error = vi.spyOn(logger, "error");
+    await runAgentTask(lane);
+    expect(executeRow()).toMatchObject({ provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+      summary: expect.stringContaining("switched from openai_responses to anthropic_agent_sdk after no funds") });
+    const lines = warn.mock.calls.filter((call) => call[1] === "Agent task switched provider after no funds");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toEqual({ runId: expect.any(String), taskKind: "robot_capability_extraction", fromProvider: "openai_responses",
+      toProvider: "anthropic_agent_sdk", trigger: "no_funds", errorClass: "no_funds", httpStatus: 429, errorCode: "insufficient_quota" });
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("writes one error line when no provider with funds is left, with ids and codes only", async () => {
+    runOpenAIResponsesTask.mockRejectedValue(openAiError(429, "insufficient_quota", "insufficient_quota"));
+    const { runAgentTask } = await import("../agents/runtime");
+    const { logger } = await import("../logger");
+    const error = vi.spyOn(logger, "error");
+    await runAgentTask({ kind: "support_triage", input: { message: "Help me, Jane at 1 Main St" } } as never);
+    const lines = error.mock.calls.filter((call) => call[1] === "Agent task failed: no provider with funds");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatchObject({ taskKind: "support_triage", fromProvider: "openai_responses", toProvider: null,
+      errorClass: "no_funds", httpStatus: 429, errorCode: "insufficient_quota" });
+    expect(JSON.stringify(error.mock.calls)).not.toContain("Jane");
+    expect(executeRow()).toMatchObject({ provider: "openai_responses", status: "failed" });
+  });
+
+  it("writes one error line when the run fails after a switch", async () => {
+    await anthropicFirst();
+    runAnthropicAgentSdkTask.mockRejectedValue(anthropicNoFunds());
+    runOpenAIResponsesTask.mockRejectedValue(openAiError(500, "server_error", undefined));
+    const { runAgentTask } = await import("../agents/runtime");
+    const { logger } = await import("../logger");
+    const warn = vi.spyOn(logger, "warn");
+    const error = vi.spyOn(logger, "error");
+    await runAgentTask(lane);
+    expect(warn.mock.calls.filter((call) => call[1] === "Agent task switched provider after no funds")).toHaveLength(1);
+    const lines = error.mock.calls.filter((call) => call[1] === "Agent task failed after switching provider");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatchObject({ fromProvider: "anthropic_agent_sdk", toProvider: "openai_responses",
+      secondAttemptThrew: true, secondHttpStatus: 500 });
+    expect(error.mock.calls.filter((call) => call[1] === "Agent task failed")).toHaveLength(0);
+    expect(executeRow()).toMatchObject({ provider: "openai_responses", runtime: "openai_responses", status: "failed",
+      summary: expect.stringContaining("switched from anthropic_agent_sdk to openai_responses after no funds") });
+  });
+});
+
+describe("the cool-down never blocks a run with nowhere else to go", () => {
+  it("asks the cooling provider again when no other provider can take the run, and succeeds once it recovers", async () => {
+    runOpenAIResponsesTask.mockRejectedValueOnce(openAiError(429, "insufficient_quota", "insufficient_quota"));
+    runOpenAIResponsesTask.mockRejectedValueOnce(openAiError(429, "insufficient_quota", "insufficient_quota"));
+    runOpenAIResponsesTask.mockImplementation(async (task) => completed(task));
+    const { runAgentTask } = await import("../agents/runtime");
+    const funds = await import("../agents/provider-funds");
+    const triage = { kind: "support_triage", input: { message: "Help" } } as never;
+    const first = await runAgentTask(triage);
+    const until = funds.listProvidersOutOfFunds()[0].retry_after;
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(Date.now() + 1000);
+      const second = await runAgentTask(triage);
+      expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(2);
+      expect(first.error).toContain("no_provider_with_funds");
+      expect(second.error).toContain("no_provider_with_funds");
+      expect(funds.listProvidersOutOfFunds()[0].retry_after > until).toBe(true);
+      const third = await runAgentTask(triage);
+      expect(third.status).toBe("completed");
+      expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says no inference was invoked only when no request was sent", async () => {
+    runOpenAIResponsesTask.mockRejectedValue(openAiError(429, "insufficient_quota", "insufficient_quota"));
+    const { runAgentTask } = await import("../agents/runtime");
+    const thrown = await runAgentTask({ kind: "support_triage", input: { message: "Help" } } as never);
+    expect(thrown.artifacts?.inference_not_invoked).toBe(false);
+    runAnthropicAgentSdkTask.mockImplementation(async (task) => completed(task));
+    runOpenAIResponsesTask.mockClear();
+    const skipped = await runAgentTask(lane);
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+    expect(skipped.artifacts?.provider_failover).toMatchObject({ trigger: "cooling_down_no_funds" });
+    runAnthropicAgentSdkTask.mockImplementation(async (task) => failedNoFunds(task));
+    const none = await runAgentTask(lane);
+    expect(none.artifacts?.provider_failover).toMatchObject({ trigger: "cooling_down_no_funds", second_attempt: { error_class: "no_funds" } });
+    // Both providers are cooling down now: OpenAI is asked again, so a request was sent.
+    runOpenAIResponsesTask.mockClear();
+    const again = await runAgentTask(lane);
+    expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+    expect(again.artifacts?.inference_not_invoked).toBe(false);
+  });
+});
+
+describe("the no-funds cool-down setting", () => {
+  it.each([["", 15 * 60 * 1000], ["   ", 15 * 60 * 1000], ["0", 0], ["60000", 60000]])("%j means %i ms", async (value, expected) => {
+    vi.stubEnv("BLUEPRINT_PROVIDER_NO_FUNDS_COOLDOWN_MS", value);
+    const funds = await import("../agents/provider-funds");
+    expect(funds.getNoFundsCooldownMs()).toBe(expected);
+    funds.markProviderOutOfFunds("openai_responses", { type: null, code: null, status: 429 }, 1_000);
+    expect(funds.isProviderCoolingDown("openai_responses", 1_001)).toBe(expected > 0);
+  });
+});
+
+describe("chooseFailoverProvider", () => {
+  it("never switches to a provider that does not enforce the per-run cap, even when it is permitted, configured and listed", async () => {
+    vi.doMock("../agents/provider-privacy", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("../agents/provider-privacy")>();
+      return { ...actual, privacyDecision: ((provider, taskKind) => provider === "acp_harness"
+        ? { ...actual.privacyDecision("openai_responses", taskKind), permitted: true, blocked_by: [] }
+        : actual.privacyDecision(provider, taskKind)) as typeof actual.privacyDecision };
+    });
+    try {
+      vi.stubEnv("ACP_HARNESS_URL", "http://harness.invalid");
+      for (const [list, expected] of [["openai_responses,acp_harness", null],
+        ["openai_responses,acp_harness,anthropic_agent_sdk", "anthropic_agent_sdk"]] as const) {
+        vi.stubEnv("BLUEPRINT_ROBOT_CAPABILITY_EXTRACTION_PROVIDERS", list);
+        vi.resetModules();
+        const config = await import("../agents/provider-config");
+        expect(config.getStructuredProviderOrder("robot_capability_extraction")).toContain("acp_harness");
+        expect(config.RUN_CAP_ENFORCING_PROVIDERS.has("acp_harness")).toBe(false);
+        const decision = config.chooseFailoverProvider("robot_capability_extraction", "openai_responses");
+        expect(decision.provider).toBe(expected);
+        expect(decision.skipped).toContainEqual({ provider: "acp_harness", reason: "run_cap_not_enforced" });
+      }
+    } finally {
+      vi.doUnmock("../agents/provider-privacy");
+    }
   });
 });
