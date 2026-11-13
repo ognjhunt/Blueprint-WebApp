@@ -5,7 +5,8 @@ import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRu
 import { ingestBetaPolicyScreening, observeBetaScreeningExecutionControl, parseBetaScreeningExecutionControlRequest,
   type BetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
 import { screeningFixture, screeningRevisionLaunch, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { loadManagedJobEvidence, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
 import { jobEvidenceTaskInventoryDigest, scientificBriefDigest } from "../utils/jobEvidenceContract";
 import sourceExamples from "./fixtures/job-evidence-producer-examples.v1.json";

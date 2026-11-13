@@ -1,6 +1,6 @@
 /** Current withdrawal authority for notices that use capture-derived material. */
 import {dbAdmin as db} from '../../client/src/lib/firebaseAdmin';
-import {projectWebsiteCaptureRights} from './websiteTaskContext';
+import {projectWebsiteCaptureRights} from './websiteCaptureRights';
 import type {OutboxKind} from './captureOutbox';
 import {canNotifyCurrentWebsitePreparationIssue,resumedNoticeAsk} from './websitePreparationStatus';
 import {decryptFieldValue} from './field-encryption';

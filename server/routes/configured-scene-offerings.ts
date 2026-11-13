@@ -42,8 +42,8 @@ import {
 } from "../utils/taskEvaluationLaunchPreparationContract";
 
 import { sceneDigest, SCENE_INTAKE_COLLECTION } from "../utils/taskEvaluationSceneIntake";
-import { assertManagedOfferingForJob, jobManagedEvidenceBindingSchema, managedJobTask, loadManagedJobEvidence, readManagedJobSourceSession,
-  type JobManagedEvidenceBinding } from "../utils/jobManagedEvaluation";
+import { assertManagedOfferingForJob, managedJobTask, loadManagedJobEvidence, readManagedJobSourceSession } from "../utils/jobManagedEvaluation";
+import { jobManagedEvidenceBindingSchema, type JobManagedEvidenceBinding } from "../utils/jobManagedEvidenceBinding";
 import type { TaskItemInventoryRecord } from "../utils/taskItemInventory";
 
 const router = Router();

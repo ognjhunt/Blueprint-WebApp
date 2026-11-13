@@ -3,7 +3,8 @@ import { websitePreparationCaptureId } from "./websitePreparationRevision";
 import { z } from "zod";
 import { jobEvidenceSourceBindingSchema, jobEvidenceTaskInventoryDigest, scientificBriefDigest, scientificContext } from "./jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { preparationGrantContextDigest, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { preparationGrantContextDigest, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { preparationGrantFollowsBrief } from "./preparationGrantTask";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
@@ -17,23 +18,18 @@ import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningC
   screeningEstimateCountSentence,
   screeningEstimateRows, screeningExecutionEvidence, screeningJobCeilingRow, screeningOutcome, screeningOutcomeCaveat, screeningOutcomeSentence,
   SCREENING_PUBLICATION_V1, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V4, SCREENING_REPLANNED_BLOCKER,
-  screeningProgress, screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome,
-  type ScreeningOutcomeCaveat, type ScreeningReviewVideos } from "./betaPolicyScreeningContract";
+  screeningProgress, screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningOutcome,
+  type ScreeningReviewVideos } from "./betaPolicyScreeningContract";
 import { robotFactNotes, screeningSetupNotes } from "./screeningSetupFlagSentences";
 import { projectCandidateSelection } from "./betaCandidateSelection";
-import type { JobCandidateSelection, JobScreeningProgress } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { familyNativePreparationReference, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { navigationPreparationReference } from "./navigationSceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { predatesPlaceCorrection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 import { WILSON_CONFIDENCE_PERCENT, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
-
-export const jobManagedEvidenceBindingSchema = z.object({
-  job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
-  brief_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
-}).strict();
-export type JobManagedEvidenceBinding = z.infer<typeof jobManagedEvidenceBindingSchema>;
+import { jobManagedEvidenceBindingSchema, type JobManagedEvidenceBinding } from "./jobManagedEvidenceBinding";
+import type { ManagedJobEvidenceSummary, ScreeningPracticeRun, ScreeningSuccessRange } from "./managedJobEvidenceSummary";
 
 /** Resolve the existing canonical source pointer, never a guessed capture ID. */
 export async function readManagedJobSourceSession(record: Record<string, any> | undefined,
@@ -257,33 +253,6 @@ export function assertManagedOfferingForJob(
   }
 }
 
-export type ManagedJobEvidenceSummary = {
-  runId: string; state: string; current: boolean; resultDigest: string | null;
-  /** These results were prepared before the site picked another place for the object (`currentManagedScreeningScope`). */
-  placeCorrectedSince?: true;
-  /** A job evaluation's outcome (`screeningOutcome`); null while it still runs. */
-  outcome?: ScreeningOutcome | null;
-  /** What the outcome's sentence adds (`screeningOutcomeCaveat`); the summary already says it. */
-  outcomeCaveat?: ScreeningOutcomeCaveat;
-  /** `nextAction` is what the site may read; `opsNextAction` is staff only. */
-  summary: string; nextAction: string; opsNextAction?: string; limitations: string[]; href: string;
-  screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
-    provenance?: Pick<BetaPolicyScreeningPublication, "schema_version" | "claim_ceiling" | "source" | "generated_at"
-      | "publication_digest" | "catalog_digest" | "plan_digest">;
-    candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
-    scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
-    robotNotes?: string[];
-    successRange?: ScreeningSuccessRange; executionEvidence?: ScreeningExecutionEvidence;
-    /** How far the row's graded episodes got (publication v4); absent when the publication has none. */
-    progress?: JobScreeningProgress;
-    practiceRuns?: ScreeningPracticeRun[] }>; selection?: JobCandidateSelection;
-    /** What Blueprint's own checks recorded about the scene the run used, in plain sentences, never codes. */
-    setupNotes?: string[] };
-};
-
-/** One practice run (episode) of a candidate, with the videos kept of it; `videoId` is the video's sha256 hex. */
-export type ScreeningPracticeRun = { number: number; outcome: "success" | "failure" | "void";
-  videos: Array<{ videoId: string; camera: string; phase: "run" | "setup_check"; durationSeconds: number | null }> };
 function practiceRuns(entry: ScreeningReviewVideos | undefined): { practiceRuns?: ScreeningPracticeRun[] } {
   return entry ? { practiceRuns: entry.practice_runs.map((run, index) => ({ number: index + 1, outcome: run.outcome,
     videos: run.videos.map(video => ({ videoId: video.sha256.slice(7), camera: video.camera, phase: video.phase,
@@ -295,7 +264,6 @@ function practiceRuns(entry: ScreeningReviewVideos | undefined): { practiceRuns?
  * existing Wilson interval at its confidence level, in whole percents. Only a
  * row with scored episodes has one.
  */
-export type ScreeningSuccessRange = { lowerPercent: number; upperPercent: number; confidencePercent: number };
 export function screeningSuccessRange(succeeded: number, scored: number): ScreeningSuccessRange | undefined {
   if (!Number.isInteger(scored) || !Number.isInteger(succeeded) || scored <= 0 || succeeded < 0 || succeeded > scored) return undefined;
   return { lowerPercent: Math.round(wilsonLowerBound(succeeded, scored) * 100),

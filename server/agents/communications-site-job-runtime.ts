@@ -2,7 +2,7 @@ import { z } from "zod";
 import { communicationsDigest } from "./communications-contract";
 import { COMMUNICATIONS_DRAFT_BUDGET, estimatedDraftMicros } from "./communications-draft-budget";
 import { decryptFieldValue } from "../utils/field-encryption";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 
 /** Optional server-installed authority for the owner's original eight-hour case.
  * It never enables outreach, workers, new credentials or another customer. */

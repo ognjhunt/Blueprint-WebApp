@@ -13,6 +13,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
 const watch = await import("../utils/websitePreparationWatch");
+const { nextWebsitePreparationWatch } = await import("../utils/websitePreparationStatus");
 const { backfillWebsitePreparationWatches, scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } = await import("../utils/websitePreparationOpsAlerts");
 const { projectWebsiteSceneProgression, loadWebsiteSceneProgression, policyTestAccepted } = await import("../utils/websiteSceneProgression");
 const { recordSiteCaptureUploadIdentity } = await import("../utils/siteCaptureUploadIdentity");
@@ -45,28 +46,28 @@ describe("watch transitions", () => {
       expect(watch.websitePreparationUploadWatchFields("r1", scene, capture)).toEqual({});
   });
   it("WATCH-002 a state keeps its clock across revisions; a new state restarts it", () => {
-    const first = watch.nextWebsitePreparationWatch(null, stored("preparing"), 1_000)!;
+    const first = nextWebsitePreparationWatch(null, stored("preparing"), 1_000)!;
     expect(first).toMatchObject({ kind: "unchanged_state", state: "preparing", due_at_ms: 1_000 + 24 * HOUR });
-    expect(watch.nextWebsitePreparationWatch(first, stored("preparing", 2), 9_000)).toBe(first);
-    expect(watch.nextWebsitePreparationWatch(first, stored("capacity_delayed", 2), 9_000))
+    expect(nextWebsitePreparationWatch(first, stored("preparing", 2), 9_000)).toBe(first);
+    expect(nextWebsitePreparationWatch(first, stored("capacity_delayed", 2), 9_000))
       .toMatchObject({ state: "capacity_delayed", due_at_ms: 9_000 + 24 * HOUR });
   });
   it("WATCH-003 an ending is due at once and reported once per terminal transition", () => {
-    const ended = watch.nextWebsitePreparationWatch(null, stored("failed_terminal", 5), 1_000)!;
+    const ended = nextWebsitePreparationWatch(null, stored("failed_terminal", 5), 1_000)!;
     expect(ended).toMatchObject({ kind: "ended", due_at_ms: 1_000, terminal_reason: "budget_exhausted", attempt_count: 5 });
     const alerted = { ...ended, due_at_ms: null, alerted_at_iso: "x" };
-    expect(watch.nextWebsitePreparationWatch(alerted, stored("failed_terminal", 5), 2_000)).toBe(alerted);
-    expect(watch.nextWebsitePreparationWatch(alerted, stored("failed_terminal", 6), 2_000)).toMatchObject({ due_at_ms: 2_000 });
+    expect(nextWebsitePreparationWatch(alerted, stored("failed_terminal", 5), 2_000)).toBe(alerted);
+    expect(nextWebsitePreparationWatch(alerted, stored("failed_terminal", 6), 2_000)).toMatchObject({ due_at_ms: 2_000 });
   });
   it.each(["handed_off", "authority_ended"])("WATCH-004 %s ends the watch", final => {
-    expect(watch.nextWebsitePreparationWatch(null, stored(final), 1_000)).toBeNull();
+    expect(nextWebsitePreparationWatch(null, stored(final), 1_000)).toBeNull();
   });
   it("WATCH-005 bounds are configurable and overdue never applies to an ending", () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_PREPARATION_FIRST_STATUS_ALERT_MS", String(HOUR));
     const start = watch.websitePreparationUploadWatchFields("r1", "site-r1", "walkthrough-r1", 0)[watch.WEBSITE_PREPARATION_WATCH_FIELD];
     expect(watch.websitePreparationOverdue(start, HOUR - 1)).toBe(false);
     expect(watch.websitePreparationOverdue(start, HOUR)).toBe(true);
-    expect(watch.websitePreparationOverdue(watch.nextWebsitePreparationWatch(null, stored("failed_terminal"), 0), 99 * HOUR)).toBe(false);
+    expect(watch.websitePreparationOverdue(nextWebsitePreparationWatch(null, stored("failed_terminal"), 0), 99 * HOUR)).toBe(false);
     expect(watch.websitePreparationOverdue({ kind: "awaiting_first_status" }, 99 * HOUR)).toBe(false);
   });
   it("WATCH-006 a finished app-bundle upload (supplements included) starts the watch in its own transaction", async () => {
@@ -114,7 +115,7 @@ describe("ops alert", () => {
     expect(alert).not.toHaveBeenCalled();
   });
   it("ALERT-003 an ending alerts at once and names its reason", async () => {
-    due("walkthrough-r1", watch.nextWebsitePreparationWatch(null, stored("failed_terminal", 5), 1_000) as never);
+    due("walkthrough-r1", nextWebsitePreparationWatch(null, stored("failed_terminal", 5), 1_000) as never);
     const alert = vi.fn(async () => ({ sent: true }));
     await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 1_000, alert, email: vi.fn(async () => ({}) as never) });
     expect((alert.mock.calls[0] as unknown as [string, string])[1]).toContain("ended for good (budget_exhausted)");
@@ -215,7 +216,7 @@ describe("ops alert", () => {
   });
   it("ALERT-011 a new preparation state fences a sender's late acknowledgement", async () => {
     due("walkthrough-r1", quiet(0));
-    const replacement = watch.nextWebsitePreparationWatch(null, stored("preparing"), 3 * HOUR)!;
+    const replacement = nextWebsitePreparationWatch(null, stored("preparing"), 3 * HOUR)!;
     const alert = vi.fn(async () => { due("walkthrough-r1", replacement); return { sent: true }; });
     const email = vi.fn(async () => ({ sent: true }) as never);
     expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
@@ -238,7 +239,7 @@ describe("ops alert", () => {
     let replaced = false;
     const store = { ...sharedFakeFirestore, runTransaction: async (action: any) => {
       const result = await sharedFakeFirestore.runTransaction(action);
-      if (!replaced) { replaced = true; due("walkthrough-r1", watch.nextWebsitePreparationWatch(null, stored("preparing"), 3 * HOUR)!); }
+      if (!replaced) { replaced = true; due("walkthrough-r1", nextWebsitePreparationWatch(null, stored("preparing"), 3 * HOUR)!); }
       return result;
     } };
     const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);

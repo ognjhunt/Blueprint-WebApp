@@ -28,7 +28,7 @@ import { createHash } from "node:crypto";
 import type { CaptureSupplementBinding } from "./captureUploadToken";
 
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { websiteCaptureRetention } from "./websiteCaptureRetention";
 
 export const SITE_CAPTURE_BUNDLE_PLAN_SCHEMA = "site_capture_bundle_plan.v1";

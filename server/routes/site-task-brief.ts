@@ -89,7 +89,8 @@ import { multiStepTaskHold, taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
-import { projectWebsiteCaptureRights, loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 import { loadSceneScreening } from "../utils/agentEvalRuns";
 import { teamJobAccess } from "../utils/teamJobAccess";
@@ -297,7 +298,7 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
     if (reason === "not_listed") {
       const record = (await db?.collection("inboundRequests").doc(verified.requestId).get().catch(() => null))?.data();
       if (record) {
-        const { projectWebsiteCaptureRights } = await import("../utils/websiteTaskContext");
+        const { projectWebsiteCaptureRights } = await import("../utils/websiteCaptureRights");
         if (projectWebsiteCaptureRights(record).consent_revoked || record.capture_withdrawal) reason = "withdrawn";
       }
     }

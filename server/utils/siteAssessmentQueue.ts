@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
 import { verifiedPendingManifest, verifiedPendingMarker, originalManifestConsent } from "./websiteBrowserUploadStatus";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { advisoryContextDigest, advisoryJobId } from "./siteAssessmentContext";
 import { automationBatch } from "./automationBatch";
 import { prepareAssessmentAbandonment, hasRecentAssessmentProgress } from "./captureCoverageInferenceBudget";

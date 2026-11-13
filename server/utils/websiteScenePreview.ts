@@ -30,7 +30,7 @@ import { WEBSITE_ATLAS_CAPTURE_ID, WEBSITE_ATLAS_REQUEST_ID } from "./websiteAtl
 import { DEFAULT_VIEWER_SETTINGS, plyViewerOrientationStream, WEBSITE_ATLAS_PREVIEW_VIEW_ROUTE } from "./websiteAtlasPreviewView";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 /** The capture session field the callback writes, beside `world_reconstruction`. */
 export const SCENE_PREVIEW_FIELD = "scene_preview";

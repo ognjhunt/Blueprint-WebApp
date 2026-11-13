@@ -6,9 +6,10 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { withoutRegistryTeams } from "./betaCandidateSelection";
 import { scientificBriefDigest } from "./jobEvidenceContract";
-import { loadManagedJobEvidenceForWorkspace, type ManagedJobEvidenceSummary } from "./jobManagedEvaluation";
+import { loadManagedJobEvidenceForWorkspace } from "./jobManagedEvaluation";
+import type { ManagedJobEvidenceSummary } from "./managedJobEvidenceSummary";
 import { JobMarketplaceError } from "./jobMarketplaceWorkflow";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 /** A site job whose recording permission still stands; otherwise the refusal the job page gives. */
 export function assertSiteJob(record: Record<string, any> | undefined): asserts record is Record<string, any> {

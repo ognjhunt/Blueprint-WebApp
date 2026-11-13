@@ -6,7 +6,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 import { captureUploadIntakeReceiptSchema } from "./captureUploadForwarding";
 import { savedWalkthrough, siteWalkthroughIdentity } from "./siteWalkthrough";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { forwardJobEvidence, jobEvidenceCaptureSessionId, jobEvidenceRequestSchema,
   scientificBriefDigest, scientificContext, type JobEvidenceRequest } from "./jobEvidenceContract";
 import { acceptJobEvidencePublication } from "./jobEvidenceStore";

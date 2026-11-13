@@ -1,6 +1,6 @@
 import { inferenceProgrammeContextDigest } from "../../utils/inferenceProgrammeAdmission";
 import { scientificBriefDigest } from "../../utils/jobEvidenceContract";
-import { readCurrentTaskScreening } from "../../utils/taskScreeningEvidence";
+import { readCurrentTaskScreening } from "../../utils/currentTaskScreening";
 import { reserveCaptureCoverageInference } from "../../utils/captureCoverageInferenceBudget";
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
@@ -9,7 +9,7 @@ import { OpenAIProvider } from "@openai/agents";
 import { dbAdmin as db, storageAdmin } from "../../../client/src/lib/firebaseAdmin";
 import { decryptInboundRequestForAdmin, decryptFieldValue, isEncryptedField } from "../../utils/field-encryption";
 import { browserPendingDecisionKey, loadBrowserPending, type BrowserPending } from "../../utils/websiteBrowserPending";
-import { projectWebsiteCaptureRights } from "../../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../../utils/websiteCaptureRights";
 import { toSiteRequirement } from "../../utils/siteMatchRun";
 import { getBrief } from "../../utils/siteTaskBrief";
 import { advisoryContextDigest, assertAdvisoryJobBinding } from "../../utils/siteAssessmentContext";

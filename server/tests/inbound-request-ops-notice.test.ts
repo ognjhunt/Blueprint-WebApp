@@ -40,7 +40,8 @@ vi.mock("../utils/siteTaskBrief", () => ({
 vi.mock("../utils/siteTaskBriefReading", () => ({ readBriefFromDescription: vi.fn(async () => null) }));
 vi.mock("../utils/lifecycle-cadence", () => ({ createLifecycleCadenceForInboundRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/inboundRequestStats", () => ({ incrementInboundRequestStats: vi.fn(async () => undefined) }));
-vi.mock("../agents", () => ({ runInboundQualificationForRequest }));
+vi.mock("../agents/workflows", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest }));
 vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => undefined) }));
 
 const { submitInboundRequest } = await import("../routes/inbound-request");

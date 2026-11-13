@@ -23,7 +23,7 @@ import {
 import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
 import { resolveAccessContext } from "../utils/access-control";
 import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "../utils/jobEvidenceContract";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { currentCaptureTestbedAccess } from "../utils/currentCaptureTestbedAccess";
 import {
   parseVerifiedTaskEvaluationRunAuthorization,

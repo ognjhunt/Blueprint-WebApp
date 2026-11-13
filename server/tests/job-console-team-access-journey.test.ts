@@ -47,7 +47,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../utils/email", () => ({ sendEmail }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: vi.fn(() => { throw new Error("No model calls in the console journey"); }) }));
-vi.mock("../agents", () => ({ runInboundQualificationForRequest: vi.fn(async () => undefined) }));
+vi.mock("../agents/workflows", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/slack", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../utils/slack")>()), notifySlackInboundRequest: vi.fn(async () => undefined),
 }));

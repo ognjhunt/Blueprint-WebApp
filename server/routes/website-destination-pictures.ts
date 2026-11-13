@@ -6,7 +6,7 @@ import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { fetchDestinationPicture, verifyDestinationPictureTicket } from "../utils/websiteDestinationPicture";
 import { loadCurrentTaskTargetChoiceQuestion } from "../utils/websitePreparationStatus";
 import { websiteRunClosure } from "../utils/websiteRunClosure";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 
 const router = Router();
 const unavailable = { error: "This picture is unavailable. Open it from your job page.", code: "website_destination_picture_unavailable" };

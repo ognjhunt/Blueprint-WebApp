@@ -12,7 +12,7 @@ import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { loadManagedJobEvidence } from "../utils/jobManagedEvaluation";
-import { readCurrentTaskScreening } from "../utils/taskScreeningEvidence";
+import { readCurrentTaskScreening } from "../utils/currentTaskScreening";
 
 const store = vi.hoisted(() => ({ rows: new Map<string, any>(), teams: [] as Array<{ id: string; name: string }> }));
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({

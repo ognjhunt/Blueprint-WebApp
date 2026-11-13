@@ -1,5 +1,5 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { JobMarketplaceError } from "./jobMarketplaceWorkflow";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { jobEvidenceRequestSchema, jobEvidenceSummary, scientificBriefDigest, scientificContext, jobEvidenceCaptureSessionId, verifyJobEvidencePublication, type JobEvidencePublication } from "./jobEvidenceContract";

@@ -22,7 +22,8 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 
 const { draftBrief, saveBrief, getBrief, unresolvedGates } = await import("../utils/siteTaskBrief");
 const { planGrantedBriefRestore, restoreGrantedBrief } = await import("../utils/grantedBriefRestore");
-const { projectWebsiteCaptureRights, projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+const { projectWebsiteCaptureRights } = await import("../utils/websiteCaptureRights");
 
 const REQUEST = "req-restore";
 const inferred = { fieldId: "objectVariety", value: "single", basis: "description" as const,

@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
 
 export const SCENE_EXECUTION_WINDOW_NOTICE_SCHEMA = "task_evaluation_scene_execution_window_extension_notice.v1";
