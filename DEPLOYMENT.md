@@ -59,8 +59,7 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
   (`node-version-file: .nvmrc`), `package.json` repeats it as `engines.node`,
   and Render's native Node runtime reads either file unless a `NODE_VERSION`
   environment variable is set on the service (the dashboard value is not
-  visible from this repo). `functions/` declares Node 22 on its own
-  (`functions/package.json`, `firebase.json`).
+  visible from this repo).
 - Build command: `npm ci && npm run build`
 - Web start command: `npm start`
 - Independent production worker start command: `NODE_ENV=production node dist/worker.js`.

@@ -6,13 +6,6 @@
   "storage": {
     "rules": "storage.rules"
   },
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "blueprint-ops-relay",
-      "runtime": "nodejs22"
-    }
-  ],
   "emulators": {
     "firestore": {
       "port": 8080
