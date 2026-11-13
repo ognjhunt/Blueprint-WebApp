@@ -12,11 +12,13 @@ import {
   listRemovedProviderSettings,
   describeAutoAgentShadowProvider,
   PINNED_TASK_PROVIDERS,
+  getStructuredProviderOrder,
   type ProviderSettingRefusal,
   type StructuredProvider,
 } from "./provider-config";
 import { ENABLED_BY, LANE_DATA_CLASSES, NON_LANE_SENDS, PROVIDER_DESTINATIONS, privacyDecision, privacyDecisionForClasses } from "./provider-privacy";
 import type { AgentProvider } from "./types";
+import { listProvidersOutOfFunds } from "./provider-funds";
 import { listBuiltInAgentProfiles } from "./agent-profiles";
 import { getOpenAiConfigurationIssue } from "../utils/openaiApiHost";
 
@@ -47,9 +49,9 @@ function runtimeDefaultModel() {
 }
 
 /** What would let a lane that fails closed run, in words. */
-function enabledBy(lane: { pinned: boolean; provider: AgentProvider; data_classes: readonly string[]; permitted_providers: AgentProvider[] }) {
-  if (lane.pinned && !PROVIDER_DESTINATIONS[lane.provider]?.policy_row) {
-    return `a Privacy Policy version that names the destination of its pinned provider (${lane.provider})`;
+function enabledBy(lane: { pinned_provider: AgentProvider | null; data_classes: readonly string[] }) {
+  if (lane.pinned_provider && !PROVIDER_DESTINATIONS[lane.pinned_provider]?.policy_row) {
+    return `a Privacy Policy version that names the destination of its pinned provider (${lane.pinned_provider})`;
   }
   const named = lane.data_classes.map((dataClass) => ENABLED_BY[dataClass as keyof typeof ENABLED_BY]).filter(Boolean);
   return named[0] ?? "a Privacy Policy version that names one provider for all of this lane's data";
@@ -59,7 +61,8 @@ export function getAgentRuntimeConnectionMetadata() {
   const provider = getStructuredAutomationProvider();
   const fallbackProvider = getStructuredAutomationFallbackProvider();
 
-  const taskProviders = {} as Record<ConnectivityTaskKind, StructuredProvider>;
+  // A lane that fails closed shows no provider: nothing is sent for it.
+  const taskProviders = {} as Record<ConnectivityTaskKind, StructuredProvider | null>;
   const taskModels = {} as Record<ConnectivityTaskKind, string | null>;
   const unhonoredLaneProviders: Array<{
     task_kind: ConnectivityTaskKind;
@@ -71,8 +74,8 @@ export function getAgentRuntimeConnectionMetadata() {
 
   for (const taskKind of CONNECTIVITY_TASK_KINDS) {
     const resolution = describeStructuredAutomationProvider(taskKind);
-    taskProviders[taskKind] = resolution.provider;
-    taskModels[taskKind] = getTaskModelByProvider(taskKind)[resolution.provider] || null;
+    taskProviders[taskKind] = resolution.fails_closed ? null : resolution.provider;
+    taskModels[taskKind] = resolution.fails_closed ? null : getTaskModelByProvider(taskKind)[resolution.provider] || null;
     if (!resolution.lane_request_honored && resolution.lane_env_key && resolution.lane_request) {
       unhonoredLaneProviders.push({
         task_kind: taskKind,
@@ -91,16 +94,24 @@ export function getAgentRuntimeConnectionMetadata() {
     const lanePermitted = (Object.keys(PROVIDER_DESTINATIONS) as AgentProvider[])
       .filter((candidate) => privacyDecision(candidate, taskKind).permitted);
     const laneProvider: AgentProvider = pinned ?? resolution!.provider;
+    const failsClosed = resolution ? resolution.fails_closed
+      : lanePermitted.includes(laneProvider) ? null
+      : lanePermitted.length ? "pinned_provider_not_permitted" as const : "no_permitted_provider" as const;
     return {
       task_kind: taskKind,
-      provider: laneProvider,
+      // A lane that fails closed shows no provider: nothing is sent for it.
+      provider: failsClosed ? null : laneProvider,
       pinned: Boolean(pinned),
+      pinned_provider: pinned,
       data_classes: LANE_DATA_CLASSES[taskKind].classes,
       permitted_providers: lanePermitted,
-      fails_closed: resolution ? resolution.fails_closed
-        : lanePermitted.includes(laneProvider) ? null
-        : lanePermitted.length ? "pinned_provider_not_permitted" as const : "no_permitted_provider" as const,
+      fails_closed: failsClosed,
       refused_settings: resolution?.refused_settings ?? [],
+      // The order providers are tried in; later entries only after "no funds".
+      providers: failsClosed ? [] : resolution ? getStructuredProviderOrder(taskKind) : [laneProvider],
+      provider_list: resolution?.provider_list ?? null,
+      // A lane whose Anthropic model has no request shape or price row: Anthropic is skipped for it.
+      anthropic_model_not_supported: resolution?.anthropic_model_not_supported ?? null,
     };
   });
   const refusedProviderSettings: Array<ProviderSettingRefusal & { task_kind: AgentTaskKind }> = lanes
@@ -140,6 +151,8 @@ export function getAgentRuntimeConnectionMetadata() {
     lanes_failing_closed: lanes.filter((lane) => lane.fails_closed)
       .map((lane) => ({ task_kind: lane.task_kind, reason: lane.fails_closed!, enabled_by: enabledBy(lane) })),
     shadow_lanes: shadowLanes,
+    // Providers that answered "no funds" recently in this process, skipped until the time shown.
+    providers_out_of_funds: listProvidersOutOfFunds(),
     // Sends that are not lanes, through the same gate (for example document reading through OpenClaw).
     non_lane_sends: Object.entries(NON_LANE_SENDS).map(([name, send]) => {
       const decision = privacyDecisionForClasses(send.provider, send.classes);

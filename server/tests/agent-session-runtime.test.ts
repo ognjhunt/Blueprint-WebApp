@@ -78,6 +78,8 @@ const resolveStartupContext = vi.hoisted(() =>
 vi.mock("../agents/adapters/openai-responses", () => ({
   runOpenAIResponsesTask,
 }));
+const runAnthropicAgentSdkTask = vi.hoisted(() => vi.fn());
+vi.mock("../agents/adapters/anthropic-agent-sdk", () => ({ runAnthropicAgentSdkTask }));
 const runSiteAssessmentTask = vi.hoisted(() => vi.fn());
 vi.mock("../agents/adapters/site-assessment", () => ({ runSiteAssessmentTask }));
 
@@ -85,7 +87,7 @@ vi.mock("../agents/knowledge", () => ({
   resolveStartupContext,
 }));
 
-const failures = vi.hoisted(() => ({ sessionMarker: false, commit: false }));
+const failures = vi.hoisted(() => ({ sessionMarker: false, commit: false, sessionRead: false }));
 const privateStorage = vi.hoisted(() => ({ objects: new Map<string, string>(), available: false }));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => privateStorage.available ? {
   bucketName: "existing-private-bucket",
@@ -204,6 +206,7 @@ function createFakeDb() {
                 store[name].set(id, next);
               },
               async get() {
+                if (failures.sessionRead && name === "agentSessions") throw new Error("session read unavailable");
                 const value = store[name].get(id);
                 return {
                   exists: Boolean(value),
@@ -245,6 +248,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 beforeEach(() => {
   failures.sessionMarker = false;
   failures.commit = false;
+  failures.sessionRead = false;
   privateStorage.objects.clear();
   privateStorage.available = false;
   fake.store.agentSessions.clear();
@@ -387,6 +391,65 @@ describe("agent session runtime", () => {
     } finally {
       privacyGateState.open = true;
     }
+  }, 20_000);
+
+  it("fails a run closed, visibly, when its session cannot be read for the check", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    const runtime = await import("../agents/runtime");
+    const session = await runtime.createAgentSession({ title: "Unreadable", task_kind: "support_triage", provider: "openai_responses" });
+    failures.sessionRead = true;
+    const result = await runtime.runAgentTask({ kind: "support_triage", input: { message: "Help" }, session_id: session.id } as never,
+      { sessionId: session.id, dispatchQueuedOnFinish: false });
+    failures.sessionRead = false;
+    expect(result).toMatchObject({ status: "failed", artifacts: { inference_not_invoked: true,
+      agent_profile_refusal: { reason: "agent_run_check_unavailable" } } });
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+  });
+
+  it("skips past a queued run it cannot dispatch, marking it failed, so the session's queue continues", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    const runtime = await import("../agents/runtime");
+    const base = { session_id: null, session_key: "session:stuck", task_kind: "support_triage", provider: "openai_responses",
+      runtime: "openai_responses", model: "gpt-6-luna", status: "queued", updated_at: "timestamp" };
+    // Its private evidence is missing, so it cannot be hydrated.
+    fake.store.agentRuns.set("broken", { ...base, id: "broken", created_at: "a",
+      agent_evidence_ref: { version: 1, collection: "agentRuns", id: "broken", sha256: "b".repeat(64), fields: ["input"] } });
+    fake.store.agentRuns.set("healthy", { ...base, id: "healthy", created_at: "b",
+      input: { kind: "support_triage", provider: "openai_responses", runtime: "openai_responses", input: { message: "Help" } } });
+    const first = await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+      session_key: "session:stuck", input: { message: "First" } } as never);
+    expect({ status: first.status, error: first.error ?? null }).toEqual({ status: "completed", error: null });
+    expect(fake.store.agentRuns.get("broken")).toMatchObject({ status: "failed", error: expect.stringContaining("agent_run_dispatch_failed") });
+    expect(fake.store.agentRuns.get("healthy")?.status).toBe("completed");
+  }, 20_000);
+
+  it("records a switch on no funds where the run's cost and history are read", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+    // Anthropic first (a lane list), answering "no funds" before anything was sent back; then OpenAI.
+    vi.stubEnv("BLUEPRINT_ROBOT_CAPABILITY_EXTRACTION_PROVIDERS", "anthropic_agent_sdk,openai_responses");
+    runAnthropicAgentSdkTask.mockImplementationOnce(async (task: any) => ({ status: "failed", provider: task.provider,
+      runtime: task.runtime, model: task.model, tool_mode: "api", error: "anthropic_provider_request_failed",
+      requires_human_review: true, requires_approval: false,
+      artifacts: { provider_error: { error_class: "no_funds", provider: "anthropic_agent_sdk", sdk: "anthropic", status: 402,
+        type: "billing_error", code: null }, provider_responses: [], company_history_tool_calls: [],
+        inference_reservation: { reconciled_cost_usd: 0 } } }));
+    runOpenAIResponsesTask.mockImplementationOnce(async (task: any) => ({ status: "completed", provider: task.provider,
+      runtime: task.runtime, model: task.model, tool_mode: "api", output: { proposals: [], notFound: [], summary: "ok" },
+      raw_output_text: "{}", requires_human_review: false, requires_approval: false,
+      artifacts: { usage: { input_tokens: 1000, output_tokens: 100 } } }));
+    const runtime = await import("../agents/runtime");
+    (await import("../agents/provider-funds")).resetProviderFundsStateForTests();
+    const runId = "failover-run";
+    const result = await runtime.runAgentTask({ kind: "robot_capability_extraction", input: { robotTeamId: "t", teamName: "T",
+      currentCapability: {}, sources: [], allowedValues: {} } } as never, { runId, dispatchQueuedOnFinish: false });
+    expect({ provider: result.provider, error: result.error ?? null, calls: runOpenAIResponsesTask.mock.calls.length,
+      anthropicCalls: runAnthropicAgentSdkTask.mock.calls.length }).toEqual({ provider: "openai_responses", error: null, calls: 1, anthropicCalls: 1 });
+    const stored = fake.store.agentRuns.get(runId)!;
+    expect(stored).toMatchObject({ provider: "openai_responses", model: "gpt-6-luna",
+      artifacts: { provider_failover: { from_provider: "anthropic_agent_sdk", from_model: "claude-haiku-5-5", to_provider: "openai_responses" } } });
+    expect((stored.metadata as any).cost_telemetry).toMatchObject({ provider: "openai_responses", model: "gpt-6-luna" });
+    (await import("../agents/provider-funds")).resetProviderFundsStateForTests();
   }, 20_000);
 
   it("a retained queued run with no profile that names a removed provider is refused the same way, as a saved run", async () => {

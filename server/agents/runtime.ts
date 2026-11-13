@@ -40,7 +40,10 @@ import {
   readPaperclipGoalCloseoutMetadata,
 } from "./goal-closeout-contract";
 import { getTaskDefinition } from "./tasks";
-import { ACCOUNTING_ONLY_TASK_KINDS, getDefaultAnthropicModel, isRemovedProviderId } from "./provider-config";
+import { ACCOUNTING_ONLY_TASK_KINDS, chooseFailoverProvider, getDefaultAnthropicModel, isRemovedProviderId,
+  isStructuredProvider } from "./provider-config";
+import { isProviderCoolingDown, markProviderOutOfFunds } from "./provider-funds";
+import { classifyProviderError, type ProviderErrorClassification } from "./provider-errors";
 import type {
   AgentResult,
   AgentProvider,
@@ -974,6 +977,17 @@ function privacyGateForTask(task: NormalizedAgentTask<unknown, unknown>) {
  */
 async function disabledProfileForRun(task: { provider?: unknown; runtime?: unknown; metadata?: Record<string, unknown> | null;
   session_id?: string | null }, sessionId?: string | null): Promise<RetainedRefusal | null> {
+  // When the records cannot be read, the run fails closed and visibly.
+  try {
+    return await disabledProfileForRunUnchecked(task, sessionId);
+  } catch (error) {
+    logger.warn({ err: error }, "Agent run check could not read its session or profile; the run is refused");
+    return { reason: "agent_run_check_unavailable", removed_provider: null, saved_on: "run", profile_id: null, profile_key: null };
+  }
+}
+
+async function disabledProfileForRunUnchecked(task: { provider?: unknown; runtime?: unknown; metadata?: Record<string, unknown> | null;
+  session_id?: string | null }, sessionId?: string | null): Promise<RetainedRefusal | null> {
   const sessionRecord = sessionId || task.session_id ? await getSession((sessionId || task.session_id)!) : null;
   const managedRuntime = (task.metadata?.managedRuntime ?? null) as Record<string, unknown> | null;
   const snapshots = [managedRuntime?.profileSnapshot, managedRuntime?.agentProfileSnapshot]
@@ -1005,7 +1019,7 @@ async function disabledProfileForRun(task: { provider?: unknown; runtime?: unkno
 }
 
 type RetainedRefusal = {
-  reason: "agent_profile_provider_removed" | "agent_session_provider_removed";
+  reason: "agent_profile_provider_removed" | "agent_session_provider_removed" | "agent_run_check_unavailable";
   removed_provider: string | null;
   saved_on: "run" | "session" | "profile";
   profile_id: string | null;
@@ -1018,13 +1032,112 @@ function disabledProfileResult<TOutput>(task: { provider?: AgentProvider; runtim
     runtime: (task.runtime ?? task.provider ?? "codex_local") as AgentProvider, model: task.model ?? "unknown",
     tool_mode: (task.tool_policy?.mode ?? "api") as AgentResult<TOutput>["tool_mode"], requires_approval: false, requires_human_review: true,
     error: refusal.reason === "agent_profile_provider_removed" ? `${refusal.reason}: ${refusal.profile_key}`
+      : refusal.reason === "agent_run_check_unavailable" ? `${refusal.reason}: the run's session or profile could not be read`
       : `${refusal.reason}: saved under ${refusal.removed_provider} on the ${refusal.saved_on}`,
     artifacts: { inference_not_invoked: true, agent_profile_refusal: refusal } };
 }
 
+type ExecuteHost = { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void> };
+
+/** The typed failure when a lane's provider has no funds and no other permitted, configured, priced provider is left. */
+export const NO_PROVIDER_WITH_FUNDS = "no_provider_with_funds";
+
+/** Nothing happened that a second provider could repeat: no response, no tool call, no charge, no fenced mutation. */
+function attemptLeftNoTrace(result: AgentResult<unknown> | undefined): boolean {
+  if (!result) return true;
+  const artifacts = (result.artifacts ?? {}) as Record<string, unknown>;
+  const reservation = (artifacts.inference_reservation ?? {}) as Record<string, unknown>;
+  const responses = artifacts.provider_responses;
+  const historyCalls = artifacts.company_history_tool_calls;
+  return !(Array.isArray(responses) && responses.length)
+    && !(Array.isArray(historyCalls) && historyCalls.length)
+    && !(typeof reservation.reconciled_cost_usd === "number" && reservation.reconciled_cost_usd > 0)
+    && artifacts.mutation_reconciliation_required !== true;
+}
+
+/**
+ * Failover on "no funds" only. When the lane's provider answers that it has
+ * no funds (classifyProviderError, the decided rows), or is cooling down after
+ * saying so, the run moves once to the next provider in the lane's order that
+ * the data-class gate permits for the lane's data, that is configured and
+ * priced, and that enforces the per-run cap (chooseFailoverProvider). A run
+ * switches at most once, never after its first provider answered, called a
+ * tool or may have charged anything, and the switch is recorded in the run's
+ * artifacts (`provider_failover`) and logs, which the cost telemetry and run
+ * history read. Any other error is returned as it was.
+ */
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
-  host?: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void> },
+  host?: ExecuteHost,
+): Promise<AgentResult<TOutput>> {
+  const mutationReconciliationRequired = requiresMutationReconciliation(task as unknown as Record<string, unknown>);
+  const switchTo = (provider: AgentProvider): NormalizedAgentTask<TInput, TOutput> => ({ ...task, provider, runtime: provider,
+    model: task.definition.model_by_provider?.[provider] || defaultModelForProvider(provider) });
+  const structured = isStructuredProvider(task.provider);
+  let classification: ProviderErrorClassification | null = null;
+  let firstResult: AgentResult<TOutput> | undefined;
+  let firstError: unknown;
+  let trigger: "no_funds" | "cooling_down_no_funds" | null = null;
+
+  if (structured && isProviderCoolingDown(task.provider)) {
+    trigger = "cooling_down_no_funds";
+  } else {
+    try {
+      firstResult = await executeTaskOnProvider(task, host);
+    } catch (error) {
+      firstError = error;
+    }
+    classification = firstError !== undefined
+      ? classifyProviderError(firstError, task.provider)
+      : firstResult?.status === "failed"
+        ? ((firstResult.artifacts as Record<string, unknown> | undefined)?.provider_error as ProviderErrorClassification | undefined) ?? null
+        : null;
+    if (classification?.error_class === "no_funds") {
+      markProviderOutOfFunds(task.provider, classification);
+      if (structured && attemptLeftNoTrace(firstResult as AgentResult<unknown> | undefined)) trigger = "no_funds";
+    }
+  }
+
+  if (!trigger) {
+    if (firstError !== undefined) throw firstError;
+    return firstResult!;
+  }
+
+  const decision = chooseFailoverProvider(task.kind, task.provider, { mutationReconciliationRequired });
+  const record = { from_provider: task.provider, from_model: task.model, trigger,
+    error: classification ? { error_class: classification.error_class, http_status: classification.status,
+      error_type: classification.type, error_code: classification.code } : null,
+    to_provider: decision.provider, to_model: decision.provider ? switchTo(decision.provider).model : null,
+    skipped: decision.skipped, first_attempt: firstResult ? {
+      inference_reservation: (firstResult.artifacts as Record<string, unknown> | undefined)?.inference_reservation ?? null,
+      known_usage_subtotals: (firstResult.artifacts as Record<string, unknown> | undefined)?.known_usage_subtotals ?? null,
+    } : null };
+  const log = { event_type: "provider.failover", status: decision.provider ? "info" : "error",
+    summary: decision.provider ? `Switched from ${task.provider} to ${decision.provider} after no funds`
+      : `${task.provider} has no funds and no other permitted, configured, priced provider is left`, ...record };
+
+  if (!decision.provider) {
+    return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+      tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
+      error: `${NO_PROVIDER_WITH_FUNDS}: ${task.provider} has no funds and no other provider is permitted, configured and priced for ${task.kind}`,
+      artifacts: { ...((firstResult?.artifacts as Record<string, unknown> | undefined) ?? {}), inference_not_invoked: !firstResult,
+        provider_failover: record },
+      logs: [...(firstResult?.logs ?? []), log] };
+  }
+
+  const switched = switchTo(decision.provider);
+  const second = await executeTaskOnProvider(switched, host);
+  const secondClassification = second.status === "failed"
+    ? ((second.artifacts as Record<string, unknown> | undefined)?.provider_error as ProviderErrorClassification | undefined) ?? null : null;
+  if (secondClassification?.error_class === "no_funds") markProviderOutOfFunds(switched.provider, secondClassification);
+  return { ...second, provider: switched.provider, runtime: switched.runtime, model: second.model || switched.model,
+    artifacts: { ...((second.artifacts as Record<string, unknown> | undefined) ?? {}), provider_failover: record },
+    logs: [...(firstResult?.logs ?? []), log, ...(second.logs ?? [])] };
+}
+
+async function executeTaskOnProvider<TInput, TOutput>(
+  task: NormalizedAgentTask<TInput, TOutput>,
+  host?: ExecuteHost,
 ): Promise<AgentResult<TOutput>> {
   refuseRetiredSiteAssessment(task.kind);
   // The one point every provider call and every operator tool passes: a run of
@@ -1354,14 +1467,16 @@ function buildCompletedRunForCostTelemetry(params: {
   status: AgentRunStatus;
   createdAtIso: string;
 }): PersistedAgentRun {
+  // After a switch on "no funds" the run is costed as the provider and model that served it.
+  const switched = Boolean((params.result.artifacts as Record<string, unknown> | undefined)?.provider_failover);
   return {
     id: params.runId,
     session_id: params.sessionId || params.task.session_id || null,
     session_key: params.task.session_key || null,
     task_kind: params.task.kind,
-    provider: params.task.provider,
-    runtime: params.task.runtime,
-    model: params.task.model,
+    provider: switched ? params.result.provider : params.task.provider,
+    runtime: switched ? params.result.runtime : params.task.runtime,
+    model: switched ? params.result.model : params.task.model,
     status: params.status,
     dispatch_mode: params.task.session_policy.dispatch_mode,
     input: params.task,
@@ -1550,14 +1665,24 @@ async function markRunStatus(
   );
 }
 
-async function dispatchQueuedRuns(sessionKey: string) {
+/**
+ * Runs a session's queue in order. One bad record cannot block the queue: a
+ * run whose dispatch throws (for example a refused retained run whose
+ * "failed" mark could not be written) is logged, marked failed where that can
+ * be written, left visible, and skipped for the rest of this dispatch.
+ */
+async function dispatchQueuedRuns(sessionKey: string, skipped: Set<string> = new Set()): Promise<AgentResult<unknown> | PersistedAgentRun | null> {
   if (!db) {
     return null;
   }
 
-  const activeRun = await findActiveSessionRun(sessionKey);
-  if (activeRun && (activeRun.status === "running" || activeRun.status === "pending_approval")) {
-    return activeRun;
+  // Only the status is needed here, so the record is not hydrated: a run whose
+  // private evidence cannot be read must not stop the queue at this step.
+  const active = await db.collection("agentRuns").where("session_key", "==", sessionKey)
+    .where("status", "in", ["running", "pending_approval"]).limit(skipped.size + 1).get();
+  const activeRun = active.docs.find((doc) => !skipped.has(doc.id));
+  if (activeRun) {
+    return { id: activeRun.id, ...(activeRun.data() as object) } as PersistedAgentRun;
   }
 
   const queuedSnapshot = await db
@@ -1565,24 +1690,37 @@ async function dispatchQueuedRuns(sessionKey: string) {
     .where("session_key", "==", sessionKey)
     .where("status", "==", "queued")
     .orderBy("created_at", "asc")
-    .limit(1)
+    .limit(skipped.size + 1)
     .get();
 
-  if (queuedSnapshot.empty) {
+  const next = queuedSnapshot.docs.find((doc) => !skipped.has(doc.id));
+  if (!next) {
     return null;
   }
 
-  const runRecord = await hydrateAgentEvidence(queuedSnapshot.docs[0].data() as PersistedAgentRun, { collection: "agentRuns", id: queuedSnapshot.docs[0].id });
-  await markRunStatus(runRecord.id, "running");
-
-  const result = await runAgentTask(runRecord.input as AgentTask, {
-    runId: runRecord.id,
-    sessionId: runRecord.session_id || null,
-    dispatchQueuedOnFinish: false,
-  });
+  let result: AgentResult<unknown>;
+  try {
+    const runRecord = await hydrateAgentEvidence(next.data() as PersistedAgentRun, { collection: "agentRuns", id: next.id });
+    await markRunStatus(runRecord.id, "running");
+    result = await runAgentTask(runRecord.input as AgentTask, {
+      runId: runRecord.id,
+      sessionId: runRecord.session_id || null,
+      dispatchQueuedOnFinish: false,
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logger.warn({ runId: next.id, sessionKey, reason }, "Queued agent run could not be dispatched; skipped so the queue continues");
+    const failure = { error: `agent_run_dispatch_failed: ${reason}`, requires_human_review: true };
+    await markRunStatus(next.id, "failed", failure)
+      // A record whose evidence cannot be rewritten still gets a plain status write.
+      .catch(() => db!.collection("agentRuns").doc(next.id).set({ status: "failed", ...failure, updated_at: nowTimestamp() }, { merge: true }))
+      .catch((markError) => logger.warn({ runId: next.id, err: markError }, "Could not mark the skipped run failed; it stays visible"));
+    skipped.add(next.id);
+    return dispatchQueuedRuns(sessionKey, skipped);
+  }
 
   if (result.status !== "pending_approval") {
-    await dispatchQueuedRuns(sessionKey);
+    await dispatchQueuedRuns(sessionKey, skipped);
   }
 
   return result;
@@ -1933,6 +2071,9 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
 
     if (db) {
       await markRunStatus(runId, status, {
+        // The run's history names the provider and model that served it after a switch.
+        ...((result.artifacts as Record<string, unknown> | undefined)?.provider_failover
+          ? { provider: result.provider, runtime: result.runtime, model: result.model } : {}),
         output: result.output,
         raw_output_text: result.raw_output_text || null,
         artifacts: result.artifacts || null,

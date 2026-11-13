@@ -177,7 +177,10 @@ describe("provider resolution after the removal", () => {
     const { getAgentRuntimeConnectionMetadata } = await import("../agents/runtime-connectivity");
     const metadata = getAgentRuntimeConnectionMetadata();
     expect(metadata).toMatchObject({ provider: "openai_responses", fallback_provider: "anthropic_agent_sdk" });
-    expect(Object.values(metadata.task_providers).every((provider) => provider === "openai_responses")).toBe(true);
+    // Every reported lane is on OpenAI, except the staff lane, which fails closed and shows no provider.
+    const { operator_thread: staff, ...others } = metadata.task_providers;
+    expect(staff).toBeNull();
+    expect(Object.values(others).every((provider) => provider === "openai_responses")).toBe(true);
   });
 
   it("an OPENAI_BASE_URL naming another host makes OpenAI not configured; OpenAI's own host does not", async () => {

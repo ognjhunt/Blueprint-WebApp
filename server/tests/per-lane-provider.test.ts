@@ -137,6 +137,8 @@ describe("per-lane provider override", () => {
       refused_settings: [{ env_key: "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER", requested: "anthropic_agent_sdk",
         reason: "privacy_not_permitted", blocked_by: ["personal_info", "site_job_text"] }],
       fails_closed: "permitted_provider_not_configured",
+      anthropic_model_not_supported: null,
+      provider_list: null,
     });
   });
 
@@ -216,10 +218,11 @@ describe("runtime connectivity metadata", () => {
     const metadata = getAgentRuntimeConnectionMetadata();
     expect(metadata.task_providers.inbound_qualification).toBe("openai_responses");
     expect(metadata.task_providers.support_triage).toBe("openai_responses");
-    expect(metadata.task_providers.operator_thread).toBe("anthropic_agent_sdk");
+    // The staff lane fails closed: it shows no provider and no model.
+    expect(metadata.task_providers.operator_thread).toBeNull();
     expect(metadata.task_models.inbound_qualification).toBe("gpt-6-luna");
     expect(metadata.task_models.outbound_outreach).toBe("gpt-6-luna");
-    expect(metadata.task_models.operator_thread).toBe("claude-haiku-5-5");
+    expect(metadata.task_models.operator_thread).toBeNull();
   });
 
   it("surfaces a lane override that did not take effect", async () => {

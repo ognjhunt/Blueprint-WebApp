@@ -108,7 +108,8 @@ function listRemovedProviderSettingNames(env = process.env) {
   const names = Object.keys(env).filter((key) => String(env[key] || "").trim() && (
     /^(DEEPSEEK|ZAI|OPENROUTER)_/.test(key)
     || key === "BLUEPRINT_OPENROUTER_VIDEO_MODEL"
-    || (/^BLUEPRINT_[A-Z0-9_]+_PROVIDER$/.test(key) && REMOVED_PROVIDER_IDS.has(String(env[key]).trim()))
+    || (/^BLUEPRINT_[A-Z0-9_]+_PROVIDERS?$/.test(key)
+      && String(env[key]).split(",").some((entry) => REMOVED_PROVIDER_IDS.has(entry.trim())))
   ));
   return names.sort();
 }
