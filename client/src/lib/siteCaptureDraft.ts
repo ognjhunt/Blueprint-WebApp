@@ -81,7 +81,7 @@ export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureR
   try {
     const raw = window.localStorage.getItem(key);
     const latest = readSiteCaptureRecovery(key);
-    // Invalid/expired bytes require explicit clearing, never silent replacement.
+    // An ordinary save never replaces invalid/expired bytes: only the reset on the next load does (hydration).
     if (raw !== null && !latest) return false;
     if (latest && (latest.requestId !== value.requestId || latest.retryToken !== value.retryToken)) return false;
     if (latest?.pending) {
@@ -131,7 +131,7 @@ export async function freezeSiteCaptureRecovery(key: string | null, candidate: S
     // Read bytes explicitly: a denied read must not be mistaken for an empty slot.
     const raw = window.localStorage.getItem(key);
     const latest = readSiteCaptureRecovery(key);
-    if (raw !== null && !latest) throw new SiteCaptureRecoveryError("Saved recovery details could not be read. Use your private job link or explicitly clear this browser's draft.");
+    if (raw !== null && !latest) throw new SiteCaptureRecoveryError("Saved recovery details could not be read. Reload this page to start again, or use your private job link.");
     if (latest?.pending) {
       await writeDurableSiteCaptureRecovery(key, latest);
       return { value: latest, adopted: true };
@@ -150,12 +150,6 @@ export async function freezeSiteCaptureRecovery(key: string | null, candidate: S
 }
 export function forgetSiteCaptureRecovery(key: string | null): boolean {
   try { if (key) window.localStorage.removeItem(key); return true; } catch { return false; }
-}
-
-/** Preserve uncertainty when stored bytes are unreadable or expired. */
-export function hasSiteCaptureRecoveryBytes(key: string | null): boolean {
-  if (!key || typeof window === "undefined") return false;
-  try { return window.localStorage.getItem(key) !== null; } catch { return false; }
 }
 
 /** Call only while holding this scope's WebLock. Strict commit completes before dispatch. */
@@ -179,7 +173,12 @@ export async function writeSiteCaptureRecoveryDurably(key: string | null, value:
     throw error;
   }
 }
-/** Restore before mounting an editable form or generating a fresh identity. */
+/**
+ * Restore before mounting an editable form or generating a fresh identity. A saved copy that has expired, cannot be
+ * read, or disagrees with its durable mirror is replaced by a fresh draft, never a reason to stop the form: the site is
+ * not asked to clear its browser (owner, 2026-11-12). The server and the emailed private link remain the way back to a
+ * job that was saved.
+ */
 export async function hydrateSiteCaptureRecovery(key: string | null, isActive: () => boolean = () => true): Promise<void> {
   await withSiteCaptureRecoveryLock(key, async () => {
     if (!key || !isActive()) return;
@@ -191,12 +190,14 @@ export async function hydrateSiteCaptureRecovery(key: string | null, isActive: (
       return;
     }
     const raw = window.localStorage.getItem(key), local = readSiteCaptureRecovery(key);
-    if (raw !== null && !local) throw new SiteCaptureRecoveryError("Saved recovery details expired or could not be read.");
     const durable = mirror?.value ? validSiteCaptureRecovery(mirror.value) : null;
-    if (mirror?.value && !durable) throw new SiteCaptureRecoveryError("Saved recovery details expired or could not be read.");
-    if (local && durable && (local.requestId !== durable.requestId || local.retryToken !== durable.retryToken
-      || (local.pending && durable.pending && local.pending.body !== durable.pending.body))) {
-      throw new SiteCaptureRecoveryError("Conflicting recovery details require your private job link.");
+    const unusable = (raw !== null && !local) || (Boolean(mirror?.value) && !durable)
+      || Boolean(local && durable && (local.requestId !== durable.requestId || local.retryToken !== durable.retryToken
+        || (local.pending && durable.pending && local.pending.body !== durable.pending.body)));
+    if (unusable) {
+      // The same two-store reset a delayed writer is fenced from: tombstone, forget, then a fresh generation.
+      if (!await resetSiteCaptureRecoveryDurably(key, newSiteCaptureRecovery())) throw new SiteCaptureRecoveryError("Device recovery could not be saved.");
+      return;
     }
     let winner = local ?? durable;
     if (durable?.pending && (!local?.pending || durable.pending.acknowledged)) winner = durable;

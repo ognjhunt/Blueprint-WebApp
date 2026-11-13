@@ -213,14 +213,19 @@ it("INTAKE-REGRESSION-031: malformed failure fields retain a safe actionable err
   expect(screen.getByText(/Job reference: capture-/)).toBeInTheDocument();
   expect(screen.queryByText(/private fixture/)).toBeNull();
 });
-it("RETURN-REGRESSION-031: unreadable recovery cannot silently create a replacement job",async()=>{
-  localStorage.setItem("bp-site-capture:v1:anonymous:default","{torn-json");
+// Owner, 2026-11-12: the form never asks a site to clear its browser. A copy it cannot read starts a fresh draft, and
+// nothing is sent until the site presses the button.
+it("RETURN-REGRESSION-031: unreadable recovery starts a fresh draft and sends nothing by itself",async()=>{
+  const key="bp-site-capture:v1:anonymous:default";
+  localStorage.setItem(key,"{torn-json");
   await renderReady(<SiteCaptureStart />);
-  expect(screen.getByRole("status")).toHaveTextContent("could not safely check saved recovery");
-  expect(screen.queryByRole("form")).toBeNull();expect(sent).toHaveLength(0);
-  expect(localStorage.getItem("bp-site-capture:v1:anonymous:default")).toBe("{torn-json");
-  fireEvent.click(screen.getByRole("button",{name:"Clear this browser's draft"}));
-  await vi.waitFor(()=>expect(document.querySelector("#start-task")).toBeEnabled());
+  expect(screen.getByRole("form")).toBeInTheDocument();
+  expect(document.querySelector("#start-task")).toBeEnabled();expect(document.querySelector("#start-task")).toHaveValue("");
+  const fresh=JSON.parse(localStorage.getItem(key)!);
+  expect(fresh).toMatchObject({version:1,pending:null,draft:{task:""}});
+  expect(durability.rows.get(key)?.value).toMatchObject({requestId:fresh.requestId,pending:null});
+  expect(document.body).not.toHaveTextContent(/clear this browser|recovery details/i);
+  expect(sent).toHaveLength(0);
 });
 it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selected File or consent",async()=>{
   const helper=await import("@/lib/siteCaptureDraft");
@@ -241,8 +246,11 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
   await screen.findByRole("heading",{name:"Now film the job."});
   expect(sent).toHaveLength(1);expect(sent[0].body).toEqual(JSON.parse(winner.pending.body));expect(sender).not.toHaveBeenCalled();sender.mockRestore();
 });
-it("CROSS-TAB-013 unsupported coordination blocks dispatch with a recovery next step",async()=>{
+it("CROSS-TAB-013 unsupported coordination still shows the form, says so, and blocks dispatch with a next step",async()=>{
   vi.stubGlobal("navigator",{userAgent:"fixture"});await renderReady(<SiteCaptureStart />);
-  expect(screen.getByRole("status")).toHaveTextContent("could not safely check saved recovery");
-  expect(screen.queryByRole("form")).toBeNull();expect(sent).toHaveLength(0);
+  expect(screen.getByRole("form")).toBeInTheDocument();
+  expect(await screen.findByText(/cannot safely save or coordinate recovery details/)).toBeInTheDocument();
+  fill();submit();
+  await expect(screen.findByRole("alert")).resolves.toHaveTextContent("email hello@tryblueprint.io");
+  expect(sent).toHaveLength(0);
 });

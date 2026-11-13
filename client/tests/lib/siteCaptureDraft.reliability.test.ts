@@ -133,3 +133,32 @@ it("retains private handling across local autosave and durable restoration witho
   await hydrateSiteCaptureRecovery(key);
   expect(readSiteCaptureRecovery(key)).toMatchObject({ requestId: value.requestId, retryToken: value.retryToken, draft: { privateHandling: true } });
 });
+
+// Owner, 2026-11-12: restoring never stops the start form. A copy that is expired, unreadable or in conflict with its
+// durable mirror is replaced, in both stores, by a fresh draft; a usable copy is restored exactly as before.
+it.each([
+  ["an unreadable local copy", () => { localStorage.setItem(key, "{torn"); }],
+  ["an expired copy in both stores", () => {
+    const old = base(); old.savedAt = fixedTime - SITE_CAPTURE_DRAFT_TTL_MS;
+    localStorage.setItem(key, JSON.stringify(old)); durability.rows.set(key, { value: JSON.parse(JSON.stringify(old)), retired: false });
+  }],
+  ["an expired durable copy with no local copy", () => {
+    const old = pending(base()); old.savedAt = fixedTime - SITE_CAPTURE_DRAFT_TTL_MS - 1;
+    durability.rows.set(key, { value: JSON.parse(JSON.stringify(old)), retired: false });
+  }],
+  ["local and durable copies of two different jobs", () => {
+    writeSiteCaptureRecovery(key, pending(base()));
+    const other = pending(base()); durability.rows.set(key, { value: JSON.parse(JSON.stringify(other)), retired: false });
+  }],
+])("hydration replaces %s with a fresh draft in both stores", async (_name, arrange) => {
+  vi.stubGlobal("navigator", { locks: { request: async (_scope: string, action: () => unknown) => action() } });
+  const { hydrateSiteCaptureRecovery } = await import("@/lib/siteCaptureDraft");
+  arrange();
+  const before = localStorage.getItem(key), mirrored = durability.rows.get(key)?.value?.requestId;
+  await expect(hydrateSiteCaptureRecovery(key)).resolves.toBeUndefined();
+  const fresh = readSiteCaptureRecovery(key)!;
+  expect(fresh).toMatchObject({ pending: null, draft: { task: "", location: "", email: "" } });
+  expect(localStorage.getItem(key)).not.toBe(before);
+  if (mirrored) expect(fresh.requestId).not.toBe(mirrored);
+  expect(durability.rows.get(key)).toMatchObject({ retired: false, value: { requestId: fresh.requestId, retryToken: fresh.retryToken, pending: null } });
+});

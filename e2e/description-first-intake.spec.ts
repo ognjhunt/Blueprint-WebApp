@@ -59,7 +59,7 @@ for (const device of ["desktop", "mobile"] as const) {
       // Nothing is sent without the country and the email.
       await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
       expect(mutations).toHaveLength(0);
-      await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet."); await page.getByRole("button", { name: "Done", exact: true }).click();
+      if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
       await expect(page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true })).toHaveCount(0);
       await page.locator("#start-location").fill("Austin, TX");
       await page.locator("#start-email").fill("qa@example.invalid");

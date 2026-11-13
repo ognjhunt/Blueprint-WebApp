@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
-  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill(value); await page.getByRole("button", { name: "Done", exact: true }).click();
+  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill(value);
 }
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.resolve(process.env.RELIABILITY_DURABILITY_OUTPUT || "output/reliability-program/intake-durability");

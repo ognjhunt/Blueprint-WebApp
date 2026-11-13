@@ -22,8 +22,7 @@ import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_V4_VERSION, RECO
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
 import { AGREEING_ALSO_LINE, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO_V4, START_FORM_SHORT_CONSENT } from "@/lib/siteStartConsent";
 import { BareBack, BareButton, BareGroup, BareLabel, BareLinks, BareNotice, BareScreen, BareTicks } from "@/components/bare/Bare";
-import { BareCheck, BareField, BareFile, BareInput, BareProgress, BareSelect, BareSubmit, BareTextarea, describedBy,
-  useFocusHeading, useHashScreen } from "@/components/bare/BareForm";
+import { BareCheck, BareField, BareFile, BareInput, BareProgress, BareSelect, BareSubmit, BareTextarea, describedBy } from "@/components/bare/BareForm";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   CAPTURE_VIDEO_ACCEPT,
@@ -35,10 +34,9 @@ import {
   type VideoUploadResult,
 } from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
-import { newSiteCaptureRecovery, readSiteCaptureRecovery, writeSiteCaptureRecovery,
-  hydrateSiteCaptureRecovery, writeSiteCaptureRecoveryDurably, resetSiteCaptureRecoveryDurably,
-  forgetSiteCaptureRecovery, hasSiteCaptureRecoveryBytes, siteCaptureDraftKey, withSiteCaptureRecoveryLock,
-  freezeSiteCaptureRecovery, type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
+import { newSiteCaptureRecovery, readSiteCaptureRecovery, hydrateSiteCaptureRecovery, writeSiteCaptureRecoveryDurably,
+  resetSiteCaptureRecoveryDurably, siteCaptureDraftKey, withSiteCaptureRecoveryLock, freezeSiteCaptureRecovery,
+  type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
 
 const CONTACT_IDENTITY_STORAGE_KEY = "bp-contact-identity";
 
@@ -72,18 +70,6 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-
-type ClearStatus = "idle" | "working" | "done" | "failed";
-function ClearDraftControl({status,onClear,disabled=false}:{status:ClearStatus;onClear:()=>void;disabled?:boolean}) {
-  return <>
-    <button type="button" className="bare-inline-link" disabled={disabled || status === "working"} onClick={onClear}>
-      {status === "working" ? "Clearing…" : "Clear this browser's draft"}
-    </button>
-    {status === "working" && <p role="status" className="bare-helper">Clearing this browser's draft. Wait for confirmation before leaving this page.</p>}
-    {status === "done" && <p role="status" className="bare-helper">This browser's draft has been cleared.</p>}
-    {status === "failed" && <p role="alert" className="bare-helper">We could not confirm that this browser's draft was cleared. Stay on this page and try again before leaving a shared device.</p>}
-  </>;
-}
 
 type RestorableDraft = { location?: string; region: CaptureRegion | ""; regionManuallySet: boolean; regionFromPlace?: string };
 /**
@@ -124,58 +110,32 @@ export function SiteCaptureStart({ onSavedChange }: { onSavedChange?: (saved: bo
   const authoring = typeof window === "undefined" ? "default"
     : new URLSearchParams(window.location.search).get("authoring") || "default";
   const storageKey = loading ? null : siteCaptureDraftKey(currentUser?.uid ?? null, authoring);
-  const [hydrated, setHydrated] = useState<{key: string; ready: boolean} | null>(null);
-  const [clearState, setClearState] = useState<{key: string; epoch: number; status: ClearStatus} | null>(null);
-  const clearingScope = useRef<{key: string; epoch: number} | null>(null);
-  const currentScope = useRef({key: storageKey, epoch: 0});
-  // Returning to the same account cannot revive an intent canceled on departure.
-  if (currentScope.current.key !== storageKey) currentScope.current = {key: storageKey, epoch: currentScope.current.epoch + 1};
-  const clearStatus = clearState?.key === storageKey && clearState.epoch === currentScope.current.epoch ? clearState.status : "idle";
+  // The scope whose saved copy has been checked. The check never stops the form (owner, 2026-11-12): a copy it cannot
+  // use starts a fresh draft, and a browser that cannot check at all still gets the form, whose saving and button say
+  // what this browser cannot keep.
+  const [hydrated, setHydrated] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
-    if (storageKey) void hydrateSiteCaptureRecovery(storageKey, () => active)
-      .then(() => { if (active) setHydrated({key: storageKey, ready: true}); })
-      .catch(() => { if (active) setHydrated({key: storageKey, ready: false}); });
+    const checked = () => { if (active) setHydrated(storageKey); };
+    if (storageKey) void hydrateSiteCaptureRecovery(storageKey, () => active).then(checked, checked);
     return () => { active = false; };
   }, [storageKey]);
   useEffect(() => {
-    if (hydrated?.ready && clearState?.key === hydrated.key && clearState.status === "done") setClearState(null);
-  }, [hydrated, clearState]);
-  useEffect(() => {
-    if (loading || !hydrated?.ready || hydrated.key !== storageKey) onSavedChange?.(false);
+    if (loading || hydrated !== storageKey) onSavedChange?.(false);
   }, [loading, hydrated, storageKey, onSavedChange]);
-  if (loading || !storageKey || hydrated?.key !== storageKey) return <BareScreen><h1>Start a job</h1><p role="status">Loading your account and saved draft…</p></BareScreen>;
-  if (!hydrated.ready) return <BareScreen><h1>Start a job</h1><div className="ms-form">
-    <p role="status">This browser could not safely check saved recovery details. Use your emailed private job link to return, or a supported browser with local storage enabled.</p>
-    <ClearDraftControl status={clearStatus} onClear={async () => {
-      const intent = {key: storageKey, epoch: currentScope.current.epoch};
-      if (clearingScope.current?.key === intent.key && clearingScope.current.epoch === intent.epoch) return;
-      const isCurrent = () => currentScope.current.key === intent.key && currentScope.current.epoch === intent.epoch;
-      clearingScope.current = intent; setClearState({...intent, status: "working"});
-      try {
-        const saved = await withSiteCaptureRecoveryLock(intent.key, () => isCurrent() && resetSiteCaptureRecoveryDurably(intent.key, newSiteCaptureRecovery()));
-        if (!isCurrent()) return;
-        setClearState({...intent, status: saved ? "done" : "failed"});
-        if (saved) setHydrated({key: intent.key, ready: true});
-      } catch { if (isCurrent()) setClearState({...intent, status: "failed"}); }
-      finally { if (clearingScope.current === intent) clearingScope.current = null; }
-    }} />
-    <p className="bare-helper">Clearing removes only this device's recovery. It does not cancel or delete a saved job.</p>
-    <BareLinks links={[{ key: "person", label: "Talk to a person", href: "mailto:hello@tryblueprint.io" }]} />
-  </div></BareScreen>;
+  if (loading || !storageKey || hydrated !== storageKey) return <BareScreen><h1>Start a job</h1><p role="status">Loading your account and saved draft…</p></BareScreen>;
   // Identity changes discard later UI updates and prevent starting another upload.
-  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} cleared={clearStatus === "done"} onSavedChange={onSavedChange} />;
+  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} onSavedChange={onSavedChange} />;
 }
 
-function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { storageKey: string | null; cleared?: boolean; onSavedChange?: (saved: boolean) => void }) {
+function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: string | null; onSavedChange?: (saved: boolean) => void }) {
   const { currentUser, loading } = useAuth();
   const [stored] = useState(() => readSiteCaptureRecovery(storageKey));
-  const [recoveryUnavailable, setRecoveryUnavailable] = useState(() => !stored && hasSiteCaptureRecoveryBytes(storageKey));
   const [initial] = useState(() => stored ?? newSiteCaptureRecovery());
   const recovery = useRef<SiteCaptureRecovery>(initial);
   const [pending, setPending] = useState(initial.pending);
   const [storageAvailable, setStorageAvailable] = useState(true);
-  const [clearStatus, setClearStatus] = useState<ClearStatus>(cleared ? "done" : "idle");
+  const [startingNew, setStartingNew] = useState(false);
   const [resetVersion, setResetVersion] = useState(0);
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
@@ -199,7 +159,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     return false;
   }
   useEffect(() => {
-    if (storageKey && !recoveryUnavailable) void retain(recovery.current);
+    if (storageKey) void retain(recovery.current);
   }, [storageKey]);
   const [interactive, setInteractive] = useState(false);
   useEffect(() => setInteractive(true), []);
@@ -317,12 +277,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // never blocking. Shown when the person leaves the field or presses the button.
   const [emailHint, setEmailHint] = useState<string | null>(null);
   const hintFor = (value: string) => { const checked = checkEmail(value); return checked.ok && checked.hint ? EMAIL_HINT_SENTENCES[checked.hint] : null; };
-  // The optional details and the full statements are their own screens, in the URL's hash (the job page's pattern).
-  // "What you're agreeing to" is a screen only while the short consent line is shown; otherwise its hash is unknown
-  // and falls back to the form, never a blank screen.
-  const subScreens = useRef(START_FORM_SHORT_CONSENT ? ["details", "agreeing"] as const : ["details"] as const).current;
-  const { screen, open: openScreen, close: closeScreen } = useHashScreen(subScreens);
-  const headingRef = useFocusHeading(screen);
   // Asked because it changes what we say next, not to route them into a
   // different funnel. Existing footage gets assessed for both purposes -- does
   // it explain the job, does it cover the scene -- and reused wherever it can be.
@@ -378,7 +332,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     }
   }
   function retainDraft(place?: ChosenPlace) {
-    if (!interactive || clearStatus === "working" || recoveryUnavailable || recovery.current.pending || !formRef.current) return;
+    if (!interactive || recovery.current.pending || !formRef.current) return;
     const data = new FormData(formRef.current);
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
@@ -403,27 +357,31 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, [storageKey]);
-  async function forgetDraft() {
-    if (operationInFlight.current) return;
+  // A job this browser already saved stays one button away. Starting a different one replaces only this device's copy
+  // of it: the saved job is not touched, and its private link still opens it. Nothing is shown until both stores hold
+  // the fresh draft, so a failure leaves the saved job where it was.
+  async function startNewJob() {
+    if (operationInFlight.current || !recovery.current.pending?.acknowledged) return;
     operationInFlight.current = true;
-    setClearStatus("working");
+    setStartingNew(true);
     const fresh = newSiteCaptureRecovery();
     try {
       const saved = await withSiteCaptureRecoveryLock(storageKey, () => active.current && resetSiteCaptureRecoveryDurably(storageKey, fresh));
       if (!active.current) return;
-      if (!saved) { setStorageAvailable(false); setClearStatus("failed"); return; }
+      if (!saved) { setStorageAvailable(false); return; }
       setStorageAvailable(true);
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
-      setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setEmailError(null); setEmailHint(null); setClaudeConsent(false); setSolAgentsConsent(false);
+      setPending(null); setState({ status: "idle" }); setEmailError(null); setEmailHint(null); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); setRegionManuallySet(false); setRegionPlace(null); setCountryMissing(false); setCountryAsked(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
-      // A completion is visible only after both stores commit the fresh authority.
-      setClearStatus("done");
     } catch {
-      if (active.current) { setStorageAvailable(false); setClearStatus("failed"); }
-    } finally { operationInFlight.current = false; }
+      if (active.current) setStorageAvailable(false);
+    } finally {
+      operationInFlight.current = false;
+      if (active.current) setStartingNew(false);
+    }
   }
   // Whether the phone handoff below is worth anything here. This form is
   // filled in from whatever device is at hand, including the phone that is
@@ -445,7 +403,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       return;
     }
     const retained = recovery.current.pending;
-    if (recoveryUnavailable || operationInFlight.current || state.status === "working" || loading
+    if (operationInFlight.current || state.status === "working" || loading
       || (!retained && claudeAuthoringRequested && !claudeConsent)
       || (!retained && solAgentsRequested && !solAgentsConsent)) return;
     // Keep the existing capture-region permission without requiring an address
@@ -701,9 +659,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     {done.workspaceUrl && <p className="bare-helper"><a href={done.workspaceUrl}>Saved in your workspace</a></p>}
     {done.linkOnlyNote && <p className="bare-helper">{done.linkOnlyNote}</p>}
     <BareLinks links={!done.workspaceUrl && done.claimUrl ? [{ key: "account", label: "Save to an account", href: done.claimUrl }] : []} />
-    <div className="bare-group">
-      <ClearDraftControl status={clearStatus} onClear={forgetDraft} />
-    </div>
   </>;
   const keepLink = (to: string) => `We also emailed this private link to ${to}. Please don't forward it.`;
 
@@ -831,236 +786,212 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   };
 
   return (
-    <form key={resetVersion} ref={formRef} className="bare-start-form" method="post" noValidate onSubmit={submit} onChange={() => { if (clearStatus !== "working") setClearStatus("idle"); retainDraft(); }} aria-label="Start a site capture">
-      <div hidden={screen !== "main"}>
-        <BareScreen>
-          <BareBack href="/" />
-          {screen === "main" && <h1 ref={headingRef} tabIndex={-1}>Start a job</h1>}
-          {pending && state.status !== "working" && <div className="bare-group" aria-live="polite">
-            <BareNotice>{pending.acknowledged ? "Your job is saved. Return to the same job to check its current status." : "This submission may already be saved. Recover the same job before starting another."}</BareNotice>
-            <BareButton onClick={() => void submit()} disabled={!interactive || loading}>
-              {pending.acknowledged ? "Return to saved job" : "Recover saved job"}
-            </BareButton>
-            <p className="bare-helper">Job reference: {requestId.current}</p>
-          </div>}
-          {state.status === "failed" && pending && <p role="alert" className="bare-field-error">{state.message}</p>}
-          {recoveryUnavailable && <p role="status" className="bare-helper">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
-          {!storageAvailable && <p role="status" className="bare-helper">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
-          <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className={pending?.acknowledged && state.status !== "working" ? "contents ms-intake-return-fields" : "contents"} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
-          {claudeAuthoringRequested && (
-            <BareCheck id="start-claude-authoring" name="startClaudeAuthoring" checked={claudeConsent} onChange={setClaudeConsent}>
-              For this development test, I authorize Blueprint to send selected frames and task evidence
-              from this recording to Anthropic for Claude Opus 5.5 3D authoring. Blueprint pays the
-              bounded provider cost; this does not train a model on my recording. See Anthropic’s
-              {" "}<a href="https://www.anthropic.com/legal/commercial-terms" target="_blank" rel="noreferrer">
-                commercial API terms
-              </a>.
-            </BareCheck>
-          )}
-          {solAgentsRequested && (
-            <BareCheck id="start-sol-agents-authoring" name="startSolAgentsAuthoring" checked={solAgentsConsent} onChange={setSolAgentsConsent}>
-              For this development test, I authorize Blueprint to send selected frames and task evidence
-              to OpenAI for GPT-6.1 Sol managed-agent 3D authoring. The agent session can retain that evidence
-              until it is deleted under the configured provider policy. Blueprint pays the bounded provider cost.
-            </BareCheck>
-          )}
+    <form key={resetVersion} ref={formRef} className="bare-start-form" method="post" noValidate onSubmit={submit} onChange={() => retainDraft()} aria-label="Start a site capture">
+      <BareScreen>
+        <BareBack href="/" />
+        <h1>Start a job</h1>
+        {pending && state.status !== "working" && <div className="bare-group" aria-live="polite">
+          <BareNotice>{pending.acknowledged ? "Your job is saved. Return to the same job to check its current status." : "This submission may already be saved. Recover the same job before starting another."}</BareNotice>
+          <BareButton onClick={() => void submit()} disabled={!interactive || loading || startingNew}>
+            {pending.acknowledged ? "Return to saved job" : "Recover saved job"}
+          </BareButton>
+          <p className="bare-helper">Job reference: {requestId.current}</p>
+          {pending.acknowledged && <button type="button" className="bare-inline-link" disabled={!interactive || startingNew}
+            onClick={() => void startNewJob()}>{startingNew ? "Starting a new job…" : "Start a new job ›"}</button>}
+        </div>}
+        {state.status === "failed" && pending && <p role="alert" className="bare-field-error">{state.message}</p>}
+        {!storageAvailable && <p role="status" className="bare-helper">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
+        <fieldset disabled={!interactive || Boolean(pending)} className={pending?.acknowledged && state.status !== "working" ? "contents ms-intake-return-fields" : "contents"} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
+        {claudeAuthoringRequested && (
+          <BareCheck id="start-claude-authoring" name="startClaudeAuthoring" checked={claudeConsent} onChange={setClaudeConsent}>
+            For this development test, I authorize Blueprint to send selected frames and task evidence
+            from this recording to Anthropic for Claude Opus 5.5 3D authoring. Blueprint pays the
+            bounded provider cost; this does not train a model on my recording. See Anthropic’s
+            {" "}<a href="https://www.anthropic.com/legal/commercial-terms" target="_blank" rel="noreferrer">
+              commercial API terms
+            </a>.
+          </BareCheck>
+        )}
+        {solAgentsRequested && (
+          <BareCheck id="start-sol-agents-authoring" name="startSolAgentsAuthoring" checked={solAgentsConsent} onChange={setSolAgentsConsent}>
+            For this development test, I authorize Blueprint to send selected frames and task evidence
+            to OpenAI for GPT-6.1 Sol managed-agent 3D authoring. The agent session can retain that evidence
+            until it is deleted under the configured provider policy. Blueprint pays the bounded provider cost.
+          </BareCheck>
+        )}
 
-          {method === "upload" ? (
-            <div className="bare-field">
-              <span className="bare-label" id="start-footage-label">Video of the job</span>
-              {region === "non_us" ? (
-                <BareNotice>Hold on to the video for now. Outside the US we set up the data-transfer terms before anything is uploaded, and we will tell you when to send it.</BareNotice>
-              ) : <>
-                <BareFile id="start-footage" name="startFootage" accept={CAPTURE_VIDEO_ACCEPT} required
-                  label="Choose a video" hint=".mov or .mp4" describedBy={describedBy("start-footage", { helper: true, error: footageError })}
-                  chosen={footage ? `${footage.name} · ${formatBytes(footage.size)}` : null}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] ?? null;
-                    if (file && !isCaptureVideoFile(file)) {
-                      event.target.value = "";
-                      setFootage(null);
-                      setFootageError("That file is not a .mov or .mp4 video. Pick the video straight from your phone's library.");
-                      return;
-                    }
-                    setFootage(file);
-                    setFootageError(null);
-                  }} />
-                <p className="bare-helper" id="start-footage-help">One full round of the job.</p>
-                {footageError && <p role="alert" className="bare-field-error" id="start-footage-error">{footageError}</p>}
-              </>}
-              <button type="button" id="start-method-phone" className="bare-inline-link" onClick={() => { setMethod("phone"); setFootage(null); setFootageError(null); }}>No video yet? Film it next ›</button>
-            </div>
-          ) : (
-            <div className="bare-field">
-              <span className="bare-label">Video of the job</span>
-              <p>You film it on your phone, right after this.</p>
-              <button type="button" id="start-method-upload" className="bare-inline-link" onClick={() => setMethod("upload")}>I have a video ›</button>
-            </div>
-          )}
-
-          <BareField label="Where is the job?" htmlFor="start-location">
-            <LocationAutocomplete
-              id="start-location"
-              name="startLocation"
-              placeholder="Street address or city"
-              defaultValue={recovery.current.draft.location}
-              maxLength={300}
-              onSelectionChange={(place) => {
-                setCountryMissing(false);
-                setRegionManuallySet(false);
-                setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
-                setRegionPlace(place?.countryCode ? place.label : null);
-                if (place) retainDraft(place);
-              }}
-              onInputChange={(text) => {
-                // Privacy gate: typed text is never read for a country ("Perth, WA" is not in the US). Only a place
-                // chosen from the suggestions, or "Use my location", resolves it; typed text asks for the country.
-                setCountryMissing(false);
-                setRegionManuallySet(false);
-                setRegion("");
-                setRegionPlace(null);
-                if (text.trim()) setCountryAsked(true);
-              }}
-            />
-          </BareField>
-
-          {showCountry && (
-            <BareField label="Country of the site" htmlFor="start-region" helper="Only if the address doesn't say. No address is needed."
-              error={countryMissing && !region ? "Choose the site country so we can check recording permission." : null}>
-              <BareSelect id="start-region" name="startRegion" required value={region}
-                aria-describedby={describedBy("start-region", { helper: true, error: countryMissing && !region })}
+        {method === "upload" ? (
+          <div className="bare-field">
+            <span className="bare-label" id="start-footage-label">Video of the job</span>
+            {region === "non_us" ? (
+              <BareNotice>Hold on to the video for now. Outside the US we set up the data-transfer terms before anything is uploaded, and we will tell you when to send it.</BareNotice>
+            ) : <>
+              <BareFile id="start-footage" name="startFootage" accept={CAPTURE_VIDEO_ACCEPT} required
+                label="Choose a video" hint=".mov or .mp4" describedBy={describedBy("start-footage", { helper: true, error: footageError })}
+                chosen={footage ? `${footage.name} · ${formatBytes(footage.size)}` : null}
                 onChange={(event) => {
-                  setRegion(event.target.value as CaptureRegion | "");
-                  setRegionManuallySet(true);
-                  setRegionPlace(null);
-                  setCountryMissing(false);
-                }}>
-                <option value="">Choose the site country</option>
-                <option value="us">United States</option>
-                <option value="non_us">Outside the United States</option>
-              </BareSelect>
-            </BareField>
-          )}
-          {region === "non_us" && <div className="bare-group"><BareNotice>{captureRegionNotice}</BareNotice></div>}
-
-          {!currentUser && (
-            <BareField label="Your email" htmlFor="start-email" helper={emailHint ?? "We send your private job link here."} error={emailError}>
-              <BareInput id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required autoComplete="email" maxLength={320}
-                aria-describedby={describedBy("start-email", { helper: true, error: emailError })} aria-invalid={emailError ? true : undefined}
-                onChange={() => { if (emailError) setEmailError(null); if (emailHint) setEmailHint(null); }}
-                onBlur={(event) => setEmailHint(hintFor(event.currentTarget.value))} />
-            </BareField>
-          )}
-          {currentUser && workspaceType !== undefined && <p className="bare-helper bare-group">{siteWorkspace
-            ? `Saving to your workspace as ${currentUser.email}.`
-            : `Signed in as ${currentUser.email}, which is not a site workspace. Use the private job link we email you; saving it to a site account is optional.`}</p>}
-
-          <div className="bare-links" style={{ marginTop: 16 }}>
-            <button type="button" className="bare-link" onClick={() => openScreen("details")}>Add details (optional) ›</button>
+                  const file = event.target.files?.[0] ?? null;
+                  if (file && !isCaptureVideoFile(file)) {
+                    event.target.value = "";
+                    setFootage(null);
+                    setFootageError("That file is not a .mov or .mp4 video. Pick the video straight from your phone's library.");
+                    return;
+                  }
+                  setFootage(file);
+                  setFootageError(null);
+                }} />
+              <p className="bare-helper" id="start-footage-help">One full round of the job.</p>
+              {footageError && <p role="alert" className="bare-field-error" id="start-footage-error">{footageError}</p>}
+            </>}
+            <button type="button" id="start-method-phone" className="bare-inline-link" onClick={() => { setMethod("phone"); setFootage(null); setFootageError(null); }}>No video yet? Film it next ›</button>
           </div>
-
-          {/* Bot bait, honoured by the server. Rendered, so a script that fills every rendered input still fills it, but
-              off-screen and clipped, out of the accessibility tree, off the Tab order, and with no text a person could
-              copy (its name is an attribute, never a text node). Its name, id and label mean nothing to browser autofill, and password managers are told to skip it. */}
-          <div data-bot-trap aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "auto", width: 1, height: 1,
-            overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap" }}>
-            <input id="start-hp" name="honeypot" type="text" tabIndex={-1} autoComplete="off" defaultValue="" aria-label="Leave empty"
-              data-1p-ignore="" data-lpignore="true" data-bwignore="" data-form-type="other" />
+        ) : (
+          <div className="bare-field">
+            <span className="bare-label">Video of the job</span>
+            <p>You film it on your phone, right after this.</p>
+            <button type="button" id="start-method-upload" className="bare-inline-link" onClick={() => setMethod("upload")}>I have a video ›</button>
           </div>
+        )}
 
-          {state.status === "failed" && !pending && <div className="bare-group">
-            <p role="alert" className="bare-field-error">{state.message}</p>
-            {/* Only where the site can do nothing itself and support would need it. */}
-            {state.reference !== false && <p className="bare-helper">Job reference: {requestId.current}</p>}
-          </div>}
+        <BareField label="Where is the job?" htmlFor="start-location">
+          <LocationAutocomplete
+            id="start-location"
+            name="startLocation"
+            placeholder="Street address or city"
+            defaultValue={recovery.current.draft.location}
+            maxLength={300}
+            onSelectionChange={(place) => {
+              setCountryMissing(false);
+              setRegionManuallySet(false);
+              setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+              setRegionPlace(place?.countryCode ? place.label : null);
+              if (place) retainDraft(place);
+            }}
+            onInputChange={(text) => {
+              // Privacy gate: typed text is never read for a country ("Perth, WA" is not in the US). Only a place
+              // chosen from the suggestions, or "Use my location", resolves it; typed text asks for the country.
+              setCountryMissing(false);
+              setRegionManuallySet(false);
+              setRegion("");
+              setRegionPlace(null);
+              if (text.trim()) setCountryAsked(true);
+            }}
+          />
+        </BareField>
 
-          <div className="bare-group">
-            <BareSubmit busy={state.status === "working"} busyLabel={busyLabel}
-              disabled={!interactive || clearStatus === "working" || loading}
-              helper={START_FORM_SHORT_CONSENT ? <>
-                <p data-consent-line>{consentWithLinks(consentLine)}</p>
-                <button type="button" className="bare-inline-link" style={{ fontSize: 15 }} onClick={() => openScreen("agreeing")}>What you're agreeing to ›</button>
-              </> : <div data-consent-statements>
-                {/* The recorded statements, word for word, set compactly under the button (the versions recorded today). */}
-                <p>By pressing {submitLabel}, you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
-                  <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm:</p>
-                <ul className="bare-quote-list">
-                  <li>“{DESCRIPTION_AUTHORITY_STATEMENT}”</li>
-                  {sendsVideo && <li>“{RECORDING_RIGHTS_STATEMENT}”</li>}
-                </ul>
-                {sendsVideo && <p>{FOOTAGE_UPLOAD_NOTICE}</p>}
-              </div>}>{submitLabel}</BareSubmit>
-          </div>
+        {showCountry && (
+          <BareField label="Country of the site" htmlFor="start-region" helper="Only if the address doesn't say. No address is needed."
+            error={countryMissing && !region ? "Choose the site country so we can check recording permission." : null}>
+            <BareSelect id="start-region" name="startRegion" required value={region}
+              aria-describedby={describedBy("start-region", { helper: true, error: countryMissing && !region })}
+              onChange={(event) => {
+                setRegion(event.target.value as CaptureRegion | "");
+                setRegionManuallySet(true);
+                setRegionPlace(null);
+                setCountryMissing(false);
+              }}>
+              <option value="">Choose the site country</option>
+              <option value="us">United States</option>
+              <option value="non_us">Outside the United States</option>
+            </BareSelect>
+          </BareField>
+        )}
+        {region === "non_us" && <div className="bare-group"><BareNotice>{captureRegionNotice}</BareNotice></div>}
 
-          {uploadPercent !== null && <div className="bare-group">
-            <BareProgress percent={uploadPercent} label="Video upload progress" note="Keep this page open until the video has finished uploading." />
-          </div>}
-          </fieldset>
-          <div className="bare-group">
-            <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
-          </div>
-          <noscript><p>Enable JavaScript to start a job, or contact <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a> about your job.</p></noscript>
-        </BareScreen>
-      </div>
+        {!currentUser && (
+          <BareField label="Your email" htmlFor="start-email" helper={emailHint ?? "We send your private job link here."} error={emailError}>
+            <BareInput id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required autoComplete="email" maxLength={320}
+              aria-describedby={describedBy("start-email", { helper: true, error: emailError })} aria-invalid={emailError ? true : undefined}
+              onChange={() => { if (emailError) setEmailError(null); if (emailHint) setEmailHint(null); }}
+              onBlur={(event) => setEmailHint(hintFor(event.currentTarget.value))} />
+          </BareField>
+        )}
+        {currentUser && workspaceType !== undefined && <p className="bare-helper bare-group">{siteWorkspace
+          ? `Saving to your workspace as ${currentUser.email}.`
+          : `Signed in as ${currentUser.email}, which is not a site workspace. Use the private job link we email you; saving it to a site account is optional.`}</p>}
 
-      <div hidden={screen !== "details"}>
-        <BareScreen>
-          <BareBack onClick={closeScreen} />
-          {screen === "details" && <h1 ref={headingRef} tabIndex={-1}>Details (optional)</h1>}
-          <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
-            <BareField label="The job in one sentence" htmlFor="start-task"
-              helper={<>We write this from your video if you leave it empty. Typing here confirms: “{TASK_CONFIRMATION_STATEMENT}”</>}>
-              <BareTextarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2}
-                aria-describedby="start-task-help" placeholder="For example, put each packed carton at the end of the table" />
-            </BareField>
-            <BareField label="What counts as success?" htmlFor="start-success">
-              <BareInput id="start-success" name="startSuccess" type="text" maxLength={1000}
-                defaultValue={recovery.current.draft.successDefinition ?? ""}
-                placeholder="For example, the carton reaches the end of the table upright" />
-            </BareField>
-            <BareField label="How often does it happen?" htmlFor="start-frequency">
-              <BareInput id="start-frequency" name="startFrequency" type="text" maxLength={120}
-                defaultValue={recovery.current.draft.jobFrequency ?? ""}
-                placeholder="For example, 200 items per shift" />
-            </BareField>
-            <BareField label="Where are you in the process?" htmlFor="start-readiness" helper="Submitting does not authorize spending.">
-              <BareSelect id="start-readiness" name="startReadiness" defaultValue={recovery.current.draft.purchaseReadiness ?? ""} aria-describedby="start-readiness-help">
-                <option value="">Not sure yet</option>
-                <option value="exploring">Exploring whether automation makes sense</option>
-                <option value="planning">Planning a pilot</option>
-                <option value="ready_for_proposals">Ready to run a pilot</option>
-              </BareSelect>
-            </BareField>
-          </fieldset>
-          <BareGroup>
-            <BareButton onClick={closeScreen}>Done</BareButton>
-          </BareGroup>
-        </BareScreen>
-      </div>
+        {/* The optional details open in place, under the fields they add to (owner, 2026-11-12: a drop-down, not a
+            screen of their own). A closed disclosure still sends its fields, so a restored sentence is never lost. */}
+        <details className="bare-disclosure" style={{ marginTop: 16 }}>
+          <summary>Add details (optional)</summary>
+          <BareField label="The job in one sentence" htmlFor="start-task"
+            helper={<>We write this from your video if you leave it empty. Typing here confirms: “{TASK_CONFIRMATION_STATEMENT}”</>}>
+            <BareTextarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2}
+              aria-describedby="start-task-help" placeholder="For example, put each packed carton at the end of the table" />
+          </BareField>
+          <BareField label="What counts as success?" htmlFor="start-success">
+            <BareInput id="start-success" name="startSuccess" type="text" maxLength={1000}
+              defaultValue={recovery.current.draft.successDefinition ?? ""}
+              placeholder="For example, the carton reaches the end of the table upright" />
+          </BareField>
+          <BareField label="How often does it happen?" htmlFor="start-frequency">
+            <BareInput id="start-frequency" name="startFrequency" type="text" maxLength={120}
+              defaultValue={recovery.current.draft.jobFrequency ?? ""}
+              placeholder="For example, 200 items per shift" />
+          </BareField>
+          <BareField label="Where are you in the process?" htmlFor="start-readiness" helper="Submitting does not authorize spending.">
+            <BareSelect id="start-readiness" name="startReadiness" defaultValue={recovery.current.draft.purchaseReadiness ?? ""} aria-describedby="start-readiness-help">
+              <option value="">Not sure yet</option>
+              <option value="exploring">Exploring whether automation makes sense</option>
+              <option value="planning">Planning a pilot</option>
+              <option value="ready_for_proposals">Ready to run a pilot</option>
+            </BareSelect>
+          </BareField>
+        </details>
 
-      {START_FORM_SHORT_CONSENT && <div hidden={screen !== "agreeing"}>
-        <BareScreen>
-          <BareBack onClick={closeScreen} />
-          {screen === "agreeing" && <h1 ref={headingRef} tabIndex={-1}>What you're agreeing to</h1>}
-          <BareGroup label="Statements">
-            <BareLabel as="h2">You agree</BareLabel>
-            <blockquote className="bare-quote">“{consentLine}”</blockquote>
-          </BareGroup>
-          {sendsVideo && <BareGroup>
-            <BareLabel as="h2">Your video</BareLabel>
-            <p>{FOOTAGE_UPLOAD_NOTICE}</p>
-          </BareGroup>}
-          <BareGroup>
-            <BareLabel as="h2">If you write the job in one sentence</BareLabel>
-            <blockquote className="bare-quote">“{TASK_CONFIRMATION_STATEMENT}”</blockquote>
-          </BareGroup>
-          <BareGroup>
-            <BareLabel as="h2">Also</BareLabel>
-            <p>{consentWithLinks(AGREEING_ALSO_LINE)}</p>
-          </BareGroup>
-          <BareLinks links={[{ key: "back", label: "Back to the form", onClick: closeScreen }]} />
-        </BareScreen>
-      </div>}
+        {/* Bot bait, honoured by the server. Rendered, so a script that fills every rendered input still fills it, but
+            off-screen and clipped, out of the accessibility tree, off the Tab order, and with no text a person could
+            copy (its name is an attribute, never a text node). Its name, id and label mean nothing to browser autofill, and password managers are told to skip it. */}
+        <div data-bot-trap aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "auto", width: 1, height: 1,
+          overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap" }}>
+          <input id="start-hp" name="honeypot" type="text" tabIndex={-1} autoComplete="off" defaultValue="" aria-label="Leave empty"
+            data-1p-ignore="" data-lpignore="true" data-bwignore="" data-form-type="other" />
+        </div>
+
+        {state.status === "failed" && !pending && <div className="bare-group">
+          <p role="alert" className="bare-field-error">{state.message}</p>
+          {/* Only where the site can do nothing itself and support would need it. */}
+          {state.reference !== false && <p className="bare-helper">Job reference: {requestId.current}</p>}
+        </div>}
+
+        <div className="bare-group">
+          <BareSubmit busy={state.status === "working"} busyLabel={busyLabel}
+            disabled={!interactive || loading}
+            helper={START_FORM_SHORT_CONSENT ? <>
+              <p data-consent-line>{consentWithLinks(consentLine)}</p>
+              {/* The rest of what pressing agrees to opens in place, under the line it adds to (owner, 2026-11-12).
+                  The line itself is the recorded statement, so it is not repeated inside. */}
+              <details className="bare-disclosure" data-agreeing>
+                <summary style={{ fontSize: 15 }}>What you're agreeing to</summary>
+                <div className="bare-disclosure-body">
+                  {sendsVideo && <>
+                    <BareLabel>Your video</BareLabel>
+                    <p>{FOOTAGE_UPLOAD_NOTICE}</p>
+                  </>}
+                  <BareLabel>If you write the job in one sentence</BareLabel>
+                  <blockquote className="bare-quote">“{TASK_CONFIRMATION_STATEMENT}”</blockquote>
+                  <BareLabel>Also</BareLabel>
+                  <p>{consentWithLinks(AGREEING_ALSO_LINE)}</p>
+                </div>
+              </details>
+            </> : <div data-consent-statements>
+              {/* The recorded statements, word for word, set compactly under the button (the versions recorded today). */}
+              <p>By pressing {submitLabel}, you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
+                <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm:</p>
+              <ul className="bare-quote-list">
+                <li>“{DESCRIPTION_AUTHORITY_STATEMENT}”</li>
+                {sendsVideo && <li>“{RECORDING_RIGHTS_STATEMENT}”</li>}
+              </ul>
+              {sendsVideo && <p>{FOOTAGE_UPLOAD_NOTICE}</p>}
+            </div>}>{submitLabel}</BareSubmit>
+        </div>
+
+        {uploadPercent !== null && <div className="bare-group">
+          <BareProgress percent={uploadPercent} label="Video upload progress" note="Keep this page open until the video has finished uploading." />
+        </div>}
+        </fieldset>
+        <noscript><p>Enable JavaScript to start a job, or contact <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a> about your job.</p></noscript>
+      </BareScreen>
     </form>
   );
 }
