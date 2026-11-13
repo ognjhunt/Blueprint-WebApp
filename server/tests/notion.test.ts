@@ -15,7 +15,7 @@ import {
   resolveRepoKnowledgeLastReviewed,
   normalizeWorkQueueItem,
   planNotionUpsert,
-} from "./notion.js";
+} from "../utils/notion.js";
 
 describe("notion helpers", () => {
   it("plans a create when no matching pages exist", () => {

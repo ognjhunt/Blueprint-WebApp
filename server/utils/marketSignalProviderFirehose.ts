@@ -1,7 +1,7 @@
 import {
   fetchFirehoseSignals as fetchNormalizedFirehoseSignals,
   type FirehoseConfig,
-} from "../../ops/paperclip/plugins/blueprint-automation/src/marketing-integrations";
+} from "./marketing-integrations";
 import { getConfiguredEnvValue } from "../config/env";
 import { logger } from "../logger";
 import type {

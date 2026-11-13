@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { webSearch, type WebSearchConfig } from "../../ops/paperclip/plugins/blueprint-automation/src/web-search";
+import { webSearch, type WebSearchConfig } from "./web-search";
 import { getConfiguredEnvValue } from "../config/env";
 import type {
   MarketSignalFetchResult,

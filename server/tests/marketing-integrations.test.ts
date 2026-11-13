@@ -4,7 +4,7 @@ import {
   buildFirehoseBrief,
   dedupeFirehoseSignals,
   synthesizeCustomerResearch,
-} from "./marketing-integrations.js";
+} from "../utils/marketing-integrations.js";
 
 describe("marketing integration helpers", () => {
   it("synthesizes customer research into JTBD, personas, objections, and confidence", () => {

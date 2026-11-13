@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildWebSearchToolHandler,
   webSearch,
-} from "./web-search.js";
+} from "../utils/web-search.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
