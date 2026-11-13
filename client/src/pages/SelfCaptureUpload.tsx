@@ -94,6 +94,15 @@ type TaskStatus = {
 const SITE_DECISIONS = new Set(["add_views", "ended", "save_account", "footage_before_account", "not_now", "call_needed", "record"]);
 /** A privacy or rights notice is never hidden: recording permission, consent, a withdrawal or an unconfirmed processing hold. */
 const RIGHTS_NOTICE = /consent|permission|withdr|rights|not been confirmed/i;
+/** How long one status read may take before the page stops waiting for it and counts the read as failed. */
+export const STATUS_POLL_TIMEOUT_MS = 15_000;
+/**
+ * After a good status read, how long failed or timed-out reads keep that status on screen, said as of the time it was
+ * read: two whole poll cycles (a 15-second timeout and the 6-second wait, twice). Past it the status is unknown again.
+ */
+export const LAST_STATUS_HOLD_MS = 45_000;
+/** How long the last simulation link stays after its read: inside the 15-minute view ticket the link carries. */
+export const SCENE_LINK_KEEP_MS = 10 * 60_000;
 
 function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
   const item = value as Partial<TaskTargetChoiceView> | null;
@@ -335,6 +344,16 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   /** Where the task stands, for the operator who has no account to check. */
   const [status, setStatus] = useState<TaskStatus | null>(null);
   const [currentStatusKnown, setCurrentStatusKnown] = useState(false);
+  // When the last good status read arrived, and whether the reads since have failed (the status shown is then that
+  // read's, said with its time, until LAST_STATUS_HOLD_MS has passed).
+  const [statusReadAt, setStatusReadAt] = useState<number | null>(null);
+  const [statusStale, setStatusStale] = useState(false);
+  const lastStatusReadAt = useRef<number | null>(null);
+  // When the server last gave an outlook in time. A late one keeps that outlook only within the same hold as a kept
+  // status; past it the page shows its plain working screen, never a phase it can no longer vouch for.
+  const [outlookReadAt, setOutlookReadAt] = useState<number | null>(null);
+  const [outlookKept, setOutlookKept] = useState(false);
+  const lastOutlookReadAt = useRef<number | null>(null);
   // An unreadable poll must not turn a known Blueprint stop into a site action.
   const [blueprintActionPending, setBlueprintActionPending] = useState(false);
   // A hold with no step scheduled: nothing is said to be with Blueprint or the site.
@@ -527,20 +546,50 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
+    let reading: AbortController | null = null;
+    // A refused read (any 4xx: the link is not valid, not allowed or gone) makes the status unknown at once, with the
+    // simulation link cleared. A read that fails on our side (5xx, the network, a timeout) after a good one keeps
+    // that status, said with its time, within the hold; otherwise the status is unknown, as it is before any read.
+    const readFailed = (refused: boolean) => {
+      const at = lastStatusReadAt.current;
+      if (!refused && at !== null && Date.now() - at < LAST_STATUS_HOLD_MS) { setStatusStale(true); return; }
+      lastStatusReadAt.current = null;
+      setStatusStale(false);
+      setCurrentStatusKnown(false);
+      setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null,
+        ...(refused ? { sceneViewUrl: null } : {}) } : null);
+    };
     async function poll() {
+      // Every read is bounded by its own timer (AbortSignal.timeout is missing in older Safari).
+      const controller = new AbortController();
+      reading = controller;
+      const abortTimer = setTimeout(() => controller.abort(), STATUS_POLL_TIMEOUT_MS);
       try {
-        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`);
-        const data = await response.json();
-        if (alive && response.ok && data?.status) {
+        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`, { signal: controller.signal });
+        const refused = typeof response.status === "number" && response.status >= 400 && response.status < 500;
+        const data = refused ? null : await response.json();
+        if (alive && refused) readFailed(true);
+        else if (alive && response.ok && data?.status) {
+          const readAt = Date.now();
+          lastStatusReadAt.current = readAt;
+          const outlookLate = data.outlookLate === true;
+          const outlookAt = lastOutlookReadAt.current;
+          const keptOutlook = outlookLate && outlookAt !== null && readAt - outlookAt < LAST_STATUS_HOLD_MS;
+          if (!outlookLate) { lastOutlookReadAt.current = readAt; setOutlookReadAt(readAt); }
+          else if (!keptOutlook) lastOutlookReadAt.current = null;
+          setOutlookKept(keptOutlook);
+          setStatusReadAt(readAt);
+          setStatusStale(false);
           setCurrentStatusKnown(true);
           setBlueprintActionPending(data.status.outcome?.actionOwner === "blueprint" || data.status.outcome?.actionOwner === "none");
           setHeldWithoutStep(data.status.outcome?.actionOwner === "none");
           setStatus({
             ...data.status,
             siteAdvisory: data.siteAdvisory ?? null,
-            outlook: data.outlook ?? null,
             claimUrl: data.claimUrl ?? null,
             sceneViewUrl: data.sceneViewUrl ?? null,
+            // An outlook that missed the server's deadline is not a new phase: the last good one stays, within the hold.
+            outlook: keptOutlook ? currentStatus.current?.outlook ?? null : outlookLate ? null : data.outlook ?? null,
             jobFacts: data.scope === "owner" ? data.jobFacts ?? null : null,
             firstLookTable: data.scope === "owner" && data.firstLookTable && Array.isArray(data.firstLookTable.rows) ? data.firstLookTable : null,
             captureReceived: data.captureReceived === true,
@@ -554,19 +603,43 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             robotAccess: data.scope === "owner" && isRobotAccess(data.robotAccess) ? data.robotAccess : null,
             answer: data.scope === "owner" && isSiteAnswer(data.answer) ? data.answer : null,
           });
-        } else if (alive) {
-          setCurrentStatusKnown(false);
-          setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null);
-        }
-      } catch { if (alive) {
-        setCurrentStatusKnown(false);
-        setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null);
-      } }
+        } else if (alive) readFailed(false);
+      } catch { if (alive) readFailed(false); }
+      finally { clearTimeout(abortTimer); if (reading === controller) reading = null; }
       if (alive) timer = setTimeout(poll, 6000);
     }
     void poll();
-    return () => { alive = false; clearTimeout(timer); };
+    return () => { alive = false; clearTimeout(timer); reading?.abort(); };
   }, [token, upload.status, briefConfirmed, statusRefresh]);
+
+  // The hold ends on time even while a read is still waiting: the status is then unknown, as before any read.
+  useEffect(() => {
+    if (!statusStale || statusReadAt === null) return;
+    const timer = setTimeout(() => {
+      lastStatusReadAt.current = null;
+      setStatusStale(false);
+      setCurrentStatusKnown(false);
+      setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null);
+    }, Math.max(0, statusReadAt + LAST_STATUS_HOLD_MS - Date.now()));
+    return () => clearTimeout(timer);
+  }, [statusStale, statusReadAt]);
+  // A kept outlook ends on time even between reads: the plain working screen then shows until a good outlook arrives.
+  useEffect(() => {
+    if (!outlookKept || outlookReadAt === null) return;
+    const timer = setTimeout(() => {
+      lastOutlookReadAt.current = null;
+      setOutlookKept(false);
+      setStatus(previous => previous ? { ...previous, outlook: null } : null);
+    }, Math.max(0, outlookReadAt + LAST_STATUS_HOLD_MS - Date.now()));
+    return () => clearTimeout(timer);
+  }, [outlookKept, outlookReadAt]);
+  // The simulation link changes no status: failed reads leave it, until its view ticket is near its end.
+  useEffect(() => {
+    if (statusReadAt === null) return;
+    const timer = setTimeout(() => setStatus(previous => previous?.sceneViewUrl ? { ...previous, sceneViewUrl: null } : previous),
+      Math.max(0, statusReadAt + SCENE_LINK_KEEP_MS - Date.now()));
+    return () => clearTimeout(timer);
+  }, [statusReadAt]);
 
   const accepts =
     link.status === "valid" ? link.accepts.map((item) => `.${item}`).join(",") : ".mov,.mp4";
@@ -612,6 +685,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const recordOnThisPage = !saved && link.status === "valid" && status?.decision === "record" && !status.outcome;
   // A withdrawn recording takes no new footage, edits or sharing: those controls are not offered once the withdrawal is known.
   const [withdrawn, setWithdrawn] = useState(false);
+  // A withdrawal closes everything at once: no simulation link, and no hold of an earlier status.
+  const closeForWithdrawal = () => {
+    setWithdrawn(true);
+    lastStatusReadAt.current = null;
+    if (statusStale) { setStatusStale(false); setCurrentStatusKnown(false); }
+    setStatus(previous => previous?.sceneViewUrl ? { ...previous, sceneViewUrl: null } : previous);
+  };
 
   // One current update. Saved jobs show it before results; a fresh capture
   // keeps the recorder first. Optional corrections do not become next steps.
@@ -620,11 +700,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // already has a finished assessment result; there is no retry.
   const finishedAdvisory = status?.siteAdvisory?.state === "ready" ? status.siteAdvisory : null;
   const advisory = status && currentStatusKnown && finishedAdvisory ? <SiteAdvisoryReport advisory={finishedAdvisory} /> : null;
-  const cardExtras = status && currentStatusKnown && (finishedAdvisory || status.sceneViewUrl || (status.claimUrl && !accountHold)) ? <>
+  // The simulation link is never offered once a withdrawal is known on this page.
+  const sceneViewUrl = withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")
+    ? null : status?.sceneViewUrl ?? null;
+  const cardExtras = status && currentStatusKnown && (finishedAdvisory || sceneViewUrl || (status.claimUrl && !accountHold)) ? <>
       {finishedAdvisory && <SiteAdvisoryReport advisory={finishedAdvisory} />}
-      {status.sceneViewUrl && (
+      {sceneViewUrl && (
         <p className={answer ? "job-more-row" : undefined} style={answer ? undefined : { margin: "10px 0 0" }}>
-          <a className="ms-text-link" href={status.sceneViewUrl} target="_blank" rel="noreferrer">
+          <a className="ms-text-link" href={sceneViewUrl} target="_blank" rel="noreferrer">
             {VIEW_SIMULATION_LABEL}
           </a>
         </p>
@@ -639,6 +722,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </details>
       )}
     </> : null;
+  const staleStatusNotice = currentStatusKnown && statusStale && statusReadAt !== null ? <p role="status" className="ms-field-hint">
+    {`This is your job as of ${new Date(statusReadAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. We could not check for anything newer just now and are trying again.`}
+  </p> : null;
   const statusCard = status && currentStatusKnown && !recordOnThisPage
     && (!quietCard || (cardExtras && !answer)) ? (
     <div
@@ -744,7 +830,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // or a withdrawal already recorded. A held link still asking for recording permission has nothing to withdraw yet.
   const withdrawal = scope === "owner" && (link.status === "valid" || link.status === "held")
     && (saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
-    <OwnerRecordingWithdrawal token={token} onStatus={() => setWithdrawn(true)} summaryLabel={answer || !saved ? "Stop using my video" : undefined} onWithdrawn={() => { setWithdrawn(true); setLink({ status: "held",
+    <OwnerRecordingWithdrawal token={token} onStatus={closeForWithdrawal} summaryLabel={answer || !saved ? "Stop using my video" : undefined} onWithdrawn={() => { closeForWithdrawal(); setLink({ status: "held",
       detail: "Recording permission was withdrawn. This link no longer accepts footage.",
       blockers: [], openQuestions: [], holdReason: "recording_consent_withdrawn" }); }} />
   ) : null;
@@ -813,7 +899,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         onClick: () => void updateVideo() }] : []),
       ...(editJob ? [{ key: "job", label: EDIT_JOB_LABEL, body: editJob }] : []),
       ...(status?.claimUrl && !accountHold && !withdrawn ? [{ key: "account", label: "Save to my account", href: status.claimUrl }] : []),
-      ...(status?.sceneViewUrl ? [{ key: "scene", label: VIEW_SIMULATION_LABEL, href: status.sceneViewUrl }] : []),
+      ...(sceneViewUrl ? [{ key: "scene", label: VIEW_SIMULATION_LABEL, href: sceneViewUrl }] : []),
       ...(processingSection ? [{ key: "processing", label: "Processing", body: processingSection }] : []),
       ...(advisory ? [{ key: "advisory", label: "Processing details", body: advisory }] : []),
       { key: "contact", label: "Contact Blueprint about this job", href: "mailto:hello@tryblueprint.io" },
@@ -859,13 +945,15 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           unless the page has an action waiting on the site; then below that action. */}
       {jobFacts && !siteActionWaiting && jobFacts}
 
+      {/* The status shown is the last good read's while newer reads fail: said, with its time. */}
+      {staleStatusNotice}
       {/* A step the site must take comes first; the answer's own button then stays, quiet. */}
       {answer && statusCard}
       {answer && <SiteAnswer token={token} answer={answer} proof={proof} onIntroductionRequested={() => setStatusRefresh(value => value + 1)}
         onEditJob={brief && scope === "owner" && !withdrawn ? openBriefEditor : undefined}
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined}
-        outlook={status?.outlook ?? null} sceneViewUrl={status?.sceneViewUrl ?? null}
+        outlook={status?.outlook ?? null} sceneViewUrl={sceneViewUrl}
         successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null}
         firstLookTable={status?.firstLookTable ?? null} />}
       {answer && placeCaveat}
@@ -874,6 +962,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {jobFacts && siteActionWaiting && jobFacts}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
+      {/* While the status is unknown the simulation link stays: it changes no status, it is a way to look. */}
+      {!currentStatusKnown && saved && sceneViewUrl && <p>
+        <a className="ms-text-link" href={sceneViewUrl} target="_blank" rel="noreferrer">{VIEW_SIMULATION_LABEL}</a>
+      </p>}
       {!answer && workspace}
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
         && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}

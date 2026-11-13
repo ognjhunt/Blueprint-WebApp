@@ -9,7 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
+import SelfCaptureUpload, { LAST_STATUS_HOLD_MS, SCENE_LINK_KEEP_MS, STATUS_POLL_TIMEOUT_MS } from "@/pages/SelfCaptureUpload";
 import { RECORDING_RIGHTS_STATEMENT_V4 } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 import { allZeroEvaluation, cannotAssessAnswer, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
@@ -140,15 +140,153 @@ describe("video first owner return", () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(0); });
       expect(screen.getByRole("region", { name: "Preparation outcome" })).toBeVisible();
       available = false;
+      // A failed read after a good one keeps that status, said as of its time, for a bounded while.
       await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(screen.getByRole("region", { name: "Preparation outcome" })).toBeVisible();
+      expect(screen.getByText(/^This is your job as of .+\. We could not check for anything newer just now and are trying again\.$/)).toBeVisible();
+      expect(screen.queryByText("Checking the current job status. Your saved job remains available.")).not.toBeInTheDocument();
+      // Past the hold, unknown is unknown again.
+      await act(async () => { await vi.advanceTimersByTimeAsync(LAST_STATUS_HOLD_MS); });
       expect(screen.getAllByText("Checking the current job status. Your saved job remains available.")).toHaveLength(1);
       expect(screen.queryByRole("region", { name: "Preparation outcome" })).not.toBeInTheDocument();
+      expect(screen.queryByText(/^This is your job as of /)).not.toBeInTheDocument();
       available = true; stopped = false;
       await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
       expect(screen.getByText("Blueprint is preparing your reconstruction.", { selector: "strong" })).toBeVisible();
       expect(screen.getByLabelText("Review your job brief")).not.toHaveAttribute("open");
       expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
       expect(read.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
+  /** The job page with a scene link, whose status read answers as `mode` says: a good read, an HTTP status, or never. */
+  function scenePage() {
+    const state = { mode: "ok" as "ok" | "hang" | number, withdrawn: false };
+    const fallback = ownerFetch(false, true);
+    const recorded = { state: "uploads_stopped_cleanup_pending", deletionConfirmed: false,
+      pipelineAcknowledged: false, legalHold: false, requestedAtIso: "2026-10-13T00:00:00.000Z",
+      storageDeletion: { state: "pending", deletedObjectCount: 0, lateUploadCheckAtIso: null, completedAtIso: null } };
+    const read = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/site-task-brief/${TOKEN}/status`) {
+        if (state.mode === "hang") return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        });
+        if (state.mode !== "ok") return Promise.resolve({ ok: false, status: state.mode, json: async () => ({ error: "Status unavailable" }) });
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ scope: "owner", captureReceived: true,
+          sceneViewUrl: "https://viewer.example/world-1",
+          status: { decision: "assessing", headline: "Preparing your task", operatorAction: null, missingViews: [] } }) });
+      }
+      if (url === `/api/self-capture/uploads/${TOKEN}/withdrawal` && init?.method === "POST") {
+        state.withdrawn = true;
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, created: true, withdrawal: recorded }) });
+      }
+      if (state.withdrawn && url === `/api/self-capture/uploads/${TOKEN}/withdrawal`) return Promise.resolve({ ok: true,
+        json: async () => ({ ok: true, withdrawn: true, withdrawal: recorded }) });
+      if (url === `/api/job-workflow/owner/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        schemaVersion: "job_marketplace.v1", revision: "workflow-1", stage: "job_submitted", briefAgreed: true,
+        optionsAssessed: false, reviewRequired: false, nextAction: "Blueprint is preparing your job.", actionOwner: "blueprint",
+        requirements: {}, review: null, proposals: [], selection: null, agreement: null, outcome: null,
+      }) });
+      return fallback(input, init);
+    });
+    const statusReads = () => read.mock.calls.filter(([input]) => String(input) === `/api/site-task-brief/${TOKEN}/status`);
+    return { state, read, statusReads };
+  }
+  const sceneLink = () => screen.queryByRole("link", { name: "View the simulation of your site" });
+  const UNKNOWN = "Checking the current job status. Your saved job remains available.";
+  const AS_OF = /^This is your job as of .+\. We could not check for anything newer just now and are trying again\.$/;
+  const flush = (ms = 0) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+
+  it("keeps the simulation link through failed reads on our side until its ticket nears its end", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const harness = scenePage();
+    vi.stubGlobal("fetch", harness.read);
+    const page = render(<SelfCaptureUpload />);
+    try {
+      await flush();
+      expect(sceneLink()).toBeVisible();
+      expect(harness.statusReads().every(([, init]) => init?.signal instanceof AbortSignal)).toBe(true);
+      harness.state.mode = 503;
+      await flush(6000);
+      // A 503 after a good read holds that status, said as of its time.
+      expect(screen.getByText(AS_OF)).toBeVisible();
+      expect(sceneLink()).toBeVisible();
+      // Past the hold the status is unknown, and the link, which changes no status, is still there.
+      await flush(LAST_STATUS_HOLD_MS);
+      expect(screen.getAllByText(UNKNOWN)).toHaveLength(1);
+      expect(sceneLink()).toBeVisible();
+      // Not past its view ticket.
+      await flush(SCENE_LINK_KEEP_MS);
+      expect(sceneLink()).not.toBeInTheDocument();
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
+
+  it("aborts a status read that hangs, holds the last status and schedules the next read", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const harness = scenePage();
+    vi.stubGlobal("fetch", harness.read);
+    const page = render(<SelfCaptureUpload />);
+    try {
+      await flush();
+      expect(sceneLink()).toBeVisible();
+      harness.state.mode = "hang";
+      await flush(6000);
+      const hung = harness.statusReads().at(-1)![1]!.signal!;
+      expect(hung.aborted).toBe(false);
+      await flush(STATUS_POLL_TIMEOUT_MS);
+      expect(hung.aborted).toBe(true);
+      expect(screen.getByText(AS_OF)).toBeVisible();
+      const before = harness.statusReads().length;
+      harness.state.mode = "ok";
+      await flush(6000);
+      expect(harness.statusReads().length).toBe(before + 1);
+      expect(screen.queryByText(AS_OF)).not.toBeInTheDocument();
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
+
+  it.each([404, 403, 410])("makes the status unknown at once, with no link, when a read after a good one is refused (%s)", async code => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const harness = scenePage();
+    vi.stubGlobal("fetch", harness.read);
+    const page = render(<SelfCaptureUpload />);
+    try {
+      await flush();
+      expect(sceneLink()).toBeVisible();
+      harness.state.mode = code;
+      await flush(6000);
+      expect(screen.getAllByText(UNKNOWN)).toHaveLength(1);
+      expect(screen.queryByText(AS_OF)).not.toBeInTheDocument();
+      expect(sceneLink()).not.toBeInTheDocument();
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
+
+  it("closes the link and the hold at once when the site withdraws during the hold", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const harness = scenePage();
+    vi.stubGlobal("fetch", harness.read);
+    // On the job settings screen, which lists the simulation link with every optional control.
+    window.history.replaceState(null, "", "/capture-upload/test#settings");
+    const page = render(<SelfCaptureUpload />);
+    try {
+      await flush();
+      harness.state.mode = 503;
+      await flush(6000);
+      expect(sceneLink()).toBeVisible();
+      fireEvent.click(screen.getByText(/Stop using my video|Withdraw recording permission/));
+      fireEvent.click(screen.getByRole("button", { name: "Withdraw permission…" }));
+      fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw permission" }));
+      await flush();
+      expect(screen.getByText("Recording permission withdrawn.")).toBeInTheDocument();
+      expect(sceneLink()).not.toBeInTheDocument();
+      window.history.replaceState(null, "", "/capture-upload/test");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      await flush();
+      expect(sceneLink()).not.toBeInTheDocument();
+      expect(screen.queryByText(AS_OF)).not.toBeInTheDocument();
+      // Later failed reads bring neither back.
+      await flush(6000);
+      expect(sceneLink()).not.toBeInTheDocument();
+      expect(screen.queryByText(AS_OF)).not.toBeInTheDocument();
     } finally { page.unmount(); vi.useRealTimers(); }
   });
   it.each([null, "2026-10-01T00:00:00Z"])("keeps a Blueprint processing stop consistent with brief confirmation %s", async confirmedAtIso => {
@@ -1140,6 +1278,66 @@ describe("the site's answer leads its job page", () => {
     expect(within(job).getByText("On paper, the robot most likely to fit: Universal Robots UR10e.")).toBeVisible();
     fireEvent.click(within(job).getByRole("button", { name: "See details ›" }));
     expect(await screen.findByRole("button", { name: "First look: why this robot" })).toBeVisible();
+  });
+
+  it.each([true, false])("keeps the last good outlook when a later read says it was late (earlier outlook: %s)", async earlier => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    setUserAgent(DESKTOP_UA);
+    const ended = { phase: "no_test", reason: "window_expired", sentence: null };
+    let reads = 0;
+    const base = answerFetch({ answer: readyAnswer, outlook: earlier ? ended : null });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await base(input, init);
+      if (String(input) !== `/api/site-task-brief/${TOKEN}/status` || reads++ === 0) return response;
+      const body = await response.json();
+      return { ok: true, status: 200, json: async () => ({ ...body, outlook: null, outlookLate: true }) };
+    }));
+    const page = render(<SelfCaptureUpload />);
+    const building = () => screen.queryByText("We're building the simulation of your site.");
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(screen.getByRole("region", { name: "Your job" })).toBeVisible();
+      const first = Boolean(building());
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(reads).toBeGreaterThan(1);
+      // A late outlook changes nothing on screen: the ended job stays ended; with none before, the plain working screen.
+      expect(Boolean(building())).toBe(first);
+      expect(first).toBe(!earlier);
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
+
+  it("keeps a late outlook's predecessor only within the hold, then the plain working screen, until a good outlook", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    setUserAgent(DESKTOP_UA);
+    const ended = { phase: "no_test", reason: "window_expired", sentence: null };
+    let late = false;
+    const base = answerFetch({ answer: readyAnswer, outlook: ended });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await base(input, init);
+      if (String(input) !== `/api/site-task-brief/${TOKEN}/status` || !late) return response;
+      const body = await response.json();
+      return { ok: true, status: 200, json: async () => ({ ...body, outlook: null, outlookLate: true }) };
+    }));
+    const page = render(<SelfCaptureUpload />);
+    const building = () => screen.queryByText("We're building the simulation of your site.");
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(screen.getByRole("region", { name: "Your job" })).toBeVisible();
+      expect(building()).toBeNull();
+      // Late on every read from now on: within the hold the ended job stays ended.
+      late = true;
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(building()).toBeNull();
+      // Past the hold it can no longer vouch for that phase: the plain working screen.
+      await act(async () => { await vi.advanceTimersByTimeAsync(LAST_STATUS_HOLD_MS); });
+      expect(building()).toBeVisible();
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(building()).toBeVisible();
+      // A good outlook shows normally again.
+      late = false;
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(building()).toBeNull();
+    } finally { page.unmount(); vi.useRealTimers(); }
   });
 
   it("shows the answer under the title instead of the separate robot fit, with no status card repeating a wait", async () => {
