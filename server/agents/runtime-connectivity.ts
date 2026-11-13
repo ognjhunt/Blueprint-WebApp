@@ -3,6 +3,7 @@ import type { AgentTaskKind } from "./types";
 import {
   describeStructuredAutomationProvider,
   getStructuredAutomationFallbackProvider,
+  getAnthropicTimeoutMs,
   getOpenAiTimeoutMs,
   getStructuredAutomationProvider,
   getTaskModelByProvider,
@@ -71,7 +72,7 @@ export function getAgentRuntimeConnectionMetadata() {
     auth_configured: isProviderConfigured(provider),
     timeout_ms: Number(
       provider === "anthropic_agent_sdk"
-        ? process.env.ANTHROPIC_TIMEOUT_MS ?? 20_000
+        ? getAnthropicTimeoutMs()
         : provider === "deepseek_chat"
           ? process.env.DEEPSEEK_TIMEOUT_MS ?? 120_000
         : provider === "codex_local"

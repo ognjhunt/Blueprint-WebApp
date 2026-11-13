@@ -38,6 +38,7 @@ import {
   readPaperclipGoalCloseoutMetadata,
 } from "./goal-closeout-contract";
 import { getTaskDefinition } from "./tasks";
+import { getDefaultAnthropicModel } from "./provider-config";
 import type {
   AgentResult,
   AgentProvider,
@@ -700,7 +701,7 @@ function defaultModelForProvider(provider: AgentProvider) {
     case "openai_agents_sdk":
       return "server-admitted-model";
     case "anthropic_agent_sdk":
-      return process.env.ANTHROPIC_DEFAULT_MODEL?.trim() || "claude-sonnet-4-5";
+      return getDefaultAnthropicModel();
     case "acp_harness":
       return process.env.ACP_DEFAULT_HARNESS?.trim() || "codex";
     case "openclaw":

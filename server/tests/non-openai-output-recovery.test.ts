@@ -12,7 +12,7 @@ vi.mock("../agents/adapters/public-video-fetch", () => ({
 }));
 
 const create = vi.hoisted(() => vi.fn());
-vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
+vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { stream: (params: unknown, options: unknown) => ({ finalMessage: () => create(params, options) }) } }; } }));
 // This suite isolates output correction from the company-history tool phase.
 // Company-lane correction and transport evidence have their own adapter tests.
 const task = (provider: string) => ({ kind: "preview_diagnosis", provider, runtime: provider, model: provider === "gemini_video" ? "gemini-3.8-flash" : "claude-test",
@@ -126,6 +126,8 @@ describe("provider output correction retains paid evidence", () => {
   });
 
   it.each(["anthropic_agent_sdk", "gemini_video"])("%s preserves evidence and stops when aggregate output allowance is exhausted", async provider => {
+    // The Anthropic allowance is a setting; pin it to the value this case spends.
+    if (provider === "anthropic_agent_sdk") vi.stubEnv("BLUEPRINT_ANTHROPIC_AGENT_MAX_OUTPUT_TOKENS", "4000");
     create.mockResolvedValueOnce(anthropic("not-json", 4000));
     const fetcher = geminiFixture([{ text: "not-json", tokens: 100, thoughts: 32_668 }]);
     const result = provider === "gemini_video"

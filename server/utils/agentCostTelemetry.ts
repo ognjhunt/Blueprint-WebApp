@@ -583,9 +583,34 @@ function deepSeekPricingForModel(model: string): ModelPricing | null {
   return null;
 }
 
+/**
+ * Anthropic's published list prices per million tokens (first-party API, as
+ * listed 2026-11-03), for cost telemetry only: they estimate what a run cost
+ * and cap nothing. Cache writes are the 5-minute rate (1.25x input); cache
+ * reads are the listed rate where one is listed, otherwise 0.1x input. The
+ * small model's rates are 5x above a 100,000-token prompt. Matched on the exact
+ * model id: one id is a prefix of another.
+ */
+const ANTHROPIC_LIST_PRICING: Record<string, ModelPricing> = {
+  "claude-opus-5-5": { cacheMissInput: 4, cacheWriteInput: 5, cacheHitInput: 0.2, output: 20 },
+  "claude-opus-5": { cacheMissInput: 5, cacheWriteInput: 6.25, cacheHitInput: 0.5, output: 25 },
+  "claude-opus-4-8": { cacheMissInput: 5, cacheWriteInput: 6.25, cacheHitInput: 0.5, output: 25 },
+  "claude-sonnet-5-5": { cacheMissInput: 2, cacheWriteInput: 2.5, cacheHitInput: 0.1, output: 10 },
+  "claude-haiku-5-5": {
+    cacheMissInput: 0.1, cacheWriteInput: 0.125, cacheHitInput: 0.01, output: 0.5,
+    longContextThreshold: 100_000, longContextInputMultiplier: 5, longContextOutputMultiplier: 5,
+  },
+};
+
+function anthropicPricingForModel(model: string): ModelPricing | null {
+  return ANTHROPIC_LIST_PRICING[model.trim().toLowerCase()] ?? null;
+}
+
 function pricingForModel(model: string): ModelPricing | null {
   const deepSeek = deepSeekPricingForModel(model);
   if (deepSeek) return deepSeek;
+  const anthropic = anthropicPricingForModel(model);
+  if (anthropic) return anthropic;
   const openAI = pricingForOpenAIModel(model);
   if (!openAI) return null;
   return {

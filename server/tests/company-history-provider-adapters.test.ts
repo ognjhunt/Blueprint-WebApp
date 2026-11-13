@@ -14,7 +14,7 @@ vi.mock("../agents/adapters/public-video-fetch", () => ({
 
 const { anthropicCreate, historyRun, retained } = vi.hoisted(() => ({ anthropicCreate: vi.fn(), historyRun: vi.fn(), retained: {learning:null as any} }));
 vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:()=>({get:async()=>({data:()=>({learning:retained.learning})})})}}));
-vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create: anthropicCreate }; } }));
+vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { stream: (params: unknown, options: unknown) => ({ finalMessage: () => anthropicCreate(params, options) }) } }; } }));
 vi.mock("../agents/operator-tools", async importOriginal => ({
   ...await importOriginal<typeof import("../agents/operator-tools")>(), runOperatorTool: historyRun,
 }));
@@ -41,6 +41,8 @@ beforeEach(() => {
   businessScope:{principalId:"blueprint-learning-host",subjectKeys:["blueprint:research-learning"],expiresAt:"2099-10-02T13:00:00.000Z"},
 };
   vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture"); vi.stubEnv("GEMINI_API_KEY", "offline-fixture");
+  // These cases spend against a 4,000-token allowance; the Anthropic allowance is a setting.
+  vi.stubEnv("BLUEPRINT_ANTHROPIC_AGENT_MAX_OUTPUT_TOKENS", "4000");
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 

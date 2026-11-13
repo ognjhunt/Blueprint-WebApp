@@ -100,7 +100,7 @@
     "assessment:iterate": "tsx scripts/site-assessment-iterate.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.52.0",
+    "@anthropic-ai/sdk": "^1.8.0",
     "@google-cloud/kms": "^5.2.1",
     "@googlemaps/js-api-loader": "^1.16.8",
     "@modelcontextprotocol/sdk": "1.32.1",

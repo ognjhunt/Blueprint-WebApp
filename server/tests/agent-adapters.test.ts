@@ -25,8 +25,10 @@ vi.mock("openai", () => ({
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class Anthropic {
-    messages = {
-      create: anthropicCreate,
+    beta = {
+      messages: {
+        stream: (params: unknown, options: unknown) => ({ finalMessage: () => anthropicCreate(params, options) }),
+      },
     };
   },
 }));

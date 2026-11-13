@@ -180,11 +180,115 @@ export function getOpenAiReasoningEffort(
   );
 }
 
+/**
+ * Anthropic: where the calls go, how long they get, how hard they think.
+ *
+ * The base URL is written here, not read from the environment. The SDK would
+ * otherwise obey `ANTHROPIC_BASE_URL`, and the env examples point that name at
+ * another company's Anthropic-compatible endpoint, which would send a site's
+ * text to a provider the Privacy Policy does not name. Another company's
+ * compatible endpoint is its own provider id with its own privacy row.
+ */
+export const ANTHROPIC_API_BASE_URL = "https://api.anthropic.com";
+
+/**
+ * Same level of model. A lane that runs on OpenAI's small model maps to
+ * Anthropic's small one, the top one to the top one. One table; any lane can
+ * still be pinned with `ANTHROPIC_<LANE>_MODEL`, and `ANTHROPIC_DEFAULT_MODEL`
+ * moves every lane at once ("the top model everywhere" is that one setting).
+ * An OpenAI model the table does not know maps to the top tier.
+ */
+const ANTHROPIC_MODEL_FOR_OPENAI_MODEL: Record<string, string> = {
+  "gpt-6-luna": "claude-haiku-5-5",
+  "gpt-6.1-sol": "claude-opus-5-5",
+};
+const ANTHROPIC_TOP_MODEL = "claude-opus-5-5";
+
+export function anthropicModelForOpenAiModel(openAiModel: string | null | undefined): string {
+  const normalized = String(openAiModel || "").trim().toLowerCase();
+  return ANTHROPIC_MODEL_FOR_OPENAI_MODEL[normalized] || ANTHROPIC_TOP_MODEL;
+}
+
+function openAiModelForLane(taskKind: AgentTaskKind | undefined) {
+  const suffix = taskKind ? TASK_MODEL_SUFFIXES[taskKind] : null;
+  return (suffix ? process.env[`OPENAI_${suffix}`]?.trim() : null)
+    || process.env.OPENAI_DEFAULT_MODEL?.trim()
+    || DEFAULT_OPENAI_MODEL;
+}
+
+/** The Anthropic model a lane gets when nothing pins it for Anthropic. */
+export function getDefaultAnthropicModel(taskKind?: AgentTaskKind): string {
+  return process.env.ANTHROPIC_DEFAULT_MODEL?.trim()
+    || anthropicModelForOpenAiModel(openAiModelForLane(taskKind));
+}
+
+/**
+ * Output room and deadline for an Anthropic lane. Thinking counts toward
+ * `max_tokens`, so the room is sized for thinking plus the reply; requests
+ * stream, so a large ceiling does not run into an HTTP timeout. The ceiling is
+ * shared by every request of one task (tool rounds and output corrections).
+ */
+const DEFAULT_ANTHROPIC_MAX_OUTPUT_TOKENS = 64_000;
+const ANTHROPIC_MAX_OUTPUT_TOKENS_CEILING = 128_000;
+const DEFAULT_ANTHROPIC_TIMEOUT_MS = 300_000;
+const ANTHROPIC_TIMEOUT_CEILING_MS = 600_000;
+
+export function getAnthropicMaxOutputTokens(): number {
+  return Math.floor(
+    boundedPositiveNumber(
+      process.env.BLUEPRINT_ANTHROPIC_AGENT_MAX_OUTPUT_TOKENS,
+      DEFAULT_ANTHROPIC_MAX_OUTPUT_TOKENS,
+      ANTHROPIC_MAX_OUTPUT_TOKENS_CEILING,
+    ),
+  );
+}
+
+export function getAnthropicTimeoutMs(): number {
+  return Math.floor(
+    boundedPositiveNumber(
+      process.env.ANTHROPIC_TIMEOUT_MS,
+      DEFAULT_ANTHROPIC_TIMEOUT_MS,
+      ANTHROPIC_TIMEOUT_CEILING_MS,
+    ),
+  );
+}
+
+/**
+ * Effort per lane, always sent explicitly: the default differs by model. The
+ * lane defaults are the OpenAI lane defaults, so a lane thinks as hard on
+ * either provider. `ANTHROPIC_<LANE>_EFFORT` and `ANTHROPIC_EFFORT` override.
+ */
+const ANTHROPIC_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+export type AnthropicEffort = (typeof ANTHROPIC_EFFORTS)[number];
+
+function normalizeAnthropicEffort(value: string | undefined | null): AnthropicEffort | null {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "none") return "low";
+  return (ANTHROPIC_EFFORTS as readonly string[]).includes(normalized)
+    ? (normalized as AnthropicEffort)
+    : null;
+}
+
+export function getAnthropicEffort(taskKind: AgentTaskKind | undefined): AnthropicEffort {
+  const suffix = taskKind ? TASK_MODEL_SUFFIXES[taskKind] : null;
+  const perTask = suffix
+    ? normalizeAnthropicEffort(process.env[`ANTHROPIC_${suffix.replace(/_MODEL$/, "")}_EFFORT`])
+    : null;
+  return (
+    perTask
+    || normalizeAnthropicEffort(process.env.ANTHROPIC_EFFORT)
+    || normalizeAnthropicEffort(taskKind ? TASK_REASONING_EFFORT[taskKind] : null)
+    || "medium"
+  );
+}
+
+const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
+
 const DEFAULT_MODELS: Record<StructuredProvider, string> = {
   deepseek_chat: "deepseek-v4-pro",
   zai_glm: "glm-5.3",
-  openai_responses: "gpt-6-luna",
-  anthropic_agent_sdk: "claude-sonnet-4-5",
+  openai_responses: DEFAULT_OPENAI_MODEL,
+  anthropic_agent_sdk: ANTHROPIC_TOP_MODEL,
   acp_harness: "codex",
   openclaw: "gpt-5.4",
   codex_local: "gpt-5.4-mini",
@@ -443,8 +547,7 @@ export function getTaskModelByProvider(taskKind: AgentTaskKind) {
       || DEFAULT_MODELS.openai_responses,
     anthropic_agent_sdk:
       (suffix ? process.env[`ANTHROPIC_${suffix}`]?.trim() : null)
-      || process.env.ANTHROPIC_DEFAULT_MODEL?.trim()
-      || DEFAULT_MODELS.anthropic_agent_sdk,
+      || getDefaultAnthropicModel(taskKind),
     acp_harness:
       process.env.ACP_DEFAULT_HARNESS?.trim()
       || DEFAULT_MODELS.acp_harness,
