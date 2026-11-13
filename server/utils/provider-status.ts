@@ -2,7 +2,6 @@ import { getConfiguredEnvValue, isEnvFlagEnabled } from "../config/env";
 import { getEmailTransportStatus } from "./email";
 import { getElevenLabsConfig } from "./elevenlabs";
 import { getMarketSignalProviderStatus } from "./marketSignalProviders";
-import { getRunwayStatus } from "./runway";
 
 export type ProviderExecutionState =
   | "not_configured"
@@ -151,7 +150,6 @@ export function buildGrowthIntegrationSummary(params?: {
               : "External analytics may be configured, but first-party event mirroring is disabled.",
       },
     },
-    runway: getRunwayStatus(),
     elevenlabs: {
       configured: elevenlabs.configured,
       agentConfigured: Boolean(elevenlabs.agentId),

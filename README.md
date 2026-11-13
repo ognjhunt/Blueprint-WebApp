@@ -30,7 +30,7 @@ Authority stays split deliberately: repo docs define doctrine and policy drafts,
 - Frontend: React, Vite, TypeScript, Wouter, TanStack Query, Tailwind-style utility classes, Radix UI, lucide-react, Remotion surfaces.
 - Backend: Express, TypeScript, Firebase Admin, Firestore, Stripe, Redis when configured.
 - Runtime and ops: Render deployment, Notion as workspace/review surface, Resend/Gmail/Slack integrations where explicitly configured. The Paperclip autonomous org is retired (see [`AUTONOMOUS_ORG.md`](./AUTONOMOUS_ORG.md)).
-- AI/runtime lanes: DeepSeek/OpenAI/Anthropic/ACP-compatible paths modeled in repo code and env; Codex is the default implementation lane.
+- AI/runtime lanes: OpenAI, Anthropic's own API, Google Gemini (video) and ACP-compatible paths modeled in repo code and env; Codex is the default implementation lane.
 
 Do not introduce a new primary service, auth stack, datastore, deployment platform, payment system, or ops record without explicit founder approval.
 

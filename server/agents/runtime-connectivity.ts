@@ -74,8 +74,6 @@ export function getAgentRuntimeConnectionMetadata() {
     timeout_ms: Number(
       provider === "anthropic_agent_sdk"
         ? getAnthropicTimeoutMs()
-        : provider === "deepseek_chat"
-          ? process.env.DEEPSEEK_TIMEOUT_MS ?? 120_000
         : provider === "codex_local"
           ? process.env.CODEX_TIMEOUT_MS ?? 120_000
         : provider === "openclaw"

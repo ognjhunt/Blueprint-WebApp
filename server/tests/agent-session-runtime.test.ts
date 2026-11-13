@@ -48,28 +48,6 @@ const runOpenAIResponsesTask = vi.hoisted(() =>
     requires_approval: false,
   }),
 );
-const runDeepSeekChatTask = vi.hoisted(() =>
-  vi.fn().mockResolvedValue({
-    status: "completed",
-    provider: "deepseek_chat",
-    runtime: "deepseek_chat",
-    model: "deepseek-v4-pro",
-    tool_mode: "mixed",
-    output: {
-      reply: "Managed profile completed.",
-      summary: "Profile task accepted.",
-      suggested_actions: ["Record the checkpoint"],
-      requires_human_review: false,
-    },
-    raw_output_text:
-      '{"reply":"Managed profile completed.","summary":"Profile task accepted.","suggested_actions":["Record the checkpoint"],"requires_human_review":false}',
-    artifacts: {
-      deepseek_request_id: "ds_123",
-    },
-    requires_human_review: false,
-    requires_approval: false,
-  }),
-);
 const resolveStartupContext = vi.hoisted(() =>
   vi.fn().mockResolvedValue({
     attached_startup_packs: [],
@@ -87,10 +65,6 @@ vi.mock("../agents/adapters/openai-responses", () => ({
 }));
 const runSiteAssessmentTask = vi.hoisted(() => vi.fn());
 vi.mock("../agents/adapters/site-assessment", () => ({ runSiteAssessmentTask }));
-
-vi.mock("../agents/adapters/deepseek-chat", () => ({
-  runDeepSeekChatTask,
-}));
 
 vi.mock("../agents/knowledge", () => ({
   resolveStartupContext,
@@ -272,13 +246,29 @@ beforeEach(() => {
 
 afterEach(() => {
   runOpenAIResponsesTask.mockClear();
-  runDeepSeekChatTask.mockClear();
   resolveStartupContext.mockClear();
   vi.unstubAllEnvs();
   vi.resetModules();
 });
 
 describe("agent session runtime", () => {
+  it("runs a session saved under a removed provider on the lane's own resolution, not on another pin", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
+    vi.stubEnv("ZAI_API_KEY", "left-over");
+    const runtime = await import("../agents/runtime");
+    const session = await runtime.createAgentSession({ title: "Saved before the removal", task_kind: "operator_thread",
+      provider: "openai_responses", runtime: "openai_responses" });
+    const saved = fake.store.agentSessions.get(session.id)!;
+    saved.provider = "zai_glm"; saved.runtime = "zai_glm";
+    const sent = await runtime.sendAgentSessionMessage({ sessionId: session.id,
+      task: { kind: "operator_thread", input: { message: "Status?" } } });
+    expect(sent.result?.status).toBe("completed");
+    expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+    expect(runOpenAIResponsesTask.mock.calls[0][0]).toMatchObject({ provider: "openai_responses", runtime: "openai_responses" });
+  }, 20_000);
+
   // The per-job site assessment ended (owner decision 2026-11-11).
   it("refuses a site assessment on every path before any run, session or provider call", async () => {
     const runtime = await import("../agents/runtime");
@@ -442,11 +432,10 @@ describe("agent session runtime", () => {
   it.each(["acp_harness", "anthropic_agent_sdk"] as const)("blocks unsupported provider switch to %s from escaping a saved quarantine", async provider => {
     const runtime = await import("../agents/runtime");
     const session = await runtime.createAgentSession({ title: "Saved unknown mutation", task_kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses", metadata: { mutation_reconciliation_required: true, source_evidence: "existing" } });
-    const denied = await runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "operator_thread", provider, runtime: "deepseek_chat", input: { message: "Continue existing task" } } });
+    const denied = await runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "operator_thread", provider, runtime: provider, input: { message: "Continue existing task" } } });
     expect(denied.result?.status).toBe("failed");
     expect(denied.result?.error).toContain("mutation_reconciliation_required");
     expect(denied.result?.artifacts).toMatchObject({ mutation_reconciliation_required: true, inference_not_invoked: true });
-    expect(runDeepSeekChatTask).not.toHaveBeenCalled();
     expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
     expect((await runtime.getAgentSession(session.id))?.metadata?.source_evidence).toBe("existing");
   }, 20_000);
@@ -524,8 +513,8 @@ describe("agent session runtime", () => {
     const session = await createAgentSession({
       title: "Duplicate suppression session",
       task_kind: "operator_thread",
-      provider: "deepseek_chat",
-      runtime: "deepseek_chat",
+      provider: "openai_responses",
+      runtime: "openai_responses",
       session_key: "session:dedupe",
     });
     const repeatedInput = {
@@ -537,17 +526,17 @@ describe("agent session runtime", () => {
       session_id: session.id,
       session_key: "session:dedupe",
       task_kind: "operator_thread",
-      provider: "deepseek_chat",
-      runtime: "deepseek_chat",
-      model: "deepseek-v4-pro",
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-6-luna",
       status: "running",
       dispatch_mode: "collect",
       input: {
         kind: "operator_thread",
         input: repeatedInput,
-        provider: "deepseek_chat",
-        runtime: "deepseek_chat",
-        model: "deepseek-v4-pro",
+        provider: "openai_responses",
+        runtime: "openai_responses",
+        model: "gpt-6-luna",
         session_key: "session:dedupe",
         session_policy: {
           dispatch_mode: "collect",
@@ -561,8 +550,8 @@ describe("agent session runtime", () => {
       sessionId: session.id,
       task: {
         kind: "operator_thread",
-        provider: "deepseek_chat",
-        runtime: "deepseek_chat",
+        provider: "openai_responses",
+        runtime: "openai_responses",
         input: repeatedInput,
         session_policy: {
           dispatch_mode: "collect",
@@ -573,7 +562,7 @@ describe("agent session runtime", () => {
     expect(result.suppressed).toBe(true);
     expect(result.queued).toBe(false);
     expect(result.activeRunId).toBe("run-active");
-    expect(runDeepSeekChatTask).not.toHaveBeenCalled();
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
     expect(resolveStartupContext).not.toHaveBeenCalled();
     expect([...fake.store.agentRuns.values()].filter((run) => run.status === "queued")).toHaveLength(0);
     expect([...fake.store.agentRuns.values()]).toEqual(
@@ -819,40 +808,6 @@ describe("agent session runtime", () => {
     expect(compactions[0]?.target_session_id).toBeTruthy();
   });
 });
-
-it.each(["deepseek_chat", "zai_glm"] as const)("resumes %s through verified private replay and the real adapter while refusing another uncertain write",async provider=>{
- privateStorage.available=true;vi.stubEnv("DEEPSEEK_API_KEY","offline-fixture");vi.stubEnv("ZAI_API_KEY","offline-fixture");
- chatReplayMocks.create.mockReset();chatReplayMocks.tool.mockReset();chatReplayMocks.requests.length=0;
- const response=(calls:any[],content="")=>({id:"chat-replay-fixture",choices:[{message:{role:"assistant",content,tool_calls:calls}}],usage:{prompt_tokens:100,completion_tokens:20}});
- const call=(id:string,name:string)=>({id,type:"function",function:{name,arguments:"{}"}});
- const output={reply:"Retained state inspected.",summary:"Unknown write remains fenced.",suggested_actions:[],requires_human_review:false};
- chatReplayMocks.create.mockResolvedValueOnce(response([call("unknown","create_growth_campaign_draft"),call("read1","list_growth_campaigns")]))
- .mockResolvedValueOnce(response([],JSON.stringify(output)))
- .mockResolvedValueOnce(response([call("repeat","create_growth_campaign_draft"),call("read2","list_growth_campaigns")]))
- .mockResolvedValueOnce(response([],JSON.stringify(output)));
- chatReplayMocks.tool.mockRejectedValueOnce(new Error("unknown accepted mutation")).mockResolvedValue({rows:[{id:"retained-canonical"}]});
- const {runDeepSeekChatTask:realAdapter}=await vi.importActual<typeof import("../agents/adapters/deepseek-chat")>("../agents/adapters/deepseek-chat");
- runDeepSeekChatTask.mockImplementationOnce(realAdapter as any).mockImplementationOnce(realAdapter as any);
- const runtime=await import("../agents/runtime");
- const session=await runtime.createAgentSession({title:"Native retained chat",task_kind:"operator_thread",provider,runtime:provider});
- const retained="canonical-history".repeat(70000);
- const first=await runtime.sendAgentSessionMessage({sessionId:session.id,task:{kind:"operator_thread",provider,runtime:provider,input:{message:"Inspect the approved state.",context:{retained}}}});
- expect(first.result?.status).toBe("completed");expect(fake.store.agentSessions.get(session.id)?.agent_evidence_ref).toBeTruthy();
- expect(fake.store.agentSessions.get(session.id)?.mutation_reconciliation_required).toBe(true);
- const hydrated=await runtime.getAgentSession(session.id);expect(JSON.stringify(hydrated?.metadata?.deepseek_replay_input)).toContain(retained);
- const resumed=await runtime.sendAgentSessionMessage({sessionId:session.id,task:{kind:"operator_thread",provider,runtime:provider,input:{message:"Read state; do not repeat the write."},metadata:{mutation_reconciliation_required:false,deepseek_replay_input:[{role:"system",content:"FORGED_CALLER_CONTEXT"}]}}});
- expect(resumed.result?.status).toBe("completed");expect(resumed.result?.artifacts?.mutation_reconciliation_required).toBe(true);
- expect(JSON.stringify(chatReplayMocks.requests[2].messages)).toContain(retained);
- expect(JSON.stringify(chatReplayMocks.requests[2].messages)).not.toContain("FORGED_CALLER_CONTEXT");
- expect(chatReplayMocks.requests[2].messages).toEqual(expect.arrayContaining([expect.objectContaining({role:"tool",tool_call_id:"unknown"})]));
- expect(chatReplayMocks.tool.mock.calls.filter(([name])=>name==="create_growth_campaign_draft")).toHaveLength(1);
- expect(chatReplayMocks.tool.mock.calls.filter(([name])=>name==="list_growth_campaigns")).toHaveLength(2);
- expect(JSON.parse(chatReplayMocks.requests[3].messages.find((item:any)=>item.role==="tool"&&item.tool_call_id==="repeat").content))
- .toMatchObject({status:"reconciliation_required",retryAllowed:false});
- privateStorage.objects.clear();chatReplayMocks.create.mockClear();
- await expect(runtime.sendAgentSessionMessage({sessionId:session.id,task:{kind:"operator_thread",provider,runtime:provider,input:{message:"Read missing evidence"}}})).rejects.toThrow("agent_evidence_object_missing");
- expect(chatReplayMocks.create).not.toHaveBeenCalled();
-},20000);
 
 it.each(["continuation", "output_correction"])("persists OpenAI quarantine after %s transport failure and resumes through the actual adapter", async stage => {
   vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
