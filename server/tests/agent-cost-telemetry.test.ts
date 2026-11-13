@@ -136,6 +136,67 @@ describe("agent cost telemetry", () => {
   });
 
 
+  // History: stored runs of removed providers (they cannot be called) keep their cost.
+  it("summarizes cache ratio and cost across direct DeepSeek and OpenRouter usage schemas (history)", () => {
+    const summary = summarizeAgentCostTelemetry([
+      {
+        task_kind: "support_triage",
+        provider: "deepseek_chat",
+        model: "deepseek-v4-flash",
+        artifacts: {
+          route: "deepseek_official_direct",
+          prompt_tokens: 100,
+          completion_tokens: 20,
+          prompt_cache_hit_tokens: 70,
+          prompt_cache_miss_tokens: 30,
+        },
+      },
+      {
+        task_kind: "support_triage",
+        provider: "deepseek_chat",
+        model: "deepseek/deepseek-v4-flash",
+        artifacts: {
+          route: "deepseek_via_openrouter",
+          openrouter_provider: "DeepSeek",
+          prompt_tokens: 200,
+          completion_tokens: 50,
+          cached_tokens: 120,
+          cache_write_tokens: 40,
+          reasoning_tokens: 9,
+          cost_usd: 0.004,
+        },
+      },
+    ]);
+
+    expect(summary.rows).toEqual([
+      expect.objectContaining({
+        task_kind: "support_triage",
+        provider: "deepseek_chat",
+        route: "deepseek_official_direct",
+        model: "deepseek-v4-flash",
+        calls: 1,
+        prompt_tokens: 100,
+        cached_tokens: 70,
+        cache_hit_ratio: 0.7,
+        cost_usd: 0,
+      }),
+      expect.objectContaining({
+        task_kind: "support_triage",
+        provider: "deepseek_chat",
+        route: "deepseek_via_openrouter",
+        model: "deepseek/deepseek-v4-flash",
+        provider_route: "DeepSeek",
+        calls: 1,
+        prompt_tokens: 200,
+        cached_tokens: 120,
+        cache_write_tokens: 40,
+        reasoning_tokens: 9,
+        cache_hit_ratio: 0.6,
+        cost_usd: 0.004,
+      }),
+    ]);
+  });
+
   it("parses raw nested provider usage and identifies local waste signals", () => {
     const runs = [
       {
@@ -374,6 +435,20 @@ describe("offloaded agent cost accounting", () => {
     expect(extractAgentCostTelemetry(projected)).toEqual(telemetry);
     expect(summarizeRollingAgentSpend([projected], { nowMs: now, stopUsd: { lastHour: 1 } }).windows.lastHour)
       .toMatchObject({ cost_usd: 2, prompt_tokens: 100000, status: "stop" });
+  });
+  // History: a stored run of a removed provider keeps its resolved model through projection.
+  it("binds a legitimate resolved OpenRouter model separately from the requested alias (history)", async () => {
+    const run = { ...original(), provider: "openrouter", model: "requested-provider-alias",
+      artifacts: { ...original().artifacts, openrouter_model: "deepseek/deepseek-v4-pro" } };
+    const telemetry = extractAgentCostTelemetry(run), objects = new Map<string, string>();
+    const storage: any = { bucketName: "synthetic-private-bucket",
+      createOnly: async (name: string, text: string) => { objects.set(name, text); return "created"; },
+      readText: async (name: string) => objects.get(name) ?? null,
+      info: async (name: string) => objects.has(name) ? { generation: "1", size: Buffer.byteLength(objects.get(name)!) } : null };
+    const projected = await projectAgentEvidence({ ...run, metadata: { cost_telemetry: telemetry } }, { collection: "agentRuns", id: run.id }, storage);
+    expect(extractAgentCostTelemetry(projected)).toEqual(telemetry);
+    expect(extractAgentCostTelemetry(projected).model).toBe("deepseek/deepseek-v4-pro");
+    expect(summarizeRollingAgentSpend([projected], { nowMs: now, stopUsd: { lastHour: 1 } }).windows.lastHour.status).toBe("stop");
   });
   it("refuses unresolved accounting after a failed evidence receipt", () => {
     expect(() => extractAgentCostTelemetry({ ...compact(), agent_accounting_incomplete: true })).toThrow("agent_accounting_incomplete;");

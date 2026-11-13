@@ -216,16 +216,30 @@ function asTimestampMs(value: unknown): number | null {
 function inferRoute(run: AgentTelemetryRun, artifacts: Record<string, unknown>) {
   const explicit = asString(artifacts.route, "");
   if (explicit) return explicit;
+  // History only (removed providers, see deepSeekPricingForModel): stored runs keep their route.
+  const model = asString(artifacts.openrouter_model ?? run.model, "");
+  if (/^deepseek\//i.test(model)) return "deepseek_via_openrouter";
+  if (run.provider === "deepseek_chat" || /^deepseek/i.test(model)) {
+    return "deepseek_official_direct";
+  }
   return asString(run.provider, "unknown");
 }
 
 function readProviderRoute(artifacts: Record<string, unknown>) {
-  return asString(artifacts.provider_route, "unknown");
+  // `openrouter_*` fields are read for stored runs only (history; see deepSeekPricingForModel).
+  const direct = asString(artifacts.openrouter_provider ?? artifacts.provider_route, "");
+  if (direct) return direct;
+  const providerRouting =
+    asRecord(artifacts.openrouter_provider_routing) ||
+    asRecord(artifacts.openrouter_provider_preferences);
+  const order = providerRouting?.order;
+  return Array.isArray(order) ? order.map((entry) => String(entry)).join(">") : "unknown";
 }
 
 function readUpstreamProvider(artifacts: Record<string, unknown>) {
   return asString(
-    artifacts.upstream_provider
+    artifacts.openrouter_provider
+      ?? artifacts.upstream_provider
       ?? artifacts.provider_route,
     "unknown",
   );
@@ -360,6 +374,7 @@ function flattenUsageCounters(value: unknown): Record<string, unknown> {
 function usageSourceFromArtifacts(artifacts: Record<string, unknown>) {
   return [
     artifacts.usage,
+    artifacts.openrouter_usage,
     artifacts.provider_usage,
     artifacts.raw_usage,
   ].reduce<Record<string, unknown>>(
@@ -382,7 +397,7 @@ function readUsageArtifacts(run: AgentTelemetryRun) {
   const cachePolicy = asRecord(artifacts.cache_policy) || {};
   const artifactUsage = usageSourceFromArtifacts(artifacts);
   const usageFallback = usageSourceFromLogs(run);
-  const rawUsageSources = [artifacts.usage, artifacts.provider_usage, artifacts.raw_usage].map(asRecord);
+  const rawUsageSources = [artifacts.usage, artifacts.openrouter_usage, artifacts.provider_usage, artifacts.raw_usage].map(asRecord);
   const aggregateLog = run.logs?.find(log => log.event_type === "provider.telemetry.aggregated");
   const aliases: Record<string, string[]> = { prompt_tokens: ["prompt_tokens", "input_tokens"],
     completion_tokens: ["completion_tokens", "output_tokens"], cost_usd: ["cost_usd", "cost", "costUsd"] };
@@ -415,7 +430,7 @@ function readUsageArtifacts(run: AgentTelemetryRun) {
     task_kind: asString(run.task_kind, "unknown") as AgentTaskKind | "unknown",
     provider: asString(run.provider, "unknown"),
     route: inferRoute(run, artifacts),
-    model: asString(run.model, "unknown"),
+    model: asString(artifacts.openrouter_model ?? run.model, "unknown"),
     provider_route: readProviderRoute(artifacts),
     calls:
       callsValue === undefined || callsValue === null
@@ -550,7 +565,40 @@ type ModelPricing = {
   longContextOutputMultiplier?: number;
 };
 
+/*
+ * HISTORY ONLY: removed providers (DeepSeek, Z.ai, OpenRouter). They cannot
+ * be called: no adapter, provider id or setting for them exists any more.
+ * These price rows, and the reads of the artifact fields their runs stored
+ * (`openrouter_usage`, `openrouter_model`, `openrouter_provider`,
+ * `openrouter_provider_routing`/`_preferences`, and the `deepseek_chat` /
+ * `deepseek...` route inference), exist only so runs already stored keep
+ * exactly the cost, tokens, route and model they had. Removing a provider
+ * never changes what past runs cost.
+ */
+function deepSeekPricingForModel(model: string): ModelPricing | null {
+  const normalized = model.trim().toLowerCase();
+  if (normalized.includes("deepseek-v4-pro")) {
+    return {
+      cacheHitInput: 0.003625,
+      cacheMissInput: 0.435,
+      cacheWriteInput: 0.435,
+      output: 0.87,
+    };
+  }
+  if (normalized.includes("deepseek-v4-flash")) {
+    return {
+      cacheHitInput: 0.0028,
+      cacheMissInput: 0.14,
+      cacheWriteInput: 0.14,
+      output: 0.28,
+    };
+  }
+  return null;
+}
+
 function pricingForModel(model: string): ModelPricing | null {
+  const deepSeek = deepSeekPricingForModel(model);
+  if (deepSeek) return deepSeek;
   const anthropic = anthropicPricingForModel(model);
   if (anthropic) return anthropic;
   const openAI = pricingForOpenAIModel(model);
@@ -570,6 +618,8 @@ function estimateCostPerMillionTokens(model: string) {
   const normalized = model.trim().toLowerCase();
   if (!normalized || normalized === "unknown") return 0;
   if (normalized.includes(":free")) return 0;
+  const deepSeekPricing = deepSeekPricingForModel(normalized);
+  if (deepSeekPricing) return deepSeekPricing.output;
   if (normalized.includes("gemini-3-flash")) return 0.6;
   if (normalized.includes("gpt-5.4-mini")) return 0.3;
   if (normalized.includes("gpt-5.4")) return 0.4;
