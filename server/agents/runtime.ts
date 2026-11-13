@@ -1,7 +1,10 @@
 import crypto from "node:crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { getAgentProfile } from "./agent-profiles";
+import { assertAgentProfileUsable, getAgentProfile } from "./agent-profiles";
+import { LANE_DATA_CLASSES, NO_PERMITTED_PROVIDER, PRIVACY_NOT_PERMITTED, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
+  privacyDecisionForClasses, privacyDecisionForLane, privacyVersionForTask, statusQuoExceptionForLane,
+  type AgentDataClass } from "./provider-privacy";
 import { AgentEvidenceError, hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence, persistAgentEvidenceFailure, requiresMutationReconciliation } from "./private-evidence";
 import { createAgentCheckpoint, getAgentCheckpoint, listAgentCheckpoints } from "./checkpoints";
 import { createAgentCompaction, listAgentCompactions } from "./compactions";
@@ -938,6 +941,30 @@ function refuseRetiredSiteAssessment(kind: string): void {
   if (kind === "site_assessment") throw new Error("site_assessment_retired");
 }
 
+/**
+ * The data-class gate at the one place every provider call passes through.
+ * Whatever chose the provider (the lane's resolution, a saved session, a
+ * profile, the shadow setting, a caller's pin), a provider the Privacy Policy
+ * that applies to the task's data does not name for every kind of data the
+ * task sends is never called.
+ */
+function privacyGateForTask(task: NormalizedAgentTask<unknown, unknown>) {
+  const version = privacyVersionForTask(task);
+  const managedRuntime = (task.metadata?.managedRuntime ?? null) as Record<string, unknown> | null;
+  const snapshot = (managedRuntime?.profileSnapshot ?? null) as Record<string, unknown> | null;
+  const profileKey = typeof managedRuntime?.agentProfileKey === "string" ? managedRuntime.agentProfileKey
+    : typeof snapshot?.key === "string" ? snapshot.key : null;
+  const classes = [...new Set([...(LANE_DATA_CLASSES[task.kind]?.classes ?? ["site_job_text", "job_records", "personal_info", "staff_tools"]),
+    ...((profileKey && PROFILE_DATA_CLASSES[profileKey]?.classes) || [])])] as AgentDataClass[];
+  const exception = statusQuoExceptionForLane(task.kind, version);
+  // A status-quo exception: the lane's one named provider and nothing else.
+  const decide = (provider: AgentProvider) => exception
+    ? privacyDecisionForLane(provider, task.kind, classes, version) : privacyDecisionForClasses(provider, classes, version);
+  const decision = decide(task.provider);
+  const anyPermitted = (Object.keys(PROVIDER_DESTINATIONS) as AgentProvider[]).some((provider) => decide(provider).permitted);
+  return { ...decision, reason: decision.permitted ? null : anyPermitted ? PRIVACY_NOT_PERMITTED : NO_PERMITTED_PROVIDER };
+}
+
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
   host?: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void> },
@@ -952,6 +979,14 @@ async function executeTask<TInput, TOutput>(
         ...(Array.isArray(task.metadata?.openai_replay_input) ? { openai_replay_input: task.metadata.openai_replay_input } : {}),
       },
     };
+  }
+  const privacyGate = privacyGateForTask(task as unknown as NormalizedAgentTask<unknown, unknown>);
+  if (!privacyGate.permitted) {
+    return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+      tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
+      error: `${privacyGate.reason}: Privacy Policy ${privacyGate.version} does not name ${task.provider} for ${privacyGate.blocked_by.join(", ")}`,
+      artifacts: { inference_not_invoked: true, privacy_gate: { reason: privacyGate.reason, provider: task.provider,
+        privacy_policy_version: privacyGate.version, data_classes: privacyGate.data_classes, blocked_by: privacyGate.blocked_by } } };
   }
   if (task.provider === "openai_responses") {
     const { runOpenAIResponsesTask } = await import("./adapters/openai-responses");
@@ -2085,6 +2120,8 @@ export async function createAgentSession(params: {
   refuseRetiredSiteAssessment(params.task_kind);
   const sessionId = crypto.randomUUID();
   const profile = params.agent_profile_id ? await getAgentProfile(params.agent_profile_id) : null;
+  // A profile whose provider was removed starts nothing (agent-profiles).
+  assertAgentProfileUsable(profile);
   if (params.task_kind === "site_assessment" && profile && profile.task_kind !== "site_assessment") {
     throw new Error("site_assessment_profile_incompatible");
   }
@@ -2221,6 +2258,8 @@ export async function sendAgentSessionMessage(params: {
   const agentProfile = session.agent_profile_id
     ? await getAgentProfile(session.agent_profile_id)
     : null;
+  // A saved session follows its profile: a disabled profile runs nothing, before any run record.
+  assertAgentProfileUsable(agentProfile);
   const environmentProfile = session.environment_profile_id
     ? await getEnvironmentProfile(session.environment_profile_id)
     : null;
@@ -2715,6 +2754,8 @@ export async function forkAgentSessionWithHandoff(params: {
   if (!sourceSession) {
     throw new Error("Agent session not found");
   }
+  // A fork carries the work on; a session of a disabled profile cannot be forked onto its lane.
+  if (sourceSession.agent_profile_id) assertAgentProfileUsable(await getAgentProfile(sourceSession.agent_profile_id));
 
   let sourceRun =
     params.sourceRunId

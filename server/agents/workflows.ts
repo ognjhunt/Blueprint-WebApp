@@ -3,6 +3,7 @@ import { logger } from "../logger";
 import type { InboundRequest, QualificationState } from "../types/inbound-request";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import { runAgentTask } from "./runtime";
+import { describeAutoAgentShadowProvider } from "./provider-config";
 import { type LaneSafetyPolicy, SUPPORT_POLICY } from "./action-policies";
 import {
   createPhase2RoutingPolicy,
@@ -115,7 +116,6 @@ type AutoAgentShadowParams<TInput, TOutput> = {
 };
 
 const AUTOAGENT_SHADOW_NAMESPACE = "autoagent";
-const AUTOAGENT_SHADOW_DEFAULT_PROVIDER: AgentProvider = "acp_harness";
 const SUPPORT_SHADOW_DECISION_FIELDS = [
   "automation_status",
   "block_reason_code",
@@ -162,19 +162,6 @@ function isAutoAgentShadowEnabledForLane(kind: AutoAgentShadowLane) {
       : configuredLanes.size > 0;
 
   return enabledByFlag && configuredLanes.has(kind);
-}
-
-function getAutoAgentShadowProvider(): AgentProvider {
-  const configuredProvider = (process.env.BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER || "").trim();
-  switch (configuredProvider) {
-    case "openai_responses":
-    case "anthropic_agent_sdk":
-    case "openclaw":
-    case "acp_harness":
-      return configuredProvider as AgentProvider;
-    default:
-      return AUTOAGENT_SHADOW_DEFAULT_PROVIDER;
-  }
 }
 
 function getAutoAgentShadowModel() {
@@ -395,8 +382,24 @@ async function maybeRunAutoAgentShadow<TInput, TOutput>(
     return null;
   }
 
-  const provider = getAutoAgentShadowProvider();
+  // The shadow provider passes the same data-class gate as every lane: when
+  // the policy does not name it for this lane's data the comparison is skipped
+  // and recorded with the reason, and nothing is sent.
+  const shadow = describeAutoAgentShadowProvider(params.kind);
+  const provider: AgentProvider = shadow.provider;
   const model = getAutoAgentShadowModel();
+  if (shadow.refused) {
+    logger.warn({ kind: params.kind, provider, reason: shadow.refused.reason, blocked_by: shadow.refused.blocked_by },
+      "AutoAgent shadow run skipped: provider not permitted for the lane's data");
+    await writeAutoAgentShadowRecord(params.docRef, params.existingOpsAutomation, {
+      namespace: AUTOAGENT_SHADOW_NAMESPACE, kind: params.kind, source_collection: params.sourceCollection,
+      source_doc_id: params.sourceDocId, session_key: `${params.sessionKey}:shadow:${AUTOAGENT_SHADOW_NAMESPACE}`,
+      captured_at: admin.firestore.FieldValue.serverTimestamp(), provider, runtime: provider, model: model || null,
+      status: "skipped", error: `${shadow.refused.reason}: ${shadow.refused.blocked_by.join(",")}`,
+      inference_not_invoked: true,
+    });
+    return null;
+  }
 
   try {
     const mergedMetadata = {

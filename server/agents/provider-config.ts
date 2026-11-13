@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
+import { getOpenAiConfigurationIssue } from "../utils/openaiApiHost";
+import { privacyDecision, type AgentDataClass } from "./provider-privacy";
 import type { AgentProvider, AgentTaskKind } from "./types";
 
 export type StructuredProvider = Extract<
@@ -368,6 +370,32 @@ function isCodexLocalConfigured() {
   return codexAvailability;
 }
 
+/**
+ * Provider ids that existed before DeepSeek, Z.ai and OpenRouter were removed.
+ * A setting naming one is the same as no setting, everywhere: the global
+ * preference, the fallback, the shadow provider and every per-lane setting.
+ * It is listed by name in the connectivity view and the launch checks.
+ */
+export const REMOVED_PROVIDER_IDS: ReadonlySet<string> = new Set(["deepseek_chat", "zai_glm", "openrouter"]);
+
+export function isRemovedProviderId(value: string | undefined | null): boolean {
+  return REMOVED_PROVIDER_IDS.has(String(value || "").trim());
+}
+
+/** The provider settings whose value can name a provider, by name. */
+export function listProviderSettingKeys(): string[] {
+  const laneKeys = Object.keys(TASK_MODEL_SUFFIXES)
+    .map((kind) => getLaneProviderEnvKey(kind as AgentTaskKind))
+    .filter((key): key is string => Boolean(key));
+  return ["BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER", "BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER",
+    "BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", ...laneKeys];
+}
+
+/** Settings that still name a removed provider, by name only (never the value). */
+export function listRemovedProviderSettings(): string[] {
+  return listProviderSettingKeys().filter((key) => isRemovedProviderId(process.env[key]));
+}
+
 function normalizeProvider(value: string | undefined | null): StructuredProvider | null {
   const normalized = String(value || "").trim() as StructuredProvider;
   return STRUCTURED_PROVIDER_VALUES.has(normalized) ? normalized : null;
@@ -378,7 +406,8 @@ export function isProviderConfigured(provider: StructuredProvider): boolean {
     case "codex_local":
       return isCodexLocalConfigured();
     case "openai_responses":
-      return Boolean(process.env.OPENAI_API_KEY?.trim());
+      // A key, and OPENAI_BASE_URL unset or OpenAI's own host.
+      return getOpenAiConfigurationIssue() === null;
     case "anthropic_agent_sdk":
       return getAnthropicConfigurationIssue() === null;
     case "acp_harness":
@@ -431,80 +460,134 @@ const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> 
   robot_fit_ranking: "openai_responses",
 };
 
+/**
+ * Lanes pinned to one provider in their task definition rather than resolved
+ * here. The resolution test checks this against the task registry.
+ */
+export const PINNED_TASK_PROVIDERS: Partial<Record<AgentTaskKind, AgentProvider>> = {
+  adp_run_operator: "openai_agents_api",
+  external_harness_thread: "acp_harness",
+  site_video_evidence: "gemini_video",
+  capture_video_privacy: "gemini_video",
+  capture_coverage: "gemini_video",
+  site_assessment: "openai_responses",
+};
+
+/** The lane's own default provider, if it has one (the lanes that write to people, and the ranking). */
+export function getLaneDefaultProvider(taskKind: AgentTaskKind): StructuredProvider | null {
+  return TASK_DEFAULT_PROVIDER[taskKind] ?? null;
+}
+
+/** A setting that names a provider the gate does not permit for the lane's data: refused, never honoured. */
+export type ProviderSettingRefusal = {
+  env_key: string;
+  /** The provider id the setting names (a provider id, never a key or URL). */
+  requested: StructuredProvider;
+  reason: "privacy_not_permitted";
+  /** The kinds of data the provider's Privacy Policy row does not name. */
+  blocked_by: AgentDataClass[];
+};
+
 export type StructuredProviderResolution = {
   provider: StructuredProvider;
   lane_env_key: string | null;
   lane_request: string | null;
   lane_request_honored: boolean;
+  /** The lane setting names a removed provider and is treated as no setting. */
+  lane_setting_names_removed_provider: boolean;
   reason:
     | "lane_override"
     | "lane_request_not_configured"
     | "lane_request_unrecognized"
+    | "lane_request_not_permitted"
     | "lane_default"
     | "lane_default_not_configured"
     | "global_selection";
+  /** Settings naming a provider the Privacy Policy does not name for this lane's data. */
+  refused_settings: ProviderSettingRefusal[];
+  /**
+   * Set when no provider that may receive this lane's data is configured: the
+   * lane fails closed and sends nothing. `no_permitted_provider`: the policy
+   * names no provider here for its data; `permitted_provider_not_configured`:
+   * it names one, and that one has no usable key here.
+   */
+  fails_closed: "no_permitted_provider" | "permitted_provider_not_configured" | null;
 };
+
+/** Whether the gate lets a provider receive this lane's data, under the current Privacy Policy version. */
+export function providerPermittedForLane(provider: StructuredProvider, taskKind: AgentTaskKind | undefined): boolean {
+  return !taskKind || privacyDecision(provider, taskKind).permitted;
+}
+
+function refuseSetting(envKey: string, provider: StructuredProvider | null, taskKind: AgentTaskKind | undefined):
+  ProviderSettingRefusal | null {
+  if (!provider || !taskKind || providerPermittedForLane(provider, taskKind)) return null;
+  return { env_key: envKey, requested: provider, reason: "privacy_not_permitted",
+    blocked_by: privacyDecision(provider, taskKind).blocked_by };
+}
 
 /**
  * The resolution, not just the answer.
  *
- * A lane override that names an unkeyed provider falls through to the global
- * chain rather than taking the lane offline — the qualification lane going
- * quiet is worse than it running on the cheaper model. But falling through
- * silently is how you end up reading another provider in the logs
- * while the config says OpenAI, so the fall-through is reported instead of
- * swallowed. `getAgentRuntimeConnectionMetadata` surfaces it.
+ * Privacy first: the data-class gate (provider-privacy.ts) decides which
+ * providers may receive this lane's data at all. A setting that names any
+ * other provider (the lane setting, the global preference or the fallback) is
+ * refused with its reason and reported, never honoured, and the lane resolves
+ * to the next permitted, configured provider. With none, the lane fails
+ * closed: `fails_closed` says why, the reported provider is one the policy
+ * permits (whose missing key makes its adapter send nothing), and the runtime
+ * gate refuses any call the policy does not permit.
+ *
+ * A lane setting that cannot be honoured for another reason (its provider is
+ * not configured, the value is not a provider, or it names a removed provider)
+ * is treated as no setting: the lane's own default applies, then the global
+ * chain. Falling through silently is how you end up reading another provider
+ * in the logs while the config says OpenAI, so the fall-through is reported
+ * instead of swallowed, by setting name; a removed provider's id is reported
+ * as such and never echoed as a request. `getAgentRuntimeConnectionMetadata`
+ * surfaces it.
  */
 export function describeStructuredAutomationProvider(
   taskKind?: AgentTaskKind,
 ): StructuredProviderResolution {
   const laneEnvKey = getLaneProviderEnvKey(taskKind);
-  const laneRequest = laneEnvKey
-    ? process.env[laneEnvKey]?.trim() || null
-    : null;
+  const laneValue = laneEnvKey ? process.env[laneEnvKey]?.trim() || null : null;
+  // A lane setting naming a removed provider is the same as no setting.
+  const laneRemoved = isRemovedProviderId(laneValue);
+  const laneRequest = laneValue && !laneRemoved ? laneValue : null;
   const laneProvider = laneRequest ? normalizeProvider(laneRequest) : null;
-  const globalProvider = selectGlobalStructuredProvider();
+  const global = selectGlobalStructuredProvider(taskKind);
+  const laneRefusal = laneEnvKey ? refuseSetting(laneEnvKey, laneProvider, taskKind) : null;
+  const refused = [...(laneRefusal ? [laneRefusal] : []), ...global.refused];
+  const base = { lane_env_key: laneEnvKey, lane_request: laneRequest,
+    lane_setting_names_removed_provider: laneRemoved, refused_settings: refused };
 
-  if (laneProvider && isProviderConfigured(laneProvider)) {
-    return {
-      provider: laneProvider,
-      lane_env_key: laneEnvKey,
-      lane_request: laneRequest,
-      lane_request_honored: true,
-      reason: "lane_override",
-    };
+  if (laneProvider && !laneRefusal && isProviderConfigured(laneProvider)) {
+    return { ...base, provider: laneProvider, lane_request_honored: true, reason: "lane_override", fails_closed: null };
   }
 
-  if (laneRequest) {
-    return {
-      provider: globalProvider,
-      lane_env_key: laneEnvKey,
-      lane_request: laneRequest,
-      lane_request_honored: false,
-      reason: laneProvider
-        ? "lane_request_not_configured"
-        : "lane_request_unrecognized",
-    };
-  }
-
+  const unhonoredReason = laneRequest
+    ? (laneRefusal ? "lane_request_not_permitted" as const
+      : laneProvider ? "lane_request_not_configured" as const : "lane_request_unrecognized" as const)
+    : null;
   const laneDefault = taskKind ? TASK_DEFAULT_PROVIDER[taskKind] : undefined;
-  if (laneDefault) {
+  if (laneDefault && providerPermittedForLane(laneDefault, taskKind)) {
     const configured = isProviderConfigured(laneDefault);
     return {
-      provider: configured ? laneDefault : globalProvider,
-      lane_env_key: laneEnvKey,
-      lane_request: null,
-      lane_request_honored: configured,
-      reason: configured ? "lane_default" : "lane_default_not_configured",
+      ...base,
+      provider: configured ? laneDefault : global.provider,
+      lane_request_honored: !unhonoredReason && configured,
+      reason: unhonoredReason ?? (configured ? "lane_default" : "lane_default_not_configured"),
+      fails_closed: configured ? null : global.fails_closed,
     };
   }
 
   return {
-    provider: globalProvider,
-    lane_env_key: laneEnvKey,
-    lane_request: null,
-    lane_request_honored: true,
-    reason: "global_selection",
+    ...base,
+    provider: global.provider,
+    lane_request_honored: !unhonoredReason,
+    reason: unhonoredReason ?? "global_selection",
+    fails_closed: global.fails_closed,
   };
 }
 
@@ -514,23 +597,37 @@ export function getStructuredAutomationProvider(
   return describeStructuredAutomationProvider(taskKind).provider;
 }
 
-function selectGlobalStructuredProvider(): StructuredProvider {
+/**
+ * The global chain for a lane: its first provider that is permitted for the
+ * lane's data and configured. With no lane (the global report) it is the
+ * chain as configured.
+ */
+function selectGlobalStructuredProvider(taskKind?: AgentTaskKind): {
+  provider: StructuredProvider;
+  refused: ProviderSettingRefusal[];
+  fails_closed: StructuredProviderResolution["fails_closed"];
+} {
   const preferred = normalizeProvider(
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER,
   );
   const fallback = normalizeProvider(
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER,
   );
+  const refused = [
+    refuseSetting("BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER", preferred, taskKind),
+    refuseSetting("BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER", fallback, taskKind),
+  ].filter((entry): entry is ProviderSettingRefusal => Boolean(entry));
 
   const candidates = [
     preferred,
-    fallback,
     normalizeProvider(isCodexLocalConfigured() ? "codex_local" : null),
     normalizeProvider(process.env.ACP_HARNESS_URL ? "acp_harness" : null),
     // OpenAI before Anthropic (owner, 2026-11-13: Anthropic goes first only
     // once a paid test run has passed). Until then Anthropic is reached only
-    // without an OpenAI key, or where a setting names it.
-    normalizeProvider(process.env.OPENAI_API_KEY ? "openai_responses" : null),
+    // without OpenAI, or where the preferred or a lane setting names it.
+    normalizeProvider(isProviderConfigured("openai_responses") ? "openai_responses" : null),
+    // The fallback setting is a fallback: it is consulted after OpenAI, never ahead of it.
+    fallback,
     normalizeProvider(getAnthropicConfigurationIssue() === null ? "anthropic_agent_sdk" : null),
     normalizeProvider(process.env.OPENCLAW_BASE_URL ? "openclaw" : null),
     "codex_local" as StructuredProvider,
@@ -538,7 +635,17 @@ function selectGlobalStructuredProvider(): StructuredProvider {
     return Boolean(candidate) && array.indexOf(candidate) === index;
   });
 
-  return candidates.find(isProviderConfigured) || candidates[0];
+  const usable = candidates.find((candidate) => providerPermittedForLane(candidate, taskKind) && isProviderConfigured(candidate));
+  if (usable) return { provider: usable, refused, fails_closed: null };
+  if (!taskKind) return { provider: candidates.find(isProviderConfigured) || candidates[0], refused, fails_closed: null };
+  // Nothing permitted is configured: report a permitted provider (its adapter
+  // sends nothing without its key), or, when the policy permits none, keep the
+  // chain's answer for the report; the runtime gate refuses the call.
+  const permitted = (["openai_responses", ...candidates, "anthropic_agent_sdk"] as StructuredProvider[])
+    .find((candidate) => providerPermittedForLane(candidate, taskKind));
+  return permitted
+    ? { provider: permitted, refused, fails_closed: "permitted_provider_not_configured" }
+    : { provider: candidates.find(isProviderConfigured) || candidates[0], refused, fails_closed: "no_permitted_provider" };
 }
 
 export function getStructuredAutomationFallbackProvider(
@@ -550,10 +657,11 @@ export function getStructuredAutomationFallbackProvider(
   );
 
   const candidates = [
-    preferredFallback,
     "codex_local" as StructuredProvider,
-    // The same order as the default chain: OpenAI before Anthropic.
+    // The same order as the default chain: OpenAI before Anthropic, and the
+    // fallback setting after OpenAI, never ahead of it.
     "openai_responses" as StructuredProvider,
+    preferredFallback,
     "anthropic_agent_sdk" as StructuredProvider,
     "acp_harness" as StructuredProvider,
     "openclaw" as StructuredProvider,
@@ -561,7 +669,35 @@ export function getStructuredAutomationFallbackProvider(
     return Boolean(candidate) && candidate !== selected && array.indexOf(candidate) === index;
   });
 
-  return candidates.find(isProviderConfigured) || null;
+  // Never a provider the gate does not permit for the lane's data.
+  return candidates.find((candidate) => providerPermittedForLane(candidate, taskKind) && isProviderConfigured(candidate)) || null;
+}
+
+/**
+ * The shadow lanes' provider. `BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER` names it;
+ * an unset, unrecognised or removed value is no setting, which means the ACP
+ * harness. The gate applies as everywhere: a provider the policy does not
+ * name for the lane's data is refused, and the shadow run is skipped (it is a
+ * comparison, never the lane's answer).
+ */
+const AUTOAGENT_SHADOW_DEFAULT_PROVIDER: StructuredProvider = "acp_harness";
+
+export type ShadowProviderResolution = {
+  provider: StructuredProvider;
+  env_key: "BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER";
+  setting_names_removed_provider: boolean;
+  /** Set when the shadow run is skipped: its provider may not receive the lane's data. */
+  refused: { reason: "privacy_not_permitted"; blocked_by: AgentDataClass[] } | null;
+};
+
+export function describeAutoAgentShadowProvider(taskKind: AgentTaskKind): ShadowProviderResolution {
+  const value = (process.env.BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER || "").trim();
+  const named = (["openai_responses", "anthropic_agent_sdk", "openclaw", "acp_harness"] as StructuredProvider[])
+    .find((provider) => provider === value) ?? null;
+  const provider = named ?? AUTOAGENT_SHADOW_DEFAULT_PROVIDER;
+  const decision = privacyDecision(provider, taskKind);
+  return { provider, env_key: "BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", setting_names_removed_provider: isRemovedProviderId(value),
+    refused: decision.permitted ? null : { reason: "privacy_not_permitted", blocked_by: decision.blocked_by } };
 }
 
 export function getTaskModelByProvider(taskKind: AgentTaskKind) {

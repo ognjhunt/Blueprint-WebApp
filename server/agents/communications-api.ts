@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { getOpenAiBaseUrlIssue } from "../utils/openaiApiHost";
 import { COMMUNICATIONS_INSTRUCTIONS, communicationsDefinitionForInstructions } from "./communications-instructions";
 import {
   COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest,
@@ -320,6 +321,8 @@ export class CommunicationsAgentsAPI {
   }
   private headers() {
     if (!this.options.apiKey) throw new CommunicationsRuntimeError("existing_openai_binding_missing");
+    // A key beside an OPENAI_BASE_URL naming another host is treated as that host's; it is never sent.
+    if (getOpenAiBaseUrlIssue()) throw new CommunicationsRuntimeError("openai_base_url_names_another_host");
     return { Authorization: `Bearer ${this.options.apiKey}`, "OpenAI-Project": COMMUNICATIONS_PROJECT,
       "OpenAI-Beta": "agents=v1", "Content-Type": "application/json" };
   }

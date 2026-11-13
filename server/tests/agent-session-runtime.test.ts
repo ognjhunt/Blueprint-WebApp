@@ -8,6 +8,21 @@ vi.mock("openai", () => ({ default: class { chat = { completions: { create: (inp
 } } }; responses = { create: (input:any) => {
   responseReplayMocks.requests.push(structuredClone(input)); return responseReplayMocks.create(input);
 } }; } }));
+/**
+ * Most tests here exercise runtime mechanics (quarantine, evidence offload,
+ * spend stops) through the operator lane, whose data the current Privacy
+ * Policy names for no provider. The data-class gate is held open for them and
+ * closed (the real gate) in the tests marked "privacy gate"; the gate's own
+ * decisions are tested in provider-privacy-gate.test.ts.
+ */
+const privacyGateState = vi.hoisted(() => ({ open: true }));
+vi.mock("../agents/provider-privacy", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../agents/provider-privacy")>();
+  return { ...actual, privacyDecisionForClasses: ((...args: Parameters<typeof actual.privacyDecisionForClasses>) => {
+    const decision = actual.privacyDecisionForClasses(...args);
+    return privacyGateState.open ? { ...decision, permitted: true, blocked_by: [] } : decision;
+  }) as typeof actual.privacyDecisionForClasses };
+});
 vi.mock("../agents/operator-tools", async (importOriginal) => ({
   ...await importOriginal<typeof import("../agents/operator-tools")>(), chatCompletionOperatorTools: [
   {type:"function",function:{name:"list_growth_campaigns"}},
@@ -251,7 +266,76 @@ afterEach(() => {
   vi.resetModules();
 });
 
+/** Stored profiles naming no provider: the lane's own resolution applies. */
+function seedEnabledProfiles() {
+  for (const [id, key, taskKind] of [["test-ops-operator", "test-ops-operator", "operator_thread"],
+    ["test-research-subagent", "test-research-subagent", "operator_thread"]] as const) {
+    fake.store.agentProfiles.set(id, { id, key, name: key, task_kind: taskKind, capabilities: [], human_gates: [],
+      allowed_subagent_profile_ids: [], built_in: false, created_at: "timestamp", updated_at: "timestamp" });
+  }
+}
+
 describe("agent session runtime", () => {
+  it("privacy gate: refuses a pinned or saved provider the policy does not name for the lane's data, calling nothing", async () => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      const runtime = await import("../agents/runtime");
+      const pinned = await runtime.runAgentTask({ kind: "support_triage", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+        input: { message: "Help" } } as never, { dispatchQueuedOnFinish: false });
+      expect(pinned).toMatchObject({ status: "failed", artifacts: { inference_not_invoked: true,
+        privacy_gate: { reason: "privacy_not_permitted", provider: "anthropic_agent_sdk", blocked_by: ["personal_info"] } } });
+      expect(pinned.error).toContain("privacy_not_permitted");
+      // A session saved before, pinned to a provider not named for the lane's data, is refused the same way.
+      const session = await runtime.createAgentSession({ title: "Saved", task_kind: "support_triage", provider: "openai_responses" });
+      const saved = fake.store.agentSessions.get(session.id)!;
+      saved.provider = "acp_harness"; saved.runtime = "acp_harness";
+      const sent = await runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "support_triage", input: { message: "Help" } } });
+      expect(sent.result?.artifacts).toMatchObject({ privacy_gate: { reason: "privacy_not_permitted", provider: "acp_harness" } });
+      // The staff thread may run on OpenAI only; pinned elsewhere it is refused.
+      const staff = await runtime.runAgentTask({ kind: "operator_thread", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+        input: { message: "Status?" } }, { dispatchQueuedOnFinish: false });
+      expect(staff).toMatchObject({ status: "failed", artifacts: { privacy_gate: { reason: "privacy_not_permitted" } } });
+      // The harness lane keeps its one pinned destination and may use nothing else.
+      const harness = await runtime.runAgentTask({ kind: "external_harness_thread", provider: "openai_responses", runtime: "openai_responses",
+        input: { message: "Step", harness: "codex" } } as never, { dispatchQueuedOnFinish: false });
+      expect(harness).toMatchObject({ status: "failed", artifacts: { privacy_gate: { reason: "privacy_not_permitted",
+        provider: "openai_responses" } } });
+      // Lanes whose data OpenAI may receive still run on it, the staff thread included.
+      const allowed = await runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses", runtime: "openai_responses",
+        input: { message: "Help" } } as never, { dispatchQueuedOnFinish: false });
+      expect(allowed.status).toBe("completed");
+      const staffOnOpenAi = await runtime.runAgentTask({ kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses",
+        input: { message: "Status?" } }, { dispatchQueuedOnFinish: false });
+      expect(staffOnOpenAi.status).toBe("completed");
+      expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(2);
+    } finally {
+      privacyGateState.open = true;
+    }
+  }, 20_000);
+
+  it("starts nothing for a built-in profile whose provider was removed: no session, no run, no provider call", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    const runtime = await import("../agents/runtime");
+    await expect(runtime.createAgentSession({ title: "Ops", task_kind: "operator_thread", agent_profile_id: "built-in-ops-operator" }))
+      .rejects.toThrow("agent_profile_provider_removed");
+    await expect(runtime.delegateManagedAgentTask({ title: "Research", message: "Look", agentProfileId: "built-in-research-subagent" }))
+      .rejects.toThrow("agent_profile_provider_removed");
+    expect(fake.store.agentSessions.size).toBe(0);
+    // A session saved before, with that profile, follows the same rule, and cannot be forked onto its lane.
+    const session = await runtime.createAgentSession({ title: "Saved", task_kind: "support_triage", provider: "openai_responses" });
+    const saved = fake.store.agentSessions.get(session.id)!;
+    saved.agent_profile_id = "built-in-support-triage"; saved.provider = "zai_glm"; saved.runtime = "zai_glm";
+    const runsBefore = fake.store.agentRuns.size;
+    await expect(runtime.sendAgentSessionMessage({ sessionId: session.id,
+      task: { kind: "support_triage", input: { message: "Help" } } })).rejects.toThrow("agent_profile_provider_removed");
+    await expect(runtime.forkAgentSessionWithHandoff({ sessionId: session.id, phase: "implementation" } as never))
+      .rejects.toThrow("agent_profile_provider_removed");
+    expect(fake.store.agentRuns.size).toBe(runsBefore);
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+  });
+
   it("runs a session saved under a removed provider on the lane's own resolution, not on another pin", async () => {
     vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
     vi.stubEnv("ANTHROPIC_API_KEY", "");
@@ -670,6 +754,7 @@ describe("agent session runtime", () => {
   });
 
   it("applies managed runtime profiles and records runtime events and checkpoints", async () => {
+    seedEnabledProfiles();
     const {
       createAgentSession,
       sendAgentSessionMessage,
@@ -680,7 +765,7 @@ describe("agent session runtime", () => {
     const session = await createAgentSession({
       title: "Managed runtime session",
       task_kind: "operator_thread",
-      agent_profile_id: "built-in-ops-operator",
+      agent_profile_id: "test-ops-operator",
       environment_profile_id: "built-in-session-default",
       metadata: {
         startupContext: {
@@ -736,6 +821,7 @@ describe("agent session runtime", () => {
   });
 
   it("delegates a bounded subagent task from a parent session", async () => {
+    seedEnabledProfiles();
     const {
       createAgentSession,
       delegateManagedAgentTask,
@@ -745,19 +831,19 @@ describe("agent session runtime", () => {
     const parentSession = await createAgentSession({
       title: "Parent session",
       task_kind: "operator_thread",
-      agent_profile_id: "built-in-ops-operator",
+      agent_profile_id: "test-ops-operator",
       environment_profile_id: "built-in-session-default",
     });
 
     const delegated = await delegateManagedAgentTask({
       title: "Delegated research task",
       message: "Collect the narrow evidence needed for the issue.",
-      agentProfileId: "built-in-research-subagent",
+      agentProfileId: "test-research-subagent",
       environmentProfileId: "built-in-web-research",
       parentSessionId: parentSession.id,
     });
 
-    expect(delegated.session.agent_profile_id).toBe("built-in-research-subagent");
+    expect(delegated.session.agent_profile_id).toBe("test-research-subagent");
 
     const parentEvents = await listRuntimeEventsForSession(parentSession.id);
     expect(parentEvents.some((event) => event.kind === "subagent.spawned")).toBe(true);

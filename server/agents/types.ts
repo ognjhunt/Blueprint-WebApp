@@ -413,6 +413,10 @@ export interface AgentProfileRecord {
   human_gates?: string[];
   allowed_subagent_profile_ids?: string[];
   built_in?: boolean;
+  /** Set when the profile cannot be used; no session or run starts for it. */
+  disabled_reason?: "agent_profile_provider_removed";
+  /** The removed provider id the profile pinned (a removed id, never a key or value). */
+  removed_provider?: string;
   created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
 }

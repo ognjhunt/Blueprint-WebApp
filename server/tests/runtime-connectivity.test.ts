@@ -49,21 +49,32 @@ describe("runtime connectivity", () => {
       "../agents/runtime-connectivity"
     );
 
+    // The global report follows the setting; the operator lane, whose tools
+    // read jobs and company history, stays on OpenAI (the data-class gate).
     expect(getAgentRuntimeConnectionMetadata()).toMatchObject({
       provider: "anthropic_agent_sdk",
       configured: true,
-      default_model: "claude-sonnet-test",
+      default_model: "gpt-6-luna",
+      task_providers: { operator_thread: "openai_responses" },
     });
   });
 
-  it("runs smoke tests against the selected provider instead of hardcoding OpenAI", async () => {
+  it("runs smoke tests on the operator lane's own provider, and refuses one the gate does not permit", async () => {
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
+    {
+      const { runAgentRuntimeSmokeTest } = await import("../agents/runtime-connectivity");
+      // Anthropic only: the operator lane may not run there, so the smoke test sends nothing.
+      await expect(runAgentRuntimeSmokeTest()).rejects.toThrow("permitted_provider_not_configured");
+      expect(runAgentTask).not.toHaveBeenCalled();
+    }
+    process.env.OPENAI_API_KEY = "openai-key";
+    vi.resetModules();
     runAgentTask.mockResolvedValue({
       status: "completed",
-      provider: "anthropic_agent_sdk",
-      runtime: "anthropic_agent_sdk",
-      model: "claude-sonnet-4-5",
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-6-luna",
       tool_mode: "api",
       output: {
         reply: "Agent runtime smoke test passed.",
@@ -85,8 +96,9 @@ describe("runtime connectivity", () => {
     expect(result.ok).toBe(true);
     expect(runAgentTask).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: "anthropic_agent_sdk",
-        runtime: "anthropic_agent_sdk",
+        kind: "operator_thread",
+        provider: "openai_responses",
+        runtime: "openai_responses",
       }),
     );
   });
@@ -115,10 +127,12 @@ describe("runtime connectivity", () => {
       "../agents/runtime-connectivity"
     );
 
+    // The global report is local Codex; the operator lane may not run there,
+    // so its model is the OpenAI one it would use (and, with no key, it sends nothing).
     expect(getAgentRuntimeConnectionMetadata()).toMatchObject({
       provider: "codex_local",
       configured: true,
-      default_model: "gpt-5.4-mini",
+      default_model: "gpt-6-luna",
     });
   });
 });

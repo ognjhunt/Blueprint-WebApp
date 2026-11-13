@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
 import { logger } from "../logger";
+import { OPENAI_API_BASE_URL, getOpenAiConfigurationIssue } from "../utils/openaiApiHost";
 
 const defaultModel = process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
 
@@ -11,16 +12,15 @@ function getOpenAiClient() {
     return openAiClient;
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    logger.warn(
-      "OPENAI_API_KEY is not configured. Venue knowledge indexing will skip embedding generation.",
-    );
+  const issue = getOpenAiConfigurationIssue();
+  if (issue) {
+    // The reason only, never the value of a setting.
+    logger.warn({ reason: issue }, "OpenAI is not configured. Venue knowledge indexing will skip embedding generation.");
     openAiClient = null;
     return openAiClient;
   }
 
-  openAiClient = new OpenAI({ apiKey });
+  openAiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY!.trim(), baseURL: OPENAI_API_BASE_URL });
   return openAiClient;
 }
 

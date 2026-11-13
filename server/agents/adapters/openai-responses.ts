@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import OpenAI from "openai";
+import { OPENAI_API_BASE_URL, getOpenAiBaseUrlIssue, getUsableOpenAiApiKey } from "../../utils/openaiApiHost";
 import { readOnlyOperatorTools, toolFailure, validationIssue } from "./tool-recovery";
 import { ZodError, type ZodType } from "zod";
 
@@ -49,7 +50,8 @@ function replayInputMatchesPolicy(input: unknown[], taskKind: string, enabled: b
   );
 }
 
-const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
+// Null unless OpenAI is usable here: a key, and OPENAI_BASE_URL unset or OpenAI's own host.
+const openAiApiKey = getUsableOpenAiApiKey();
 const openAiTimeoutMs = getOpenAiTimeoutMs();
 
 // The per-run cap and input ceiling are shared with every adapter that
@@ -61,6 +63,7 @@ const openAiMaxInferenceCostUsd = getAgentMaxInferenceCostUsd();
 const client = openAiApiKey
   ? new OpenAI({
       apiKey: openAiApiKey,
+      baseURL: OPENAI_API_BASE_URL,
       maxRetries: 0,
       timeout: openAiTimeoutMs,
     })
@@ -157,7 +160,9 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       runtime: task.runtime,
       model: task.model,
       tool_mode: task.tool_policy.mode,
-      error: "OPENAI_API_KEY is not configured",
+      error: getOpenAiBaseUrlIssue() && process.env.OPENAI_API_KEY?.trim()
+        ? "openai_base_url_names_another_host: OpenAI is not configured while OPENAI_BASE_URL names another host"
+        : "OPENAI_API_KEY is not configured",
       requires_human_review: true,
       requires_approval: false,
     };

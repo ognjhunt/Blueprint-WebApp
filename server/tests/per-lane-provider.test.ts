@@ -52,13 +52,17 @@ function lunaOnQualificationOnly() {
 }
 
 describe("per-lane provider override", () => {
-  it("moves one lane to OpenAI and leaves lanes without a default on the global provider", async () => {
+  it("moves one lane to OpenAI and leaves lanes without a default on the global provider where the gate permits it", async () => {
     lunaOnQualificationOnly();
-    const { getStructuredAutomationProvider } = await import("../agents/provider-config");
+    const { getStructuredAutomationProvider, describeStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(getStructuredAutomationProvider("inbound_qualification")).toBe("openai_responses");
-    expect(getStructuredAutomationProvider("operator_thread")).toBe("anthropic_agent_sdk");
-    expect(getStructuredAutomationProvider("preview_diagnosis")).toBe("anthropic_agent_sdk");
+    // Public material: Anthropic may receive it, so the global setting holds.
+    expect(getStructuredAutomationProvider("robot_capability_extraction")).toBe("anthropic_agent_sdk");
+    // A job's records: Anthropic may not receive them; the global setting is refused for this lane.
+    expect(describeStructuredAutomationProvider("preview_diagnosis")).toMatchObject({ provider: "openai_responses",
+      refused_settings: [{ env_key: "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER", requested: "anthropic_agent_sdk",
+        reason: "privacy_not_permitted", blocked_by: ["job_records"] }] });
     expect(getStructuredAutomationProvider()).toBe("anthropic_agent_sdk");
   });
 
@@ -87,31 +91,35 @@ describe("per-lane provider override", () => {
         reason: "lane_default",
       });
     }
-    expect(getStructuredAutomationProvider("operator_thread")).toBe("anthropic_agent_sdk");
+    // The staff thread stays on OpenAI (the data-class gate); public material follows the setting.
+    expect(getStructuredAutomationProvider("operator_thread")).toBe("openai_responses");
+    expect(getStructuredAutomationProvider("robot_capability_extraction")).toBe("anthropic_agent_sdk");
   });
 
-  it("keeps an email lane running on the global provider when OpenAI has no key", async () => {
+  it("fails an email lane closed when OpenAI has no key: Anthropic may not receive personal information", async () => {
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
     vi.resetModules();
     const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(describeStructuredAutomationProvider("outbound_outreach")).toMatchObject({
-      provider: "anthropic_agent_sdk",
+      provider: "openai_responses",
       lane_request_honored: false,
       reason: "lane_default_not_configured",
+      fails_closed: "permitted_provider_not_configured",
     });
   });
 
-  it("keeps the lane running when the override names a provider with no key", async () => {
+  it("fails the lane closed when the override names a provider with no key and no other permitted provider has one", async () => {
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "anthropic_agent_sdk";
     process.env.BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER = "openai_responses";
     vi.resetModules();
     const { getStructuredAutomationProvider } = await import("../agents/provider-config");
 
-    // Falling back beats taking the most consequential lane offline.
-    expect(getStructuredAutomationProvider("inbound_qualification")).toBe("anthropic_agent_sdk");
+    // Not by moving its data to a provider the Privacy Policy does not name for
+    // it: without an OpenAI key the lane fails closed and sends nothing.
+    expect(getStructuredAutomationProvider("inbound_qualification")).toBe("openai_responses");
   });
 
   it("says the override was not honoured rather than falling back silently", async () => {
@@ -122,11 +130,15 @@ describe("per-lane provider override", () => {
     const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(describeStructuredAutomationProvider("inbound_qualification")).toEqual({
-      provider: "anthropic_agent_sdk",
+      provider: "openai_responses",
       lane_env_key: "BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER",
       lane_request: "openai_responses",
       lane_request_honored: false,
+      lane_setting_names_removed_provider: false,
       reason: "lane_request_not_configured",
+      refused_settings: [{ env_key: "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER", requested: "anthropic_agent_sdk",
+        reason: "privacy_not_permitted", blocked_by: ["personal_info", "site_job_text"] }],
+      fails_closed: "permitted_provider_not_configured",
     });
   });
 
@@ -150,7 +162,8 @@ describe("per-lane provider override", () => {
     const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(describeStructuredAutomationProvider("inbound_qualification")).toMatchObject({
-      provider: "anthropic_agent_sdk",
+      provider: "openai_responses",
+      fails_closed: "permitted_provider_not_configured",
       lane_request: "luna",
       lane_request_honored: false,
       reason: "lane_request_unrecognized",
@@ -163,9 +176,9 @@ describe("per-lane provider override", () => {
       "../agents/provider-config"
     );
 
-    expect(getStructuredAutomationFallbackProvider("inbound_qualification")).toBe(
-      "anthropic_agent_sdk",
-    );
+    // Anthropic may not receive the qualification lane's data, so it has no fallback.
+    expect(getStructuredAutomationFallbackProvider("inbound_qualification")).toBeNull();
+    expect(getStructuredAutomationFallbackProvider("robot_capability_extraction")).toBe("openai_responses");
   });
 });
 
@@ -185,10 +198,13 @@ describe("task definitions", () => {
   it("puts an email lane on OpenAI and a lane with no default on the global provider", async () => {
     lunaOnQualificationOnly();
     const { supportTriageTask } = await import("../agents/tasks/support-triage");
+    const { robotCapabilityExtractionTask } = await import("../agents/tasks/robot-capability-extraction");
     const { previewDiagnosisTask } = await import("../agents/tasks/preview-diagnosis");
 
     expect(supportTriageTask.default_provider).toBe("openai_responses");
-    expect(previewDiagnosisTask.default_provider).toBe("anthropic_agent_sdk");
+    expect(robotCapabilityExtractionTask.default_provider).toBe("anthropic_agent_sdk");
+    // A job's records stay on OpenAI: the gate refuses the global setting for that lane.
+    expect(previewDiagnosisTask.default_provider).toBe("openai_responses");
   });
 });
 
@@ -202,10 +218,10 @@ describe("runtime connectivity metadata", () => {
     const metadata = getAgentRuntimeConnectionMetadata();
     expect(metadata.task_providers.inbound_qualification).toBe("openai_responses");
     expect(metadata.task_providers.support_triage).toBe("openai_responses");
-    expect(metadata.task_providers.operator_thread).toBe("anthropic_agent_sdk");
+    expect(metadata.task_providers.operator_thread).toBe("openai_responses");
     expect(metadata.task_models.inbound_qualification).toBe("gpt-6-luna");
     expect(metadata.task_models.outbound_outreach).toBe("gpt-6-luna");
-    expect(metadata.task_models.operator_thread).toBe("claude-haiku-5-5");
+    expect(metadata.task_models.operator_thread).toBe("gpt-6-luna");
   });
 
   it("surfaces a lane override that did not take effect", async () => {
@@ -222,7 +238,7 @@ describe("runtime connectivity metadata", () => {
         task_kind: "inbound_qualification",
         env_key: "BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER",
         requested: "openai_responses",
-        using: "anthropic_agent_sdk",
+        using: "openai_responses",
         reason: "lane_request_not_configured",
       },
     ]);

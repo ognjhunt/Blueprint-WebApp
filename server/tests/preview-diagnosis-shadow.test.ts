@@ -79,7 +79,7 @@ describe("preview diagnosis AutoAgent shadow", () => {
   it("runs a preview shadow pass when enabled", async () => {
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "preview_diagnosis");
-    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "openai_responses");
     vi.stubEnv("BLUEPRINT_PREVIEW_DIAGNOSIS_BROWSER_SHADOW_ENABLED", "1");
     vi.stubEnv(
       "BLUEPRINT_PREVIEW_DIAGNOSIS_BROWSER_SHADOW_ALLOWED_DOMAINS",
@@ -134,8 +134,8 @@ describe("preview diagnosis AutoAgent shadow", () => {
       })
       .mockResolvedValueOnce({
         status: "completed",
-        provider: "acp_harness",
-        runtime: "acp_harness",
+        provider: "openai_responses",
+        runtime: "openai_responses",
         model: "codex",
         tool_mode: "external_harness",
         requires_human_review: true,
@@ -164,7 +164,7 @@ describe("preview diagnosis AutoAgent shadow", () => {
       2,
       expect.objectContaining({
         kind: "preview_diagnosis",
-        provider: "acp_harness",
+        provider: "openai_responses",
         session_key: "preview:request-1:shadow:autoagent",
         tool_policy: expect.objectContaining({
           mode: "browser",
@@ -196,7 +196,7 @@ describe("preview diagnosis AutoAgent shadow", () => {
           shadow_runs: expect.objectContaining({
             autoagent: expect.objectContaining({
               kind: "preview_diagnosis",
-              provider: "acp_harness",
+              provider: "openai_responses",
               status: "completed",
             }),
           }),
@@ -209,7 +209,7 @@ describe("preview diagnosis AutoAgent shadow", () => {
   it("does not attach browser shadow policy without an explicit allowlist", async () => {
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "preview_diagnosis");
-    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "openai_responses");
     vi.stubEnv("BLUEPRINT_PREVIEW_DIAGNOSIS_BROWSER_SHADOW_ENABLED", "1");
 
     decryptInboundRequestForAdmin.mockResolvedValue({
@@ -252,8 +252,8 @@ describe("preview diagnosis AutoAgent shadow", () => {
       })
       .mockResolvedValueOnce({
         status: "completed",
-        provider: "acp_harness",
-        runtime: "acp_harness",
+        provider: "openai_responses",
+        runtime: "openai_responses",
         model: "codex",
         tool_mode: "external_harness",
         requires_human_review: true,

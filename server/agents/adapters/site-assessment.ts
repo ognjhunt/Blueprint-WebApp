@@ -4,6 +4,7 @@ import { readCurrentTaskScreening } from "../../utils/taskScreeningEvidence";
 import { reserveCaptureCoverageInference } from "../../utils/captureCoverageInferenceBudget";
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
+import { OPENAI_API_BASE_URL } from "../../utils/openaiApiHost";
 import { OpenAIProvider } from "@openai/agents";
 import { dbAdmin as db, storageAdmin } from "../../../client/src/lib/firebaseAdmin";
 import { decryptInboundRequestForAdmin, decryptFieldValue, isEncryptedField } from "../../utils/field-encryption";
@@ -256,7 +257,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     // The closing write-up reasons over the whole video reading and can run past
     // the general two-minute limit (2026-10-23 dishwasher run); the 30-minute
     // run lease still bounds the assessment as a whole.
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: "https://api.openai.com/v1", maxRetries: 0,
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: OPENAI_API_BASE_URL, maxRetries: 0,
       timeout: Math.max(getOpenAiTimeoutMs(), SITE_ASSESSMENT_OPENAI_TIMEOUT_MS) });
     const provider = new OpenAIProvider({ useResponses: true,
       openAIClient: client as unknown as NonNullable<ConstructorParameters<typeof OpenAIProvider>[0]>["openAIClient"] });

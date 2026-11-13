@@ -55,4 +55,47 @@ describe("launch env audit", () => {
     expect(stdout).not.toContain("other-company");
     expect(runAudit([], { ANTHROPIC_BASE_URL: "https://api.anthropic.com" }).stdout).not.toContain("Settings of removed providers");
   });
+
+  it("does not count an OpenAI key whose base URL names another host, and says why without the value", () => {
+    const section = (stdout, title) => stdout.split(title)[1]?.split("\n\n")[0] ?? "";
+    const own = runAudit([], { OPENAI_API_KEY: "fixture-not-a-key", OPENAI_BASE_URL: "https://api.openai.com/v1" }).stdout;
+    expect(section(own, "Required-ready")).toContain("Structured runtime provider");
+    const elsewhere = runAudit([], { OPENAI_API_KEY: "fixture-not-a-key", OPENAI_BASE_URL: "https://compat.other-company.example/v1" }).stdout;
+    expect(section(elsewhere, "Blocked-by-env")).toContain("Structured runtime provider");
+    expect(elsewhere).toContain("openai_base_url_names_another_host");
+    expect(elsewhere).toContain("OPENAI_BASE_URL");
+    expect(elsewhere).not.toContain("other-company");
+  });
+
+  it("lists every left-over setting of a removed provider by name: base URLs, models and provider settings naming one", () => {
+    const stdout = runAudit([], {
+      ZAI_BASE_URL: "https://left-over.example", DEEPSEEK_BASE_URL: "https://left-over.example",
+      OPENROUTER_BASE_URL: "https://left-over.example", BLUEPRINT_OPENROUTER_VIDEO_MODEL: "left-over-model",
+      BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER: "deepseek_chat", BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER: "zai_glm",
+      BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER: "deepseek_chat", BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER: "deepseek_chat",
+      // A provider setting naming a kept provider is not a left-over.
+      BLUEPRINT_SUPPORT_TRIAGE_PROVIDER: "openai_responses",
+    }).stdout;
+    for (const name of ["ZAI_BASE_URL", "DEEPSEEK_BASE_URL", "OPENROUTER_BASE_URL", "BLUEPRINT_OPENROUTER_VIDEO_MODEL",
+      "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER", "BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER",
+      "BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER"]) {
+      expect(stdout).toContain(name);
+    }
+    expect(stdout).not.toContain("BLUEPRINT_SUPPORT_TRIAGE_PROVIDER");
+    expect(stdout).not.toContain("left-over");
+  });
+
+  it("the alpha preflight applies the same OpenAI host rule and names left-over settings without values", () => {
+    const run = (extraEnv) => spawnSync(process.execPath, ["scripts/launch-preflight.mjs"], {
+      cwd: repoRoot, env: { ...nodeEnv, ...extraEnv }, encoding: "utf8" });
+    const elsewhere = run({ OPENAI_API_KEY: "fixture-not-a-key", OPENAI_BASE_URL: "https://compat.other-company.example/v1",
+      BLUEPRINT_OUTBOUND_OUTREACH_PROVIDER: "zai_glm" });
+    const output = elsewhere.stdout + elsewhere.stderr;
+    expect(output).toContain("One structured automation provider is required");
+    expect(output).toContain("openai_base_url_names_another_host");
+    expect(output).toContain("BLUEPRINT_OUTBOUND_OUTREACH_PROVIDER");
+    expect(output).not.toContain("other-company");
+    const own = run({ OPENAI_API_KEY: "fixture-not-a-key" });
+    expect(own.stdout + own.stderr).not.toContain("One structured automation provider is required");
+  });
 });
