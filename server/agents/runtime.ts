@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { assertAgentProfileUsable, getAgentProfile, withProfileProviderStatus } from "./agent-profiles";
+import { withdrawalRedactionOf } from "./withdrawal-redaction";
 import { LANE_DATA_CLASSES, NO_PERMITTED_PROVIDER, PRIVACY_NOT_PERMITTED, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
   STRICTEST_PRIVACY_TABLE, privacyDecisionForClasses, resolvePrivacyVersion, type AgentDataClass } from "./provider-privacy";
 import { AgentEvidenceError, hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence, persistAgentEvidenceFailure, requiresMutationReconciliation } from "./private-evidence";
@@ -1967,6 +1968,21 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         artifacts: { inference_not_invoked: true, refusal_reason: REDACTED_CONTENT_NOT_REPLAYABLE, refused_paths: replayable } };
     }
   }
+  // A stored run whose job was withdrawn holds only redacted content: it is never dispatched from the queue,
+  // approved, resumed or retried into a new provider call.
+  {
+    const storedIds = [...new Set([options?.runId, task.resume_from_run_id].filter((id): id is string => typeof id === "string" && id.length > 0))];
+    for (const storedId of db ? storedIds : []) {
+      const stored = (await db!.collection("agentRuns").doc(storedId).get()).data();
+      if (!withdrawalRedactionOf(stored)) continue;
+      const provider = (knownAgentProvider(task.provider) ?? getTaskDefinition(task.kind)?.default_provider ?? "openai_responses") as AgentProvider;
+      if (options?.runId === storedId) await markRunStatus(storedId, "failed", { error: REDACTED_CONTENT_NOT_REPLAYABLE });
+      return { status: "failed", provider, runtime: provider, model: task.model ?? "unknown", tool_mode: "api",
+        requires_approval: false, requires_human_review: true,
+        error: `${REDACTED_CONTENT_NOT_REPLAYABLE}: the job of run ${storedId} was withdrawn and its content redacted`,
+        artifacts: { inference_not_invoked: true, refusal_reason: REDACTED_CONTENT_NOT_REPLAYABLE, withdrawn_run_id: storedId } };
+    }
+  }
   // A run of a disabled profile (saved before its provider was removed, then
   // dispatched from the queue, approved, resumed, retried, forked, delegated
   // or woken) is refused before its saved provider is rerouted to the lane,
@@ -2703,6 +2719,9 @@ export async function sendAgentSessionMessage(params: {
   if (!session) {
     throw new Error("Agent session not found");
   }
+  // A session redacted for a withdrawn job holds only digests of its conversation: nothing is sent from it
+  // (start, steer and interrupt all come through here).
+  if (withdrawalRedactionOf(session)) throw new Error(REDACTED_CONTENT_NOT_REPLAYABLE);
 
   // A new authenticated message/resume is explicit new-work intent. Completion
   // and checkpoint writes below cannot reopen a concurrent cancellation.
@@ -3233,6 +3252,8 @@ export async function forkAgentSessionWithHandoff(params: {
       : (await listRunsForSession(params.sessionId, 1))[0] || null;
 
   if (sourceRun && (sourceRun as unknown as Record<string, unknown>).agent_evidence_ref) sourceRun = await getRun(sourceRun.id);
+  // A withdrawn job's redacted session or run is never carried on into a new one.
+  if (withdrawalRedactionOf(sourceSession) || withdrawalRedactionOf(sourceRun)) throw new Error(REDACTED_CONTENT_NOT_REPLAYABLE);
   const sourceQuarantine = requiresMutationReconciliation(sourceSession as unknown as Record<string, unknown>)
     || (sourceRun && requiresMutationReconciliation(sourceRun as unknown as Record<string, unknown>))
     || await sessionRequiresMutationReconciliation(params.sessionId);
@@ -3505,6 +3526,7 @@ async function findLatestRunnableTask(sessionId: string) {
   const runs = await listRunsForSession(sessionId, 25);
   for (const record of runs) {
     const run = (record as unknown as Record<string, unknown>).agent_evidence_ref ? await getRun(record.id) : record;
+    if (withdrawalRedactionOf(run)) throw new Error(REDACTED_CONTENT_NOT_REPLAYABLE);
     if (run?.input && typeof run.input === "object") return run.input as AgentTask;
   }
   return null;
@@ -3655,6 +3677,8 @@ export async function resumeAgentSession(params: {
     checkpoint = await getAgentCheckpoint(checkpoint.id);
     if (checkpoint && checkpoint.session_id !== params.sessionId) throw new Error("Checkpoint does not belong to the requested session");
   }
+  // A session, checkpoint or run whose job was withdrawn holds only redacted content: nothing to resume from.
+  if (withdrawalRedactionOf(session) || withdrawalRedactionOf(checkpoint)) throw new Error(REDACTED_CONTENT_NOT_REPLAYABLE);
   const lastTask = checkpoint?.snapshot?.task && typeof checkpoint.snapshot.task === "object"
     ? (checkpoint.snapshot.task as AgentTask)
     : await findLatestRunnableTask(params.sessionId);

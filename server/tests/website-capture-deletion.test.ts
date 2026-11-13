@@ -151,6 +151,55 @@ describe("deletion worker", () => {
     expect(bucket.deleteCalls).toHaveLength(calls);
   });
 
+  it("keeps the object deletion's result and receipt as they are when redacting the job's model runs fails", async () => {
+    const deletionResult = async (brokenRun: boolean) => {
+      state.docs.clear(); resetWebsiteCaptureDeletionCursorsForTests(); bucket = new FakeBucket();
+      clock = REQUESTED_AT + 10 * 60 * 1000;
+      seedWithdrawal(); seedBrowserObjects();
+      // A stored run of this job whose private evidence cannot be read: its redaction pass fails.
+      if (brokenRun) state.docs.set("agentRuns/run-broken", { id: "run-broken", status: "completed",
+        privacy_request_binding: { request_id: "req1" }, agent_evidence_ref: { version: 1, collection: "agentRuns", id: "run-broken",
+          bucket: "fake-bucket", object: "agent-runtime-evidence/v1/agentRuns/x/y.json", sha256: "a".repeat(64), bytes: 1,
+          generation: "1", fields: ["input"] }, input: null });
+      transport.result = ackReceipt();
+      await forwardWebsiteCaptureWithdrawals();
+      clock = REQUESTED_AT + 40 * 60 * 1000;
+      await runWebsiteCaptureDeletions({ deps: deps() });
+      // The forwarder stamps its acknowledgement with the wall clock; everything else is the deletion's own result.
+      const { lastAcknowledgedAtIso: _wallClock, ...withdrawal } = structuredClone(record().capture_withdrawal);
+      return { withdrawal, pending: record().captureDeletionPending,
+        receipts: structuredClone(receipts()), objects: bucket.names(),
+        redaction: structuredClone(record().capture_withdrawal_model_runs ?? null) };
+    };
+    const clean = await deletionResult(false);
+    const broken = await deletionResult(true);
+    // The run's evidence cannot be read because no evidence storage is reachable (an invalid reference here): that may
+    // pass, so the run is left as it is and counted as remaining; the redaction is not complete, and nothing above changes.
+    expect(broken.redaction).toMatchObject({ evidence_unreadable: 0, redacted: { agentRuns: 0 } });
+    expect(broken.redaction.sweep.rows_failed).toBeGreaterThan(0);
+    expect(broken.redaction.phase).not.toBe("done");
+    expect(state.docs.get("agentRuns/run-broken")?.withdrawal_redaction).toBeUndefined();
+    expect({ ...broken, redaction: null }).toEqual({ ...clean, redaction: null });
+    expect(broken.withdrawal).toMatchObject({ deletionConfirmed: true, webappDeletion: { phase: "deleted" } });
+  });
+
+  it("queues a new withdrawal's model-run redaction when its deletion is first claimed, ahead of 300 finished ones", async () => {
+    for (let i = 0; i < 300; i++) state.docs.set(`inboundRequests/old-${String(i).padStart(3, "0")}`, { consent_revoked: true,
+      capture_withdrawal: { requestedAtIso: new Date(REQUESTED_AT - 30 * 24 * HOUR).toISOString() },
+      modelRunRedactionPending: false, capture_withdrawal_model_runs: { phase: "done" } });
+    state.docs.set("websiteMaintenance/website-model-run-redaction-backfill", { done: true });
+    seedWithdrawal(); // sorts after every "old-" id
+    state.docs.set("agentRuns/run-1", { id: "run-1", status: "completed", privacy_request_binding: { request_id: "req1" },
+      input: { note: "SITE TEXT of req1" } });
+    transport.result = ackReceipt();
+    await forwardWebsiteCaptureWithdrawals();
+    clock = REQUESTED_AT + 40 * 60 * 1000;
+    await runWebsiteCaptureDeletions({ deps: deps() });
+    // Queued in the deletion's claim, and redacted in the same tick.
+    expect(record().modelRunRedactionPending).toBe(true);
+    expect(JSON.stringify(state.docs.get("agentRuns/run-1"))).not.toContain("SITE TEXT");
+  });
+
   it("deletes after the acknowledgement timeout but confirms only once the acknowledgement arrives", async () => {
     seedWithdrawal(); seedBrowserObjects();
     clock = REQUESTED_AT + 3 * HOUR;

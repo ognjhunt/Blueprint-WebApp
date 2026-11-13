@@ -45,7 +45,7 @@ export async function recoverCaptureReviews({ limit = 25 }: { limit?: number } =
       if (!(await getBrief(doc.id))) await saveBrief(draftBrief({ requestId: doc.id,
         summary: taskStatement, captureMode: request.capture_mode, proposed: [] }));
       completed = !isSiteTaskBriefReadingEnabled() || await readBriefFromDescription({ requestId: doc.id,
-        taskStatement, captureMode: request.capture_mode,
+        taskStatement, captureMode: request.capture_mode, consentRevoked: claimed.record.consent_revoked === true,
         whatGoesWrong: request.whatGoesWrong ? await decryptFieldValue(request.whatGoesWrong) : null });
     } catch { errorCode = "review_failed"; }
     await db.runTransaction(async transaction => {

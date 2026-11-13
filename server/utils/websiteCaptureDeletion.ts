@@ -40,13 +40,14 @@ import { createAutomationLeaderLease, type AutomationLeaderLease } from "./autom
 import { deriveWebsiteWithdrawalState, websiteWithdrawalCommand } from "./websiteCaptureWithdrawal";
 import { deleteWebsiteScenePreviews } from "./websiteScenePreview";
 import { deleteWebsiteCompanyClips } from "./websiteCompanyClip";
+import { queueWebsiteJobModelRunRedaction, resetWebsiteJobModelRunRedactionCursorsForTests,
+  runWebsiteJobModelRunRedactions } from "./websiteJobModelRunRedaction";
+import { CLOCK_MARGIN_MS, SIGNED_PUT_TARGET_TTL_MS, withdrawalDeletionGate } from "./websiteWithdrawalDeletionGate";
 
 export const DELETION_RECEIPTS_COLLECTION = "websiteCaptureDeletionReceipts";
-/** Mirrors SIGNED_URL_TTL_MS in siteCaptureBundleService.ts. */
-export const SIGNED_PUT_TARGET_TTL_MS = 30 * 60 * 1000;
+export { SIGNED_PUT_TARGET_TTL_MS };
 /** Cloud Storage resumable session URIs expire one week after creation. */
 export const NATIVE_RESUMABLE_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const CLOCK_MARGIN_MS = 5 * 60 * 1000;
 const LATE_SWEEP_MARGIN_MS = 60 * 60 * 1000;
 const DEFAULT_ACK_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const CLAIM_LEASE_MS = 10 * 60 * 1000;
@@ -177,13 +178,17 @@ async function claim(ref: FirebaseFirestore.DocumentReference, deps: DeletionDep
       return null;
     }
     if (record.consent_revoked !== true) return null;
+    // The model-run redaction is queued in the same act as the deletion is first claimed, so a new withdrawal is
+    // never behind older ones; it runs under the same gate as this deletion (websiteWithdrawalDeletionGate.ts).
+    queueWebsiteJobModelRunRedaction(tx, ref, record, requestedAtMs);
     const deletion = { phase: "pending", attempts: 0, nextAttemptAtMs: 0, leaseUntilMs: 0, ...(withdrawal.webappDeletion || {}) };
     if (Number(deletion.leaseUntilMs || 0) > now || Number(deletion.nextAttemptAtMs || 0) > now) return null;
     const write = (webappDeletion: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
       const next = { ...withdrawal, webappDeletion };
       tx.set(ref, { ...extra, capture_withdrawal: { ...next, ...deriveWebsiteWithdrawalState(next) } }, { merge: true });
     };
-    if (withdrawal.legalHold === true) {
+    const gate = withdrawalDeletionGate({ ...withdrawal, webappDeletion: deletion }, requestedAtMs, now, deps.ackTimeoutMs);
+    if (gate.state === "held") {
       write({ ...deletion, nextAttemptAtMs: now + LEGAL_HOLD_RECHECK_MS, heldForLegalHold: true });
       return null;
     }
@@ -203,12 +208,8 @@ async function claim(ref: FirebaseFirestore.DocumentReference, deps: DeletionDep
       }
       pass = "late_upload_sweep";
     } else {
-      const targetsExpiredAt = requestedAtMs + SIGNED_PUT_TARGET_TTL_MS + CLOCK_MARGIN_MS;
-      const ackDeadline = requestedAtMs + deps.ackTimeoutMs;
-      const acknowledged = withdrawal.pipelineAcknowledged === true;
-      if (now < targetsExpiredAt || (!acknowledged && now < ackDeadline)) {
-        write({ ...deletion, phase: "pending",
-          nextAttemptAtMs: Math.max(targetsExpiredAt, acknowledged ? 0 : Math.min(ackDeadline, now + 10 * 60 * 1000)) });
+      if (gate.state === "waiting") {
+        write({ ...deletion, phase: "pending", nextAttemptAtMs: gate.untilMs });
         return null;
       }
       pass = "initial";
@@ -366,12 +367,18 @@ export async function runWebsiteCaptureDeletions(params: { limit?: number; deps?
       logger.error({ requestId: row.id }, "Website capture deletion remains pending");
     }
   }
+  // The withdrawn jobs' stored model runs are redacted after, and apart from, the object deletion: its own state,
+  // receipts and retries (websiteJobModelRunRedaction.ts). A failure there changes nothing above.
+  await runWebsiteJobModelRunRedactions({ limit, deps: { now: deps.now, bucket: deps.bucket, bucketName: deps.bucketName,
+    ackTimeoutMs: deps.ackTimeoutMs } })
+    .catch(() => logger.warn("Model-run redaction of withdrawn jobs will retry"));
   return summary;
 }
 
 export function resetWebsiteCaptureDeletionCursorsForTests() {
   pendingCursor = undefined;
   adoptionCursor = undefined;
+  resetWebsiteJobModelRunRedactionCursorsForTests();
 }
 
 /** Runs beside the withdrawal forwarder in the worker, under its own leader lease. */
