@@ -18,7 +18,6 @@ explicit approval for the exact notice and recipient list. See
 | `npm run test:result-consumer:browser` | local browser + mocked APIs | Starts only loopback Vite with dev-only fake auth, no production dotenv files or backend. One worker; all result/media/email calls are fixtures. Set `RESULT_CONSUMER_QA_PORT` and `RESULT_CONSUMER_QA_OUTPUT` for isolated lanes. |
 | `npm run check` | local read/compile only | Runs `tsc -p tsconfig.full.json --noEmit`. Safe default verification for TypeScript contracts. |
 | `npm run audit:assets` | local read only | Scans repo/public assets for root screenshot dumps, oversized files, and unreferenced public image/thumbnail assets. It can fail on generated or stale local files. |
-| `npm run qa:polish` | local browser automation + output artifacts | Starts the Playwright local dev server, checks public routes at desktop/mobile sizes, writes screenshots and reports under `output/qa/brand-polish/latest/`, and does not call live sends, providers, payments, deploys, or Notion writes. |
 | `npm run qa:operator` | local browser automation + mocked API fixtures | Starts the Playwright local dev server with local fake auth and the ops automation scheduler disabled, checks internal/private operator surfaces at desktop/mobile sizes, intercepts `/api/**`, writes screenshots and reports under `output/qa/operator-surfaces/latest/`, and does not call live Firebase, Stripe, Notion, Paperclip, Render, Redis, providers, Slack/email, payments, payouts, or sends. |
 | `npm run smoke:launch:local` | local server write-light | Starts/bundles local production server and runs launch smoke against `127.0.0.1`. It strips several live provider env vars and uses local smoke values, but it can still exercise local Firebase/admin code if env is present. |
 | `npm run autoagent:recursive-improve -- --dry-run` | local eval/report artifacts | Runs the recursive AutoResearch observer, fixture writer, offline eval, promotion gate, canary dry-run, and rollback monitor with live mutation off. Writes under `output/autoagent/recursive-improvement/latest/`; does not mutate live Paperclip/Hermes state, Notion, providers, sends, payments, rights/legal, city-live, or hosted-session fulfillment. |
@@ -84,10 +83,6 @@ Safe default. Runs TypeScript with `--noEmit`. Use after docs that include TypeS
 ### `npm run audit:assets`
 
 Safe local audit. It reads source and `client/public/`, ignores `dist`, `coverage`, `attached_assets`, and `artifacts`, then fails on root screenshots, oversized files, or unreferenced public assets.
-
-### `npm run qa:polish`
-
-Safe local browser QA. It uses Playwright against the local dev server from `playwright.config.ts`, captures desktop/mobile screenshots, checks route identity, CTAs, same-origin links, basic accessibility, basic SEO, mobile overflow, visible image health, and writes a Notion layout checklist under `output/qa/brand-polish/latest/`.
 
 ### `npm run qa:operator`
 

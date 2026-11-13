@@ -79,7 +79,6 @@
     "autonomy:budget:status": "tsx scripts/autonomy/summarize-budget-control-status.ts",
     "autonomy:budget:control-suite": "tsx scripts/autonomy/run-autonomous-budget-control-suite.ts",
     "audit:assets": "tsx scripts/audit-assets.ts",
-    "qa:polish": "playwright test e2e/brand-polish.spec.ts --reporter=line",
     "qa:operator": "tsx scripts/qa/run-operator-surfaces.ts",
     "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
     "graphify:setup": "python3 scripts/graphify/ensure-environment.py",

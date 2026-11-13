@@ -304,10 +304,10 @@ jobs:
           retention-days: 7
 
 
-  # The public-surface Playwright copy contracts (brand-polish route table and
-  # pricing copy) run whenever public copy can change. A `full` scope already
-  # runs them inside `e2e`; this covers the narrower scopes (e.g. a
-  # client/src/lib or content-only change) with only these two specs.
+  # The public-surface Playwright copy contract (pricing and Terms copy) runs
+  # whenever public copy can change. A `full` scope already runs it inside
+  # `e2e`; this covers the narrower scopes (e.g. a client/src/lib or
+  # content-only change) with only this spec.
   public-copy-contracts:
     needs: release-scope
     if: needs.release-scope.outputs.scope != 'full' && needs.release-scope.outputs.public_surface == 'true'
@@ -344,7 +344,7 @@ jobs:
       - name: Run public copy contracts
         env:
           BLUEPRINT_E2E_STATIC: "1"
-        run: npx playwright test e2e/brand-polish.spec.ts e2e/pricing.spec.ts
+        run: npx playwright test e2e/pricing.spec.ts
 
   build:
     runs-on: ubuntu-latest
