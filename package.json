@@ -59,8 +59,6 @@
     "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
     "graphify:setup": "python3 scripts/graphify/ensure-environment.py",
     "notion-grounding:refresh": "tsx scripts/gemini/refresh-notion-grounding.ts",
-    "ingest:hermes-kb": "tsx scripts/hermes-kb-ingest.ts",
-    "lint:hermes-kb": "tsx scripts/hermes-kb-lint.ts",
     "test:coverage": "vitest run --coverage --exclude client/tests/build-output.test.ts",
     "test:build-output": "vitest run client/tests/build-output.test.ts",
     "test:e2e": "playwright test && tsx scripts/qa/run-task-evaluation-run-e2e.ts",
