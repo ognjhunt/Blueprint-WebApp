@@ -1306,6 +1306,40 @@ describe("the site's answer leads its job page", () => {
     } finally { page.unmount(); vi.useRealTimers(); }
   });
 
+  it("keeps a late outlook's predecessor only within the hold, then the plain working screen, until a good outlook", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    setUserAgent(DESKTOP_UA);
+    const ended = { phase: "no_test", reason: "window_expired", sentence: null };
+    let late = false;
+    const base = answerFetch({ answer: readyAnswer, outlook: ended });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await base(input, init);
+      if (String(input) !== `/api/site-task-brief/${TOKEN}/status` || !late) return response;
+      const body = await response.json();
+      return { ok: true, status: 200, json: async () => ({ ...body, outlook: null, outlookLate: true }) };
+    }));
+    const page = render(<SelfCaptureUpload />);
+    const building = () => screen.queryByText("We're building the simulation of your site.");
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(screen.getByRole("region", { name: "Your job" })).toBeVisible();
+      expect(building()).toBeNull();
+      // Late on every read from now on: within the hold the ended job stays ended.
+      late = true;
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(building()).toBeNull();
+      // Past the hold it can no longer vouch for that phase: the plain working screen.
+      await act(async () => { await vi.advanceTimersByTimeAsync(LAST_STATUS_HOLD_MS); });
+      expect(building()).toBeVisible();
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(building()).toBeVisible();
+      // A good outlook shows normally again.
+      late = false;
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(building()).toBeNull();
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
+
   it("shows the answer under the title instead of the separate robot fit, with no status card repeating a wait", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));

@@ -349,6 +349,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [statusReadAt, setStatusReadAt] = useState<number | null>(null);
   const [statusStale, setStatusStale] = useState(false);
   const lastStatusReadAt = useRef<number | null>(null);
+  // When the server last gave an outlook in time. A late one keeps that outlook only within the same hold as a kept
+  // status; past it the page shows its plain working screen, never a phase it can no longer vouch for.
+  const [outlookReadAt, setOutlookReadAt] = useState<number | null>(null);
+  const [outlookKept, setOutlookKept] = useState(false);
+  const lastOutlookReadAt = useRef<number | null>(null);
   // An unreadable poll must not turn a known Blueprint stop into a site action.
   const [blueprintActionPending, setBlueprintActionPending] = useState(false);
   // A hold with no step scheduled: nothing is said to be with Blueprint or the site.
@@ -567,6 +572,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         else if (alive && response.ok && data?.status) {
           const readAt = Date.now();
           lastStatusReadAt.current = readAt;
+          const outlookLate = data.outlookLate === true;
+          const outlookAt = lastOutlookReadAt.current;
+          const keptOutlook = outlookLate && outlookAt !== null && readAt - outlookAt < LAST_STATUS_HOLD_MS;
+          if (!outlookLate) { lastOutlookReadAt.current = readAt; setOutlookReadAt(readAt); }
+          else if (!keptOutlook) lastOutlookReadAt.current = null;
+          setOutlookKept(keptOutlook);
           setStatusReadAt(readAt);
           setStatusStale(false);
           setCurrentStatusKnown(true);
@@ -577,8 +588,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             siteAdvisory: data.siteAdvisory ?? null,
             claimUrl: data.claimUrl ?? null,
             sceneViewUrl: data.sceneViewUrl ?? null,
-            // An outlook that missed the server's deadline is not a new phase: the last good one stays.
-            outlook: data.outlookLate === true ? currentStatus.current?.outlook ?? null : data.outlook ?? null,
+            // An outlook that missed the server's deadline is not a new phase: the last good one stays, within the hold.
+            outlook: keptOutlook ? currentStatus.current?.outlook ?? null : outlookLate ? null : data.outlook ?? null,
             jobFacts: data.scope === "owner" ? data.jobFacts ?? null : null,
             firstLookTable: data.scope === "owner" && data.firstLookTable && Array.isArray(data.firstLookTable.rows) ? data.firstLookTable : null,
             captureReceived: data.captureReceived === true,
@@ -612,6 +623,16 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     }, Math.max(0, statusReadAt + LAST_STATUS_HOLD_MS - Date.now()));
     return () => clearTimeout(timer);
   }, [statusStale, statusReadAt]);
+  // A kept outlook ends on time even between reads: the plain working screen then shows until a good outlook arrives.
+  useEffect(() => {
+    if (!outlookKept || outlookReadAt === null) return;
+    const timer = setTimeout(() => {
+      lastOutlookReadAt.current = null;
+      setOutlookKept(false);
+      setStatus(previous => previous ? { ...previous, outlook: null } : null);
+    }, Math.max(0, outlookReadAt + LAST_STATUS_HOLD_MS - Date.now()));
+    return () => clearTimeout(timer);
+  }, [outlookKept, outlookReadAt]);
   // The simulation link changes no status: failed reads leave it, until its view ticket is near its end.
   useEffect(() => {
     if (statusReadAt === null) return;
