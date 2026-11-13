@@ -224,7 +224,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   await expect(form.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
   await expect(form.locator("#start-task")).toHaveValue("");
   await expect(form.locator("#start-task")).toBeAttached();
-  await form.getByRole("button", { name: "Add details (optional) ›" }).click(); await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table"); await form.getByRole("button", { name: "Done", exact: true }).click();
+  if (!await form.locator("#start-task").isVisible()) await form.getByText("Add details (optional)", { exact: true }).click(); await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
   await expect(form.locator("#start-rights")).toHaveCount(0);

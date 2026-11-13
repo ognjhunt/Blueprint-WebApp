@@ -4,7 +4,7 @@
  * An inferred country is not asked twice; no street address is required
  * (Blueprint filming visits are retired, 2026-11-11).
  */
-import { act, fireEvent, render as renderView, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as renderView, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetClientEnvCacheForTests } from "@/lib/client-env";
@@ -14,6 +14,7 @@ import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
 import { SITE_START_CONSENT_NO_VIDEO_V5 as SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 as SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
+import { FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 /** The share box the start form had until 2026-11-12: sharing is now the service, said in the line under the button. */
 const SHARE_LABEL = "Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)";
 import { renderToString } from "react-dom/server";
@@ -112,9 +113,10 @@ function describeTask(task: string, root: ParentNode = document) {
   fireEvent.change(root.querySelector("#start-task")!, { target: { value: task } });
 }
 
-/** The optional details live on their own screen (bare bones, 2026-11-11), one quiet link away. */
+/** The optional details open in place, one quiet link away (owner, 2026-11-12: a drop-down, not a screen of their own). */
 function openDetails() {
-  fireEvent.click(screen.getByRole("button", { name: "Add details (optional) ›" }));
+  const summary = screen.getByText("Add details (optional)", { selector: "summary" });
+  if (!summary.closest("details")!.open) fireEvent.click(summary);
 }
 
 function region() {
@@ -163,25 +165,43 @@ it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
   },
 );
 
-it("opens the full statements at #agreeing with the one-line consent on (the default)", async () => {
-  const previousUrl = window.location.href;
+// Owner, 2026-11-12: "Add details" and "What you're agreeing to" open in place, like a drop-down, never a new screen.
+it("opens the optional details and the statements in place, on the same screen and address", async () => {
   consentSwitch.short = true;
-  window.history.replaceState(null, "", "/contact/site-operator#agreeing");
+  const previousUrl = window.location.href;
+  window.history.replaceState(null, "", "/contact/site-operator");
   try {
     await renderReady(<SiteCaptureStart />);
-    expect(screen.getByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeVisible();
+    const details = screen.getByText("Add details (optional)", { selector: "summary" }).closest("details")!;
+    const agreeing = screen.getByText("What you're agreeing to", { selector: "summary" }).closest("details")!;
+    expect(details).not.toHaveAttribute("open");
+    expect(agreeing).not.toHaveAttribute("open");
+    expect(screen.getByLabelText(/The job in one sentence/)).not.toBeVisible();
+
+    fireEvent.click(screen.getByText("Add details (optional)", { selector: "summary" }));
+    expect(details).toHaveAttribute("open");
+    for (const label of [/The job in one sentence/, /What counts as success/, /How often does it happen/, /Where are you in the process/]) {
+      expect(screen.getByLabelText(label)).toBeVisible();
+    }
+    fireEvent.click(screen.getByText("What you're agreeing to", { selector: "summary" }));
+    expect(agreeing).toHaveAttribute("open");
+    expect(within(agreeing).getByText(`“${TASK_CONFIRMATION_STATEMENT}”`)).toBeVisible();
+    expect(within(agreeing).getByText(/We don't share your name, address or contact details unless you ask for an introduction\./)).toBeVisible();
+    // Both stay on the one form: the heading, the fields and the button are all still there, at the same address.
+    expect(screen.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Next: film the job" })).toBeVisible();
+    expect(window.location.pathname + window.location.hash).toBe("/contact/site-operator");
+    expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
   } finally { window.history.replaceState(null, "", previousUrl); }
 });
 
-it("falls back to the form for #agreeing while the one-line consent is off, never a blank screen", async () => {
-  const previousUrl = window.location.href;
+it("has no statements disclosure while the one-line consent is off: they are quoted under the button", async () => {
   consentSwitch.short = false;
-  window.history.replaceState(null, "", "/contact/site-operator#agreeing");
-  try {
-    await renderReady(<SiteCaptureStart />);
-    expect(screen.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
-    expect(screen.queryByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeNull();
-  } finally { window.history.replaceState(null, "", previousUrl); }
+  await renderReady(<SiteCaptureStart />);
+  expect(screen.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
+  expect(document.querySelector("details[data-agreeing]")).toBeNull();
+  expect(document.querySelector("[data-consent-statements]")).toBeInTheDocument();
 });
 
 describe("SiteCaptureStart and the country", () => {
@@ -489,8 +509,9 @@ it("leaves the task optional, has no task box, and sends a typed sentence as the
   await screen.findByText(/Saving to your workspace/);
   const task = document.querySelector<HTMLTextAreaElement>("#start-task")!;
   expect(task).not.toBeRequired();
-  expect(task.closest("details")).toBeNull();
+  expect(task.closest("details")).not.toHaveAttribute("open");
   openDetails();
+  expect(task).toBeVisible();
   expect(screen.getByLabelText(/The job in one sentence/)).toBe(task);
   // Typing the sentence is the confirmation, so its recorded statement is shown under the field, word for word.
   expect(document.querySelector("#start-task-help")).toHaveTextContent(`Typing here confirms: “${TASK_CONFIRMATION_STATEMENT}”`);
@@ -549,7 +570,8 @@ it("asks no typed task and no street address, and says it will reply when no job
 
 it("asks one question about the video and sets the consent in one line under the button, with the full statements one tap away", async () => {
   await renderReady(<SiteCaptureStart />);
-  expect(document.querySelector("#start-task")!.closest("details")).toBeNull();
+  // The sentence is optional: it waits, closed, under "Add details (optional)".
+  expect(document.querySelector("#start-task")!.closest("details")).not.toHaveAttribute("open");
   // Filming later is the default; the video is one quiet link away.
   expect(screen.getByText("You film it on your phone, right after this.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Next: film the job" })).toBeInTheDocument();
@@ -561,8 +583,8 @@ it("asks one question about the video and sets the consent in one line under the
   expect(screen.queryByText(`“${RECORDING_RIGHTS_STATEMENT}”`)).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
-  // Sending the video is the grant, so no separate box: one line under the button, and the full statements,
-  // word for word, on "What you're agreeing to".
+  // Sending the video is the grant, so no separate box: one line under the button, and the rest, word for word,
+  // under "What you're agreeing to".
   expect(document.querySelector("#start-rights")).toBeNull();
   // No box on the form: sharing is the service, said in the one line under the button (2026-11-12).
   expect(Array.from(document.querySelectorAll("input[type=checkbox]")).map(box => box.id)).toEqual([]);
@@ -572,11 +594,15 @@ it("asks one question about the video and sets the consent in one line under the
   expect(line).toHaveTextContent(SITE_START_CONSENT_WITH_VIDEO);
   expect(start.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(start).toHaveAttribute("aria-describedby", line.parentElement!.id);
-  fireEvent.click(screen.getByRole("button", { name: "What you're agreeing to ›" }));
-  expect(screen.getByRole("heading", { name: "What you're agreeing to" })).toBeInTheDocument();
-  // The one line is the statement recorded (v4): shown word for word, with the "also" line.
-  expect(screen.getByText(`“${SITE_START_CONSENT_WITH_VIDEO}”`)).toBeVisible();
-  expect(screen.getByText(/We don't share your name, address or contact details unless you ask for an introduction\./)).toBeVisible();
+  const agreeing = document.querySelector<HTMLDetailsElement>("details[data-agreeing]")!;
+  expect(line.parentElement).toContainElement(agreeing);
+  fireEvent.click(within(agreeing).getByText("What you're agreeing to", { selector: "summary" }));
+  expect(agreeing).toHaveAttribute("open");
+  // The one line is the statement recorded (v4), shown once, word for word, right above; inside are the video notice
+  // and the "also" line.
+  expect(agreeing).not.toHaveTextContent(SITE_START_CONSENT_WITH_VIDEO);
+  expect(within(agreeing).getByText(FOOTAGE_UPLOAD_NOTICE)).toBeVisible();
+  expect(within(agreeing).getByText(/We don't share your name, address or contact details unless you ask for an introduction\./)).toBeVisible();
   // A guest's account comes from its email, so the video is asked for here.
   expect(document.querySelector("#start-footage")).toBeRequired();
   expect(document.querySelector("#start-password")).toBeNull();
@@ -784,14 +810,15 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await renderAsSiteAccount();
     chooseUploadNow();
     expect(document.querySelector("#start-footage")).not.toBeNull();
-    expect(screen.getByText(`“${SITE_START_CONSENT_WITH_VIDEO}”`)).toBeInTheDocument();
+    expect(document.querySelector("[data-consent-line]")).toHaveTextContent(SITE_START_CONSENT_WITH_VIDEO);
 
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
     fireEvent.click(await screen.findByText("Munich, Germany"));
 
     await screen.findByText(/Hold on to the video for now/);
     expect(document.querySelector("#start-footage")).toBeNull();
-    expect(screen.queryByText(`“${SITE_START_CONSENT_WITH_VIDEO}”`)).toBeNull();
+    expect(document.querySelector("[data-consent-line]")).not.toHaveTextContent(SITE_START_CONSENT_WITH_VIDEO);
+    expect(document.querySelector("details[data-agreeing]")).not.toHaveTextContent(FOOTAGE_UPLOAD_NOTICE);
   });
 
   it("creates the task, then sends the video through the capture link", async () => {
@@ -1383,7 +1410,7 @@ describe("with the one-line consent switched off", () => {
       expect(block).not.toHaveTextContent(RECORDING_RIGHTS_STATEMENT);
     }
     expect(document.querySelector("[data-consent-line]")).toBeNull();
-    expect(screen.queryByRole("button", { name: "What you're agreeing to ›" })).toBeNull();
+    expect(document.querySelector("details[data-agreeing]")).toBeNull();
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });

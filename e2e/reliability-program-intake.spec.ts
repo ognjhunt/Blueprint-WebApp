@@ -4,7 +4,7 @@ import path from "node:path";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
-  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill(value); await page.getByRole("button", { name: "Done", exact: true }).click();
+  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill(value);
 }
 const origin = "http://127.0.0.1:42879";
 const create = "/api/inbound-request";
@@ -53,9 +53,8 @@ test("UI-RETURN-002 close tab and return preserves draft, without renewing conse
   await page.close(); const returning = await context.newPage(); await returning.goto("/contact/site-operator");
   await expect(returning.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
   await expect(returning.locator("#start-rights")).toHaveCount(0);
-  await returning.getByRole("button", {name: "Clear this browser's draft"}).click();
-  await expect(returning.getByRole("status").filter({hasText:"has been cleared"})).toBeVisible();
-  await returning.reload(); await expect(returning.locator("#start-task")).toHaveValue("");
+  // Owner, 2026-11-12: nothing on the form asks the site to clear its browser.
+  await expect(returning.getByRole("button", {name: /clear/i})).toHaveCount(0);
 });
 test("UI-RETURN-003 browser storage restore returns acknowledged same job and renews expired link", async ({ page, browser }) => {
   const bodies: string[] = [];
@@ -221,68 +220,23 @@ test("UI-CROSS-TAB-002 stale edits after lost response preserve winner across re
   await fill(first);await fill(second);
   await first.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();await expect(first.getByRole("alert")).toBeVisible();
   // Only the text: the stale tab adopts the frozen submission as soon as it saves, and its box is then locked.
-  await second.getByRole("button", { name: "Add details (optional) ›" }).click(); await second.locator("#start-task").fill("Stale edits must not replace frozen task"); await second.getByRole("button", { name: "Done", exact: true }).click();
+  if (!await second.locator("#start-task").isVisible()) await second.getByText("Add details (optional)", { exact: true }).click(); await second.locator("#start-task").fill("Stale edits must not replace frozen task");
   await second.reload();await expect(second.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
   await second.getByRole("button",{name:"Recover saved job"}).click();
   await expect(second.getByRole("link",{name:"Open my job page ›"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);
 });
 
-test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement before fresh explicit Start",async({context})=>{
-  const first=await context.newPage(), second=await context.newPage();const bodies:string[]=[];
-  let finish!:()=>void;const wait=new Promise<void>(resolve=>{finish=resolve;});
-  await context.route(`**${create}`,async route=>{
-    bodies.push(route.request().postData()!);if(bodies.length===1)await wait;
-    return route.fulfill({json:{captureUrl:fixtureLink}});
-  });
-  await Promise.all([first.goto(`${origin}/contact/site-operator`),second.goto(`${origin}/contact/site-operator`)]);
-  await fill(first);await first.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
-  await expect(first.getByRole("button",{name:"Working…"})).toBeVisible();
-  await expect(second.getByRole("button",{name:"Recover saved job"})).toBeVisible();
-  await second.getByRole("button",{name:"Clear this browser's draft"}).click();
-  await expect(second.locator("#start-task")).toHaveValue("");await fill(second);
-  await fillJobDescription(second, "An explicitly new job after clearing");
-  const snapshot=()=>second.evaluate(()=>JSON.parse(Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))![1]));
-  const durableSnapshot=()=>second.evaluate(()=>new Promise<unknown>((resolve,reject)=>{
-    const open=indexedDB.open("blueprint-site-capture-recovery-v1",1);
-    open.onerror=()=>reject(open.error);
-    open.onupgradeneeded=()=>{open.transaction!.abort();reject(new Error("Expected existing checkpoint database"));};
-    open.onsuccess=()=>{
-      const db=open.result,tx=db.transaction("recovery","readonly"),request=tx.objectStore("recovery").get("bp-site-capture:v1:anonymous:default");
-      request.onsuccess=()=>resolve(request.result?.value??null);request.onerror=()=>reject(request.error);
-      tx.oncomplete=()=>db.close();tx.onabort=()=>{db.close();reject(tx.error);};
-    };
-  }));
-  await expect.poll(async()=>(await snapshot()).draft.task).toBe("An explicitly new job after clearing");
-  await expect.poll(async()=>await durableSnapshot()).toEqual(await snapshot());
-  const fresh=await snapshot();finish();
-  // A retired generation cannot retain an acknowledgement or present success.
-  await expect(first.getByRole("alert")).toContainText("could not retain its confirmation");
-  await expect(first.getByRole("link",{name:"Open my job page ›"})).toHaveCount(0);
-  expect((await snapshot()).requestId).toBe(fresh.requestId);expect((await snapshot()).pending).toBeNull();
-  expect(await snapshot()).toEqual(fresh);expect(await durableSnapshot()).toEqual(fresh);
-  await second.reload();await expect(second.locator("#start-task")).toHaveValue("An explicitly new job after clearing");
-  // Reload retains the actual checkpoint as well as displayed default values.
-  await expect.poll(async()=>(await snapshot()).draft).toEqual(fresh.draft);
-  await expect.poll(async()=>await durableSnapshot()).toEqual(await snapshot());
-  // A phone capture has no recording grant to restore, so none appears here.
-  await expect(second.locator("#start-rights")).toHaveCount(0);
-  await second.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
-  await expect(second.getByRole("link",{name:"Open my job page ›"})).toBeVisible();
-  expect(bodies).toHaveLength(2);expect(JSON.parse(bodies[1]).requestId).toBe(fresh.requestId);
-  expect(JSON.parse(bodies[1]).requestId).not.toBe(JSON.parse(bodies[0]).requestId);
-  expect(JSON.parse(bodies[1]).taskStatement).toBe("An explicitly new job after clearing");
-});
-
-test("UI-CROSS-TAB-004 missing browser coordination has a fresh-customer next step without dispatch",async({context,page})=>{
+test("UI-CROSS-TAB-004 missing browser coordination still shows the form, says so, and never dispatches",async({context,page})=>{
   // Capability fault is simulated; the customer UI executes in actual Chromium.
   await context.addInitScript(()=>Object.defineProperty(navigator,"locks",{value:undefined,configurable:true}));
   let posts=0;await context.route(`**${create}`,route=>{posts++;return route.abort();});
   await page.goto("/contact/site-operator");
-  await expect(page.getByRole("status").filter({hasText:"could not safely check"})).toContainText("supported browser with local storage enabled");
-  await expect(page.locator("#start-task")).toHaveCount(0);
-  await expect(page.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ })).toHaveCount(0);
-  await expect(page.getByRole("link",{name:"Talk to a person ›"})).toHaveAttribute("href","mailto:hello@tryblueprint.io");
+  await expect(page.getByRole("status").filter({hasText:"cannot safely save or coordinate"})).toContainText("email hello@tryblueprint.io");
+  await expect(page.getByText(/could not safely check|clear this browser/i)).toHaveCount(0);
+  await fill(page);
+  await page.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("alert")).toContainText("email hello@tryblueprint.io");
   expect(posts).toBe(0);
 });
 
@@ -337,11 +291,12 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
   } finally {await firstBrowser.close();}
 });
 
-// A held real WebLock makes the clear/leave boundary deterministic without
+// A held real WebLock makes the start-a-new-job/leave boundary deterministic without
 // replacing IndexedDB or intercepting any persistence calls.
-async function holdRecoveryLock(context: import("@playwright/test").BrowserContext) {
+async function holdRecoveryLock(context: import("@playwright/test").BrowserContext,
+  ready: (holder: Page) => Promise<void> = holder => expect(holder.locator("#start-task")).toBeEnabled()) {
   const holder=await context.newPage();await holder.goto("/contact/site-operator");
-  await expect(holder.locator("#start-task")).toBeEnabled();
+  await ready(holder);
   await holder.evaluate(()=>{
     (window as any).reliabilityHeld=false;
     void navigator.locks.request("bp-site-capture:v1:anonymous:default",async()=>{
@@ -365,36 +320,50 @@ async function recoveryMirrors(page:Page) {
     return {local,durable};
   });
 }
-test("UI-CLEAR-001 acknowledged clear commits both stores before reload",async({page,context})=>{
+/** A job this browser saved, then a return to the form, which offers the saved job and "Start a new job". */
+async function saveJob(page:Page) {
+  await page.route(`**${create}`,route=>route.fulfill({json:{captureUrl:fixtureLink}}));
   await page.goto("/contact/site-operator");await fill(page);
-  await expect.poll(async()=>(await recoveryMirrors(page)).durable.value.draft.task).toBe("Move sealed cartons to the pallet");
-  const lock=await holdRecoveryLock(context),original=await recoveryMirrors(page);
-  await page.getByRole("button",{name:"Clear this browser's draft"}).click();
-  await expect(page.getByRole("status").filter({hasText:"Clearing this browser's draft"})).toBeVisible();
-  await expect(page.getByRole("button",{name:"Clearing…",exact:true})).toBeDisabled();
-  await expect(page.locator("#start-task")).toBeDisabled();
-  await expect(page.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ })).toBeDisabled();
-  await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toHaveCount(0);
+  await page.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("link",{name:"Open my job page ›"})).toBeVisible();
+  await page.goto("/contact/site-operator");
+  await expect(page.getByRole("button",{name:"Return to saved job"})).toBeVisible();
+}
+const savedJobShown=(holder:Page)=>expect(holder.getByRole("button",{name:"Return to saved job"})).toBeVisible();
+const mirrorsAgree=async(page:Page)=>{const {local,durable}=await recoveryMirrors(page);return !durable.retired&&JSON.stringify(durable.value)===JSON.stringify(local);};
+// Owner, 2026-11-12: no "clear this browser's draft". A saved job offers "Start a new job", which replaces only this
+// device's copy, and shows the fresh form only once both stores hold it.
+test("UI-NEW-JOB-001 Start a new job commits both stores before the fresh form shows",async({page,context})=>{
+  await saveJob(page);
+  const lock=await holdRecoveryLock(context,savedJobShown),original=await recoveryMirrors(page);
+  expect(original.local.pending.acknowledged).toBe(true);
+  await page.getByRole("button",{name:"Start a new job ›"}).click();
+  await expect(page.getByRole("button",{name:"Starting a new job…",exact:true})).toBeDisabled();
+  await expect(page.getByRole("button",{name:"Return to saved job"})).toBeDisabled();
   expect(await recoveryMirrors(page)).toEqual(original);
-  await lock.release();await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toBeVisible();
-  await expect(page.locator("#start-task")).toHaveValue("");
-  const cleared=await recoveryMirrors(page);expect(cleared.durable.retired).toBe(false);expect(cleared.durable.value).toEqual(cleared.local);
-  expect(cleared.local.requestId).not.toBe(original.local.requestId);expect(cleared.local.pending).toBeNull();
-  for(const field of ["task","location","email"])expect(cleared.local.draft[field]).toBe("");
+  await lock.release();
+  await expect(page.getByRole("button",{name:"Return to saved job"})).toHaveCount(0);
+  await expect(page.locator("#start-task")).toBeEnabled();await expect(page.locator("#start-task")).toHaveValue("");
+  await expect.poll(()=>mirrorsAgree(page)).toBe(true);
+  const fresh=await recoveryMirrors(page);
+  expect(fresh.local.requestId).not.toBe(original.local.requestId);expect(fresh.local.pending).toBeNull();
+  for(const field of ["task","location","email"])expect(fresh.local.draft[field]).toBe("");
   await page.reload();await expect(page.locator("#start-task")).toHaveValue("");
-  const returned=await recoveryMirrors(page);expect(returned.local.requestId).toBe(cleared.local.requestId);expect(returned.durable.value).toEqual(returned.local);
-  await expect(lock.holder.locator("#start-task")).toHaveValue("");
+  await expect(page.getByRole("button",{name:"Return to saved job"})).toHaveCount(0);
+  await expect.poll(()=>mirrorsAgree(page)).toBe(true);
+  expect((await recoveryMirrors(page)).local.requestId).toBe(fresh.local.requestId);
+  // The other tab follows the fresh draft rather than reviving the saved job.
+  await expect(lock.holder.getByRole("button",{name:"Return to saved job"})).toHaveCount(0);
 });
-test("UI-CLEAR-002 reload before clear acknowledgement preserves unretired draft",async({page,context})=>{
-  await page.goto("/contact/site-operator");await fill(page);
-  await expect.poll(async()=>(await recoveryMirrors(page)).durable.value.draft.task).toBe("Move sealed cartons to the pallet");
-  const lock=await holdRecoveryLock(context),original=await recoveryMirrors(page);
-  await page.getByRole("button",{name:"Clear this browser's draft"}).click();
-  await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toHaveCount(0);
+test("UI-NEW-JOB-002 reload before Start a new job commits keeps the saved job",async({page,context})=>{
+  await saveJob(page);
+  const lock=await holdRecoveryLock(context,savedJobShown),original=await recoveryMirrors(page);
+  await page.getByRole("button",{name:"Start a new job ›"}).click();
+  await expect(page.getByRole("button",{name:"Starting a new job…",exact:true})).toBeDisabled();
   const loaded=page.waitForEvent("domcontentloaded"),navigation=page.reload();
   await loaded;await lock.release();await navigation;
-  await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
-  const returned=await recoveryMirrors(page);expect(returned.local.requestId).toBe(original.local.requestId);expect(returned.local.draft).toEqual(original.local.draft);
-  expect(returned.durable.value).toEqual(returned.local);expect(returned.durable.retired).toBe(false);
-  await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Return to saved job"})).toBeVisible();
+  const returned=await recoveryMirrors(page);
+  expect(returned.local.requestId).toBe(original.local.requestId);expect(returned.local.pending).toEqual(original.local.pending);
+  expect(returned.durable.retired).toBe(false);expect(returned.durable.value).toEqual(returned.local);
 });

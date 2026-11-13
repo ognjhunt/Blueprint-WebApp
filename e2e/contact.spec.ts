@@ -4,7 +4,7 @@ import { mockExternalFonts } from "./helpers/static-assets";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function describeTask(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table"); await page.getByRole("button", { name: "Done", exact: true }).click();
+  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
 }
 
 test.beforeEach(async ({ page }) => {
@@ -48,12 +48,14 @@ test("phone: the first screen holds the video, where the job is and the email, a
   await expect(page.getByRole("combobox", { name: "Where is the job?" })).toBeVisible();
   await expect(page.locator("#start-email")).toBeVisible();
   await expect(page.locator("#start-task")).toBeHidden();
-  await page.getByRole("button", { name: "Add details (optional) ›" }).click();
-  await expect(page).toHaveURL(/#details$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Details (optional)" })).toBeVisible();
+  // The optional details open in place, a drop-down on the same screen and address (owner, 2026-11-12).
+  await page.getByText("Add details (optional)", { exact: true }).click();
   await expect(page.locator("#start-task")).toBeVisible();
-  await page.goBack();
+  await expect(page).toHaveURL(/\/contact\/site-operator$/);
   await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Where is the job?" })).toBeVisible();
+  await page.getByText("Add details (optional)", { exact: true }).click();
+  await expect(page.locator("#start-task")).toBeHidden();
   await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -100,13 +102,11 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
   await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.").filter({ visible: true })).toHaveCount(1);
   await expect(page.locator("#start-rights")).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: /share an anonymised summary/ })).toHaveCount(0);
-  // The full statements, word for word, one tap away; back returns to the form.
-  await page.getByRole("button", { name: "What you're agreeing to ›" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeVisible();
-  await expect(page).toHaveURL(/#agreeing$/);
-  await expect(page.getByText("“By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.”", { exact: true })).toBeVisible();
+  // The rest of the statements, word for word, open in place under the line (owner, 2026-11-12); the button stays put.
+  await page.getByText("What you're agreeing to", { exact: true }).click();
+  await expect(page.getByText("Only upload footage you may share.", { exact: false })).toBeVisible();
   await expect(page.getByText("We don't share your name, address or contact details unless you ask for an introduction.", { exact: false })).toBeVisible();
-  await page.goBack();
+  await expect(page).toHaveURL(/\/contact\/site-operator$/);
   await expect(start).toBeVisible();
   await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-footage").setInputFiles({ name: "cycle.mov", mimeType: "video/quicktime", buffer: Buffer.from("frames") });

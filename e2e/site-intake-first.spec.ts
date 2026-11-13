@@ -34,7 +34,7 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#start-location")).toHaveValue("");
     await page.locator("#start-email").fill("qa@example.invalid");
     // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
-    await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Pack cartons"); await page.getByRole("button", { name: "Done", exact: true }).click();
+    if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Pack cartons");
     await expect(page.locator("#start-company")).toHaveCount(0);
     await expect(page.locator("#start-password")).toHaveCount(0);
     await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();

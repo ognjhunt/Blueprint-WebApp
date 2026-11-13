@@ -8,7 +8,7 @@ export const DESCRIPTION_AUTHORITY_STATEMENT =
 /**
  * The start form's one-line consent (2026-11-11), recorded as the description authority the site gave: one version
  * for the line under "Send video" and one for the line where no video is sent. The full statement above is shown,
- * word for word, on the "What you're agreeing to" screen. Records made under v1 stay valid.
+ * word for word, under "What you're agreeing to". Records made under v1 stay valid.
  */
 export const DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION = "2026-11-11.v2";
 export const DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION = "2026-11-11.v3";

@@ -471,7 +471,7 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await page.clock.install();
   await page.goto("/contact/site-operator");
   // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
-  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons onto a pallet"); await page.getByRole("button", { name: "Done", exact: true }).click();
+  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Move sealed cartons onto a pallet");
   await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-email").fill("operator@example.test");
   await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();

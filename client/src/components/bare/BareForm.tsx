@@ -1,11 +1,11 @@
 /**
  * Bare bones, the parts the public pages and the start form need beside `Bare.tsx`: a submit button with its line,
- * a numbered steps strip, form fields, a file picker, a check box, the consent line, upload progress, the public
- * site's header and footer, and the hash sub-screen pattern the job page uses ("#details", "#settings").
+ * a numbered steps strip, form fields, a file picker, a check box, the consent line, upload progress, and the public
+ * site's header and footer. The start form's optional parts open in place (`.bare-disclosure` in bare-public.css).
  * Styles: ./bare-public.css (loaded once in main.tsx). Like Bare.tsx, these parts carry no words of their own;
  * every word is passed in by the screen.
  */
-import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode,
+import { useId, type ChangeEvent, type InputHTMLAttributes, type ReactNode,
   type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 /** The screen's one filled button as a form submit, with its busy label and the line directly under it. */
@@ -94,50 +94,4 @@ export function BareProgress({ percent, label, note }: { percent: number; label:
     </div>
     {note && <p className="bare-helper">{note}</p>}
   </div>;
-}
-
-/**
- * A sub-screen kept in the URL's hash ("#details"), the job page's pattern: the browser's back button returns from
- * it and a reload keeps it. `open` pushes the hash; `close` goes back when this page pushed it, else clears it.
- */
-export function useHashScreen<Name extends string>(names: readonly Name[]): {
-  screen: Name | "main"; open: (name: Name) => void; close: () => void;
-} {
-  const read = useCallback((): Name | "main" => {
-    if (typeof window === "undefined") return "main";
-    const hash = window.location.hash.replace(/^#/, "");
-    return (names as readonly string[]).includes(hash) ? hash as Name : "main";
-  }, [names]);
-  const [screen, setScreen] = useState<Name | "main">(read);
-  const pushed = useRef(false);
-  useEffect(() => {
-    const onChange = () => setScreen(read());
-    window.addEventListener("hashchange", onChange);
-    window.addEventListener("popstate", onChange);
-    return () => { window.removeEventListener("hashchange", onChange); window.removeEventListener("popstate", onChange); };
-  }, [read]);
-  const open = useCallback((name: Name) => {
-    pushed.current = true;
-    window.location.hash = name;
-    setScreen(name);
-    window.scrollTo?.(0, 0);
-  }, []);
-  const close = useCallback(() => {
-    if (pushed.current) { pushed.current = false; window.history.back(); }
-    else window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
-    setScreen("main");
-    window.scrollTo?.(0, 0);
-  }, []);
-  return { screen, open, close };
-}
-
-/** Move focus to a sub-screen's heading when it opens, so keyboard and screen-reader users land on it. */
-export function useFocusHeading(key: string) {
-  const ref = useRef<HTMLHeadingElement>(null);
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) { first.current = false; return; }
-    ref.current?.focus();
-  }, [key]);
-  return ref;
 }
