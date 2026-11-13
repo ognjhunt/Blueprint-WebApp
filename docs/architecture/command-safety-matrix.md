@@ -39,7 +39,6 @@ explicit approval for the exact notice and recipient list. See
 | `npm run autonomy:kpi-source-status` | local fixture/snapshot artifact | Reads a repo-local KPI source snapshot and writes `output/autonomous-org/kpi-source-status-latest/`. It does not export live Firestore, write Notion, send outreach, touch Stripe, call providers, or mutate Paperclip. |
 | `npm run alpha:env` | local env audit | Reads env or a supplied env file and reports missing launch config. Do not paste secrets into logs. |
 | `npm run pipeline:forwarding:preflight -- --require-forwarding` | local env audit + optional read-only Pipeline GET | Reads `ROBOT_EVAL_JOB_REQUEST_FORWARD_*` env vars, validates URL/token/timeout/capture-root override shape, and writes `output/pipeline/robot_eval_job_requests/forwarding_preflight.json` with secrets redacted. Default mode makes no network request. `-- --probe-intake-audit` performs only an authenticated read-only `GET /api/live-pipeline/intake-audit`; it must not POST a job request, allocate GPUs, start providers, prove simulator execution, or upgrade public claims. |
-| `scripts/paperclip/validate-agent-kits.sh` | local validation | Validates repo-side Paperclip agent employee kits without mutating live Paperclip or Notion state. |
 | Onboarding unfinished-marker scan over `docs/company`, `docs/onboarding`, `README.md`, and `docs/architecture` | local read only | Quality gate for draft residue before closeout. |
 | `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` | local generated output | Refreshes graphify architecture outputs. Required after code changes by repo instructions. |
 
@@ -70,8 +69,6 @@ Do not run these in an ordinary orientation or docs-only session unless the task
 | `npm run human-replies:prove-production` | production proof risk | Intended to prove production reply/resume behavior. Treat as live founder-inbox validation. |
 | Notion connector page create/update/move tools | Notion mutation risk | Allowed only when the task explicitly asks to update Notion. Fetch first, preserve child pages/databases, and keep repo/Paperclip as execution truth. |
 | `npm run render:import-env` | Render env mutation risk | With `--dry-run`, prints redacted changes only. Without `--dry-run`, updates Render service env vars via Render API. |
-| `npm run paperclip:sweep:run-failures` | read/report by default | Current sweep is inspection/reporting, but it reads Paperclip runtime state; verify flags before assuming write behavior. |
-| `scripts/paperclip/*.sh` | host/control-plane risk | Many scripts bootstrap, repair, reconcile, restart, sync, or configure Paperclip and host services. Read the script first and prefer verify/audit scripts before repair scripts. |
 
 ## Exact Command Notes
 
@@ -135,4 +132,4 @@ removed with the growth lanes on 2026-11-06.
 
 ### Onboarding and policy docs
 
-Docs-only onboarding work should run the marker scan and the agent-kit validator when `ops/paperclip/` guidance or agent onboarding instructions changed. `npm run check` is not required for docs-only work unless TypeScript/code changed.
+Docs-only onboarding work should run the marker scan when agent onboarding instructions changed. `npm run check` is not required for docs-only work unless TypeScript/code changed.
