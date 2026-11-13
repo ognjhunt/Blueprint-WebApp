@@ -47,7 +47,6 @@ Do not run these in an ordinary orientation or docs-only session unless the task
 | Command | Risk | Notes |
 |---|---:|---|
 | `npm run smoke:launch` | live write risk | Requires `ALPHA_BASE_URL` or `BASE_URL`. It runs health checks, creates an inbound smoke request, may run post-signup smoke if `ALPHA_BEARER_TOKEN` is set, and runs `smoke:agent`. Non-local targets require `ALPHA_SMOKE_ALLOW_LIVE_WRITE=1` plus explicit smoke identity values. |
-| `npm run pipeline:first-gpu:route-forwarding-proof -- --forward-url <url> ...` | Pipeline intake write risk | Starts a local WebApp route and POSTs a generated `robot_eval_job_request.v1` through `/api/robot-eval/job-requests` to the configured Pipeline intake URL. With a local/stub `--forward-url`, this is a local route proof; with a live/staging URL, it stages a real Pipeline intake request. It must not allocate GPUs, run simulators, prove production deployment, prove generated-world rank fidelity, or upgrade public claims. |
 | `npm run human-replies:poll` | inbox/read + state mutation risk | Polls Gmail via configured watcher and can write human reply events, update blocker threads, and trigger resume handoffs. |
 | `npm run human-replies:send-test-blocker` | email send risk | Dispatches a controlled test blocker email to `ohstnhunt@gmail.com`. Do not run without explicit approval. |
 | `npm run human-replies:prove-production` | production proof risk | Intended to prove production reply/resume behavior. Treat as live founder-inbox validation. |
