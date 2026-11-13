@@ -57,6 +57,14 @@ const MAX_BACKOFF_MS = 6 * 60 * 60 * 1000;
 const LEGAL_HOLD_RECHECK_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_ACK_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const MAX_FAILED_IDS = 50;
+/** A scanned row is listed for a re-check at most this many times over (the list lives on the request document). */
+export const MAX_SCAN_RETRY_IDS = 500;
+/** Evidence failures that say these bytes can never be read: there but unverifiable or undecodable, or a reference
+ * on the row that is itself malformed. The same row gives the same result on every try. */
+const UNREADABLE_FOREVER = new Set(["agent_evidence_integrity_failed", "agent_evidence_json_invalid",
+  "agent_evidence_provenance_invalid", "agent_evidence_reference_invalid"]);
+/** Evidence failures that are final for these bytes: the object is gone, or it can never be read. */
+const DEFINITE_EVIDENCE_FAILURES = new Set(["agent_evidence_object_missing", ...UNREADABLE_FOREVER]);
 /** Document-id order: equality on one field plus this order is served by that field's single-field index. */
 const DOCUMENT_ID = "__name__";
 
@@ -74,10 +82,10 @@ export type RedactionBucket = { name?: string;
   getFiles?(options: Record<string, unknown>): Promise<[ListedFile[], ...unknown[]]>;
   file(name: string, options?: { generation?: number }): { delete(options?: Record<string, unknown>): Promise<unknown> } };
 export type RedactionDeps = { now: () => number; bucket: RedactionBucket | null; bucketName: string; ackTimeoutMs?: number;
-  maxRecordsPerPass?: number };
+  maxRecordsPerPass?: number; maxScanRetryIds?: number };
 
 type Sweep = { started_at_ms: number | null; rows_failed: number; objects_failed: number; objects_remaining: number;
-  failed_row_ids: string[] };
+  failed_row_ids: string[]; recheck_index?: number; scan_paused?: boolean };
 export type ModelRunRedactionState = {
   phase: "pending" | "final_sweep" | "done"; held: boolean;
   step: number; cursor: string | null;
@@ -90,7 +98,9 @@ export type ModelRunRedactionState = {
   scan_retry: string[];
   passes: number; nextAttemptAtMs: number; leaseUntilMs: number; lease: string | null; attempts: number;
   redacted: Counts; already_redacted: number; replay_copies_redacted: number; evidence_objects_deleted: number;
-  evidence_unreadable: number; other_rows_unreadable: number; sweep: Sweep; sweep_repeats: number; horizon_at_ms: number;
+  evidence_unreadable: number; other_rows_unreadable: number;
+  /** Scanned rows whose evidence can never be read (owner unknown): left exactly as they are, counted, logged by id. */
+  scan_rows_unverifiable: number; sweep: Sweep; sweep_repeats: number; horizon_at_ms: number;
   completed_at_iso: string | null;
 };
 const initialScans = (): ModelRunRedactionState["scans"] => ({ offloaded: { cursor: null, done: false }, site_assessment: { cursor: null, done: false } });
@@ -99,7 +109,8 @@ const emptySweep = (): Sweep => ({ started_at_ms: null, rows_failed: 0, objects_
 export function initialModelRunRedactionState(requestedAtMs: number): ModelRunRedactionState {
   return { phase: "pending", held: false, step: 0, cursor: null, dependents: null, passes: 0, nextAttemptAtMs: 0,
     leaseUntilMs: 0, lease: null, attempts: 0, redacted: emptyCounts(), already_redacted: 0, replay_copies_redacted: 0,
-    scans: initialScans(), scan_found: [], scan_retry: [], evidence_objects_deleted: 0, evidence_unreadable: 0, other_rows_unreadable: 0, sweep: emptySweep(),
+    scans: initialScans(), scan_found: [], scan_retry: [], evidence_objects_deleted: 0, evidence_unreadable: 0, other_rows_unreadable: 0,
+    scan_rows_unverifiable: 0, sweep: emptySweep(),
     sweep_repeats: 0, horizon_at_ms: requestedAtMs + RUN_HORIZON_MS,
     completed_at_iso: null };
 }
@@ -170,7 +181,8 @@ async function page(step: { collection: Collection; field: string; value: string
 const stableDigest = (value: unknown) => canonicalArtifactDigest({ value: JSON.parse(JSON.stringify(value ?? null)) }, "digest");
 
 type PassCounts = { examined: number; redacted: Counts; already_redacted: number; replay_copies_redacted: number;
-  evidence_objects_deleted: number; evidence_unreadable: number; other_rows_unreadable: number; rows_failed: number; objects_failed: number;
+  evidence_objects_deleted: number; evidence_unreadable: number; other_rows_unreadable: number; scan_rows_unverifiable: number;
+  rows_failed: number; objects_failed: number;
   objects_remaining: number; failed_row_ids: string[] };
 
 /** Delete every evidence object ever written for a row, except the one its stored redacted form now points to. */
@@ -248,6 +260,20 @@ async function visitRow(collection: Collection, ref: FirebaseFirestore.DocumentR
             if (counts.failed_row_ids.length < MAX_FAILED_IDS) counts.failed_row_ids.push(`${collection}/${ref.id}`);
             return "failed";
           }
+          // The job's own row, by what the failure says:
+          //   missing (the store says not found)                        nothing more to read: redact the row as it stands;
+          //   integrity, json, provenance (the bytes are there, but no  privacy wins: redact the row as it stands and
+          //     reader can verify or decode them; the same bytes give    delete the object (no reader can use it either);
+          //     the same result: the client verifies downloads itself),
+          //     or a malformed reference on the row (never readable)
+          //   anything else (no storage reachable, read or metadata     the row and its objects stay as they are: it is
+          //     failures, an unknown error)                              remaining, retried on later passes.
+          const code = error instanceof AgentEvidenceError ? error.code : null;
+          if (code === null || !DEFINITE_EVIDENCE_FAILURES.has(code)) {
+            counts.rows_failed++;
+            if (counts.failed_row_ids.length < MAX_FAILED_IDS) counts.failed_row_ids.push(`${collection}/${ref.id}`);
+            return "failed";
+          }
           counts.evidence_unreadable++; full = { ...raw };
         }
       }
@@ -284,8 +310,11 @@ async function visitRow(collection: Collection, ref: FirebaseFirestore.DocumentR
 
 /**
  * Whether a scanned row names the job, read from the row (and its evidence when offloaded). A row whose evidence the
- * store says is gone is skipped and counted on its own. Any other read failure means it is not known whose row it is:
- * "retry" (the caller lists it; the job is not complete until it is known).
+ * store says is gone is skipped and counted on its own. A row whose evidence can never be read (integrity, json,
+ * provenance, a malformed reference) is left exactly as it is (it may be another job's evidence), counted in
+ * scan_rows_unverifiable and logged by id: "not". Any other failure (no storage reachable, a read or metadata
+ * failure, an unknown error) means it is not yet known whose row it is: "retry" (the caller lists it; the job is not
+ * complete until it is known).
  */
 async function scannedRowIsJobs(scan: ScanName | "recheck", raw: Record<string, any>, id: string, requestId: string,
   counts: PassCounts): Promise<"job" | "not" | "retry"> {
@@ -296,6 +325,11 @@ async function scannedRowIsJobs(scan: ScanName | "recheck", raw: Record<string, 
     try { full = await hydrateAgentEvidence(raw, { collection: "agentRuns", id }); }
     catch (error) {
       if (error instanceof AgentEvidenceError && error.code === "agent_evidence_object_missing") { counts.other_rows_unreadable++; return "not"; }
+      if (error instanceof AgentEvidenceError && UNREADABLE_FOREVER.has(error.code)) {
+        counts.scan_rows_unverifiable++;
+        logger.warn({ requestId, collection: "agentRuns", id, code: error.code }, "Scanned model-run row cannot be verified; left as it is");
+        return "not";
+      }
       return "retry";
     }
   }
@@ -313,15 +347,13 @@ export async function redactJobModelRunsPass(requestId: string, captureIds: stri
   // Rows listed for a re-check come before the scan-found ones, so a row moved from one list to the other is not
   // visited twice in the same place.
   const allSteps = (): Step[] => [...baseSteps,
-    ...state.scan_retry.map(id => ({ collection: "agentRuns" as const, field: "__name__", value: id, mode: "recheck" as const })),
     ...state.scan_found.map(id => ({ collection: "agentRuns" as const, field: "__name__", value: id }))];
-  const listRetry = (id: string) => {
-    if (!state.scan_retry.includes(id)) state.scan_retry.push(id);
+  const failRow = (id: string) => {
     counts.rows_failed++;
     if (counts.failed_row_ids.length < MAX_FAILED_IDS) counts.failed_row_ids.push(`agentRuns/${id}`);
   };
   const counts: PassCounts = { examined: 0, redacted: emptyCounts(), already_redacted: 0, replay_copies_redacted: 0,
-    evidence_objects_deleted: 0, evidence_unreadable: 0, other_rows_unreadable: 0, rows_failed: 0, objects_failed: 0,
+    evidence_objects_deleted: 0, evidence_unreadable: 0, other_rows_unreadable: 0, scan_rows_unverifiable: 0, rows_failed: 0, objects_failed: 0,
     objects_remaining: 0, failed_row_ids: [] };
   state.scans ??= initialScans();
   const finishDependents = (runId: string, returnTo: "steps" | ScanName | undefined) => {
@@ -332,6 +364,7 @@ export async function redactJobModelRunsPass(requestId: string, captureIds: stri
     // The run is the job's: its session, events, checkpoints, compactions, replay copies and logs follow.
     state.dependents = { runId: doc.id, steps: dependentSteps(doc.id, doc.data() as Record<string, unknown>), step: 0, cursor: null, returnTo };
   };
+  try {
   while (counts.examined < budget) {
     if (state.dependents) {
       const dependents = state.dependents;
@@ -346,17 +379,19 @@ export async function redactJobModelRunsPass(requestId: string, captureIds: stri
       if (docs.length < limit) { dependents.step++; dependents.cursor = null; }
       continue;
     }
-    const step = allSteps()[state.step];
-    if (step?.mode === "recheck") {
-      // A scanned row whose evidence could not be read: known whose it is only once it can be read.
+    // First in each sweep, once: the scanned rows whose evidence could not be read, known whose only once readable.
+    const recheckIndex = state.sweep.recheck_index ?? 0;
+    if (recheckIndex < state.scan_retry.length) {
+      const id = state.scan_retry[recheckIndex];
       counts.examined++;
-      const doc = (await db!.collection("agentRuns").doc(step.value).get()) as unknown as FirebaseFirestore.QueryDocumentSnapshot;
+      const doc = (await db!.collection("agentRuns").doc(id).get()) as unknown as FirebaseFirestore.QueryDocumentSnapshot;
       const verdict = doc.exists ? await scannedRowIsJobs("recheck", doc.data() as Record<string, any>, doc.id, requestId, counts) : "not";
-      if (verdict === "retry") { counts.rows_failed++; if (counts.failed_row_ids.length < MAX_FAILED_IDS) counts.failed_row_ids.push(`agentRuns/${doc.id}`); state.step++; continue; }
-      state.scan_retry = state.scan_retry.filter(id => id !== step.value); // removed: the next entry moves into this place
-      if (verdict === "job" && !state.scan_found.includes(step.value)) state.scan_found.push(step.value);
+      if (verdict === "retry") { failRow(id); state.sweep.recheck_index = recheckIndex + 1; continue; }
+      state.scan_retry = state.scan_retry.filter(entry => entry !== id); // the next entry moves into this place
+      if (verdict === "job" && !state.scan_found.includes(id)) state.scan_found.push(id);
       continue;
     }
+    const step = allSteps()[state.step];
     if (step) {
       // The job's findable rows first, every sweep.
       const [doc] = await page(step, state.cursor, 1);
@@ -371,30 +406,51 @@ export async function redactJobModelRunsPass(requestId: string, captureIds: stri
     const scan = state.scans[scanName];
     const limit = budget - counts.examined;
     const docs = await page({ collection: "agentRuns", ...SCANS[scanName] }, scan.cursor, limit);
-    let followed = false;
+    let followed = false, paused = false;
     for (const doc of docs) {
       counts.examined++;
-      scan.cursor = doc.id;
       const verdict = await scannedRowIsJobs(scanName, doc.data() as Record<string, any>, doc.id, requestId, counts);
-      if (verdict === "retry") { listRetry(doc.id); continue; }
+      if (verdict === "retry") {
+        if (state.scan_retry.length >= (deps.maxScanRetryIds ?? MAX_SCAN_RETRY_IDS)) {
+          // The list is full: the scan pauses BEFORE this row (its cursor does not move) until the list drains.
+          failRow(doc.id); paused = true; state.sweep.scan_paused = true; break;
+        }
+        if (!state.scan_retry.includes(doc.id)) state.scan_retry.push(doc.id);
+        state.sweep.recheck_index = state.scan_retry.length; // listed this sweep: re-checked from the next sweep on
+        failRow(doc.id);
+        scan.cursor = doc.id;
+        continue;
+      }
+      scan.cursor = doc.id;
       if (verdict !== "job") continue;
       if (!state.scan_found.includes(doc.id)) state.scan_found.push(doc.id);
       const visit = await visitRow("agentRuns", doc.ref, "full", marker, requestId, deps, counts, false);
       if (visit === "redacted" || visit === "already") { followRun(doc, scanName); followed = true; break; }
     }
+    if (paused) break;
     if (!followed && docs.length < limit) scan.done = true;
   }
+  } catch (error) {
+    // The pass stops here; the counts below still reach the state its cursors are saved with.
+    throw Object.assign(error instanceof Error ? error : new Error(String(error)), { passCounts: counts });
+  } finally {
+  // In `finally`: a pass that throws after a failed row still marks the sweep unclean, so the cursors it saved can
+  // never carry the sweep past that row to a "complete".
   for (const key of Object.keys(counts.redacted) as Collection[]) state.redacted[key] += counts.redacted[key];
   state.already_redacted += counts.already_redacted;
   state.replay_copies_redacted += counts.replay_copies_redacted;
   state.evidence_objects_deleted += counts.evidence_objects_deleted;
   state.evidence_unreadable += counts.evidence_unreadable;
   state.other_rows_unreadable = Number(state.other_rows_unreadable || 0) + counts.other_rows_unreadable;
+  state.scan_rows_unverifiable = Number(state.scan_rows_unverifiable || 0) + counts.scan_rows_unverifiable;
   state.sweep.rows_failed += counts.rows_failed;
   state.sweep.objects_failed += counts.objects_failed;
   state.sweep.objects_remaining += counts.objects_remaining;
   state.sweep.failed_row_ids = [...state.sweep.failed_row_ids, ...counts.failed_row_ids].slice(0, MAX_FAILED_IDS);
-  const exhausted = !state.dependents && state.step >= allSteps().length && state.scans.offloaded.done && state.scans.site_assessment.done;
+  }
+  // A scan paused on a full retry list ends this sweep unclean, so the next sweep re-checks (and drains) the list first.
+  const exhausted = !state.dependents && state.step >= allSteps().length
+    && ((state.scans.offloaded.done && state.scans.site_assessment.done) || state.sweep.scan_paused === true);
   return { pass: counts, exhausted };
 }
 
@@ -486,6 +542,8 @@ async function runPass(ref: FirebaseFirestore.DocumentReference, claimed: { leas
     else { state.phase = "final_sweep"; state.step = 0; state.cursor = null; state.sweep_repeats = 0; outcome = "awaiting_horizon"; }
   } catch (error) {
     const code = (error as { code?: unknown })?.code;
+    pass = (error as { passCounts?: PassCounts })?.passCounts ?? null;
+    sweepRows = state.sweep.rows_failed; sweepObjects = state.sweep.objects_failed + state.sweep.objects_remaining;
     state.attempts = Number(state.attempts || 0) + 1;
     logger.error({ requestId, code: typeof code === "string" ? code : "model_run_redaction_failed" }, "Model-run redaction pass will retry");
   }
@@ -494,7 +552,8 @@ async function runPass(ref: FirebaseFirestore.DocumentReference, claimed: { leas
     pass: state.passes, outcome, rows_examined: pass?.examined ?? 0, rows_redacted: pass?.redacted ?? emptyCounts(),
     rows_already_redacted: pass?.already_redacted ?? 0, replay_copies_redacted: pass?.replay_copies_redacted ?? 0,
     evidence_objects_deleted: pass?.evidence_objects_deleted ?? 0, evidence_unreadable: pass?.evidence_unreadable ?? 0,
-    other_rows_unreadable: pass?.other_rows_unreadable ?? 0,
+    other_rows_unreadable: pass?.other_rows_unreadable ?? 0, scan_rows_unverifiable: pass?.scan_rows_unverifiable ?? 0,
+    total_scan_rows_unverifiable: Number(state.scan_rows_unverifiable || 0),
     rows_remaining: sweepRows, evidence_objects_remaining: sweepObjects, totals_redacted: state.redacted,
     started_at_iso: startedAtIso, completed_at_iso: new Date(now).toISOString() };
   const receiptId = `${requestId}-model-runs-${state.passes}-${outcome}-${state.attempts}`;

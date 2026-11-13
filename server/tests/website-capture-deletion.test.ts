@@ -173,9 +173,12 @@ describe("deletion worker", () => {
     };
     const clean = await deletionResult(false);
     const broken = await deletionResult(true);
-    // The run's evidence cannot be read: the run is redacted as it stands and counted, and the job goes on.
-    expect(broken.redaction).toMatchObject({ evidence_unreadable: 1, redacted: { agentRuns: 1 } });
-    expect(state.docs.get("agentRuns/run-broken")?.withdrawal_redaction).toMatchObject({ request_id: "req1" });
+    // The run's evidence cannot be read because no evidence storage is reachable (an invalid reference here): that may
+    // pass, so the run is left as it is and counted as remaining; the redaction is not complete, and nothing above changes.
+    expect(broken.redaction).toMatchObject({ evidence_unreadable: 0, redacted: { agentRuns: 0 } });
+    expect(broken.redaction.sweep.rows_failed).toBeGreaterThan(0);
+    expect(broken.redaction.phase).not.toBe("done");
+    expect(state.docs.get("agentRuns/run-broken")?.withdrawal_redaction).toBeUndefined();
     expect({ ...broken, redaction: null }).toEqual({ ...clean, redaction: null });
     expect(broken.withdrawal).toMatchObject({ deletionConfirmed: true, webappDeletion: { phase: "deleted" } });
   });

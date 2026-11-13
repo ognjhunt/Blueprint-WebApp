@@ -116,6 +116,22 @@ describe("private agent evidence", () => {
     fake.available = false;
     await expect(projectAgentEvidence(large(), scope)).rejects.toThrow("agent_evidence_storage_unavailable");
   });
+  it("tells no storage reachable apart from a reference that can never be read", async () => {
+    const projected = await projectAgentEvidence(large(), scope);
+    const ref = projected.agent_evidence_ref as Record<string, unknown>;
+    // This environment: no storage, or another bucket configured than the one the row names.
+    fake.available = false;
+    await expect(hydrateAgentEvidence(projected, scope)).rejects.toMatchObject({ code: "agent_evidence_storage_unavailable" });
+    fake.available = true;
+    await expect(hydrateAgentEvidence({ ...projected, agent_evidence_ref: { ...ref, bucket: "another-private-bucket" } }, scope))
+      .rejects.toMatchObject({ code: "agent_evidence_storage_unavailable" });
+    // The row itself: malformed, whatever storage is reachable.
+    for (const broken of [{ sha256: "zz" }, { version: 2 }, { object: "elsewhere.json" }, { generation: "" }, { fields: "raw_output_text" }, { bucket: "" }]) {
+      await expect(hydrateAgentEvidence({ ...projected, agent_evidence_ref: { ...ref, ...broken } }, scope), JSON.stringify(broken))
+        .rejects.toMatchObject({ code: "agent_evidence_reference_invalid" });
+    }
+    await expect(hydrateAgentEvidence(projected, scope)).resolves.toMatchObject({ raw_output_text: expect.any(String) });
+  });
   it("retains valid sibling records when one evidence bundle is unavailable", async () => {
     const bad = await projectAgentEvidence(large(), scope);
     fake.objects.clear();

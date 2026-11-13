@@ -774,3 +774,221 @@ describe("round 4", () => {
       expect(value).toMatchObject({ redacted: true });
   });
 });
+
+describe("round 5", () => {
+  const passes = async (count: number) => {
+    for (let i = 0; i < count && redaction()?.phase !== "done"; i++) {
+      if (redaction()) redaction().nextAttemptAtMs = 0;
+      await runWebsiteJobModelRunRedactions({ deps: deps() }); clock += 1000;
+    }
+  };
+
+  it("never loses a failed row when a later query in the same pass throws", async () => {
+    seedWithdrawn(); seedRows(); // the clock is past the horizon: the first sweep is the final one
+    const { sharedFakeFirestore: store } = await import("./helpers/fake-firestore");
+    const originalTransaction = store.runTransaction.bind(store);
+    const originalCollection = store.collection.bind(store);
+    let writeFailures = 1, queryFailures = 1;
+    (store as any).runTransaction = async (fn: any) => originalTransaction(async (tx: any) => fn({ ...tx, get: (ref: any) => tx.get(ref),
+      set: (ref: any, value: any, options?: any) => {
+        if (writeFailures > 0 && ref.id === "run-bound" && value?.withdrawal_redaction) { writeFailures--; throw new Error("refused"); }
+        return tx.set(ref, value, options);
+      } }));
+    (store as any).collection = (name: string) => {
+      const collection = originalCollection(name);
+      if (name !== "agentRuns") return collection;
+      return { ...collection, doc: collection.doc, where: (field: string, op: any, value: any) => {
+        const query = collection.where(field, op, value);
+        if (field !== "metadata.request_id" || queryFailures === 0) return query;
+        queryFailures--;
+        const failing: any = { orderBy: () => failing, limit: () => failing, startAfter: () => failing,
+          get: async () => { throw Object.assign(new Error("deadline exceeded"), { code: 4 }); } };
+        return failing;
+      } };
+    };
+    try {
+      await runWebsiteJobModelRunRedactions({ deps: deps() });
+      expect(writeFailures).toBe(0);
+      expect(queryFailures).toBe(0);
+      expect(JSON.stringify(state.docs.get("agentRuns/run-bound"))).toContain(MARK);
+      expect(receipts().some(receipt => receipt.rows_remaining > 0)).toBe(true);
+      await passes(30);
+      expect(redaction().phase).toBe("done");
+      expect(JSON.stringify(state.docs.get("agentRuns/run-bound"))).not.toContain(MARK);
+    } finally {
+      (store as any).runTransaction = originalTransaction;
+      (store as any).collection = originalCollection;
+    }
+  });
+
+  it("keeps the job's own offloaded row and its object through a transient read failure, then redacts it with its money", async () => {
+    seedWithdrawn(); seedRows();
+    const full = await hydrateAgentEvidence(state.docs.get("agentRuns/run-offloaded"), { collection: "agentRuns", id: "run-offloaded" });
+    const moneyBefore = extractAgentCostTelemetry({ ...full } as any);
+    const usageBefore = (full as any).artifacts.usage;
+    const stubBefore = structuredClone(state.docs.get("agentRuns/run-offloaded"));
+    evidence.failReads.add(offloadedObject);
+    await passes(6);
+    expect(redaction().phase).not.toBe("done");
+    expect(state.docs.get("agentRuns/run-offloaded")).toEqual(stubBefore);
+    expect(evidence.objects.has(offloadedObject)).toBe(true);
+    expect(receipts().some(receipt => receipt.rows_remaining > 0)).toBe(true);
+    evidence.failReads.delete(offloadedObject);
+    await passes(30);
+    expect(redaction().phase).toBe("done");
+    const after = await hydrateAgentEvidence(state.docs.get("agentRuns/run-offloaded"), { collection: "agentRuns", id: "run-offloaded" }) as any;
+    expect(JSON.stringify(after)).not.toContain(MARK);
+    expect(after.artifacts.usage).toEqual(usageBefore);
+    expect(extractAgentCostTelemetry({ ...after } as any)).toEqual(moneyBefore);
+    expect(evidence.objects.has(offloadedObject)).toBe(false);
+  });
+
+  it("redacts and deletes the job's own row whose object is corrupt, and goes on at once when it is missing", async () => {
+    seedWithdrawn(); seedRows();
+    const good = evidence.objects.get(offloadedObject)!;
+    evidence.objects.set(offloadedObject, good.slice(0, -2) + "XX");
+    await passes(30);
+    expect(redaction()).toMatchObject({ phase: "done", evidence_unreadable: 1 });
+    expect(state.docs.get("agentRuns/run-offloaded")?.withdrawal_redaction).toBeDefined();
+    expect(evidence.objects.has(offloadedObject)).toBe(false);
+  });
+});
+
+describe("round 5, the retry list and time keys", () => {
+  async function legacyOffloaded(id: string, requestId: string, text: string) {
+    const projected = await projectAgentEvidence(run(id, { task_kind: "support_triage", session_key: `session:${id}`,
+      metadata: { request_id: requestId, cost_telemetry: costTelemetry }, input: { big: `${text} `.repeat(30_000) } }, text),
+      { collection: "agentRuns", id });
+    delete (projected.metadata as any).request_id;
+    state.docs.set(`agentRuns/${id}`, projected);
+    return (projected.agent_evidence_ref as any).object as string;
+  }
+  const passes = async (count: number, extra: Record<string, unknown> = {}) => {
+    for (let i = 0; i < count && redaction()?.phase !== "done"; i++) {
+      if (redaction()) redaction().nextAttemptAtMs = 0;
+      await runWebsiteJobModelRunRedactions({ deps: deps(extra) }); clock += 1000;
+    }
+  };
+
+  it("caps the retry list, pauses the scan with it, and finishes once reads recover", async () => {
+    seedWithdrawn(); seedRows();
+    const objects: string[] = [];
+    for (let i = 0; i < 6; i++) objects.push(await legacyOffloaded(`run-scan-${i}`, i === 4 ? "req1" : `req-other-${i}`, i === 4 ? MARK : OTHER));
+    for (const object of objects) evidence.failReads.add(object);
+    await passes(12, { maxScanRetryIds: 3 });
+    expect(redaction().phase).not.toBe("done");
+    expect(redaction().scan_retry).toHaveLength(3);
+    expect(redaction().scans.offloaded.done).toBe(false);
+    // The cursor stopped before the first row that could not be listed.
+    expect(redaction().scans.offloaded.cursor).toBe(redaction().scan_retry.at(-1));
+    for (const object of objects) evidence.failReads.delete(object);
+    await passes(40, { maxScanRetryIds: 3 });
+    expect(redaction()).toMatchObject({ phase: "done", scan_retry: [] });
+    expect(state.docs.get("agentRuns/run-scan-4")?.withdrawal_redaction).toMatchObject({ request_id: "req1" });
+    for (const [name, content] of evidence.objects) expect(content, name).not.toContain(MARK);
+  });
+
+  it("counts a newly listed row once in the sweep that lists it", async () => {
+    seedWithdrawn(); seedRows();
+    const object = await legacyOffloaded("run-once", "req2", OTHER);
+    evidence.failReads.add(object);
+    await runWebsiteJobModelRunRedactions({ deps: deps() });
+    expect(redaction().scan_retry).toEqual(["run-once"]);
+    expect(redaction().sweep.rows_failed).toBe(1);
+  });
+
+  it("under a time key keeps dates, date-times and epochs, and still redacts dashed or dotted numbers", () => {
+    const marker = { schema_version: "website_withdrawal_content_redaction.v1" as const, request_id: "req1", redacted_at_iso: "x" };
+    const redacted = redactWithdrawnRecord({ artifacts: { called_at: "555-123-4567", dialled_at: "555.123.4567",
+      day_at: "2026-11-13", checked_at: "2026-11-13T09:00:00Z", priced_at_ms: "1794650460000" } }, marker) as any;
+    expect(redacted.artifacts.called_at).toMatchObject({ redacted: true });
+    expect(redacted.artifacts.dialled_at).toMatchObject({ redacted: true });
+    expect(redacted.artifacts).toMatchObject({ day_at: "2026-11-13", checked_at: "2026-11-13T09:00:00Z", priced_at_ms: "1794650460000" });
+  });
+});
+
+describe("round 6, rows whose evidence can never be read", () => {
+  async function legacyOffloaded(id: string, requestId: string, text: string) {
+    const projected = await projectAgentEvidence(run(id, { task_kind: "support_triage", session_key: `session:${id}`,
+      metadata: { request_id: requestId, cost_telemetry: costTelemetry }, input: { big: `${text} `.repeat(30_000) } }, text),
+      { collection: "agentRuns", id });
+    delete (projected.metadata as any).request_id;
+    state.docs.set(`agentRuns/${id}`, projected);
+    return (projected.agent_evidence_ref as any).object as string;
+  }
+  const passes = async (count: number) => {
+    for (let i = 0; i < count && redaction()?.phase !== "done"; i++) {
+      if (redaction()) redaction().nextAttemptAtMs = 0;
+      await runWebsiteJobModelRunRedactions({ deps: deps() }); clock += 1000;
+    }
+  };
+  const lastReceipt = () => receipts().sort((a, b) => a.pass - b.pass || a.completed_at_iso.localeCompare(b.completed_at_iso)).at(-1);
+
+  it.each([
+    ["corrupt bytes", (object: string) => { const good = evidence.objects.get(object)!; evidence.objects.set(object, good.slice(0, -2) + "XX"); }],
+    ["bytes that are not json", (object: string) => {
+      const row = state.docs.get("agentRuns/run-scan-x") as any; const content = "{not json".padEnd(row.agent_evidence_ref.bytes, " ");
+      evidence.objects.set(object, content); row.agent_evidence_ref = { ...row.agent_evidence_ref, sha256: sha(content) };
+    }],
+    ["a malformed reference", () => { const row = state.docs.get("agentRuns/run-scan-x") as any;
+      row.agent_evidence_ref = { ...row.agent_evidence_ref, sha256: "not-a-digest" }; }],
+  ])("leaves a scanned row with %s exactly as it is, counts it, logs its id, and completes the job", async (_label, breakIt) => {
+    const { logger } = await import("../logger");
+    vi.mocked(logger.warn).mockClear();
+    seedWithdrawn(); seedRows();
+    const object = await legacyOffloaded("run-scan-x", "req-unknown", OTHER);
+    breakIt(object);
+    const rowBefore = structuredClone(state.docs.get("agentRuns/run-scan-x"));
+    const objectBefore = evidence.objects.get(object);
+    await passes(30);
+    expect(redaction()).toMatchObject({ phase: "done", scan_retry: [], scan_rows_unverifiable: 1, evidence_unreadable: 0 });
+    expect(state.docs.get("agentRuns/run-scan-x")).toEqual(rowBefore);
+    expect(evidence.objects.get(object)).toBe(objectBefore);
+    expect(receipts().reduce((sum, receipt) => sum + receipt.scan_rows_unverifiable, 0)).toBe(1);
+    expect(lastReceipt()).toMatchObject({ outcome: "complete", total_scan_rows_unverifiable: 1 });
+    const logged = vi.mocked(logger.warn).mock.calls.filter(([, message]) => String(message).includes("cannot be verified"));
+    expect(logged).toHaveLength(1);
+    expect(Object.keys(logged[0][0] as object).sort()).toEqual(["code", "collection", "id", "requestId"]);
+    expect(logged[0][0]).toMatchObject({ requestId: "req1", collection: "agentRuns", id: "run-scan-x" });
+    expect(JSON.stringify(logged)).not.toContain(OTHER);
+  });
+
+  it("keeps the same scanned row listed while its read fails with a 503", async () => {
+    seedWithdrawn(); seedRows();
+    const object = await legacyOffloaded("run-scan-x", "req-unknown", OTHER);
+    evidence.failReads.add(object);
+    await passes(8);
+    expect(redaction()).toMatchObject({ scan_retry: ["run-scan-x"], scan_rows_unverifiable: 0 });
+    expect(redaction().phase).not.toBe("done");
+  });
+
+  it("keeps a scanned row listed, and the job's own offloaded row remaining, while no storage is reachable", async () => {
+    seedWithdrawn(); seedRows();
+    await legacyOffloaded("run-scan-x", "req-unknown", OTHER);
+    evidence.unavailable = true;
+    await passes(8);
+    // The job's own offloaded row is met by the scan too: not yet readable, so listed with it.
+    expect(redaction()).toMatchObject({ scan_retry: expect.arrayContaining(["run-scan-x", "run-offloaded"]), scan_rows_unverifiable: 0,
+      evidence_unreadable: 0 });
+    expect(redaction().phase).not.toBe("done");
+    expect(state.docs.get("agentRuns/run-offloaded")?.withdrawal_redaction).toBeUndefined();
+    expect(evidence.objects.get(offloadedObject)).toContain(MARK);
+    evidence.unavailable = false;
+    await passes(30);
+    expect(redaction()).toMatchObject({ phase: "done", scan_retry: [], scan_rows_unverifiable: 0 });
+    expect(state.docs.get("agentRuns/run-offloaded")?.withdrawal_redaction).toMatchObject({ request_id: "req1" });
+  });
+
+  it("redacts the job's own row whose reference is malformed and sweeps its evidence prefix", async () => {
+    seedWithdrawn(); seedRows();
+    const row = state.docs.get("agentRuns/run-offloaded") as any;
+    row.agent_evidence_ref = { ...row.agent_evidence_ref, fields: "input" };
+    await passes(30);
+    expect(redaction()).toMatchObject({ phase: "done", evidence_unreadable: 1, scan_rows_unverifiable: 0 });
+    const after = state.docs.get("agentRuns/run-offloaded") as any;
+    expect(after.withdrawal_redaction).toMatchObject({ request_id: "req1" });
+    expect(JSON.stringify(after)).not.toContain(MARK);
+    expect(evidence.objects.has(offloadedObject)).toBe(false);
+    expect([...evidence.objects.keys()].some(name => name.startsWith(agentEvidencePrefix({ collection: "agentRuns", id: "run-offloaded" })))).toBe(false);
+  });
+});

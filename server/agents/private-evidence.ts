@@ -122,7 +122,12 @@ export async function projectAgentEvidence(record: RecordData, scope: Scope, sto
 }
 
 async function verifiedPayload(ref: Reference, scope: Scope, storage: BundleStorage | null) {
-  if (!storage || ref.version !== 1 || ref.collection !== scope.collection || ref.id !== scope.id
+  // No storage here, or a different bucket configured, is this environment: it may read later. A malformed
+  // reference on the record can never be read.
+  if (!storage || (typeof ref.bucket === "string" && ref.bucket && ref.bucket !== storage.bucketName)) {
+    throw new AgentEvidenceError("agent_evidence_storage_unavailable", scope);
+  }
+  if (ref.version !== 1 || ref.collection !== scope.collection || ref.id !== scope.id
     || ref.bucket !== storage.bucketName || !/^[a-f0-9]{64}$/.test(ref.sha256)
     || ref.object !== objectName(scope, ref.sha256) || !Array.isArray(ref.fields)
     || new Set(ref.fields).size !== ref.fields.length
