@@ -524,6 +524,37 @@ describe("agent session runtime", () => {
     }
   }, 20_000);
 
+  it("privacy gate: a queued run dispatched later by its session's queue is gated on the binding stored on it", async () => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      runAnthropicAgentSdkTask.mockReset();
+      runAnthropicAgentSdkTask.mockImplementation(completedOnAnthropic as never);
+      await seedJobs();
+      const runtime = await import("../agents/runtime");
+      const queued = (id: string, sessionKey: string, binding: Record<string, unknown> | null) => fake.store.agentRuns.set(id, {
+        id, session_id: null, session_key: sessionKey, task_kind: "site_task_brief_reading", provider: "anthropic_agent_sdk",
+        runtime: "anthropic_agent_sdk", model: "claude-haiku-5-5", status: "queued", created_at: "a", updated_at: "a",
+        privacy_request_binding: binding,
+        input: { kind: "site_task_brief_reading", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+          session_key: sessionKey, input: { requestId: "job-new", taskStatement: "Move totes" }, metadata: { request_id: "job-new" } } });
+      const finishOn = (sessionKey: string) => runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses",
+        runtime: "openai_responses", session_key: sessionKey, input: { message: "Next" } } as never);
+      queued("queued-bound", "session:queued-bound", { request_id: "job-new" });
+      await finishOn("session:queued-bound");
+      expect(fake.store.agentRuns.get("queued-bound")?.status).toBe("completed");
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+      queued("queued-unbound", "session:queued-unbound", null);
+      await finishOn("session:queued-unbound");
+      expect(fake.store.agentRuns.get("queued-unbound")?.status).toBe("failed");
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+    } finally {
+      privacyGateState.open = true;
+      runAnthropicAgentSdkTask.mockReset();
+    }
+  }, 20_000);
+
   it("privacy gate: an ordinary OpenAI run reads no stored request", async () => {
     vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
     await seedJobs();

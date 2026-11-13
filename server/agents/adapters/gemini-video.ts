@@ -46,7 +46,7 @@ import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
 import { getGeminiVideoApiKey } from "../provider-config";
-import { getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
+import { companyHistoryWithheld, getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
 import { digest } from "../../research-learning/contract";
 import { outputCorrectionEvidence, outputCorrectionPrompt, usageCount } from "./output-correction";
 import { fetchPublicVideo } from "./public-video-fetch";
@@ -561,6 +561,8 @@ export async function runGeminiVideoTask<TInput, TOutput>(
   const historyCalls: Array<Record<string, unknown>> = [];
   const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples, company_history_tool_calls: historyCalls, coverage_inference_reservations: coverageReservations };
   const historyAccess = await getCompanyHistoryAccess(task, "gemini_video");
+  const historyWithheld = companyHistoryWithheld(task.kind, "gemini_video");
+  if (historyWithheld) artifacts.history_tools_withheld = historyWithheld;
   const historyTools = historyAccess ? openAiResponsesHistoryTools : [];
   let retainedVideo: Awaited<ReturnType<typeof openVideo>> | undefined;
   let providerVideo: AudioFreeVideo | undefined;

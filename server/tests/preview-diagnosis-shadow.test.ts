@@ -160,6 +160,10 @@ describe("preview diagnosis AutoAgent shadow", () => {
 
     expect(result.ok).toBe(true);
     expect(runAgentTask).toHaveBeenCalledTimes(2);
+    // The diagnosis run is bound to the request it read; the shadow comparison is not, so it stays strictest.
+    expect(runAgentTask.mock.calls[0][0]).toMatchObject({ kind: "preview_diagnosis", session_key: "preview:request-1" });
+    expect(runAgentTask.mock.calls[0][1]).toEqual({ privacyRequestBinding: { request_id: "request-1" } });
+    expect(runAgentTask.mock.calls[1][1]).toBeUndefined();
     expect(runAgentTask).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({

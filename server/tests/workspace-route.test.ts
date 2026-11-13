@@ -1019,8 +1019,12 @@ describe("capture-first workspace intake", () => {
       headers: { "Content-Type": "application/json", "x-user": "stale-form", "x-unverified": "1" },
       body: JSON.stringify({ ...capture, hasExistingFootage: true, acceptedTerms: true, company: "Acme Foods",
         termsVersion: "2026-11-12.2", privacyVersion: "2026-11-02.1" }) });
-    expect(response.status).not.toBe(201);
+    // The setup step passes the request on untouched: no account is made from a page whose versions no longer count,
+    // so the account has no workspace and the job is not taken.
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "workspace_setup_required" });
     expect(state.records.has("users/stale-form")).toBe(false);
+    expect(state.intakes).toHaveLength(0);
   });
   // Ordinary sign-up writes a profile with no workspace type; it is set up the
   // same way and keeps what sign-up wrote.
