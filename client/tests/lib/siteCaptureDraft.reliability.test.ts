@@ -162,3 +162,31 @@ it.each([
   if (mirrored) expect(fresh.requestId).not.toBe(mirrored);
   expect(durability.rows.get(key)).toMatchObject({ retired: false, value: { requestId: fresh.requestId, retryToken: fresh.retryToken, pending: null } });
 });
+
+// "Start a new job" (review of PR 1286): the reset tombstones and forgets the saved job's copy before it writes the fresh
+// draft, so a failure there must write the saved job back rather than leave "Return to saved job" pointing at nothing.
+it("a replace whose fresh write fails puts the saved job back in both stores", async () => {
+  vi.stubGlobal("navigator", { locks: { request: async (_scope: string, action: () => unknown) => action() } });
+  const { writeSiteCaptureRecoveryDurably, replaceSiteCaptureRecoveryDurably } = await import("@/lib/siteCaptureDraft");
+  const saved = pending(base()); saved.pending!.acknowledged = true;
+  expect(await writeSiteCaptureRecoveryDurably(key, saved)).toBe(true);
+  const fresh = newSiteCaptureRecovery();
+  const setItem = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, name: string, value: string) {
+    if (value.includes(fresh.requestId)) throw new DOMException("Storage is full", "QuotaExceededError");
+    return setItem.call(this, name, value);
+  });
+  await expect(replaceSiteCaptureRecoveryDurably(key, saved, fresh)).resolves.toBe(false);
+  expect(readSiteCaptureRecovery(key)).toMatchObject({ requestId: saved.requestId, retryToken: saved.retryToken, pending: { acknowledged: true } });
+  expect(durability.rows.get(key)).toMatchObject({ retired: false, value: { requestId: saved.requestId, pending: { acknowledged: true } } });
+});
+it("a replace that commits leaves only the fresh generation in both stores", async () => {
+  vi.stubGlobal("navigator", { locks: { request: async (_scope: string, action: () => unknown) => action() } });
+  const { writeSiteCaptureRecoveryDurably, replaceSiteCaptureRecoveryDurably } = await import("@/lib/siteCaptureDraft");
+  const saved = pending(base()); saved.pending!.acknowledged = true;
+  expect(await writeSiteCaptureRecoveryDurably(key, saved)).toBe(true);
+  const fresh = newSiteCaptureRecovery();
+  await expect(replaceSiteCaptureRecoveryDurably(key, saved, fresh)).resolves.toBe(true);
+  expect(readSiteCaptureRecovery(key)).toMatchObject({ requestId: fresh.requestId, pending: null });
+  expect(durability.rows.get(key)).toMatchObject({ retired: false, value: { requestId: fresh.requestId, pending: null } });
+});

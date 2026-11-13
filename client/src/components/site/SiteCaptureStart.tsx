@@ -35,7 +35,7 @@ import {
 } from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
 import { newSiteCaptureRecovery, readSiteCaptureRecovery, hydrateSiteCaptureRecovery, writeSiteCaptureRecoveryDurably,
-  resetSiteCaptureRecoveryDurably, siteCaptureDraftKey, withSiteCaptureRecoveryLock, freezeSiteCaptureRecovery,
+  replaceSiteCaptureRecoveryDurably, siteCaptureDraftKey, withSiteCaptureRecoveryLock, freezeSiteCaptureRecovery,
   type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
 
 const CONTACT_IDENTITY_STORAGE_KEY = "bp-contact-identity";
@@ -359,14 +359,15 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
   }, [storageKey]);
   // A job this browser already saved stays one button away. Starting a different one replaces only this device's copy
   // of it: the saved job is not touched, and its private link still opens it. Nothing is shown until both stores hold
-  // the fresh draft, so a failure leaves the saved job where it was.
+  // the fresh draft, and a failure part way puts the saved job's copy back, so "Return to saved job" still works.
   async function startNewJob() {
     if (operationInFlight.current || !recovery.current.pending?.acknowledged) return;
     operationInFlight.current = true;
     setStartingNew(true);
     const fresh = newSiteCaptureRecovery();
     try {
-      const saved = await withSiteCaptureRecoveryLock(storageKey, () => active.current && resetSiteCaptureRecoveryDurably(storageKey, fresh));
+      const saved = await withSiteCaptureRecoveryLock(storageKey,
+        () => active.current && replaceSiteCaptureRecoveryDurably(storageKey, recovery.current, fresh));
       if (!active.current) return;
       if (!saved) { setStorageAvailable(false); return; }
       setStorageAvailable(true);

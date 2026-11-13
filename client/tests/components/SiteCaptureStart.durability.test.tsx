@@ -10,13 +10,14 @@ function chooseCountry(value: "us" | "non_us") {
   fireEvent.change(document.querySelector("#start-region")!, { target: { value } });
 }
 
-const state = vi.hoisted(() => ({ user: null as any, rows: new Map<string, any>(), writes: vi.fn(), retireFailure: false }));
+const state = vi.hoisted(() => ({ user: null as any, rows: new Map<string, any>(), writes: vi.fn(), retireFailure: false, failWritesExcept: null as string | null }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: state.user, loading: false }) }));
 vi.mock('@/lib/analytics', () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
 vi.mock('@/lib/csrf', () => ({ withCsrfHeader: async (h: any) => h }));
 vi.mock('@/lib/siteCaptureDurability', () => ({
     readDurableSiteCaptureRecovery: async (key: string) => state.rows.get(key) ?? null,
-    writeDurableSiteCaptureRecovery: async (key: string, value: any, replace = false) => { const old = state.rows.get(key); if (!replace && old && (old.retired || old.value?.requestId !== value.requestId || old.value?.retryToken !== value.retryToken))
+    writeDurableSiteCaptureRecovery: async (key: string, value: any, replace = false) => { if (state.failWritesExcept && value.requestId !== state.failWritesExcept)
+        throw new Error('isolated durable write failure'); const old = state.rows.get(key); if (!replace && old && (old.retired || old.value?.requestId !== value.requestId || old.value?.retryToken !== value.retryToken))
         throw new Error('retired'); state.writes(key, value); state.rows.set(key, { value: JSON.parse(JSON.stringify(value)), retired: false }); },
     retireDurableSiteCaptureRecovery: async (key: string) => { if (state.retireFailure) throw new Error("isolated retirement failure"); state.rows.set(key, { value: null, retired: true }); },
     durableSiteCaptureRecoveryKeys: async () => [...state.rows.keys()],
@@ -25,7 +26,7 @@ const fetchMock = vi.fn();
 let hold = false;
 let release: undefined | (() => Promise<void>);
 let queued = 0;
-beforeEach(() => { localStorage.clear(); sessionStorage.clear(); state.rows.clear(); state.retireFailure = false; state.writes.mockClear(); state.user = { uid: 'old-owned-fixture', email: 'owned@example.invalid', getIdToken: async () => 'owned-fixture-token' }; hold = false; release = undefined; queued = 0; vi.stubGlobal('FormData', window.FormData); vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset().mockResolvedValue({ ok: true, status: 200, json: async () => ({ workspaceType: 'site_operator', features: [] }) }); vi.stubGlobal('navigator', { userAgent: 'fixture', locks: { request: async (key: string, action: () => unknown) => { if (hold && key === siteCaptureDraftKey('old-owned-fixture', 'default')) {
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); state.rows.clear(); state.retireFailure = false; state.failWritesExcept = null; state.writes.mockClear(); state.user = { uid: 'old-owned-fixture', email: 'owned@example.invalid', getIdToken: async () => 'owned-fixture-token' }; hold = false; release = undefined; queued = 0; vi.stubGlobal('FormData', window.FormData); vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset().mockResolvedValue({ ok: true, status: 200, json: async () => ({ workspaceType: 'site_operator', features: [] }) }); vi.stubGlobal('navigator', { userAgent: 'fixture', locks: { request: async (key: string, action: () => unknown) => { if (hold && key === siteCaptureDraftKey('old-owned-fixture', 'default')) {
             hold = false;
             queued++;
             return new Promise((resolve, reject) => { release = async () => { try {
@@ -140,6 +141,21 @@ it('a failed Start a new job keeps the saved job and says this browser could not
     state.retireFailure=false;fireEvent.click(screen.getByRole('button',{name:'Start a new job ›'}));
     await vi.waitFor(()=>expect(document.querySelector('#start-task')).toBeEnabled());
     expect(screen.queryByText(/cannot safely save or coordinate recovery details/)).toBeNull();
+});
+it('a Start a new job that fails after the tombstone puts the saved job back, so Return still works', async () => {
+    await saveJob();
+    const key=siteCaptureDraftKey('old-owned-fixture','default'),saved=JSON.parse(localStorage.getItem(key)!);
+    // The old copy is tombstoned and forgotten, then the fresh generation's durable write fails.
+    state.failWritesExcept=saved.requestId;fireEvent.click(screen.getByRole('button',{name:'Start a new job ›'}));
+    await screen.findByText(/cannot safely save or coordinate recovery details/);
+    expect(screen.getByRole('button',{name:'Return to saved job'})).toBeEnabled();
+    expect(JSON.parse(localStorage.getItem(key)!)).toMatchObject({requestId:saved.requestId,retryToken:saved.retryToken,pending:{acknowledged:true}});
+    expect(state.rows.get(key)).toMatchObject({retired:false,value:{requestId:saved.requestId,pending:{acknowledged:true}}});
+    // The saved job's own copy is back, so returning to it resends the same submission.
+    state.failWritesExcept=null;fireEvent.click(screen.getByRole('button',{name:'Return to saved job'}));
+    await screen.findByRole('heading',{name:'Now film the job.'});
+    const posts=fetchMock.mock.calls.filter(c=>c[1]?.method==='POST');
+    expect(posts).toHaveLength(2);expect(posts[1][1].body).toBe(posts[0][1].body);
 });
 it('an account switch drops a queued Start a new job without touching either account', async () => {
     const view=await saveJob();

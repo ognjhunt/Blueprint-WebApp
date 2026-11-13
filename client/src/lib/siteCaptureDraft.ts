@@ -212,6 +212,24 @@ export async function resetSiteCaptureRecoveryDurably(key: string | null, fresh:
   if (!forgetSiteCaptureRecovery(key)) return false;
   return writeSiteCaptureRecoveryDurably(key, fresh, {replaceIdentity: true});
 }
+/**
+ * "Start a new job": replace a saved job's recovery with a fresh generation (call while holding this scope's WebLock).
+ * The reset tombstones and forgets the saved job's copy before it writes the fresh one, so when that write fails the
+ * previous recovery is written back: "Return to saved job" and a reload still find the saved job. Returns false when the
+ * fresh generation was not saved; throws only when the previous recovery could not be kept either.
+ */
+export async function replaceSiteCaptureRecoveryDurably(key: string | null, previous: SiteCaptureRecovery,
+  fresh: SiteCaptureRecovery): Promise<boolean> {
+  if (!key) return false;
+  try { if (await resetSiteCaptureRecoveryDurably(key, fresh)) return true; }
+  catch { /* Whatever the reset reached is checked, and undone, below. */ }
+  const local = readSiteCaptureRecovery(key), mirror = await readDurableSiteCaptureRecovery(key);
+  if (local?.requestId === previous.requestId && !mirror?.retired && mirror?.value?.requestId === previous.requestId) return false;
+  if (!forgetSiteCaptureRecovery(key) || !await writeSiteCaptureRecoveryDurably(key, previous, {replaceIdentity: true})) {
+    throw new SiteCaptureRecoveryError("The saved job's recovery details could not be kept on this device.");
+  }
+  return false;
+}
 /** Tombstones fence delayed writers, across all authoring scopes for this account. */
 export async function clearSiteCaptureRecoveryForAccount(uid: string): Promise<boolean> {
   const prefix = `bp-site-capture:v1:account:${encodeURIComponent(uid)}:`;
