@@ -76,7 +76,7 @@ export async function activateCaptureSupplement(payload: { requestId: string; sc
     const ref = db!.collection("inboundRequests").doc(payload.requestId);
     const current = (await tx.get(ref)).data();
     await assertWebsiteCaptureBindingInTransaction(tx, payload.requestId, binding);
-    const { projectWebsiteCaptureRights } = await import("./websiteTaskContext");
+    const { projectWebsiteCaptureRights } = await import("./websiteCaptureRights");
     if (!projectWebsiteCaptureRights(current).derived_scene_generation_allowed) throw new Error("source_revoked");
     if (current?.active_capture_id && ![payload.supplement!.parent_capture_id, payload.captureId].includes(current.active_capture_id))
       throw new Error("capture_update_superseded");

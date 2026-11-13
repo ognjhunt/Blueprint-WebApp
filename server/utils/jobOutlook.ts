@@ -225,7 +225,7 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
   Promise<{ outlook: JobOutlook; certain: boolean; ending: JobOutlook | null; resultUnknown: boolean }> {
   const [{ siteWalkthroughIdentity }, { projectWebsiteCaptureRights }, { websiteRunClosure },
     { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding }, { loadSiteAnswer }] = await Promise.all([
-    import("./siteWalkthrough"), import("./websiteTaskContext"),
+    import("./siteWalkthrough"), import("./websiteCaptureRights"),
     import("./websiteRunClosure"), import("./websiteJobWindowEnding"), import("./siteAnswer")]);
   if (!dbAdmin) throw new Error("job_outlook_unavailable");
   // What the caller read is used only for the job's current capture; otherwise every read is made here.

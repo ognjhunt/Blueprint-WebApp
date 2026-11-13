@@ -57,7 +57,8 @@ import { enqueueCoverageReview } from "../utils/captureCoverageQueue";
 import { claimCapturePrivacyScreen, recordCapturePrivacyScreen,
   releaseCapturePrivacyScreenClaim } from "../utils/capturePrivacyRecord";
 import { getBrief, switchSiteToSelfCapture } from "../utils/siteTaskBrief";
-import { loadWebsiteCaptureRights, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { OWNER_WITHDRAWAL_CONFIRMATION, projectWebsiteCaptureWithdrawal,
   recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";

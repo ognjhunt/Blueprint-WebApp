@@ -20,7 +20,7 @@ import { createSignedDownloadTicket, verifySignedDownloadTicket } from "./taskEv
 import { WEBSITE_ATLAS_CAPTURE_ID, WEBSITE_ATLAS_REQUEST_ID } from "./websiteAtlasPreview";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { RECORDING_VERSIONS_THAT_SHARE } from "./teamJobAccess";
 import { forwardableRange, rangeCoversWholeFile, verifiedWholeFile } from "./websiteCompanyClip";
 

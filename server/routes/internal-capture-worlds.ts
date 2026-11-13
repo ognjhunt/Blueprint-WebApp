@@ -22,7 +22,8 @@ import {
 import type { WorldReconstructionRecord } from "../utils/worldReconstruction";
 import { getBrief, TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import { TASK_ITEM_INVENTORY_COLLECTION, type TaskItemInventoryRecord } from "../utils/taskItemInventory";
-import { countsTowardTask, loadWebsiteCaptureRights, loadWebsiteTaskInventory, preparationGrantContextDigest, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { countsTowardTask, loadWebsiteCaptureRights, loadWebsiteTaskInventory, preparationGrantContextDigest, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "../utils/websiteCaptureBinding";
 import { assertWebsiteRunOpen } from "../utils/websiteRunClosure";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,

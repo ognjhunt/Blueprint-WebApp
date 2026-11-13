@@ -26,7 +26,8 @@ vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ 
 vi.mock("../utils/rate-limit-redis", () => ({ getRateLimitRedisClient: () => null }));
 vi.mock("../utils/lifecycle-cadence", () => ({ createLifecycleCadenceForInboundRequest: vi.fn(async () => null) }));
 vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => null) }));
-vi.mock("../agents", () => ({ runInboundQualificationForRequest: vi.fn(async () => null) }));
+vi.mock("../agents/workflows", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => null) }));
 vi.mock("../agents/private-evidence", () => ({ hydrateAgentEvidence: vi.fn(async value => value) }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: vi.fn(async () => { providers.calls++; return { status: "completed", output: {
   covers_scene: false, missing_views: ["The generated test pattern contains no work area"], supplement_would_finish: false,

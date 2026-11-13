@@ -66,7 +66,7 @@ import { isWebsiteJobNoGrantEndedNoticeKey, newWebsiteJobNoGrantClock, recordedW
   sealWebsiteJobNoGrantEnding, websiteJobNoGrantClock, websiteJobNoGrantEndedNoticeKey, WEBSITE_JOB_NO_GRANT_CLOCK_FIELD,
   WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, WEBSITE_JOB_NO_GRANT_ENDING_FIELD, WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD,
   type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { largeVideoIngestBlock } from "./websiteLargeVideoBlock";
 import { newWebsiteLargeVideoAsk, websiteLargeVideoAsk, websiteLargeVideoAskEventId, websiteLargeVideoAskNoticeKey,
   WEBSITE_LARGE_VIDEO_ASK_FIELD, type WebsiteLargeVideoAsk } from "./websiteJobWindowEnding";

@@ -2,7 +2,8 @@
 import { afterEach, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer } from "node:http";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import vector from "./fixtures/website-context-vector.json";
 import { ownerClosure } from "./fixtures/website-run-closure";

@@ -5,7 +5,7 @@ import { SITE_JOB_COMMUNICATIONS_PROFILE } from "./communications-site-job-profi
 import { readFounderThread, sendFounderMessage, readFounderSentReceipt, FounderSendReadbackError, type BlueprintMessageSender } from "./communications-gmail";
 import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCommunicationsDraftCost } from "./communications-draft-budget";
 import { isEmailSuppressed, recordEmailSuppression } from "../utils/email-suppression";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";

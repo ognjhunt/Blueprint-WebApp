@@ -5,7 +5,8 @@ import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCa
 import { maintainedSiteTaskTestbedSchema, nativeDecisionEvidenceRequestSchema, parseVerifiedMaintainedSiteTaskTestbed } from "./siteTaskTestbedContract";
 import { nativeDecisionEnvelopeSchema, nativeEvidencePlanSchema, sensitivePaths } from "./taskEvaluationRunContract";
 import { verifyProducerArtifact } from "./producerCanonicalArtifact";
-import { preparationGrantContextDigest, projectWebsiteTaskContext, projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { preparationGrantContextDigest, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import type { JobEvidenceSummary } from "../../client/src/types/jobMarketplace";

@@ -1,7 +1,5 @@
-import {
-  getAgentRuntimeConnectionMetadata,
-  runAgentRuntimeSmokeTest,
-} from "../server/agents/runtime-connectivity";
+import { getAgentRuntimeConnectionMetadata } from "../server/agents/runtime-connectivity";
+import { runAgentRuntimeSmokeTest } from "../server/agents/runtime-smoke-test";
 
 async function main() {
   const connectivity = getAgentRuntimeConnectionMetadata();

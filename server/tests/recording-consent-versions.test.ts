@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null }));
 
 import { hasCurrentRecordingConsent, RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 
 const grant = (statement_version: unknown) => ({ granted: true, statement_version, recorded_at_iso: "2026-10-01T00:00:00Z" });
 

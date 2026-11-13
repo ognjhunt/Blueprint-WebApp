@@ -1,4 +1,4 @@
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { websiteSessionSource } from "./websiteCaptureSource";
 import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 /** The exact browser write awaiting (or having passed) privacy admission. */

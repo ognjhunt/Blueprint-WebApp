@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { taskEvaluationPolicyRunResultProjectionSchema } from "./taskEvaluationRunContract";
-import { jobManagedEvidenceBindingSchema } from "./jobManagedEvaluation";
+import { jobManagedEvidenceBindingSchema } from "./jobManagedEvidenceBinding";
 
 export const FRANKA_DROID_EMBODIMENT_ID = "franka_panda_robotiq_2f85_v1" as const;
 export const CANONICAL_POLICY_CANDIDATE_IDS = [

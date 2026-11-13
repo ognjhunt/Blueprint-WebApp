@@ -984,7 +984,7 @@ export async function footageBeforeAccountShown(requestId: string): Promise<bool
   const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }, { teamJobAccess }, { projectWebsiteCaptureRights },
     { projectTaskStatus, taskStatusInputFrom }] = await Promise.all([
     import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns"), import("./teamJobAccess"),
-    import("./websiteTaskContext"), import("./taskStatusProjection")]);
+    import("./websiteCaptureRights"), import("./taskStatusProjection")]);
   const [brief, session] = await Promise.all([getBrief(requestId),
     db.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get()]);
   const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
@@ -1154,7 +1154,7 @@ export async function notifySummarySharedIfVisible(requestId: string): Promise<{
 
 /** Why an owed "summary is shared" notice can never be sent, or null while it still may be. */
 export async function summarySharedNoticeSettledReason(record: Record<string, any>): Promise<"permission_withdrawn" | "job_closed" | null> {
-  const { projectWebsiteCaptureRights } = await import("./websiteTaskContext");
+  const { projectWebsiteCaptureRights } = await import("./websiteCaptureRights");
   if (projectWebsiteCaptureRights(record).consent_revoked) return "permission_withdrawn";
   if (record.workspace_task?.archived === true) return "job_closed";
   return null;

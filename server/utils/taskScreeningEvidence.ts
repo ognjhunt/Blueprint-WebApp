@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { loadManagedJobEvidence, type ManagedJobEvidenceSummary } from "./jobManagedEvaluation";
+import type { ManagedJobEvidenceSummary } from "./managedJobEvidenceSummary";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 
 const LIMIT = "Recorded task simulation only; it does not establish physical performance, safety, hardware supply, or a deployment company's proprietary policy access.";
@@ -55,14 +55,3 @@ export function taskScreeningEvidence(scope: TaskScreeningScope, rows: ManagedJo
 }
 
 export type TaskScreeningReadback = ReturnType<typeof taskScreeningEvidence>;
-
-/** Reuses canonical publication, task, capture, source and current consent validation. */
-export async function readCurrentTaskScreening(scope: TaskScreeningScope): Promise<TaskScreeningReadback> {
-  const unavailable = (reason: string) => ({ ...taskScreeningEvidence(scope, [], new Date().toISOString()), unavailable_reason: reason });
-  if (!scope.briefDigest) return unavailable("current_task_brief_unavailable");
-  try {
-    return taskScreeningEvidence(scope, await loadManagedJobEvidence(scope.requestId, scope.briefDigest, { pageAll: true }), new Date().toISOString());
-  } catch {
-    return unavailable("current_task_screening_readback_unavailable");
-  }
-}

@@ -36,7 +36,8 @@ vi.mock("../logger",()=>({logger:{info:vi.fn(),warn:vi.fn(),error:vi.fn(),debug:
 import { buildBrowserDelivery } from "../utils/websiteCaptureDelivery";
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
-import { projectWebsiteCaptureRights,projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { websitePreparationRawBody,createWebsitePreparationRouter } from "../routes/internal-website-preparation";
 import { captureOwnerRawBody } from "../utils/captureOwnerRawBody";
 import { createCaptureUploadToken } from "../utils/captureUploadToken";

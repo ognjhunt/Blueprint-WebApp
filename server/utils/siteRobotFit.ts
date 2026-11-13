@@ -68,7 +68,7 @@ import { getBrief, isPlaceholderSummary, type SiteTaskBriefRecord } from "./site
 import { taskScopeReasonSentence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord, type StoredReading } from "./siteTaskMeasurements";
 import { teamEvaluationTerms } from "./teamJobAccess";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 export const SITE_ROBOT_FIT_COLLECTION = "siteRobotFit";
 const SCHEMA_VERSION = "site_robot_fit.v1";

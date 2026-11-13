@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as store } from "./helpers/fake-firestore";
 import { scientificBriefDigest, jobEvidenceTaskInventoryDigest, scientificContext } from "../utils/jobEvidenceContract";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 const express = createRequire(new URL("../../package.json", import.meta.url))("express");
 

@@ -11,7 +11,7 @@ import { sendEmail } from "./email";
 import { appBaseUrl, opsNoticeRecipient } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { projectWebsiteSceneProgression, rederiveStoredWaits, sceneScreening } from "./websiteSceneProgression";
 import { currentOwnerSuccessHold, OWNER_SUCCESS_HOLD_FIELD, OWNER_SUCCESS_HOLD_REASON_TEXT } from "./websiteOwnerSuccessConfirmation";
 import { firstStatusAlertMs, isWebsitePreparationCapture, parseWebsitePreparationWatch, stuckAlertMs,
