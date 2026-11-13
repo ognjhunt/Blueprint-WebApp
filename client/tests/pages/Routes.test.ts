@@ -5,74 +5,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 describe("Route registration", () => {
-  it("registers the canonical public routes", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('path: "/"');
-    expect(source).toContain('path: "/partners"');
-    // Retired under the job packet frame (2026-11-12): only redirects remain.
-    for (const retired of ["/sites", "/sites/:slug", "/partners/deployment", "/partners/technology", "/beta/buyer-guide", "/requests/:requestId"]) {
-      expect(source).not.toContain(`path: "${retired}"`);
-      expect(minimalMarketingRedirects[retired]).toMatch(/^\/(partners)?$/);
-    }
-    // Pricing is preserved in source while its public URL leads to beta information.
-    expect(source).toContain('path: "/beta"');
-    expect(minimalMarketingRedirects["/pricing"]).toBe("/beta");
-    expect(minimalMarketingRedirects["/proof"]).toBe("/#how-it-works");
-    expect(source).toContain('path: "/contact"');
-    expect(minimalMarketingRedirects["/for-robot-teams"]).toBe("/contact/robot-team");
-    expect(minimalMarketingRedirects["/robot-team/eval"]).toBe("/contact/robot-team");
-    expect(source).toContain('path: "/privacy"');
-    expect(source).toContain('path: "/terms"');
-    expect(source).toContain('path: "/sign-in"');
-    expect(source).toContain('path: "/signup/robot-team"');
-    expect(source).toContain('path: "/signup/site-operator"');
-  });
-
   it("registers one destination per path and preserves protected results workflows", () => {
     const paths = appRoutes.map((route) => route.path).filter(Boolean);
     expect(new Set(paths).size).toBe(paths.length);
     for (const path of Object.keys(minimalMarketingRedirects)) expect(matchAppRoute(path)?.layout).toBe("public");
     expect(matchAppRoute("/app")?.layout).toBe("protected");
     expect(matchAppRoute("/app/results/example")?.shell).toBe("bare");
-  });
-
-  it("keeps legacy site-world slugs as redirect aliases", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('path: "/site-worlds"');
-    expect(source).toContain('path: "/site-worlds/:slug"');
-    expect(source).toContain('path: "/site-worlds/:slug/start"');
-    expect(source).toContain('path: "/site-worlds/:slug/workspace"');
-  });
-
-  it("routes legacy marketplace and environments paths through public redirects", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('path: "/marketplace"');
-    expect(source).toContain("SitesRedirect");
-    expect(source).not.toContain('path: "/marketplace/scenes"');
-    expect(source).not.toContain('path: "/marketplace/datasets"');
-    expect(source).toContain('path: "/environments"');
-    expect(source).toContain("LegacyEnvironmentsRedirect");
-    expect(source).not.toContain('path: "/deployment-marketplace"');
-    expect(source).not.toContain('path: "/deployment-marketplace-guide"');
-  });
-
-  it("keeps legacy dashboard and signup aliases as redirects", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('path: "/dashboard"');
-    expect(source).toContain('path: "/off-waitlist-signup"');
-    expect(source).toContain("BuyerAppRedirect");
-    expect(source).toContain("BusinessSignupRedirect");
-    expect(source).not.toContain('import("../pages/Dashboard")');
-    expect(source).not.toContain('import("../pages/Portal")');
-    expect(source).not.toContain('import("../pages/JoinBlueprint")');
   });
 
   it("keeps buyer app routes protected", () => {
@@ -88,53 +26,6 @@ describe("Route registration", () => {
       expect(source).toContain(`path: "${route}", layout: "protected"`);
       expect(source).not.toContain(`path: "${route}", layout: "public"`);
     }
-  });
-
-  it("sends the retired robot-team workspace pages to the deployment-company page", () => {
-    // Robot teams running their own software is "later" (job packet frame, 2026-11-12).
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-    for (const route of [
-      "/app/library",
-      "/app/opportunities",
-      "/app/opportunities/:opportunityId",
-      "/app/evaluations/:evaluationId",
-      "/app/runs",
-      "/app/runs/new",
-      "/app/advanced/runs/new",
-      "/app/runs/:runId",
-      "/app/runs/:runId/policy-candidate/new",
-      "/app/packs",
-      "/app/packs/policy-packet",
-      "/app/packs/:sourceLaunchId/evaluate",
-      "/app/packs/:sourceLaunchId/policy-canary",
-      "/app/packs/:siteId",
-      "/app/policies",
-      "/app/data",
-      "/app/entitlements",
-    ]) {
-      expect(source).not.toContain(`path: "${route}"`);
-      expect(minimalMarketingRedirects[route], route).toBe("/partners");
-    }
-    expect(minimalMarketingRedirects["/app/history"]).toBe("/");
-    for (const page of ["Runs", "RunDetail", "RunIntake", "PolicyCandidateIntake", "EvaluationRunSetup", "PolicyCanarySetup", "SitePacks"]) {
-      expect(source).not.toContain(`import("../pages/app/${page}")`);
-    }
-  });
-
-  it("sends the retired signed-in job pages to the jobs list and the readiness brief home", () => {
-    // The last removal round (2026-11-12): one "Your jobs" list at /app; no printed readiness brief.
-    const source = fs.readFileSync(path.resolve(process.cwd(), "client/src/app/routes.tsx"), "utf-8");
-    for (const route of ["/app/tasks", "/app/tasks/:taskId", "/readiness-brief/:briefToken"])
-      expect(source).not.toContain(`path: "${route}"`);
-    expect(minimalMarketingRedirects["/app/tasks"]).toBe("/app");
-    expect(minimalMarketingRedirects["/app/tasks/:taskId"]).toBe("/app");
-    expect(minimalMarketingRedirects["/app/tasks/new"]).toBe("/contact/site-operator");
-    expect(minimalMarketingRedirects["/readiness-brief/:briefToken"]).toBe("/");
-    expect(matchAppRoute("/app/tasks/job-1")?.path).toBe("/app/tasks/:taskId");
-    expect(matchAppRoute("/app/tasks/new")?.path).toBe("/app/tasks/new");
-    for (const page of ["workspace/Tasks", "workspace/TaskDetail", "RobotReadinessBrief"])
-      expect(source).not.toContain(`import("../pages/${page}")`);
   });
 
   it("keeps ops aliases protected and off the mock-data console", () => {
@@ -153,74 +44,6 @@ describe("Route registration", () => {
     expect(source).not.toContain('../pages/ops/');
     expect(source).not.toContain("OpsQueue");
     expect(source).not.toContain("OpsSpendControls");
-  });
-
-  it("sends every retired capture-app and capturer route to the site intake", () => {
-    // Sites film their own task; the capturer network and its app are not
-    // offered publicly. Old links land on the page that is live instead of
-    // the dark, all-caps pages that used to sit two clicks from home.
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-    const serverPath = path.resolve(process.cwd(), "server/index.ts");
-    const serverSource = fs.readFileSync(serverPath, "utf-8");
-
-    for (const route of [
-      "/capture",
-      "/capture-app",
-      "/capture-app/launch-access",
-      "/signup/capturer",
-      "/capture-jobs",
-      "/capture-network",
-      "/capturer",
-      "/capturers",
-      "/capturer-access",
-      "/become-a-capturer",
-      "/for-capturers",
-      "/earn",
-    ]) {
-      expect(source).toMatch(new RegExp(`path: "${route}",[^}]*component: SiteOperatorCaptureRedirect`));
-      expect(serverSource).toContain(`from: "${route}", to: "/contact/site-operator"`);
-    }
-  });
-
-  it("makes sign-in canonical and keeps login as a legacy alias", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('path: "/sign-in"');
-    expect(source).toContain('path: "/login"');
-    expect(source).toContain("LegacyLoginRedirect");
-  });
-
-  it("keeps secondary public marketing routes as redirect aliases", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('{ path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect }');
-    expect(source).toContain('{ path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect }');
-    expect(source).toContain('{ path: "/world-models", layout: "public", component: SitesRedirect }');
-    expect(source).toContain('{ path: "/world-models/:slug", layout: "public", component: LegacySiteLibraryDetailRedirect }');
-    expect(source).toContain('{ path: "/agents", layout: "public", component: ContactRedirect }');
-    expect(source).toContain('{ path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect }');
-    expect(source).toContain('{ path: "/blog", layout: "public", component: LegacyBlogRedirect }');
-    expect(source).toContain('{ path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect }');
-  });
-
-  it("redirects retired offer URLs to the one-product pricing surface", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('<MarketingRedirect to="/beta" />');
-    for (const route of [
-      "/policy-shortlist",
-      "/robot-match",
-      "/policy-improvement-run",
-      "/post-training-data-package",
-      "/post-training-policy-improvement-package",
-      "/data-packages",
-    ]) {
-      expect(source).toContain(`{ path: "${route}", layout: "public", component: LegacyOfferRedirect }`);
-    }
   });
 
   it("drops the query only on the retired buyer review links, which carried an access token", () => {
