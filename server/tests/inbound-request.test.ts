@@ -863,57 +863,73 @@ describe("inbound request route", () => {
     }
   });
 
-  it("records server-derived Terms and Privacy acceptance on the persisted request", async () => {
+  // Planner, 2026-11-13 (D2b): a form records exactly the versions it showed, when they still count as current; a page
+  // opened before Privacy 2026-11-13.1 (or before forms sent versions) records 2026-11-12.2, so its job stays an older
+  // job for the data-class gate (it never reaches Anthropic: provider-privacy-gate and agent-session-runtime tests).
+  it.each([
+    ["the current form", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }, ["2026-11-12.2", "2026-11-13.1"]],
+    ["a form opened before Privacy 2026-11-13.1", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" }, ["2026-11-12.2", "2026-11-12.2"]],
+    ["a form that sends no versions (opened before forms sent them)", {}, ["2026-11-12.2", "2026-11-12.2"]],
+  ] as const)("records the versions %s showed, never rewritten to the current ones", async (_label, versions, expected) => {
     process.env.NODE_ENV = "development";
     vi.resetModules();
 
     const { server, baseUrl } = await startRouterServer();
 
     try {
-      const requestId = `consent-${Date.now()}`;
+      const requestId = `consent-${Date.now()}-${expected[1]}-${Object.keys(versions).length}`;
+      const payload = { ...buildPayload(requestId, `consent+${Date.now()}@example.com`) } as Record<string, unknown>;
+      delete payload.termsVersion;
+      delete payload.privacyVersion;
       const response = await fetch(`${baseUrl}/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          // Client-reported version values are intentionally stale; the server
-          // must record its own current version constants, not these.
-          ...buildPayload(requestId, `consent+${Date.now()}@example.com`),
-          termsVersion: "client-supplied-stale",
-          privacyVersion: "client-supplied-stale",
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, ...versions }),
       });
 
       expect(response.status).toBe(201);
 
       const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
       const savedRequest = lines
-        .map((line) => JSON.parse(line) as {
-          requestId: string;
-          terms_acceptance?: {
-            accepted_terms?: boolean;
-            terms_version?: string;
-            privacy_version?: string;
-            terms_url?: string;
-            privacy_url?: string;
-            accepted_at?: string;
-            accepted_from_ip_hash?: string | null;
-          };
-        })
+        .map((line) => JSON.parse(line) as { requestId: string; terms_acceptance?: Record<string, unknown>;
+          privacy_version_at_submission?: string })
         .find((entry) => entry.requestId === requestId);
 
-      expect(savedRequest?.terms_acceptance).toBeDefined();
-      expect(savedRequest?.terms_acceptance?.accepted_terms).toBe(true);
-      expect(savedRequest?.terms_acceptance?.terms_version).toBe(TERMS_VERSION);
-      expect(savedRequest?.terms_acceptance?.privacy_version).toBe(PRIVACY_VERSION);
-      // Server records its own constants, ignoring the stale client-supplied values.
-      expect(savedRequest?.terms_acceptance?.terms_version).not.toBe("client-supplied-stale");
-      expect(savedRequest?.terms_acceptance?.terms_url).toBe("/terms");
-      expect(savedRequest?.terms_acceptance?.privacy_url).toBe("/privacy");
-      expect(typeof savedRequest?.terms_acceptance?.accepted_at).toBe("string");
-      expect(Number.isNaN(Date.parse(savedRequest?.terms_acceptance?.accepted_at ?? ""))).toBe(false);
-      expect(savedRequest?.terms_acceptance?.accepted_from_ip_hash).toBeTruthy();
+      expect(savedRequest?.terms_acceptance).toMatchObject({ accepted_terms: true, terms_version: expected[0],
+        privacy_version: expected[1], terms_url: "/terms", privacy_url: "/privacy" });
+      // The job's version for the Privacy gate: the one the form showed, written once, at submission.
+      expect(savedRequest?.privacy_version_at_submission).toBe(expected[1]);
+      expect(Number.isNaN(Date.parse(String(savedRequest?.terms_acceptance?.accepted_at ?? "")))).toBe(false);
+      expect([TERMS_VERSION, PRIVACY_VERSION]).toEqual(["2026-11-12.2", "2026-11-13.1"]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it.each([
+    ["an older Privacy version", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-02.1" }],
+    ["an older Terms version", { termsVersion: "2026-11-12.1", privacyVersion: "2026-11-13.1" }],
+    ["unknown versions", { termsVersion: "client-supplied-stale", privacyVersion: "client-supplied-stale" }],
+  ])("refuses a form that showed %s, recording nothing", async (_label, versions) => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `consent-refused-${Date.now()}-${versions.privacyVersion}`;
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...buildPayload(requestId, `refused+${Date.now()}@example.com`), ...versions }),
+      });
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { message?: string }).message).toMatch(/changed while this page was open/);
+      const persisted = fs.existsSync(devLogPath)
+        ? fs.readFileSync(devLogPath, "utf8").trim().split("\n").filter(Boolean)
+          .map((line) => JSON.parse(line) as { requestId: string }).find((entry) => entry.requestId === requestId)
+        : undefined;
+      expect(persisted).toBeUndefined();
     } finally {
       await stopServer(server);
     }

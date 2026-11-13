@@ -377,7 +377,7 @@ describe("description-only owner can explicitly authorize future footage", () =>
       expect(record.public_task_listing).toMatchObject(LISTING);
       expect(record.public_task_listing.approvedAtIso).toBe(record.request.consent_attestation.recorded_at_iso);
       expect(record.summary_shared_notice).toEqual({ owed: true });
-      expect(record.terms_acceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" });
+      expect(record.terms_acceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1" });
     });
   });
   it.each(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3"])("an older job (%s) taking v4 records v4, keeps the older grant and is shared", async older => {

@@ -87,7 +87,7 @@ vi.mock("../agents/knowledge", () => ({
   resolveStartupContext,
 }));
 
-const failures = vi.hoisted(() => ({ sessionMarker: false, commit: false, sessionRead: false }));
+const failures = vi.hoisted(() => ({ sessionMarker: false, commit: false, sessionRead: false, requestRead: false, requestReads: 0 }));
 const privateStorage = vi.hoisted(() => ({ objects: new Map<string, string>(), available: false }));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => privateStorage.available ? {
   bucketName: "existing-private-bucket",
@@ -138,6 +138,7 @@ function createFakeDb() {
     agentEnvironmentProfiles: new Map<string, Record<string, unknown>>(),
     opsDocuments: new Map<string, Record<string, unknown>>(),
     startupPacks: new Map<string, Record<string, unknown>>(),
+    inboundRequests: new Map<string, Record<string, unknown>>(),
   };
 
   const applyFilters = (docs: Array<{ id: string; data: Record<string, unknown> }>, filters: QueryFilter[]) =>
@@ -207,6 +208,10 @@ function createFakeDb() {
               },
               async get() {
                 if (failures.sessionRead && name === "agentSessions") throw new Error("session read unavailable");
+                if (name === "inboundRequests") {
+                  failures.requestReads += 1;
+                  if (failures.requestRead) throw new Error("request read unavailable");
+                }
                 const value = store[name].get(id);
                 return {
                   exists: Boolean(value),
@@ -249,6 +254,8 @@ beforeEach(() => {
   failures.sessionMarker = false;
   failures.commit = false;
   failures.sessionRead = false;
+  failures.requestRead = false;
+  failures.requestReads = 0;
   privateStorage.objects.clear();
   privateStorage.available = false;
   fake.store.agentSessions.clear();
@@ -261,6 +268,7 @@ beforeEach(() => {
   fake.store.agentEnvironmentProfiles.clear();
   fake.store.opsDocuments.clear();
   fake.store.startupPacks.clear();
+  fake.store.inboundRequests.clear();
 });
 
 afterEach(() => {
@@ -289,7 +297,8 @@ describe("agent session runtime", () => {
       const pinned = await runtime.runAgentTask({ kind: "support_triage", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
         input: { message: "Help" } } as never, { dispatchQueuedOnFinish: false });
       expect(pinned).toMatchObject({ status: "failed", artifacts: { inference_not_invoked: true,
-        privacy_gate: { reason: "privacy_not_permitted", provider: "anthropic_agent_sdk", blocked_by: ["personal_info"] } } });
+        privacy_gate: { reason: "privacy_not_permitted", provider: "anthropic_agent_sdk",
+          blocked_by: ["personal_info", "job_records", "site_job_text"] } } });
       expect(pinned.error).toContain("privacy_not_permitted");
       // A session saved before, pinned to a provider not named for the lane's data, is refused the same way.
       const session = await runtime.createAgentSession({ title: "Saved", task_kind: "support_triage", provider: "openai_responses" });
@@ -392,6 +401,218 @@ describe("agent session runtime", () => {
       privacyGateState.open = true;
     }
   }, 20_000);
+
+  // Which request a run's data belongs to is said only by the server code that loaded it (the privacyRequestBinding
+  // option); the version is the one the server wrote on that request when the job was created.
+  const completedOnAnthropic = async (task: any) => ({ status: "completed", provider: task.provider,
+    runtime: task.runtime, model: task.model, tool_mode: "api", output: { proposals: [] }, raw_output_text: "{}",
+    requires_human_review: false, requires_approval: false, artifacts: {} });
+  const acceptanceUnder = (version: string) => ({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: version,
+    terms_url: "/terms", privacy_url: "/privacy", accepted_at: "2026-11-13T09:00:00.000Z", accepted_from_ip_hash: null });
+  async function seedJobs() {
+    fake.store.inboundRequests.set("job-new", { privacy_version_at_submission: "2026-11-13.1",
+      terms_acceptance: acceptanceUnder("2026-11-13.1") });
+    // A stale start form (opened before 2026-11-13.1) recorded what it showed.
+    fake.store.inboundRequests.set("job-stale-form", { privacy_version_at_submission: "2026-11-12.2",
+      terms_acceptance: acceptanceUnder("2026-11-12.2") });
+    // An older job stored with no acceptance, accepted later on its page (the real job-page write).
+    const { recordingConsentWrite } = await import("../utils/jobSharedListing");
+    const { RECORDING_RIGHTS_STATEMENT_V4_VERSION } = await import("../../client/src/lib/recordingRightsStatement");
+    const older = { request: { buyerType: "site_operator" } };
+    const write = recordingConsentWrite({ record: older, statementVersion: RECORDING_RIGHTS_STATEMENT_V4_VERSION,
+      atIso: "2026-11-13T10:00:00.000Z", taskStatement: "Move totes", hasCurrentGrant: false, canGrantInitial: true, revoked: false });
+    expect(write.outcome).not.toBe("held");
+    const listing = write.outcome === "held" ? null : write.listing;
+    expect(listing).toMatchObject({ terms_acceptance: { privacy_version: "2026-11-13.1" } });
+    expect(listing).not.toHaveProperty("privacy_version_at_submission");
+    fake.store.inboundRequests.set("job-accepted-later", { ...older, ...listing });
+    fake.store.inboundRequests.set("job-unrecorded", {});
+    fake.store.inboundRequests.set("job-malformed", { privacy_version_at_submission: ["2026-11-13.1"] });
+    fake.store.inboundRequests.set("job-unknown-version", { privacy_version_at_submission: "2099-01-01.1" });
+  }
+  const OLDER_JOBS = ["job-stale-form", "job-accepted-later", "job-unrecorded", "job-malformed", "job-unknown-version", "job-missing"];
+
+  it("privacy gate: only a run the server bound to a job submitted under 2026-11-13.1 may reach Anthropic", async () => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      runAnthropicAgentSdkTask.mockReset();
+      runAnthropicAgentSdkTask.mockImplementation(completedOnAnthropic as never);
+      await seedJobs();
+      const runtime = await import("../agents/runtime");
+      const onAnthropic = (requestId: string | null, extra: Record<string, unknown> = {}) => runtime.runAgentTask({
+        kind: "site_task_brief_reading", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+        input: { requestId: requestId ?? "job-new", taskStatement: "Move totes" }, metadata: { request_id: requestId ?? "job-new" },
+        ...extra } as never, { dispatchQueuedOnFinish: false,
+        ...(requestId ? { privacyRequestBinding: { request_id: requestId } } : {}) });
+      expect((await onAnthropic("job-new")).status).toBe("completed");
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+      expect([...fake.store.agentRuns.values()].at(-1)).toMatchObject({ privacy_request_binding: { request_id: "job-new" } });
+      for (const requestId of OLDER_JOBS) {
+        const refused = await onAnthropic(requestId);
+        expect(refused, requestId).toMatchObject({ status: "failed", artifacts: { inference_not_invoked: true,
+          privacy_gate: { reason: "privacy_not_permitted", provider: "anthropic_agent_sdk", blocked_by: ["site_job_text"] } } });
+      }
+      // The input and metadata name the new job, but no server code bound the run: strictest.
+      expect((await onAnthropic(null)).status).toBe("failed");
+      // A caller-supplied field with the binding's name is ignored, on the task and in its metadata.
+      expect((await onAnthropic(null, { privacy_request_binding: { request_id: "job-new" },
+        metadata: { privacy_request_binding: { request_id: "job-new" }, privacyRequestBinding: { request_id: "job-new" } } })).status)
+        .toBe("failed");
+      // What the caller says about the version is never read.
+      expect((await onAnthropic("job-stale-form", { metadata: { privacy_policy_version: "2026-11-13.1" } })).status).toBe("failed");
+      // A read that fails is strictest.
+      failures.requestRead = true;
+      expect((await onAnthropic("job-new")).status).toBe("failed");
+      failures.requestRead = false;
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+    } finally {
+      privacyGateState.open = true;
+      runAnthropicAgentSdkTask.mockReset();
+    }
+  }, 20_000);
+
+  it("privacy gate: an admin-style run naming a new job in its input and metadata stays on the strictest table", async () => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      runAnthropicAgentSdkTask.mockReset();
+      runAnthropicAgentSdkTask.mockImplementation(completedOnAnthropic as never);
+      await seedJobs();
+      const runtime = await import("../agents/runtime");
+      const result = await runtime.runAgentTask({ kind: "support_triage", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+        input: { message: "A person's message", requestId: "job-new", context: { request_id: "job-new" } },
+        metadata: { request_id: "job-new", requestId: "job-new" } } as never, { dispatchQueuedOnFinish: false });
+      expect(result).toMatchObject({ status: "failed", artifacts: { privacy_gate: { reason: "privacy_not_permitted",
+        provider: "anthropic_agent_sdk" } } });
+      expect(runAnthropicAgentSdkTask).not.toHaveBeenCalled();
+      expect(failures.requestReads).toBe(0);
+    } finally {
+      privacyGateState.open = true;
+      runAnthropicAgentSdkTask.mockReset();
+    }
+  }, 20_000);
+
+  it("privacy gate: a stored run approved later keeps the binding stored on it, and only that", async () => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      runAnthropicAgentSdkTask.mockReset();
+      runAnthropicAgentSdkTask.mockImplementation(completedOnAnthropic as never);
+      await seedJobs();
+      const runtime = await import("../agents/runtime");
+      const stored = (id: string, binding: Record<string, unknown> | null) => fake.store.agentRuns.set(id, { id, session_id: null,
+        session_key: null, task_kind: "site_task_brief_reading", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+        model: "claude-haiku-5-5", status: "pending_approval", created_at: "timestamp", updated_at: "timestamp",
+        privacy_request_binding: binding,
+        input: { kind: "site_task_brief_reading", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+          input: { requestId: "job-new", taskStatement: "Move totes" }, metadata: { request_id: "job-new",
+            privacy_request_binding: { request_id: "job-new" } } } });
+      stored("bound", { request_id: "job-new" });
+      stored("unbound", null);
+      stored("bound-older", { request_id: "job-accepted-later" });
+      expect((await runtime.approveAgentRun("bound")).status).toBe("completed");
+      expect((await runtime.approveAgentRun("unbound")).status).toBe("failed");
+      expect((await runtime.approveAgentRun("bound-older")).status).toBe("failed");
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+    } finally {
+      privacyGateState.open = true;
+      runAnthropicAgentSdkTask.mockReset();
+    }
+  }, 20_000);
+
+  it("privacy gate: a queued run dispatched later by its session's queue is gated on the binding stored on it", async () => {
+    privacyGateState.open = false;
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      runAnthropicAgentSdkTask.mockReset();
+      runAnthropicAgentSdkTask.mockImplementation(completedOnAnthropic as never);
+      await seedJobs();
+      const runtime = await import("../agents/runtime");
+      const queued = (id: string, sessionKey: string, binding: Record<string, unknown> | null) => fake.store.agentRuns.set(id, {
+        id, session_id: null, session_key: sessionKey, task_kind: "site_task_brief_reading", provider: "anthropic_agent_sdk",
+        runtime: "anthropic_agent_sdk", model: "claude-haiku-5-5", status: "queued", created_at: "a", updated_at: "a",
+        privacy_request_binding: binding,
+        input: { kind: "site_task_brief_reading", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+          session_key: sessionKey, input: { requestId: "job-new", taskStatement: "Move totes" }, metadata: { request_id: "job-new" } } });
+      const finishOn = (sessionKey: string) => runtime.runAgentTask({ kind: "support_triage", provider: "openai_responses",
+        runtime: "openai_responses", session_key: sessionKey, input: { message: "Next" } } as never);
+      queued("queued-bound", "session:queued-bound", { request_id: "job-new" });
+      await finishOn("session:queued-bound");
+      expect(fake.store.agentRuns.get("queued-bound")?.status).toBe("completed");
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+      queued("queued-unbound", "session:queued-unbound", null);
+      await finishOn("session:queued-unbound");
+      expect(fake.store.agentRuns.get("queued-unbound")?.status).toBe("failed");
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+    } finally {
+      privacyGateState.open = true;
+      runAnthropicAgentSdkTask.mockReset();
+    }
+  }, 20_000);
+
+  it("privacy gate: an ordinary OpenAI run reads no stored request", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+    await seedJobs();
+    const runtime = await import("../agents/runtime");
+    const result = await runtime.runAgentTask({ kind: "site_task_brief_reading",
+      input: { requestId: "job-new", taskStatement: "Move totes" } } as never,
+      { dispatchQueuedOnFinish: false, privacyRequestBinding: { request_id: "job-new" } });
+    expect(result.status).toBe("completed");
+    expect(failures.requestReads).toBe(0);
+  }, 20_000);
+
+  it("failover: OpenAI out of funds moves a site-text run to Anthropic only for a job submitted under Privacy 2026-11-13.1", async () => {
+    privacyGateState.open = false;
+    const funds = await import("../agents/provider-funds");
+    try {
+      vi.stubEnv("OPENAI_API_KEY", "offline-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      await seedJobs();
+      const noFunds = async (task: any) => ({ status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+        tool_mode: "api", error: "openai_provider_or_output_failure", requires_human_review: true, requires_approval: false,
+        artifacts: { provider_error: { error_class: "no_funds", provider: "openai_responses", sdk: "openai", status: 429,
+          type: "insufficient_quota", code: "insufficient_quota" }, provider_responses: [], inference_reservation: { reconciled_cost_usd: 0 } } });
+      runAnthropicAgentSdkTask.mockReset();
+      runAnthropicAgentSdkTask.mockImplementation(completedOnAnthropic as never);
+      const runtime = await import("../agents/runtime");
+      const run = async (requestId: string | null, bound = true) => {
+        funds.resetProviderFundsStateForTests();
+        runOpenAIResponsesTask.mockImplementationOnce(noFunds as never);
+        return runtime.runAgentTask({ kind: "site_task_brief_reading",
+          input: { ...(requestId ? { requestId } : {}), taskStatement: "Move totes" } } as never, { dispatchQueuedOnFinish: false,
+          ...(requestId && bound ? { privacyRequestBinding: { request_id: requestId } } : {}) });
+      };
+      const moved = await run("job-new");
+      expect(moved).toMatchObject({ status: "completed", provider: "anthropic_agent_sdk",
+        artifacts: { provider_failover: { from_provider: "openai_responses", to_provider: "anthropic_agent_sdk", trigger: "no_funds" } } });
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+      for (const requestId of [...OLDER_JOBS, null]) {
+        const stayed = await run(requestId);
+        expect(stayed.error, String(requestId)).toContain("no_provider_with_funds");
+        expect(stayed.artifacts?.provider_failover, String(requestId)).toMatchObject({ to_provider: null });
+      }
+      // Named in the input but not bound by the server: strictest.
+      expect((await run("job-new", false)).error).toContain("no_provider_with_funds");
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+      // With no Anthropic key, nothing changes anywhere: even a new job has nowhere to go.
+      vi.stubEnv("ANTHROPIC_API_KEY", "");
+      expect((await run("job-new")).error).toContain("no_provider_with_funds");
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledTimes(1);
+      // Lane resolution itself stays on the strictest table: OpenAI first, Anthropic first nowhere.
+      const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
+      vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture");
+      expect(describeStructuredAutomationProvider("site_task_brief_reading").provider).toBe("openai_responses");
+    } finally {
+      privacyGateState.open = true;
+      runAnthropicAgentSdkTask.mockReset();
+      funds.resetProviderFundsStateForTests();
+    }
+  }, 30_000);
 
   it("fails a run closed, visibly, when its session cannot be read for the check", async () => {
     vi.stubEnv("OPENAI_API_KEY", "offline-fixture");

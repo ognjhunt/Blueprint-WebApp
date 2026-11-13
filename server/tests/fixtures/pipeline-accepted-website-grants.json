@@ -1,0 +1,149 @@
+{
+ "_comment": "Website scene-sponsorship grants that today's Pipeline loader (website_task_context.load_website_scene_sponsorship) and validate_preparation_authority accepted, recorded by the independent review of Group E on 2026-11-13 from grants this code issued. Synthetic test digests only. The website tests compare the shape (keys and value types) of the grants it issues today to these.",
+ "openai_version_recorded": {
+  "schema_version": "website_scene_sponsorship.v1",
+  "sponsor": "blueprint",
+  "purpose": "scene_preparation",
+  "request_id": "one",
+  "capture_id": "walkthrough-one",
+  "scene_id": "site-one",
+  "task_context_digest": "sha256:5bb6dfaddc2d41cc39600d2d05251b0f4e321a5ccfaf01152fa4c56ab110ac0c",
+  "policy_digest": "sha256:16b40b052e4c1b73d0e03b2ab930e20c81f52c8e98f473010b6b969683755875",
+  "authoring_provider": "openai",
+  "privacy_policy_version": "2026-11-12.2",
+  "site_consents": [],
+  "owner": {
+   "user_id": "blueprint",
+   "organization_id": "blueprint"
+  },
+  "preparation_max_total_spend_usd": 2,
+  "upstream_max_spend_usd": 1,
+  "max_total_spend_usd": 1,
+  "max_paid_attempts": 2,
+  "scene_configuration_max_retries": 1,
+  "automatic_budget_extension": true,
+  "expires_at_epoch": 1794571713.36,
+  "consent": {
+   "rights_reference": "sha256:b9b347249ab74047f0c505067cc3a65507c8e64ec8f09ea951d5823f3b9121c9",
+   "provider_terms_reference": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "accepted_by": "blueprint",
+   "accepted_at_epoch": 1794568113.36,
+   "private_processing_authorized": true,
+   "provider_training_authorized": false,
+   "task_confirmed": false,
+   "spend_authorized": true
+  },
+  "authority_digest": "sha256:cbf100abe7af7cb94e8eceb71375da481919edaf3bcd9601b2ae3031ec87d7ce"
+ },
+ "claude_statement": {
+  "schema_version": "website_scene_sponsorship.v1",
+  "sponsor": "blueprint",
+  "purpose": "scene_preparation",
+  "request_id": "one",
+  "capture_id": "walkthrough-one",
+  "scene_id": "site-one",
+  "task_context_digest": "sha256:5bb6dfaddc2d41cc39600d2d05251b0f4e321a5ccfaf01152fa4c56ab110ac0c",
+  "policy_digest": "sha256:16b40b052e4c1b73d0e03b2ab930e20c81f52c8e98f473010b6b969683755875",
+  "authoring_provider": "anthropic",
+  "privacy_policy_version": "2026-11-12.2",
+  "site_consents": [
+   {
+    "statement_version": "2026-09-24.v1",
+    "provider": "anthropic",
+    "model": "claude-opus-5-5"
+   }
+  ],
+  "anthropic_provider_terms_reference": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "owner": {
+   "user_id": "blueprint",
+   "organization_id": "blueprint"
+  },
+  "preparation_max_total_spend_usd": 2,
+  "upstream_max_spend_usd": 1,
+  "max_total_spend_usd": 1,
+  "max_paid_attempts": 2,
+  "scene_configuration_max_retries": 1,
+  "automatic_budget_extension": true,
+  "expires_at_epoch": 1794571713.363,
+  "consent": {
+   "rights_reference": "sha256:b9b347249ab74047f0c505067cc3a65507c8e64ec8f09ea951d5823f3b9121c9",
+   "provider_terms_reference": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "accepted_by": "blueprint",
+   "accepted_at_epoch": 1794568113.363,
+   "private_processing_authorized": true,
+   "provider_training_authorized": false,
+   "task_confirmed": false,
+   "spend_authorized": true
+  },
+  "authority_digest": "sha256:3cf3828977d7da48b38def09eba1be860cec5944106b94bcc0d84a2e589a61ed"
+ },
+ "openai_new_version": {
+  "schema_version": "website_scene_sponsorship.v1",
+  "sponsor": "blueprint",
+  "purpose": "scene_preparation",
+  "request_id": "one",
+  "capture_id": "walkthrough-one",
+  "scene_id": "site-one",
+  "task_context_digest": "sha256:5bb6dfaddc2d41cc39600d2d05251b0f4e321a5ccfaf01152fa4c56ab110ac0c",
+  "policy_digest": "sha256:16b40b052e4c1b73d0e03b2ab930e20c81f52c8e98f473010b6b969683755875",
+  "authoring_provider": "openai",
+  "privacy_policy_version": "2026-11-13.1",
+  "site_consents": [],
+  "owner": {
+   "user_id": "blueprint",
+   "organization_id": "blueprint"
+  },
+  "preparation_max_total_spend_usd": 2,
+  "upstream_max_spend_usd": 1,
+  "max_total_spend_usd": 1,
+  "max_paid_attempts": 2,
+  "scene_configuration_max_retries": 1,
+  "automatic_budget_extension": true,
+  "expires_at_epoch": 1794571713.365,
+  "consent": {
+   "rights_reference": "sha256:b9b347249ab74047f0c505067cc3a65507c8e64ec8f09ea951d5823f3b9121c9",
+   "provider_terms_reference": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "accepted_by": "blueprint",
+   "accepted_at_epoch": 1794568113.365,
+   "private_processing_authorized": true,
+   "provider_training_authorized": false,
+   "task_confirmed": false,
+   "spend_authorized": true
+  },
+  "authority_digest": "sha256:89dce99a178199af0a351c9ade4ee3492dc9d35af988af70e2b551b330039054"
+ },
+ "openai_no_version": {
+  "schema_version": "website_scene_sponsorship.v1",
+  "sponsor": "blueprint",
+  "purpose": "scene_preparation",
+  "request_id": "one",
+  "capture_id": "walkthrough-one",
+  "scene_id": "site-one",
+  "task_context_digest": "sha256:5bb6dfaddc2d41cc39600d2d05251b0f4e321a5ccfaf01152fa4c56ab110ac0c",
+  "policy_digest": "sha256:16b40b052e4c1b73d0e03b2ab930e20c81f52c8e98f473010b6b969683755875",
+  "authoring_provider": "openai",
+  "site_consents": [],
+  "owner": {
+   "user_id": "blueprint",
+   "organization_id": "blueprint"
+  },
+  "preparation_max_total_spend_usd": 2,
+  "upstream_max_spend_usd": 1,
+  "max_total_spend_usd": 1,
+  "max_paid_attempts": 2,
+  "scene_configuration_max_retries": 1,
+  "automatic_budget_extension": true,
+  "expires_at_epoch": 1794571713.368,
+  "consent": {
+   "rights_reference": "sha256:b9b347249ab74047f0c505067cc3a65507c8e64ec8f09ea951d5823f3b9121c9",
+   "provider_terms_reference": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "accepted_by": "blueprint",
+   "accepted_at_epoch": 1794568113.368,
+   "private_processing_authorized": true,
+   "provider_training_authorized": false,
+   "task_confirmed": false,
+   "spend_authorized": true
+  },
+  "authority_digest": "sha256:2e165e2351eb357e660a95f22350191544d7303bae6f66a0c3b0de58172355b7"
+ }
+}

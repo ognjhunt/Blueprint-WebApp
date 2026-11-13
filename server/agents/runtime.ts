@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { assertAgentProfileUsable, getAgentProfile, withProfileProviderStatus } from "./agent-profiles";
 import { LANE_DATA_CLASSES, NO_PERMITTED_PROVIDER, PRIVACY_NOT_PERMITTED, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
-  privacyDecisionForClasses, privacyVersionForTask, type AgentDataClass } from "./provider-privacy";
+  STRICTEST_PRIVACY_TABLE, privacyDecisionForClasses, resolvePrivacyVersion, type AgentDataClass } from "./provider-privacy";
 import { AgentEvidenceError, hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence, persistAgentEvidenceFailure, requiresMutationReconciliation } from "./private-evidence";
 import { createAgentCheckpoint, getAgentCheckpoint, listAgentCheckpoints } from "./checkpoints";
 import { createAgentCompaction, listAgentCompactions } from "./compactions";
@@ -956,18 +956,79 @@ function refuseRetiredSiteAssessment(kind: string): void {
  * that applies to the task's data does not name for every kind of data the
  * task sends is never called.
  */
-function privacyGateForTask(task: NormalizedAgentTask<unknown, unknown>) {
-  const version = privacyVersionForTask(task);
+/**
+ * Which stored request a run's data belongs to, said ONLY by the server code
+ * that loaded the data from that request (the `privacyRequestBinding` option
+ * of `runAgentTask`). No route copies it from a request body, query or stored
+ * caller metadata, and nothing in a task's `input` or `metadata` is read for
+ * it. It is kept on the task under a module-private symbol, which no caller can
+ * set and no JSON round trip carries, and stored on the run in its own field,
+ * so a queued or approved run keeps it. A run without it is strictest.
+ */
+export type PrivacyRequestBinding = { request_id: string };
+const PRIVACY_REQUEST_BINDING = Symbol("privacy_request_binding");
+const storedVersionReads = new WeakMap<PrivacyRequestBinding, Promise<string>>();
+
+function validPrivacyRequestBinding(value: unknown): PrivacyRequestBinding | null {
+  const id = value && typeof value === "object" ? (value as Record<string, unknown>).request_id : undefined;
+  return typeof id === "string" && id.trim() === id && id.length > 0 && id.length <= 200 && !id.includes("/")
+    ? { request_id: id } : null;
+}
+
+function bindPrivacyRequest<T extends object>(task: T, binding: PrivacyRequestBinding | null): T {
+  Object.defineProperty(task, PRIVACY_REQUEST_BINDING, { value: binding, enumerable: true, configurable: true, writable: false });
+  return task;
+}
+
+function privacyRequestBindingOf(task: object): PrivacyRequestBinding | null {
+  return (task as Record<symbol, PrivacyRequestBinding | null | undefined>)[PRIVACY_REQUEST_BINDING] ?? null;
+}
+
+/**
+ * The Privacy Policy version a run's data was received under: the
+ * `privacy_version_at_submission` the server wrote on the bound request when
+ * the job was created (`server/routes/inbound-request.ts`). Absent, malformed
+ * or unknown is older: the strictest table. Every job stored before that field
+ * existed lacks it, so every such job is older by construction. A run with no
+ * binding, or a read that fails, is strictest too. Read at most once per run.
+ */
+function storedPrivacyVersionForTask(task: object): Promise<string> {
+  const binding = privacyRequestBindingOf(task);
+  if (!binding || !db) return Promise.resolve(STRICTEST_PRIVACY_TABLE);
+  const store = db;
+  let read = storedVersionReads.get(binding);
+  if (!read) {
+    read = (async () => {
+      try {
+        const record = (await store.collection("inboundRequests").doc(binding.request_id).get()).data() as Record<string, unknown> | undefined;
+        return resolvePrivacyVersion(record?.privacy_version_at_submission);
+      } catch (error) {
+        logger.warn({ err: error }, "The stored Privacy version could not be read; the strictest table applies");
+        return STRICTEST_PRIVACY_TABLE;
+      }
+    })();
+    storedVersionReads.set(binding, read);
+  }
+  return read;
+}
+
+async function privacyGateForTask(task: NormalizedAgentTask<unknown, unknown>) {
   const managedRuntime = (task.metadata?.managedRuntime ?? null) as Record<string, unknown> | null;
   const snapshot = (managedRuntime?.profileSnapshot ?? null) as Record<string, unknown> | null;
   const profileKey = typeof managedRuntime?.agentProfileKey === "string" ? managedRuntime.agentProfileKey
     : typeof snapshot?.key === "string" ? snapshot.key : null;
   const classes = [...new Set([...(LANE_DATA_CLASSES[task.kind]?.classes ?? ["site_job_text", "job_records", "personal_info", "staff_tools"]),
     ...((profileKey && PROFILE_DATA_CLASSES[profileKey]?.classes) || [])])] as AgentDataClass[];
-  const decide = (provider: AgentProvider) => privacyDecisionForClasses(provider, classes, version);
-  const decision = decide(task.provider);
-  const anyPermitted = (Object.keys(PROVIDER_DESTINATIONS) as AgentProvider[]).some((provider) => decide(provider).permitted);
-  return { ...decision, reason: decision.permitted ? null : anyPermitted ? PRIVACY_NOT_PERMITTED : NO_PERMITTED_PROVIDER };
+  const decideOn = (version: string) => {
+    const decide = (provider: AgentProvider) => privacyDecisionForClasses(provider, classes, version);
+    const decision = decide(task.provider);
+    const anyPermitted = (Object.keys(PROVIDER_DESTINATIONS) as AgentProvider[]).some((provider) => decide(provider).permitted);
+    return { ...decision, reason: decision.permitted ? null : anyPermitted ? PRIVACY_NOT_PERMITTED : NO_PERMITTED_PROVIDER };
+  };
+  // The stored version is read only when the decision depends on it: a provider the strictest table permits needs no read.
+  const strictest = decideOn(STRICTEST_PRIVACY_TABLE);
+  if (strictest.permitted || !privacyRequestBindingOf(task)) return strictest;
+  return decideOn(await storedPrivacyVersionForTask(task));
 }
 
 /**
@@ -1080,7 +1141,15 @@ async function executeTask<TInput, TOutput>(
   const mutationReconciliationRequired = requiresMutationReconciliation(task as unknown as Record<string, unknown>);
   const switchTo = (provider: AgentProvider): NormalizedAgentTask<TInput, TOutput> => ({ ...task, provider, runtime: provider,
     model: task.definition.model_by_provider?.[provider] || defaultModelForProvider(provider) });
-  const chooseTarget = () => chooseFailoverProvider(task.kind, task.provider, { mutationReconciliationRequired });
+  // The target may use the Privacy table of the job the run is bound to (its version at submission; anything else is
+  // the strictest table), read only when the strictest table leaves no target. Lane resolution stays on the strictest
+  // table, and the runtime gate re-checks the target.
+  const chooseTarget = async () => {
+    const strictest = chooseFailoverProvider(task.kind, task.provider, { mutationReconciliationRequired });
+    if (strictest.provider || !privacyRequestBindingOf(task)) return strictest;
+    return chooseFailoverProvider(task.kind, task.provider, { mutationReconciliationRequired,
+      privacyVersion: await storedPrivacyVersionForTask(task) });
+  };
   const structured = isStructuredProvider(task.provider);
   let classification: ProviderErrorClassification | null = null;
   let firstResult: AgentResult<TOutput> | undefined;
@@ -1089,7 +1158,7 @@ async function executeTask<TInput, TOutput>(
   let decision: FailoverDecision | null = null;
 
   if (structured && isProviderCoolingDown(task.provider)) {
-    const target = chooseTarget();
+    const target = await chooseTarget();
     if (target.provider) {
       trigger = "cooling_down_no_funds";
       decision = target;
@@ -1116,7 +1185,7 @@ async function executeTask<TInput, TOutput>(
     }
   }
 
-  decision ??= chooseTarget();
+  decision ??= await chooseTarget();
   const errorFields = (value: ProviderErrorClassification | null) => ({ error_class: value?.error_class ?? null,
     http_status: value?.status ?? null, error_type: value?.type ?? null, error_code: value?.code ?? null });
   const record = { from_provider: task.provider, from_model: task.model, trigger,
@@ -1204,7 +1273,7 @@ async function executeTaskOnProvider<TInput, TOutput>(
       },
     };
   }
-  const privacyGate = privacyGateForTask(task as unknown as NormalizedAgentTask<unknown, unknown>);
+  const privacyGate = await privacyGateForTask(task as unknown as NormalizedAgentTask<unknown, unknown>);
   if (!privacyGate.permitted) {
     return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
       tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
@@ -1831,6 +1900,7 @@ async function dispatchQueuedRuns(sessionKey: string, skipped: Set<string> = new
       runId: runRecord.id,
       sessionId: runRecord.session_id || null,
       dispatchQueuedOnFinish: false,
+      privacyRequestBinding: validPrivacyRequestBinding(runRecord.privacy_request_binding),
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
@@ -1867,6 +1937,8 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     runId?: string;
     sessionId?: string | null;
     dispatchQueuedOnFinish?: boolean;
+    /** The stored request this run's data was loaded from, set only by server code (see PrivacyRequestBinding). */
+    privacyRequestBinding?: PrivacyRequestBinding | null;
   },
 ): Promise<AgentResult<TOutput>> {
   // Durable ADP tasks use the task controller and its worker. A chat message
@@ -1912,7 +1984,8 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       return refused;
     }
   }
-  const normalizedTask = normalizeTask<TInput, TOutput>(task);
+  const privacyRequestBinding = validPrivacyRequestBinding(options?.privacyRequestBinding);
+  const normalizedTask = bindPrivacyRequest(normalizeTask<TInput, TOutput>(task), privacyRequestBinding);
   const admissionSessionId = options?.sessionId || normalizedTask.session_id;
   if (admissionSessionId && await sessionRequiresMutationReconciliation(admissionSessionId)) {
     normalizedTask.metadata = { ...(normalizedTask.metadata || {}), mutation_reconciliation_required: true };
@@ -1956,6 +2029,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         dispatch_mode: normalizedTask.session_policy.dispatch_mode,
         input: task,
         dedupe_fingerprint: agentRunDedupeFingerprint(normalizedTask),
+        privacy_request_binding: privacyRequestBinding,
         approval_reason: approval.reason,
         requires_human_review: true,
         tool_policy: normalizedTask.tool_policy,
@@ -2033,6 +2107,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       dispatch_mode: normalizedTask.session_policy.dispatch_mode,
       input: task,
       dedupe_fingerprint: agentRunDedupeFingerprint(normalizedTask),
+      privacy_request_binding: privacyRequestBinding,
       requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
         status: "running",
       }),
@@ -2063,6 +2138,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         dispatch_mode: normalizedTask.session_policy.dispatch_mode,
         input: task,
         dedupe_fingerprint: agentRunDedupeFingerprint(normalizedTask),
+        privacy_request_binding: privacyRequestBinding,
         requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
           status: "running",
         }),
@@ -3363,6 +3439,7 @@ export async function approveAgentRun(runId: string) {
   const result = await runAgentTask(input, {
     runId,
     sessionId: run.session_id || null,
+    privacyRequestBinding: validPrivacyRequestBinding(run.privacy_request_binding),
   });
 
   return {

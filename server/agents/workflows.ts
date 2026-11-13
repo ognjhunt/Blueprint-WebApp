@@ -1304,7 +1304,7 @@ export async function runInboundQualificationForRequest(
     metadata: {
       request_id: request.requestId,
     },
-  });
+  }, { privacyRequestBinding: { request_id: request.requestId } });
 
   if (result.status !== "completed" || !result.output) {
     await docRef.set(
@@ -1758,7 +1758,7 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
         metadata: {
           request_id: doc.id,
         },
-      });
+      }, { privacyRequestBinding: { request_id: doc.id } });
 
       if (result.status !== "completed" || !result.output) {
         throw new Error(result.error || "Preview diagnosis failed");

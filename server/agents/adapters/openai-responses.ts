@@ -168,7 +168,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     };
   }
 
-  const historyAccess = await getCompanyHistoryAccess(task);
+  const historyAccess = await getCompanyHistoryAccess(task, "openai_responses");
   const tools = task.kind === "operator_thread" ? openAiResponsesOperatorTools : historyAccess ? openAiResponsesHistoryTools : undefined;
   const traceLogs: Array<Record<string, unknown>> = [];
   const previousResponseId =

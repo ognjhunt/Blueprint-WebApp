@@ -117,7 +117,7 @@ describe("the company's page for one job", () => {
     expect(await screen.findByRole("heading", { name: "Carton palletizing opportunity" })).toBeInTheDocument();
     const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(path).toBe("/api/robot-team-access/accept-terms");
-    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" });
+    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" });
   });
 });
 

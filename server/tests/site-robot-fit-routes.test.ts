@@ -111,7 +111,9 @@ describe("admin robot fit", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ attempt: { state: "ranked", by: "admin-1" },
       ranking: { rankedBy: "admin-1", teams: [{ teamId: "pallet-co", fit: "strong" }] } });
-    expect(runtime.runAgentTask).toHaveBeenCalledWith(expect.objectContaining({ kind: "robot_fit_ranking" }));
+    // The server binds the run to the job it loaded, for the Privacy gate.
+    expect(runtime.runAgentTask).toHaveBeenCalledWith(expect.objectContaining({ kind: "robot_fit_ranking" }),
+      { privacyRequestBinding: { request_id: "job-1" } });
     const read = await (await fetch(`${base}/admin/jobs/job-1/robot-fit`, { headers: admin })).json();
     expect(read).toMatchObject({ ranking: { stale: false }, lastAttempt: { state: "ranked" } });
   });

@@ -18,20 +18,20 @@ beforeEach(()=>{vi.resetModules();vi.stubEnv("OPENAI_API_KEY","offline-fixture")
 afterEach(()=>vi.unstubAllEnvs());
 describe("agent-chosen read-only company history tools",()=>{
  it("keeps site assessment on its existing read binding and rejects its original expiry",async()=>{
-  const access=await getCompanyHistoryAccess({kind:"site_assessment"});
+  const access=await getCompanyHistoryAccess({kind:"site_assessment"},"openai_responses");
   expect(access).toMatchObject({companyWide:false,principalId:"blueprint-learning-host",expiresAt:"2099-10-02T13:00:00.000Z",prospectIds:[]});
   expect(access).not.toHaveProperty("embeddingAuthority");
   mocks.learning.businessScope.expiresAt="2000-01-01T00:00:00Z";
-  expect(await getCompanyHistoryAccess({kind:"site_assessment"})).toBeNull();
+  expect(await getCompanyHistoryAccess({kind:"site_assessment"},"openai_responses")).toBeNull();
  });
  it("reuses the exact retained backend read binding without widening zero-native scope or renewing expiry",async()=>{
   const task:any={kind:"capture_dispatch",metadata:{principalId:"MODEL",companyWide:false,historyEmbedding:{authorized:true}},input:{principalId:"MODEL"}};
-  const access=await getCompanyHistoryAccess(task);
+  const access=await getCompanyHistoryAccess(task,"openai_responses");
   expect(access).toEqual({principalId:"blueprint-learning-host",companyWide:false,expiresAt:"2099-10-02T13:00:00.000Z",sourceSnapshotId:"a".repeat(64),crmIds:["BP-000001"],prospectIds:[],capabilityIds:[],discoveryCapabilityIds:["summary-capability"],businessSubjectKeys:["blueprint:research-learning"]});
   expect(mocks.read).toHaveBeenCalledWith("blueprintDailyResearch/sites-first");
   expect(access).not.toHaveProperty("embeddingAuthority");
-  expect(await getCompanyHistoryAccess({kind:"capture_video_privacy"})).toBeNull();
-  expect(await getCompanyHistoryAccess({kind:"inbound_qualification"})).toBeNull();
+  expect(await getCompanyHistoryAccess({kind:"capture_video_privacy"},"openai_responses")).toBeNull();
+  expect(await getCompanyHistoryAccess({kind:"inbound_qualification"},"openai_responses")).toBeNull();
   await expect(runOperatorTool("search_company_history",{query:""})).rejects.toMatchObject({code:"permission_denied"});
   expect(mocks.history).not.toHaveBeenCalled();
  });
@@ -39,12 +39,12 @@ describe("agent-chosen read-only company history tools",()=>{
   if(reason==="missing")mocks.learning=null;
   if(reason==="expired")mocks.learning.businessScope.expiresAt="2000-01-01T00:00:00Z";
   if(reason==="wrong-principal")mocks.learning.binding.principalId="MODEL";
-  expect(await getCompanyHistoryAccess({kind:"operator_thread",metadata:{companyWide:true,expiresAt:"2099-12-31T00:00:00Z"}} as any)).toBeNull();
+  expect(await getCompanyHistoryAccess({kind:"operator_thread",metadata:{companyWide:true,expiresAt:"2099-12-31T00:00:00Z"}} as any,"openai_responses")).toBeNull();
  });
  it("uses whole-company access only from an exact retained owner grant with its original shorter expiry",async()=>{
   mocks.learning.history_access={version:"blueprint.company-history-access.v1",principalId:"blueprint-learning-host",scope:"company_business_history",authorityRef:"existing-owner-approved-read",expiresAt:"2099-10-02T12:00:00.000Z"};
-  expect(await getCompanyHistoryAccess({kind:"capture_dispatch"})).toEqual({principalId:"blueprint-learning-host",companyWide:true,sourceSnapshotId:"a".repeat(64),expiresAt:"2099-10-02T12:00:00.000Z",businessSubjectKeys:["blueprint:research-learning"]});
-  mocks.learning.history_access.principalId="MODEL";expect(await getCompanyHistoryAccess({kind:"capture_dispatch"})).toBeNull();
+  expect(await getCompanyHistoryAccess({kind:"capture_dispatch"},"openai_responses")).toEqual({principalId:"blueprint-learning-host",companyWide:true,sourceSnapshotId:"a".repeat(64),expiresAt:"2099-10-02T12:00:00.000Z",businessSubjectKeys:["blueprint:research-learning"]});
+  mocks.learning.history_access.principalId="MODEL";expect(await getCompanyHistoryAccess({kind:"capture_dispatch"},"openai_responses")).toBeNull();
  });
  it.each(["openai_responses"] as const)("lets %s choose a query, paginate then fetch records under mutation quarantine",async provider=>{
   const query={query:"retained operator outcome",filters:{city:"Seattle",industry:"industrial kitchen"},page_size:2};

@@ -15,7 +15,7 @@ import { analyticsEvents } from "@/lib/analytics";
 import { checkEmail, EMAIL_HINT_SENTENCES, EMAIL_REFUSAL_SENTENCES, isEmailRefusal } from "@/lib/emailAddress";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
-import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { PRIVACY_URL, PRIVACY_VERSION, TERMS_URL, TERMS_VERSION } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION, DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION, DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION } from "@/lib/siteSubmissionAuthority";
 import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_V4_VERSION, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
@@ -453,10 +453,13 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           roleTitle: "Site operator",
           buyerType: "site_operator",
           // No account: the capture link is the credential. Terms and Privacy
-          // are accepted by starting, next to the button, and the server
-          // records the versions it holds rather than trusting this flag alone.
+          // are accepted by starting, next to the button; the server records the
+          // versions sent below when they still count as current, and refuses others.
           accountSignup: false,
           acceptedTerms: true,
+          // The versions this form shows beside its line; the server records exactly these.
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
           requestedLanes: [],
           siteName: location,
           siteLocation: location,

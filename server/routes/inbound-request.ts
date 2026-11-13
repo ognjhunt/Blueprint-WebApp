@@ -202,7 +202,7 @@ function normalizeGateAnswers(input: unknown): Record<string, string> {
   }
   return out;
 }
-import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
+import { START_FORM_VERSIONS_BEFORE_SENT, buildLegalAcceptanceRecord, shownVersionsCount } from "../../client/src/lib/legalAcceptance";
 import type {
   GateAnswerSource,
   GateAnswerSources,
@@ -1189,11 +1189,25 @@ export async function submitInboundRequest(req: Request, res: Response) {
           "You must accept the Terms of Service and Privacy Policy to create an account.",
       } satisfies SubmitInboundRequestResponse);
     }
+    // The versions the form showed. A form that sends them records them exactly, when they still count as current; a
+    // form opened before forms sent them showed Terms and Privacy 2026-11-12.2. A recorded version is never rewritten to
+    // the current one, so a job started from a page opened before Privacy 2026-11-13.1 stays under 2026-11-12.2.
+    const sentVersions = typeof payload.termsVersion === "string" || typeof payload.privacyVersion === "string";
+    const shownVersions = payload.acceptedTerms !== true ? null
+      : sentVersions ? shownVersionsCount(payload.termsVersion, payload.privacyVersion) : START_FORM_VERSIONS_BEFORE_SENT;
+    if (payload.acceptedTerms === true && !shownVersions) {
+      return res.status(400).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "submitted",
+        message: "The Terms or Privacy Policy changed while this page was open. Reload the page to see the current versions.",
+      } satisfies SubmitInboundRequestResponse);
+    }
     // Record a server-derived acceptance whenever the submitter accepted. `null`
     // for non-signup lead submissions that do not carry an acceptance.
     const buildTermsAcceptance = <T,>(acceptedAt: T) =>
       payload.acceptedTerms === true
-        ? buildLegalAcceptanceRecord({ acceptedAt, acceptedFromIpHash: ipHash })
+        ? buildLegalAcceptanceRecord({ acceptedAt, acceptedFromIpHash: ipHash, shown: shownVersions })
         : null;
 
     // 4. Validate enums
@@ -1680,6 +1694,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         structured_intake: structuredIntake,
         human_review_required: structuredIntakeDecision.requiresHumanReview,
         terms_acceptance: buildTermsAcceptance(new Date().toISOString()),
+        ...(payload.acceptedTerms === true && shownVersions ? { privacy_version_at_submission: shownVersions.privacy_version } : {}),
         debug: {
           mode: "dev_fallback",
           logPath: DEV_INBOUND_REQUEST_LOG,
@@ -1887,6 +1902,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
         siteTaskTriage?.disposition === "needs_conversation"),
       automation_confidence: null,
       terms_acceptance: buildTermsAcceptance(now),
+      // The Privacy Policy version this job's data is received under: the one the form showed, written once, here,
+      // only when an acceptance is recorded in this same act. The document is created with an absence precondition
+      // and no other path writes this field, so a later acceptance on the job's page never moves the job to a newer
+      // version. A job without it (every job stored before it existed) is older: the strictest table.
+      ...(payload.acceptedTerms === true && shownVersions ? { privacy_version_at_submission: shownVersions.privacy_version } : {}),
       ops: {
         assigned_region_id: "managed-alpha",
         rights_status: "unknown",

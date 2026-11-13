@@ -182,7 +182,7 @@ export async function readBriefFromDescription(params: {
       gates: gatesForReading(captureMode),
     },
     session_key: `brief_reading:${params.requestId}`,
-  });
+  }, { privacyRequestBinding: { request_id: params.requestId } });
 
   if (result.status !== "completed" || !result.output) {
     logger.warn(

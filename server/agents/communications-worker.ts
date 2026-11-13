@@ -378,7 +378,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
           || deps.now() >= communicationsContinuationDeadline(phase) || deps.now() >= Date.parse(phase.intent.authority.expiresAt)) {
           throw new CommunicationsRuntimeError("communications_execution_deadline");
         }
-        const access = await getCompanyHistoryAccess({ kind: "outbound_outreach" });
+        const access = await getCompanyHistoryAccess({ kind: "outbound_outreach" }, "openai_agents_api");
         if (!access || communicationsDigest(access) !== phase.intent.authority.scope.existingHistoryBindingDigest
           || Date.parse(access.expiresAt) <= deps.now()) throw new Error("communications_continuation_history_changed");
         await assertCommunicationsContinuationBudget(deps.store.db, phase, deps.now());

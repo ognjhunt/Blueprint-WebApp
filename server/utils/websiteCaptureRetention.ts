@@ -1,4 +1,11 @@
-import { PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION, legalEffectiveAtMs } from "../../client/src/lib/legalAcceptance";
+import { legalEffectiveAtMs } from "../../client/src/lib/legalAcceptance";
+
+/**
+ * The Privacy Policy version that announced the retention change, and the one it replaced. Fixed to those versions:
+ * a later Privacy version that does not touch retention (2026-11-13.1 does not) leaves this record as it was.
+ */
+export const RETENTION_ANNOUNCED_PRIVACY_VERSION = "2026-11-12.2";
+export const RETENTION_PRIOR_PRIVACY_VERSION = "2026-11-02.1";
 
 /**
  * Capture preservation is not permission to extend a site's retention terms.
@@ -8,12 +15,12 @@ import { PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION, legalEffectiveAtMs } from ".
  */
 export function websiteCaptureRetention(firstReceivedAtIso: string | null) {
   const receivedAtMs = firstReceivedAtIso === null ? NaN : Date.parse(firstReceivedAtIso);
-  const beforeAnnouncedPolicy = Number.isFinite(receivedAtMs) && receivedAtMs < legalEffectiveAtMs(PRIVACY_VERSION);
+  const beforeAnnouncedPolicy = Number.isFinite(receivedAtMs) && receivedAtMs < legalEffectiveAtMs(RETENTION_ANNOUNCED_PRIVACY_VERSION);
   return {
     policy_id: "website_capture_retention_review.v1",
     first_received_at_iso: Number.isFinite(receivedAtMs) ? firstReceivedAtIso : null,
-    announced_privacy_version: PRIVACY_VERSION,
-    prior_privacy_version: PREVIOUS_PRIVACY_VERSION,
+    announced_privacy_version: RETENTION_ANNOUNCED_PRIVACY_VERSION,
+    prior_privacy_version: RETENTION_PRIOR_PRIVACY_VERSION,
     received_before_announced_effective_date: Number.isFinite(receivedAtMs) ? beforeAnnouncedPolicy : null,
     // A post-effective collection date alone proves neither the applicable
     // notice nor the legal basis for changing an existing site's terms.

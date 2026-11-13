@@ -65,7 +65,8 @@ export async function selectFollowUps(input: {
         eligible: input.eligible,
       },
       ...(input.requestId ? { metadata: { request_id: input.requestId } } : {}),
-    }, { dispatchQueuedOnFinish: false });
+    }, { dispatchQueuedOnFinish: false,
+      ...(input.requestId ? { privacyRequestBinding: { request_id: input.requestId } } : {}) });
     let timer: ReturnType<typeof setTimeout> | undefined;
     const deadline = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), FOLLOW_UP_DEADLINE_MS); });
     const result = await Promise.race([run, deadline]).finally(() => clearTimeout(timer));

@@ -1,4 +1,4 @@
-import { ANNOUNCED_SUPERSEDED_VERSION, PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
+import { ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
 import type { AgentProvider, AgentTaskKind } from "./types";
 
 /**
@@ -53,16 +53,16 @@ export const LANE_DATA_CLASSES: Record<AgentTaskKind, DataClassRow> = {
     source: "tasks/inbound-qualification.ts: the requester's company, role, site name and location, and their own description of the job" },
   post_signup_scheduling: { classes: ["personal_info"],
     source: "tasks/post-signup-scheduling.ts: the contact's name, email, phone, company and address" },
-  support_triage: { classes: ["personal_info"],
-    source: "tasks/support-triage.ts: the requester's name, email and message" },
+  support_triage: { classes: ["personal_info", "job_records", "site_job_text"],
+    source: "tasks/support-triage.ts: the requester's name, email and message; with the research binding live, operator-tools.ts gives it company-history tools that read other requests' records, their descriptions and the people in them" },
   preview_diagnosis: { classes: ["job_records"],
     source: "tasks/preview-diagnosis.ts: the job's request id, preview status, failure reason and manifest locations" },
   operator_thread: { classes: ["staff_tools", "job_records", "personal_info", "site_job_text"],
     source: "tasks/operator-thread.ts with operator-tools.ts: staff messages; tools read jobs, requests and company history" },
   external_harness_thread: { classes: ["staff_tools", "job_records", "personal_info", "site_job_text"],
     source: "tasks/external-harness-thread.ts: a staff message and its context, sent to an outside harness" },
-  adp_run_operator: { classes: ["job_records", "site_job_text"],
-    source: "tasks/adp-run-operator.ts: an admitted Task Evaluation task and its records" },
+  adp_run_operator: { classes: ["job_records", "site_job_text", "personal_info"],
+    source: "tasks/adp-run-operator.ts: an admitted Task Evaluation task and its records; with the research binding live, operator-tools.ts gives it company-history tools that read other requests' records, their descriptions and the people in them" },
   site_video_evidence: { classes: ["site_video", "site_job_text"],
     source: "tasks/site-video-evidence.ts: the footage with the job's description" },
   capture_video_privacy: { classes: ["site_video"],
@@ -77,14 +77,14 @@ export const LANE_DATA_CLASSES: Record<AgentTaskKind, DataClassRow> = {
     source: "tasks/robot-capability-extraction.ts: a robot company's public pages, already fetched" },
   robot_fit_ranking: { classes: ["site_job_text", "job_records", "public_material"],
     source: "tasks/robot-fit-ranking.ts: one site's job with Blueprint's research notes on robot teams" },
-  capture_dispatch: { classes: ["site_job_text"],
-    source: "tasks/capture-dispatch.ts: what the site typed, its gate answers and site description" },
+  capture_dispatch: { classes: ["site_job_text", "job_records", "personal_info"],
+    source: "tasks/capture-dispatch.ts: what the site typed, its gate answers and site description; with the research binding live, operator-tools.ts gives it company-history tools that read other requests' records, their descriptions and the people in them" },
   site_task_follow_up: { classes: ["site_job_text"],
     source: "tasks/site-task-follow-up.ts: the site's task statement, its brief summary and item labels" },
   runtime_smoke_test: { classes: ["fixed_text"],
     source: "tasks/runtime-smoke-test.ts: a prompt written in the code; no input is read, no tools" },
-  outbound_outreach: { classes: ["personal_info"],
-    source: "tasks/outbound-outreach.ts: a prospect facility's name, address and sourced facts, for the email drafted to it" },
+  outbound_outreach: { classes: ["personal_info", "job_records", "site_job_text"],
+    source: "tasks/outbound-outreach.ts: a prospect facility's name, address and sourced facts, for the email drafted to it; with the research binding live, operator-tools.ts gives it company-history tools that read other requests' records, their descriptions and the people in them" },
 };
 
 /**
@@ -94,7 +94,7 @@ export const LANE_DATA_CLASSES: Record<AgentTaskKind, DataClassRow> = {
 export const PROFILE_DATA_CLASSES: Record<string, DataClassRow> = {
   "ops-operator": { classes: ["staff_tools", "job_records", "personal_info", "site_job_text"],
     source: "operator_thread; tools: company-history search and fetch, growth-campaign drafts and queued sends" },
-  "support-triage-specialist": { classes: ["personal_info"], source: "support_triage" },
+  "support-triage-specialist": { classes: ["personal_info", "job_records", "site_job_text"], source: "support_triage" },
   "preview-diagnosis-specialist": { classes: ["job_records"], source: "preview_diagnosis, with browser evidence of the preview" },
   "research-subagent": { classes: ["staff_tools", "job_records", "personal_info", "site_job_text", "public_material"],
     source: "operator_thread with web research" },
@@ -106,7 +106,7 @@ export const PROFILE_DATA_CLASSES: Record<string, DataClassRow> = {
     source: "operator_thread with launch-surface browser checks" },
   "review-subagent": { classes: ["staff_tools", "job_records", "personal_info", "site_job_text"],
     source: "operator_thread reviewing earlier work" },
-  "adp-run-operator": { classes: ["job_records", "site_job_text"], source: "adp_run_operator" },
+  "adp-run-operator": { classes: ["job_records", "site_job_text", "personal_info"], source: "adp_run_operator" },
 };
 
 /** The policy row that names a company, or null when the policy names none for it. */
@@ -177,15 +177,60 @@ const AI_ROWS_2026_11: Record<string, PolicyRow> = {
 };
 
 /**
+ * The provider rows of version 2026-11-13.1 (owner decision 1 of 2026-11-13).
+ * Anthropic's row reads like OpenAI's for jobs started and requests sent under
+ * this version or a later one; for earlier data the gate applies the earlier
+ * version's rows, which do not name Anthropic for it. Google Gemini's row
+ * states the job description it receives with the footage. The DeepSeek row
+ * stays word for word: see PAGE_ROWS_WITHOUT_A_ROUTE.
+ */
+const AI_ROWS_2026_11_13: Record<string, PolicyRow> = {
+  OpenAI: AI_ROWS_2026_11.OpenAI,
+  "Google Gemini": {
+    words: "Watching site footage, with its sound removed, and frames from it, together with the job description, to draft and check the job brief and to find what the simulated scene needs",
+    classes: ["site_video", "site_frames", "site_job_text"],
+  },
+  Meta: AI_ROWS_2026_11.Meta,
+  Anthropic: {
+    words: "For jobs started and requests sent under this version of the policy or a later one, may read the job description and frames from a site capture to draft the job brief and prepare the simulated scene, draft replies, and sort incoming requests; for earlier jobs, drafting the job brief from capture frames only when a site explicitly chooses that option; and drafting and sorting internal work where we configure it",
+    // Like OpenAI's row for site data. Still not staff_tools: staff messages
+    // with tools that read jobs and company history are named for no provider.
+    classes: ["site_job_text", "site_frames", "job_records", "personal_info", "public_material", "fixed_text"],
+  },
+  DeepSeek: AI_ROWS_2026_11.DeepSeek,
+  "World Labs": AI_ROWS_2026_11["World Labs"],
+  "Vast.ai": AI_ROWS_2026_11["Vast.ai"],
+};
+
+/**
+ * Rows the Privacy Policy states for a company no lane of this website's agent
+ * runtime can route to: no provider id here names the row, so it permits
+ * nothing (its classes are empty). Each is named with the reason the page keeps
+ * it. DeepSeek: the website runtime no longer has it, but the Paperclip
+ * operations agents in this repository still default to it and read the
+ * inbound, contact and waitlist queues, so the row stays until that is shown
+ * not to be used.
+ */
+export const PAGE_ROWS_WITHOUT_A_ROUTE: Record<string, string> = {
+  Meta: "used by the Pipeline to outline objects, not an agent provider of this website",
+  DeepSeek: "default model of the Paperclip operations agents in this repository, not a provider of the website runtime",
+  "World Labs": "used by the Pipeline to rebuild scenes, not an agent provider of this website",
+  "Vast.ai": "GPU servers for the Pipeline, not an agent provider of this website",
+};
+
+/**
  * Table 3, keyed by Privacy Policy version: the versions data can have been
  * received under. Data received under a version keeps that version's
  * promises, so a new version is added here, never edited into an old one.
  * Group D adds the next version as one more entry.
  */
-export const PRIVACY_POLICY_PROVIDER_ROWS: Record<string, { page: string; rows: Record<string, PolicyRow> }> = {
+export const PRIVACY_POLICY_PROVIDER_ROWS: Record<string, { page: string; rows: Record<string, PolicyRow>; same_text_as?: string }> = {
+  [EARLIER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyEarlier.tsx", rows: AI_ROWS_2026_11 },
+  // 2026-11-12.1 and 2026-11-12.2 are the same words; acceptances were recorded under both.
+  "2026-11-12.1": { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11, same_text_as: PREVIOUS_PRIVACY_VERSION },
   [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11 },
-  [PRIVACY_VERSION]: { page: "client/src/pages/Privacy.tsx", rows: AI_ROWS_2026_11 },
   [ANNOUNCED_SUPERSEDED_VERSION]: { page: "client/src/pages/PrivacyAnnounced.tsx", rows: AI_ROWS_2026_11 },
+  [PRIVACY_VERSION]: { page: "client/src/pages/Privacy.tsx", rows: AI_ROWS_2026_11_13 },
 };
 
 /**
@@ -193,11 +238,10 @@ export const PRIVACY_POLICY_PROVIDER_ROWS: Record<string, { page: string; rows: 
  * permits it. It applies whenever the version of the data is absent or
  * unknown here.
  *
- * Known limit: the version is taken from the caller's task metadata
- * (`privacy_policy_version`), not from the stored job. While every version
- * has the same rows this changes nothing; when a version first differs,
- * reading it from the stored job is Group D's work. Until then an absent or
- * unknown version can only make the gate stricter, never looser.
+ * The runtime reads the version from the stored request a task names (the
+ * acceptance recorded when the job was started), never from the caller's
+ * task metadata (`server/agents/runtime.ts` storedPrivacyVersionForTask).
+ * An absent or unknown version can only make the gate stricter, never looser.
  */
 export const STRICTEST_PRIVACY_TABLE = "strictest_of_known_versions";
 
@@ -231,10 +275,6 @@ export function assertPrivacyTableCoversVersion(table: Record<string, unknown>, 
 }
 assertPrivacyTableCoversVersion(PRIVACY_POLICY_PROVIDER_ROWS, PRIVACY_VERSION);
 
-export function privacyVersionForTask(task: { metadata?: Record<string, unknown> | null }): string {
-  const metadata = task.metadata && typeof task.metadata === "object" ? task.metadata : {};
-  return resolvePrivacyVersion(metadata.privacy_policy_version);
-}
 
 export type PrivacyDecision = {
   permitted: boolean;

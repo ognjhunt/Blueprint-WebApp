@@ -50,18 +50,26 @@ describe("terms for the free beta", () => {
     }
   });
 
-  it("puts 2026-11-12.2 in force at once, with 2026-11-12.1 as the Terms' previous version and 2026-11-25.1 a frozen record", () => {
-    // Owner, 2026-11-12: sharing is the service (2026-11-12.1), then no limit on introductions (2026-11-12.2, the same
-    // day). The version published ahead for November 25 never took effect. The Privacy Policy's text did not change in
-    // 2026-11-12.2, so its previous text is still 2026-11-02.1.
+  it("keeps Terms 2026-11-12.2 and puts Privacy 2026-11-13.1 in force at once; a Privacy-only change asks nobody again", () => {
+    // Owner, 2026-11-12: sharing is the service (2026-11-12.1), then no limit on introductions (Terms 2026-11-12.2, the
+    // same day). Owner decision 1 of 2026-11-13: Anthropic may process a new job like OpenAI (Privacy 2026-11-13.1 only;
+    // the Terms keep their id). The version published ahead for November 25 never took effect.
     expect(TERMS_VERSION).toBe("2026-11-12.2");
-    expect(PRIVACY_VERSION).toBe("2026-11-12.2");
+    expect(PRIVACY_VERSION).toBe("2026-11-13.1");
     expect(ANNOUNCED_SUPERSEDED_VERSION).toBe("2026-11-25.1");
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-02.1"]);
-    // Whoever accepted 2026-11-12.1 is asked to accept 2026-11-12.2.
-    expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-12.1", Date.parse("2026-11-12T22:00:00Z"))).toBe(false);
+    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-12.2"]);
+    const now = Date.parse("2026-11-13T09:00:00Z");
+    // Accepted before this release (Terms and Privacy 2026-11-12.2): still current, nothing is asked again.
+    expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-12.2", now)).toBe(true);
+    expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-13.1", now)).toBe(true);
+    // A Terms change still asks again: whoever accepted Terms 2026-11-12.1 is asked, with either Privacy version.
+    expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-12.1", now)).toBe(false);
+    expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-13.1", now)).toBe(false);
+    // A Privacy version older than the one it replaced by a new-jobs-only change still asks again.
+    expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-02.1", now)).toBe(false);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 12, 2026");
-    expect(legalUpdatePending(Date.parse("2026-11-12T08:00:00Z"))).toBe(false);
+    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 13, 2026");
+    expect(legalUpdatePending(Date.parse("2026-11-13T08:00:00Z"))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {

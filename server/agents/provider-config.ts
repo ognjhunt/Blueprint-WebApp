@@ -161,10 +161,12 @@ const TASK_REASONING_EFFORT: Partial<Record<AgentTaskKind, OpenAiReasoningEffort
 };
 
 /**
- * Lanes that keep their own OpenAI model and effort whatever the global
- * settings say: `OPENAI_DEFAULT_MODEL` and `OPENAI_REASONING_EFFORT` do not
- * apply to them. Only the lane's own settings (`OPENAI_<LANE>_MODEL`,
- * `OPENAI_<LANE>_REASONING_EFFORT`) move them.
+ * Lanes that keep their own model and effort whatever the global settings say:
+ * `OPENAI_DEFAULT_MODEL`, `OPENAI_REASONING_EFFORT`, `ANTHROPIC_DEFAULT_MODEL`
+ * and `ANTHROPIC_EFFORT` do not apply to them, and on Anthropic they get the
+ * same tier as their OpenAI model. Only the lane's own settings
+ * (`OPENAI_<LANE>_MODEL`, `OPENAI_<LANE>_REASONING_EFFORT`,
+ * `ANTHROPIC_<LANE>_MODEL`, `ANTHROPIC_<LANE>_EFFORT`) move them.
  */
 const TASK_OPENAI_FIXED_DEFAULTS: Partial<Record<AgentTaskKind, { model: string }>> = {
   site_task_follow_up: { model: "gpt-6-luna" },
@@ -273,14 +275,20 @@ export function anthropicModelForOpenAiModel(openAiModel: string | null | undefi
 
 function openAiModelForLane(taskKind: AgentTaskKind | undefined) {
   const suffix = taskKind ? TASK_MODEL_SUFFIXES[taskKind] : null;
+  const fixed = taskKind ? TASK_OPENAI_FIXED_DEFAULTS[taskKind] : undefined;
   return (suffix ? process.env[`OPENAI_${suffix}`]?.trim() : null)
-    || process.env.OPENAI_DEFAULT_MODEL?.trim()
+    || (fixed ? fixed.model : process.env.OPENAI_DEFAULT_MODEL?.trim())
     || DEFAULT_OPENAI_MODEL;
 }
 
-/** The Anthropic model a lane gets when nothing pins it for Anthropic. */
+/**
+ * The Anthropic model a lane gets when nothing pins it for Anthropic. A lane
+ * with a fixed OpenAI model keeps the same tier on Anthropic: the global
+ * settings (`ANTHROPIC_DEFAULT_MODEL`, `OPENAI_DEFAULT_MODEL`) do not move it.
+ */
 export function getDefaultAnthropicModel(taskKind?: AgentTaskKind): string {
-  return process.env.ANTHROPIC_DEFAULT_MODEL?.trim()
+  const fixed = taskKind ? TASK_OPENAI_FIXED_DEFAULTS[taskKind] : undefined;
+  return (fixed ? null : process.env.ANTHROPIC_DEFAULT_MODEL?.trim())
     || anthropicModelForOpenAiModel(openAiModelForLane(taskKind));
 }
 
@@ -337,9 +345,10 @@ export function getAnthropicEffort(taskKind: AgentTaskKind | undefined): Anthrop
   const perTask = suffix
     ? normalizeAnthropicEffort(process.env[`ANTHROPIC_${suffix.replace(/_MODEL$/, "")}_EFFORT`])
     : null;
+  const fixed = taskKind ? TASK_OPENAI_FIXED_DEFAULTS[taskKind] : undefined;
   return (
     perTask
-    || normalizeAnthropicEffort(process.env.ANTHROPIC_EFFORT)
+    || (fixed ? null : normalizeAnthropicEffort(process.env.ANTHROPIC_EFFORT))
     || normalizeAnthropicEffort(getOpenAiReasoningEffort(taskKind))
     || "medium"
   );
@@ -578,8 +587,8 @@ function unsupportedAnthropicModel(taskKind: AgentTaskKind | undefined): string 
 }
 
 /** Usable for a lane: permitted for its data, and configured for it. */
-function usableForLane(provider: StructuredProvider, taskKind: AgentTaskKind | undefined): boolean {
-  return providerPermittedForLane(provider, taskKind) && providerConfiguredForLane(provider, taskKind);
+function usableForLane(provider: StructuredProvider, taskKind: AgentTaskKind | undefined, privacyVersion?: string): boolean {
+  return providerPermittedForLane(provider, taskKind, privacyVersion) && providerConfiguredForLane(provider, taskKind);
 }
 
 /**
@@ -614,8 +623,9 @@ function readProviderList(envKey: string | null, taskKind: AgentTaskKind | undef
 }
 
 /** Whether the gate lets a provider receive this lane's data, under the current Privacy Policy version. */
-export function providerPermittedForLane(provider: StructuredProvider, taskKind: AgentTaskKind | undefined): boolean {
-  return !taskKind || privacyDecision(provider, taskKind).permitted;
+export function providerPermittedForLane(provider: StructuredProvider, taskKind: AgentTaskKind | undefined,
+  privacyVersion?: string): boolean {
+  return !taskKind || privacyDecision(provider, taskKind, privacyVersion).permitted;
 }
 
 function refuseSetting(envKey: string, provider: StructuredProvider | null, taskKind: AgentTaskKind | undefined):
@@ -799,14 +809,18 @@ function globalChainOrder(): StructuredProvider[] {
  * to first, then the rest of its list (or, with none, of the global chain),
  * each permitted for the lane's data and configured for it.
  */
-export function getStructuredProviderOrder(taskKind: AgentTaskKind): StructuredProvider[] {
+export function getStructuredProviderOrder(taskKind: AgentTaskKind, privacyVersion?: string): StructuredProvider[] {
+  // The lane's own provider is always resolved on the strictest table: Anthropic is first nowhere.
   const resolution = describeStructuredAutomationProvider(taskKind);
-  const laneList = readProviderList(getLaneProvidersEnvKey(taskKind), taskKind);
-  const list = laneList?.usable.length ? laneList : (() => {
-    const globalList = laneList ? null : readProviderList(GLOBAL_PROVIDERS_ENV_KEY, taskKind);
-    return globalList?.usable.length ? globalList : null;
-  })();
-  const rest = (list ? list.usable : globalChainOrder()).filter((provider) => usableForLane(provider, taskKind));
+  // The later entries (tried only after "no funds") may use the Privacy table of the job the run names.
+  const listEntries = (envKey: string | null) => String(envKey ? process.env[envKey] || "" : "").split(",")
+    .map((entry) => normalizeProvider(entry.trim())).filter((provider): provider is StructuredProvider => Boolean(provider))
+    .filter((provider) => usableForLane(provider, taskKind, privacyVersion));
+  const laneRaw = String(process.env[getLaneProvidersEnvKey(taskKind) ?? ""] || "").trim();
+  const laneEntries = listEntries(getLaneProvidersEnvKey(taskKind));
+  const globalEntries = laneRaw ? [] : listEntries(GLOBAL_PROVIDERS_ENV_KEY);
+  const listed = laneEntries.length ? laneEntries : globalEntries.length ? globalEntries : null;
+  const rest = (listed ?? globalChainOrder()).filter((provider) => usableForLane(provider, taskKind, privacyVersion));
   const first = resolution.fails_closed ? [] : [resolution.provider];
   return [...first, ...rest].filter((provider, index, array) => array.indexOf(provider) === index);
 }
@@ -828,9 +842,9 @@ export type FailoverSkipReason = "run_cap_not_enforced" | "cooling_down_no_funds
  * the per-run cap, and that is not itself cooling down after "no funds".
  */
 export function chooseFailoverProvider(taskKind: AgentTaskKind, from: AgentProvider,
-  options: { mutationReconciliationRequired?: boolean; nowMs?: number } = {}): FailoverDecision {
+  options: { mutationReconciliationRequired?: boolean; nowMs?: number; privacyVersion?: string } = {}): FailoverDecision {
   const skipped: Array<{ provider: StructuredProvider; reason: FailoverSkipReason }> = [];
-  for (const provider of getStructuredProviderOrder(taskKind)) {
+  for (const provider of getStructuredProviderOrder(taskKind, options.privacyVersion)) {
     if (provider === from) continue;
     if (!RUN_CAP_ENFORCING_PROVIDERS.has(provider)) { skipped.push({ provider, reason: "run_cap_not_enforced" }); continue; }
     if (options.mutationReconciliationRequired && provider !== "openai_responses") {

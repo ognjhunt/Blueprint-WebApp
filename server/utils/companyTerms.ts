@@ -17,7 +17,7 @@
  * company (`isApprovedDeploymentCompanyRecord`, in `jobOutcomeGate.ts`), since it asks about an introduction already made.
  */
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { buildLegalAcceptanceRecord, isCurrentLegalAcceptance } from "../../client/src/lib/legalAcceptance";
+import { buildLegalAcceptanceRecord, isCurrentLegalAcceptance, type ShownLegalVersions } from "../../client/src/lib/legalAcceptance";
 
 export const TERMS_ACCEPTANCE_REQUIRED = "terms_acceptance_required";
 
@@ -46,15 +46,16 @@ export function isApprovedDeploymentCompanyRecord(record: AccessLike): boolean {
 }
 
 /** What the application form showed and the applicant ticked, with the time: stored on the application only. */
-export function applicationTermsAcceptance(nowIso = new Date().toISOString()) {
-  return buildLegalAcceptanceRecord({ acceptedAt: nowIso });
+export function applicationTermsAcceptance(nowIso = new Date().toISOString(), shown?: ShownLegalVersions | null) {
+  return buildLegalAcceptanceRecord({ acceptedAt: nowIso, shown });
 }
 
 /**
  * Record a signed-in company's acceptance of the current versions on its account and on its access record, in one
  * transaction. Only for an approved deployment company with a verified email.
  */
-export async function recordCompanyTermsAcceptance(viewer: { uid: string; email: string }, companyId: string): Promise<boolean> {
+export async function recordCompanyTermsAcceptance(viewer: { uid: string; email: string }, companyId: string,
+  shown?: ShownLegalVersions | null): Promise<boolean> {
   if (!db) throw new Error("company_terms_store_unavailable");
   const store = db;
   const accessRef = store.collection("robotTeamAccess").doc(companyId);
@@ -64,7 +65,7 @@ export async function recordCompanyTermsAcceptance(viewer: { uid: string; email:
     if (!record || record.status !== "approved" || record.partnerRole === "technology"
       || String(record.email ?? "").trim().toLowerCase() !== viewer.email.trim().toLowerCase()) return false;
     const atIso = new Date().toISOString();
-    const acceptance = buildLegalAcceptanceRecord({ acceptedAt: atIso });
+    const acceptance = buildLegalAcceptanceRecord({ acceptedAt: atIso, shown });
     tx.set(accessRef, { termsAcceptance: acceptance, termsAcceptedByUid: viewer.uid }, { merge: true });
     tx.set(userRef, { acceptedTerms: true, termsVersion: acceptance.terms_version, privacyVersion: acceptance.privacy_version,
       termsAcceptance: { ...acceptance, accepted_at: admin.firestore.FieldValue.serverTimestamp() },

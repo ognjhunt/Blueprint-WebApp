@@ -12,12 +12,23 @@ vi.mock("../agents/adapters/public-video-fetch", () => ({
   fetchPublicVideo: (url: string, { signal }: { signal?: AbortSignal | null }) => globalThis.fetch(url, { signal }),
 }));
 
-const { anthropicCreate, historyRun, retained } = vi.hoisted(() => ({ anthropicCreate: vi.fn(), historyRun: vi.fn(), retained: {learning:null as any} }));
+const { anthropicCreate, historyRun, retained, historyRule } = vi.hoisted(() => ({ anthropicCreate: vi.fn(), historyRun: vi.fn(),
+  retained: {learning:null as any}, historyRule: { real: false, providers: [] as string[] } }));
 vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:()=>({get:async()=>({data:()=>({learning:retained.learning})})})}}));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { stream: (params: unknown, options: unknown) => ({ finalMessage: () => anthropicCreate(params, options) }) } }; } }));
-vi.mock("../agents/operator-tools", async importOriginal => ({
-  ...await importOriginal<typeof import("../agents/operator-tools")>(), runOperatorTool: historyRun,
-}));
+// These tests exercise each adapter's history tool loop as it would run under a Privacy Policy that named the provider
+// for what company history exposes. No version does today, so the real rule withholds the tools from Anthropic and
+// Gemini; that rule is tested in company-history-provider.test.ts.
+// `historyRule.real` puts the real rule back for one test; every adapter's call records the provider it named.
+vi.mock("../agents/operator-tools", async importOriginal => {
+  const real = await importOriginal<typeof import("../agents/operator-tools")>();
+  return { ...real, runOperatorTool: historyRun,
+    companyHistoryWithheld: (kind: any, provider: string) => historyRule.real ? real.companyHistoryWithheld(kind, provider) : null,
+    getCompanyHistoryAccess: (task: { kind: any }, provider: string) => {
+      historyRule.providers.push(provider);
+      return real.getCompanyHistoryAccess(task, historyRule.real ? provider : "openai_responses");
+    } };
+});
 
 const task = (kind = "capture_dispatch", mode: "AGENTIC" | "STATIC" = "AGENTIC") => ({
   kind, input: { taskVideoUrl: "https://example.com/clip.mp4", companyWide: true },
@@ -34,7 +45,8 @@ const call = (id: string, name: string, input: unknown) => ({ type: "tool_use", 
 const answer = (text = "final") => ({ type: "text", text: JSON.stringify({ answer: text }) });
 
 beforeEach(() => {
-  vi.resetModules(); anthropicCreate.mockReset(); historyRun.mockReset(); retained.learning={
+  vi.resetModules(); anthropicCreate.mockReset(); historyRun.mockReset(); historyRule.real = false; historyRule.providers.length = 0;
+  retained.learning={
   version:"blueprint.research-learning-worker.v1",enabled:true,startDate:"2026-10-01",
   binding:{version:"blueprint.research-learning-consumer-binding.v1",principalId:"blueprint-learning-host",role:"daily_research",
     sourceSnapshotId:"a".repeat(64),crmIds:["BP-000001"],prospectIds:[],discoveryCapabilityIds:["summary-capability"],detailCapabilityIds:[],expiresAt:"2099-10-03T00:00:00.000Z"},
@@ -205,6 +217,18 @@ describe("Gemini history after native video analysis", () => {
     const result = await runGeminiVideoTask(task() as never);
     expect(result).toMatchObject({ status: "completed", output: { answer: "retained" }, artifacts: { usage: { total_tokens: null } } });
     expect(requests).toHaveLength(1); expect(historyRun).not.toHaveBeenCalled();
+  });
+
+  it("asks for history as gemini_video, and under the real rule gets none and records why", async () => {
+    historyRule.real = true;
+    const { requests } = videoFetcher([videoReply([...nativeTrace, answer("no history")])]);
+    const { runGeminiVideoTask } = await import("../agents/adapters/gemini-video");
+    const result = await runGeminiVideoTask(task() as never);
+    expect(historyRule.providers).toEqual(["gemini_video"]);
+    expect(result).toMatchObject({ status: "completed", artifacts: { history_tools_withheld: "provider_not_permitted" } });
+    expect(requests).toHaveLength(1);
+    expect(requests[0].tools).toBeUndefined();
+    expect(historyRun).not.toHaveBeenCalled();
   });
 
   it("keeps customer privacy video tasks on their original static request without company tools", async () => {

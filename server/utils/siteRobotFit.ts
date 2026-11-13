@@ -544,7 +544,7 @@ export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
 /* --------------------------------------------------------- team ranking */
 
 export type RobotFitRankingCandidate = RobotFitRankingInput["candidates"][number];
-export type RankRunner = (task: AgentTask<RobotFitRankingInput>) => Promise<AgentResult<unknown>>;
+export type RankRunner = (task: AgentTask<RobotFitRankingInput>, requestId?: string) => Promise<AgentResult<unknown>>;
 
 export class RobotFitError extends Error {
   constructor(readonly code: "job_not_found" | "consent_revoked" | "job_details_missing" | "no_candidates"
@@ -736,9 +736,10 @@ export function validateRanking(output: unknown, candidates: RobotFitRankingCand
   return { teams, droppedReasons, droppedTeams };
 }
 
-async function defaultRunner(task: AgentTask<RobotFitRankingInput>) {
+async function defaultRunner(task: AgentTask<RobotFitRankingInput>, requestId?: string) {
   const { runAgentTask } = await import("../agents/runtime");
-  return runAgentTask<RobotFitRankingInput, unknown>(task);
+  return runAgentTask<RobotFitRankingInput, unknown>(task,
+    requestId ? { privacyRequestBinding: { request_id: requestId } } : undefined);
 }
 
 type Stored = { ranking?: RobotFitRanking | null; lastAttempt?: RobotFitAttempt | null;
@@ -818,7 +819,7 @@ export async function rankTeamsForJob(requestId: string, options: { actor: strin
       input: { candidates, job: jobInput },
       session_key: `robot-fit:${requestId}`,
       metadata: { request_id: requestId },
-    });
+    }, requestId);
     if (result.status !== "completed" || !result.output) {
       attempt = failed(String(result.error || result.status), result.provider ?? null);
     } else {
