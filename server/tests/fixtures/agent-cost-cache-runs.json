@@ -1,12 +1,11 @@
 [
   {
-    "id": "fixture-openrouter-nested",
+    "id": "fixture-nested-usage",
     "task_kind": "operator_thread",
-    "provider": "deepseek_chat",
-    "model": "deepseek/deepseek-v4-flash",
+    "provider": "openai_responses",
+    "model": "gpt-6-luna",
     "artifacts": {
-      "route": "deepseek_via_openrouter",
-      "openrouter_provider": "DeepSeek",
+      "route": "openai_responses",
       "usage": {
         "prompt_tokens": 1800,
         "completion_tokens": 120,
@@ -26,10 +25,10 @@
   {
     "id": "fixture-direct-cache",
     "task_kind": "support_triage",
-    "provider": "deepseek_chat",
-    "model": "deepseek-v4-flash",
+    "provider": "anthropic_agent_sdk",
+    "model": "claude-haiku-5-5",
     "artifacts": {
-      "route": "deepseek_official_direct",
+      "route": "anthropic_agent_sdk",
       "prompt_tokens": 900,
       "completion_tokens": 90,
       "prompt_cache_hit_tokens": 760,
@@ -40,8 +39,8 @@
   {
     "id": "fixture-no-change",
     "task_kind": "operator_thread",
-    "provider": "deepseek_chat",
-    "model": "deepseek/deepseek-v4-flash",
+    "provider": "openai_responses",
+    "model": "gpt-6-luna",
     "output": {
       "movement": "no_change",
       "summary": "No material movement since the last check."
@@ -57,8 +56,8 @@
   {
     "id": "fixture-duplicate-suppressed",
     "task_kind": "operator_thread",
-    "provider": "deepseek_chat",
-    "model": "deepseek/deepseek-v4-flash",
+    "provider": "openai_responses",
+    "model": "gpt-6-luna",
     "status": "cancelled",
     "metadata": {
       "runtime_suppression": {

@@ -139,8 +139,8 @@ const checks = [
   },
   {
     label: "Structured runtime provider",
-    ok: hasAny("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ACP_HARNESS_URL") || anthropicKeyUsable(),
-    required: ["DEEPSEEK_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY (only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com) | ACP_HARNESS_URL"],
+    ok: hasAny("OPENAI_API_KEY", "ACP_HARNESS_URL") || anthropicKeyUsable(),
+    required: ["OPENAI_API_KEY | ANTHROPIC_API_KEY (only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com) | ACP_HARNESS_URL"],
   },
   {
     label: "Stripe checkout + payout wiring",
@@ -259,11 +259,9 @@ const recommendedChecks = [
 
 function configuredProviderKeys() {
   return [
-    "DEEPSEEK_API_KEY",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "ACP_HARNESS_URL",
-    "OPENROUTER_API_KEY",
     "ELEVENLABS_API_KEY",
     "TWILIO_ACCOUNT_SID",
     "HIGGSFIELD_API_KEY",
@@ -279,6 +277,28 @@ function buildNeedsHumanChecks() {
       label: "City-launch sender verification",
       detail:
         "Sender env is present, but local env cannot prove provider-side domain/sender verification. Confirm in the mail provider and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified.",
+    });
+  }
+
+  // Keys of providers the website no longer uses (DeepSeek, Z.ai, OpenRouter):
+  // nothing reads them, so they belong deleted from the hosting settings.
+  const leftOverKeys = ["DEEPSEEK_API_KEY", "ZAI_API_KEY", "OPENROUTER_API_KEY"].filter((key) => Boolean(envValue(key)));
+  const anthropicBaseUrl = envValue("ANTHROPIC_BASE_URL");
+  if (anthropicBaseUrl) {
+    let ownHost = false;
+    try {
+      const parsed = new URL(anthropicBaseUrl);
+      ownHost = parsed.protocol === "https:" && parsed.hostname.toLowerCase() === "api.anthropic.com";
+    } catch {
+      ownHost = false;
+    }
+    if (!ownHost) leftOverKeys.push("ANTHROPIC_BASE_URL");
+  }
+  if (leftOverKeys.length > 0) {
+    needsHuman.push({
+      label: "Settings of removed providers",
+      detail:
+        `Settings for providers that are no longer used are still set (${leftOverKeys.join(", ")}). Nothing reads them; delete them from the hosting settings.`,
     });
   }
 

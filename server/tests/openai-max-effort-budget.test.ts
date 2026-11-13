@@ -1,10 +1,7 @@
 /**
- * The same failure as #579, one provider over.
- *
  * `inbound_qualification` runs at reasoning effort "max", and on the Responses
- * API reasoning tokens are spent out of `max_output_tokens` — the identical
- * arithmetic that made DeepSeek return a successful, empty response until the
- * ceiling went from 2,000 to 16,000. The OpenAI adapter shipped a 4,000-token
+ * API reasoning tokens are spent out of `max_output_tokens`, so a ceiling sized
+ * for a short chat turn returns a successful, empty response. The OpenAI adapter shipped a 4,000-token
  * ceiling and a 20-second timeout, both fine for a short chat turn and neither
  * survivable by the lane that reads a site's prose against its own dropdowns at
  * max effort. Routing that lane to Luna without moving these two numbers just
@@ -18,7 +15,6 @@ const ENV_KEYS = [
   "BLUEPRINT_OPENAI_AGENT_MAX_OUTPUT_TOKENS",
   "OPENAI_TIMEOUT_MS",
   "OPENAI_API_KEY",
-  "DEEPSEEK_API_KEY",
   "CODEX_LOCAL_AVAILABLE",
   "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER",
 ];
@@ -45,8 +41,8 @@ describe("OpenAI output budget", () => {
   });
 
   it("still describes the shape that made the budget large", () => {
-    // Same guard the DeepSeek test carries: if the schema moves a lot, the
-    // ceiling deserves rechecking rather than silently drifting.
+    // If the schema moves a lot, the ceiling deserves rechecking rather than
+    // silently drifting.
     const shape = inboundQualificationOutputSchema.shape;
     expect(shape.buyer_follow_up).toBeDefined();
     expect(shape.internal_summary).toBeDefined();
@@ -69,7 +65,7 @@ describe("OpenAI output budget", () => {
 });
 
 describe("OpenAI timeout", () => {
-  it("gives a reasoning lane as long as the DeepSeek lane already gets", async () => {
+  it("gives a reasoning lane at least two minutes", async () => {
     const { getOpenAiTimeoutMs } = await import("../agents/provider-config");
     expect(getOpenAiTimeoutMs()).toBeGreaterThanOrEqual(120_000);
   });
