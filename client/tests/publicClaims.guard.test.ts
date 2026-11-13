@@ -89,7 +89,6 @@ const FRAME_FILES = [
   "client/src/components/site/TaskOutcomeNotice.tsx",
   "client/src/components/site/TaskTargetChoice.tsx",
   "client/src/components/site/TaskThumbnail.tsx",
-  "client/src/components/site/TaskThumbnailEditor.tsx",
   "client/src/pages/ClaimSite.tsx",
   "client/src/pages/Login.tsx",
   "client/src/pages/ForgotPassword.tsx",
