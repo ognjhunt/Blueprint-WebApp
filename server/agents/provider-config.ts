@@ -5,6 +5,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 import { getOpenAiConfigurationIssue } from "../utils/openaiApiHost";
+import { anthropicModelSupported } from "./anthropic-models";
+import { isProviderCoolingDown } from "./provider-funds";
 import { privacyDecision, type AgentDataClass } from "./provider-privacy";
 import type { AgentProvider, AgentTaskKind } from "./types";
 
@@ -391,9 +393,23 @@ export function listProviderSettingKeys(): string[] {
     "BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", ...laneKeys];
 }
 
-/** Settings that still name a removed provider, by name only (never the value). */
+/** The ordered-list settings (`..._PROVIDERS`), by name. */
+export function listProviderListSettingKeys(): string[] {
+  return ["BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDERS", ...Object.keys(TASK_MODEL_SUFFIXES)
+    .map((kind) => getLaneProvidersEnvKey(kind as AgentTaskKind)).filter((key): key is string => Boolean(key))];
+}
+
+/** Settings that still name a removed provider (a single value, or an entry of a list), by name only (never the value). */
 export function listRemovedProviderSettings(): string[] {
-  return listProviderSettingKeys().filter((key) => isRemovedProviderId(process.env[key]));
+  return [
+    ...listProviderSettingKeys().filter((key) => isRemovedProviderId(process.env[key])),
+    ...listProviderListSettingKeys().filter((key) => String(process.env[key] || "").split(",").some((entry) => isRemovedProviderId(entry))),
+  ];
+}
+
+/** One of the interchangeable text providers a lane's order is made of. */
+export function isStructuredProvider(value: unknown): value is StructuredProvider {
+  return typeof value === "string" && STRUCTURED_PROVIDER_VALUES.has(value as StructuredProvider);
 }
 
 function normalizeProvider(value: string | undefined | null): StructuredProvider | null {
@@ -497,6 +513,8 @@ export type StructuredProviderResolution = {
   lane_setting_names_removed_provider: boolean;
   reason:
     | "lane_override"
+    | "lane_list"
+    | "global_list"
     | "lane_request_not_configured"
     | "lane_request_unrecognized"
     | "lane_request_not_permitted"
@@ -512,7 +530,71 @@ export type StructuredProviderResolution = {
    * it names one, and that one has no usable key here.
    */
   fails_closed: "no_permitted_provider" | "permitted_provider_not_configured" | null;
+  /**
+   * Set when Anthropic is keyed and permitted for this lane but the lane's
+   * Anthropic model has no request shape or price row here: Anthropic is
+   * skipped for the lane (never sent a model the adapter cannot cost), and
+   * the model id is reported.
+   */
+  anthropic_model_not_supported: string | null;
+  /** An ordered list setting that applies to this lane, by name, and its entries that are not providers. */
+  provider_list: { env_key: string; unrecognized: string[] } | null;
 };
+
+/**
+ * Configured for this lane: its key (and host), and for Anthropic a lane model
+ * with a request shape and a price row (anthropic-models.ts). Privacy is
+ * checked separately.
+ */
+export function providerConfiguredForLane(provider: StructuredProvider, taskKind: AgentTaskKind | undefined): boolean {
+  if (!isProviderConfigured(provider)) return false;
+  if (provider === "anthropic_agent_sdk" && taskKind) {
+    return anthropicModelSupported(getTaskModelByProvider(taskKind).anthropic_agent_sdk);
+  }
+  return true;
+}
+
+function unsupportedAnthropicModel(taskKind: AgentTaskKind | undefined): string | null {
+  if (!taskKind || !isProviderConfigured("anthropic_agent_sdk") || !providerPermittedForLane("anthropic_agent_sdk", taskKind)) return null;
+  const model = getTaskModelByProvider(taskKind).anthropic_agent_sdk;
+  return anthropicModelSupported(model) ? null : model;
+}
+
+/** Usable for a lane: permitted for its data, and configured for it. */
+function usableForLane(provider: StructuredProvider, taskKind: AgentTaskKind | undefined): boolean {
+  return providerPermittedForLane(provider, taskKind) && providerConfiguredForLane(provider, taskKind);
+}
+
+/**
+ * Ordered provider lists. `BLUEPRINT_<LANE>_PROVIDERS` (for example
+ * `openai_responses,anthropic_agent_sdk`) sets one lane's order;
+ * `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDERS` sets it for lanes with neither
+ * their own list, their own setting nor a lane default that can serve them.
+ * Entries the gate refuses are reported as refused settings; entries that are
+ * not providers (a removed provider's id included) are dropped and reported;
+ * a list with nothing usable is ignored. The first usable entry serves the
+ * lane; the later ones are tried only after a provider answers "no funds".
+ */
+export function getLaneProvidersEnvKey(taskKind: AgentTaskKind | undefined): string | null {
+  const suffix = taskKind ? TASK_MODEL_SUFFIXES[taskKind] : null;
+  return suffix ? `BLUEPRINT_${suffix.replace(/_MODEL$/, "")}_PROVIDERS` : null;
+}
+
+export const GLOBAL_PROVIDERS_ENV_KEY = "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDERS";
+
+function readProviderList(envKey: string | null, taskKind: AgentTaskKind | undefined) {
+  const raw = envKey ? (process.env[envKey] || "").trim() : "";
+  if (!envKey || !raw) return null;
+  const providers: StructuredProvider[] = [], unrecognized: string[] = [], refused: ProviderSettingRefusal[] = [];
+  for (const entry of raw.split(",").map((value) => value.trim()).filter(Boolean)) {
+    const provider = normalizeProvider(entry);
+    if (!provider) { unrecognized.push(isRemovedProviderId(entry) ? "removed_provider" : "not_a_provider"); continue; }
+    const refusal = refuseSetting(envKey, provider, taskKind);
+    if (refusal) { refused.push(refusal); continue; }
+    if (!providers.includes(provider)) providers.push(provider);
+  }
+  return { env_key: envKey, usable: providers.filter((provider) => providerConfiguredForLane(provider, taskKind)), unrecognized, refused };
+}
 
 /** Whether the gate lets a provider receive this lane's data, under the current Privacy Policy version. */
 export function providerPermittedForLane(provider: StructuredProvider, taskKind: AgentTaskKind | undefined): boolean {
@@ -558,11 +640,20 @@ export function describeStructuredAutomationProvider(
   const laneProvider = laneRequest ? normalizeProvider(laneRequest) : null;
   const global = selectGlobalStructuredProvider(taskKind);
   const laneRefusal = laneEnvKey ? refuseSetting(laneEnvKey, laneProvider, taskKind) : null;
-  const refused = [...(laneRefusal ? [laneRefusal] : []), ...global.refused];
+  const laneList = readProviderList(getLaneProvidersEnvKey(taskKind), taskKind);
+  const globalList = laneList ? null : readProviderList(GLOBAL_PROVIDERS_ENV_KEY, taskKind);
+  const list = laneList ?? globalList;
+  const refused = [...(laneRefusal ? [laneRefusal] : []), ...(list?.refused ?? []), ...global.refused];
   const base = { lane_env_key: laneEnvKey, lane_request: laneRequest,
-    lane_setting_names_removed_provider: laneRemoved, refused_settings: refused };
+    lane_setting_names_removed_provider: laneRemoved, refused_settings: refused,
+    anthropic_model_not_supported: unsupportedAnthropicModel(taskKind),
+    provider_list: list ? { env_key: list.env_key, unrecognized: list.unrecognized } : null };
 
-  if (laneProvider && !laneRefusal && isProviderConfigured(laneProvider)) {
+  if (laneList?.usable.length) {
+    return { ...base, provider: laneList.usable[0], lane_request_honored: !laneRequest, reason: "lane_list", fails_closed: null };
+  }
+
+  if (laneProvider && !laneRefusal && providerConfiguredForLane(laneProvider, taskKind)) {
     return { ...base, provider: laneProvider, lane_request_honored: true, reason: "lane_override", fails_closed: null };
   }
 
@@ -571,8 +662,12 @@ export function describeStructuredAutomationProvider(
       : laneProvider ? "lane_request_not_configured" as const : "lane_request_unrecognized" as const)
     : null;
   const laneDefault = taskKind ? TASK_DEFAULT_PROVIDER[taskKind] : undefined;
+  if (globalList?.usable.length && !(laneDefault && usableForLane(laneDefault, taskKind))) {
+    return { ...base, provider: globalList.usable[0], lane_request_honored: !unhonoredReason, reason: unhonoredReason ?? "global_list",
+      fails_closed: null };
+  }
   if (laneDefault && providerPermittedForLane(laneDefault, taskKind)) {
-    const configured = isProviderConfigured(laneDefault);
+    const configured = providerConfiguredForLane(laneDefault, taskKind);
     return {
       ...base,
       provider: configured ? laneDefault : global.provider,
@@ -635,7 +730,7 @@ function selectGlobalStructuredProvider(taskKind?: AgentTaskKind): {
     return Boolean(candidate) && array.indexOf(candidate) === index;
   });
 
-  const usable = candidates.find((candidate) => providerPermittedForLane(candidate, taskKind) && isProviderConfigured(candidate));
+  const usable = candidates.find((candidate) => usableForLane(candidate, taskKind));
   if (usable) return { provider: usable, refused, fails_closed: null };
   if (!taskKind) return { provider: candidates.find(isProviderConfigured) || candidates[0], refused, fails_closed: null };
   // Nothing permitted is configured: report a permitted provider (its adapter
@@ -670,7 +765,64 @@ export function getStructuredAutomationFallbackProvider(
   });
 
   // Never a provider the gate does not permit for the lane's data.
-  return candidates.find((candidate) => providerPermittedForLane(candidate, taskKind) && isProviderConfigured(candidate)) || null;
+  return candidates.find((candidate) => usableForLane(candidate, taskKind)) || null;
+}
+
+/** The global chain's candidates in order (configured or not), for the ordered list. */
+function globalChainOrder(): StructuredProvider[] {
+  return [normalizeProvider(process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER), "codex_local" as StructuredProvider,
+    "acp_harness" as StructuredProvider, "openai_responses" as StructuredProvider,
+    normalizeProvider(process.env.BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER),
+    "anthropic_agent_sdk" as StructuredProvider, "openclaw" as StructuredProvider]
+    .filter((candidate, index, array): candidate is StructuredProvider => Boolean(candidate) && array.indexOf(candidate) === index);
+}
+
+/**
+ * The lane's providers in the order they are tried: the one the lane resolves
+ * to first, then the rest of its list (or, with none, of the global chain),
+ * each permitted for the lane's data and configured for it.
+ */
+export function getStructuredProviderOrder(taskKind: AgentTaskKind): StructuredProvider[] {
+  const resolution = describeStructuredAutomationProvider(taskKind);
+  const laneList = readProviderList(getLaneProvidersEnvKey(taskKind), taskKind);
+  const list = laneList?.usable.length ? laneList : (() => {
+    const globalList = laneList ? null : readProviderList(GLOBAL_PROVIDERS_ENV_KEY, taskKind);
+    return globalList?.usable.length ? globalList : null;
+  })();
+  const rest = (list ? list.usable : globalChainOrder()).filter((provider) => usableForLane(provider, taskKind));
+  const first = resolution.fails_closed ? [] : [resolution.provider];
+  return [...first, ...rest].filter((provider, index, array) => array.indexOf(provider) === index);
+}
+
+/** Providers whose adapter enforces the per-run inference cost cap: a lane is only ever switched to one of these. */
+export const RUN_CAP_ENFORCING_PROVIDERS: ReadonlySet<StructuredProvider> = new Set<StructuredProvider>([
+  "openai_responses", "anthropic_agent_sdk",
+]);
+
+export type FailoverDecision =
+  | { provider: StructuredProvider; skipped: Array<{ provider: StructuredProvider; reason: FailoverSkipReason }> }
+  | { provider: null; skipped: Array<{ provider: StructuredProvider; reason: FailoverSkipReason }> };
+export type FailoverSkipReason = "run_cap_not_enforced" | "cooling_down_no_funds" | "mutation_reconciliation_unsupported";
+
+/**
+ * Where a run goes after its provider answered "no funds": the next provider
+ * in the lane's order that the gate permits for the lane's data, that is
+ * configured (for Anthropic, with a priced, supported model), that enforces
+ * the per-run cap, and that is not itself cooling down after "no funds".
+ */
+export function chooseFailoverProvider(taskKind: AgentTaskKind, from: AgentProvider,
+  options: { mutationReconciliationRequired?: boolean; nowMs?: number } = {}): FailoverDecision {
+  const skipped: Array<{ provider: StructuredProvider; reason: FailoverSkipReason }> = [];
+  for (const provider of getStructuredProviderOrder(taskKind)) {
+    if (provider === from) continue;
+    if (!RUN_CAP_ENFORCING_PROVIDERS.has(provider)) { skipped.push({ provider, reason: "run_cap_not_enforced" }); continue; }
+    if (options.mutationReconciliationRequired && provider !== "openai_responses") {
+      skipped.push({ provider, reason: "mutation_reconciliation_unsupported" }); continue;
+    }
+    if (isProviderCoolingDown(provider, options.nowMs)) { skipped.push({ provider, reason: "cooling_down_no_funds" }); continue; }
+    return { provider, skipped };
+  }
+  return { provider: null, skipped };
 }
 
 /**

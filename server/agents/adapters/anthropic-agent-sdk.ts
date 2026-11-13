@@ -14,6 +14,7 @@ import {
   getAnthropicMaxOutputTokens,
   getAnthropicTimeoutMs,
 } from "../provider-config";
+import { anthropicRequestShapeFor } from "../anthropic-models";
 import {
   classifyProviderError,
   ProviderOutputTruncatedError,
@@ -73,27 +74,9 @@ const client = configurationIssue === null
     })
   : null;
 
-/**
- * What the adapter sends for each model. Every model here takes adaptive
- * thinking, an explicit effort and a JSON-schema output format, and has a
- * list-price row, as does its fallback model. A model not here is not sent.
- */
-const MODEL_REQUEST_SHAPE: Record<string, { fallbackModel: string | null }> = {
-  "claude-opus-5-5": { fallbackModel: "claude-opus-4-8" },
-  "claude-opus-5": { fallbackModel: "claude-opus-4-8" },
-  "claude-sonnet-5-5": { fallbackModel: "claude-sonnet-5" },
-  "claude-fable-5-2": { fallbackModel: "claude-opus-4-8" },
-  "claude-opus-4-8": { fallbackModel: null },
-  "claude-sonnet-5": { fallbackModel: null },
-  // No server-side fallback exists for this model: a fallback list is a 400.
-  "claude-haiku-5-5": { fallbackModel: null },
-};
-
-/** Every model id this adapter can send or be served by. */
-export function anthropicRequestModels(): string[] {
-  return [...new Set(Object.entries(MODEL_REQUEST_SHAPE).flatMap(([model, shape]) =>
-    shape.fallbackModel ? [model, shape.fallbackModel] : [model]))];
-}
+// What the adapter sends for each model lives in ../anthropic-models, so lane
+// routing can tell a supported model without building a client.
+export { anthropicRequestModels } from "../anthropic-models";
 
 /**
  * On a safety decline the API re-runs the same request on the named model,
@@ -106,7 +89,7 @@ const SERVER_SIDE_FALLBACK_BETA = "server-side-fallback-2026-07-01";
 const ACCEPTED_STOP_REASONS = new Set(["end_turn", "tool_use", "pause_turn"]);
 
 function requestShapeFor(model: string) {
-  return MODEL_REQUEST_SHAPE[model.trim().toLowerCase()] ?? null;
+  return anthropicRequestShapeFor(model);
 }
 
 function outputFormatFor(schema: ZodType<unknown>) {
