@@ -246,6 +246,8 @@ async function indexDocumentForBlueprints(document: OpsDocumentRecord) {
     for (const [index, chunk] of chunks.entries()) {
       const docRef = collectionRef.doc(hashDocumentChunk(document.source_file_uri, chunk, index));
       const embedding = Array.isArray(embeddings[index]) ? embeddings[index] : [];
+      // The chunk id is a hash of its text, so a vector stored under it is
+      // still this chunk's: an empty one never replaces it.
       await docRef.set(
         {
           blueprintId,
@@ -253,7 +255,7 @@ async function indexDocumentForBlueprints(document: OpsDocumentRecord) {
           sourceTitle: document.title,
           sourceCategory: "ops_document",
           text: chunk,
-          embedding,
+          ...(embedding.length ? { embedding } : {}),
           tokenCount: Math.round(chunk.split(/\s+/).length * 1.3),
           updatedAt: nowTimestamp(),
         },

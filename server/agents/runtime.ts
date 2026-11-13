@@ -1344,11 +1344,86 @@ async function saveSession(session: PersistedAgentSession, preserveCancelledSess
   await persistAgentEvidence(db.collection("agentSessions").doc(session.id), { collection: "agentSessions", id: session.id }, stripUndefinedDeep(session), db, { preserveCancelledSession });
 }
 
+/** Lengths and a digest in place of content. */
+function contentDigest(value: unknown) {
+  if (value === undefined || value === null) return value;
+  const text = typeof value === "string" ? value : JSON.stringify(value) ?? "";
+  return { redacted: true, chars: text.length, sha256: crypto.createHash("sha256").update(text).digest("hex") };
+}
+
+// Keys under which the adapters keep a model's answer in a run's artifacts and logs.
+const MODEL_CONTENT_KEYS = new Set(["output", "output_text", "rawOutput", "raw_output_text", "content"]);
+
+function redactModelContent(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactModelContent);
+  if (!isRuntimeRecord(value)) return value;
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key,
+    MODEL_CONTENT_KEYS.has(key) ? contentDigest(entry) : redactModelContent(entry)]));
+}
+
+function storesContentRedacted(kind: unknown) {
+  return typeof kind === "string" && getTaskDefinition(kind as AgentTaskKind)?.persist_content === "redacted";
+}
+
+/**
+ * What a run row stores of a task and its result. For a lane whose definition
+ * says `persist_content: "redacted"`, the task's input, the output, the raw
+ * output text and the model's answer inside artifacts and logs are stored as
+ * lengths and a digest; every other field (cost, usage, model, provider,
+ * status, timings, failover, metadata) is stored as it is.
+ */
+function storedRunContent<T extends Record<string, unknown>>(kind: unknown, fields: T): T {
+  if (!storesContentRedacted(kind)) return fields;
+  const stored: Record<string, unknown> = { ...fields };
+  if ("input" in stored) {
+    stored.input = isRuntimeRecord(stored.input) && "input" in stored.input
+      ? { ...stored.input, input: contentDigest(stored.input.input) } : contentDigest(stored.input);
+  }
+  if ("output" in stored) stored.output = contentDigest(stored.output);
+  if ("raw_output_text" in stored) stored.raw_output_text = contentDigest(stored.raw_output_text);
+  if ("artifacts" in stored) stored.artifacts = redactModelContent(stored.artifacts);
+  if ("logs" in stored) stored.logs = redactModelContent(stored.logs);
+  return stored as T;
+}
+
+/** The typed refusal for a redacted-content lane on a path that would replay its stored input. */
+export const REDACTED_CONTENT_NOT_REPLAYABLE = "redacted_content_not_replayable";
+
+/**
+ * A failure of a lane that stores its content redacted, as it is stored and
+ * logged: the error's class, HTTP status and code (classifyProviderError), the
+ * exception's type name, and lengths and a digest of the message. Never the
+ * message itself, which may quote the site's text or the model's answer.
+ */
+function redactedFailure(error: unknown, provider: AgentProvider, classification?: ProviderErrorClassification | null) {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : String(error ?? "");
+  const classified = classification ?? classifyProviderError(error, provider);
+  // The evidence store's own errors are codes written in this code base.
+  const code = error instanceof AgentEvidenceError ? error.message : classified.code;
+  const detail = { error_class: classified.error_class, http_status: classified.status, error_code: code,
+    exception_type: error instanceof Error ? error.name : null, message: contentDigest(message) };
+  const summary = `agent_run_failed: ${classified.error_class}`
+    + (classified.status !== null ? ` http ${classified.status}` : "") + (code ? ` ${code}` : "");
+  return { summary, detail };
+}
+
+/** The classification a returned failure carries in its artifacts, when the adapter or a switch recorded one. */
+function returnedFailureClassification(result: AgentResult<unknown>): ProviderErrorClassification | null {
+  const artifacts = (result.artifacts ?? {}) as Record<string, unknown>;
+  if (artifacts.provider_error && typeof artifacts.provider_error === "object") return artifacts.provider_error as ProviderErrorClassification;
+  const failover = artifacts.provider_failover as { error?: { error_class?: string; http_status?: number | null;
+    error_type?: string | null; error_code?: string | null } | null } | undefined;
+  return failover?.error?.error_class ? { error_class: failover.error.error_class as ProviderErrorClassification["error_class"],
+    provider: result.provider, sdk: "unknown", status: failover.error.http_status ?? null, type: failover.error.error_type ?? null,
+    code: failover.error.error_code ?? null } : null;
+}
+
 async function saveRun(run: PersistedAgentRun) {
   if (!db) {
     return;
   }
-  await persistAgentEvidence(db.collection("agentRuns").doc(run.id), { collection: "agentRuns", id: run.id }, stripUndefinedDeep(run), db);
+  await persistAgentEvidence(db.collection("agentRuns").doc(run.id), { collection: "agentRuns", id: run.id },
+    stripUndefinedDeep(storedRunContent(run.task_kind, run as unknown as Record<string, unknown>)), db);
 }
 
 async function getRun(runId: string) {
@@ -1802,6 +1877,24 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
   // The per-job site assessment ended (owner decision 2026-11-11). No path,
   // queued or direct, may start one: refuse before any run record or spend.
   refuseRetiredSiteAssessment(task.kind);
+  // A lane that stores its content redacted runs at once or not at all: its
+  // stored input is a digest, so no path that replays a stored input (a
+  // session, its queue, approval, resume) and no session checkpoint or event
+  // may carry it. Refused before anything is stored or sent.
+  if (storesContentRedacted(task.kind)) {
+    const definition = getTaskDefinition(task.kind);
+    const approval = requiresApproval(task, mergeApprovalPolicy(definition.approval_policy, task.approval_policy));
+    const replayable = [task.session_key ? "session_key" : null, task.session_id || options?.sessionId ? "session" : null,
+      options?.runId ? "existing_run" : null, task.resume_from_run_id ? "resume" : null, approval.required ? "approval" : null]
+      .filter((value): value is string => Boolean(value));
+    if (replayable.length) {
+      return { status: "failed", provider: (knownAgentProvider(task.provider) ?? definition.default_provider) as AgentProvider,
+        runtime: (knownAgentProvider(task.provider) ?? definition.default_provider) as AgentProvider,
+        model: task.model ?? "unknown", tool_mode: "api", requires_approval: false, requires_human_review: true,
+        error: `${REDACTED_CONTENT_NOT_REPLAYABLE}: ${task.kind} stores its content redacted and cannot run with ${replayable.join(", ")}`,
+        artifacts: { inference_not_invoked: true, refusal_reason: REDACTED_CONTENT_NOT_REPLAYABLE, refused_paths: replayable } };
+    }
+  }
   // A run of a disabled profile (saved before its provider was removed, then
   // dispatched from the queue, approved, resumed, retried, forked, delegated
   // or woken) is refused before its saved provider is rerouted to the lane,
@@ -2088,6 +2181,12 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     if (normalizedTask.kind === "site_assessment" && (await db?.collection("agentRuns").doc(runId).get())?.data()?.status === "cancelled") {
       result.status = "cancelled"; result.error = "site_assessment_cancelled";
     }
+    if (storesContentRedacted(normalizedTask.kind) && typeof result.error === "string" && result.error) {
+      const failure = redactedFailure(result.error, result.provider, returnedFailureClassification(result as AgentResult<unknown>));
+      failure.detail.exception_type = null;
+      result.error = failure.summary;
+      result.artifacts = { ...(result.artifacts || {}), failure_detail: failure.detail };
+    }
     retainedAdapterResult = result as AgentResult<TOutput>;
     const status = resultStatus(result);
     const latencyMs = Date.now() - startedAtMs;
@@ -2124,10 +2223,12 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         // The run's history names the provider and model that served it after a switch.
         ...((result.artifacts as Record<string, unknown> | undefined)?.provider_failover
           ? { provider: result.provider, runtime: result.runtime, model: result.model } : {}),
-        output: result.output,
-        raw_output_text: result.raw_output_text || null,
-        artifacts: result.artifacts || null,
-        logs: result.logs || null,
+        ...storedRunContent(normalizedTask.kind, {
+          output: result.output,
+          raw_output_text: result.raw_output_text || null,
+          artifacts: result.artifacts || null,
+          logs: result.logs || null,
+        }),
         error: result.error || null,
         approval_reason: result.approval_reason || null,
         requires_human_review: result.requires_human_review,
@@ -2286,7 +2387,9 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
 
     return result;
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown agent runtime error";
+    const redactedError = storesContentRedacted(normalizedTask.kind) ? redactedFailure(error, normalizedTask.provider) : null;
+    const message = redactedError ? redactedError.summary
+      : error instanceof Error ? error.message : "Unknown agent runtime error";
 
     if (db) {
       await persistAgentEvidenceFailure(db.collection("agentRuns").doc(runId), { collection: "agentRuns", id: runId }, {
@@ -2294,6 +2397,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         updated_at: nowTimestamp(),
         ...(retainedAdapterResult ? { artifact_persistence_error: "agent_evidence_persistence_failed", ...(requiresMutationReconciliation(retainedAdapterResult as unknown as Record<string, unknown>) ? { mutation_reconciliation_required: true } : {}) } : {}),
         error: message,
+        ...(redactedError ? { failure_detail: redactedError.detail } : {}),
         requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
           status: "failed",
         }),
@@ -2316,7 +2420,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       {
         ...requestMeta,
         runId,
-        err: error,
+        ...(redactedError ? { failure: redactedError.detail } : { err: error }),
       },
       "Agent task failed",
     );
@@ -2329,6 +2433,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       summary: message,
       metadata: {
         exception: true,
+        ...(redactedError ? { failure: redactedError.detail } : {}),
         ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
           .resolved_startup_context as Record<string, unknown> | undefined) || {}),
       },
@@ -2393,6 +2498,8 @@ export async function createAgentSession(params: {
   metadata?: Record<string, unknown>;
 }) {
   refuseRetiredSiteAssessment(params.task_kind);
+  // A session stores and replays its runs' input; a redacted-content lane has none to replay.
+  if (storesContentRedacted(params.task_kind)) throw new Error(REDACTED_CONTENT_NOT_REPLAYABLE);
   const sessionId = crypto.randomUUID();
   const profile = params.agent_profile_id ? await getAgentProfile(params.agent_profile_id) : null;
   // A profile whose provider was removed starts nothing (agent-profiles), and
@@ -2515,6 +2622,7 @@ export async function sendAgentSessionMessage(params: {
   task: AgentTask;
 }) {
   refuseRetiredSiteAssessment(params.task.kind);
+  if (storesContentRedacted(params.task.kind)) throw new Error(REDACTED_CONTENT_NOT_REPLAYABLE);
   const session = await getSession(params.sessionId);
   if (!session) {
     throw new Error("Agent session not found");

@@ -8,6 +8,8 @@ import { RUNTIME_SMOKE_TEST_MESSAGE } from "../agents/tasks/runtime-smoke-test";
 const sampleInputs: Record<AgentTaskKind, unknown> = {
   // Fixed text: the smoke test's payload is written in its definition, whatever the input.
   runtime_smoke_test: { message: RUNTIME_SMOKE_TEST_MESSAGE },
+  site_task_follow_up: { taskStatement: "Move totes from the cart to the shelf.", briefSummary: "Move totes to a shelf",
+    itemLabels: ["Tote"], eligible: ["success_target", "item_photos"] },
   adp_run_operator: { pipeline_task_id: "task-admitted-1" },
   waitlist_triage: {
     submission: {
@@ -196,6 +198,8 @@ describe("agent task prompts", () => {
     for (const [kind, definition] of Object.entries(taskDefinitions) as Array<
       [AgentTaskKind, (typeof taskDefinitions)[AgentTaskKind]]
     >) {
+      // The follow-up picker sends its own fixed instruction (the test below).
+      if (kind === "site_task_follow_up") continue;
       const prompt = definition.build_prompt(sampleInputs[kind] as never);
       const payloadIndex = prompt.lastIndexOf("Dynamic payload:");
       const returnShapeIndex = prompt.lastIndexOf("Return JSON");
@@ -208,6 +212,17 @@ describe("agent task prompts", () => {
       );
       expect(JSON.parse(prompt.slice(payloadIndex + "Dynamic payload:".length).trim())).toEqual(sampleInputs[kind]);
     }
+  });
+
+  it("sends the follow-up picker its fixed instruction, then the payload, with no no_change invitation", () => {
+    const input = sampleInputs.site_task_follow_up as Record<string, unknown>;
+    const prompt = taskDefinitions.site_task_follow_up.build_prompt(input as never);
+    expect(prompt).toBe("Select at most 3 useful missing topics for a site operator after they submitted a robot task and video. "
+      + "Use only eligible IDs. Prefer questions that change how the task or its success is understood. "
+      + "Do not infer answers or invent objects. Return JSON only: {\"question_ids\":[\"id\"]}.\n\n"
+      + JSON.stringify({ taskStatement: input.taskStatement, briefSummary: input.briefSummary, itemLabels: input.itemLabels,
+        eligible: input.eligible }));
+    expect(prompt).not.toMatch(/no_change|unchanged/);
   });
 
   it("serializes dynamic payload object keys deterministically for prompt-cache reuse", async () => {

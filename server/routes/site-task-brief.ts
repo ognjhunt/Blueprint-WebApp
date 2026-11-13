@@ -721,6 +721,7 @@ router.get("/:token/follow-up", async (req: Request, res: Response) => {
         ? await decryptFieldValue(request.taskStatement as never)
         : "";
       questionIds = await selectFollowUps({
+        requestId: payload.requestId,
         taskStatement: taskStatement || "",
         briefSummary: brief.summary,
         itemLabels: items.map((item) => item.label),

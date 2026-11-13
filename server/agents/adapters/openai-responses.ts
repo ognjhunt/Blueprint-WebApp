@@ -259,10 +259,12 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       requires_approval: false,
     };
   }
+  // A lane's own ceiling applies when it is the smaller one.
+  const maxOutputTokens = Math.min(task.definition.max_output_tokens_ceiling ?? openAiMaxOutputTokens, openAiMaxOutputTokens);
   const projectedMaxCostUsd = worstCaseOpenAIReservationUsd({
     model: task.model,
     inputTokenCeiling: openAiMaxInputTokens,
-    maxOutputTokens: openAiMaxOutputTokens,
+    maxOutputTokens,
     policy: activeCachePolicy,
   });
   if (!accountingOnly && projectedMaxCostUsd > openAiMaxInferenceCostUsd) {
@@ -290,7 +292,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     },
     tools,
     parallel_tool_calls: true,
-    max_output_tokens: openAiMaxOutputTokens,
+    max_output_tokens: maxOutputTokens,
     input: initialInput,
     ...(initialCacheControls as any),
   } as any);
@@ -450,7 +452,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       },
       tools,
       parallel_tool_calls: true,
-      max_output_tokens: openAiMaxOutputTokens,
+      max_output_tokens: maxOutputTokens,
       store: false,
       ...(activeCachePolicy.model_family.startsWith("gpt-5.6")
         ? {
@@ -497,7 +499,9 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       outputRepairs.push({ responseId: (response as any).id ?? null, rawOutput: raw,
         rawOutputSha256: createHash("sha256").update(raw).digest("hex"), issues });
       const detail = issues.map(issue => `${issue.path}:${issue.code}`).join(", ");
-      if (toolIterations >= 5) { outputFailure = `OpenAI output repair limit reached: ${detail}`; break; }
+      if (toolIterations >= 5 || outputRepairIterations >= (task.definition.max_output_corrections ?? Infinity)) {
+        outputFailure = `OpenAI output repair limit reached: ${detail}`; break;
+      }
       if (!accountingOnly && reconciledCostUsd + projectedMaxCostUsd > openAiMaxInferenceCostUsd) {
         outputFailure = `OpenAI output repair cost reservation refused: ${detail}`; break;
       }
@@ -510,7 +514,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       }
       pendingRequest = "output_correction";
       response = await client.responses.create({ model: task.model, input: conversationInput as any,
-        reasoning: { effort: reasoningEffort }, tools: [], max_output_tokens: openAiMaxOutputTokens, store: false,
+        reasoning: { effort: reasoningEffort }, tools: [], max_output_tokens: maxOutputTokens, store: false,
         ...(activeCachePolicy.model_family.startsWith("gpt-5.6") ? {
           prompt_cache_options: { mode: "explicit", ttl: "30m" },
           ...(activeCachePolicy.cache_key ? { prompt_cache_key: activeCachePolicy.cache_key } : {}),
@@ -615,7 +619,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       reusable_prefix_tokens: activeCachePolicy.economics.stable_prefix_tokens,
       inference_reservation: {
         input_token_ceiling: openAiMaxInputTokens,
-        max_output_tokens: openAiMaxOutputTokens,
+        max_output_tokens: maxOutputTokens,
         projected_max_cost_per_call_usd: projectedMaxCostUsd,
         reconciled_cost_usd: reconciledCostUsd,
         reconciled_cost_status: providerUsages.some(usage => typeof usage.estimated_total_cost_usd !== "number")

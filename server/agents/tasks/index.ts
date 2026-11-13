@@ -17,6 +17,7 @@ import { robotFitRankingTask } from "./robot-fit-ranking";
 import { captureDispatchTask } from "./capture-dispatch";
 import { outboundOutreachTask } from "./outbound-outreach";
 import { runtimeSmokeTestTask } from "./runtime-smoke-test";
+import { siteTaskFollowUpTask } from "./site-task-follow-up";
 
 export const taskDefinitions = {
   waitlist_triage: waitlistTriageTask,
@@ -37,6 +38,7 @@ export const taskDefinitions = {
   capture_dispatch: captureDispatchTask,
   outbound_outreach: outboundOutreachTask,
   runtime_smoke_test: runtimeSmokeTestTask,
+  site_task_follow_up: siteTaskFollowUpTask,
 } satisfies Record<AgentTaskKind, StructuredTaskDefinition<any, any>>;
 
 export function getTaskDefinition<TInput = unknown, TOutput = unknown>(
