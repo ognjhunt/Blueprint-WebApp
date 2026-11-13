@@ -2820,6 +2820,8 @@ it("signs a scoped Sol managed-agent policy only after owner disclosure and an o
   expect(grant).toMatchObject({ authoring_provider: "openai",
     authoring_agent_runtime: "openai_agents_api", authoring_model: "gpt-6.1-sol",
     agents_api_policy: { project_guard_receipt_digest: guard } });
+  expect(grant.site_consents).toEqual([{ statement_version: "2026-09-24.v1", provider: "openai", model: "gpt-6.1-sol" }]);
+  expect(grant).not.toHaveProperty("anthropic_provider_terms_reference");
   expect(await loadWebsiteSceneSponsorship("req1", true)).toEqual(grant);
   process.env.BLUEPRINT_WEBSITE_AGENTS_API_POLICY_JSON = JSON.stringify({ ...policy,
     project_guard_receipt_digest: sha("a") });
@@ -2839,6 +2841,97 @@ it("refuses Claude sponsorship without disclosure or configured Anthropic terms"
   inbound.request.claude_authoring_consent.granted = true;
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("provider_terms_not_configured");
   expect(inbound.website_scene_sponsorship).toBeUndefined();
+});
+
+describe("the grant names the job's Privacy version and the statements its site accepted", () => {
+  const acceptance = (version: string) => ({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: version,
+    terms_url: "/terms", privacy_url: "/privacy", accepted_at: "2026-11-13T09:00:00.000Z", accepted_from_ip_hash: null });
+  const withAnthropicTerms = () => {
+    const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+    terms.anthropic = { digest: sha("d"), label: "Anthropic commercial API terms",
+      url: "https://www.anthropic.com/legal/commercial-terms" };
+    process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
+  };
+  const covered = (grant: Record<string, any>) => {
+    const { authority_digest, ...payload } = grant;
+    return crossRuntimeDigest(payload) === authority_digest;
+  };
+
+  it("sends the version written at submission and an empty list for a site that chose neither statement", async () => {
+    sponsoredCapture();
+    const inbound = store.rows.get("inboundRequests/req1");
+    inbound.privacy_version_at_submission = "2026-11-12.2";
+    inbound.terms_acceptance = acceptance("2026-11-12.2");
+    const grant = await loadWebsiteSceneSponsorship("req1", true);
+    expect(grant).toMatchObject({ authoring_provider: "openai", privacy_policy_version: "2026-11-12.2", site_consents: [] });
+    expect(grant).not.toHaveProperty("anthropic_provider_terms_reference");
+    expect(covered(grant)).toBe(true);
+  });
+
+  it.each([
+    ["nothing recorded", {}],
+    ["an acceptance made later on the job's page, with no version at submission", { terms_acceptance: acceptance("2026-11-13.1") }],
+    ["an unknown version", { privacy_version_at_submission: "2026-01-01.9" }],
+    ["a malformed version", { privacy_version_at_submission: ["2026-11-13.1"] }],
+  ])("sends no version when the job has %s", async (_name, fields) => {
+    sponsoredCapture();
+    const inbound = store.rows.get("inboundRequests/req1");
+    delete inbound.terms_acceptance; delete inbound.privacy_version_at_submission;
+    Object.assign(inbound, fields);
+    const grant = await loadWebsiteSceneSponsorship("req1", true);
+    expect(grant).not.toHaveProperty("privacy_policy_version");
+    expect(grant.site_consents).toEqual([]);
+  });
+
+  it("lists the Claude statement the site accepted, with the model it names", async () => {
+    sponsoredCapture();
+    withAnthropicTerms();
+    const inbound = store.rows.get("inboundRequests/req1");
+    inbound.request.capture_region = "us";
+    inbound.request.claude_authoring_consent = { granted: true,
+      statement_version: "2026-09-24.v1", recorded_at_iso: new Date().toISOString() };
+    const grant = await loadWebsiteSceneSponsorship("req1", true);
+    expect(grant.site_consents).toEqual([{ statement_version: "2026-09-24.v1", provider: "anthropic", model: "claude-opus-5-5" }]);
+    expect(grant).toMatchObject({ authoring_provider: "anthropic", anthropic_provider_terms_reference: sha("d") });
+    expect(covered(grant)).toBe(true);
+  });
+
+  async function preparedScene(allowed: string[]) {
+    const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+    const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+    });
+    const grant = await (await post("scene-sponsorship")).json();
+    const test = { kind: "authored_surface_component_test",
+      label: "Development test on an authored surface; captured scene integration pending.",
+      claim_scope: "development_only", source_task_context_digest: grant.task_context_digest,
+      source_preparation_digest: sha("b"), captured_scene_integration: "pending",
+      captured_scene_evaluation_allowed: false, source_scene_blockers: ["support_surface_not_found_under_subject"] };
+    const request = { schema_version: "task_evaluation_scene_intake_request.v1",
+      submission_id: grant.capture_id, owner: grant.owner, consent: grant.consent,
+      source: { kind: "mesh", binding_id: `website-development-${"a".repeat(32)}`, content_digest: sha("a") },
+      task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}-development`,
+        subject: { description: "blue object", geometry_origin: "removed_before_reconstruction", test_environment: test } },
+      execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+        max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch, allowed_providers: allowed } };
+    process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS = JSON.stringify([grant.task_context_digest]);
+    const response = await post("prepared-scene", { request });
+    return { grant, status: response.status, body: await response.text() };
+  }
+
+  // Today's Pipeline refuses an OpenAI grant that names Anthropic terms, and no Pipeline builder sends Anthropic beside
+  // OpenAI: an OpenAI grant names none, whatever the job's version, and its intent names OpenAI only.
+  it.each(["2026-11-13.1", "2026-11-12.2"])("keeps a job submitted under %s on OpenAI only, with Anthropic terms configured", async (version) => {
+    sponsoredCapture();
+    withAnthropicTerms();
+    store.rows.get("inboundRequests/req1").privacy_version_at_submission = version;
+    const refused = await preparedScene(["vast", "openai", "anthropic"]);
+    expect(refused.grant).toMatchObject({ authoring_provider: "openai", privacy_policy_version: version });
+    expect(refused.grant).not.toHaveProperty("anthropic_provider_terms_reference");
+    expect(JSON.parse(refused.body)).toEqual({ code: "website_scene_sponsorship_binding_invalid" });
+    expect((await preparedScene(["vast", "openai"])).status).toBe(202);
+  });
 });
 
 
