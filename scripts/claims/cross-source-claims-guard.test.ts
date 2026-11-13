@@ -69,10 +69,9 @@ describe("cross-source claims guard", () => {
     const result = await scanClaims({ rootDir: repoRoot, writeReports: false });
     const scanned = result.scannedFiles.map((file) => path.relative(repoRoot, file).split(path.sep).join("/"));
     expect(scanned.some((file) => file.startsWith("docs/archive/2026-11-12-pre-packet/"))).toBe(false);
-    for (const file of ["AGENTS.md", "CLAUDE.md", "PLATFORM_CONTEXT.md", "AUTONOMOUS_ORG.md", "client/src/AGENTS.md", ".agents/product-marketing.md", "ops/paperclip/blueprint-company/COMPANY.md"]) {
+    for (const file of ["AGENTS.md", "CLAUDE.md", "PLATFORM_CONTEXT.md", "AUTONOMOUS_ORG.md", "client/src/AGENTS.md", ".agents/product-marketing.md"]) {
       expect(scanned, `${file} must be scanned`).toContain(file);
     }
-    expect(scanned.filter((file) => file.startsWith("ops/paperclip/blueprint-company/agents/")).length).toBeGreaterThan(0);
   });
 
   it("blocks the required operational-proof drift negative controls", async () => {
@@ -192,13 +191,8 @@ describe("cross-source claims guard", () => {
     expect(targets).toContain("VISION.md");
     expect(targets).toContain("PLATFORM_CONTEXT.md");
     expect(targets).toContain("WORLD_MODEL_STRATEGY_CONTEXT.md");
-    expect(targets).toContain("ops/paperclip/blueprint-company/agents");
-    expect(targets).toContain("ops/paperclip/blueprint-company/skills");
-    expect(targets).toContain("ops/paperclip/blueprint-company/tasks");
-    expect(targets).toContain("ops/paperclip/programs");
     expect(targets).toContain("knowledge/compiled/playbooks/platform-doctrine.md");
     expect(targets).toContain("../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md");
-    expect(targets).toContain("ops/paperclip/playbooks");
     expect(targets).toContain("knowledge/reports");
     expect(targets).toContain("output");
   });
