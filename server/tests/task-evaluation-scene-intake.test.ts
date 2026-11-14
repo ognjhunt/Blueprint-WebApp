@@ -112,12 +112,14 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     },
   };
 });
-import router from "../routes/task-evaluation-scene-intakes";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobSpend } from "../utils/websiteJobCeiling";
 import {
   buildSceneIntake,
   processSceneIntakeQueue,
+  SCENE_INTAKE_COLLECTION,
+  sceneSourceReference,
+  validateSceneProviderTerms,
   SCENE_FORWARD_RETRY_MAX_MS,
   SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT,
   sceneDigest,
@@ -195,6 +197,30 @@ function source() {
     },
   };
 }
+/**
+ * Records an intake the way the retired team-user intake route did, so the queue cases below can
+ * exercise processSceneIntakeQueue on a stored row.
+ */
+async function seedIntake(req: any, res: any) {
+  const parsed = sceneIntakeCommand.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid" });
+  const owner = sceneOwner(res.locals.firebaseUser || {});
+  const id = `scene-${sceneDigest({ owner, submission_id: parsed.data.submission_id }).slice(7)}`;
+  const ref = (dbAdmin as any).collection(SCENE_INTAKE_COLLECTION).doc(id);
+  const existing = await ref.get();
+  if (existing.exists) return res.status(202).json({ id });
+  const sourceRef = sceneSourceReference(parsed.data.source_session_id);
+  validateSceneProviderTerms(parsed.data);
+  const source = await (dbAdmin as any).collection(sourceRef.collection).doc(sourceRef.id).get();
+  const collisionRef = parsed.data.collision_source_session_id ? sceneSourceReference(parsed.data.collision_source_session_id) : null;
+  const collision = collisionRef ? await (dbAdmin as any).collection(collisionRef.collection).doc(collisionRef.id).get() : null;
+  const request = buildSceneIntake(parsed.data, owner, source?.data() || {}, Date.now() / 1000, collision?.data());
+  await ref.set({ owner_user_id: owner.user_id, organization_id: owner.organization_id,
+    source_session_id: parsed.data.source_session_id, command: parsed.data, command_digest: sceneDigest(parsed.data),
+    request, request_digest: sceneDigest(request), state: "forward_pending", forward_attempt_count: 0,
+    next_forward_at_ms: 0, created_at_iso: new Date().toISOString() });
+  return res.status(202).json({ id });
+}
 async function app() {
   const application = express();
   application.use(express.json());
@@ -202,7 +228,7 @@ async function app() {
     res.locals.firebaseUser = { uid: req.headers["x-user"] || "owner" };
     next();
   });
-  application.use("/intakes", router);
+  application.post("/intakes", seedIntake);
   application.use("/internal", (await import("../routes/internal-capture-worlds")).default);
   server = createServer(application);
   await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
@@ -3210,32 +3236,6 @@ describe("the intent's outcome (C-04)", () => {
       revocation_receipt: { scope: "future_execution" } });
   });
 });
-
-it.each(["saved_execution_setup_required", "saved_setup_unreadable"])("reopens a team selection and retries %s without reserving a provider attempt", async (failure) => {
-  const url=await app();
-  await realFetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(command())});
-  const row=stored()[1];
-  row.request.task.evaluation_source={evaluation_run_id:"team-one",source_launch_id:"source-one"};
-  row.request_digest=sceneDigest(row.request);
-  const selection=await import("../utils/teamEvaluationSelection");
-  const rebuild=vi.spyOn(selection,"rebuildTeamEvaluation").mockRejectedValueOnce(new Error(failure));
-  const fetcher=vi.fn(async(_url:any,init:any)=>new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
-  vi.stubGlobal("fetch",fetcher);
-  try {
-    await processSceneIntakeQueue();
-    expect(stored()[1].blocker).toBe(failure);
-    expect(stored()[1].forward_attempt_count).toBe(0);
-    expect(fetcher).not.toHaveBeenCalled();
-    expect(rebuild).toHaveBeenCalledTimes(1);
-    stored()[1].next_forward_at_ms=0;
-    rebuild.mockResolvedValue(structuredClone(stored()[1].request));
-    await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("accepted");
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(fetcher.mock.calls[0][1].body).task.evaluation_source.evaluation_run_id).toBe("team-one");
-  } finally {rebuild.mockRestore();}
-});
-
 
 it("reads one retained request for its exact owner only",async()=>{
   const url=await app();

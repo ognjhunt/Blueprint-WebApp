@@ -30,11 +30,6 @@ import {
 } from "./utils/public-artifacts";
 import { buildContentSecurityPolicy } from "./utils/contentSecurityPolicy";
 import { permissionsPolicyForPath } from "./utils/permissionsPolicy";
-import {
-  createPipelineTaskEvaluationResultBodyParser,
-  DEFAULT_PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT,
-  PIPELINE_TASK_EVALUATION_RESULT_PATH,
-} from "./utils/pipelineTaskEvaluationResultBodyParser";
 import { describeSiteVideoEvidenceConfig } from "./utils/siteVideoEvidenceConfig";
 import { firebaseAuthProxy } from "./utils/firebaseAuthProxy";
 import { captureOwnerRawBody } from "./utils/captureOwnerRawBody";
@@ -202,20 +197,6 @@ const authLimiter = createRateLimiter({
 // before body parsing and app CSP so the upstream helper stays byte-for-byte.
 app.use("/__/auth", firebaseAuthProxy);
 const defaultBodyLimit = env.API_BODY_LIMIT || "1mb";
-const pipelineTaskEvaluationResultBodyLimit =
-  env.PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT ||
-  DEFAULT_PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT;
-// A complete signed policy-canary report includes 20 episode projections and
-// their bounded artifact identities. Parse only this internal HMAC-authenticated
-// route with the larger limit; every public and unrelated API keeps the 1 MB
-// default below.
-app.use(
-  PIPELINE_TASK_EVALUATION_RESULT_PATH,
-  createPipelineTaskEvaluationResultBodyParser({
-    limit: pipelineTaskEvaluationResultBodyLimit,
-    verify: captureRawBody,
-  }),
-);
 // An app capture bundle plan lists every file of one Raw V3.2 recording — a
 // few thousand depth and confidence maps — so that one route parses with room
 // for it. Everything else keeps the default below.

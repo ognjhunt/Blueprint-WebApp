@@ -11,7 +11,6 @@ import { pathToFileURL } from "node:url";
 import { validateEnv } from "./config/env";
 import { attachRequestMeta, logger } from "./logger";
 import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLaunchForwardWorker";
-import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
 import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
 import { startWebsiteCaptureDeletionWorker } from "./utils/websiteCaptureDeletion";
 import { startWebsiteJobWindowSweepWorker } from "./utils/websiteJobWindowSweep";
@@ -46,7 +45,6 @@ export function startWorker(): WorkerHandle {
       : "Blueprint worker starting: Task Evaluation launch forwarder and job workers",
   );
   const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
-  const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
   const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
   // Runs in launch-forward-only mode too: deletion must not wait on the ops scheduler.
   const stopWebsiteDeletions = startWebsiteCaptureDeletionWorker();
@@ -66,7 +64,6 @@ export function startWorker(): WorkerHandle {
     stopPromise = (async () => {
     stopHeartbeat();
     stopTaskEvaluationLaunchForwarder();
-    stopCompanyPolicyCandidateOutbox();
     stopWebsiteWithdrawals();
     stopWebsiteDeletions();
     stopWebsiteJobWindowSweep();

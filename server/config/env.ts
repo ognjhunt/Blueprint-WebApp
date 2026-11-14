@@ -18,7 +18,6 @@ const envSchema = z
     REDIS_URL: z.string().trim().optional(),
     ALLOWED_ORIGINS: z.string().trim().optional(),
     API_BODY_LIMIT: z.string().trim().optional(),
-    PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT: z.string().trim().optional(),
     PIPELINE_SYNC_TOKEN: z.string().trim().min(1).optional(),
     BLUEPRINT_SESSION_UI_TOKEN_SECRET: z.string().trim().optional(),
     WORLDLABS_API_KEY: z.string().trim().optional(),

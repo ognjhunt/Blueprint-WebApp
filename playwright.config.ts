@@ -35,7 +35,6 @@ export default defineConfig({
     ? ['**/workspace-account-setup.spec.ts']
     : [
         '**/workspace-account-setup.spec.ts',
-        '**/capture-task-review.spec.ts',
         // Signs in with the operator QA bypass: `npm run qa:operator`.
         '**/job-companies.spec.ts',
       ])],

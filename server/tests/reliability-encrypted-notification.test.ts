@@ -25,8 +25,6 @@ vi.mock("../utils/taskLifecycleNotifications", async importOriginal => ({
   reconcileSceneReadyNotifications: vi.fn(), reconcileWebsitePreparationNotifications: vi.fn(),
   reconcileFootageBeforeAccountNotices: vi.fn(), reconcileSceneTestsStartedNotices: vi.fn(),
 }));
-vi.mock("../utils/agentRunResultNotifications", () => ({ reconcileAgentRunResultNotifications: vi.fn() }));
-vi.mock("../utils/taskEvaluationNotificationRetry", () => ({ reconcileTaskEvaluationNotificationRetries: vi.fn() }));
 import { encryptInboundRequestForStorage, isEncryptedField } from "../utils/field-encryption";
 import { enqueueCoverageReview, reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { deliverOutbox } from "../utils/captureOutbox";

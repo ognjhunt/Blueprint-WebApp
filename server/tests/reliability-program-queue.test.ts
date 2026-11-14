@@ -16,8 +16,6 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 vi.mock("../utils/email", () => ({ sendEmail: mocks.send }));
 vi.mock("../utils/robotTeamAccessNotificationAuthority",()=>({robotTeamAccessNotificationAuthority:mocks.authority }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotifications: vi.fn() }));
-vi.mock("../utils/agentRunResultNotifications", () => ({ reconcileAgentRunResultNotifications: vi.fn() }));
-vi.mock("../utils/taskEvaluationNotificationRetry", () => ({ reconcileTaskEvaluationNotificationRetries: vi.fn() }));
 vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: async (v: unknown) => v }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async (id: string) => state.docs.get(`siteTaskBriefs/${id}`) || null,
   draftBrief: (v: unknown) => v, saveBrief: mocks.save }));
@@ -28,7 +26,6 @@ vi.mock("../utils/captureCoverageQueue", () => ({ enqueueCoverageReview: vi.fn()
 
 import { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries } from "../utils/captureOutbox";
 import { recoverCaptureReviews } from "../utils/captureReviewRecovery";
-import { recordCohortCostReceipt, getCohort, type CohortCostReceipt } from "../utils/cohortEconomics";
 
 const key = "rq:video_received", path = `captureOutbox/${key}`;
 const row = () => state.docs.get(path)!;
@@ -41,7 +38,7 @@ const traceResults: Record<string, unknown>[] = [];
 const started = new Date().toISOString();
 const baseSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const sourceHashes = Object.fromEntries([
-  "server/utils/captureOutbox.ts", "server/utils/taskLifecycleNotificationAuthority.ts", "server/utils/websiteTaskContext.ts", "server/utils/captureReviewRecovery.ts", "server/utils/cohortEconomics.ts",
+  "server/utils/captureOutbox.ts", "server/utils/taskLifecycleNotificationAuthority.ts", "server/utils/websiteTaskContext.ts", "server/utils/captureReviewRecovery.ts",
   "server/tests/reliability-program-queue.test.ts", "server/tests/helpers/reliability-queue-cases.ts",
 ].filter(path => existsSync(path)).map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 beforeEach(() => {
@@ -298,42 +295,5 @@ describe("frozen queue cases: durable producer and worker recovery", () => {
     if (boundary === "cached_brief") expect(mocks.save).not.toHaveBeenCalled();
     const calls = mocks.description.mock.calls.length; await recoverCaptureReviews();
     expect(mocks.description).toHaveBeenCalledTimes(calls);
-  }));
-});
-
-describe("frozen queue cases: receipt accounting", () => {
-  it.each(cases("notifications_accounting"))("$id", c => tracked(c, async () => {
-    const allocation = c.parameters.allocation as CohortCostReceipt["allocation"], scenario = String(c.parameters.scenario);
-    const receipt: CohortCostReceipt = { receiptId: "rq-receipt", sceneId: "rq-scene", sourceDigest: `sha256:${"a".repeat(64)}`,
-      sourceUri: "fixture://authorized-local-receipt", currency: "USD", allocation, allocationId: "rq-preparation", status: "settled", amountUsd: 4 };
-    if (["invalid_currency", "invalid_digest", "negative_amount", "unknown_with_amount"].includes(scenario)) {
-      const invalid: any = { ...receipt, ...(scenario === "invalid_currency" ? { currency: "EUR" } : scenario === "invalid_digest" ? { sourceDigest: "bad" }
-        : scenario === "negative_amount" ? { amountUsd: -1 } : { status: "unknown", amountUsd: 4 }) };
-      await expect(recordCohortCostReceipt(invalid)).rejects.toThrow("receipt_invalid"); expect(await getCohort(receipt.sceneId)).toBeNull(); return;
-    }
-    if (scenario === "missing_predecessor") {
-      await expect(recordCohortCostReceipt({ ...receipt, supersedesReceiptId: "absent" })).rejects.toThrow("predecessor_missing"); return;
-    }
-    if (["unknown", "estimated", "supersede_unknown", "supersede_estimate"].includes(scenario)) {
-      const unknown = scenario.includes("unknown");
-      await recordCohortCostReceipt({ ...receipt, status: unknown ? "unknown" : "estimated", amountUsd: unknown ? null : 3 });
-      const initial = (await getCohort(receipt.sceneId))!;
-      expect(initial.siteCostUsd).toBe(0); expect(initial.incrementalPolicyCostUsd ?? 0).toBe(0);
-      expect(unknown ? initial.unknownCostReceipts : initial.estimatedCostReceipts).toBe(1);
-      if (!scenario.startsWith("supersede")) return;
-      await recordCohortCostReceipt({ ...receipt, receiptId: "rq-final", supersedesReceiptId: receipt.receiptId });
-    } else {
-      await recordCohortCostReceipt(receipt);
-      if (scenario === "duplicate") await recordCohortCostReceipt(receipt);
-      if (scenario === "concurrent_duplicate") await Promise.all([recordCohortCostReceipt(receipt), recordCohortCostReceipt(receipt), recordCohortCostReceipt(receipt)]);
-      if (scenario === "changed_amount") await expect(recordCohortCostReceipt({ ...receipt, amountUsd: 9 })).rejects.toThrow("receipt_conflict");
-      if (scenario === "changed_source") await expect(recordCohortCostReceipt({ ...receipt, sourceDigest: `sha256:${"b".repeat(64)}` })).rejects.toThrow("receipt_conflict");
-      if (scenario === "settled_immutable") await expect(recordCohortCostReceipt({ ...receipt, receiptId: "rq-new", supersedesReceiptId: receipt.receiptId, amountUsd: 8 })).rejects.toThrow("allocation_conflict");
-      if (scenario === "conflicting_allocation") await expect(recordCohortCostReceipt({ ...receipt, receiptId: "rq-second" })).rejects.toThrow("allocation_conflict");
-    }
-    const cohort = (await getCohort(receipt.sceneId))!;
-    expect(cohort.siteCostUsd).toBe(allocation === "shared_preparation" ? 4 : 0);
-    expect(cohort.incrementalPolicyCostUsd ?? 0).toBe(allocation === "incremental_policy" ? 4 : 0);
-    expect(cohort.unknownCostReceipts ?? 0).toBe(0); expect(cohort.estimatedCostReceipts ?? 0).toBe(0);
   }));
 });

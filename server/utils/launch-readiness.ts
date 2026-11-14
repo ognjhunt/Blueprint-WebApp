@@ -4,7 +4,6 @@ import { getCityLaunchSenderStatus, getEmailTransportStatus } from "./email";
 import { getHostedSessionLiveStoreStatus } from "./hosted-session-live-store";
 import { getBetaCohortPolicySnapshot } from "./beta-cohort-policy";
 import { describeSiteVideoEvidenceConfig } from "./siteVideoEvidenceConfig";
-import { describeResultArtifactRegistryConfig } from "./taskEvaluationResultArtifactProxy";
 
 type LaunchCheck = {
   required: boolean;
@@ -135,9 +134,6 @@ export function buildLaunchReadinessSnapshot() {
     && (firebaseAdminReady || localLaunchSmoke);
 
   const siteVideoEvidence = describeSiteVideoEvidenceConfig();
-  // Reported as a named warning, not a blocker: a missing registry stops
-  // result videos and downloads but must not fail the deploy health gate.
-  const resultArtifacts = describeResultArtifactRegistryConfig();
 
   const checks = {
     server: true,
@@ -152,11 +148,6 @@ export function buildLaunchReadinessSnapshot() {
   };
 
   const launchChecks = {
-    resultArtifacts: {
-      required: false,
-      ready: resultArtifacts.ready,
-      detail: resultArtifacts.detail,
-    },
     siteVideoEvidence: {
       required: siteVideoEvidence.enabled,
       ready: siteVideoEvidence.ready,

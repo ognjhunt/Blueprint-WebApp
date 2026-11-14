@@ -2,12 +2,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
 import { createHash } from "node:crypto";
 import { listTaskBrowseCards, projectTaskBrowseCard, readTaskCardDetail } from "../utils/taskBrowse";
-import { Request, Response, Router } from "express";
-import {
-  getPublicConfiguredSceneOffering,
-  listPublicConfiguredSceneOfferings,
-} from "../utils/configuredScenePublicOffering";
-import { readConfiguredSceneThumbnail } from "../utils/configuredSceneThumbnail";
+import { Response, Router } from "express";
 import { companyViewerForRequest, libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { loadCompanyJobAccess } from "../utils/teamJobAccess";
 import { loadCompanyJobPage } from "../utils/companyJobPage";
@@ -148,51 +143,6 @@ router.get("/tasks/:taskId", async (req, res) => {
     if (!item) return res.status(404).json({ error: "This job is not in the job library." });
     return res.json({ item });
   } catch { return res.status(503).json({ error: "This job could not be loaded." }); }
-});
-
-/**
- * Robot teams see sites through the task cards a site approves (`/tasks`);
- * configured-scene offerings stay public because the Pipeline publishes them
- * as public on purpose.
- */
-router.get("/", async (req: Request, res: Response) => {
-  const limit = Math.max(1, Math.min(Number(req.query.limit || 24), 100));
-  const configuredScenes = await listPublicConfiguredSceneOfferings(limit);
-  const items = configuredScenes.filter(
-    (item) => item.dataSource === "pipeline",
-  ).slice(0, limit);
-  res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  res.json({
-    items,
-    count: items.length,
-  });
-});
-
-router.get("/:siteWorldId/thumbnail", async (req: Request, res: Response) => {
-  try {
-    const resolved = await getPublicConfiguredSceneOffering(
-      String(req.params.siteWorldId || ""),
-    );
-    if (!resolved) return res.status(404).json({ error: "Public thumbnail not found" });
-    const buffer = await readConfiguredSceneThumbnail(
-      resolved.offering.presentation.task_thumbnail,
-    );
-    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-    res.type("png");
-    return res.send(buffer);
-  } catch {
-    return res.status(503).json({ error: "Public thumbnail is unavailable" });
-  }
-});
-
-router.get("/:siteWorldId", async (req: Request, res: Response) => {
-  const siteWorldId = String(req.params.siteWorldId || "");
-  const configuredScene = await getPublicConfiguredSceneOffering(siteWorldId);
-  if (configuredScene?.card) {
-    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-    return res.json(configuredScene.card);
-  }
-  return res.status(404).json({ error: "Site world not found" });
 });
 
 export default router;

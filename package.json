@@ -36,13 +36,12 @@
     "qa:operator": "tsx scripts/qa/run-operator-surfaces.ts",
     "test:coverage": "vitest run --coverage --exclude client/tests/build-output.test.ts",
     "test:build-output": "vitest run client/tests/build-output.test.ts",
-    "test:e2e": "playwright test && tsx scripts/qa/run-task-evaluation-run-e2e.ts",
+    "test:e2e": "playwright test",
     "alpha:check": "node scripts/alpha-check.mjs",
     "alpha:preflight": "node scripts/launch-preflight.mjs",
     "alpha:env": "node scripts/launch-env-audit.mjs",
     "claims:guard": "tsx scripts/claims/cross-source-claims-guard.ts",
-    "render:import-env": "node scripts/render/import-render-env.mjs",
-    "test:result-consumer:browser": "playwright test --config playwright.result-consumer.config.ts"
+    "render:import-env": "node scripts/render/import-render-env.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

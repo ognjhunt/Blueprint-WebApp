@@ -12,7 +12,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  */
 
 const startTaskEvaluationLaunchForwardWorker = vi.hoisted(() => vi.fn());
-const startCompanyPolicyCandidateOutboxWorker = vi.hoisted(() => vi.fn());
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
 const stopWebsiteDeletions = vi.hoisted(() => vi.fn());
 const startWebsiteCaptureDeletionWorker = vi.hoisted(() => vi.fn(() => stopWebsiteDeletions));
@@ -24,9 +23,6 @@ vi.mock("../utils/websiteJobWindowSweep", () => ({ startWebsiteJobWindowSweepWor
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 vi.mock("../utils/taskEvaluationLaunchForwardWorker", () => ({
   startTaskEvaluationLaunchForwardWorker,
-}));
-vi.mock("../utils/companyPolicyCandidateOutboxWorker", () => ({
-  startCompanyPolicyCandidateOutboxWorker,
 }));
 vi.mock("../config/env", () => ({ validateEnv }));
 vi.mock("../logger", () => ({
@@ -44,7 +40,6 @@ afterEach(() => {
 describe("worker entrypoint", () => {
   it("shares the same shutdown promise for concurrent signals", async () => {
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(vi.fn());
-    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(vi.fn());
     const { startWorker } = await import("../worker");
     const handle = startWorker();
     const first = handle.stop();
@@ -53,35 +48,28 @@ describe("worker entrypoint", () => {
   });
   it("boots through validateEnv and stops each worker exactly once", async () => {
     const stopLaunchForwarder = vi.fn();
-    const stopCompanyPolicyOutbox = vi.fn();
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(stopLaunchForwarder);
-    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(stopCompanyPolicyOutbox);
 
     const { startWorker } = await import("../worker");
     const handle = startWorker();
 
     expect(validateEnv).toHaveBeenCalled();
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
-    expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
 
     await handle.stop();
     await handle.stop();
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
-    expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
   });
 
   it("can run the Task Evaluation launch forwarder without unrelated workers", async () => {
     process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER = "true";
     const stopLaunchForwarder = vi.fn();
-    const stopCompanyPolicyOutbox = vi.fn();
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(stopLaunchForwarder);
-    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(stopCompanyPolicyOutbox);
 
     const { startWorker } = await import("../worker");
     const handle = startWorker();
 
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
-    expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
     // Withdrawal storage deletion runs in the deployed launch-forward mode.
     expect(startWebsiteCaptureDeletionWorker).toHaveBeenCalledTimes(1);
     // So does the window sweep that ends a job the Pipeline went quiet on.
@@ -91,7 +79,6 @@ describe("worker entrypoint", () => {
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
     expect(stopWebsiteDeletions).toHaveBeenCalledTimes(1);
     expect(stopWebsiteJobWindowSweep).toHaveBeenCalledTimes(1);
-    expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
   });
 });
 

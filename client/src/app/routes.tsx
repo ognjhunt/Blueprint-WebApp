@@ -60,11 +60,6 @@ const Refunds = lazyRoute(() => import("../pages/Refunds"));
 const PrivacyPrevious = lazyRoute(() => import("../pages/PrivacyPrevious"));
 const TermsPrevious = lazyRoute(() => import("../pages/TermsPrevious"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
-// The launch control room behind its access gate (admin/ops role or the
-// server-enforced launch-lab bearer link).
-const TaskEvaluationLaunchesGate = lazyRoute(
-  () => import("../pages/TaskEvaluationLaunchesGate"),
-);
 const AdminRobotTeamAccess = lazyRoute(() => import("../pages/AdminRobotTeamAccess"));
 const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 
@@ -73,11 +68,6 @@ const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/workspace/Overview"));
 const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
-const AppEvaluationRunProgress = lazyRoute(() => import("../pages/app/EvaluationRunProgress"));
-const AppTaskEvaluationResultDetail = lazyRoute(
-  () => import("../pages/app/TaskEvaluationResultDetail"),
-);
-const AppNativeG1PrivateReview = lazyRoute(() => import("../pages/app/NativeG1PrivateReview"));
 
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
 
@@ -343,14 +333,6 @@ export const appRoutes: AppRoute[] = [
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
   { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
-  { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },
-  { path: "/app/results/:recordId", layout: "public", shell: "bare", component: AppTaskEvaluationResultDetail },
-  { path: "/app/g1-reviews/:runId", layout: "protected", shell: "bare", component: AppNativeG1PrivateReview },
-
-  // Legacy ops aliases route to protected admin/operator truth surfaces.
-  // Gated in TaskEvaluationLaunchesGate: an admin/ops role, or the temporary
-  // launch-lab bearer capability that the server enforces.
-  { path: "/ops/task-evaluation-launches", layout: "public", component: TaskEvaluationLaunchesGate },
 
   // 404
   { layout: "public", shell: "bare", component: NotFound },

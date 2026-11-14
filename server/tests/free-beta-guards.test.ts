@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
-import { canDispatchFreeBetaRun } from "../utils/freeBeta";
 import { hasCurrentRecordingConsent, RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { successRateBand, wilsonLowerBound, SUCCESS_RATE_BAND_CLAIM } from "../utils/successRateConfidence";
 import { createCaptureUploadToken, verifyCaptureUploadToken } from "../utils/captureUploadToken";
@@ -13,12 +12,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../utils/captureDispatch", () => ({ decideCaptureDispatch: () => ({ dispatch: true, channel: "self_capture_upload" }) }));
 vi.mock("../logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
-vi.mock("../utils/robotTeamBalance", () => ({ releaseReservation: vi.fn(), settleReservation: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(async () => ({ enqueued: true })) }));
-vi.mock("../utils/robotTeamNotifications", () => ({ notifyTeamOfRunOutcome: vi.fn(async () => ({ enqueued: true })) }));
-vi.mock("../utils/agentRunNotificationRecovery", () => ({ reconcileAgentRunNotifications: vi.fn() }));
 const { authorizeCaptureUpload } = await import("../utils/captureUploadAuthorization");
-const { markRunStarted, listRequestedRuns } = await import("../utils/agentEvalRuns");
 
 beforeEach(() => sharedFakeFirestoreState.docs.clear());
 afterEach(() => vi.unstubAllEnvs());
@@ -36,25 +31,6 @@ describe("free beta authority", () => {
     expect((await authorizeCaptureUpload("request")).allowed).toBe(true);
     request.request.consent_attestation.granted = false;
     expect((await authorizeCaptureUpload("request")).holdReason).toBe("recording_consent_required");
-  });
-  it.each(["private", undefined, "unknown"])("never starts a queued %s run", async evaluationPurpose => {
-    sharedFakeFirestoreState.docs.set("evaluationRuns/run", {
-      runId: "run", evaluationPurpose, quotedUsd: 99, state: "requested", episodesRun: null,
-      moneyResolved: false, dispatchPending: true, requestedAtIso: new Date().toISOString(),
-      settlementDueAtMs: Date.now() + 100_000, executionAdmission: { digestSha256: "digest" },
-    });
-    expect(await listRequestedRuns()).toEqual([]);
-    expect(await markRunStarted({ runId: "run", pipelineRunId: "pipeline", executionAdmissionDigest: "digest" })).toBe(false);
-    expect(sharedFakeFirestoreState.docs.get("evaluationRuns/run")?.dispatch).toBeUndefined();
-  });
-  it("requires an explicit free purpose and admission", () => {
-    expect(canDispatchFreeBetaRun({ evaluationPurpose: "pilot", quotedUsd: 99, executionAdmission: { digestSha256: "d" } })).toBe(false);
-    expect(canDispatchFreeBetaRun({ evaluationPurpose: "pilot", quotedUsd: 0 })).toBe(false);
-    expect(canDispatchFreeBetaRun({ evaluationPurpose: "pilot", quotedUsd: 0, executionAdmission: { digestSha256: "d" } })).toBe(false);
-    expect(canDispatchFreeBetaRun({ evaluationPurpose: "pilot", quotedUsd: 0, executionAdmission: { digestSha256: "d", envelope: { funding: {
-      payer: "blueprint", customer_price_usd: 0, cap_usd: 10, max_attempts: 1,
-      approved_by: "operator", approval_digest: "sha256:" + "a".repeat(64), expires_at_iso: "2100-01-01T00:00:00Z",
-    } } } })).toBe(true);
   });
 });
 

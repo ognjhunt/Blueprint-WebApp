@@ -23,8 +23,6 @@ vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async (id: string) => (awai
 vi.mock("../utils/captureFootageReview", () => ({ findPriorFootageReview: async () => ({ state: "none" }) }));
 vi.mock("../utils/siteTaskBriefReading", () => ({ mergeFootageIntoBrief: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotifications: vi.fn() }));
-vi.mock("../utils/agentRunResultNotifications", () => ({ reconcileAgentRunResultNotifications: vi.fn() }));
-vi.mock("../utils/taskEvaluationNotificationRetry", () => ({ reconcileTaskEvaluationNotificationRetries: vi.fn() }));
 import { enqueueCoverageReview, reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { deliverOutbox } from "../utils/captureOutbox";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
