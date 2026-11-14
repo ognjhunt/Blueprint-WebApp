@@ -78,7 +78,7 @@ import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparation
 import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer, currentPlaceAnswer, taskTargetSelection } from "../utils/websiteTaskTargetChoice";
 import { taskTargetChoiceRequestSchema } from "../utils/taskTargetChoiceContract";
 import { decideOwnerSuccessProposal, loadOwnerSuccessView, ownerSuccessDecisionRequestSchema } from "../utils/websiteOwnerSuccessConfirmation";
-import { decideRobotAccessProposal, loadRobotAccessView, robotAccessDecisionRequestSchema } from "../utils/websiteRobotAccessRemoval";
+import { decideRobotAccessProposal, robotAccessDecisionRequestSchema } from "../utils/websiteRobotAccessRemoval";
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -1345,19 +1345,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           session: captureSession.data(), preparationStatus, sceneProgression: sceneProgressionWork, answer: bareAnswerWork,
           brief } : undefined)))
       : Promise.resolve(null);
-    const [sceneProgression, successThresholds, robotAccess, ownerAnswer] = await Promise.all([
+    const [sceneProgression, successThresholds, ownerAnswer] = await Promise.all([
       sceneProgressionWork,
       // The job's proposed success thresholds, for the owner to confirm: they exist only once the scene is handed off.
       payload.scope === "owner" && preparationStatus?.state === "handed_off"
         ? loadOwnerSuccessView(payload.requestId, payload.captureId) : null,
-      // Blueprint's proposal to move chairs or stools out of the robot's way in the simulation, for the owner only.
-      // Not gated on the live preparation read being handed_off: the proposal itself is past hand-off (the Pipeline
-      // sends one only from a screening request's completed scene, kept only on this job's verified scene intake),
-      // while that read is a bounded round trip to the Pipeline that says "unavailable" whenever it cannot be
-      // confirmed. The owner was emailed this question, so the page must show it while it waits. Rights still hide it.
-      payload.scope === "owner" && !request?.captureRights.consent_revoked && !footageBeforeAccount
-        && preparationStatus?.state !== "authority_ended"
-        ? loadRobotAccessView(payload.requestId, payload.captureId) : null,
       ownerAnswerWork,
     ]);
     // The site's answer to the optional question about the guessed object to move, bound to this exact source.
@@ -1484,8 +1476,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         && preparationStatus.robotFitPrecheck?.status === "no_fit" ? preparationStatus.robotFitPrecheck : null,
       // How the robots are scored, for the owner only: confirm, or say it is wrong. Never a number to edit.
       successThresholds: payload.scope === "owner" && !request?.captureRights.consent_revoked ? successThresholds : null,
-      // Whether to move named furniture out of the robot's way in the simulation, for the owner only.
-      robotAccess: payload.scope === "owner" && !request?.captureRights.consent_revoked ? robotAccess : null,
       // Which robot most likely fits the job, for the owner only: a fit check against published specifications.
       answer: ownerAnswer,
       // The site's tap answers to the few quick questions (PACKAGE_E E1), for the owner only.

@@ -344,9 +344,8 @@ it.each([false, true])("retains late owner-closed evidence historically in actua
       success_rate: 2 / 3, session_result_digest: screeningSha("8") }) });
   await ingestBetaPolicyScreening(next);
   const evidence = await loadManagedJobEvidence("job-one", scientificBriefDigest(row("siteTaskBriefs/job-one")));
-  expect(evidence[0].current).toBe(false);
-  expect(evidence[0].screening?.candidates[0].state).toBe("completed");
-  expect(evidence[0].screening?.candidates[0].scored).toBe(3);
+  // Stored, and shown to no one (Blueprint's own early trial is no longer on any page).
+  expect(evidence).toEqual([]);
   expect(row("taskEvaluationPolicyRuns/campaign-one").publication_digest).toBe(next.publication_digest);
   expect((await observeBetaScreeningExecutionControl(fixture.request)).status).toBe("stopped");
 });
@@ -357,13 +356,13 @@ it.each([false, true])("reads current owner closure before any monitor observati
     closed_at_iso: new Date(NOW).toISOString(), new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
   row("inboundRequests/job-one").website_run_closures = { [closure.capture_id]: { ...closure, closure_digest: crossRuntimeDigest(closure) } };
   const readback = () => loadManagedJobEvidence("job-one", scientificBriefDigest(row("siteTaskBriefs/job-one")));
-  expect((await readback())[0].current).toBe(false);
+  expect(await readback()).toEqual([]);
   if (replay) {
     expect((await ingestBetaPolicyScreening(fixture.publication)).status).toBe("replayed");
     expect(row("taskEvaluationPolicyRuns/campaign-one").state).toBe("closed");
     expect(row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested).toBe(true);
   }
-  expect((await readback())[0].current).toBe(false);
+  expect(await readback()).toEqual([]);
   expect(row("taskEvaluationPolicyRuns/campaign-one").publication_digest).toBe(fixture.publication.publication_digest);
   expect(controls()).toBeUndefined();
 });
@@ -375,7 +374,8 @@ it.each(["owner_closure", "active_capture", "scene_revocation", "scene_revision"
   await ingestBetaPolicyScreening(completed);
   const briefDigest = scientificBriefDigest(row("siteTaskBriefs/job-one"));
   const reference = { runId: "campaign-one", resultDigest: completed.publication_digest };
-  expect((await assertManagedJobEvidenceReference("job-one", briefDigest, reference)).current).toBe(true);
+  // A trial run is never a current evidence reference any more, whatever its source.
+  await expect(assertManagedJobEvidenceReference("job-one", briefDigest, reference)).rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
   const scientificBytes = JSON.stringify(row(`captureTaskEvaluationRuns/${row("taskEvaluationPolicyRuns/campaign-one").result_record_id}`));
   if (change === "owner_closure") {
     const closure = { schema_version: "website_run_closure.v1", request_id: "job-one", capture_id: fixture.request.source.capture_id,
@@ -391,7 +391,7 @@ it.each(["owner_closure", "active_capture", "scene_revocation", "scene_revision"
   } else {
     fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake);
   }
-  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+  expect(await loadManagedJobEvidence("job-one", briefDigest)).toEqual([]);
   await expect(assertManagedJobEvidenceReference("job-one", briefDigest, reference)).rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
   expect(JSON.stringify(row(`captureTaskEvaluationRuns/${row("taskEvaluationPolicyRuns/campaign-one").result_record_id}`))).toBe(scientificBytes);
   expect(controls()).toBeUndefined();
@@ -413,14 +413,12 @@ it.each(["consent", "scene", "capture"])("keeps consumed %s revocation historica
   job.consent_revoked = false; fixture.intake.revocation_requested = false;
   store.state.docs.delete(`captureUploadSessions/${fixture.request.source.capture_id}`);
   const briefDigest = scientificBriefDigest(row("siteTaskBriefs/job-one"));
-  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+  expect(await loadManagedJobEvidence("job-one", briefDigest)).toEqual([]);
   const completed = sealScreening({ ...fixture.publication, status: "completed", revision: 2,
     candidates: fixture.publication.candidates.map(candidate => ({ ...candidate, status: "completed", episodes_scored: 3,
       episodes_succeeded: 2, episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("8") })) });
   await ingestBetaPolicyScreening(completed);
-  const evidence = (await loadManagedJobEvidence("job-one", briefDigest))[0];
-  expect(evidence).toMatchObject({ current: false, resultDigest: completed.publication_digest });
-  expect(evidence.screening?.candidates[0]).toMatchObject({ state: "completed", scored: 3 });
+  expect(await loadManagedJobEvidence("job-one", briefDigest)).toEqual([]);
   await expect(assertManagedJobEvidenceReference("job-one", briefDigest, { runId: "campaign-one", resultDigest: completed.publication_digest }))
     .rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
   expect(await observeBetaScreeningExecutionControl(fixture.request)).toEqual(stopped);
@@ -448,9 +446,9 @@ it("joins native guest evidence to its current capture as well as its retained s
   const job = row("inboundRequests/job-one"), briefDigest = scientificBriefDigest(row("siteTaskBriefs/job-one"));
   const reference = { runId: "campaign-one", resultDigest: completed.publication_digest };
   job.active_capture_id = native.request.source.capture_id;
-  expect((await assertManagedJobEvidenceReference("job-one", briefDigest, reference)).current).toBe(true);
+  await expect(assertManagedJobEvidenceReference("job-one", briefDigest, reference)).rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
   job.active_capture_id = "guest-new-current";
-  expect((await loadManagedJobEvidence("job-one", briefDigest))[0]).toMatchObject({ current: false, resultDigest: completed.publication_digest });
+  expect(await loadManagedJobEvidence("job-one", briefDigest)).toEqual([]);
   await expect(assertManagedJobEvidenceReference("job-one", briefDigest, reference))
     .rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
 });
@@ -463,7 +461,7 @@ it("never treats a completed candidate as permission to resume processing", asyn
   await ingestBetaPolicyScreening(completed);
   expect((await observeBetaScreeningExecutionControl(fixture.request)).stop_reason).toBe("screening_candidate_closed");
   expect(row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested).not.toBe(true);
-  expect((await loadManagedJobEvidence("job-one", scientificBriefDigest(row("siteTaskBriefs/job-one"))))[0].current).toBe(true);
+  expect(await loadManagedJobEvidence("job-one", scientificBriefDigest(row("siteTaskBriefs/job-one")))).toEqual([]);
 });
 
 it("rejects unscoped or unknown request fields and non-finite or unsafe caller deadlines", () => {

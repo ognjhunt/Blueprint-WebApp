@@ -4,7 +4,6 @@
  * tab shows (`routes/workspace.ts`, F-05), from one place.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { withoutRegistryTeams } from "./betaCandidateSelection";
 import { scientificBriefDigest } from "./jobEvidenceContract";
 import { loadManagedJobEvidenceForWorkspace } from "./jobManagedEvaluation";
 import type { ManagedJobEvidenceSummary } from "./managedJobEvidenceSummary";
@@ -18,12 +17,10 @@ export function assertSiteJob(record: Record<string, any> | undefined): asserts 
     "Recording permission was withdrawn. Contact Blueprint to review this job before continuing.");
 }
 
-/** A site's view of a run: no registry teams, operator instruction or budget figure, which are Blueprint's own records and controls (F-03). */
+/** A site's view of a run: no operator instruction, which is Blueprint's own record (F-03). */
 export function managedEvidenceForSite(item: ManagedJobEvidenceSummary): ManagedJobEvidenceSummary {
-  const { opsNextAction: _operator, ...site } = withoutRegistryTeams(item);
-  if (!site.screening?.budget) return site;
-  const { budget: _budget, ...screening } = site.screening;
-  return { ...site, screening };
+  const { opsNextAction: _operator, ...site } = item;
+  return site;
 }
 
 /** The job's runs in the site's view, read against its current brief. */

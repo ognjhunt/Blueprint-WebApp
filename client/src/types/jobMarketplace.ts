@@ -32,7 +32,6 @@ export interface JobMarketplaceWorkflow {
   evidence?: JobEvidenceSummary[];
   managedEvidence?: JobManagedEvidenceSummary[];
   managedEvidenceUnavailable?: boolean;
-  candidateReadiness?: JobCandidateReadiness;
   evidenceContext?: { briefDigest: string; question: string | null; testbedDigest: string | null } | null;
 }
 
@@ -126,9 +125,3 @@ export interface JobCandidateSelection {
   candidates: Array<{ candidateId: string; resultRank: number | null; choiceBlocker: string | null }>;
 }
 
-/** Preparation inventory only. Compatibility and task outcomes have not been evaluated. */
-export type JobCandidateReadiness = {state: "unavailable"; message: string} | {
-  state: "available"; revision: string; catalogCandidateCount: number;
-  candidates: Array<{candidateId: string; configurationDigest: string; name: string; compatibility: "not_evaluated";
-    kind: "learned_policy" | "scripted_baseline"; notes: string[]}>;
-};

@@ -621,7 +621,6 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
     ["client/src/lib/jobOutlook.ts", "customer_messages"],
     ["client/src/lib/siteAnswer.ts", "customer_messages"],
     ["client/src/lib/simulationProof.ts", "customer_messages"],
-    ["client/src/lib/screeningPlainLanguage.ts", "customer_messages"],
     ["server/utils/screeningSetupFlagSentences.ts", "customer_messages"],
     // The new-video asks, the job-naming ask and the general "stopped" sentence (review, 2026-11-12).
     ["server/utils/taskPreparationOutcome.ts", "customer_messages"],

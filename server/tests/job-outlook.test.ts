@@ -10,7 +10,6 @@ import { LIVE_RUN_GRACE_SECONDS, jobOutlook, outlookHasAnswer, recordedEndingOf,
 import { OUTLOOK_HOLDS } from "../../client/src/lib/jobOutlook";
 import { projectSimulationProof, type SimulationProof } from "../../client/src/lib/simulationProof";
 import { preparingEvaluation, winnerEvaluation } from "../../client/tests/fixtures/siteAnswer";
-import { screeningReasonLabel } from "../../client/src/lib/screeningPlainLanguage";
 import { setupFlagSentence } from "../utils/screeningSetupFlagSentences";
 
 const READY = { state: "ready" as const, unsized: false, reason: null };
@@ -74,7 +73,7 @@ describe("the job's outlook, from the rule", () => {
       expect(outlook.sentence, label).toBeTruthy();
       expect(outlookHasAnswer(outlook), label).toBe(phase !== "ended_by_site");
     }
-    expect(jobOutlook(base({ windowEnded: true })).sentence).toBe("The time for this job ran out before our early trial could run.");
+    expect(jobOutlook(base({ windowEnded: true })).sentence).toBe("The time for this job ran out.");
     expect(jobOutlook(base({ noGrantEnded: true })).sentence).toBe("We have not built a simulation for this job.");
     expect(jobOutlook(base({ scene: { state: "held" } })).sentence).toBe("Work on the simulation of your job is on hold.");
     expect(jobOutlook(base({ answer: OTHER, noGrantEnded: true })).sentence).toBe(OTHER.reason);
@@ -154,7 +153,7 @@ describe("the job's outlook, from the rule", () => {
     }
     const blocked = proofOf({ state: "blocked", outcome: null, screening: { candidates: [] } });
     expect(jobOutlook(base({ windowEnded: true, runStoppedByWindow: true, proof: blocked }))).toEqual({ phase: "no_test",
-      reason: "window_ended_during_test", sentence: "The time for this job ran out during our early trial." });
+      reason: "window_ended_during_test", sentence: "The time for this job ran out." });
     // A run that ended on its own, before or after the window passed, keeps its own line.
     expect(jobOutlook(base({ windowEnded: true, windowEndedAtEpoch: 1, proof: blocked })).reason).toBe("run_ended");
     expect(jobOutlook(base({ windowEnded: true, proof: proofOf({}) })).phase).toBe("result");
@@ -206,8 +205,7 @@ describe("the job's outlook, from the rule", () => {
 });
 
 describe("the review's small items", () => {
-  it("says what a lost policy server means, and labels a try it did not count", () => {
+  it("says what a lost policy server means", () => {
     expect(setupFlagSentence("session_policy_server_lost")).toBe("This robot's software stopped during the trial, so only some tries were counted.");
-    expect(screeningReasonLabel("policy_server_unavailable").toLowerCase()).toBe("not counted: the robot's software was not running.");
   });
 });

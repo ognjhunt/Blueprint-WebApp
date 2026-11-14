@@ -3,7 +3,7 @@ import { INTRODUCTION_CANCELLED } from "@/lib/siteIntroductions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOTHING_IS_SHARED, NOT_SHARED_YET, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
-import { projectSimulationProof } from "@/lib/simulationProof";
+import { projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
 import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
 import type { ComponentProps } from "react";
@@ -13,8 +13,8 @@ import type { ComponentProps } from "react";
  * screen itself shows the working screen when no outlook came (review, 2026-11-11); a test about the phase passes its
  * own outlook, or null, and that is used as given.
  */
-function SiteAnswer(props: ComponentProps<typeof SiteAnswerScreen>) {
-  return <SiteAnswerScreen {...props} outlook={"outlook" in props ? props.outlook : serverOutlookFor(props.answer, props.proof ?? null)} />;
+function SiteAnswer({ proof = null, ...props }: ComponentProps<typeof SiteAnswerScreen> & { proof?: SimulationProof | null }) {
+  return <SiteAnswerScreen {...props} outlook={"outlook" in props ? props.outlook : serverOutlookFor(props.answer, proof)} />;
 }
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
@@ -33,7 +33,6 @@ const FIND = "Share my job";
 /** The recorded statement, word for word: the share step's own words around it changed, it did not. */
 /** The job page's one limits line, in every state. */
 const LIMITS = "Nothing here is a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
-const TRIAL_LINE = "This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.";
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
 const SOURCE = "From published specifications and where it has been used.";
 const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
@@ -43,13 +42,6 @@ const HIDDEN = { sharing: { state: "not_visible" as const, sharedAtIso: "2026-11
 const region = (name: string) => screen.getByRole("region", { name });
 const companies = () => region("Deployment companies");
 const firstLook = () => region("First look");
-/** The early trial is folded by default; a test that reads its rows opens it, as a site would. */
-function openTrial() {
-  const fold = document.querySelector("details.site-trial");
-  expect(fold).not.toHaveAttribute("open");
-  fold!.setAttribute("open", "");
-  return region("Early trial of openly available robot software");
-}
 const winnerProof = projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick });
 const WORD_BUDGET = 110;
 const words = (text: string | null) => (text?.match(/[^\s]+/g) ?? []).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
@@ -134,89 +126,15 @@ describe("the job page's sections, bare bones", () => {
     expect(screen.queryByText("Your video does not show the whole work area.")).toBeNull();
   });
 
-  it("keeps the first look first when our early trial has a result, and folds the trial under its fixed line", () => {
-    // 7 of 10 against 3 of 10 and 2 of 10 is about 0.96 against the next: ahead, fairly sure, and it could still be chance.
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={winnerProof} onShowDetails={() => {}} />);
+  it("has three sections and no early trial, even where an early trial result was stored", () => {
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} outlook={serverOutlookFor(readyAnswer, winnerProof)} onShowDetails={() => {}} />);
     const page = screen.getByRole("region", { name: "Your job" });
-    expect([...page.querySelectorAll("h2, summary")].map(node => node.textContent)).toEqual(["Deployment companies", "First look", "Simulation of your site",
-      "Early trial of openly available robot software"]);
-    // The first look leads, whatever the trial found; the trial is never said to be the answer.
+    expect([...page.querySelectorAll("h2, summary")].map(node => node.textContent)).toEqual(["Deployment companies", "First look", "Simulation of your site"]);
     expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
     expect(within(region("Simulation of your site")).getByText("The simulation of your site is ready.")).toBeVisible();
-    const trial = openTrial();
-    expect(within(trial).getByText(TRIAL_LINE)).toBeVisible();
-    expect(within(trial).getByRole("heading", { level: 3, name: "Was ahead in our trial" })).toBeVisible();
-    expect(trial.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
-    // The option breaks on purpose: the robot, then "+ its software", each its own part.
-    expect([...trial.querySelectorAll(".bare-big .bare-part")].map(part => part.textContent?.trim())).toEqual(["Franka arm", "+ π0.5"]);
-    expect(within(trial).getByText("Robot software by Physical Intelligence")).toBeVisible();
-    expect(within(within(trial).getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
-      .toEqual(["✓Did the job in 7 of 10 tries", "✓Ahead of the 2 other robots we tried"]);
-    expect(trial).toHaveTextContent("How sure are we? Fairly sure");
-    expect(within(trial).getByText("With this few tries the gap could still be chance.")).toBeVisible();
-    // No share button with a trial result either (sharing is the service).
-    expect(within(companies()).queryByRole("button", { name: FIND })).toBeNull();
+    expect(page.textContent).not.toMatch(/early trial|our trial|openly available|running now/i);
     expect(within(page).getByText(LIMITS)).toBeVisible();
     expect(page.textContent).not.toMatch(BANNED);
-  });
-
-  it("says did best only by the probability rule, and lowers how sure by one step when a set-up flag is raised", () => {
-    const clear = projectSimulationProof({ evaluation: [{ ...winnerEvaluation, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
-      index === 0 ? { ...row, succeeded: 10, failed: 0 } : row) } }], pick: readyAnswer.pick });
-    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={clear} />);
-    expect(within(openTrial()).getByRole("heading", { level: 3, name: "Did best in our trial" })).toBeVisible();
-    expect(region("Early trial of openly available robot software")).toHaveTextContent("How sure are we? Sure");
-    unmount();
-    const flagged = projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcomeCaveat: "scene_setup" as const, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
-      index === 0 ? { ...row, succeeded: 10, failed: 0 } : row) } }], pick: readyAnswer.pick });
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={flagged} />);
-    const trial = openTrial();
-    expect(trial).toHaveTextContent("How sure are we? Fairly sure");
-    expect(within(trial).getByText("Our simulation set-up may have affected this result.")).toBeVisible();
-  });
-
-  it("says a zero as a valid result of the trial: no robot finished, with the set-up notice", () => {
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [allZeroEvaluation], pick: readyAnswer.pick })} />);
-    const trial = openTrial();
-    expect(within(trial).getByRole("heading", { level: 3, name: "Tried in our trial" })).toBeVisible();
-    expect(within(trial).getByText("No robot finished the job in our trial.")).toHaveClass("bare-big");
-    // The fixture carries no progress, so nothing is called closest.
-    expect(within(trial).getByText("4 robots tried; none finished the job.")).toBeVisible();
-    expect(within(trial).getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
-    expect(within(trial).getByText(TRIAL_LINE)).toBeVisible();
-    expect(screen.queryByText(/Did best|Was ahead/)).toBeNull();
-    // The first look still stands beside a zero.
-    expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
-    expect(screen.getByText(LIMITS)).toBeVisible();
-  });
-
-  it("says the set-up notice under no clear winner when a set-up flag is raised, as the email and the card do", () => {
-    const tie = projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcomeCaveat: "scene_setup" as const, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
-      index < 2 ? { ...row, scored: 2, succeeded: 1, failed: 1 } : row) } }], pick: readyAnswer.pick });
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={tie} />);
-    const trial = openTrial();
-    expect(within(trial).getByText("No clear winner yet")).toBeVisible();
-    expect(within(trial).getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
-  });
-
-  it("says no clear winner yet with the top option's count, and that the trial runs while it runs", () => {
-    const tie = projectSimulationProof({ evaluation: [{ ...winnerEvaluation, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
-      index < 2 ? { ...row, scored: 2, succeeded: 1, failed: 1 } : row) } }], pick: readyAnswer.pick });
-    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={tie} />);
-    const trial = openTrial();
-    expect(within(trial).getByText("No clear winner yet")).toHaveClass("bare-big");
-    expect(within(trial).getByText(/^Top: Franka arm \+ .*, did the job in 1 of 2 tries\.$/)).toBeVisible();
-    unmount();
-    const running = projectSimulationProof({ evaluation: [{ ...preparingEvaluation, state: "running", screening: { candidates: preparingEvaluation.screening!.candidates.map(row => ({ ...row, state: "running" })) } }], pick: readyAnswer.pick });
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={running} />);
-    const runningTrial = openTrial();
-    expect(within(runningTrial).getByRole("heading", { level: 3, name: "Running now" })).toBeVisible();
-    expect(within(runningTrial).getByText("2 robots")).toHaveClass("bare-big");
-    expect(within(runningTrial).getByText("in the simulation of your site. We'll email you when it finishes.")).toBeVisible();
-    // The job packet is still being built: no button, no statement; the first look stands.
-    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
-    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-    expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
   });
 
   it("says the simulation is being built, with the first look and the two links, and no button", () => {
@@ -236,11 +154,6 @@ describe("the job page's sections, bare bones", () => {
     const { unmount: second } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={queued} />);
     expect(screen.getByText("We're building the simulation of your site.")).toBeVisible();
     second();
-    render(<SiteAnswer token="owner-token" answer={readyAnswer}
-      proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_capability" as const }], pick: readyAnswer.pick })} />);
-    expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
-    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-    expect(screen.getByText("Our early trial did not run. Our trial can't do this kind of job yet.")).toBeVisible();
   });
 
   it("shows the success rule and the link to the simulation when the page has them", () => {
@@ -272,25 +185,11 @@ describe("the job page's sections, bare bones", () => {
 
   // Rule 1 (review, 2026-11-11): when unsure, the job is still being worked on, so nothing is offered to share.
   it("says the packet is being built and offers no button when no outlook came", () => {
-    const { unmount } = render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} proof={null} outlook={null} />);
+    const { unmount } = render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} outlook={null} />);
     expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
     expect(screen.getByText("We're building the simulation of your site.")).toBeVisible();
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
     unmount();
-    // A run under way with no outlook: the trial runs, still nothing to share.
-    render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} outlook={null}
-      proof={projectSimulationProof({ evaluation: [{ ...preparingEvaluation, state: "running" }], pick: readyAnswer.pick })} />);
-    expect(within(openTrial()).getByRole("heading", { level: 3, name: "Running now" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-  });
-
-  it("says the trial runs, offers no button, when the result has not loaded yet, and never says 0 robots", () => {
-    render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} proof={null} outlook={{ phase: "result", reason: null, sentence: null }} />);
-    const trial = openTrial();
-    expect(within(trial).getByRole("heading", { level: 3, name: "Running now" })).toBeVisible();
-    expect(within(trial).getByText("Robots", { exact: true })).toBeVisible();
-    expect(screen.queryByText(/0 robots/)).toBeNull();
-    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
   });
 
   it("says what is true of the card on the other-kind and no-pick screens, and while building", () => {
@@ -314,7 +213,7 @@ describe("the job page's sections, bare bones", () => {
     ["held, kept on file", { answer: cannotAssessAnswer, proof: null, outlook: { phase: "cannot_match" as const, reason: "kept_on_file" as const,
       sentence: "We can't build a simulation for this kind of job yet. We've kept your job on file." } }, false],
     ["with a first look", { answer: readyAnswer, proof: null, outlook: { phase: "no_test" as const, reason: "window_expired" as const,
-      sentence: "The time for this job ran out before our early trial could run." } }, false],
+      sentence: "The time for this job ran out." } }, false],
     ["with a trial result", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick }),
       outlook: { phase: "result" as const, reason: null, sentence: null } }, false],
     ["closed by its owner", { answer: readyAnswer, proof: null, outlook: { phase: "ended_by_site" as const, reason: "closed_by_owner" as const,
@@ -368,16 +267,8 @@ describe("the job page's sections, bare bones", () => {
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
   });
 
-  it("says why our early trial gave no result, when that is known, beside the first look", () => {
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_budget" as const }], pick: readyAnswer.pick })} />);
-    expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
-    expect(screen.getByText("Our early trial did not finish. It stopped at a limit on our side.")).toBeVisible();
-    expect(screen.getByText(LIMITS)).toBeVisible();
-  });
-
   it("says nothing about the early trial before it starts", () => {
-    const notStarted = projectSimulationProof({ evaluation: [], pick: readyAnswer.pick });
-    const { container } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={notStarted} />);
+    const { container } = render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
     expect(container.textContent).not.toMatch(/early trial|our trial|running now|simulation test/i);
   });
 
@@ -424,7 +315,7 @@ describe("the job page's sections, bare bones", () => {
     for (const answer of [readyAnswer, noPickAnswer, cannotAssessAnswer, readingAnswer]) {
       for (const proof of [winnerProof, projectSimulationProof({ evaluation: [allZeroEvaluation], pick: readyAnswer.pick }), null]) {
         const { container, unmount } = render(<><SiteAnswer token="owner-token" answer={answer} proof={proof} />
-          <SiteAnswerDetails answer={answer} proof={proof} onBack={vi.fn()} /></>);
+          <SiteAnswerDetails answer={answer} onBack={vi.fn()} /></>);
         expect(container.textContent).not.toMatch(BANNED);
         expect(container.textContent).not.toMatch(YOUR_ANSWER);
         unmount();
@@ -451,16 +342,15 @@ describe("the details screens", () => {
 
   it("is a short menu of small screens, each only when it has something to say", () => {
     const onOpen = vi.fn(), onBack = vi.fn();
-    render(<SiteAnswerDetails answer={withFigures} proof={winnerProof} onBack={onBack} onOpen={onOpen} />);
+    render(<SiteAnswerDetails answer={withFigures} onBack={onBack} onOpen={onOpen} />);
     expect(screen.getByRole("heading", { level: 1, name: "Details" })).toHaveAttribute("tabindex", "-1");
     expect(within(screen.getByRole("list", { name: "Details" })).getAllByRole("button").map(button => button.textContent)).toEqual([
-      "First look: why this robot", "Other robots", "Robots that don't fit", "What we estimated", "What we couldn't see", "Our early trial", "How far to trust the trial"]);
+      "First look: why this robot", "Other robots", "Robots that don't fit", "What we estimated", "What we couldn't see"]);
     fireEvent.click(screen.getByRole("button", { name: "What we estimated" }));
     expect(onOpen).toHaveBeenCalledWith("estimated");
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     expect(onBack).toHaveBeenCalledTimes(1);
-    // No simulation yet: neither of its screens.
-    expect(detailScreens(withFigures, projectSimulationProof({ evaluation: [], pick: withFigures.pick }))).not.toContain("test");
+    expect(detailScreens(withFigures)).toEqual(["why", "others", "ruled-out", "estimated", "unseen"]);
   });
 
   it("says why this robot in short rows: the figures, the sources, the record, how it is run, and that it is about the robot", () => {
@@ -483,7 +373,7 @@ describe("the details screens", () => {
   });
 
   it("keeps each screen short, the sourced words word for word", () => {
-    for (const name of ["why", "others", "ruled-out", "estimated", "unseen", "test"] as const) {
+    for (const name of ["why", "others", "ruled-out", "estimated", "unseen"] as const) {
       const { container, unmount } = detail(name);
       expect(words(container.textContent), name).toBeLessThanOrEqual(130);
       unmount();
@@ -502,21 +392,6 @@ describe("the details screens", () => {
     const unseen = detail("unseen");
     for (const line of [...readyAnswer.unknowns, ...readyAnswer.confidence.raiseIt]) expect(screen.getByText(line)).toBeVisible();
     unseen.unmount();
-    const test = detail("test");
-    // A ranked list: the lead line, then each option in order with its count, and the winner's mark on row 1.
-    const ranked = screen.getByRole("region", { name: "Ranked" });
-    expect(ranked).toHaveTextContent("In our early trial we ran 3 robots on your job, about 10 tries each, in a simulation of your site.");
-    expect(test.container).toHaveTextContent("This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.");
-    expect([...ranked.querySelectorAll("dt")].map(node => node.textContent)).toEqual([
-      "1. Franka arm + π0.5 · Physical Intelligence", "2. Franka arm + GR00T N1.7 · NVIDIA", "3. Franka arm + MolmoAct 2 · Ai2"]);
-    expect(ranked).toHaveTextContent("Finished 7 of 10 tries");
-    expect(ranked).toHaveTextContent("· Ahead");
-    expect(ranked).toHaveTextContent("With this few tries the gap could still be chance.");
-    expect(ranked).toHaveTextContent("1 more robot was planned but did not run.");
-    test.unmount();
-    detail("trust");
-    expect(screen.getByRole("heading", { level: 1, name: "How far to trust the trial" })).toBeVisible();
-    expect(screen.getAllByRole("link").length).toBe(3);
   });
 
   it("calls the numbers estimates only when every one of them is, and the others robots that fit only when they all do", () => {

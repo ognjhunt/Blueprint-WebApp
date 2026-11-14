@@ -6,10 +6,9 @@ import {
   INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
   isIntroductionRefusalReason,
 } from "@/lib/siteIntroductions";
-import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
-import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TRIAL_LINE, TrustRows, setupCaveatShown, testNotRunLine, testResultOf, type TestResult } from "./SimulationProof";
+import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import {
-  BareBack, BareBig, BareButton, BareParts, BareDone, BareFine, BareGroup, BareLabel, BareLead, BareLinks, BareMenu, BareNotice, BareRows, BareSureness, BareTicks,
+  BareBack, BareButton, BareDone, BareFine, BareGroup, BareLabel, BareLead, BareLinks, BareMenu, BareNotice, BareRows, BareSureness, BareTicks,
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
@@ -21,10 +20,9 @@ import type { FirstLookWords } from "@/lib/firstLookWords";
 import { companyAnswered, isSiteCompanyActivity, NO_ANSWERS_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
- * The site's job page below its title, bare bones (frame of 2026-11-12). Four sections, in order: where the job
- * stands with deployment companies, the first look on paper, the simulation of the site, and, folded, our own early
- * trial of openly available robot software. The trial is supporting evidence, never the site's answer. Every line here
- * is a constant, or a short line chosen by the data that makes it true; each says why beside it.
+ * The site's job page below its title, bare bones (frame of 2026-11-12). Three sections, in order: where the job
+ * stands with deployment companies, the first look on paper, and the simulation of the site. Every line here is a
+ * constant, or a short line chosen by the data that makes it true; each says why beside it.
  */
 /** Sharing is the service (2026-11-12): a shared job's section opens with this. */
 export const SHARED_LINE = "We share your job with the deployment companies we approve.";
@@ -51,8 +49,6 @@ export const ROBOT_NOT_SOFTWARE = "This is the first look: it looks at the robot
 export const SECTION_COMPANIES = "Deployment companies";
 export const SECTION_FIRST_LOOK = "First look";
 export const SECTION_SIMULATION = "Simulation of your site";
-export const SECTION_TRIAL = "Early trial of openly available robot software";
-export { TRIAL_LINE };
 /** The simulation's own lines, by the phase. */
 export const SIMULATION_BUILDING = "We're building the simulation of your site.";
 export const SIMULATION_READY = "The simulation of your site is ready.";
@@ -272,7 +268,7 @@ function Companies({ token, answer, onChanged, ended }: { token: string; answer:
 }
 
 export interface SiteAnswerProps {
-  token: string; answer: SiteAnswerView; proof?: SimulationProofView | null; onIntroductionRequested?: () => void;
+  token: string; answer: SiteAnswerView; onIntroductionRequested?: () => void;
   /** Opens the job description editor (Job settings). */
   onEditJob?: () => void;
   /** Starts a new video. */
@@ -291,81 +287,21 @@ export interface SiteAnswerProps {
   firstLookTable?: FirstLookWords | null;
 }
 
-const SURE_STEPS = SURENESS_STEPS;
-/** Said under the dots when a set-up flag lowers how sure the trial result is. */
-export const SETUP_LOWERS = "Our simulation set-up may have affected this result.";
-export const TESTING_LINE = "in the simulation of your site. We'll email you when it finishes.";
-
-/** "Did the job in 7 of 10 tries". */
-const didJob = (option: SimulationOption) => `Did the job in ${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}`;
-
-/**
- * The early trial's result, inside its folded section: what the trial found, by `testResultOf`. The option named is
- * always row 1 of the ranked list; "did best" and "was ahead" come only from the probability rule.
- */
-function TrialHead({ result }: { result: Exclude<TestResult, null> }) {
-  if (result.kind === "testing") return <BareGroup>
-    <h3 className="bare-label">Running now</h3>
-    {/* An unknown count is never "0 robots". */}
-    <BareBig sub={TESTING_LINE}>{result.entered >= 1 ? `${result.entered} ${result.entered === 1 ? "robot" : "robots"}` : "Robots"}</BareBig>
-  </BareGroup>;
-  const top = result.top;
-  const sub = top.maker ? `Robot software by ${top.maker}` : undefined;
-  if (result.kind === "no_clear_winner") return <BareGroup>
-    <h3 className="bare-label">Tried in our trial</h3>
-    <BareBig sub={testSubLine(result) ?? undefined}>No clear winner yet</BareBig>
-    {result.setupFlag && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
-  </BareGroup>;
-  if (result.kind === "none_finished") return <BareGroup>
-    <h3 className="bare-label">Tried in our trial</h3>
-    {/* "Closest" only when the run graded how far the top option got. A zero is a valid result of the trial. */}
-    <BareBig sub={testSubLine(result) ?? undefined}>No robot finished the job in our trial.</BareBig>
-    {result.setupFlag && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
-  </BareGroup>;
-  // A winner, or the only option tried, which did the job at least once.
-  const step = result.kind === "winner" ? (result.wording === "did_best" ? 2 : 1) : 0;
-  const sure = SURE_STEPS[Math.max(0, step - (result.setupFlag ? 1 : 0))];
-  const reason = result.setupFlag ? SETUP_LOWERS : result.kind === "one_option" ? "Only one robot could be tried."
-    : result.wording === "did_best" ? GAP_UNLIKELY_CHANCE : GAP_COULD_BE_CHANCE;
-  return <>
-    <BareGroup>
-      <h3 className="bare-label">{result.kind === "one_option" ? "Tried in our trial"
-        : result.wording === "did_best" ? "Did best in our trial" : "Was ahead in our trial"}</h3>
-      <BareBig sub={sub}><BareParts parts={optionParts(top.label)} /></BareBig>
-    </BareGroup>
-    <BareGroup>
-      <BareTicks label="Why" items={[{ key: "did", state: "yes", text: didJob(top) },
-        result.kind === "winner"
-          ? { key: "ahead", state: "yes", text: result.others === 1 ? "Ahead of the other robot we tried" : `Ahead of the ${result.others} other robots we tried` }
-          : { key: "only", state: "yes", text: "The only robot we could try on the job" }]} />
-    </BareGroup>
-    <BareGroup><BareSureness filled={sure.filled} word={sure.word} reason={reason} /></BareGroup>
-  </>;
-}
-
 /**
  * The job page's sections. The first look leads whenever it exists, in every phase; the simulation of the site says
- * where it stands; our early trial is folded, labelled, and never said to be the site's answer. There is no share
- * step: a job is shared because its site accepted recording statement v4.
+ * where it stands. There is no share step: a job is shared because its site accepted recording statement v4.
  */
-export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
+export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
   onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, firstLookTable = null }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
-  // worked on (review, 2026-11-11): with no outlook the page says the packet is being built and offers no button; a
-  // result whose trial has not loaded yet shows the trial running.
-  const test = testResultOf(proof);
-  const working: JobPhase = test?.kind === "testing" || proof?.state === "running" ? "testing" : "building";
-  const phase: JobPhase = answer.state === "reading" || outlook?.phase === "reading" ? "reading"
-    : !outlook ? working
-    : outlook.phase === "result" && (!test || test.kind === "testing") ? "testing"
-    : outlook.phase;
+  // worked on (review, 2026-11-11): with no outlook the page says the packet is being built and offers no button.
+  const phase: JobPhase = answer.state === "reading" || outlook?.phase === "reading" ? "reading" : outlook?.phase ?? "building";
   const links = [onShowDetails && answer.state !== "reading" ? { key: "details", label: "See details", onClick: onShowDetails } : null,
     onShowSettings ? { key: "settings", label: "Job settings", onClick: onShowSettings } : null].filter(Boolean) as Array<{ key: string; label: string; onClick: () => void }>;
   const notices = scopeLines(answer);
   const reading = answer.state === "reading" || phase === "reading";
-  // An answer that cannot be checked stays as it is, whatever the trial found, unless the job is still being built
-  // or a trial result leads (as before).
+  // An answer that cannot be checked stays as it is, unless the job is still being built or its simulation is ready.
   const cannot = answer.state === "cannot_assess" && phase !== "building" && phase !== "testing" && phase !== "result";
 
   const endedBySite = phase === "ended_by_site" ? (outlook?.reason === "permission_withdrawn" ? "withdrawn" as const : "closed" as const) : null;
@@ -429,43 +365,27 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     </BareGroup>
   </>;
 
-  // Section 3: the simulation of the site, by the phase; the server's reason sentence for an ending, else the
-  // trial's own line for why it did not run.
+  // Section 3: the simulation of the site, by the phase; the server's reason sentence for an ending.
   const ended = phase === "no_test" || phase === "ended_by_site" || phase === "cannot_match";
-  const notRun = cannot ? null : (ended ? outlook?.sentence : null) ?? (phase === "building" || phase === "testing" || phase === "result" ? null : testNotRunLine(proof));
+  const notRun = cannot || !ended ? null : outlook?.sentence ?? null;
   const simulationLine = phase === "building" ? (outlook?.reason === "step_failed" && outlook.sentence ? outlook.sentence : SIMULATION_BUILDING)
     : phase === "testing" || phase === "result" ? SIMULATION_READY
     : phase === "waiting_on_site" ? outlook?.sentence ?? "Tell us in one sentence what the robot should do, so we can build the simulation of your job."
     : notRun;
-  const caveat = !reading && !cannot && phase !== "result" && setupCaveatShown(proof);
   const rule = successRule?.trim() ? doneMeans(successRule) : null;
   const viewable = Boolean(sceneViewUrl) && !reading;
-  const simulation = simulationLine || caveat || rule || viewable ? <Section id="site-job-simulation" title={SECTION_SIMULATION}>
+  const simulation = simulationLine || rule || viewable ? <Section id="site-job-simulation" title={SECTION_SIMULATION}>
     <BareGroup>
       {simulationLine && <BareLead>{simulationLine}</BareLead>}
-      {caveat && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
       {rule && <p className="bare-helper">{rule}</p>}
       {viewable && <p><a className="ms-text-link" href={sceneViewUrl!} target="_blank" rel="noreferrer">{VIEW_SIMULATION_LABEL}</a></p>}
     </BareGroup>
   </Section> : null;
 
-  // Section 4, folded: our own early trial, while it runs or once it has a result.
-  const trialResult: Exclude<TestResult, null> | null = phase === "testing"
-    ? (test?.kind === "testing" ? test : { kind: "testing", entered: proof?.options?.entered ?? 0 })
-    : phase === "result" && test && test.kind !== "testing" ? test : null;
-  const trial = trialResult ? <section className="site-answer-section" aria-labelledby="site-job-trial">
-    <details className="bare-group site-trial">
-      <summary className="bare-label" id="site-job-trial">{SECTION_TRIAL}</summary>
-      <p className="bare-helper">{TRIAL_LINE}</p>
-      <TrialHead result={trialResult} />
-    </details>
-  </section> : null;
-
   return <section className="site-answer-bare" aria-label="Your job">
     {companies}
     <Section id="site-job-first-look" title={SECTION_FIRST_LOOK}>{firstLook}</Section>
     {simulation}
-    {trial}
     <BareLinks links={links} />
     <BareFine>{LIMITS_JOB_PAGE}</BareFine>
   </section>;
@@ -512,33 +432,30 @@ const LEVEL_WORDS: Readonly<Record<AnswerEvidence["level"], string>> = {
   production: "In real use", pilot: "Tried at a named customer", offered: "Sold for it, no customer named",
 };
 
-export type DetailScreen = "why" | "others" | "ruled-out" | "estimated" | "unseen" | "test" | "trust";
+export type DetailScreen = "why" | "others" | "ruled-out" | "estimated" | "unseen";
 const DETAIL_TITLES: Readonly<Record<DetailScreen, string>> = {
   why: "First look: why this robot", others: "Other robots", "ruled-out": "Robots that don't fit", estimated: "What we estimated",
-  unseen: "What we couldn't see", test: "Our early trial", trust: "How far to trust the trial",
+  unseen: "What we couldn't see",
 };
 
 /** Which detail screens have something to say, in the menu's order. */
-export function detailScreens(answer: SiteAnswerView, proof?: SimulationProofView | null): DetailScreen[] {
+export function detailScreens(answer: SiteAnswerView): DetailScreen[] {
   const pick = answer.state === "ready" ? answer.pick : null;
-  const hasTest = Boolean(proof && proof.state !== "not_started");
-  // The first look and what it rests on first, as the page leads with it; then our early trial.
+  // The first look and what it rests on, as the page leads with it.
   return ([
     (pick || (answer.reason && answer.state !== "ready")) && "why",
     (answer.runnerUp || answer.alsoFit.length || answer.state === "ready") && "others",
     answer.ruledOut.length > 0 && "ruled-out",
     answer.facts.length > 0 && "estimated",
     (answer.unknowns.some(line => !isScopeNote(line)) || answer.confidence.raiseIt.length || answer.confidence.reasons.length) && "unseen",
-    hasTest && "test",
-    hasTest && proof!.state === "done" && "trust",
   ].filter(Boolean)) as DetailScreen[];
 }
 
 /** The details menu: one row per small screen, each with "‹ Back". */
-export function SiteAnswerDetails({ answer, proof, onBack, onOpen }: {
-  answer: SiteAnswerView; proof?: SimulationProofView | null; onBack: () => void; onOpen: (screen: DetailScreen) => void;
+export function SiteAnswerDetails({ answer, onBack, onOpen }: {
+  answer: SiteAnswerView; onBack: () => void; onOpen: (screen: DetailScreen) => void;
 }) {
-  const screens = detailScreens(answer, proof);
+  const screens = detailScreens(answer);
   return <div className="site-answer-details">
     <BareBack onClick={onBack} />
     <h1 tabIndex={-1}>Details</h1>
@@ -588,8 +505,6 @@ export function SiteAnswerDetail({ answer, proof, screen, onBack }: {
     {answer.confidence.raiseIt.length > 0 && <BareRows title="To be surer" rows={answer.confidence.raiseIt.map(line => ({ key: line, value: line }))} />}
     {pick && answer.confidence.reasons.length > 0 && <BareRows title="How sure we are" rows={answer.confidence.reasons.map(line => ({ key: line, value: line }))} />}
   </>;
-  if (screen === "test" && proof) body = <><p className="bare-helper">{TRIAL_LINE}</p><SimulationTestRows proof={proof} /></>;
-  if (screen === "trust" && proof) body = <TrustRows proof={proof} />;
   return <div className="site-answer-details">
     <BareBack onClick={onBack} />
     <h1 tabIndex={-1}>{title}</h1>

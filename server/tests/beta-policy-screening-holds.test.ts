@@ -82,7 +82,7 @@ describe("a website evaluation held before any campaign started", () => {
     ["robot_free_probe_not_completed", "held_setup"],
     ["team_scene_packet_blocked", "held_setup"],
     ["robot_free_probe_unavailable_for_task", "held_capability"],
-  ])("shows %s on the job page as %s and tells the site once", async (reason, outcome) => {
+  ])("shows %s on the job page as %s and tells the site once by email", async (reason, outcome) => {
     const hold = parseBetaPolicyScreeningHold(sealHold({ reason_code: reason }))!;
     await expect(ingestBetaPolicyScreeningHold(hold)).resolves.toMatchObject({ status: "created", revision: 1,
       hold_id: hold.hold_id, hold_digest: hold.hold_digest });
@@ -94,6 +94,7 @@ describe("a website evaluation held before any campaign started", () => {
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0][0].text.startsWith(simulationOutcomeEmailSentence(outcome as never))).toBe(true);
+    expect(send.mock.calls[0][0].text).not.toMatch(/early trial|openly available/i);
     // The same hold again, or a replay, is not another email.
     await expect(ingestBetaPolicyScreeningHold(hold)).resolves.toMatchObject({ status: "replayed" });
     await deliverOutbox();
@@ -175,6 +176,16 @@ describe("a website evaluation held before any campaign started", () => {
     await deliverOutbox();
     expect(send).not.toHaveBeenCalled();
   });
+
+  it.each(["estimate", "held_budget", "reference_only"] as const)(
+    "queues no email for an early trial campaign's %s outcome; only a stored hold is told", async outcome => {
+      await ingestBetaPolicyScreening(outcomePublication(base, outcome));
+      const stored = state.docs.get("taskEvaluationPolicyRuns/campaign-one") as Record<string, any>;
+      expect(stored.run_kind).toBe("beta_policy_screening");
+      await deliverOutbox();
+      expect(send).not.toHaveBeenCalled();
+      expect([...state.docs.keys()].some(key => key.startsWith("captureOutbox/"))).toBe(false);
+    });
 
   it("refuses a hold for a source the job's scene intake does not bind", async () => {
     const other = sealScreening({ ...base, source: { ...base.source, scene_revision_digest: `sha256:${"9".repeat(64)}` } });

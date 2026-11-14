@@ -264,35 +264,23 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
     }
   }
   // The remaining reads do not depend on each other: they run together.
-  const readProof = async () => {
-    try {
-      const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
-        import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
-      const { managedEvidence, managedEvidenceUnavailable } = await readSiteManagedEvidence(requestId);
-      const current = managedEvidence.find(item => item.current) ?? managedEvidence[0];
-      return { unknown: Boolean(managedEvidenceUnavailable),
-        proof: managedEvidence.length ? projectSimulationProof({ evaluation: managedEvidence as never, pick: null }) : null,
-        runStoppedByWindow: Boolean(current?.screening?.candidates?.some(row => (row.blockers ?? [])
-          .some(code => String(code).split(":")[0] === "beta_screening_authority_expired"))) };
-    } catch { return { unknown: true, proof: null as SimulationProof | null, runStoppedByWindow: false }; }
-  };
   const readAwaitsSiteSentence = async () => {
     const [{ jobWaitsForItsSentence }, { getBrief, isPlaceholderSummary }] = await Promise.all([import("./jobSentenceWait"), import("./siteTaskBrief")]);
     // An unreadable brief is no proof the site has not answered: the job is not shown as waiting on it.
     const brief = given ? { value: given.brief } : await getBrief(requestId).then(value => ({ value }), () => null);
     return brief !== null && jobWaitsForItsSentence({ requestId, record, brief: brief.value, preparationTaskNotNamed, isPlaceholder: isPlaceholderSummary });
   };
-  const [evidence, answer, keptOnFile, windowEndedAtEpoch, awaitsSiteSentence] = await Promise.all([
-    readProof(),
+  const [answer, keptOnFile, windowEndedAtEpoch, awaitsSiteSentence] = await Promise.all([
     (given ? Promise.resolve(given.answer) : loadSiteAnswer(requestId)).catch(() => null),
     import("./websiteJobWindowSweep").then(({ websiteJobKeptOnFile }) => websiteJobKeptOnFile(record)),
     import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
       .then(window => window.endedAtEpoch ?? null).catch(() => null),
     readAwaitsSiteSentence(),
   ]);
-  const { proof, runStoppedByWindow } = evidence;
-  const resultUnknown = evidence.unknown;
-  if (resultUnknown) uncertain = true;
+  // Blueprint's own early trial is no longer read (2026-11-14): no run of it starts, ends or holds a job's outlook.
+  const proof: SimulationProof | null = null;
+  const runStoppedByWindow = false;
+  const resultUnknown = false;
   // A closure record that does not read is unknown: neither closed nor open.
   let closedByOwner = false;
   try { closedByOwner = Boolean(websiteRunClosure(record, requestId, captureId)); } catch { uncertain = true; }

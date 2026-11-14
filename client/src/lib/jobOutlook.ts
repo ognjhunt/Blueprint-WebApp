@@ -22,16 +22,16 @@ export interface JobOutlook {
 export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_held" | "run_ended" | "other_kind">, string>> = {
   permission_withdrawn: "Permission to use your video was withdrawn, so this job has stopped.",
   closed_by_owner: "You closed this job's simulation run.",
-  window_expired: "The time for this job ran out before our early trial could run.",
+  window_expired: "The time for this job ran out.",
   // The Pipeline's own record that the job's authority ended before a test ran: said as the window ending is.
-  authority_ended: "The time for this job ran out before our early trial could run.",
+  authority_ended: "The time for this job ran out.",
   // A job of a kind we can't simulate yet, kept on file by the no-grant sweep: no simulation is coming for now.
   kept_on_file: "We can't build a simulation for this kind of job yet. We've kept your job on file.",
   // An ended authority the Pipeline gives no reason for: true, and no claim about why.
   job_ended: "This job has ended.",
   task_not_named: "Tell us in one sentence what the robot should do, so we can build the simulation of your job.",
   // A run the window's end stopped while it was under way.
-  window_ended_during_test: "The time for this job ran out during our early trial.",
+  window_ended_during_test: "The time for this job ran out.",
   no_grant: "We have not built a simulation for this job.",
   preparation_failed: "We could not build a simulation of your site.",
   // Preparation ended `capacity_blocked`: every cause of it is on our side (review, 2026-11-12).
@@ -42,10 +42,10 @@ export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_h
   // scene check (review, 2026-11-11).
   scene_held: "Work on the simulation of your job is on hold.",
   scene_stopped: "We could not finish building the simulation of your site.",
-  robot_fit_only: "For this job we give a first look on paper only; no early trial runs on it.",
+  robot_fit_only: "For this job we give a first look on paper only.",
   unsized: "Your video didn't show the job clearly enough for us to measure it.",
   // A finished test in which no AI robot could be scored is an ending, never a result (review, 2026-11-11).
-  no_ai_robot_scored: "Our early trial finished, but no robot could be scored in it.",
+  no_ai_robot_scored: "No robot could be scored in the simulation.",
   step_failed: "A step failed and we're working on it. We'll email you the result.",
 };
 

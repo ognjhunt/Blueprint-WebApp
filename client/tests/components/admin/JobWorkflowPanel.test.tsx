@@ -137,17 +137,12 @@ it("does not claim cancellation when Pipeline has not acknowledged it", async ()
   expect(screen.queryByText("Evidence request cancelled.")).not.toBeInTheDocument();
 });
 
-it("keeps the operator's instruction, raw codes and the shared budget in the operations view only", async () => {
-  await open({ managedEvidence: [{ runId: "setup-repair", state: "setup_repair", outcome: "setup_repair", current: true,
-    resultDigest: "sha256:setup", summary: "Simulation evaluation of your job has not finished: a Blueprint update stopped it before it gave an estimate. If a later run gives an estimate, it will show here.",
+it("keeps the operator's instruction in the operations view only", async () => {
+  await open({ managedEvidence: [{ runId: "setup-repair", state: "blocked", current: true,
+    resultDigest: null, summary: "Policy run status: blocked. No accepted scientific result is attached.",
     nextAction: "Nothing is needed from you.",
-    opsNextAction: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
-    limitations: [], href: "#managed-evidence-setup-repair", screening: {
-      budget: { limitUsd: "15.00", committedUpperBoundUsd: "4.25", spentUpperBoundUsd: "4.25", reservedUsd: "0" },
-      candidates: [{ candidateId: "a", name: "Candidate a", state: "blocked", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0,
-        blockers: ["beta_screening_static_preflight_blocked:no_offer"] }] } }] });
-  expect(screen.getByText("Next: Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.")).toBeInTheDocument();
+    opsNextAction: "Fix the setup blockers, then rerun. Nothing is needed from the site.",
+    limitations: [], href: "#managed-evidence-setup-repair" }] });
+  expect(screen.getByText("Next: Fix the setup blockers, then rerun. Nothing is needed from the site.")).toBeInTheDocument();
   expect(screen.queryByText("Next: Nothing is needed from you.")).toBeNull();
-  expect(document.body.textContent).toContain("beta_screening_static_preflight_blocked:no_offer");
-  expect(screen.getByText(/Shared site screening budget: up to \$4\.25 committed/)).toBeInTheDocument();
 });

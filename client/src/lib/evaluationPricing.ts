@@ -47,7 +47,7 @@ export const siteAssessment = {
   covers: [
     "Your sentence for the job, drafted from your video if you leave it empty, and what counts as done.",
     "A first look on paper: the robot most likely to fit, from published specifications and where it has been used.",
-    "A simulation of your site, built from your video, or “held” when we can't build one for that kind of job yet. Sometimes an early trial of openly available robot software in it, which is a trial, not a prediction of any company's robot.",
+    "A simulation of your site, built from your video, or “held” when we can't build one for that kind of job yet.",
     "With your permission, a summary of your job shared with deployment companies we approve; any work is agreed between you and the company.",
   ],
   allIn:

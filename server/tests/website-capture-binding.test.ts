@@ -98,7 +98,7 @@ it.each(["missing", "earlier_recording"])("allows a complete update from an old 
   expect(sharedFakeFirestoreState.docs.get("inboundRequests/req1")).toEqual(before);
 });
 
-it("screens a verified supplementary scene and keeps changed or withdrawn capture evidence historical", async () => {
+it("screens a verified supplementary scene, shows it to no one, and refuses it once the capture is withdrawn", async () => {
   const captureId = child();
   const captureBinding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
   const brief = continuationVector.brief as any;
@@ -126,13 +126,9 @@ it("screens a verified supplementary scene and keeps changed or withdrawn captur
   const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
   const { loadManagedJobEvidence } = await import("../utils/jobManagedEvaluation");
   expect((await ingestBetaPolicyScreening(publication)).status).toBe("created");
-  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0]).toMatchObject({ current: true, state: "queued" });
-  const media = infos.get(`scenes/site-req1/captures/${captureId}/raw/walkthrough.mov`)!;
-  media.generation = "999";
-  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0].current).toBe(false);
-  media.generation = "123";
+  // Stored, and shown to no one: Blueprint's own early trial is no longer on any page (2026-11-14).
+  expect(await loadManagedJobEvidence("req1", scientificBriefDigest(brief))).toEqual([]);
   (sharedFakeFirestoreState.docs.get(`captureUploadSessions/${captureId}`) as any).capture_access = { future_processing_allowed: false };
-  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0].current).toBe(false);
   await expect(ingestBetaPolicyScreening(publication)).rejects.toThrow("job_capture_processing_not_authorized");
 });
 it("serves verified supplementary context through the controller and projects current late withdrawal", async () => {
