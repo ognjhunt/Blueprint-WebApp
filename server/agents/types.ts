@@ -16,16 +16,7 @@ export type AgentProvider =
 export type AgentRuntime = AgentProvider;
 
 export type AgentTaskKind =
-  | "waitlist_triage"
-  | "inbound_qualification"
-  | "post_signup_scheduling"
-  | "support_triage"
-  | "preview_diagnosis"
-  | "operator_thread"
-  | "adp_run_operator"
-  | "external_harness_thread"
   | "site_video_evidence"
-  | "site_assessment"
   /** A bounded static-video answer to the upload-time privacy question only. */
   | "capture_video_privacy"
   /** Reads a site's task description into brief proposals the operator confirms. */
@@ -41,13 +32,8 @@ export type AgentTaskKind =
    * frames and hoping the missing thing was not in one of them.
    */
   | "capture_coverage"
-  | "robot_capability_extraction"
   /** Ranks researched robot teams for one site job from their notes; internal, quote-checked. */
   | "robot_fit_ranking"
-  | "capture_dispatch"
-  | "outbound_outreach"
-  /** A connectivity check whose prompt is fixed text (tasks/runtime-smoke-test.ts). */
-  | "runtime_smoke_test"
   /** Picks follow-up question topics for a site after it sent its task (tasks/site-task-follow-up.ts). */
   | "site_task_follow_up";
 

@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 // one of them gets the full browser suites, not only its related unit tests.
 export const siteDecisionFiles = new Set([
   ...['betaAbuseCaps', 'betaPolicyScreeningContract', 'betaPolicyScreeningHold', 'captureUploadAuthorization',
-    'descriptionAuthority', 'inboundQualificationGate', 'inboundRequestCommit', 'inviteeAllowlist',
+    'descriptionAuthority', 'inboundRequestCommit', 'inviteeAllowlist',
     'recordingConsent', 'siteAssessmentPublic', 'siteTaskBrief', 'taskLifecycleNotifications',
     'taskPreparationOutcome', 'taskStatusProjection', 'websiteBrowserUploadStatus', 'websiteCaptureWithdrawal',
     'websitePreparationStatus', 'websiteRunClosure'].map(name => `server/utils/${name}.ts`),
@@ -60,10 +60,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const start = Date.now();
     if (scope === 'full') execFileSync('npm', ['run','test:coverage'], {stdio:'inherit'});
     else {
-      const safety = ['server/tests/auth-middleware.test.ts','server/tests/agent-spend-policy.test.ts',
+      const safety = ['server/tests/auth-middleware.test.ts',
         'server/tests/agent-spend-atomic.test.ts','server/tests/capture-owner-route-auth.test.ts',
-        'server/tests/agent-spend-ledger.test.ts','server/tests/agent-private-evidence.test.ts',
-        'server/tests/agent-task-prompts.test.ts'];
+        'server/tests/agent-private-evidence.test.ts'];
       for (const file of [...files, ...safety]) if (!existsSync(file)) throw Error(`release_file_missing:${file}`);
       // --passWithNoTests is deliberately absent: no related coverage fails closed.
       const sources = files.filter(file => !/\.(test|spec)\.[tj]sx?$/.test(file));

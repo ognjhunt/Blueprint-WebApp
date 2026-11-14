@@ -50,13 +50,4 @@ describe("Anthropic limits and effort", () => {
     expect(getAnthropicTimeoutMs()).toBe(20_000);
   });
 
-  it("uses the lane's effort, and ignores a value the API does not take", async () => {
-    const { getAnthropicEffort } = await config();
-    expect(getAnthropicEffort("inbound_qualification")).toBe("max");
-    expect(getAnthropicEffort("support_triage")).toBe("medium");
-    vi.stubEnv("ANTHROPIC_EFFORT", "extreme");
-    expect(getAnthropicEffort("support_triage")).toBe("medium");
-    vi.stubEnv("ANTHROPIC_EFFORT", "low");
-    expect(getAnthropicEffort("support_triage")).toBe("low");
-  });
 });

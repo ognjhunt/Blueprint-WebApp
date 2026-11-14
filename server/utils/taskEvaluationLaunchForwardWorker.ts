@@ -355,10 +355,6 @@ export function startTaskEvaluationLaunchForwardWorker() {
     if (stopped) return;
     // This loop also runs when the broader ops scheduler is intentionally off.
     if (isSiteVideoEvidenceEnabled()) {
-      startLane("site-advisory", async () => {
-        const { tickSiteAssessments } = await import("./siteAssessmentQueue");
-        if (!stopped) await tickSiteAssessments(2);
-      }, "Site advisory worker tick unavailable");
       // Coverage intent survives upload/worker interruption. Its retained footage
       // reading also drafts the brief; it must not depend on the broader ops
       // scheduler. This narrow lane records findings without enqueueing email.

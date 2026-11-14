@@ -53,10 +53,8 @@ import { getBrief } from "../utils/siteTaskBrief";
 import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { projectCurrentSiteJobDecision, siteJobDecisionSourceDigest } from "../utils/siteJobDecision";
-import siteJobCommunicationsRouter from "./admin-site-job-communications";
 import type { RobotTeamRecord } from "../types/robot-team-registry";
 
-router.use(siteJobCommunicationsRouter);
 
 const decisionSchema = z.object({ sourceDigest: z.string().regex(/^[a-f0-9]{64}$/),
   recommendation: z.string().trim().min(8).max(2000), why: z.string().trim().min(8).max(2000),
@@ -106,9 +104,7 @@ router.get("/recommendations/:requestId", async (req, res) => {
       customerConversation: Array.isArray(record.customerConversation) ? record.customerConversation : [],
       customerClarification: record.site_task_clarification ?? null,
       assessment: assessment.customerAdvisory,
-      interests: interests.docs.map(doc => doc.data()),
-      communications: { route: `/api/admin/robot-teams/jobs/${encodeURIComponent(requestId)}/communications`,
-        draftingEnabled: process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true", deliveryEnabled: process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true" } });
+      interests: interests.docs.map(doc => doc.data()) });
   } catch (error) { logger.error({ err: error, requestId }, "Job review unavailable"); return res.status(503).json({ error: "Job review unavailable" }); }
 });
 

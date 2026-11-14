@@ -2,7 +2,7 @@ import { lookup } from "node:dns/promises";
 import { request } from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
-import { isPublicContactAddress } from "../communications-contact-fetch";
+import { isPublicAddress } from "../../utils/publicFetchGuard";
 
 const aborted = () => Object.assign(new Error("Task video request aborted"), { name: "AbortError" });
 const failed = () => new Error("Task video link could not be fetched");
@@ -27,7 +27,7 @@ export async function fetchPublicVideo(value: string, options: VideoFetchOptions
       if (signal?.aborted) onAbort();
     });
     if (!addresses.length || addresses.length > 16
-      || addresses.some(item => !isPublicContactAddress(item.address) || item.family !== isIP(item.address))) {
+      || addresses.some(item => !isPublicAddress(item.address) || item.family !== isIP(item.address))) {
       throw new Error("Task video host must resolve exclusively to public addresses");
     }
     if (signal?.aborted) throw aborted();

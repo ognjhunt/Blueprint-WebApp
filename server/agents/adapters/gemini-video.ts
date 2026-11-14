@@ -46,8 +46,6 @@ import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
 import { getGeminiVideoApiKey } from "../provider-config";
-import { companyHistoryWithheld, getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
-import { digest } from "../../research-learning/contract";
 import { outputCorrectionEvidence, outputCorrectionPrompt, usageCount } from "./output-correction";
 import { fetchPublicVideo } from "./public-video-fetch";
 import { AudioStripError, isAudioFreeVideo, stripVideoAudio, type AudioFreeVideo } from "./video-audio-strip";
@@ -558,12 +556,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     coverageReservations.push(coverageAdmission.receipt);
   };
   const receipts: Array<Record<string, unknown>> = [], usageSamples: Array<Record<string, unknown>> = [];
-  const historyCalls: Array<Record<string, unknown>> = [];
-  const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples, company_history_tool_calls: historyCalls, coverage_inference_reservations: coverageReservations };
-  const historyAccess = await getCompanyHistoryAccess(task, "gemini_video");
-  const historyWithheld = companyHistoryWithheld(task.kind, "gemini_video");
-  if (historyWithheld) artifacts.history_tools_withheld = historyWithheld;
-  const historyTools = historyAccess ? openAiResponsesHistoryTools : [];
+  const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples, coverage_inference_reservations: coverageReservations };
   let retainedVideo: Awaited<ReturnType<typeof openVideo>> | undefined;
   let providerVideo: AudioFreeVideo | undefined;
   let rawText = "", promptTokens = 0, completionTokens = 0, totalTokens = 0;
@@ -602,13 +595,11 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     Object.assign(artifacts, { video_bytes: videoBytes, video_content_type: video.contentType,
       video_sha256: videoSha256, video_processing: response.processing,
       initial_analysis_sha256: createHash("sha256").update(JSON.stringify({ content: response.content, processing: response.processing })).digest("hex") });
-    if (historyTools.length) artifacts.initial_video_analysis = { text: response.text, usage: response.usage, processing: response.processing };
     rawText = response.text;
     retainUsage(response.usage);
     remainingOutput -= outputComplete ? completionTokens : remainingOutput;
     const contents: Array<{ role: string; parts: VideoResponsePart[] }> = [{ role: "user", parts: [{ text: prompt }] }];
     let responseParts: VideoResponsePart[] = [{ text: rawText || "(empty response)" }];
-    let historyPending = historyTools.length > 0;
     const continueText = async () => {
       if (!promptComplete || !outputComplete || !totalComplete) throw new GeminiVideoError("output_correction_usage_unavailable", "Retained input and output usage must be known before another request");
       if (Date.now() >= deadline || remainingOutput <= 0) throw new GeminiVideoError("output_correction_budget_exhausted", "Original runtime or aggregate output budget exhausted");
@@ -618,10 +609,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
           method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
           signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
           body: JSON.stringify({ contents,
-            ...(historyTools.length ? { tools: [{ functionDeclarations: historyTools.map(tool => ({
-              name: tool.name, description: tool.description, parametersJsonSchema: tool.parameters,
-            })) }] } : {}),
-            generationConfig: { ...(historyTools.length ? {} : { responseMimeType: "application/json" }), temperature: 0, maxOutputTokens: remainingOutput } }),
+            generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: remainingOutput } }),
         });
         if (!continuation.ok) throw new GeminiVideoError("gemini_output_correction_provider_failed", `Gemini returned HTTP ${continuation.status}`);
         const payload = await continuation.json() as { candidates?: Array<{ finishReason?: string; content?: { parts?: VideoResponsePart[] } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } };
@@ -640,44 +628,6 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     let output: TOutput | undefined;
     let correctionAttempts = 0;
     while (true) {
-      // Replay retained analysis after the single native video call. Never
-      // replay the file or MEDIA_PROCESSING parts into the history-tool phase.
-      if (historyPending) {
-        historyPending = false;
-        if (promptComplete && outputComplete && totalComplete && Date.now() < deadline && remainingOutput > 0) {
-          contents.push({ role: "model", parts: responseParts }, { role: "user", parts: [{ text:
-            `The video has already been analysed once (analysis sha256=${artifacts.initial_analysis_sha256}). Use the read-only company history tools when relevant, including further pages and record fetches, then return the task's final JSON. Preserve video observations; do not request another media analysis.` }] });
-          await continueText();
-          continue;
-        }
-      }
-      const calls = responseParts.flatMap(part => part.functionCall ? [part.functionCall] : []);
-      if (calls.length) {
-        if (!promptComplete || !outputComplete || !totalComplete) throw new GeminiVideoError("output_correction_usage_unavailable", "Retained usage must be known before continuing history tools");
-        if (Date.now() >= deadline || remainingOutput <= 0) throw new GeminiVideoError("output_correction_budget_exhausted", "Original runtime or aggregate output budget exhausted");
-        contents.push({ role: "model", parts: responseParts });
-        const results: VideoResponsePart[] = [];
-        for (const call of calls) {
-          let value: unknown, isError = false;
-          try {
-            if (!historyAccess || !historyTools.some(tool => tool.name === call.name)) throw new Error("company_history_tool_not_allowed");
-            if (!call.args || typeof call.args !== "object" || Array.isArray(call.args)) throw new Error("company_history_tool_arguments_invalid");
-            value = await runOperatorTool(call.name, call.args, historyAccess);
-            isError = Boolean(value && typeof value === "object" && "ok" in value && value.ok === false);
-          } catch {
-            isError = true;
-            value = { error: "company_history_tool_failed", repair: "Use an advertised read-only history tool and its query/filters/page_size/cursor or record_id schema; access is server-controlled." };
-          }
-          const retained = structuredClone({ args: call.args ?? null, result: value ?? null });
-          historyCalls.push({ ...(call.id ? { tool_call_id: call.id } : {}), name: call.name, status: isError ? "error" : "completed",
-            result_status: isError ? "error" : "completed", ...retained,
-            args_sha256: digest(retained.args), result_sha256: digest(retained.result) });
-          results.push({ functionResponse: { name: call.name, ...(call.id ? { id: call.id } : {}), response: { result: value, is_error: isError } } });
-        }
-        contents.push({ role: "user", parts: results });
-        await continueText();
-        continue;
-      }
       try { output = (task.definition.output_schema as ZodType<TOutput>).parse(extractJsonPayload(rawText)); break; }
       catch (error) {
         const receipt = outputCorrectionEvidence(rawText, error);

@@ -20,8 +20,6 @@ import {
   markBuyerOrderDisputedFromCharge,
   markBuyerOrderPaymentFailure,
 } from "./accounting";
-import { createOnboardingSequence } from "./buyer-onboarding";
-import { initRenewalTracking } from "./growth-ops";
 import { logger } from "../logger";
 import { recordBetaOpsFailureSignal } from "./ops-alerts";
 import { creditPaidTopup } from "./robotTeamFunding";
@@ -84,23 +82,6 @@ async function handleCheckoutSessionCompleted(
         preferenceKey: "account",
         data: { order_id: paidOrder.id, sku: paidOrder.item.sku },
       });
-      void createOnboardingSequence({
-        orderId: paidOrder.id,
-        buyerEmail: paidOrder.buyer_email,
-        skuName: paidOrder.item.title || paidOrder.item.sku,
-        licenseTier: paidOrder.item.license_tier || "standard",
-      });
-
-      if (paidOrder.entitlement_id && paidOrder.paid_at) {
-        void initRenewalTracking({
-          entitlementId: paidOrder.entitlement_id,
-          orderId: paidOrder.id,
-          buyerEmail: paidOrder.buyer_email,
-          skuName: paidOrder.item.title || paidOrder.item.sku,
-          licenseTier: paidOrder.item.license_tier || "standard",
-          grantedAt: paidOrder.paid_at,
-        });
-      }
     }
 
     return paidOrder;

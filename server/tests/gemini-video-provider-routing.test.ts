@@ -11,7 +11,6 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   authAdmin: null,
 }));
 vi.mock("../agents/adapters/gemini-video", () => ({ runGeminiVideoTask }));
-vi.mock("../agents/adapters/codex-local", () => ({ runCodexLocalTask }));
 
 afterEach(() => {
   runGeminiVideoTask.mockReset();

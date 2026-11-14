@@ -1,8 +1,32 @@
 import { Router } from "express";
 import { logger } from "../logger";
-import { getActiveExperimentRollouts } from "../utils/experiment-ops";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 
 const router = Router();
+
+async function getActiveExperimentRollouts() {
+  if (!db) {
+    return {};
+  }
+
+  const snapshot = await db
+    .collection("experiment_rollouts")
+    .where("status", "==", "active")
+    .get();
+
+  return Object.fromEntries(
+    snapshot.docs
+      .map((doc) => {
+        const data = doc.data() as Record<string, unknown>;
+        const experimentKey =
+          typeof data.experiment_key === "string" ? data.experiment_key : doc.id;
+        const variant =
+          typeof data.winning_variant === "string" ? data.winning_variant : null;
+        return variant ? [experimentKey, variant] : null;
+      })
+      .filter((entry): entry is [string, string] => Boolean(entry)),
+  );
+}
 
 router.get("/assignments", async (_req, res) => {
   const fetchedAt = new Date().toISOString();

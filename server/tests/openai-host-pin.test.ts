@@ -72,13 +72,4 @@ describe("OpenAI host pin", () => {
     expect(source).not.toMatch(/new OpenAI\(/);
   });
 
-  it("the communications client sends nothing, not even the key, under another host", async () => {
-    vi.stubEnv("OPENAI_BASE_URL", OTHER);
-    const fetchSpy = vi.fn();
-    const { CommunicationsAgentsAPI } = await import("../agents/communications-api");
-    const api = new CommunicationsAgentsAPI({ apiKey: "offline-fixture", allowPaidInference: false, fetch: fetchSpy as never });
-    await expect((api as unknown as { request: (path: string) => Promise<unknown> }).request("/agents"))
-      .rejects.toThrow("openai_base_url_names_another_host");
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
 });

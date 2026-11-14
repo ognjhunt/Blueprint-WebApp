@@ -5,23 +5,15 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
- * SCALE2-02: automation lanes run in the dedicated Render worker service.
- * These tests pin both halves of the topology change:
- *  - the worker entrypoint boots the scheduler (leader lease included) and
- *    stops it exactly once on shutdown;
- *  - the web process no longer starts the scheduler unless explicitly opted
- *    in, and the deploy manifests actually declare the worker service.
+ * The background loops run in the dedicated Render worker service: the worker
+ * entrypoint starts each of them and stops each exactly once on shutdown, the
+ * web process runs no automation scheduler, and the deploy manifests declare
+ * the worker service.
  */
 
-const startOpsAutomationScheduler = vi.hoisted(() => vi.fn());
 const startStripeWebhookQueueProcessor = vi.hoisted(() => vi.fn());
 const startTaskEvaluationLaunchForwardWorker = vi.hoisted(() => vi.fn());
-const startAdpManagedRunWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const startCompanyPolicyCandidateOutboxWorker = vi.hoisted(() => vi.fn());
-const startSavedRecoveryWorker = vi.hoisted(() => vi.fn(() => vi.fn(async () => {})));
-const startCommunicationsWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
-const stopResearch = vi.hoisted(() => vi.fn(async () => {}));
-const startDailyResearchWorker = vi.hoisted(() => vi.fn(() => ({ stop: stopResearch })));
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
 const stopWebsiteDeletions = vi.hoisted(() => vi.fn());
 const startWebsiteCaptureDeletionWorker = vi.hoisted(() => vi.fn(() => stopWebsiteDeletions));
@@ -31,18 +23,13 @@ const startWebsiteJobWindowSweepWorker = vi.hoisted(() => vi.fn(() => stopWebsit
 vi.mock("../utils/websiteJobWindowSweep", () => ({ startWebsiteJobWindowSweepWorker }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
-vi.mock("../utils/opsAutomationScheduler", () => ({ startOpsAutomationScheduler }));
 vi.mock("../utils/stripeWebhookQueue", () => ({ startStripeWebhookQueueProcessor }));
 vi.mock("../utils/taskEvaluationLaunchForwardWorker", () => ({
   startTaskEvaluationLaunchForwardWorker,
 }));
-vi.mock("../agents/adp-managed-runs", () => ({ startAdpManagedRunWorker }));
-vi.mock("../agents/communications-saved-recovery-worker", () => ({ startSavedRecoveryWorker }));
-vi.mock("../agents/communications-worker", () => ({ startCommunicationsWorker }));
 vi.mock("../utils/companyPolicyCandidateOutboxWorker", () => ({
   startCompanyPolicyCandidateOutboxWorker,
 }));
-vi.mock("../utils/dailyResearchWorker", () => ({ startDailyResearchWorker }));
 vi.mock("../config/env", () => ({ validateEnv }));
 vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -57,45 +44,20 @@ afterEach(() => {
 });
 
 describe("worker entrypoint", () => {
-  it("awaits communications drain together with the independent research stop", async () => {
-    let finish: () => void = () => {};
-    const stopCommunications = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
-    startCommunicationsWorker.mockReturnValueOnce(stopCommunications);
-    startOpsAutomationScheduler.mockReturnValue(vi.fn());
-    startStripeWebhookQueueProcessor.mockReturnValue(vi.fn());
-    startTaskEvaluationLaunchForwardWorker.mockReturnValue(vi.fn());
-    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(vi.fn());
-    const { startWorker } = await import("../worker");
-    const handle = startWorker();
-    let stopped = false;
-    const promise = handle.stop(); void promise.then(() => { stopped = true; });
-    await Promise.resolve(); expect(stopped).toBe(false);
-    expect(stopCommunications).toHaveBeenCalledTimes(1); expect(stopResearch).toHaveBeenCalledTimes(1);
-    finish(); await promise; expect(stopped).toBe(true);
-  });
   it("shares the same shutdown promise for concurrent signals", async () => {
-    startOpsAutomationScheduler.mockReturnValue(vi.fn());
     startStripeWebhookQueueProcessor.mockReturnValue(vi.fn());
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(vi.fn());
     startCompanyPolicyCandidateOutboxWorker.mockReturnValue(vi.fn());
-    let finish: () => void = () => {};
-    stopResearch.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
     const { startWorker } = await import("../worker");
     const handle = startWorker();
     const first = handle.stop();
     expect(handle.stop()).toBe(first);
-    expect(stopResearch).toHaveBeenCalledTimes(1);
-    finish();
     await first;
   });
-  it("boots the scheduler through validateEnv and stops it exactly once", async () => {
-    const stopScheduler = vi.fn();
+  it("boots through validateEnv and stops each worker exactly once", async () => {
     const stopQueueProcessor = vi.fn();
     const stopLaunchForwarder = vi.fn();
     const stopCompanyPolicyOutbox = vi.fn();
-    const stopCommunications = vi.fn();
-    startCommunicationsWorker.mockReturnValue(stopCommunications);
-    startOpsAutomationScheduler.mockReturnValue(stopScheduler);
     startStripeWebhookQueueProcessor.mockReturnValue(stopQueueProcessor);
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(stopLaunchForwarder);
     startCompanyPolicyCandidateOutboxWorker.mockReturnValue(stopCompanyPolicyOutbox);
@@ -104,23 +66,15 @@ describe("worker entrypoint", () => {
     const handle = startWorker();
 
     expect(validateEnv).toHaveBeenCalled();
-    expect(startOpsAutomationScheduler).toHaveBeenCalledTimes(1);
     expect(startStripeWebhookQueueProcessor).toHaveBeenCalledTimes(1);
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
-    expect(startCommunicationsWorker).toHaveBeenCalledTimes(1);
-    expect(startSavedRecoveryWorker).toHaveBeenCalledTimes(1);
-    expect(startDailyResearchWorker).toHaveBeenCalledTimes(1);
-    expect(stopScheduler).not.toHaveBeenCalled();
 
     await handle.stop();
     await handle.stop();
-    expect(stopScheduler).toHaveBeenCalledTimes(1);
     expect(stopQueueProcessor).toHaveBeenCalledTimes(1);
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
     expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
-    expect(stopCommunications).toHaveBeenCalledTimes(1);
-    expect(stopResearch).toHaveBeenCalledTimes(1);
   });
 
   it("can run the Task Evaluation launch forwarder without unrelated workers", async () => {
@@ -135,8 +89,6 @@ describe("worker entrypoint", () => {
 
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
-    expect(startDailyResearchWorker).toHaveBeenCalledTimes(1);
-    expect(startOpsAutomationScheduler).not.toHaveBeenCalled();
     expect(startStripeWebhookQueueProcessor).not.toHaveBeenCalled();
     // Withdrawal storage deletion runs in the deployed launch-forward mode.
     expect(startWebsiteCaptureDeletionWorker).toHaveBeenCalledTimes(1);
@@ -151,21 +103,12 @@ describe("worker entrypoint", () => {
   });
 });
 
-describe("web process scheduler contract", () => {
+describe("web process", () => {
   const indexSource = readFileSync(join(repoRoot, "server", "index.ts"), "utf8");
 
-  it("starts the scheduler only behind the explicit web opt-in flag", () => {
-    expect(indexSource).toContain("BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB");
-    expect(indexSource).toContain(
-      "runOpsAutomationInWebProcess && !disableOpsAutomationScheduler",
-    );
-    // The old unconditional pattern must not come back: every call site of
-    // startOpsAutomationScheduler() in index.ts is the gated ternary above.
-    const callSites = indexSource.match(/startOpsAutomationScheduler\(\)/g) ?? [];
-    expect(callSites.length).toBe(1);
-    expect(indexSource).not.toMatch(
-      /disableOpsAutomationScheduler\s*\?\s*\(\)\s*=>\s*undefined\s*:\s*startOpsAutomationScheduler\(\)/,
-    );
+  it("runs no automation scheduler and delivers customer email through the outbox pump", () => {
+    expect(indexSource).not.toContain("startOpsAutomationScheduler");
+    expect(indexSource).toContain("startOutboxPump()");
   });
 });
 

@@ -3,12 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { createHash } from "node:crypto";
 import { renderToStaticMarkup } from "react-dom/server";
-import * as assessmentRuntime from "../agents/site-assessment";
+import * as assessmentRuntime from "../utils/siteAssessmentRecord";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null, storageAdmin: null }));
 import { projectCustomerSiteAdvisory, projectCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { projectCurrentSiteJobDecision, siteJobDecisionSourceDigest } from "../utils/siteJobDecision";
 import { SiteAdvisoryReport } from "../../client/src/components/site/SiteAdvisoryReport";
-import type { SiteAssessment } from "../agents/site-assessment";
+import type { SiteAssessment } from "../utils/siteAssessmentRecord";
 
 const video = { source_id: "video:private-fixture", kind: "video", canonical_ref: "gs://private-bucket/fixture.mp4", sha256: "a".repeat(64), checked_at: null,
   content: { duration_seconds: 30, evidence: { summary: "Rack movement", observations: [

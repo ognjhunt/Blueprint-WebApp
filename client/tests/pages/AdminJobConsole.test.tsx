@@ -134,7 +134,6 @@ describe("AdminJobConsole", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Dock 4" })).toBeInTheDocument();
     expect(window.location.search).toBe("?job=job-a");
     expect(screen.getByRole("link", { name: "Open recommendation form" })).toHaveAttribute("href", "/admin/robot-team-access?job=job-a");
-    expect(screen.getByRole("link", { name: "Open lead record" })).toHaveAttribute("href", "/admin/leads/job-a");
     expect(screen.queryByRole("heading", { name: "Evaluation requests" })).not.toBeInTheDocument();
     expect(screen.queryByRole("form", { name: /Admit free evaluation/ })).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/free-evaluations/"))).toBe(false);

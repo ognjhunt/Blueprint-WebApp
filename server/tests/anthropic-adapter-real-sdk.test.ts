@@ -5,10 +5,6 @@ import { propagation } from "@opentelemetry/api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-vi.mock("../agents/operator-tools", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../agents/operator-tools")>()),
-  getCompanyHistoryAccess: async () => null,
-}));
 
 type Seen = { url: string; headers: Record<string, string>; body: Record<string, unknown> | null };
 const seen: Seen[] = [];
@@ -195,13 +191,5 @@ describe("Anthropic adapter with the real SDK: what a request is counted at", ()
     expect(reserved).toBeCloseTo(0.7225, 12);
   });
 
-  it("reserves an accounting-only lane's request from its own size when no count came back", async () => {
-    const prompt = "x".repeat(300_000);
-    script = () => [`event: error\ndata: ${JSON.stringify({ type: "error", error: { type: "overloaded_error", message: "x" } })}\n\n`];
-    const result = await run("claude-haiku-5-5", prompt, "inbound_qualification");
-    const reserved = (result.artifacts?.inference_reservation as Record<string, number>).unknown_usage_reserved_cost_usd;
-    // At least the prompt's own bytes as tokens, at the long-prompt input rate.
-    expect(reserved).toBeGreaterThanOrEqual(300_000 * 0.5 / 1_000_000);
-  });
 });
 
