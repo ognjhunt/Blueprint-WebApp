@@ -197,12 +197,6 @@ const authLimiter = createRateLimiter({
   prefix: "rl:auth:",
 });
 
-const uploadLimiter = createRateLimiter({
-  windowMs: Number(process.env.RATE_LIMIT_UPLOAD_WINDOW_MS ?? 60 * 60 * 1000),
-  limit: Number(process.env.RATE_LIMIT_UPLOAD_MAX ?? 10),
-  prefix: "rl:upload:",
-});
-
 // Configure middleware
 // Firebase redirects must return to a helper on this same origin. Register
 // before body parsing and app CSP so the upstream helper stays byte-for-byte.
@@ -300,7 +294,6 @@ app.use("/v1", globalLimiter);
 // Stricter limiters for sensitive routes
 app.use("/api/auth", authLimiter);
 
-app.use("/api/storage/uploads", uploadLimiter);
 
 // Sliding-window 5xx rate alert (Slack, rate-limited). Health probes are
 // excluded: a 503 from /health/ready is readiness, reported separately.

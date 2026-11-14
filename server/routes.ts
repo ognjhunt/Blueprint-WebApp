@@ -7,7 +7,6 @@ import accountDeletionRouter from "./routes/account-deletion";
 import passwordResetRouter from "./routes/password-reset";
 import adminRobotTeamAccessRouter from "./routes/admin-robot-team-access";
 import type { Express } from "express";
-import storageUploadsRouter from "./routes/storage-uploads";
 import captureUploadsRouter from "./routes/capture-uploads";
 import taskEvaluationSceneIntakesRouter from "./routes/task-evaluation-scene-intakes";
 import taskEvaluationResultsRouter from "./routes/task-evaluation-results";
@@ -198,12 +197,6 @@ export function registerRoutes(app: Express) {
   app.use(
     "/api/internal/task-evaluation-launch-preparations",
     internalTaskEvaluationLaunchPreparationsRouter,
-  );
-  app.use(
-    "/api/storage/uploads",
-    csrfProtection,
-    verifyFirebaseToken,
-    storageUploadsRouter,
   );
   app.use(
     "/api/task-evaluation-results",
