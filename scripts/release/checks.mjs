@@ -14,7 +14,7 @@ export const siteDecisionFiles = new Set([
     'recordingConsent', 'siteAssessmentPublic', 'siteTaskBrief', 'taskLifecycleNotifications',
     'taskPreparationOutcome', 'taskStatusProjection', 'websiteBrowserUploadStatus', 'websiteCaptureWithdrawal',
     'websitePreparationStatus', 'websiteRunClosure'].map(name => `server/utils/${name}.ts`),
-  ...['footageNotice', 'invitationPrivacy', 'recordingRightsStatement', 'screeningPlainLanguage',
+  ...['footageNotice', 'invitationPrivacy', 'recordingRightsStatement',
     'selfCaptureVideo', 'siteCaptureDraft', 'siteCaptureDurability', 'siteClaim', 'siteSubmissionAuthority',
     'taskConfirmationStatement'].map(name => `client/src/lib/${name}.ts`),
 ]);

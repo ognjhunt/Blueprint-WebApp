@@ -41,7 +41,7 @@ vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const internalRouter = (await import("../routes/internal-robot-access-proposal")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
-const { describeRobotAccessProposal, robotAccessProposalSchema, ROBOT_ACCESS_PROPOSAL_SCHEMA } =
+const { robotAccessProposalSchema, ROBOT_ACCESS_PROPOSAL_SCHEMA } =
   await import("../utils/websiteRobotAccessRemoval");
 
 const SECRET = "test-only-robot-access-signature";
@@ -169,16 +169,11 @@ describe("the Pipeline's signed proposal", () => {
 });
 
 describe("the owner's decision on the job page", () => {
-  it("shows the owner the chair in plain words, records a bound approval, and the Pipeline reads it", async () => {
+  it("no longer asks the owner on the job page, still records a bound approval sent to the route, and the Pipeline reads it", async () => {
     const current = proposal();
     await notify(current);
-    const shown = (await status()).body.robotAccess;
-    expect(shown).toMatchObject({ proposalDigest: current.proposal_digest, decision: null, what: "1 chair",
-      question: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
-      why: "In the simulation of your site, the robot arm can't stand close enough to reach the job: 1 chair is in the way.",
-      items: ["dining chair by the window"], approve: "Move it in the simulation", decline: "Keep it where it is" });
-    expect(shown.note).toMatch(/^Only the simulation changes; your site and your video stay as they are\. The chair may still show/);
-    expect(JSON.stringify(shown)).not.toContain("binding_digest");
+    // The job page no longer asks (2026-11-14); the decision route still answers.
+    expect((await status()).body.robotAccess ?? null).toBeNull();
     // A film link sees nothing and cannot decide; a missing CSRF token is refused; nothing else is a field.
     expect((await status(film())).body.robotAccess ?? null).toBeNull();
     expect((await decide({ proposalDigest: current.proposal_digest, decision: "approve" }, film())).status).toBe(403);
@@ -194,7 +189,6 @@ describe("the owner's decision on the job page", () => {
       decided_via: "owner_job_link" });
     expect(decision.decision_digest).toBe(crossRuntimeArtifactDigest(decision, "decision_digest"));
     expect((await notify(current)).body).toMatchObject({ status: "approved", decision });
-    expect((await status()).body.robotAccess.decision).toMatchObject({ kind: "approved" });
     // An approval is final: repeating it changes nothing; declining afterwards is refused.
     expect((await decide({ proposalDigest: current.proposal_digest, decision: "approve" })).status).toBe(200);
     expect((await decide({ proposalDigest: current.proposal_digest, decision: "decline" })).status).toBe(409);
@@ -207,10 +201,6 @@ describe("the owner's decision on the job page", () => {
     const declined = await decide({ proposalDigest: current.proposal_digest, decision: "decline" });
     expect(declined).toMatchObject({ status: 200, body: { ok: true, decision: "declined" } });
     expect((await notify(current)).body).toMatchObject({ status: "declined", decision: { decision: "declined" } });
-    const shown = (await status()).body.robotAccess;
-    expect(shown.decision).toMatchObject({ kind: "declined" });
-    expect(shown.declined).toBe("You chose to keep 1 chair where it is. The robot can't stand within reach, so this job is "
-      + "on hold. You can still approve if you change your mind.");
     expect(JSON.parse(row(INTAKE).robot_access_proposals[0].proposal_json)).toEqual(current);
     expect((await decide({ proposalDigest: current.proposal_digest, decision: "approve" })).body.decision).toBe("approved");
     expect(row(INTAKE).robot_access_decisions.map((value: { decision: string }) => value.decision))
@@ -226,8 +216,6 @@ describe("the owner's decision on the job page", () => {
     const second = proposal({ configured_scene_revision_digest: sha("7"), binding_digest: sha("8"),
       items: [CHAIR, { target_id: "stool-2", label: "bar stool", kind: "stool" }] });
     expect((await notify(second)).body).toMatchObject({ status: "pending", proposal_digest: second.proposal_digest, decision: null });
-    expect((await status()).body.robotAccess).toMatchObject({ proposalDigest: second.proposal_digest, decision: null,
-      what: "1 chair and 1 stool", approve: "Move them in the simulation", decline: "Keep them where they are" });
     expect(await decide({ proposalDigest: first.proposal_digest, decision: "approve" })).toMatchObject({
       status: 409, body: { code: "website_robot_access_proposal_changed" } });
     expect(row(INTAKE).robot_access_decisions).toHaveLength(1);
@@ -242,16 +230,5 @@ describe("the owner's decision on the job page", () => {
     expect((await decide({ proposalDigest: current.proposal_digest, decision: "approve" })).status).toBe(409);
     expect(row(INTAKE).robot_access_decisions).toBeUndefined();
     expect((await status()).body.robotAccess ?? null).toBeNull();
-  });
-});
-
-describe("plain words", () => {
-  it("counts each kind and names each item as the analysis did", () => {
-    const words = describeRobotAccessProposal(proposal({ support_label: "the kitchen island",
-      items: [CHAIR, { ...CHAIR, target_id: "chair-2", label: "chair" }, { target_id: "s", label: "stool", kind: "stool" }] }));
-    expect(words.what).toBe("2 chairs and 1 stool");
-    expect(words.question).toBe("To give the robot room, Blueprint would move 2 chairs and 1 stool away from the kitchen island in the simulation. Approve?");
-    expect(words.why).toMatch(/: 2 chairs and 1 stool are in the way\.$/);
-    expect(words.items).toEqual(["dining chair by the window", "chair", "stool"]);
   });
 });

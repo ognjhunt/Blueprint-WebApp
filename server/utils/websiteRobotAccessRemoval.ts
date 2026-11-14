@@ -13,20 +13,16 @@
  * checks on the job (`recordRobotAccessProposal`), the same transport as the
  * success thresholds (`websiteOwnerSuccessConfirmation`): the items in the
  * analysis's own words, the scene revision and a `proposal_digest` that seals
- * them. It is kept append-only on the job's scene intake. The owner link (and
- * only the owner link) shows it in plain words with "Move it in the
- * simulation" and "Keep it where it is" (`decideRobotAccessProposal`). Each
- * decision is appended, bound to that exact proposal digest, revision and
- * removal binding. No decision means no change: the Pipeline's next check
- * reads the decision for the proposal it sent; an approval rebuilds the
- * simulation without the items, a decline holds the job by name.
+ * them. It is kept append-only on the job's scene intake. The owner link's
+ * decision route (`decideRobotAccessProposal`) still records a decision, bound
+ * to that exact proposal digest, revision and removal binding. No decision
+ * means no change: the Pipeline's next check reads the decision for the
+ * proposal it sent; an approval rebuilds the simulation without the items, a
+ * decline holds the job by name.
  *
- * The owner hears of each question once, by email (`robot_access_question`):
- * the outbox row is created in the same transaction that makes a proposal the
- * job's current one, keyed by its digest, so a retry or replay of it is never
- * a second email. Dispatch reads the job page again and cancels the email if
- * the question was answered, replaced or withdrawn meanwhile
- * (`robotAccessQuestionOpen`).
+ * The job page no longer asks this question and no email tells of it
+ * (2026-11-14, Blueprint's own early trial dropped); the receiving routes keep
+ * storing and answering exactly as before until the Pipeline stops sending.
  *
  * Measuring the chairs first is Blueprint's own preparation spend, reserved
  * within the job's approved caps on the Pipeline: it is never a question here,
@@ -41,10 +37,6 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeCanonicalJson } from "./crossRuntimeCanonical";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { latestSceneIntake } from "./websiteOwnerSuccessConfirmation";
-import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
-import { buildTaskLifecycleNotification, type RobotAccessCounts } from "./taskLifecycleNotifications";
-import { decryptFieldValue } from "./field-encryption";
-import { logger } from "../logger";
 
 export const ROBOT_ACCESS_PROPOSAL_SCHEMA = "website_robot_access_proposal.v1";
 export const ROBOT_ACCESS_RECEIPT_SCHEMA = "website_robot_access_proposal_receipt.v1";
@@ -134,57 +126,6 @@ function assertRights(job: Record<string, any> | undefined) {
     throw new Error("website_robot_access_consent_revoked");
 }
 
-/* ------------------------------------------------------- the owner's email */
-
-const QUESTION_NOTICE = "robot_access_question";
-const questionKey = (requestId: string, proposalDigest: string) =>
-  `${requestId.trim()}:${QUESTION_NOTICE}:${proposalDigest.slice("sha256:".length)}`;
-const counts = (items: RobotAccessProposal["items"]): RobotAccessCounts =>
-  ({ chair: items.filter(row => row.kind === "chair").length, stool: items.filter(row => row.kind === "stool").length });
-
-/**
- * The email telling the owner their job page asks this question, as a write
- * for the transaction that makes the proposal current; or null when it is
- * owed nothing: already queued for this digest (a retry or replay), or no
- * contact address on file. Rights are checked by the caller. A missing
- * address never holds the proposal: the page still asks, and a later replay
- * queues the email once one is on file.
- */
-async function questionEmail(transaction: FirebaseFirestore.Transaction, store: NonNullable<typeof db>,
-  requestId: string, proposal: RobotAccessProposal, job: Record<string, any> | undefined): Promise<(() => void) | null> {
-  const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(questionKey(requestId, proposal.proposal_digest));
-  if ((await transaction.get(ref)).exists) return null;
-  let to = "";
-  try { to = String(await decryptFieldValue(job?.contact?.email ?? "")).trim(); } catch { to = ""; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
-    logger.warn({ requestId }, "A robot access question has no readable owner address; the job page still asks it");
-    return null;
-  }
-  const entry = buildTaskLifecycleNotification({ requestId, milestone: QUESTION_NOTICE, to,
-    eventId: proposal.proposal_digest.slice("sha256:".length), robotAccessCounts: counts(proposal.items) });
-  if (entry.idempotencyKey !== ref.id) throw new Error("website_robot_access_question_key_mismatch");
-  return () => { transaction.create(ref, buildOutboxEntry(entry)); };
-}
-
-/**
- * Whether a queued question email still asks what the owner's job page asks:
- * the proposal its key names is the current one on the same scene intake the
- * page reads, unanswered, and the capture is neither withdrawn nor without
- * consent. Throws when the intake cannot be read, which leaves the claim
- * recoverable rather than cancelling or sending it.
- */
-export async function robotAccessQuestionOpen(requestId: string, idempotencyKey: string,
-  job: Record<string, any> | undefined, store = db): Promise<boolean> {
-  const prefix = `${requestId}:${QUESTION_NOTICE}:`;
-  const named = idempotencyKey.startsWith(prefix) ? idempotencyKey.slice(prefix.length) : "";
-  if (!/^[a-f0-9]{64}$/.test(named)) return false;
-  try { assertRights(job); } catch { return false; }
-  const { siteWalkthroughIdentity } = await import("./siteWalkthrough");
-  const latest = await latestSceneIntake(requestId, siteWalkthroughIdentity(requestId, job).captureId, store);
-  const view = robotAccessView(latest?.data);
-  return view?.proposalDigest === `sha256:${named}` && view.decision === null;
-}
-
 export type RobotAccessReceipt = {
   schema_version: typeof ROBOT_ACCESS_RECEIPT_SCHEMA; status: "pending" | "approved" | "declined";
   intent_id: string; proposal_digest: string; decision: RobotAccessDecision | null;
@@ -216,69 +157,14 @@ export async function recordRobotAccessProposal(input: RobotAccessProposal, stor
     if (kept && !storedProposal(kept)) throw new Error("website_robot_access_proposal_conflict");
     if (!kept && history.length >= MAX_PROPOSALS) throw new Error("website_robot_access_proposal_history_full");
     const decision = robotAccessDecisionFor(intake, notice);
-    // The owner hears of an unanswered question once per proposal digest.
-    const email = decision ? null : await questionEmail(transaction, store, intake.website_request_id, notice, job);
     if (!kept || intake.robot_access_proposal_current !== notice.proposal_digest)
       transaction.update(intakeRef, {
         robot_access_proposals: kept ? history : [...history, { proposal_digest: notice.proposal_digest,
           proposal_json: crossRuntimeCanonicalJson(notice), received_at_iso: new Date().toISOString() }],
         robot_access_proposal_current: notice.proposal_digest, updated_at_iso: new Date().toISOString() });
-    email?.();
     return { schema_version: ROBOT_ACCESS_RECEIPT_SCHEMA, status: decision ? decision.decision : "pending",
       intent_id: notice.intent_id, proposal_digest: notice.proposal_digest, decision };
   });
-}
-
-/* ------------------------------------------------------------ plain words */
-
-const NUMBERS = ["no", "1", "2", "3", "4"];
-function counted(items: RobotAccessProposal["items"]): string {
-  const counts = ROBOT_ACCESS_KINDS.map(kind => [kind, items.filter(row => row.kind === kind).length] as const)
-    .filter(([, count]) => count > 0);
-  return counts.map(([kind, count]) => `${NUMBERS[count] ?? count} ${kind}${count === 1 ? "" : "s"}`).join(" and ");
-}
-
-export type RobotAccessWords = { what: string; why: string; question: string; note: string; items: string[];
-  approve: string; decline: string; approved: string; declined: string };
-
-/** The proposal in plain words, from what the Pipeline sent and nothing else. */
-export function describeRobotAccessProposal(proposal: RobotAccessProposal): RobotAccessWords {
-  const what = counted(proposal.items);
-  const one = proposal.items.length === 1;
-  const support = proposal.support_label.trim().replace(/^(the|a|an) /i, "");
-  return {
-    what,
-    why: `In the simulation of your site, the robot arm can't stand close enough to reach the job: ${what} ${one ? "is" : "are"} in the way.`,
-    question: `To give the robot room, Blueprint would move ${what} away from the ${support} in the simulation. Approve?`,
-    note: `Only the simulation changes; your site and your video stay as they are. The ${one ? proposal.items[0].kind : "furniture"} `
-      + `may still show in the simulation's pictures, but the robot is no longer blocked by ${one ? "it" : "them"}. Results stay estimates.`,
-    items: proposal.items.map(row => row.label),
-    approve: one ? "Move it in the simulation" : "Move them in the simulation",
-    decline: one ? "Keep it where it is" : "Keep them where they are",
-    approved: `You approved this. Blueprint moves ${what} in the simulation and checks again whether the robot can reach the job.`,
-    declined: `You chose to keep ${what} where ${one ? "it is" : "they are"}. The robot can't stand within reach, so this job is on hold. `
-      + "You can still approve if you change your mind.",
-  };
-}
-
-export type RobotAccessView = RobotAccessWords & {
-  proposalDigest: string;
-  decision: { kind: "approved" | "declined"; decidedAt: string } | null;
-};
-
-/** What the owner's job page shows, or null when the Pipeline has sent no current proposal. */
-export function robotAccessView(intake: Intake | undefined): RobotAccessView | null {
-  const proposal = currentRobotAccessProposal(intake);
-  if (!proposal) return null;
-  const decision = robotAccessDecisionFor(intake, proposal);
-  return { proposalDigest: proposal.proposal_digest, ...describeRobotAccessProposal(proposal),
-    decision: decision ? { kind: decision.decision, decidedAt: decision.decided_at } : null };
-}
-
-/** The same, read for the owner's page; unreadable is unknown (null). */
-export async function loadRobotAccessView(requestId: string, captureId: string, store = db): Promise<RobotAccessView | null> {
-  try { return robotAccessView((await latestSceneIntake(requestId, captureId, store))?.data); }
-  catch { return null; }
 }
 
 /**

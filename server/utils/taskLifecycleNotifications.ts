@@ -14,7 +14,7 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createHash } from "node:crypto";
-import { OUTLOOK_SENTENCES, proofScoredAnyRobot, type JobOutlook } from "./jobOutlook";
+import { OUTLOOK_SENTENCES, type JobOutlook } from "./jobOutlook";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { enqueueOutbox, CAPTURE_OUTBOX_COLLECTION, type OutboxKind } from "./captureOutbox";
 import { automationBatch } from "./automationBatch";
@@ -32,13 +32,9 @@ import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isE
   type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
-import { isScreeningHeldOutcome, isScreeningResultOutcome, simulationOutcomeEmailSentence, storedScreeningOutcomeCaveat,
-  type ScreeningOutcome, type ScreeningOutcomeCaveat , simulationHoldSentence, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
-import { PLAIN_SETUP_CAVEAT, projectSimulationProof, testHeadline, testNotRunLine, testResultOf, testSubLine,
-  type SimulationProof } from "../../client/src/lib/simulationProof";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
-import { FIRST_LOOK_SOURCE, LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, firstLookSentence, type SiteAnswer } from "../../client/src/lib/siteAnswer";
+import { FIRST_LOOK_SOURCE, LIMITS_PAPER, SURENESS_WORDS, firstLookSentence, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
 import { COMPANY_RESPONSE_LABELS, isCompanyResponseState, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { JOB_FACTS_NUDGE } from "../../client/src/lib/jobFacts";
@@ -57,9 +53,7 @@ export type TaskLifecycleMilestone = Extract<
   | "company_answered"
   | "introduction_made_site"
   | "screening_not_now"
-  | "evaluation_outcome"
   | "scene_outcome"
-  | "robot_access_question"
   | "footage_before_account"
   | "video_too_large"
   | "pilot_request"
@@ -194,25 +188,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "An update on your Blueprint job",
     body: (url) => `Something we need for your job is missing.\n\nYour job page says what, and how to send it. You can also reply to this email.\n\nOpen your job:\n${url}`,
   },
-  // One per result outcome of the job's evaluation and scene (F-01). The detail
-  // is only the outcome's sentence about the simulation, or for an estimate the
-  // job page's own simulation proof, and the results disclaimer, built from typed
-  // values, never caller text. A finished trial's subject is its own (`TRIAL_FINISHED_SUBJECT`).
-  evaluation_outcome: {
-    subject: "An update on the simulation of your job",
-    body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See the result")}`,
-  },
   // One per terminal outcome of the job's scene intent (C-04). The subject is the
   // ending's own, and the detail is only the job page's sentence for it.
   scene_outcome: {
     subject: "An update on your Blueprint job",
     body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
-  },
-  // One per robot access proposal the owner's job page asks about. The detail
-  // is only the page's own words for it, built from typed counts, never caller text.
-  robot_access_question: {
-    subject: "The simulation of your site needs one decision",
-    body: (url, detail) => `${detail}\n\nChoose on your job page:\n${url}`,
   },
   video_too_large: {
     // The job page's new-video ask, said the same way (`LARGE_VIDEO_RECAPTURE_SENTENCES`).
@@ -266,13 +246,6 @@ export async function enqueueTaskLifecycleNotification(params: {
   recaptureReason?: RecaptureReason;
   /** `preparation_needs_attention` only: a part-6 ending; the email says the page's own words for it. */
   preparationEnding?: PreparationEnding;
-  /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
-  screeningOutcome?: ScreeningOutcome;
-  screeningCounts?: { ran: number; total: number; scored: number };
-  /** `evaluation_outcome` estimate only: what the page's sentence adds (`screeningOutcomeCaveat`). */
-  screeningCaveat?: ScreeningOutcomeCaveat;
-  /** `evaluation_outcome` set-up hold only: its detail with words of its own. */
-  screeningHoldDetail?: ScreeningHoldDetail;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `company_answered` only: the company's answer; the email states its fixed label, nothing else of the company. */
@@ -283,8 +256,6 @@ export async function enqueueTaskLifecycleNotification(params: {
   siteAnswer?: SiteAnswer;
   /** `answer_ready` only: the job's outlook (`jobOutlook`), whose ending sentence the paper-check answer opens with. */
   outlook?: { phase: string; sentence: string | null };
-  /** `evaluation_outcome` estimate and `answer_ready`: the job page's simulation proof; read from the job's results when not given. */
-  simulationProof?: SimulationProof | null;
   /** `scene_outcome` only: the sweeps' endings (see `buildTaskLifecycleNotification`). */
   jobWindowEnded?: true;
   jobNoGrantEnded?: "site" | "blueprint";
@@ -333,17 +304,10 @@ export async function enqueueTaskLifecycleNotification(params: {
   const recaptureReason = earlyTaskHold ? null : recaptureReasonOf(preview)
     ?? (isRecaptureReason(params.recaptureReason) ? params.recaptureReason : null);
   const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, recaptureReason: _recapture, ...notice } = params;
-  const simulationProof = (params.milestone === "evaluation_outcome" || params.milestone === "answer_ready")
-    && params.simulationProof === undefined ? await loadSimulationProof(requestId) : params.simulationProof;
-  // An estimate whose results cannot be read yet: whether it scored an AI robot (a result) or none (an ending) is
-  // unknown, so nothing is queued; its producer keeps the intent and asks again.
-  if (params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && simulationProof?.state !== "done")
-    return { enqueued: false, reason: "awaiting_reading" };
-  const scoredNone = params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !proofScoredAnyRobot(simulationProof);
-  // With no test result to come, the paper check is the answer: read it for the email that says so. While the video
+  // An ending's email gives the paper check as the answer: read it for the email that says so. While the video
   // is still being read (or its answer cannot be read), the email waits, bounded by the reading's own limit.
-  const wantsPaper = !params.siteAnswer && ((params.milestone === "evaluation_outcome" && (params.screeningOutcome !== "estimate" || scoredNone))
-    || params.milestone === "preparation_ended" || (params.milestone === "scene_outcome" && params.sceneOutcomeKind !== "withdrawn"));
+  const wantsPaper = !params.siteAnswer && (params.milestone === "preparation_ended"
+    || (params.milestone === "scene_outcome" && params.sceneOutcomeKind !== "withdrawn"));
   let siteAnswer = params.siteAnswer;
   let paperUnread = false;
   if (wantsPaper) {
@@ -355,7 +319,7 @@ export async function enqueueTaskLifecycleNotification(params: {
     siteAnswer = paper.answer;
     paperUnread = paper.unread === true;
   }
-  return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, simulationProof, ...(siteAnswer ? { siteAnswer } : {}), requestId, to, workspaceUrl,
+  return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, ...(siteAnswer ? { siteAnswer } : {}), requestId, to, workspaceUrl,
     ...(paperUnread ? { paperUnread: true as const } : {}), ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
 }
 
@@ -486,17 +450,8 @@ export function buildTaskLifecycleNotification(params: {
   terminalReason?: string | null;
   /** The job in the site's workspace, when the site is claimed. Run notices send it there. */
   workspaceUrl?: string | null;
-  /** `evaluation_outcome` only: the run's result outcome; its event id must name it. */
-  screeningOutcome?: ScreeningOutcome;
-  /** `evaluation_outcome` estimate only: candidates that ran, of all, and episodes scored. */
-  screeningCounts?: { ran: number; total: number; scored: number };
-  /** `evaluation_outcome` estimate only: what the page's sentence adds (`screeningOutcomeCaveat`). */
-  screeningCaveat?: ScreeningOutcomeCaveat;
-  screeningHoldDetail?: ScreeningHoldDetail;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
-  /** `robot_access_question` only: how many chairs and stools the proposal moves; its event id is the proposal digest. */
-  robotAccessCounts?: RobotAccessCounts;
   /** `preparation_needs_attention` only: the early task hold the job page states; the notice is then the held one. */
   earlyTaskHold?: EarlyTaskHoldReason;
   /** `preparation_needs_attention` only: the new-video ask the job page states; the notice is then that ask. */
@@ -521,8 +476,6 @@ export function buildTaskLifecycleNotification(params: {
   siteAnswer?: SiteAnswer;
   /** `answer_ready` only: the job's outlook (`jobOutlook`), whose ending sentence the paper-check answer opens with. */
   outlook?: { phase: string; sentence: string | null };
-  /** `evaluation_outcome` estimate and `answer_ready`: the job page's simulation proof, or null when it could not be read. */
-  simulationProof?: SimulationProof | null;
   /** With `jobNoGrantEnded`: why the sweep ended it early, said in the ending's own sentence. */
   jobNoGrantReason?: "video_over_ingest_limit";
   /** An ending's email whose video could not be read in time: it says plainly that there is no paper check. */
@@ -535,8 +488,7 @@ export function buildTaskLifecycleNotification(params: {
   if (params.milestone === "company_answered" && !isCompanyResponseState(params.companyAnswerState)) {
     throw new Error("company_answer_state_invalid");
   }
-  const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
-    : params.milestone === "scene_outcome"
+  const outcomeDetail = params.milestone === "scene_outcome"
       // An ending of the simulation (held, never built, its window ran out): its reason, then the paper check as the
       // one answer, by the same composer as the no-test email. A withdrawal is the site's own ending: no answer.
       ? params.sceneOutcomeKind === "withdrawn" ? sceneOutcomeDetail(params)
@@ -544,7 +496,6 @@ export function buildTaskLifecycleNotification(params: {
           : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params),
           paperLine(params.siteAnswer, { hold: params.sceneOutcomeKind === "held" && !params.jobWindowEnded && !params.jobNoGrantEnded,
             unread: params.paperUnread }))
-    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
     : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer, params.outlook, params.paperUnread === true) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
@@ -562,19 +513,13 @@ export function buildTaskLifecycleNotification(params: {
   const preparationDetail = params.milestone === "preparation_ended"
     ? [capacityEnded ? "" : preparationEndedSentence(params.terminalReason), paperLine(params.siteAnswer, { hold: false, unread: params.paperUnread }), reference]
       .filter(Boolean).join(" ") : reference;
-  // A finished test that scored no AI robot is an ending, so its email takes the paper slot (review, 2026-11-11).
-  const scoredNone = params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !proofScoredAnyRobot(params.simulationProof);
   return {
     idempotencyKey: `${requestId}:${params.milestone}${eventId ? `:${eventId}` : ""}`,
     requestId,
     kind: params.milestone,
     ...(isWebsitePreparationNotice(params.milestone) ? {preparationEventId: params.eventId} : {}),
-    ...(scoredNone ? { answerSlot: "paper" as const } : {}),
     to: params.to,
-    subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !scoredNone
-      ? TRIAL_FINISHED_SUBJECT
-      : params.milestone === "evaluation_outcome" && paperAnswerLine(params.siteAnswer) ? PAPER_ANSWER_SUBJECT
-      : params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
+    subject: params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind)
       : params.milestone === "answer_ready" && params.siteAnswer?.state === "cannot_assess" ? "An update on your Blueprint job"
@@ -582,8 +527,7 @@ export function buildTaskLifecycleNotification(params: {
     body: finePrintLast(`${message.body(url, isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "company_answered" ? COMPANY_RESPONSE_LABELS[params.companyAnswerState!]
       : params.milestone === "job_sent" ? String(params.companyCount ?? "")
-      : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
-        || params.milestone === "robot_access_question" || params.milestone === "answer_ready" ? outcomeDetail
+      : params.milestone === "scene_outcome" || params.milestone === "answer_ready" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}`),
     replyTo: "hello@tryblueprint.io",
   };
@@ -664,40 +608,6 @@ function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifec
   };
 }
 
-/** The subject of the email that gives the first look when no trial result will come. */
-const PAPER_ANSWER_SUBJECT = "Your first look is ready";
-const SIMULATION_DISCLAIMER = "A simulation is not a physical test, and it never certifies physical performance or safety.";
-/** An estimate's email when the job's results could not be read: true whatever they show. */
-const SIMULATION_FINISHED = "Our early trial on your job has finished. Your job page shows how each robot did.";
-/** The page's own headline when a stored caveat is all that can be read: it is only ever set when none finished. */
-const NONE_FINISHED_HEADLINE = "No robot finished the job in our trial.";
-
-/** The test result the job page leads with, once the simulation has finished. */
-const finishedResult = (proof: SimulationProof | null | undefined) => {
-  const result = proof?.state === "done" ? testResultOf(proof) : null;
-  return result && result.kind !== "testing" ? result : null;
-};
-
-/** One subject for every finished trial, whatever it found: a zero is a valid result of the trial. */
-const TRIAL_FINISHED_SUBJECT = "Our early trial on your job has finished";
-/** The trial email's first line: whose trial it was, and whose robot it was not. */
-export const TRIAL_EMAIL_OPENING = "This was our own trial of openly available robot software, not a deployment company's robot.";
-
-/**
- * A finished simulation, in the job page's own words (`projectSimulationProof`, `testResultOf`, `testHeadline`):
- * the headline the page leads with, its line under it, and the set-up notice when a flag says our simulation may have shaped it. One
- * idea; the ranked list and how far to trust it are on the page.
- */
-function estimateDetail(proof: SimulationProof | null | undefined, caveat: ScreeningOutcomeCaveat | null): string {
-  const result = finishedResult(proof);
-  const said = result ? [testHeadline(result), testSubLine(result), result.setupFlag ? PLAIN_SETUP_CAVEAT : null]
-    // No option to name: the page's own line for why, or, unread, what a stored caveat still shows.
-    : proof?.state === "done" && testNotRunLine(proof)
-      ? [testNotRunLine(proof), proof.options.setupFlag || caveat ? PLAIN_SETUP_CAVEAT : null]
-    : caveat ? [NONE_FINISHED_HEADLINE, PLAIN_SETUP_CAVEAT] : [SIMULATION_FINISHED];
-  return `${TRIAL_EMAIL_OPENING} ${said.filter(Boolean).join(" ")} Nothing is needed from you.`;
-}
-
 /** The job's composed answer, for an email that gives the paper check as the answer; undefined when it cannot be read. */
 export async function loadPaperAnswer(requestId: string): Promise<SiteAnswer | undefined> {
   try {
@@ -707,50 +617,6 @@ export async function loadPaperAnswer(requestId: string): Promise<SiteAnswer | u
     logger.warn({ error, requestId }, "Could not read the answer for an email; it says only what holds without it");
     return undefined;
   }
-}
-
-/** The job's simulation proof as its page shows it, or null when the results cannot be read. Never fails the notice. */
-async function loadSimulationProof(requestId: string): Promise<SimulationProof | null> {
-  try {
-    const { readSiteManagedEvidence } = await import("./siteManagedEvidence");
-    const { managedEvidence } = await readSiteManagedEvidence(requestId);
-    return projectSimulationProof({ evaluation: managedEvidence as never, pick: null });
-  } catch (error) {
-    logger.warn({ error, requestId }, "Could not read the simulation result for an email; it says only what holds without it");
-    return null;
-  }
-}
-
-/**
- * The outcome's sentence about the simulation, or for an estimate the job page's simulation proof,
- * and the results disclaimer. The event id must name the same outcome, so the dispatch check reads
- * back exactly what the body says (F-01).
- */
-function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
-  screeningCounts?: { ran: number; total: number; scored: number }; screeningCaveat?: ScreeningOutcomeCaveat;
-  screeningHoldDetail?: ScreeningHoldDetail;
-  simulationProof?: SimulationProof | null; siteAnswer?: SiteAnswer; paperUnread?: true }): string {
-  const outcome = params.screeningOutcome;
-  const counts = params.screeningCounts;
-  if (!isScreeningResultOutcome(outcome) || !new RegExp(`^${outcome}-[a-f0-9]{24}$`).test(params.eventId ?? "")
-    || (outcome === "estimate") !== Boolean(counts)
-    || (counts && ![counts.ran, counts.total, counts.scored].every(value => Number.isSafeInteger(value) && value >= 0))) {
-    throw new Error("evaluation_outcome_notice_invalid");
-  }
-  // An estimate that scored an AI robot is the page's test result, under the page's tested limits line.
-  if (outcome === "estimate" && proofScoredAnyRobot(params.simulationProof)) {
-    return `${estimateDetail(params.simulationProof, storedScreeningOutcomeCaveat(params.screeningCaveat))}\n\n${finePrint(LIMITS_TESTED)}`;
-  }
-  // No test result (a hold, another stop, or a finished test that scored no AI robot): why, then the paper check as
-  // the answer. Only a hold can still be followed by a test result, so only its email says one would be emailed.
-  const why = outcome === "estimate"
-    ? [testNotRunLine(params.simulationProof) ?? OUTLOOK_SENTENCES.no_ai_robot_scored,
-      params.simulationProof?.options.setupFlag || storedScreeningOutcomeCaveat(params.screeningCaveat) ? PLAIN_SETUP_CAVEAT : null]
-      .filter(Boolean).join(" ")
-    : testNotRunLine(params.simulationProof) ?? simulationHoldSentence(outcome, params.screeningHoldDetail);
-  const paper = paperLine(params.siteAnswer, { hold: isScreeningHeldOutcome(outcome), unread: params.paperUnread });
-  return paperAnswerLine(params.siteAnswer) ? `${why} ${paper}\n\n${finePrint(LIMITS_PAPER)}`
-    : `${why} ${paper} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
 }
 
 /** An ending's own reason, then its paper-check line. */
@@ -766,8 +632,8 @@ function paperAnswerLine(answer: SiteAnswer | null | undefined, hold = false): s
 }
 /**
  * An ending email's line about the paper check (review, 2026-11-11): the paper check as the answer when there is one,
- * else a plain statement that there is none, and why when the reader said why. "If a test result comes later" is said
- * only after a hold, the one ending after which a test can still come.
+ * else a plain statement that there is none, and why when the reader said why. `PAPER_LATER` is said only after a
+ * hold, the one ending after which the simulation can still go on.
  */
 function paperLine(answer: SiteAnswer | null | undefined, options: { hold: boolean; unread?: boolean }): string {
   if (options.unread) return NO_PAPER_UNREAD;
@@ -776,8 +642,8 @@ function paperLine(answer: SiteAnswer | null | undefined, options: { hold: boole
   const why = answer?.state === "cannot_assess" && answer.reason ? ` ${answer.reason}` : "";
   return `${NO_PAPER_CHECK}${why}`;
 }
-/** A hold's first look ends with this: a trial result may still come. */
-export const PAPER_LATER = "If our early trial gives a result later, we'll email it.";
+/** A hold's first look ends with this: the simulation may still go on. */
+export const PAPER_LATER = "Your job page shows when work on the simulation of your site starts again.";
 export const NO_PAPER_CHECK = "There is no first look for this job.";
 export const NO_PAPER_UNREAD = "We could not finish reading your video, so there is no first look for this job.";
 
@@ -836,7 +702,7 @@ function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookVi
   const share = "";
   if (outlook!.reason === "kept_on_file") return `${outlook!.sentence} ${paperLine(answer, { hold: false })}${share}`;
   if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
-  return `${outlook!.sentence ?? "Our early trial has not run on your job."} ${paperLine(answer, { hold: false })}${share}\n\n${finePrint(LIMITS_PAPER)}`;
+  return `${outlook!.sentence ?? OUTLOOK_SENTENCES.job_ended} ${paperLine(answer, { hold: false })}${share}\n\n${finePrint(LIMITS_PAPER)}`;
 }
 type JobOutlookView = { phase: string; reason?: string | null; sentence: string | null };
 
@@ -925,36 +791,6 @@ export async function answerReadyShown(requestId: string, idempotencyKey?: strin
   if (decision.outlook.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId)) return false;
   return answerEmailDue(answer, decision.outlook);
 }
-
-/** How many of each kind of movable furniture a robot access proposal moves. */
-export type RobotAccessCounts = { chair: number; stool: number };
-
-/**
- * The owner's one question about the simulation of their site, in the job
- * page's own words (`describeRobotAccessProposal`): how many chairs or stools
- * keep the robot arm from standing within reach, and the page's two choices.
- * Built from typed counts only, so no cost or budget step can reach it:
- * measuring the furniture is Blueprint's own preparation. The event id must be
- * the proposal digest, so one proposal is one email.
- */
-function robotAccessQuestionDetail(params: { eventId?: string; robotAccessCounts?: RobotAccessCounts }): string {
-  const counts = params.robotAccessCounts;
-  const rows = counts ? ([["chair", counts.chair], ["stool", counts.stool]] as const) : [];
-  const total = rows.reduce((sum, [, count]) => sum + count, 0);
-  if (!/^[a-f0-9]{64}$/.test(params.eventId ?? "") || !rows.length
-    || !rows.every(([, count]) => Number.isSafeInteger(count) && count >= 0) || total < 1 || total > 4) {
-    throw new Error("robot_access_question_notice_invalid");
-  }
-  const what = rows.filter(([, count]) => count > 0).map(([kind, count]) => `${count} ${kind}${count === 1 ? "" : "s"}`)
-    .join(" and ");
-  const one = total === 1;
-  return `In the simulation, the robot arm can't stand close enough to reach the job because ${what} ${one ? "is" : "are"} in the way.\n\n`
-    + `We can move ${one ? "it" : "them"}, in the simulation only. Your site and your video stay as they are.\n\n`
-    + `On your job page, choose "${one ? "Move it in the simulation" : "Move them in the simulation"}" or `
-    + `"${one ? "Keep it where it is" : "Keep them where they are"}". Nothing changes until you answer.\n\n`
-    + finePrint("Results stay estimates, not a physical test.");
-}
-
 
 /** Existing outbox tick repairs a lost enqueue; fresh readback gates dispatch again. */
 export async function reconcileWebsitePreparationNotifications(limit = 1): Promise<void> {

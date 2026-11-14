@@ -5,7 +5,6 @@
  */
 import { describe, expect, it } from "vitest";
 import { SETUP_FLAG_UNCLASSIFIED_SENTENCE, isKnownFlag, isRobotFactFlag, robotFactNotes, setupFlagSentence } from "../utils/screeningSetupFlagSentences";
-import { screeningReasonLabel } from "../../client/src/lib/screeningPlainLanguage";
 import { betaPolicyScreeningHoldSchema, isKnownHoldReason, screeningHoldOutcome } from "../utils/betaPolicyScreeningHold";
 import { adoptedSceneOutcome, sceneIntentOutcomeSchema, sceneOutcomeMessage, sceneOutcomeNoticeIntent } from "../utils/sceneIntentOutcome";
 import { projectWebsiteSceneProgression } from "../utils/websiteSceneProgression";
@@ -69,7 +68,6 @@ describe("set-up and scene flags", () => {
   it("no longer has words for the two codes the Pipeline dropped", () => {
     for (const code of ["task_object_placement_differs_from_video", "scene_task_not_visible", "task_object_not_in_view"]) {
       expect(setupFlagSentence(code)).toBe(SETUP_FLAG_UNCLASSIFIED_SENTENCE);
-      expect(screeningReasonLabel(code)).not.toMatch(/no camera/);
     }
   });
   it("says only that a point was raised for a flag it does not know, and marks it unknown for staff", () => {
@@ -79,10 +77,6 @@ describe("set-up and scene flags", () => {
 });
 
 describe("waits and holds", () => {
-  it.each([
-    ["beta_screening_work_disk_wait", "In line for processing on our side."],
-    ["account_monthly_spend_job_start_wait", "In line for processing on our side."],
-  ])("labels %s plainly", (code, label) => expect(screeningReasonLabel(code)).toBe(label));
   it("reads a hold reason it does not know as a hold on our side, instead of refusing the hold", () => {
     expect(isKnownHoldReason("brand_new_hold")).toBe(false);
     expect(screeningHoldOutcome({ status: "held", reason_code: "brand_new_hold" as never })).toBe("held_setup");
@@ -182,7 +176,7 @@ describe("the cold-storage hold", () => {
   const holdRun = (detail: string | null) => ({ id: "hold-1", run: { run_kind: "beta_policy_screening_hold", team_namespace: "team",
     state: "blocked", screening_outcome: "held_setup", hold_reason_code: "team_scene_packet_blocked", hold_detail_code: detail } });
   const COLD = "Held on our side while the saved simulation of your job is restored. Nothing is needed from you.";
-  it("is said by its detail on the page and in its one email; any other detail keeps the reason's sentence", async () => {
+  it("is said by its detail on the page; any other detail keeps the reason's sentence", async () => {
     const { sceneScreening, sceneScreeningResult } = await import("../utils/websiteSceneProgression");
     const { projectTaskStatus } = await import("../utils/taskStatusProjection");
     const { heldOutcomeNoticeIntent } = await import("../utils/screeningOutcomeNotifications");
@@ -198,9 +192,6 @@ describe("the cold-storage hold", () => {
     expect(page("something_new")).not.toContain("restored");
     const intent = heldOutcomeNoticeIntent("held_setup", "job-1", "hold-1", "scene-1", "scene_run_in_cold_storage")!;
     expect(intent.hold_detail).toBe("scene_run_in_cold_storage");
-    const email = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "evaluation_outcome", eventId: intent.event_id,
-      screeningOutcome: "held_setup", screeningHoldDetail: "scene_run_in_cold_storage", to: "owner@example.test" });
-    expect(email.body).toContain(COLD);
     expect(heldOutcomeNoticeIntent("held_setup", "job-1", "hold-1", "scene-1")?.hold_detail).toBeUndefined();
   });
 });
@@ -297,10 +288,6 @@ describe("the test stage's new codes", () => {
       expect(setupFlagSentence(code)).toBe(SETUP_FLAG_UNCLASSIFIED_SENTENCE);
       expect(isKnownFlag(code)).toBe(false);
     });
-  it("labels the work-disk blocker plainly", () => {
-    expect(screeningReasonLabel("beta_screening_output_cannot_land_on_work_disk"))
-      .toBe("We could not test this robot: our machine had no room to store the test's recording.");
-  });
   it("never shows a hold's detail other than cold storage, and never alerts on it", async () => {
     const { screeningHoldDetail } = await import("../utils/betaPolicyScreeningContract");
     expect(screeningHoldDetail("team_scene_packet_blocked", "scene_run_in_cold_storage")).toBe("scene_run_in_cold_storage");

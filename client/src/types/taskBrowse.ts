@@ -69,21 +69,8 @@ export interface JobCardAnswerSummary {
   runnerUp: JobCardAnswerRobot | null;
   confidence: { level: AnswerConfidenceLevel; reason: string | null };
   unknowns: string[];
-  /** One line from the simulation of the site, when it ran without a result to lead with (held, could not run). */
-  simulation: string | null;
-  /**
-   * The simulation test's result, the same one the site's screen leads with (`testResultOf`): its kind, row 1 of
-   * the ranked options and every option's count. Option names come from the closed map only. Null without a result.
-   */
   /** The site's scene finding beside a verdict resting on the site's own measurement, said about the site. */
   sceneNote?: string | null;
-  test?: {
-    kind: "winner" | "one_option" | "no_clear_winner" | "none_finished" | "testing";
-    wording: "did_best" | "was_ahead" | null;
-    entered: number;
-    setupFlag: boolean;
-    options: Array<{ label: string; maker: string | null; succeeded: number; scored: number; furthestText: string | null }>;
-  } | null;
   note: string;
 }
 /**
@@ -145,7 +132,7 @@ export interface CompanyJobPage {
   simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */
   simulation: { state: "ready"; viewerUrl: string } | { state: "not_finished" };
-  /** The first look (and the early trial's result inside it, `test`), or null while there is none. */
+  /** The first look, or null while there is none. */
   firstLook: JobCardAnswerSummary | null;
   /** The first look's robots in plain words, resolved with the site's weight answer where it can be. */
   firstLookRows: CompanyFirstLookRow[];

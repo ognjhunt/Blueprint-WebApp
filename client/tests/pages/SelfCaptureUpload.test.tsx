@@ -1548,46 +1548,33 @@ describe("the site's answer leads its job page", () => {
     expect(screen.queryByText(/Your video is saved|Video received\.|Planning details/)).toBeNull();
   });
 
-  it("puts our early trial, folded, inside the job page from the workspace's one workflow read", async () => {
+  it("shows no early trial on the job page, and reads the workspace's workflow once", async () => {
     setUserAgent(DESKTOP_UA);
     const fetchMock = answerFetch({ answer: readyAnswer, workflow: jobWorkflow([winnerEvaluation]) });
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
-    const trial = await screen.findByRole("region", { name: "Early trial of openly available robot software" });
-    // Folded by default, under its fixed line; the first look still leads the page.
-    expect(trial.querySelector("details")).not.toHaveAttribute("open");
-    trial.querySelector("details")!.setAttribute("open", "");
-    // The fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best".
-    expect(await within(trial).findByRole("heading", { level: 3, name: "Was ahead in our trial" })).toBeVisible();
-    expect(trial.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
-    expect(within(trial).getByText("This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.")).toBeVisible();
-    expect(screen.getByText("On paper, the robot most likely to fit: Universal Robots UR10e.")).toBeVisible();
-    // The ranked list is a details screen after the first look's; the scene's line about the pick is on the first look's.
+    expect(await screen.findByText("On paper, the robot most likely to fit: Universal Robots UR10e.")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Early trial of openly available robot software" })).toBeNull();
+    // The details screens are the first look's; the scene's line about the pick is on the first look's.
     fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Our early trial" }));
-    expect(await screen.findByRole("region", { name: "Ranked" })).toHaveTextContent("1. Franka arm + π0.5");
-    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
+    expect(screen.queryByRole("button", { name: "Our early trial" })).toBeNull();
     fireEvent.click(await screen.findByRole("button", { name: "First look: why this robot" }));
     expect(await screen.findByText(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     fireEvent.click(await screen.findByRole("button", { name: "‹ Back" }));
     window.history.replaceState(null, "", "/capture-upload/test");
+    expect(document.body.textContent).not.toMatch(/early trial|openly available/i);
     const reads = fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/job-workflow/owner/"));
     expect(reads).toHaveLength(1);
   });
 
-  it("shows the proof on its own, where the folded block was, for an older job with evaluations and no answer", async () => {
+  it("shows no early trial for an older job with no answer", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: null, workflow: jobWorkflow([allZeroEvaluation]) }));
     render(<SelfCaptureUpload />);
-    const proof = await screen.findByRole("region", { name: "Early trial of openly available robot software" });
-    expect(screen.queryByRole("region", { name: "Your job" })).toBeNull();
-    expect(proof.closest("details")).toBeNull();
-    // No robot finished: said in one line under the trial's fixed line, with the ranked list behind it.
-    expect(proof.textContent).toMatch(/Early trial: No robot finished the job in our trial\./);
-    expect(proof.textContent).toMatch(/It does not predict what a deployment company's robot would do\./);
-    // With no answer, the status card stays as it was.
-    expect(screen.getByText("We have your recording.", { selector: "strong" })).toBeVisible();
+    expect(await screen.findByText("We have your recording.", { selector: "strong" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Early trial of openly available robot software" })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/early trial|openly available/i);
   });
 
   it("says nothing more will update on an ended job", async () => {

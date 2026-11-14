@@ -28,7 +28,6 @@ export default function Beta() {
           <BareRows title="Your job packet" rows={[
             { key: "packet", label: "What's in it", value: "Your sentence for the job, a first look on paper, a simulation of your site, and what counts as done." },
             { key: "first-look", label: "First look", value: "The robot most likely to fit, from published specifications and where it has been used." },
-            { key: "trial", label: "Early trial", value: "Sometimes we also try openly available robot software in the simulation. It is a trial, not a prediction of any company's robot." },
             { key: "isnt", label: "It isn't", value: "A test at your site. It does not certify performance or safety." },
           ]} />
           <BareRows title="Deployment companies" rows={[

@@ -95,11 +95,10 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     const summary = body.item.answerSummary;
     expect(summary).toBeTruthy();
     expect(Object.keys(summary).sort()).toEqual(["confidence", "facts", "familyLabel", "headline", "note", "pick", "runnerUp",
-      "sceneNote", "simulation", "test", "unknowns"]);
+      "sceneNote", "unknowns"]);
     // No scene says otherwise here: no scene note.
     expect(summary.sceneNote).toBeNull();
-    // No simulation has run: the card's headline is the paper check's, as on the site's screen.
-    expect(summary.test).toBeNull();
+    // The card's headline is the paper check's, as on the site's screen.
     expect(summary.headline).toMatch(/^Most likely to fit: /);
     expect(summary.familyLabel).toBe("palletizing");
     expect(summary.pick).toMatchObject({ manufacturer: expect.any(String), name: expect.any(String), verdictLabel: expect.any(String) });
@@ -121,8 +120,6 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     const text = JSON.stringify(body);
     for (const word of PRIVATE) expect(text).not.toContain(word);
     expect(text).not.toMatch(/\byour\b/i);
-    // No simulation has run: no line.
-    expect(summary.simulation).toBeNull();
   });
 
   it("tells a company what was checked: the standing note always, and that only a carry was checked when the reader gave no kind", async () => {
@@ -156,60 +153,17 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(JSON.stringify(summary)).not.toMatch(/\byour\b|far side/i);
   });
 
-  it("adds one plain simulation line when the site's evaluation has one", async () => {
+  it("carries no early trial result, even where one was stored, and reads no evaluation for it", async () => {
     put(job());
-    seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "held_scene_check" }] }));
-    const { body } = await get(`/tasks/${ID}`);
-    expect(body.item.answerSummary.simulation).toBe("The simulated scene failed the check we run before testing robots, so no robot was tested in it.");
-  });
-
-  it("carries the simulation test's result as its headline, the same one the site sees, in numbers and closed-map names", async () => {
-    put(job());
-    const progress = (counts: number[]) => ({ graded: 10, meanScore: 0, stages: ["approached", "contact", "moved", "lifted", "translated",
-      "placed", "released_and_settled"].map((stage, index) => ({ stage, episodes: counts[index] })), closestApproachM: { median: 0.2, min: 0.05 } });
-    const row = (candidateId: string, counts: number[], succeeded = 0) => ({ candidateId, name: `stored ${candidateId}`, state: "completed", planned: 10, scored: 10,
-      succeeded, failed: 10 - succeeded, void: 0, blockers: [], progress: progress(counts) });
-    seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
-      screening: { candidates: [row("pi05_droid", [9, 6, 5, 4, 2, 0, 0]), row("groot_n17_droid", [0, 0, 0, 0, 0, 0, 0])] } }] }));
-    const none = (await get(`/tasks/${ID}`)).body.item;
-    expect(none.answerSummary.headline).toBe("No robot finished the job in our trial.");
-    expect(none.answerHeadline).toBe(none.answerSummary.headline);
-    expect(none.answerSummary.test).toMatchObject({ kind: "none_finished", wording: null,
-      options: [{ label: "Franka arm + π0.5", maker: "Physical Intelligence", succeeded: 0, scored: 10, furthestText: "lifted and carried the object" },
-        { label: "Franka arm + GR00T N1.7", maker: "NVIDIA", succeeded: 0, scored: 10 }] });
-    expect(none.answerSummary.simulation).toBeNull();
-    // A winner by the probability rule: the card says it as the site's screen does.
-    seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
-      screening: { candidates: [row("pi05_droid", [10, 10, 10, 10, 10, 10, 10], 10), row("groot_n17_droid", [0, 0, 0, 0, 0, 0, 0])] } }] }));
-    const won = (await get(`/tasks/${ID}`)).body.item.answerSummary;
-    expect(won.headline).toBe("Did best in our early trial: Franka arm + π0.5, doing the job in 10 of 10 tries.");
-    expect(won.test).toMatchObject({ kind: "winner", wording: "did_best" });
-    expect(JSON.stringify(won)).not.toMatch(/stored |\byour\b/i);
-  });
-
-  // Sharing is the service (2026-11-12): a shared job carries the early trial's result with the first look, before and
-  // after it arrives.
-  it("carries the paper check before a trial result and the trial result once it arrives", async () => {
-    put(job());
-    const before = (await get(`/tasks/${ID}`)).body.item.answerSummary;
-    expect(before.headline).toMatch(/^Most likely to fit: |^No robot clearly fits\.|^None of the /);
-    expect(before.test).toBeNull();
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
       screening: { candidates: [{ candidateId: "pi05_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 10, failed: 0,
-        void: 0, blockers: [] }, { candidateId: "groot_n17_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 0,
-        failed: 10, void: 0, blockers: [] }] } }] }));
-    const after = (await get(`/tasks/${ID}`)).body.item;
-    expect(after.answerSummary.headline).toBe("Did best in our early trial: Franka arm + π0.5, doing the job in 10 of 10 tries.");
-    expect(after.answerSummary.test).toMatchObject({ kind: "winner" });
-    expect(after.answerHeadline).toBe(after.answerSummary.headline);
-  });
-
-  it("keeps the answer when the simulation line cannot be read", async () => {
-    put(job());
-    seams.managed.mockImplementation(async () => { throw new Error("index missing"); });
-    const { body } = await get(`/tasks/${ID}`);
-    expect(body.item.answerSummary.headline).toMatch(/^Most likely to fit: /);
-    expect(body.item.answerSummary.simulation).toBeNull();
+        void: 0, blockers: [] }] } }] }));
+    const item = (await get(`/tasks/${ID}`)).body.item;
+    expect(item.answerSummary.headline).toMatch(/^Most likely to fit: |^No robot clearly fits\.|^None of the /);
+    expect(item.answerSummary).not.toHaveProperty("test");
+    expect(item.answerSummary).not.toHaveProperty("simulation");
+    expect(JSON.stringify(item)).not.toMatch(/early trial|our trial|Franka/i);
+    expect(seams.managed).not.toHaveBeenCalled();
   });
 
   it.each(["public-task-card-v1", "public-task-card-with-answer-v3"])("does not list a card under the older version %s at all", async version => {
@@ -256,8 +210,7 @@ describe("GET /api/site-worlds/tasks", () => {
     expect(shared.answerHeadline).toMatch(/^Most likely to fit: /);
     expect(shared.answerSummary).toBeUndefined();
     expect(plain).toBeUndefined();
-    // The line's headline is the card's own, so the test is read for the consenting card only.
-    expect(seams.managed).toHaveBeenCalledTimes(1);
+    expect(seams.managed).not.toHaveBeenCalled();
     // The answer is composed for the consenting card only.
     expect(vi.mocked(loadSiteAnswer).mock.calls.map(call => call[0])).toEqual([ID]);
   });

@@ -2,13 +2,11 @@
  * Our early trial's options are robot + robot software, compared across robots, in one display
  * order, with "did best" and "was ahead" only from the probability rule. Seeded generated inputs.
  */
-import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { SiteAnswer, SiteAnswerDetail } from "@/components/site/SiteAnswer";
 import { AHEAD, CLEAR, probabilityAhead, projectSimulationProof, testResultOf } from "@/lib/simulationProof";
 import { SIMULATION_POLICIES } from "@/data/simulationPolicies";
 import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
-import { readyAnswer, serverOutlookFor } from "../fixtures/siteAnswer";
+import { readyAnswer } from "../fixtures/siteAnswer";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => headers }));
 
@@ -104,40 +102,15 @@ describe("the simulation test's options", () => {
       const chance = top && options.length > 1 && top.succeeded > 0 ? Math.min(...options.slice(1).map(option => probabilityAhead(top, option))) : 0;
       expect(winner, label).toBe(chance >= CLEAR - 1e-6 ? "did_best" : chance >= AHEAD - 1e-6 ? "was_ahead" : null);
       if (winner) expect(top.succeeded, label).toBeGreaterThan(0);
-      // The answer screen names row 1, with its own counts; a zero-success option is never called best or ahead.
+      // Row 1 is the result's option; a zero-success option is never called best or ahead.
       const result = testResultOf(proof);
-      const { container, unmount } = render(<SiteAnswer token="t" answer={readyAnswer} proof={proof} outlook={serverOutlookFor(readyAnswer, proof)} />);
-      const text = container.textContent!;
       if (!options.length) { expect(result, label).toBeNull(); seen.empty++; }
       else {
         expect(result && "top" in result ? result.top : null, label).toBe(top);
-        if (result!.kind === "winner") {
-          seen.winners++;
-          expect(text, label).toContain(top.label);
-          expect(text, label).toContain(`Did the job in ${top.succeeded} of ${top.scored} ${top.scored === 1 ? "try" : "tries"}`);
-          expect(text, label).toContain(winner === "did_best" ? "Did best in our trial" : "Was ahead in our trial");
-        } else expect(text, label).not.toMatch(/Did best in our trial|Was ahead in our trial/);
+        if (result!.kind === "winner") seen.winners++;
         if (result!.kind === "none_finished") seen.none++;
         if (result!.kind === "no_clear_winner") seen.noClear++;
         if (result!.kind === "one_option") seen.one++;
-        for (const option of options) if (option.succeeded === 0) {
-          expect(text.includes(`${option.label}, doing`) || (result!.kind === "winner" && result!.top === option), label).toBe(false);
-        }
-      }
-      unmount();
-      // The ranked list says each option once, in the same order, with its counts.
-      if (options.length) {
-        const list = render(<SiteAnswerDetail answer={readyAnswer} proof={proof} screen="test" onBack={() => {}} />);
-        const rows = [...list.container.querySelectorAll("dt")].map(node => node.textContent ?? "");
-        options.forEach((option, i) => expect(rows[i], label).toContain(`${i + 1}. ${option.label}`));
-        for (const row of [...list.container.querySelectorAll(".bare-row")]) {
-          if (/^\d+\. /.test(row.querySelector("dt")?.textContent ?? "")) {
-            const option = options[Number(row.querySelector("dt")!.textContent!.split(".")[0]) - 1];
-            expect(row.textContent, label).toContain(`Finished ${option.succeeded} of ${option.scored}`);
-          }
-        }
-        expect(list.container.textContent, label).not.toMatch(/stored name/);
-        list.unmount();
       }
     }
     for (const [key, value] of Object.entries(seen)) expect(value, key).toBeGreaterThan(5);

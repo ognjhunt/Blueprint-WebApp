@@ -25,8 +25,7 @@ import { projectCandidateSelection } from "./betaCandidateSelection";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { familyNativePreparationReference, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { navigationPreparationReference } from "./navigationSceneIntake";
-import { assertWebsiteRunOpen } from "./websiteRunClosure";
-import { predatesPlaceCorrection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
+import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 import { WILSON_CONFIDENCE_PERCENT, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
 import { jobManagedEvidenceBindingSchema, type JobManagedEvidenceBinding } from "./jobManagedEvidenceBinding";
 import type { ManagedJobEvidenceSummary, ScreeningPracticeRun, ScreeningSuccessRange } from "./managedJobEvidenceSummary";
@@ -423,45 +422,6 @@ export function projectManagedJobEvidence(
       ...(decision.physical_evidence_still_required.length ? ["The decision still requires separately authoritative physical evidence."] : [])] };
 }
 
-/** Workspace readback and proposal references use the same current screening source. */
-async function currentManagedScreeningScope(args: {
-  jobId: string; currentBriefDigest: string; run: Record<string, any>;
-  result: Record<string, any> | null;
-  record: Record<string, any> | undefined; brief: Record<string, any> | undefined;
-  inventory: TaskItemInventoryRecord | null; sourceSession: Record<string, any> | null;
-  read: (reference: FirebaseFirestore.DocumentReference) => Promise<FirebaseFirestore.DocumentSnapshot>;
-}) {
-  const { jobId, currentBriefDigest, run, result, record, brief, inventory, sourceSession, read } = args;
-  try {
-    const publication = result ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(result)) : null;
-    if (!result || !publication || result.record_id !== run.result_record_id || result.run_id !== run.run_id
-      || publication.campaign_id !== run.run_id || publication.publication_digest !== run.publication_digest
-      || publication.revision !== run.publication_revision || publication.plan_digest !== run.configuration_digest) return null;
-    const intake = (await read(db!.collection("taskEvaluationSceneIntakes").doc(run.source_scene_intake_id))).data();
-    if (!intake || typeof intake.source_session_id !== "string" || intake.website_request_id !== jobId || intake.receipt?.intent_id !== run.source_scene_intent_id
-      || intake.request?.owner?.user_id !== run.owner_user_id) return null;
-    const revisionOfferings = await readPreparedRevisionOfferings(intake);
-    if (preparedSceneRevisionDigest(intake.pipeline_status, revisionOfferings) !== run.source_scene_revision_digest) return null;
-    const selectionSession = sourceSession ?? (await read(db!.collection('captureUploadSessions').doc(intake.source_session_id))).data();
-    if (!taskTargetSelectionApplies(selectionSession, intake)) return null;
-    assertWebsiteRunOpen(record, jobId, intake.source_session_id);
-    const capture = sourceSession ? { captureId: intake.source_session_id }
-      : await readManagedScreeningCapture(jobId, intake.source_session_id);
-    await assertManagedScreeningCaptureCurrent(jobId, capture, read);
-    const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record, brief,
-      inventory, sourceSession, allowProposedScreening: true, screeningCapture: capture });
-    assertScreeningSceneSource(publication, intake, scope, revisionOfferings);
-    // Results prepared before the site picked another place (2026-11-12): their preparation revision's corrections
-    // digest is not the job's current one (object corrections and the place, as the Pipeline binds it).
-    return { ...scope, predatesPlaceCorrection: predatesPlaceCorrection(selectionSession, intake) };
-  } catch (error) {
-    if (!(error instanceof Error) || !(/^job_[a-z_]+$/.test(error.message)
-      || ["screening_scene_source_mismatch", "screening_scene_revision_unbound", "website_run_closed_by_owner",
-        "website_run_capture_superseded"].includes(error.message))) throw error;
-    return null;
-  }
-}
-
 export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: string,
   options: { pageAll?: boolean } = {}): Promise<ManagedJobEvidenceSummary[]> {
   if (!db) return [];
@@ -499,24 +459,14 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
   const selectionSession = sourceSession ?? (await store.collection('captureUploadSessions')
     .doc(job.data()?.active_capture_id || `walkthrough-${jobId}`).get()).data();
   const uncorrectedSelectionApplies = taskTargetSelectionApplies(selectionSession);
-  const rows = await Promise.all(documents.map(async document => {
+  // Blueprint's own early trial is no longer shown to anyone: its runs stay stored until deleted, and are skipped here.
+  const rows = await Promise.all(documents.filter(document => document.data().run_kind !== "beta_policy_screening").map(async document => {
     const run = document.data();
     const result = typeof run.result_record_id === "string"
       ? await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get() : null;
     const scientificResult = result?.exists ? result.data()! : null;
-    let screeningScope: ReturnType<typeof managedJobTask> | null = null;
-    if (run.run_kind === "beta_policy_screening" && typeof run.source_scene_intake_id === "string") {
-      screeningScope = await currentManagedScreeningScope({
-        jobId, currentBriefDigest, run, result: scientificResult, record: job.data(), brief: brief.data(),
-        inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-        sourceSession, read: reference => reference.get() });
-    }
-    const row = projectManagedJobEvidence(document.id, run, scientificResult, jobId, currentBriefDigest,
-      run.run_kind === "beta_policy_screening" ? screeningScope?.taskContextDigest ?? null : uncorrectedSelectionApplies ? taskContextDigest : null,
-      run.run_kind === "beta_policy_screening" ? screeningScope?.sourceFingerprint ?? null : sourceFingerprint);
-    // Server-decided, per result: shown beside exactly these results. An unreadable revision gives no scope, so no line.
-    return row && screeningScope && (screeningScope as { predatesPlaceCorrection?: boolean }).predatesPlaceCorrection
-      ? { ...row, placeCorrectedSince: true as const } : row;
+    return projectManagedJobEvidence(document.id, run, scientificResult, jobId, currentBriefDigest,
+      uncorrectedSelectionApplies ? taskContextDigest : null, sourceFingerprint);
   }));
   return rows.filter((row): row is ManagedJobEvidenceSummary => row !== null);
 }
@@ -545,22 +495,17 @@ export async function assertManagedJobEvidenceReference(jobId: string, currentBr
     read(store.collection("siteTaskItemInventories").doc(jobId)),
   ]);
   const run = snapshot.data();
-  if (!run || run.job_evidence_binding?.job_id !== jobId || typeof run.result_record_id !== "string") {
+  if (!run || run.job_evidence_binding?.job_id !== jobId || typeof run.result_record_id !== "string"
+    || run.run_kind === "beta_policy_screening") {
     throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   }
   const sourceSession = await readManagedJobSourceSession(job.data(), read);
-  if (run.run_kind !== 'beta_policy_screening') {
-    const selectionSession = sourceSession ?? (await read(store.collection('captureUploadSessions')
-      .doc(job.data()?.active_capture_id || `walkthrough-${jobId}`))).data();
-    if (!taskTargetSelectionApplies(selectionSession)) throw new Error('job_managed_evidence_reference_unavailable_or_stale');
-  }
+  const selectionSession = sourceSession ?? (await read(store.collection('captureUploadSessions')
+    .doc(job.data()?.active_capture_id || `walkthrough-${jobId}`))).data();
+  if (!taskTargetSelectionApplies(selectionSession)) throw new Error('job_managed_evidence_reference_unavailable_or_stale');
   const result = await read(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id));
-  const scope = run.run_kind === "beta_policy_screening"
-    ? await currentManagedScreeningScope({ jobId, currentBriefDigest, run, result: result.exists ? result.data()! : null,
-      record: job.data(), brief: brief.data(),
-      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, sourceSession, read })
-    : managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
-      brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, sourceSession });
+  const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
+    brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, sourceSession });
   if (!scope) throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   const row = projectManagedJobEvidence(snapshot.id, run, result.exists ? result.data()! : null,
     jobId, currentBriefDigest, scope.taskContextDigest, scope.sourceFingerprint);

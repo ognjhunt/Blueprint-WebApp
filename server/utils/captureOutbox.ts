@@ -161,10 +161,13 @@ export interface OutboxEntry {
 
 /** Kinds whose feature is gone. A stored row of one is cancelled at dispatch, never sent. The team-run notices to a
  * site (results_ready, run_no_result, awaiting_evaluations, no_team_passed, no_qualified_evaluation) went with robot
- * teams running their own software (frame of 2026-11-12); rows queued before then are cancelled here. */
+ * teams running their own software (frame of 2026-11-12); the early trial's outcome notice (evaluation_outcome) and
+ * its question about moving chairs (robot_access_question) went with Blueprint's own early trial (2026-11-14). Rows
+ * queued before then are cancelled here. */
 const RETIRED_KINDS: ReadonlySet<string> = new Set(["pilot_recommended", "pilot_booked", "pilot_scheduled",
   "team_pilot_recommended", "team_pilot_booked", "team_pilot_scheduled",
-  "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"]);
+  "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation",
+  "evaluation_outcome", "robot_access_question"]);
 
 const DELIVERY_LEASE_MS = 5 * 60 * 1000;
 
@@ -370,10 +373,6 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileWaitingAnswerNotices } = await import("./taskLifecycleNotifications");
     await reconcileWaitingAnswerNotices(Math.min(limit, 5));
   } catch (error) { logger.warn({ error }, "Could not release endings' emails that waited for the reading"); }
-  try {
-    const { reconcileScreeningOutcomeNotifications } = await import("./screeningOutcomeNotifications");
-    await reconcileScreeningOutcomeNotifications(limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-outcome notices"); }
   try {
     const { reconcileSceneOutcomeNotifications } = await import("./sceneOutcomeNotifications");
     await reconcileSceneOutcomeNotifications(limit);

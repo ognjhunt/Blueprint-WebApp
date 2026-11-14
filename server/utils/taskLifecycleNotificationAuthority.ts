@@ -189,15 +189,6 @@ export async function taskLifecycleNotificationIsCurrent(
   const notices=await import('./taskLifecycleNotifications');
   return notices.answerReadyShown(entry.requestId,entry.idempotencyKey);
  }
- // A finished evaluation's outcome (F-01) is queued once its run ends, after
- // the consent check above. A queued notice names its outcome in its key and is
- // sent only while the job page still states it, so an estimate that has since
- // won cancels a held notice instead of leaving it pending.
- if(entry.kind==='evaluation_outcome'){
-  if(entry.idempotencyKey===undefined)return true;
-  const notices=await import('./screeningOutcomeNotifications');
-  return notices.evaluationOutcomeShown(entry.requestId,entry.idempotencyKey);
- }
  // A terminal scene outcome (C-04) names its outcome digest in its key, and is
  // sent only while the job page still states that exact outcome and no
  // evaluation outcome email (F-01) has told the site where its job stands.
@@ -213,14 +204,6 @@ export async function taskLifecycleNotificationIsCurrent(
    return ending.websiteJobNoGrantEndingShown(entry.requestId,entry.idempotencyKey);
   const notices=await import('./sceneOutcomeNotifications');
   return notices.sceneOutcomeShown(entry.requestId,entry.idempotencyKey);
- }
- // The owner's question about moving chairs in the simulation names its
- // proposal digest in its key, and is sent only while the job page still asks
- // exactly that question, unanswered, and the capture is not withdrawn.
- if(entry.kind==='robot_access_question'){
-  if(entry.idempotencyKey===undefined)return true;
-  const questions=await import('./websiteRobotAccessRemoval');
-  return questions.robotAccessQuestionOpen(entry.requestId,entry.idempotencyKey,snapshot.data());
  }
  return true;
 }

@@ -1,9 +1,3 @@
-import { CandidatePreparation } from "../shared/CandidatePreparation";
-import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
-import { ManagedScreeningResults } from "@/components/shared/ManagedScreeningResults";
-import { managedRunLabel } from "@/lib/screeningPlainLanguage";
-import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
-import { SimulationProof } from "./SimulationProof";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import type { TaskOutcome } from "@/types/taskOutcome";
@@ -29,17 +23,15 @@ function isWorkflow(value: unknown): value is JobMarketplaceWorkflow {
 /** The signed owner link is the credential; remounting keeps every record scoped to that link. */
 type JobWorkspaceProps = { token: string; preparationOutcome?: TaskOutcome | null; currentStatusKnown?: boolean; resultSuperseded?: boolean;
   currentNextAction?: { text: string; owner: "site" | "blueprint" };
-  /** Hands each loaded workflow to the page, so the page's proof reads this one fetch and makes none of its own. */
+  /** Hands each loaded workflow to the page, so the page reads this one fetch and makes none of its own. */
   onWorkflow?: (workflow: JobMarketplaceWorkflow) => void;
-  /** The proof in simulation, shown here on its own only when the page has no answer to carry it (older jobs). */
-  proof?: SimulationProofView | null;
 };
 export function JobWorkspace(props: JobWorkspaceProps) {
   return <JobWorkspaceForToken key={props.token} {...props} />;
 }
 
 function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = true, currentNextAction, resultSuperseded = false,
-  onWorkflow, proof }: JobWorkspaceProps) {
+  onWorkflow }: JobWorkspaceProps) {
   const [workflow, setWorkflow] = useState<JobMarketplaceWorkflow | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -111,12 +103,9 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   // The job page's status card already gives the current update; say it once.
   const currentAction = currentStatusKnown && !resultSuperseded ? currentNextAction : undefined;
   const review = !resultSuperseded ? workflow.review : null;
-  const preparation = workflow.candidateReadiness;
   const technical = (workflow.evidence ?? []).length > 0 || (workflow.managedEvidence ?? []).length > 0;
-  // Every policy and every test detail, folded into one block, shown only when there is something in it.
-  // The proof in simulation itself is never folded: it leads the answer, or stands on its own here.
-  const simulation = technical || Boolean(workflow.managedEvidenceUnavailable)
-    || Boolean(preparation && !(preparation.state === "available" && preparation.candidates.length === 0));
+  // Every test detail, folded into one block, shown only when there is something in it.
+  const simulation = technical || Boolean(workflow.managedEvidenceUnavailable);
   // The folded details block carries its own title, so "Results" heads only a written review.
   const results = Boolean(review);
   return <section className="job-workspace" {...results ? { "aria-labelledby": "job-progress-title" } : { "aria-label": "Job progress" }}>
@@ -136,12 +125,9 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       <p>{review.summary}</p>
       {currentStatusKnown && !preparationOutcome && !currentAction && review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{review.nextAction}</p>}
     </div>}
-    {proof && <div className="site-answer site-answer-standalone"><SimulationProof proof={proof} /></div>}
     {simulation && <details className="job-planning-details job-simulation">
-    <summary>Simulation details <span className="ms-field-hint">Every policy we set up, and why any did not run.</span></summary>
-    <CandidatePreparation preview={preparation} />
+    <summary>Simulation details</summary>
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
-    <ManagedScreeningResults evidence={workflow.managedEvidence} superseded={resultSuperseded} className="job-review" />
     {technical && <details className="job-planning-details">
       <summary>Technical evidence and test details</summary>
     {(workflow.evidence ?? []).length > 0 && <section className="job-review" aria-label="Evidence for your job">
@@ -158,12 +144,9 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     {(workflow.managedEvidence ?? []).length > 0 && <section className="job-review" aria-label="Managed policy evidence for your job">
       <h3>Policy evidence for your job</h3>
       {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
-        <h4>{resultSuperseded ? "Earlier object selection" : item.current ? managedRunLabel(item) : "Historical — the job scope changed"}</h4>
-        {(resultSuperseded || !item.current || !item.screening) && <>
+        <h4>{resultSuperseded ? "Earlier object selection" : item.current ? "Recorded run" : "Historical — the job scope changed"}</h4>
         <p>{item.summary}</p><p>Next: {item.nextAction}</p>
-        {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
         {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
-        </>}
         <p className="ms-field-hint break-all">Run: {item.runId}{item.resultDigest ? ` · Result: ${item.resultDigest}` : ""}</p>
       </article>)}
     </section>}

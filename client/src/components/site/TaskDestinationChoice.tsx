@@ -22,8 +22,6 @@ export const OUR_GUESS = " (our guess)";
 export const DESTINATION_SENTENCE = (object: string) => `We will test moving the ${object} from here to here.`;
 // The Pipeline draws A (the guess) in green and B to D in blue, each with its letter; the start in orange.
 export const DESTINATION_PICTURE_KEY = "Orange: where it starts. Each letter marks a place the object could go. A, in green, is our guess.";
-/** Beside results tested before the site picked another place. Nothing else changes, and no new test is promised. */
-export const DESTINATION_CORRECTED_AFTER_RESULTS = "These results were tested with the place you have since corrected.";
 export const DESTINATION_KEEPS_GOING = "Nothing is needed from you: your job keeps going either way.";
 export const DESTINATION_ANSWERED = "We have your answer about where the object goes.";
 

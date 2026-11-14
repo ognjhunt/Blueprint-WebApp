@@ -1,5 +1,3 @@
-import { CandidatePreparation } from "../shared/CandidatePreparation";
-import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
 import { useEffect, useRef, useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
@@ -144,13 +142,9 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
                   {["planned", "information_required", "blocked", "unavailable"].includes(item.state) ? <Button type="button" size="sm" variant="secondary" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/cancel`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.state === "cancelled" ? "Evidence request cancelled." : `Cancellation was not confirmed. ${saved?.serviceMessage ?? saved?.nextAction ?? "Refresh the evidence status before retrying."}`; })}>Cancel evidence request</Button> : null}
                 </div>
               </article>)}
-              <CandidatePreparation preview={workflow.candidateReadiness} />
               {(workflow.managedEvidence ?? []).map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="grid gap-2 border-t border-runway-line pt-3 text-sm">
                 <p className="font-semibold">Managed policy run · {item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}</p>
                 <p>{item.summary}</p><p>Next: {item.opsNextAction ?? item.nextAction}</p>
-                {item.screening && <PolicyScreeningCandidates screening={item.screening} showCodes />}
-                {item.screening?.budget && <p className="text-runway-mute">Shared site screening budget: up to ${item.screening.budget.committedUpperBoundUsd} committed
-                  {item.screening.budget.limitUsd !== undefined && <> of ${item.screening.budget.limitUsd}</>}, including ${item.screening.budget.reservedUsd} reserved for unresolved runs. These are conservative bounds, not invoices.</p>}
                 {item.limitations.map((limit, index) => <p className="text-runway-mute" key={index}>{limit}</p>)}
                 <p className="break-all text-xs">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>
               </article>)}
