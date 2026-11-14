@@ -14,7 +14,6 @@ import { canonicalArtifactDigest, stableJson } from "./taskCandidateContract";
 import { withTaskEvaluationLaunchStoreTimeout } from "./taskEvaluationLaunchStore";
 
 const COLLECTION = "taskEvaluationLaunches";
-const POLICY_RUN_COLLECTION = "taskEvaluationPolicyRuns";
 
 function truthy(value: unknown) {
   return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
@@ -47,54 +46,6 @@ export function validateStoredTaskEvaluationLaunch(record: Record<string, any>):
     blockers.push("stored_launch_execution_authority_missing");
   }
   return blockers;
-}
-
-/**
- * A Pipeline terminal receipt is the sole execution-result authority.  This is
- * deliberately not a substitute receipt: it only closes an accepted launch
- * whose bounded spend authority has elapsed without a Pipeline terminal
- * callback.  The original record remains intact so a delayed, digest-bound
- * Pipeline receipt can still supersede this control-plane blocker.
- */
-export function buildExpiredControlPlaneTerminalBlocker(
-  record: Record<string, any>,
-  nowMs = Date.now(),
-) {
-  if (record.state !== "queued_in_pipeline" || record.terminal_receipt) return null;
-  if (validateStoredTaskEvaluationLaunch(record).length) return null;
-  const expiresAt = String(record.request?.authorization?.spend?.expires_at || "");
-  const expiresAtMs = Date.parse(expiresAt);
-  if (!Number.isFinite(expiresAtMs) || expiresAtMs > nowMs) return null;
-  const observedAtIso = new Date(nowMs).toISOString();
-  return {
-    state: "control_plane_terminal_blocked",
-    retryable: false,
-    paid_execution_retry_performed: false,
-    // Recorded explicitly because the terminal-release guard compares with
-    // !==, so an omitted field reads as "unknown" and blocks the very
-    // recovery this blocker exists to enable. The guard above already
-    // established that no Pipeline terminal receipt is present, so false is
-    // the observed truth rather than an assumption.
-    terminal_receipt_present: false,
-    control_plane_terminal_blocker: {
-      schema_version: "task_evaluation_launch_control_plane_blocker.v1",
-      status: "blocked",
-      code: "control_plane_terminal_receipt_missing_after_spend_authority_expiry",
-      launch_id: record.request.launch_id,
-      run_id: record.request.run_id,
-      request_digest: record.request_digest,
-      spend_authority_expires_at: expiresAt,
-      observed_at_iso: observedAtIso,
-      pipeline_terminal_receipt_observed: false,
-      provider_mutation_performed_by_webapp: false,
-      paid_execution_retry_performed: false,
-      execution_result: "not_observed",
-      scripted_positive_controls_result: "not_observed",
-      learned_policy_result: "not_observed",
-      explanation: "Pipeline accepted the immutable launch, but its terminal receipt was not retained before the bounded spend authority expired.",
-    },
-    updated_at_iso: observedAtIso,
-  };
 }
 
 export async function forwardStoredTaskEvaluationLaunch(
@@ -174,28 +125,12 @@ export async function forwardStoredPolicyCanaryRun(
 
 export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
   if (!db) return { status: "blocked", blocker: "firestore_unavailable", processed: 0 };
-  const docs: Array<{
-    doc: FirebaseFirestore.QueryDocumentSnapshot;
-    kind: "launch" | "policy_canary";
-  }> = [];
+  const docs: Array<{ doc: FirebaseFirestore.QueryDocumentSnapshot }> = [];
   for (const state of ["forward_pending", "forward_blocked"] as const) {
     const snapshot = await withTaskEvaluationLaunchStoreTimeout(
       db.collection(COLLECTION).where("state", "==", state).limit(limit).get(),
     );
-    docs.push(...snapshot.docs.map((doc) => ({ doc, kind: "launch" as const })));
-  }
-  for (const state of ["forward_pending", "forward_blocked", "blocked"] as const) {
-    const snapshot = await withTaskEvaluationLaunchStoreTimeout(
-      db.collection(POLICY_RUN_COLLECTION).where("state", "==", state).limit(limit).get(),
-    );
-    docs.push(...snapshot.docs
-      .filter((doc) => {
-        const record = doc.data() as Record<string, any>;
-        return record.run_kind === "internal_policy_canary"
-          && record.launch_forward?.status !== "forwarded"
-          && record.request?.run_kind === "internal_policy_canary";
-      })
-      .map((doc) => ({ doc, kind: "policy_canary" as const })));
+    docs.push(...snapshot.docs.map((doc) => ({ doc })));
   }
   docs.sort((left, right) => {
     const leftRecord = left.doc.data() as Record<string, any>;
@@ -207,11 +142,9 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
     return normalizedLeft - normalizedRight || left.doc.id.localeCompare(right.doc.id);
   });
   let processed = 0;
-  for (const { doc, kind } of docs.slice(0, limit)) {
+  for (const { doc } of docs.slice(0, limit)) {
     const record = doc.data() as Record<string, any>;
-    const result = kind === "policy_canary"
-      ? await forwardStoredPolicyCanaryRun(record)
-      : await forwardStoredTaskEvaluationLaunch(record);
+    const result = await forwardStoredTaskEvaluationLaunch(record);
     if (result.skipped) continue;
     // Forwarding is an asynchronous, digest-bound intake operation. A Pipeline
     // terminal callback may already have advanced this record while the HTTP
@@ -234,92 +167,6 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
     if (applied) processed += 1;
   }
   return { status: "completed", processed };
-}
-
-/**
- * Repair a launch that was blocked before `terminal_receipt_present` was
- * recorded. Those records satisfy every other release condition yet stay
- * permanently ineligible, stranding the provider resource the release route
- * exists to free.
- *
- * The flag is only written when the record's own digest-bound blocker already
- * asserts that no Pipeline terminal receipt was observed, so this restates
- * retained evidence rather than deciding anything new.
- */
-export function buildMissingTerminalReceiptFlagPatch(record: Record<string, any>) {
-  if (record.state !== "control_plane_terminal_blocked") return null;
-  if ("terminal_receipt_present" in record) return null;
-  if (record.terminal_receipt) return null;
-  const blocker = record.control_plane_terminal_blocker;
-  if (
-    !blocker
-    || blocker.schema_version !== "task_evaluation_launch_control_plane_blocker.v1"
-    || blocker.status !== "blocked"
-    || blocker.pipeline_terminal_receipt_observed !== false
-  ) return null;
-  return { terminal_receipt_present: false } as const;
-}
-
-export async function repairControlPlaneBlockedLaunches(
-  limit = 10,
-  options: { firestore?: typeof db } = {},
-) {
-  const firestore = options.firestore === undefined ? db : options.firestore;
-  if (!firestore) return { status: "blocked", blocker: "firestore_unavailable", repaired: 0 };
-  const snapshot = await withTaskEvaluationLaunchStoreTimeout(
-    firestore
-      .collection(COLLECTION)
-      .where("state", "==", "control_plane_terminal_blocked")
-      .limit(limit)
-      .get(),
-  );
-  let repaired = 0;
-  for (const doc of snapshot.docs) {
-    const didRepair = await withTaskEvaluationLaunchStoreTimeout(
-      firestore.runTransaction(async (transaction) => {
-        const current = await transaction.get(doc.ref);
-        if (!current.exists) return false;
-        const patch = buildMissingTerminalReceiptFlagPatch(
-          current.data() as Record<string, any>,
-        );
-        if (!patch) return false;
-        transaction.set(doc.ref, patch, { merge: true });
-        return true;
-      }),
-    );
-    if (didRepair) repaired += 1;
-  }
-  return { status: "completed", repaired };
-}
-
-export async function closeExpiredTaskEvaluationLaunches(
-  limit = 10,
-  options: { firestore?: typeof db; nowMs?: () => number } = {},
-) {
-  const firestore = options.firestore === undefined ? db : options.firestore;
-  if (!firestore) return { status: "blocked", blocker: "firestore_unavailable", closed: 0 };
-  const nowMs = options.nowMs || Date.now;
-  const snapshot = await withTaskEvaluationLaunchStoreTimeout(
-    firestore.collection(COLLECTION).where("state", "==", "queued_in_pipeline").limit(limit).get(),
-  );
-  let closed = 0;
-  for (const doc of snapshot.docs) {
-    const didClose = await withTaskEvaluationLaunchStoreTimeout(
-      firestore.runTransaction(async (transaction) => {
-        const current = await transaction.get(doc.ref);
-        if (!current.exists) return false;
-        const blocker = buildExpiredControlPlaneTerminalBlocker(
-          current.data() as Record<string, any>,
-          nowMs(),
-        );
-        if (!blocker) return false;
-        transaction.set(doc.ref, blocker, { merge: true });
-        return true;
-      }),
-    );
-    if (didClose) closed += 1;
-  }
-  return { status: "completed", closed };
 }
 
 export function startTaskEvaluationLaunchForwardWorker() {
@@ -366,8 +213,6 @@ export function startTaskEvaluationLaunchForwardWorker() {
     startLane("job-evidence", processJobEvidenceForwardQueue, "Job evidence delivery reconciliation failed");
     startLane("scene-intake", processSceneIntakeQueue, "Task Evaluation scene intake reconciliation failed");
     startLane("launch-forward", processTaskEvaluationLaunchForwardQueue, "Task Evaluation launch forward reconciliation failed");
-    startLane("terminal-closure", closeExpiredTaskEvaluationLaunches, "Task Evaluation launch terminal closure reconciliation failed");
-    startLane("terminal-repair", repairControlPlaneBlockedLaunches, "Task Evaluation launch terminal flag repair failed");
   };
   const initial = setTimeout(run, 5_000);
   const interval = setInterval(run, intervalMs);

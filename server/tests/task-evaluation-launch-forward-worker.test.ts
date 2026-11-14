@@ -14,9 +14,6 @@ import {
 } from "../utils/taskEvaluationLaunchContract";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
-  buildExpiredControlPlaneTerminalBlocker,
-  closeExpiredTaskEvaluationLaunches,
-  forwardStoredPolicyCanaryRun,
   forwardStoredTaskEvaluationLaunch,
   validateStoredTaskEvaluationLaunch,
   startTaskEvaluationLaunchForwardWorker,
@@ -82,7 +79,7 @@ afterEach(() => {
   delete process.env.TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS;
 });
 
-it("does not overlap slow scene or forwarding batches while terminal lanes keep progressing", async () => {
+it("does not overlap slow scene or forwarding batches while other lanes keep progressing", async () => {
   vi.useFakeTimers();
   vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED", "true");
   vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "false");
@@ -105,7 +102,7 @@ it("does not overlap slow scene or forwarding batches while terminal lanes keep 
     expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(1);
     expect(forwardReads).toHaveBeenCalledTimes(1);
     expect(authority.jobEvidenceTick).toHaveBeenCalledTimes(4);
-    expect(terminalReads).toHaveBeenCalledTimes(8); // Two other lanes over four ticks.
+    expect(terminalReads).toHaveBeenCalledTimes(0); // No other lane reads launches.
     finishScene(); finishForward({docs: []});
     await vi.advanceTimersByTimeAsync(10000);
     expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(2);
@@ -172,136 +169,6 @@ describe("Task Evaluation launch forward worker", () => {
       paid_execution_retry_performed: false,
     });
     expect(forwarder).not.toHaveBeenCalled();
-  });
-
-  it("retries a stored policy canary forward under the same immutable run id", async () => {
-    const canary = record();
-    canary.request.run_kind = "internal_policy_canary";
-    canary.request.launch_id = "scene-839873-policy-canary-001";
-    canary.request.run_id = "scene-839873-policy-canary-001";
-    canary.request.request_digest = canonicalArtifactDigest(
-      canary.request,
-      "request_digest",
-    );
-    canary.request_digest = canary.request.request_digest;
-    const first = await forwardStoredPolicyCanaryRun(
-      canary,
-      vi.fn(async () => ({
-        status: "blocked" as const,
-        blocker: "pipeline_temporarily_unavailable",
-      })),
-    );
-
-    expect(first).toMatchObject({
-      state: "forward_blocked",
-      phase: "blocked",
-      retryable: true,
-      forward_attempt_count: 1,
-    });
-
-    const replay = {
-      ...canary,
-      ...first,
-      next_forward_at_iso: "2026-01-01T00:00:00.000Z",
-    };
-    const second = await forwardStoredPolicyCanaryRun(
-      replay,
-      vi.fn(async () => ({
-        status: "forwarded" as const,
-        performed: true,
-        required: true,
-        endpoint_configured: true,
-        pipeline_intake_status: "accepted" as const,
-      })),
-    );
-
-    expect(second).toMatchObject({
-      state: "queued",
-      phase: "preparing",
-      retryable: false,
-      forward_attempt_count: 2,
-    });
-  });
-
-  it("retains a typed control-plane blocker only after an accepted launch authority expires", () => {
-    const queued = { ...record(), state: "queued_in_pipeline" };
-    const beforeExpiry = buildExpiredControlPlaneTerminalBlocker(
-      queued,
-      Date.parse("2026-08-11T11:59:59.999Z"),
-    );
-    const afterExpiry = buildExpiredControlPlaneTerminalBlocker(
-      queued,
-      Date.parse("2026-08-11T12:00:00.000Z"),
-    );
-
-    expect(beforeExpiry).toBeNull();
-    expect(afterExpiry).toMatchObject({
-      state: "control_plane_terminal_blocked",
-      retryable: false,
-      paid_execution_retry_performed: false,
-      control_plane_terminal_blocker: {
-        schema_version: "task_evaluation_launch_control_plane_blocker.v1",
-        code: "control_plane_terminal_receipt_missing_after_spend_authority_expiry",
-        pipeline_terminal_receipt_observed: false,
-        provider_mutation_performed_by_webapp: false,
-        execution_result: "not_observed",
-        scripted_positive_controls_result: "not_observed",
-        learned_policy_result: "not_observed",
-      },
-    });
-    expect(afterExpiry).not.toHaveProperty("terminal_receipt");
-  });
-
-  it("durably closes only the exact expired queued launch without a provider action", async () => {
-    const records = new Map<string, Record<string, any>>([
-      ["launch-001", { ...record(), state: "queued_in_pipeline", provider_mutation_observed: true }],
-    ]);
-    const ref = (id: string) => ({
-      id,
-      get: async () => {
-        const value = records.get(id);
-        return { exists: Boolean(value), data: () => value && structuredClone(value) };
-      },
-    });
-    const firestore = {
-      collection: () => ({
-        where: (_field: string, _operator: string, state: string) => ({
-          limit: (limit: number) => ({
-            get: async () => ({
-              docs: [...records.entries()]
-                .filter(([, value]) => value.state === state)
-                .slice(0, limit)
-                .map(([id, value]) => ({ ref: ref(id), data: () => structuredClone(value) })),
-            }),
-          }),
-        }),
-      }),
-      runTransaction: async <T>(callback: (transaction: any) => Promise<T>) => callback({
-        get: async (target: ReturnType<typeof ref>) => target.get(),
-        set: (target: ReturnType<typeof ref>, value: Record<string, any>, options?: { merge?: boolean }) => {
-          records.set(target.id, options?.merge
-            ? { ...(records.get(target.id) || {}), ...structuredClone(value) }
-            : structuredClone(value));
-        },
-      }),
-    };
-
-    const result = await closeExpiredTaskEvaluationLaunches(10, {
-      firestore: firestore as any,
-      nowMs: () => Date.parse("2026-08-11T12:00:00.000Z"),
-    });
-
-    expect(result).toEqual({ status: "completed", closed: 1 });
-    expect(records.get("launch-001")).toMatchObject({
-      state: "control_plane_terminal_blocked",
-      provider_mutation_observed: true,
-      paid_execution_retry_performed: false,
-      control_plane_terminal_blocker: {
-        execution_result: "not_observed",
-        scripted_positive_controls_result: "not_observed",
-        learned_policy_result: "not_observed",
-      },
-    });
   });
 });
 
