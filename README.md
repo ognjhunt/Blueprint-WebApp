@@ -70,7 +70,6 @@ The policy packet lives in [`docs/company/`](./docs/company/). Legal, HR, payrol
 - `scripts/`: local checks, smoke tests, deploy helpers.
 - `docs/company/`: employee handbook and policy packet drafts.
 - `docs/onboarding/`: onboarding paths.
-- `docs/archive/`: history. Not current.
 - `e2e/`: Playwright coverage.
 
 ## Common Commands

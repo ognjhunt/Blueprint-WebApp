@@ -43,7 +43,7 @@ Do not claim live readiness from repo tests alone when the claim depends on a li
 
 ## Not authority
 
-- `docs/archive/` (history before 2026-11-12)
+- git history (everything before 2026-11-12)
 - `output/`, `coverage/`, `.tmp/`, `dist/`
 - Hermes KB summaries under `knowledge/`
 - demo fixtures, sample listings, local-only flags
