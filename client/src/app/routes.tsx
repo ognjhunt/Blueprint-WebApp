@@ -44,7 +44,6 @@ const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const Partners = lazyRoute(() => import("../pages/Partners"));
 const JobOutcomeThanks = lazyRoute(() => import("../pages/JobOutcomeThanks"));
 const CompanyJob = lazyRoute(() => import("../pages/CompanyJob"));
-// Keep the historical Pricing component for a later commercial release.
 const Beta = lazyRoute(() => import("../pages/Beta"));
 const Home = lazyRoute(() => import("../pages/Home"));
 const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));

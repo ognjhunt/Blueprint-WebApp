@@ -9,9 +9,6 @@ import type { Express, Request, Response } from "express";
  * routes is deleted. They answer 410 with one short code before any
  * authentication, store read or provider call, so an old client gets a clear
  * answer, nothing is stored, nothing is bought and no money moves.
- *
- * Stripe webhook handling (`/api/stripe/webhooks`) is not here: provider
- * events are still accepted.
  */
 export const RETIRED_CAPTURER_ROUTES: ReadonlyArray<{ method: "all" | "get" | "post"; path: string; code: string }> = [
   // The capture app's account, capture and earnings API.

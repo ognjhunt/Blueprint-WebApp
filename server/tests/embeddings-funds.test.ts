@@ -8,7 +8,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const embeddingsCreate = vi.hoisted(() => vi.fn());
-const listPublicSiteWorldsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("openai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("openai")>();
@@ -21,7 +20,6 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   dbAdmin: null,
   storageAdmin: null,
 }));
-vi.mock("../utils/site-worlds", () => ({ listPublicSiteWorlds: listPublicSiteWorldsMock }));
 /** The data-class gate, closed for the one test that checks embeddings follow it. */
 const gate = vi.hoisted(() => ({ closed: false }));
 vi.mock("../agents/provider-privacy", async (importOriginal) => {
@@ -33,66 +31,6 @@ vi.mock("../agents/provider-privacy", async (importOriginal) => {
 });
 
 import OpenAI from "openai";
-import type { SiteWorldCard } from "../../client/src/data/siteWorlds";
-
-function testSite(overrides: Partial<SiteWorldCard>): SiteWorldCard {
-  return {
-    id: "fixture-retail",
-    siteCode: "FIXTURE-RETAIL",
-    siteName: "Test Fixture Grocery Backroom",
-    siteAddress: "100 Fixture Lane, Chicago, IL 00000",
-    sceneId: "fixture-scene",
-    captureId: "fixture-capture",
-    siteSubmissionId: "fixture-submission",
-    pipelinePrefix: "gs://test-fixtures/site-worlds/fixture-retail",
-    category: "Retail",
-    industry: "Grocery test fixture",
-    taskLane: "Shelf replenishment fixture workflow",
-    tone: "test",
-    accent: "test",
-    thumbnailKind: "grocery",
-    summary: "Synthetic unit-test fixture with totes and shelves.",
-    bestFor: "Automated search tests only.",
-    startStates: ["Fixture start"],
-    runtime: "test-runtime",
-    defaultRuntimeBackend: "test-runtime",
-    availableRuntimeBackends: ["test-runtime"],
-    sampleRobot: "Fixture robot",
-    sampleRobotProfile: { id: "fixture-robot", displayName: "Fixture robot" } as SiteWorldCard["sampleRobotProfile"],
-    sampleTask: "Move the fixture tote to the shelf",
-    samplePolicy: "fixture-policy",
-    scenarioVariants: ["Fixture lighting"],
-    exportArtifacts: ["fixture manifest"],
-    runtimeManifest: { launchable: false } as SiteWorldCard["runtimeManifest"],
-    taskCatalog: [{ id: "fixture-task", taskId: "fixture-task", taskText: "Move tote", taskCategory: "manipulation" }] as SiteWorldCard["taskCatalog"],
-    scenarioCatalog: [{ id: "fixture-scenario", name: "Fixture lighting", source: "test_fixture" }] as SiteWorldCard["scenarioCatalog"],
-    startStateCatalog: [{ id: "fixture-start", name: "Fixture start", source: "test_fixture" }] as SiteWorldCard["startStateCatalog"],
-    robotProfiles: [{ id: "fixture-robot", displayName: "Fixture robot" }] as SiteWorldCard["robotProfiles"],
-    exportModes: ["test"],
-    packages: [
-      { name: "Site Package", summary: "Fixture package", priceLabel: "Request review", payerLabel: "Test", actionLabel: "Test", actionHref: "/contact", deliverables: [] },
-      { name: "Policy Evaluation Set", summary: "Fixture evaluation set", priceLabel: "Request review", payerLabel: "Test", actionLabel: "Test", actionHref: "/contact", deliverables: [] },
-    ],
-    dataSource: "pipeline",
-    ...overrides,
-  };
-}
-
-const siteWorldCards: SiteWorldCard[] = [
-  testSite({}),
-  testSite({
-    id: "fixture-logistics",
-    siteCode: "FIXTURE-LOGISTICS",
-    siteName: "Test Fixture Warehouse",
-    siteAddress: "200 Fixture Road, Example City, TX 00000",
-    category: "Logistics",
-    industry: "Warehouse test fixture",
-    taskLane: "Tote transfer fixture workflow",
-    thumbnailKind: "parcel",
-    summary: "Synthetic logistics unit-test fixture with totes and pallets.",
-    sampleTask: "Transfer the fixture tote",
-  }),
-];
 
 const apiError = (status: number, body: Record<string, unknown>) => (OpenAI as unknown as {
   APIError: typeof import("openai").default.APIError }).APIError.generate(status, { error: { message: "wording that can change", ...body } },
@@ -104,26 +42,12 @@ beforeEach(async () => {
   vi.stubEnv("OPENAI_BASE_URL", "");
   embeddingsCreate.mockReset();
   gate.closed = false;
-  listPublicSiteWorldsMock.mockResolvedValue(siteWorldCards);
   vi.resetModules();
   (await import("../agents/provider-funds")).resetProviderFundsStateForTests();
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
 
 describe("embeddings as their own kind", () => {
-  it("returns 'not available' on a funds error, and the search ranks by plain text", async () => {
-    embeddingsCreate.mockRejectedValue(noFunds());
-    const { searchPublicSiteWorlds } = await import("../retrieval/siteWorldSearch");
-    const response = await searchPublicSiteWorlds({ query: "Test Fixture Grocery", limit: 5 });
-    expect(embeddingsCreate).toHaveBeenCalledTimes(1);
-    expect(response.meta.usedEmbeddings).toBe(false);
-    expect(response.warnings.join(" ")).toContain("embeddings_unavailable");
-    expect(response.results[0].siteWorld.id).toBe("fixture-retail");
-    // The lanes learn it: the provider is cooling down for them.
-    const funds = await import("../agents/provider-funds");
-    expect(funds.isProviderCoolingDown("openai_responses")).toBe(true);
-  });
-
   it("asks again during the cool-down, since nothing else can serve embeddings, and succeeds at once after a top-up", async () => {
     embeddingsCreate.mockRejectedValue(noFunds());
     const { embedTexts } = await import("../retrieval/embeddings");

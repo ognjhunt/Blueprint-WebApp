@@ -7,8 +7,6 @@ import accountDeletionRouter from "./routes/account-deletion";
 import passwordResetRouter from "./routes/password-reset";
 import adminRobotTeamAccessRouter from "./routes/admin-robot-team-access";
 import type { Express } from "express";
-import createCheckoutSessionHandler from "./routes/api/create-checkout-session";
-import storageUploadsRouter from "./routes/storage-uploads";
 import captureUploadsRouter from "./routes/capture-uploads";
 import taskEvaluationSceneIntakesRouter from "./routes/task-evaluation-scene-intakes";
 import taskEvaluationResultsRouter from "./routes/task-evaluation-results";
@@ -18,13 +16,9 @@ import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views
 import websiteDestinationPicturesRouter from "./routes/website-destination-pictures";
 import screeningPracticeRunVideosRouter from "./routes/screening-practice-run-videos";
 import nativeG1PrivateReviewsRouter, { nativeG1PrivateReviewDownloadsRouter, nativeG1PrivateReviewIngestRouter } from "./routes/native-g1-private-reviews";
-import qrLinkRouter from "./routes/qr-link";
-import appleAssociationRouter from "./routes/apple-app-site-association";
-import { registerRetiredCapturerRoutes } from "./utils/retiredCapturerRoutes";
 import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
 import contactTaskMediaHandler from "./routes/contact-task-media";
-import waitlistHandler from "./routes/waitlist";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
@@ -36,7 +30,6 @@ import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminRobotTeamsRouter from "./routes/admin-robot-teams";
 import { resendWebhookHandler } from "./routes/resend-webhook";
-import adminSiteWorldsRouter from "./routes/admin-site-worlds";
 import analyticsIngestRouter from "./routes/analytics-ingest";
 import experimentsRouter from "./routes/experiments";
 import internalPipelineRouter from "./routes/internal-pipeline";
@@ -58,37 +51,27 @@ import siteTaskBriefRouter from "./routes/site-task-brief";
 import siteClaimRouter from "./routes/site-claim";
 import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
 import siteWorldsRouter from "./routes/site-worlds";
-import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
 import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware/verifyFirebaseToken";
 import { requireAdminRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import { requireAppCheck } from "./middleware/appCheck";
-import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
 import internalCompanyPolicyRegistryCredentialsRouter from "./routes/internal-company-policy-registry-credentials";
 import internalCheckpointPolicyCredentialsRouter from "./routes/internal-checkpoint-policy-credentials";
-import clientRuntimeConfigAdminRouter, {
-  clientRuntimeConfigPublicHandler,
-} from "./routes/client-runtime-config";
 import adminTaskEvaluationLaunchesRouter from "./routes/admin-task-evaluation-launches";
 import verifyTaskEvaluationLaunchAccess from "./middleware/verifyTaskEvaluationLaunchAccess";
 import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-task-evaluation-launch-submissions";
 import internalTaskEvaluationLaunchPreparationsRouter from "./routes/internal-task-evaluation-launch-preparations";
 import configuredSceneOfferingsRouter from "./routes/configured-scene-offerings";
 import evaluationReadyRunsRouter from "./routes/evaluation-ready-runs";
+import { registerRetiredCapturerRoutes } from "./utils/retiredCapturerRoutes";
 
 export function registerRoutes(app: Express) {
-  app.use(appleAssociationRouter);
   // Capturer money and account routes are switched off (owner, 2026-11-11).
   registerRetiredCapturerRoutes(app);
 
   // Health check routes (no /api prefix for standard probe paths)
   app.use(healthRouter);
-
-  // R052: capture-client runtime controls (force-update / kill-switch /
-  // maintenance mode). Public read is unauthenticated so a blocked or signed-out
-  // client can still fetch the kill-switch; admin mutations are gated below.
-  app.get("/api/client/runtime-config", clientRuntimeConfigPublicHandler);
 
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
@@ -146,7 +129,6 @@ export function registerRoutes(app: Express) {
     adminRobotTeamAccessRouter,
   );
   app.use("/api/site-worlds", siteWorldsRouter);
-  app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
   app.use("/api/task-evaluation-runs", evaluationReadyRunsRouter);
   app.use("/api/task-evaluation-runs", robotEvalJobRequestsRouter);
   app.use("/api/task-evaluation-result-downloads", taskEvaluationResultDownloadsRouter);
@@ -159,22 +141,10 @@ export function registerRoutes(app: Express) {
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
-  app.use(
-    "/api/marketplace/entitlements",
-    verifyFirebaseToken,
-    marketplaceEntitlementsRouter,
-  );
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.use("/api/analytics", csrfProtection, analyticsIngestRouter);
-  app.post(
-    "/api/create-checkout-session",
-    csrfProtection,
-    verifyFirebaseToken,
-    createCheckoutSessionHandler,
-  );
   // Public endpoints (no Firebase auth required).
   app.post("/api/contact", csrfProtection, contactTaskMediaHandler);
-  app.post("/api/waitlist", csrfProtection, waitlistHandler);
   app.post("/api/growth/webhooks/resend", resendWebhookHandler);
   app.use("/api/growth/email", emailPreferencesRouter);
   // Inbound request (lead pipeline) - public submission endpoint
@@ -189,22 +159,6 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     requireAdminRole,
     adminRobotTeamsRouter,
-  );
-  app.use(
-    "/api/admin/site-worlds",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    adminSiteWorldsRouter,
-  );
-  // R052: admin control surface for the client runtime config (kill-switch /
-  // maintenance / min-version). Admin role enforced inside the router.
-  app.use(
-    "/api/admin/client-runtime-config",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    clientRuntimeConfigAdminRouter,
   );
   app.use(
     "/api/admin/task-evaluation-launches",
@@ -227,13 +181,6 @@ export function registerRoutes(app: Express) {
     "/api/internal/task-evaluation-launch-preparations",
     internalTaskEvaluationLaunchPreparationsRouter,
   );
-  app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
-  app.use(
-    "/api/storage/uploads",
-    csrfProtection,
-    verifyFirebaseToken,
-    storageUploadsRouter,
-  );
   app.use(
     "/api/task-evaluation-results",
     csrfProtection,
@@ -253,7 +200,6 @@ export function registerRoutes(app: Express) {
     captureUploadsRouter,
   );
   app.use("/api/task-evaluation-scene-intakes", csrfProtection, verifyFirebaseToken, taskEvaluationSceneIntakesRouter);
-  app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
   app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
 }

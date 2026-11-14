@@ -8,10 +8,7 @@ import { GLOBAL_RATE_LIMIT_SKIP_PATHS } from "./utils/globalRateLimitPolicy";
 
 import { registerRoutes } from "./routes";
 import { privateWorkLogPath } from "./utils/blueprintWorkLogPrivacy";
-import { stripeWebhookHandler } from "./routes/stripe-webhooks";
-import { drainStripeWebhookQueueOnce, stripeWebhookInlineMode } from "./utils/stripeWebhookQueue";
 import { startOutboxPump } from "./utils/captureOutbox";
-import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
 import { describeInviteeAllowlist } from "./utils/inviteeAllowlist";
@@ -194,28 +191,10 @@ const globalLimiter = createRateLimiter({
   skipPaths: [...GLOBAL_RATE_LIMIT_SKIP_PATHS],
 });
 
-const aiLimiter = createRateLimiter({
-  windowMs: Number(process.env.RATE_LIMIT_AI_WINDOW_MS ?? 15 * 60 * 1000),
-  limit: Number(process.env.RATE_LIMIT_AI_MAX ?? 30),
-  prefix: "rl:ai:",
-});
-
 const authLimiter = createRateLimiter({
   windowMs: Number(process.env.RATE_LIMIT_AUTH_WINDOW_MS ?? 15 * 60 * 1000),
   limit: Number(process.env.RATE_LIMIT_AUTH_MAX ?? 20),
   prefix: "rl:auth:",
-});
-
-const uploadLimiter = createRateLimiter({
-  windowMs: Number(process.env.RATE_LIMIT_UPLOAD_WINDOW_MS ?? 60 * 60 * 1000),
-  limit: Number(process.env.RATE_LIMIT_UPLOAD_MAX ?? 10),
-  prefix: "rl:upload:",
-});
-
-const hostedSessionLimiter = createRateLimiter({
-  windowMs: Number(process.env.RATE_LIMIT_HOSTED_SESSION_WINDOW_MS ?? 15 * 60 * 1000),
-  limit: Number(process.env.RATE_LIMIT_HOSTED_SESSION_MAX ?? 1500),
-  prefix: "rl:hosted-session:",
 });
 
 // Configure middleware
@@ -226,11 +205,6 @@ const defaultBodyLimit = env.API_BODY_LIMIT || "1mb";
 const pipelineTaskEvaluationResultBodyLimit =
   env.PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT ||
   DEFAULT_PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT;
-app.post(
-  "/api/stripe/webhooks",
-  express.raw({ type: "application/json", limit: defaultBodyLimit }),
-  stripeWebhookHandler,
-);
 // A complete signed policy-canary report includes 20 episode projections and
 // their bounded artifact identities. Parse only this internal HMAC-authenticated
 // route with the larger limit; every public and unrelated API keeps the 1 MB
@@ -316,15 +290,10 @@ app.use((req, res, next) => {
 // Apply the baseline limiter to API-style routes without throttling public page loads.
 app.use("/api", globalLimiter);
 app.use("/v1", globalLimiter);
-app.use("/api/site-worlds/sessions", hostedSessionLimiter);
 
 // Stricter limiters for sensitive routes
-app.use("/api/marketplace", aiLimiter);
-
 app.use("/api/auth", authLimiter);
-app.use("/api/create-checkout-session", authLimiter);
 
-app.use("/api/storage/uploads", uploadLimiter);
 
 // Sliding-window 5xx rate alert (Slack, rate-limited). Health probes are
 // excluded: a 503 from /health/ready is readiness, reported separately.
@@ -398,11 +367,7 @@ app.use((req, res, next) => {
 (async () => {
   registerRoutes(app);
   const server = createServer(app);
-  server.on("upgrade", (req, socket, head) => {
-    if ((req.url || "").startsWith("/api/site-worlds/sessions/")) {
-      void handleHostedSessionUiUpgrade(req, socket, head);
-      return;
-    }
+  server.on("upgrade", (_req, socket) => {
     socket.destroy();
   });
 
@@ -575,25 +540,6 @@ app.use((req, res, next) => {
   }
 
   const PORT = env.PORT;
-  // Settle anything a queue-mode deployment left behind. Claims are
-  // transactional, so this is safe beside a worker that also drains.
-  if (stripeWebhookInlineMode()) {
-    void drainStripeWebhookQueueOnce()
-      .then((result) => {
-        if (result.claimed || result.reclaimed) {
-          logger.info(
-            attachRequestMeta({ route: "stripe-webhook-queue" }),
-            `Settled ${result.claimed + result.reclaimed} queued Stripe event(s) left from queue mode`,
-          );
-        }
-      })
-      .catch((error) => {
-        logger.error(
-          attachRequestMeta({ route: "stripe-webhook-queue" }),
-          `Could not settle queued Stripe events: ${(error as Error).message}`,
-        );
-      });
-  }
   // Customer email is delivered from this process; local QA that disables
   // the background loops sends nothing.
   const stopOutboxPump = !disableOpsAutomationScheduler
@@ -605,12 +551,6 @@ app.use((req, res, next) => {
   const stopBetaOpsMonitor = !disableOpsAutomationScheduler
     ? startBetaOpsMonitor()
     : () => undefined;
-  if (!stripeWebhookInlineMode()) {
-    logger.warn(
-      attachRequestMeta({ route: "stripe-webhook-queue" }),
-      "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1: this web process only enqueues Stripe events. They settle only where a worker runs the Stripe queue processor; the deployed worker is launch-forward-only and does not. /health/ready reports this as a blocker unless BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1.",
-    );
-  }
   server.on("close", () => {
     stopOutboxPump();
     stopBetaOpsMonitor();

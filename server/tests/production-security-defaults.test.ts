@@ -68,28 +68,6 @@ describe("admin role sources", () => {
   });
 });
 
-describe("hosted session UI signing secret", () => {
-  it("refuses to sign with the public dev fallback in production", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("BLUEPRINT_SESSION_UI_TOKEN_SECRET", "");
-    vi.stubEnv("PIPELINE_SYNC_TOKEN", "");
-    const { createHostedSessionUiToken, verifyHostedSessionUiToken } = await import("../utils/hosted-session-ui-auth");
-    expect(() => createHostedSessionUiToken("session-1")).toThrow(/signing secret is required/);
-    // A token minted with the old public fallback must not verify.
-    vi.stubEnv("NODE_ENV", "development");
-    const forged = createHostedSessionUiToken("session-1");
-    vi.stubEnv("NODE_ENV", "production");
-    expect(verifyHostedSessionUiToken(forged, "session-1")).toBeNull();
-  });
-
-  it("signs and verifies with a configured secret", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("BLUEPRINT_SESSION_UI_TOKEN_SECRET", "configured-secret");
-    const { createHostedSessionUiToken, verifyHostedSessionUiToken } = await import("../utils/hosted-session-ui-auth");
-    expect(verifyHostedSessionUiToken(createHostedSessionUiToken("s"), "s")).toMatchObject({ sessionId: "s" });
-  });
-});
-
 describe("launch readiness alerting", () => {
   it("alerts when the first readiness snapshot after boot is not ready", async () => {
     const { maybeAlertOnLaunchReadinessTransition } = await import("../utils/ops-alerts");

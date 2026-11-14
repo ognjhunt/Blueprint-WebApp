@@ -39,15 +39,6 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   },
 }));
 
-vi.mock("../utils/site-worlds", () => ({
-  listPublicSiteWorlds: async () => [],
-  getPublicSiteWorldById: async () => null,
-}));
-
-vi.mock("../retrieval/siteWorldSearch", () => ({
-  searchPublicSiteWorlds: async () => ({ items: [], count: 0 }),
-}));
-
 import siteWorldsRouter from "../routes/site-worlds";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;

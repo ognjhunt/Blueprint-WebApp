@@ -28,7 +28,7 @@ export function releaseScope(files) {
   // Backend/helper releases get their dependency-related tests plus the fixed
   // safety floor. Route composition, UI, rules, migrations, dependencies,
   // workflow and unknown paths retain full browser/integration verification.
-  const targetedCode = /^(server\/(utils|agents)\/.+\.ts|client\/src\/lib\/.+\.ts|server\/routes\/client-runtime-config\.ts|server\/tests\/.+\.test\.ts|client\/tests\/lib\/.+\.test\.ts)$/;
+  const targetedCode = /^(server\/(utils|agents)\/.+\.ts|client\/src\/lib\/.+\.ts|server\/tests\/.+\.test\.ts|client\/tests\/lib\/.+\.test\.ts)$/;
   return files.every(file => targetedCode.test(file) || content.test(file)) ? 'code' : 'full';
 }
 // Public-surface copy contracts (brand-polish route table, pricing copy) must

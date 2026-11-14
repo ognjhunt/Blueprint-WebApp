@@ -20,7 +20,7 @@ npm run alpha:check
 Production promotion uses the exact-SHA green `CI` gate in
 `.github/workflows/deploy.yml`, followed by the deployed version and readiness
 readbacks. `alpha:preflight` describes the retired autonomous paid alpha; it
-requires Stripe and old automation flags and is not a free-beta release gate.
+requires old automation flags and is not a free-beta release gate.
 Do not enable billing or retired lifecycle/outreach workers to satisfy it.
 
 Live alpha smoke:
@@ -279,39 +279,11 @@ autocomplete usable. `Permissions-Policy` permits
 same-origin geolocation only on `/contact/site-operator`, matching the site's
 full-page intake links; camera policy stays scoped to capture upload.
 
-### iOS App + App Clip (server): not in use
-
-Retired 2026-11-11: no capture app is in use, so the capture link always opens
-the browser recorder. The association file answers 404 and no App Clip banner
-is served, whatever `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID`,
-`IOS_APP_CLIP_BUNDLE_ID` and `IOS_APP_STORE_ID` say; those variables (and
-`APP_CLIP_ADDITIONAL_PATHS`) are not in use and can be unset in Render. The
-text below is how it worked before:
-
-- `/.well-known/apple-app-site-association` (and `/apple-app-site-association`)
-  needs `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID` (`Public.BlueprintCapture`) and
-  `IOS_APP_CLIP_BUNDLE_ID` (`Public.BlueprintCapture.Clip`). Unset answers 503;
-  placeholder values answer 204. The applinks paths are `/go`, `/go/*` and
-  `/capture-upload/*`, plus any in `APP_CLIP_ADDITIONAL_PATHS` (comma-separated).
-  Apple fetches the file from both `www.tryblueprint.io` and `tryblueprint.io`;
-  each must answer 200 JSON directly, with no redirect.
-- `IOS_APP_STORE_ID` (the full app's numeric App Store ID), together with
-  `IOS_APP_CLIP_BUNDLE_ID`, adds the App Clip Smart App Banner to
-  `/capture-upload/:token` only. Leave it unset until the app has an App Store
-  record; with it unset no banner is served.
-
 App bundle uploads through the capture link take optional limits:
 `SELF_CAPTURE_MAX_BUNDLE_FILES` (20000), `SELF_CAPTURE_MAX_BUNDLE_BYTES`
 (2 GiB), `SELF_CAPTURE_MAX_BUNDLE_SIDECAR_BYTES` (256 MiB) and
 `SELF_CAPTURE_BUNDLE_PLAN_BODY_LIMIT` (`8mb`). The browser recorder keeps
 `SELF_CAPTURE_MAX_UPLOAD_BYTES` and `SELF_CAPTURE_MAX_PART_BYTES`.
-
-### Stripe (server)
-- `STRIPE_SECRET_KEY`
-- `STRIPE_CONNECT_ACCOUNT_ID`
-- `STRIPE_WEBHOOK_SECRET`
-- `CHECKOUT_ALLOWED_ORIGINS`
-- Optional: `STRIPE_PUBLIC_BASE_URL`, `STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`
 
 ### Agent Runtime (server)
 - one of:
@@ -640,7 +612,6 @@ replace that inbox or the approved Gmail human-reply watcher.
 - Firestore is the active datastore.
 - In production, public world-model pages should surface pipeline-backed site worlds only. Static fixture cards are for non-production and explicit demo mode.
 - Live hosted-session state now prefers Redis when `REDIS_URL` is configured, then falls back to in-process memory, with Firestore acting as async mirroring/trail storage.
-- Marketplace checkout and artifact entitlement flows are only truthful when Firebase Admin, Stripe checkout, and Stripe webhooks are all configured together.
 - Marketplace search and checkout now fail toward live `marketplace_items` inventory in production instead of silently relying on static sample content.
 - Growth telemetry can now mirror experiment exposures, page views, and campaign events into Firestore when `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`, which gives Paperclip and the analytics agent a first-party event stream even before PostHog/GA4 are fully live.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.

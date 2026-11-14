@@ -10,7 +10,6 @@ import { pathToFileURL } from "node:url";
 
 import { validateEnv } from "./config/env";
 import { attachRequestMeta, logger } from "./logger";
-import { startStripeWebhookQueueProcessor } from "./utils/stripeWebhookQueue";
 import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLaunchForwardWorker";
 import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
 import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
@@ -44,19 +43,8 @@ export function startWorker(): WorkerHandle {
     }),
     taskEvaluationLaunchOnly
       ? "Blueprint worker starting: Task Evaluation launch forwarder only"
-      : "Blueprint worker starting: Stripe webhook queue processor + Task Evaluation launch forwarder",
+      : "Blueprint worker starting: Task Evaluation launch forwarder and job workers",
   );
-  if (taskEvaluationLaunchOnly && process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE === "1") {
-    // Queue mode with a launch-forward-only worker means no process drains
-    // the Stripe queue: payments are acknowledged and never settled.
-    logger.error(
-      attachRequestMeta({ route: "worker", event: "stripe_queue_without_consumer" }),
-      "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1 but this worker is launch-forward-only and does not run the Stripe queue processor; queued Stripe events will not settle",
-    );
-  }
-  const stopQueueProcessor = taskEvaluationLaunchOnly
-    ? () => undefined
-    : startStripeWebhookQueueProcessor();
   const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
   const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
   const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
@@ -77,7 +65,6 @@ export function startWorker(): WorkerHandle {
     if (stopPromise) return stopPromise;
     stopPromise = (async () => {
     stopHeartbeat();
-    stopQueueProcessor();
     stopTaskEvaluationLaunchForwarder();
     stopCompanyPolicyCandidateOutbox();
     stopWebsiteWithdrawals();

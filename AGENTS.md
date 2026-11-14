@@ -96,7 +96,7 @@ commands with live side effects.
 
 ## Stack
 
-Firebase, Firestore, Stripe, Render, Redis, Notion and Paperclip. Don't add a
+Firebase, Firestore, Render, Redis, Resend, Notion and Paperclip. Don't add a
 new primary service without the owner's OK.
 
 ## Repo Map

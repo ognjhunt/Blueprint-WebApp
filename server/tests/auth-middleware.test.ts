@@ -67,10 +67,7 @@ afterAll(async () => {
 });
 
 const protectedEndpoints = [
-  { method: "POST", path: "/api/storage/uploads" },
-  { method: "POST", path: "/api/qr/pending-session" },
-  { method: "POST", path: "/api/site-worlds/sessions" },
-  { method: "GET", path: "/api/site-worlds/sessions/test-session" },
+  { method: "POST", path: "/api/account-deletion" },
 ];
 
 describe("verifyFirebaseToken middleware", () => {

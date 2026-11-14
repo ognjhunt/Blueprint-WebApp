@@ -11,7 +11,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  * the worker service.
  */
 
-const startStripeWebhookQueueProcessor = vi.hoisted(() => vi.fn());
 const startTaskEvaluationLaunchForwardWorker = vi.hoisted(() => vi.fn());
 const startCompanyPolicyCandidateOutboxWorker = vi.hoisted(() => vi.fn());
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
@@ -23,7 +22,6 @@ const startWebsiteJobWindowSweepWorker = vi.hoisted(() => vi.fn(() => stopWebsit
 vi.mock("../utils/websiteJobWindowSweep", () => ({ startWebsiteJobWindowSweepWorker }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
-vi.mock("../utils/stripeWebhookQueue", () => ({ startStripeWebhookQueueProcessor }));
 vi.mock("../utils/taskEvaluationLaunchForwardWorker", () => ({
   startTaskEvaluationLaunchForwardWorker,
 }));
@@ -45,7 +43,6 @@ afterEach(() => {
 
 describe("worker entrypoint", () => {
   it("shares the same shutdown promise for concurrent signals", async () => {
-    startStripeWebhookQueueProcessor.mockReturnValue(vi.fn());
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(vi.fn());
     startCompanyPolicyCandidateOutboxWorker.mockReturnValue(vi.fn());
     const { startWorker } = await import("../worker");
@@ -55,10 +52,8 @@ describe("worker entrypoint", () => {
     await first;
   });
   it("boots through validateEnv and stops each worker exactly once", async () => {
-    const stopQueueProcessor = vi.fn();
     const stopLaunchForwarder = vi.fn();
     const stopCompanyPolicyOutbox = vi.fn();
-    startStripeWebhookQueueProcessor.mockReturnValue(stopQueueProcessor);
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(stopLaunchForwarder);
     startCompanyPolicyCandidateOutboxWorker.mockReturnValue(stopCompanyPolicyOutbox);
 
@@ -66,13 +61,11 @@ describe("worker entrypoint", () => {
     const handle = startWorker();
 
     expect(validateEnv).toHaveBeenCalled();
-    expect(startStripeWebhookQueueProcessor).toHaveBeenCalledTimes(1);
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
 
     await handle.stop();
     await handle.stop();
-    expect(stopQueueProcessor).toHaveBeenCalledTimes(1);
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
     expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
   });
@@ -89,7 +82,6 @@ describe("worker entrypoint", () => {
 
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
-    expect(startStripeWebhookQueueProcessor).not.toHaveBeenCalled();
     // Withdrawal storage deletion runs in the deployed launch-forward mode.
     expect(startWebsiteCaptureDeletionWorker).toHaveBeenCalledTimes(1);
     // So does the window sweep that ends a job the Pipeline went quiet on.
