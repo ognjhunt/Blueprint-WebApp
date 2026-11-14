@@ -1,5 +1,6 @@
 // The answer-journey harness: the reliability harness's stripped environment,
-// plus the video reading switched on against a scripted (synthetic) video model.
+// plus the video reading switched on against a scripted (synthetic) video model
+// and the Auth emulator for deployment-company and staff accounts.
 import { launchReliabilityHarness, reliabilityHarnessEnv } from './reliability-local-app.mjs';
 
 const port = Number(process.env.ANSWER_JOURNEY_APP_PORT ?? '4183');
@@ -11,5 +12,7 @@ Object.assign(env, {
   // A placeholder, never a key: the adapter only checks that one is configured,
   // and every request carrying it is answered inside the harness.
   GEMINI_API_KEY: 'harness-synthetic-not-a-key',
+  // Company and staff accounts are real ID tokens from the local Auth emulator, verified by the product's middleware.
+  FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099',
 });
 launchReliabilityHarness('scripts/qa/answer-journey-local-app.ts', env);

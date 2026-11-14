@@ -4,7 +4,6 @@ The runners reuse Vitest, real route modules, Firebase emulators, and the normal
 
 ```bash
 RELIABILITY_OUTPUT_DIR=/absolute/private/E npx vitest run server/tests/reliability-storage-dependencies.test.ts --maxWorkers=1 --minWorkers=1
-npx vitest run scripts/qa/reliability-schema.test.ts
 node scripts/qa/reliability-aggregate.mjs /absolute/private/program-root
 ```
 

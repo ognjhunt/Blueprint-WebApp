@@ -6,7 +6,7 @@
  * value back for a payload. No free text and no typed number is ever accepted or stored.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import {
   JOB_FACT_KEYS, isJobFactCode, isJobFactKey, sanitizeJobFacts, type JobFactKey, type JobFacts,
 } from "../../client/src/lib/jobFacts";

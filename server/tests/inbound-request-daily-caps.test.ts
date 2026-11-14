@@ -38,7 +38,8 @@ vi.mock("../utils/intakeOpsNotice", () => ({
   initialIntakeOpsNotice: vi.fn(() => ({ status: "pending" })),
   deliverIntakeOpsNoticeAtIntake: vi.fn(async () => ({ channels: { slack: "skipped" } })),
 }));
-vi.mock("../agents", () => ({ runInboundQualificationForRequest: vi.fn(async () => undefined) }));
+vi.mock("../agents/workflows", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/filmLinkHandoff", async () => ({
   ...await vi.importActual<typeof import("../utils/filmLinkHandoff")>("../utils/filmLinkHandoff"),

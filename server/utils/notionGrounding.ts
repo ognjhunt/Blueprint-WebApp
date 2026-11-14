@@ -7,7 +7,7 @@ import {
   fetchPage,
   queryDatabase,
   type NotionPageSummary,
-} from "../../ops/paperclip/plugins/blueprint-automation/src/notion";
+} from "./notion";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

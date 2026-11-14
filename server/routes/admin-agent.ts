@@ -42,10 +42,8 @@ import {
   updateOpsDocument,
   updateStartupPack,
 } from "../agents";
-import {
-  getAgentRuntimeConnectionMetadata,
-  runAgentRuntimeSmokeTest,
-} from "../agents/runtime-connectivity";
+import { getAgentRuntimeConnectionMetadata } from "../agents/runtime-connectivity";
+import { runAgentRuntimeSmokeTest } from "../agents/runtime-smoke-test";
 import {
   demoteAgentLane,
   evaluateGraduationStatus,

@@ -155,83 +155,6 @@ async function seed(
   });
   return snapshot;
 }
-for (const role of ["site_operator", "robot_team"] as const) {
-  for (const width of [1440, 390]) {
-    test(`${role} screens follow the reference design at ${width}px`, async ({
-      page,
-    }, info) => {
-      await seed(page, role);
-      await page.setViewportSize({ width, height: 1024 });
-      const errors: string[] = [];
-      page.on("pageerror", (error) => errors.push(error.message));
-      const routes =
-        role === "site_operator"
-          ? [
-              ["/app", "Your jobs"],
-              ["/onboarding", "Finish setup"],
-              ["/settings", "Settings"],
-              ["/app/captures", "Captures"],
-            ]
-          : [
-              ["/app", "Overview"],
-              ["/onboarding", "Finish setup"],
-              ["/settings", "Settings"],
-            ];
-      for (const [path, title] of routes) {
-        await page.goto(path);
-        await expect(
-          page.getByRole("heading", { level: 1, name: title, exact: true }),
-        ).toBeVisible();
-        await expect(page.locator(".workspace-shell")).toHaveCSS(
-          "background-color",
-          "rgb(246, 245, 239)",
-        );
-        await expect(page.locator("main")).toHaveCount(1);
-        if (
-          !(await page.evaluate(
-            () => document.documentElement.scrollWidth <= innerWidth,
-          ))
-        )
-          throw new Error(
-            JSON.stringify(
-              await page.evaluate(() => ({
-                viewport: innerWidth,
-                root: document.documentElement.scrollWidth,
-                overflow: [...document.querySelectorAll("*")]
-                  .filter(
-                    (element) =>
-                      element.getBoundingClientRect().right > innerWidth + 1,
-                  )
-                  .map((element) => ({
-                    tag: element.tagName,
-                    cls: element.className,
-                    width: element.getBoundingClientRect().width,
-                  }))
-                  .slice(0, 15),
-              })),
-            ),
-          );
-        if (role === "robot_team")
-          await expect(page.getByText("Team B", { exact: true })).toHaveCount(
-            0,
-          );
-        await page.screenshot({
-          path: info.outputPath(`${path.replace(/[^a-z0-9]+/gi, "-")}.png`),
-          fullPage: true,
-        });
-      }
-      expect(errors).toEqual([]);
-      if (width === 390) {
-        await page.getByRole("button", { name: "Open navigation" }).click();
-        await expect(page.getByRole("navigation")).toBeVisible();
-        // A site gets two (Your jobs, Settings); a team three (Overview, Task library, Settings).
-        await expect(
-          page.getByRole("navigation").getByRole("link"),
-        ).toHaveCount(role === "site_operator" ? 2 : 3);
-      }
-    });
-  }
-}
 test("a new task starts from the public capture form, not a second intake", async ({
   page,
 }) => {
@@ -260,24 +183,6 @@ test("empty workspaces and API errors are clear and do not invent records", asyn
     "Workspace temporarily unavailable",
   );
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
-});
-
-test("existing connection page uses the shared workspace design", async ({
-  page,
-}) => {
-  await seed(page, "robot_team");
-  await page.goto("/app/connect/chatgpt");
-  await expect(
-    page.getByRole("heading", { name: "Connect Blueprint to ChatGPT" }),
-  ).toBeVisible();
-  await expect(page.locator(".workspace-shell")).toHaveCSS(
-    "background-color",
-    "rgb(246, 245, 239)",
-  );
-  await expect(page.getByRole("alert")).toContainText(
-    "Start the connection from ChatGPT",
-  );
-  await expect(page.locator("main")).toHaveCount(1);
 });
 
 test("a site's jobs list opens each open job on its job page, and nothing else", async ({ page }) => {

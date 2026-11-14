@@ -7,22 +7,6 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("blueprint_cookie_consent", JSON.stringify({ necessary: true, analytics: false, marketing: false })));
 });
 
-for (const width of [1440, 390]) {
-  test(`auth routes share the minimal theme at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 });
-    for (const [path, heading] of [["/sign-in", "Sign in"], ["/signup/business?buyerType=robot_team", "Access by invitation"], ["/forgot-password", "Reset your password"]]) {
-      await page.goto(path);
-      await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
-      await expect(page.locator(".auth-shell")).toHaveCSS("background-color", "rgb(246, 245, 239)");
-      await expect(page.getByRole("link", { name: "Blueprint home" })).toHaveCount(1);
-      await expect(page.locator("#main-content")).toHaveCount(1);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await expect(page.getByText(/Access Control Suite|Why Exact-Site Context Matters|Secure Access Portal/)).toHaveCount(0);
-      if (width === 1440) await expect(page.locator(".auth-art .robot-scene")).toBeVisible();
-    }
-  });
-}
-
 test("the auth robot scene moves on to the next example after one loop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/sign-in");

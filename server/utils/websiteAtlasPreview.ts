@@ -13,7 +13,7 @@ import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEval
 import { createSignedDownloadTicket, verifySignedDownloadTicket } from "./taskEvaluationResultDownloadTicket";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 export const WEBSITE_ATLAS_PREVIEW_LABEL = "3D preview (beta, unscaled)";
 export const WEBSITE_ATLAS_REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;

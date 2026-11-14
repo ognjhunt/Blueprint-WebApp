@@ -1,6 +1,5 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
 import path from "node:path";
 import { mkdirSync, readdirSync, realpathSync } from "node:fs";
 
@@ -16,7 +15,7 @@ export default defineConfig({
   root: path.join(root, "client"),
   envDir: noEnv,
   cacheDir: path.join(root, `output/reliability-program/vite-cache-${apiPort}`),
-  plugins: [react(), themePlugin()],
+  plugins: [react()],
   resolve: { alias: { "@": path.join(root, "client/src") } },
   server: { host: "127.0.0.1", port: 42878, strictPort: true,
     hmr: { host: "127.0.0.1", port: 42878, clientPort: 42878 }, watch: null,

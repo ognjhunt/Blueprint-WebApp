@@ -4,7 +4,7 @@ import { Router } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { WEBSITE_ATLAS_REQUEST_ID } from "../utils/websiteAtlasPreview";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import {
   forgetPracticeRunVideos,
   keepSweeping,

@@ -5,7 +5,7 @@ import { hydrateAgentEvidence } from "../agents/private-evidence";
 import { renderSourceBoundAssessment, siteAssessmentSchema, SITE_ASSESSMENT_MAX_PACKET_BYTES, SITE_ASSESSMENT_MAX_PACKET_SOURCES } from "../agents/site-assessment";
 import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
 import { verifiedPendingManifest, verifiedPendingMarker } from "./websiteBrowserUploadStatus";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { advisoryContextDigest, advisoryJobId } from "./siteAssessmentContext";
 import type { SiteAdvisory } from "../../client/src/types/siteAdvisory";
 

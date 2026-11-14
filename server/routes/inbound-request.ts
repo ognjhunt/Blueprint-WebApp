@@ -38,7 +38,7 @@ import {
   shouldSendFilmerHandoff,
 } from "../utils/filmLinkHandoff";
 import { createSlaTracker } from "../utils/sla-enforcement";
-import { runInboundQualificationForRequest } from "../agents";
+import { runInboundQualificationForRequest } from "../agents/workflows";
 import { logGrowthEvent } from "../utils/growth-events";
 import { incrementInboundRequestStats } from "../utils/inboundRequestStats";
 import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";

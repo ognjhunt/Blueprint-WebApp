@@ -41,7 +41,8 @@ vi.mock("../utils/capturePrivacyScreen", () => ({
   screenCaptureForPrivacy: vi.fn(async () => ({ proceed: true, outcome: "cleared", eligibility: "unscreened", detail: null, evidence: null })),
 }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: vi.fn(() => { throw new Error("No model calls in this journey"); }) }));
-vi.mock("../agents", () => ({ runInboundQualificationForRequest: vi.fn(async () => undefined) }));
+vi.mock("../agents/workflows", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/slack", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../utils/slack")>()),
   notifySlackInboundRequest: vi.fn(async () => undefined),

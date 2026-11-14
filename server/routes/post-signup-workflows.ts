@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { attachRequestMeta, logger } from "../logger";
-import { runPostSignupSchedulingTask } from "../agents";
+import { runPostSignupSchedulingTask } from "../agents/workflows";
 import {
   executePostSignupDirectActions,
   resolvePostSignupExecutionContext,

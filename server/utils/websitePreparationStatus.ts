@@ -20,15 +20,15 @@ import { strictBoundedProofJson } from "./strictBoundedProofJson";
 import { observeWebsiteCaptureOwner } from "./websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "./websiteCaptureOwnerTransport";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import { TASK_ITEM_INVENTORY_COLLECTION, type TaskItemInventoryRecord } from "./taskItemInventory";
 import { buildBrowserDelivery } from "./websiteCaptureDelivery";
 import { verifiedPendingManifest, verifiedPendingMarker } from "./websiteBrowserUploadStatus";
 import type { BrowserPending } from "./websiteBrowserPending";
 import { retainedWebsiteScenePurpose, currentWebsitePreparationStatusContext } from "./websiteSceneSponsorship";
-import { nextWebsitePreparationWatch, parseWebsitePreparationWatch, WEBSITE_PREPARATION_WATCH_DUE_FIELD,
-  WEBSITE_PREPARATION_WATCH_FIELD } from "./websitePreparationWatch";
+import { parseWebsitePreparationWatch, stuckAlertMs, WEBSITE_PREPARATION_WATCH_DUE_FIELD,
+  WEBSITE_PREPARATION_WATCH_FIELD, type WebsitePreparationWatch } from "./websitePreparationWatch";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/);
 const sceneId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,124}$/);
@@ -346,6 +346,26 @@ export interface StoredWebsitePreparation {
   selector: WebsitePreparationSelector; status: WebsitePreparationReceipt;
   notification: { eventId: string; state: "pending" | "enqueued" } | null;
 }
+const FINAL_STATES = new Set(["handed_off", "authority_ended"]);
+/** The watch after a status commit. The clock runs from the last change of state, not revision. */
+export function nextWebsitePreparationWatch(previous: WebsitePreparationWatch | null,
+  preparation: StoredWebsitePreparation, nowMs = Date.now()): WebsitePreparationWatch | null {
+  const {selector, status} = preparation;
+  if (FINAL_STATES.has(status.state)) return null;
+  const base = {schema_version: "website_preparation_watch.v1" as const, request_id: selector.request_id,
+    capture_id: selector.capture_id, since_iso: new Date(nowMs).toISOString(), alerted_at_iso: null, delivery: null};
+  if (status.state === "failed_terminal") {
+    // Each terminal transition is reported to operators once.
+    if (previous?.kind === "ended" && previous.attempt_count === status.attempt_count) return previous;
+    return {...base, kind: "ended", state: status.state, attempt_count: status.attempt_count,
+      terminal_reason: status.terminal_reason,
+      due_at_ms: nowMs};
+  }
+  if (previous?.kind === "unchanged_state" && previous.state === status.state) return previous;
+  return {...base, kind: "unchanged_state", state: status.state, terminal_reason: null,
+    attempt_count: status.attempt_count, due_at_ms: nowMs + stuckAlertMs()};
+}
+
 /** A pending row, with when its notice was first owed when that was recorded (rows from older releases lack it). */
 export type PendingWebsitePreparation = StoredWebsitePreparation & { owedSinceMs?: number };
 const owedSchema = z.object({event_id: digest, since_ms: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)}).strict();

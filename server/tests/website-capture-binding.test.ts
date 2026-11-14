@@ -20,7 +20,7 @@ import { bundleDigest } from "../utils/siteCaptureBundle";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import continuationVector from "./fixtures/website-continuation-vector.json";
 import type { BundleStorage, BundleObjectInfo } from "../utils/siteCaptureBundleStorage";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { crossRuntimeDigest, crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";

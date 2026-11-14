@@ -1,4 +1,4 @@
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { humanDecisionDigest } from "./human-reply-admission";
 
 /** Bind a named review to the current job evidence, not to a processing stage.

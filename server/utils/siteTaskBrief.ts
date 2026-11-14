@@ -59,7 +59,8 @@ import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { TASK_CONFIRMATION_VERSION } from "../../client/src/lib/taskConfirmationStatement";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 
 export const TASK_BRIEFS_COLLECTION = "siteTaskBriefs";

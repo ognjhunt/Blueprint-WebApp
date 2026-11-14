@@ -8,7 +8,8 @@ import { confirmedTaskSuccessContractSchema } from "./articulatedTaskSuccessCont
 import { policyCanaryNotificationRecipientAllowed } from "./internalPolicyCanaryContract";
 import type { PipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID } from "./taskEvaluationLaunchSubmissionAuth";
-import { preparationGrantContextDigest, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { preparationGrantContextDigest, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 

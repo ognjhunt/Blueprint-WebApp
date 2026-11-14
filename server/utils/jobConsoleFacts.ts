@@ -5,7 +5,7 @@
  * interprets what it was handed. Missing fields read as unknown or absent,
  * never as a state nobody recorded.
  */
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { criteriaChangedSinceRequest, passMarkForJob, type PassMark } from "./pilotRecommendationEvidence";
 import { iso, object, text } from "./workspace-projection";
 import { teamJobAccess } from "./teamJobAccess";

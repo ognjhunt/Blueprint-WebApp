@@ -81,7 +81,7 @@ async function main() {
       const { dbAdmin } = createRequire(import.meta.url)("../client/src/lib/firebaseAdmin.ts") as typeof import("../client/src/lib/firebaseAdmin");
       if (!dbAdmin) throw Error("experiment_firebase_unavailable");
       const raw = (await dbAdmin.collection("inboundRequests").doc(input.context.request_id).get()).data();
-      const { projectWebsiteCaptureRights } = await import("../server/utils/websiteTaskContext");
+      const { projectWebsiteCaptureRights } = await import("../server/utils/websiteCaptureRights");
       run.request_preflight = { exists: Boolean(raw), site_operator: raw?.request?.buyerType === "site_operator",
         rights_allowed: projectWebsiteCaptureRights(raw ?? {}).derived_scene_generation_allowed,
         privacy_proceeded: raw?.capture_privacy_source_bound_decision?.proceeded === true,

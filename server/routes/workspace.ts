@@ -26,7 +26,7 @@ import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import { submitInboundRequest } from "./inbound-request";
 import { verifySiteClaimToken } from "../utils/request-review-auth";
 import { object, text, iso } from "../utils/workspace-projection";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import type { InboundRequestStored } from "../types/inbound-request";
 
 import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";

@@ -21,7 +21,8 @@ import {
 } from "../utils/operatorPolicyCanaryRegistration";
 import type { Response } from "express";
 import { evaluationOwnerFixture } from "./fixtures/policy-canary-evaluation-owner";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 
 const state = vi.hoisted(() => ({

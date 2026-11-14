@@ -38,7 +38,7 @@
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 export const TASK_ITEM_INVENTORY_COLLECTION = "siteTaskItemInventories";
 

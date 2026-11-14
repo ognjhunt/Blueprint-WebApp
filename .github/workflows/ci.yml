@@ -150,33 +150,55 @@ jobs:
       - name: Run Firebase security-rules emulator suite
         run: npm run test:rules
 
-  graphify:
+  # The core journey, end to end, on every code change: a site starts a job with an email and a video, an approved
+  # deployment company sees it without the site's identity and answers, the site asks for an introduction (both emails
+  # and one billable event, no price), the 14-day follow-up, and withdrawal. Real routers on the Firebase emulators.
+  core-journey:
+    needs: release-scope
+    if: needs.release-scope.outputs.scope != 'content'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10', '3.12', '3.14']
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          node-version-file: .nvmrc
+          cache: npm
 
-      - name: Verify setup reuse and recovery without network
-        run: python3 -m unittest discover -s scripts/graphify -p 'test_*.py'
+      - name: Setup Java (Firebase emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
-      - name: Verify fresh-session automatic setup and AST refresh
-        run: bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz
+      - name: Cache Firebase emulator jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-v1
 
-      - name: Verify graph outputs and offline environment reuse
-        run: |
-          test -s graphify-out/GRAPH_REPORT.md
-          test -s graphify-out/graph.json
-          PIP_NO_INDEX=1 python3 scripts/graphify/ensure-environment.py
-          git diff --exit-code
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        timeout-minutes: 20
+        run: bash scripts/ci/install-playwright-chromium.sh
+
+      - name: Prepare the harness's scratch directory
+        # scripts/qa/reliability-local-app.ts keeps its Vite cache under /workspace/reliability-program.
+        run: sudo mkdir -p /workspace && sudo chown "$(id -u):$(id -g)" /workspace
+
+      - name: Run the core-journey spec
+        run: npm run test:core-journey
 
   test:
     needs: release-scope
@@ -304,10 +326,10 @@ jobs:
           retention-days: 7
 
 
-  # The public-surface Playwright copy contracts (brand-polish route table and
-  # pricing copy) run whenever public copy can change. A `full` scope already
-  # runs them inside `e2e`; this covers the narrower scopes (e.g. a
-  # client/src/lib or content-only change) with only these two specs.
+  # The public-surface Playwright copy contract (pricing and Terms copy) runs
+  # whenever public copy can change. A `full` scope already runs it inside
+  # `e2e`; this covers the narrower scopes (e.g. a client/src/lib or
+  # content-only change) with only this spec.
   public-copy-contracts:
     needs: release-scope
     if: needs.release-scope.outputs.scope != 'full' && needs.release-scope.outputs.public_surface == 'true'
@@ -344,7 +366,7 @@ jobs:
       - name: Run public copy contracts
         env:
           BLUEPRINT_E2E_STATIC: "1"
-        run: npx playwright test e2e/brand-polish.spec.ts e2e/pricing.spec.ts
+        run: npx playwright test e2e/pricing.spec.ts
 
   build:
     runs-on: ubuntu-latest
@@ -387,7 +409,7 @@ jobs:
 
   deployment-admission:
     name: Observe automatic deployment admission
-    needs: [check, rules-emulator, test, e2e, public-copy-contracts, build]
+    needs: [check, rules-emulator, core-journey, test, e2e, public-copy-contracts, build]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     # Observe holds even when content-only browser checks were intentionally skipped.
     runs-on: ubuntu-latest

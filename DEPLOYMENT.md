@@ -59,8 +59,7 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
   (`node-version-file: .nvmrc`), `package.json` repeats it as `engines.node`,
   and Render's native Node runtime reads either file unless a `NODE_VERSION`
   environment variable is set on the service (the dashboard value is not
-  visible from this repo). `functions/` declares Node 22 on its own
-  (`functions/package.json`, `firebase.json`).
+  visible from this repo).
 - Build command: `npm ci && npm run build`
 - Web start command: `npm start`
 - Independent production worker start command: `NODE_ENV=production node dist/worker.js`.
@@ -458,7 +457,6 @@ Launch-critical note:
 - Leave `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS` unset in paid/production flows so pipeline sync fails closed when inbound request bootstrap is missing.
 - Live robot-eval request acceptance requires forwarding to the CapturePipeline intake service by default, and production ignores `ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED=false`. If URL/token are missing, blocked, or fail, the route returns a 5xx while preserving the durable local inbox record. If the Pipeline control plane requires the incoming request to match its active capture root, configure `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON`; the forwarded envelope keeps the original WebApp/public root in `site_package.webapp_capture_root` and does not upgrade simulator, safety, or readiness proof.
 - Before enabling required live robot-eval forwarding, run `npm run pipeline:forwarding:preflight -- --require-forwarding`. Add `-- --probe-intake-audit` only when the Pipeline intake service is up and `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` matches `BLUEPRINT_LIVE_PIPELINE_INTAKE_TOKEN`; WebApp signs the probe and forwarded POSTs with timestamp/nonce HMAC headers instead of sending the token as bearer auth. The probe performs a read-only `GET /api/live-pipeline/intake-audit`, writes a redacted report under `output/pipeline/robot_eval_job_requests/forwarding_preflight.json`, and does not queue a job, allocate GPUs, or prove simulator execution.
-- For a route-level proof after preflight, `npm run pipeline:first-gpu:route-forwarding-proof -- --forward-url <pipeline-intake-url> ...` starts a local WebApp route and POSTs a non-rehearsal request through `/api/robot-eval/job-requests`. Use a local/staging intake URL unless a live Pipeline staging side effect is explicitly intended; this still does not prove production deployment, GPU allocation, simulator execution, safety, or 90%+ sim-only policy-ranking agreement.
 
 ### Redis (server, recommended for live session state)
 - Optional but recommended: `REDIS_URL`

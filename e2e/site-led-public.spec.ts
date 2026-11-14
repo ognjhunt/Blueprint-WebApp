@@ -11,41 +11,6 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844 }]) {
-  test(`all public pages share the approved theme at ${viewport.width}px`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    const errors: string[] = [];
-    page.on("pageerror", (error) => {
-      errors.push(error.message);
-    });
-    for (const [name, path, heading] of [
-      ["home", "/", "Get repetitive work done by robots."],
-      ["partners", "/partners", "Real jobs from real sites."],
-      ["how", "/how-it-works", "How it works"],
-      ["beta", "/beta", "Questions"],
-      ["site", "/contact/site-operator", "Start a job"],
-      ["robot", "/contact/robot-team", "Apply to see jobs"],
-      ["privacy", "/privacy", "Privacy Policy"],
-      ["terms", "/terms", "Terms of Service"],
-      ["not-found", "/this-page-does-not-exist", "That page isn’t here."],
-    ]) {
-      await page.goto(path);
-      await expect(page.locator("h1")).toContainText(heading);
-      await expect(page.locator(".minimal-site")).toHaveCSS("background-color", "rgb(246, 245, 239)");
-      await expect(page.getByRole("link", { name: "Blueprint home" })).toHaveCSS("color", "rgb(34, 37, 30)");
-      await expect(page.locator(".bare-site-foot")).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      for (const image of await page.locator('img[loading="lazy"]').all()) {
-        await image.scrollIntoViewIfNeeded();
-      }
-      await expect.poll(() => page.locator("img").evaluateAll((images) => images.filter((image) => !image.complete || image.naturalWidth === 0).map((image) => image.src))).toEqual([]);
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.screenshot({ path: `output/site-led-review/${name}-${viewport.width}.png`, fullPage: true });
-    }
-    expect(errors).toEqual([]);
-  });
-}
-
 test("the Terms and Privacy Policy link to the previous versions, which stay published", async ({ page }) => {
   for (const [path, previous, heading] of [["/terms", "/terms/previous", "Terms of Service"], ["/privacy", "/privacy/previous", "Privacy Policy"]]) {
     await page.goto(path);

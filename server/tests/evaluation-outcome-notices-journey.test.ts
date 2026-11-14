@@ -48,7 +48,8 @@ vi.mock("../utils/captureOutbox", async (importOriginal) => ({
   deliverOutbox: vi.fn(async () => ({ examined: 0, sent: 0, failed: 0, exhausted: 0 })),
 }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: vi.fn(() => { throw new Error("No model calls in this journey"); }) }));
-vi.mock("../agents", () => ({ runInboundQualificationForRequest: vi.fn(async () => undefined) }));
+vi.mock("../agents/workflows", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/slack", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../utils/slack")>()),
   notifySlackInboundRequest: vi.fn(async () => undefined),

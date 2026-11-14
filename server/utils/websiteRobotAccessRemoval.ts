@@ -39,7 +39,7 @@
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeCanonicalJson } from "./crossRuntimeCanonical";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { latestSceneIntake } from "./websiteOwnerSuccessConfirmation";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { buildTaskLifecycleNotification, type RobotAccessCounts } from "./taskLifecycleNotifications";

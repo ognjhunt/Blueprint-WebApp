@@ -79,7 +79,7 @@ describe("runtime connectivity", () => {
     });
 
     const { runAgentRuntimeSmokeTest } = await import(
-      "../agents/runtime-connectivity"
+      "../agents/runtime-smoke-test"
     );
 
     const result = await runAgentRuntimeSmokeTest();

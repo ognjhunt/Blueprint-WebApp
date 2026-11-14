@@ -3,8 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { Usage, type Model, type ModelResponse } from "@openai/agents";
 import { createSiteAssessmentAgent, renderSourceBoundAssessment, type SiteAssessment } from "../agents/site-assessment";
 import { assessmentReadActions } from "../agents/tasks/site-assessment";
-import { taskScreeningEvidence, readCurrentTaskScreening } from "../utils/taskScreeningEvidence";
-import type { ManagedJobEvidenceSummary } from "../utils/jobManagedEvaluation";
+import { taskScreeningEvidence } from "../utils/taskScreeningEvidence";
+import { readCurrentTaskScreening } from "../utils/currentTaskScreening";
+import type { ManagedJobEvidenceSummary } from "../utils/managedJobEvidenceSummary";
 import { allCandidateFamilyScreeningFixture } from "./fixtures/beta-policy-screening";
 
 const input = { request_id: "job-one", operator_messages: [{ id: "owner", text: "Compare the candidates for this task.", source_ref: "synthetic/operator" }],

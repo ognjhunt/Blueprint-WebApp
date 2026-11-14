@@ -30,7 +30,7 @@
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeCanonicalJson } from "./crossRuntimeCanonical";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 
 export const OWNER_SUCCESS_PROPOSAL_SCHEMA = "website_owner_success_proposal.v1";
