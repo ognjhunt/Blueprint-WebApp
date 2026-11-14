@@ -32,15 +32,11 @@ vi.mock("../utils/siteTaskBrief", () => ({
   draftBrief: vi.fn((value: unknown) => value),
   saveBrief: vi.fn(async () => undefined),
 }));
-vi.mock("../utils/lifecycle-cadence", () => ({ createLifecycleCadenceForInboundRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/inboundRequestStats", () => ({ incrementInboundRequestStats: vi.fn(async () => undefined) }));
 vi.mock("../utils/intakeOpsNotice", () => ({
   initialIntakeOpsNotice: vi.fn(() => ({ status: "pending" })),
   deliverIntakeOpsNoticeAtIntake: vi.fn(async () => ({ channels: { slack: "skipped" } })),
 }));
-vi.mock("../agents/workflows", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => undefined) }));
-vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/filmLinkHandoff", async () => ({
   ...await vi.importActual<typeof import("../utils/filmLinkHandoff")>("../utils/filmLinkHandoff"),
   sendFilmLinkHandoff: vi.fn(async () => ({ sent: true, filmUrl: "https://example.test/film" })),

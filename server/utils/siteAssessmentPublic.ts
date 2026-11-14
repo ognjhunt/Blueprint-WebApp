@@ -2,7 +2,7 @@ import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
-import { renderSourceBoundAssessment, siteAssessmentSchema, SITE_ASSESSMENT_MAX_PACKET_BYTES, SITE_ASSESSMENT_MAX_PACKET_SOURCES } from "../agents/site-assessment";
+import { renderSourceBoundAssessment, siteAssessmentSchema, SITE_ASSESSMENT_MAX_PACKET_BYTES, SITE_ASSESSMENT_MAX_PACKET_SOURCES } from "./siteAssessmentRecord";
 import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
 import { verifiedPendingManifest, verifiedPendingMarker } from "./websiteBrowserUploadStatus";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";

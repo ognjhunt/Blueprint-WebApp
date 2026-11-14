@@ -67,27 +67,10 @@ afterAll(async () => {
 });
 
 const protectedEndpoints = [
-  { method: "POST", path: "/api/post-signup-workflows" },
   { method: "POST", path: "/api/storage/uploads" },
-  { method: "POST", path: "/api/admin/agent/sessions" },
-  { method: "GET", path: "/api/admin/agent/sessions" },
-  { method: "GET", path: "/api/admin/agent/context/options" },
-  { method: "GET", path: "/api/admin/agent/profiles" },
-  { method: "GET", path: "/api/admin/agent/environments" },
-  { method: "POST", path: "/api/admin/agent/delegations" },
-  { method: "POST", path: "/api/admin/agent/sessions/test-session/control/start" },
-  { method: "POST", path: "/api/admin/agent/sessions/test-session/control/compact" },
   { method: "POST", path: "/api/qr/pending-session" },
   { method: "POST", path: "/api/site-worlds/sessions" },
   { method: "GET", path: "/api/site-worlds/sessions/test-session" },
-  { method: "GET", path: "/api/admin/outbound-prospects/communications/connection" },
-  { method: "GET", path: "/api/admin/outbound-prospects/communications/blocked-jobs" },
-  { method: "GET", path: "/api/admin/outbound-prospects/test-prospect/communications" },
-  { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications" },
-  { method: "POST", path: `/api/admin/outbound-prospects/test-prospect/communications/${"a".repeat(64)}/retry` },
-  { method: "POST", path: `/api/admin/outbound-prospects/test-prospect/communications/${"a".repeat(64)}/reconcile-draft` },
-  { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications/research-preview" },
-  { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications/research-approve" },
 ];
 
 describe("verifyFirebaseToken middleware", () => {

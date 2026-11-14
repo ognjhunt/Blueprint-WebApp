@@ -3,7 +3,6 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
 const seams = vi.hoisted(() => ({ describe: vi.fn(), wake: vi.fn(), advisory: vi.fn() }));
-vi.mock("../utils/siteAssessmentQueue", () => ({ describeSiteAssessmentRetry: seams.describe, tickSiteAssessments: seams.wake }));
 vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: seams.advisory }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: vi.fn(async () => null), confirmBrief: vi.fn() }));
 vi.mock("../utils/websiteBrowserUploadStatus", () => ({ describeBrowserUpload: vi.fn(async () => ({ captureReceived: true, uploadState: "processing_ready" })) }));

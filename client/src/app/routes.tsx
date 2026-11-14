@@ -61,7 +61,6 @@ const Refunds = lazyRoute(() => import("../pages/Refunds"));
 const PrivacyPrevious = lazyRoute(() => import("../pages/PrivacyPrevious"));
 const TermsPrevious = lazyRoute(() => import("../pages/TermsPrevious"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
-const AdminLeads = lazyRoute(() => import("../pages/AdminLeads"));
 // The launch control room behind its access gate (admin/ops role or the
 // server-enforced launch-lab bearer link).
 const TaskEvaluationLaunchesGate = lazyRoute(
@@ -75,7 +74,6 @@ const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/workspace/Overview"));
 const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
-const ConnectChatGPT = lazyRoute(() => import("../pages/app/ConnectChatGPT"));
 const AppEvaluationRunProgress = lazyRoute(() => import("../pages/app/EvaluationRunProgress"));
 const AppTaskEvaluationResultDetail = lazyRoute(
   () => import("../pages/app/TaskEvaluationResultDetail"),
@@ -100,6 +98,12 @@ const ProofRedirect = () => <MarketingRedirect to="/#how-it-works" />;
 const HelpRedirect = () => <MarketingRedirect to="/contact/site-operator" />;
 
 const SitesRedirect = () => <MarketingRedirect to="/partners" />;
+
+// Operator alerts link a job at /admin/leads/:requestId, and /ops was the old operator home; both open the job console.
+const LeadToJobConsole = ({ params }: { params?: { requestId?: string } }) => (
+  <MarketingRedirect preserveQuery={false}
+    to={params?.requestId ? `/admin/jobs?job=${encodeURIComponent(params.requestId)}` : "/admin/jobs"} />
+);
 
 const ContactRedirect = () => {
   const search =
@@ -318,12 +322,14 @@ export const appRoutes: AppRoute[] = [
   { path: "/settings", layout: "protected", shell: "bare", component: Settings },
 
   // Admin
-  { path: "/admin/leads", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/admin/leads/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/admin/submissions", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/admin/submissions/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },
   { path: "/admin/jobs", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
+  { path: "/admin/leads", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
+  { path: "/admin/leads/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
+  { path: "/ops", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
+  { path: "/ops/supply", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
+  { path: "/ops/evidence", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
+  { path: "/ops/handoff", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
 
   // Legacy logged-in and signup aliases resolve to the maintained flows.
   { path: "/dashboard", layout: "protected", shell: "bare", component: BuyerAppRedirect },
@@ -338,16 +344,11 @@ export const appRoutes: AppRoute[] = [
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
   { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
-  { path: "/app/connect/chatgpt", layout: "protected", shell: "bare", component: ConnectChatGPT },
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },
   { path: "/app/results/:recordId", layout: "public", shell: "bare", component: AppTaskEvaluationResultDetail },
   { path: "/app/g1-reviews/:runId", layout: "protected", shell: "bare", component: AppNativeG1PrivateReview },
 
   // Legacy ops aliases route to protected admin/operator truth surfaces.
-  { path: "/ops", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/ops/supply", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/ops/evidence", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/ops/handoff", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   // Gated in TaskEvaluationLaunchesGate: an admin/ops role, or the temporary
   // launch-lab bearer capability that the server enforces.
   { path: "/ops/task-evaluation-launches", layout: "public", component: TaskEvaluationLaunchesGate },

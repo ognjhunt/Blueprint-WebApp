@@ -8,10 +8,6 @@ import {
   storeIdempotencyResponse,
 } from "../utils/idempotency";
 import { isValidEmailAddress, isValidPhoneNumber } from "../utils/validation";
-import { listCityLaunchActivations, upsertCityLaunchProspect } from "../utils/cityLaunchLedgers";
-import { slugifyCityName } from "../utils/cityLaunchProfiles";
-import { runWaitlistLeadSignalRouting } from "../utils/highIntentLeadEnrichment";
-import { createLifecycleCadenceForWaitlistSubmission } from "../utils/lifecycle-cadence";
 
 function toFilterToken(value: string) {
   return value
@@ -148,73 +144,9 @@ export default async function waitlistHandler(req: Request, res: Response) {
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     });
     persisted = true;
-
-    createLifecycleCadenceForWaitlistSubmission({
-      submissionId,
-      email: emailValue,
-      role: roleValue,
-      company: companyValue,
-      market: marketValue,
-      source: sourceValue || "website_waitlist",
-    }).catch(() => undefined);
   }
 
   const { sent } = await sendEmail({ to, subject, text });
-
-  // City-launch intake routing: if the submission's market matches an active city launch,
-  // auto-link the submission as a prospect in the city launch prospect ledger.
-  if (db && marketValue) {
-    try {
-      const activations = await listCityLaunchActivations();
-      const matchedActivation = activations.find((activation) => {
-        const activationSlug = activation.citySlug;
-        const marketSlug = slugifyCityName(marketValue);
-        return activationSlug === marketSlug
-          || marketValue.toLowerCase().includes(activation.city.toLowerCase().split(",")[0].trim());
-      });
-
-      if (matchedActivation && matchedActivation.status !== "planning") {
-        await upsertCityLaunchProspect({
-          city: matchedActivation.city,
-          launchId: matchedActivation.rootIssueId,
-          sourceBucket: "waitlist_intake",
-          channel: "website_waitlist",
-          name: companyValue || emailValue.split("@")[0] || "Waitlist Applicant",
-          email: emailValue,
-          status: "identified",
-          ownerAgent: "intake-agent",
-          notes: `Auto-linked from waitlist submission. Market: ${marketValue}. Role: ${roleValue || "unknown"}. Location type: ${locationTypeValue}. Device: ${deviceValue || "unknown"}.${notesValue ? ` Notes: ${notesValue}.` : ""}`,
-          firstContactedAt: null,
-          lastContactedAt: null,
-          siteAddress: locationTypeValue || null,
-          locationSummary: marketValue || null,
-          lat: null,
-          lng: null,
-          siteCategory: locationTypeValue || null,
-          workflowFit: "unknown",
-          priorityNote: null,
-          researchProvenance: null,
-        });
-      }
-    } catch {
-      // City-launch intake routing is best-effort and should not block the waitlist response.
-    }
-  }
-
-  if (db && submissionId) {
-    runWaitlistLeadSignalRouting({
-      submissionId,
-      email: emailValue,
-      market: marketValue,
-      role: roleValue,
-      locationType: locationTypeValue,
-      device: deviceValue,
-      company: companyValue,
-      notes: notesValue,
-      source: sourceValue || "website_waitlist",
-    }).catch(() => undefined);
-  }
-
 
   const responseStatus = sent ? HTTP_STATUS.OK : HTTP_STATUS.ACCEPTED;
   const responseBody = {

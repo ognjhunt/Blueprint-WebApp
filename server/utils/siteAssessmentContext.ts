@@ -1,7 +1,18 @@
 import { createHash } from 'node:crypto';
-import { assessmentCustomerStatementRefs } from './siteCustomerStatements';
 import { screenTaskScope } from './siteTaskScope';
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+type SiteCustomerStatementRef = { statement_id: string; digest: string };
+/** Only the canonical refs admitted after an email read enter assessment context.
+ * The ordinary conversation/display history is never sufficient authority. */
+function assessmentCustomerStatementRefs(record: Record<string, any>): SiteCustomerStatementRef[] {
+  const refs = record.site_assessment_customer_statements ?? [];
+  if (!Array.isArray(refs) || refs.length > 20 || refs.some(ref => !ref || typeof ref !== "object"
+    || typeof ref.statement_id !== "string" || typeof ref.digest !== "string"
+    || !/^[a-f0-9]{64}$/.test(ref.statement_id) || !/^[a-f0-9]{64}$/.test(ref.digest)
+    || Object.keys(ref).some(key => !["statement_id", "digest"].includes(key)))
+    || new Set(refs.map(ref => ref.statement_id)).size !== refs.length) throw new Error("site_assessment_customer_statement_binding_invalid");
+  return refs;
+}
 /** Relevant request and optional owner context. Timestamps and inferred triage are not new facts. */
 export function advisoryContextDigest(record: Record<string, any>, brief: Record<string, any> | null): string {
   const request = Object.fromEntries([
@@ -24,16 +35,4 @@ export function advisoryContextDigest(record: Record<string, any>, brief: Record
 }
 export function advisoryJobId(requestId: string, sourceKey: string, contextDigest: string): string {
   return `advisory-${digest({ schema: 'site_assessment_job.v1', requestId, sourceKey, contextDigest })}`;
-}
-
-/** A durable customer job cannot silently adopt another recording, context or worker claim. */
-export function assertAdvisoryJobBinding(job: Record<string, any> | undefined, expected: {
-  jobId: string; requestId: string; sourceKey: string; contextDigest: string; runId: string; claimId: string;
-}): void {
-  if (!job || job.schema_version !== 'site_assessment_job.v1' || job.request_id !== expected.requestId
-    || job.state !== 'running' || job.source_key !== expected.sourceKey || job.context_digest !== expected.contextDigest
-    || job.run_id !== expected.runId || job.claim_id !== expected.claimId
-    || advisoryJobId(expected.requestId, expected.sourceKey, expected.contextDigest) !== expected.jobId) {
-    throw new Error('site_assessment_advisory_binding_changed');
-  }
 }

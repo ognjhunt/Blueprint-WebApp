@@ -62,8 +62,6 @@ vi.mock("../utils/capturePrivacyScreen", () => ({
   screenCaptureForPrivacy: vi.fn(async () => ({ proceed: true, outcome: "cleared", eligibility: "unscreened", detail: null, evidence: null })),
 }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: vi.fn(() => { throw new Error("No model calls in this journey"); }) }));
-vi.mock("../agents/workflows", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/slack", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../utils/slack")>()),
   notifySlackInboundRequest: vi.fn(async () => undefined),
@@ -73,8 +71,6 @@ vi.mock("../utils/slack", async (importOriginal) => ({
   sendSlackMessage: vi.fn(async () => ({ sent: false })),
 }));
 vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ ok: true })) }));
-vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => undefined) }));
-vi.mock("../utils/lifecycle-cadence", () => ({ createLifecycleCadenceForInboundRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/intakeOpsNotice", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../utils/intakeOpsNotice")>()),
   deliverIntakeOpsNoticeAtIntake: vi.fn(async () => ({ channels: { slack: "skipped" } })),
@@ -577,12 +573,6 @@ describe("a not_now job created after the screen stopped gating", () => {
     const page = (await jobStatus(token)).status;
     expect(page.decision).not.toBe("not_now");
     expect(`${page.headline} ${page.operatorAction ?? ""}`).not.toMatch(notBuilding);
-    const { clampRecommendationToGates } = await import("../agents/workflows");
-    const { sceneScreenGateEnded } = await import("../utils/sceneScreenGate");
-    const stored = doc(`inboundRequests/${jobId}`);
-    expect(clampRecommendationToGates(stored.site_task_triage,
-      { qualification_state_recommendation: "qualified_ready", requires_human_review: false } as never,
-      undefined, sceneScreenGateEnded(stored, jobId))).toEqual({ qualificationState: "qualified_ready", requiresHumanReview: false });
     await claim(jobId);
     await sendFootage(token);
     expect(doc(`inboundRequests/${jobId}`).scene_screen_gate_ended).toEqual(created.scene_screen_gate_ended);

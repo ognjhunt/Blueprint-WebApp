@@ -34,11 +34,7 @@ vi.mock("../utils/siteTaskBrief", () => ({
   saveBrief: vi.fn(async () => undefined),
 }));
 vi.mock("../utils/siteTaskBriefReading", () => ({ readBriefFromDescription: vi.fn(async () => null) }));
-vi.mock("../utils/lifecycle-cadence", () => ({ createLifecycleCadenceForInboundRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/inboundRequestStats", () => ({ incrementInboundRequestStats: vi.fn(async () => undefined) }));
-vi.mock("../agents/workflows", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => undefined) }));
-vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => undefined) }));
 
 const { submitInboundRequest } = await import("../routes/inbound-request");
 const { incrementInboundRequestStats } = await import("../utils/inboundRequestStats");

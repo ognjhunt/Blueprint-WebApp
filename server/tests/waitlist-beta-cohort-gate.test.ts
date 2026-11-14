@@ -19,18 +19,8 @@ vi.mock("../utils/idempotency", () => ({
   storeIdempotencyResponse: vi.fn(async () => undefined),
 }));
 
-vi.mock("../utils/cityLaunchLedgers", () => ({
-  listCityLaunchActivations: vi.fn(async () => []),
-  upsertCityLaunchProspect: vi.fn(async () => undefined),
-}));
 
-vi.mock("../utils/highIntentLeadEnrichment", () => ({
-  runWaitlistLeadSignalRouting: vi.fn(async () => undefined),
-}));
 
-vi.mock("../utils/lifecycle-cadence", () => ({
-  createLifecycleCadenceForWaitlistSubmission: vi.fn(async () => undefined),
-}));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {

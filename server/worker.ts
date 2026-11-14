@@ -1,29 +1,18 @@
 /**
  * Dedicated background worker entrypoint (SCALE2-02).
  *
- * Runs the ~20 ops automation lanes outside the HTTP web process so a slow
- * Notion sync or large batch write can never compete for event-loop time with
- * live buyer/creator traffic. Deployed as the `blueprint-webapp-worker`
- * Render worker service (`npm run start:worker`); the web service
- * (`npm start`) serves HTTP only.
- *
- * The ops automation leader lease stays active here: if Render ever scales
- * this worker beyond one instance — or the web-process escape hatch
- * (BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1) is enabled during a transition —
- * only the lease holder actually runs lanes.
+ * Runs the background loops outside the HTTP web process so a large batch
+ * write can never compete for event-loop time with live traffic. Deployed as
+ * the `blueprint-webapp-worker` Render worker service (`npm run
+ * start:worker`); the web service (`npm start`) serves HTTP only.
  */
 import { pathToFileURL } from "node:url";
 
 import { validateEnv } from "./config/env";
 import { attachRequestMeta, logger } from "./logger";
-import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
 import { startStripeWebhookQueueProcessor } from "./utils/stripeWebhookQueue";
 import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLaunchForwardWorker";
-import { startAdpManagedRunWorker } from "./agents/adp-managed-runs";
 import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
-import { startDailyResearchWorker } from "./utils/dailyResearchWorker";
-import { startCommunicationsWorker } from "./agents/communications-worker";
-import { startSavedRecoveryWorker } from "./agents/communications-saved-recovery-worker";
 import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
 import { startWebsiteCaptureDeletionWorker } from "./utils/websiteCaptureDeletion";
 import { startWebsiteJobWindowSweepWorker } from "./utils/websiteJobWindowSweep";
@@ -31,7 +20,6 @@ import { installProcessErrorHandlers } from "./utils/opsProcessAlerts";
 import { startWorkerHeartbeat } from "./utils/workerHeartbeat";
 import { startAutomaticSendWorker } from "./utils/jobAutoSend";
 import { startJobOutcomeQuestionWorker } from "./utils/jobOutcomes";
-import { announceAutonomousLanesAtBoot } from "./utils/automationLaneSummary";
 
 const launchForwardOnly = () =>
   ["1", "true", "yes", "on"].includes(
@@ -56,7 +44,7 @@ export function startWorker(): WorkerHandle {
     }),
     taskEvaluationLaunchOnly
       ? "Blueprint worker starting: Task Evaluation launch forwarder only"
-      : "Blueprint worker starting: ops automation scheduler + Stripe webhook queue processor + Task Evaluation launch forwarder",
+      : "Blueprint worker starting: Stripe webhook queue processor + Task Evaluation launch forwarder",
   );
   if (taskEvaluationLaunchOnly && process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE === "1") {
     // Queue mode with a launch-forward-only worker means no process drains
@@ -66,22 +54,11 @@ export function startWorker(): WorkerHandle {
       "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1 but this worker is launch-forward-only and does not run the Stripe queue processor; queued Stripe events will not settle",
     );
   }
-  void announceAutonomousLanesAtBoot({
-    processName: "worker",
-    schedulerRunsHere: !taskEvaluationLaunchOnly,
-  }).catch((error) => logger.warn({ err: error }, "Could not announce autonomous lane state"));
-  const stopScheduler = taskEvaluationLaunchOnly
-    ? () => undefined
-    : startOpsAutomationScheduler();
   const stopQueueProcessor = taskEvaluationLaunchOnly
     ? () => undefined
     : startStripeWebhookQueueProcessor();
   const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
-  const stopAdpManagedRuns = startAdpManagedRunWorker();
   const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
-  const researchWorker = startDailyResearchWorker();
-  const stopCommunicationsWorker = startCommunicationsWorker();
-  const stopSavedRecoveryWorker = startSavedRecoveryWorker();
   const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
   // Runs in launch-forward-only mode too: deletion must not wait on the ops scheduler.
   const stopWebsiteDeletions = startWebsiteCaptureDeletionWorker();
@@ -102,16 +79,12 @@ export function startWorker(): WorkerHandle {
     stopHeartbeat();
     stopQueueProcessor();
     stopTaskEvaluationLaunchForwarder();
-    stopAdpManagedRuns();
     stopCompanyPolicyCandidateOutbox();
     stopWebsiteWithdrawals();
     stopWebsiteDeletions();
     stopWebsiteJobWindowSweep();
     stopAutomaticSends();
     stopJobOutcomeQuestions();
-    const communicationsStopped = stopCommunicationsWorker();
-    stopScheduler();
-    await Promise.all([researchWorker.stop(), communicationsStopped, stopSavedRecoveryWorker()]);
     logger.info(attachRequestMeta({ route: "worker" }), "Blueprint worker stopped");
     })();
     return stopPromise;

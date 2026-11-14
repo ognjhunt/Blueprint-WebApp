@@ -1,12 +1,10 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { decideDispatchForRequest } from "../agents/workflows";
-import { INBOUND_POLICY } from "../agents/action-policies";
+import { decideDispatchForRequest } from "../utils/captureUploadAuthorization";
 import { bookingUrl } from "../utils/bookingLink";
 import { footageSettlesAll } from "../../client/src/data/siteTaskQualification";
 import type { InboundRequest, InboundRequestPayload } from "../types/inbound-request";
-import { convertProspectToRequestPayload } from "../utils/outboundProspects";
 
 const QUALIFIED = {
   disposition: "qualified" as const,
@@ -94,52 +92,8 @@ describe("the booking link has one home", () => {
   });
 });
 
-describe("an outbound reply can actually reach the intake it is meant for", () => {
-  it("emits the exact keys intake reads, so a rename cannot silently break the guard", () => {
-    // These two ends are joined by a person copying the payload into the intake
-    // during the beta, so nothing type-checks the join. If `gateAnswerSources`
-    // or `captureMode` were renamed on either side, provenance would simply
-    // stop arriving -- and absent provenance reads as operator-stated, which
-    // means a guess would start dispatching captures. Silent, and the exact
-    // failure the provenance field exists to prevent.
-    const payload = convertProspectToRequestPayload({
-      prospect: {
-        prospectId: "p-1",
-        facilityName: "Example DC",
-        facilityAddress: "100 Industrial Way",
-        contactEmail: "ops@example.com",
-        observations: [],
-        hypothesisedTask: "Totes to pallets.",
-        inferredGates: { sceneStability: "stable" },
-        gateAnswerSources: { sceneStability: "inferred" },
-        stage: "replied",
-        reasonForContact: "Single-shift DC.",
-        createdAtIso: "2026-09-16T00:00:00.000Z",
-      },
-      statedGates: {},
-      taskStatement: "Totes to pallets.",
-      captureMode: "self_capture",
-    });
-
-    // Assigning to the intake payload type is the compile-time half of the
-    // check; the runtime half is that the values actually survive the hop.
-    const intake: Pick<InboundRequestPayload, "gateAnswerSources" | "captureMode"> = {
-      gateAnswerSources: payload.gateAnswerSources,
-      captureMode: payload.captureMode,
-    };
-
-    expect(intake.gateAnswerSources).toEqual({ sceneStability: "inferred" });
-    expect(intake.captureMode).toBe("self_capture");
-  });
-});
-
 describe("a person is kept where something is actually being committed", () => {
   const qualified = { recommendation: "qualified_ready", confidence: 0.95 };
-
-  it("leaves the shared lane policy alone for every other caller", () => {
-    // INBOUND_POLICY stays the conservative default for the lane.
-    expect(INBOUND_POLICY.alwaysHumanReview(qualified)).toBe(true);
-  });
 
   it("dispatches a qualified self-capture site now that the prompt stopped flagging it", () => {
     // The end-to-end point of the change: the flag the prompt used to set on
@@ -149,18 +103,6 @@ describe("a person is kept where something is actually being committed", () => {
       dispatch: true,
       channel: "self_capture_upload",
     });
-  });
-});
-
-// Owner decision 2026-11-11: for a job whose video arrived after the change the
-// screen holds nothing, so its disposition sends it to no review and no hold.
-describe("the screen holds nothing for a job past its cutover", () => {
-  it.each(["not_now", "needs_conversation"] as const)("leaves a %s job's recommendation and review as the model gave them", async disposition => {
-    const { clampRecommendationToGates } = await import("../agents/workflows");
-    const triage = { ...QUALIFIED, disposition } as never;
-    const result = { qualification_state_recommendation: "qualified_ready", requires_human_review: false } as never;
-    expect(clampRecommendationToGates(triage, result, undefined, true)).toEqual({ qualificationState: "qualified_ready", requiresHumanReview: false });
-    expect(clampRecommendationToGates(triage, result).requiresHumanReview).toBe(true);
   });
 });
 

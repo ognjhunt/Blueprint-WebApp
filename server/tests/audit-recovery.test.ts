@@ -16,7 +16,6 @@ vi.mock("../utils/siteTaskBrief", async () => ({ getBrief: async (id: string) =>
 
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
-import { recordHumanReplyEvent, claimHumanReplyResume, reconcileHumanReplyResumes } from "../utils/human-reply-store";
 import { recordCohortCostReceipt, getCohort, cohortContribution, type CohortCostReceipt } from "../utils/cohortEconomics";
 import { enqueueCoverageReview, reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { issueCaptureSupplement, validateCaptureSupplement } from "../utils/captureSupplement";
@@ -26,72 +25,6 @@ import { readSiteClarification, submitSiteClarification } from "../utils/siteTas
 beforeEach(() => { state.docs.clear(); review.mockReset(); });
 const put = (path: string, value: any) => state.docs.set(path, value);
 const read = (path: string): any => state.docs.get(path);
-
-function thread() {
-  const now = Date.now();
-  put("action_ledger/action", { status: "pending_approval", action_type: "send_email", action_payload: { subject: "Bound scope" } });
-  put("humanBlockerThreads/blocker", { id: "blocker", blocker_id: "blocker", approved_identity: "owner@example.com",
-    status: "awaiting_reply", correlation: {}, decision_expires_at: new Date(now + 3600000).toISOString(),
-    decision_issued_at: new Date(now - 3600000).toISOString(), last_human_reply_event_id: null,
-    record_of_truth: { ops_work_item_id: "action" }, resume_action: { kind: "manual_followup" },
-    action_digest: humanDecisionDigest({ type: "send_email", payload: { subject: "Bound scope" } }) });
-}
-function event(id: string, age = 0, approve = true): any {
-  return { blocker_id: "blocker", channel: "email", external_message_id: id, external_thread_id: "thread",
-    sender: "owner@example.com", body: approve ? "Approved" : "No", received_at: new Date(Date.now() - age).toISOString(),
-    classification: approve ? "approval" : "rejection", should_resume_now: approve };
-}
-describe("durable human decisions", () => {
-  it("allows one concurrent claim and preserves duplicate replies", async () => {
-    thread(); const input = event("one"); const first = await recordHumanReplyEvent(input);
-    expect((await recordHumanReplyEvent(input)).id).toBe(first.id);
-    const claims = await Promise.all([claimHumanReplyResume(first.id), claimHumanReplyResume(first.id)]);
-    expect(claims.filter(Boolean)).toHaveLength(1);
-    await expect(recordHumanReplyEvent({ ...input, body: "No" })).rejects.toThrow("reply_event_conflict");
-  });
-  it("rejects the wrong sender before creating an executable event", async () => {
-    thread(); await expect(recordHumanReplyEvent({ ...event("spoof"), sender: "other@example.com" })).rejects.toThrow("wrong_principal");
-    expect(read("humanReplyEvents/email:spoof")).toBeUndefined();
-  });
-  it("does not let a delayed approval supersede a rejection", async () => {
-    thread(); await recordHumanReplyEvent(event("no", 0, false));
-    const old = await recordHumanReplyEvent(event("old", 10000));
-    expect(await claimHumanReplyResume(old.id)).toBeNull();
-    expect(read("humanBlockerThreads/blocker").last_human_reply_event_id).toBe("email:no");
-  });
-  it.each([true, false])("lets a simultaneous refusal dominate regardless of arrival order (%s)", async approvalFirst => {
-    thread(); const approval = event("tie-yes"), refusal = { ...event("tie-no", 0, false), received_at: approval.received_at };
-    for (const input of approvalFirst ? [approval, refusal] : [refusal, approval]) await recordHumanReplyEvent(input);
-    expect(read("humanBlockerThreads/blocker").last_human_reply_event_id).toBe("email:tie-no");
-    expect(await claimHumanReplyResume("email:tie-yes")).toBeNull();
-  });
-  it("rejects a changed action and replays only a provably unclaimed action", async () => {
-    thread(); const row = await recordHumanReplyEvent(event("yes"));
-    await claimHumanReplyResume(row.id);
-    read(`humanReplyEvents/${row.id}`).resume_started_at = Date.now() - 600000;
-    await reconcileHumanReplyResumes();
-    expect(read(`humanReplyEvents/${row.id}`).resume_state).toBe("pending");
-    read("action_ledger/action").action_payload.subject = "Different action";
-    expect(await claimHumanReplyResume(row.id)).toBeNull();
-  });
-  it.each([true, false])("recovers approval-before-execution only for the same claim (%s)", async sameClaim => {
-    thread(); const row = await recordHumanReplyEvent(event("approved-before-crash"));
-    const claim = await claimHumanReplyResume(row.id);
-    read(`humanReplyEvents/${row.id}`).resume_started_at = Date.now() - 600000;
-    Object.assign(read("action_ledger/action"), { status: "operator_approved", human_reply_event_id: row.id,
-      human_reply_claim: sameClaim ? claim : "another-claim" });
-    await reconcileHumanReplyResumes();
-    expect(read(`humanReplyEvents/${row.id}`).resume_state).toBe(sameClaim ? "pending" : "unknown");
-    expect(read("action_ledger/action").status).toBe(sameClaim ? "pending_approval" : "operator_approved");
-  });
-  it.each(["executing", "sent"])("reconciles a lost %s acknowledgement without executing again", async status => {
-    thread(); const row = await recordHumanReplyEvent(event("yes")); await claimHumanReplyResume(row.id);
-    read(`humanReplyEvents/${row.id}`).resume_started_at = Date.now() - 600000;
-    read("action_ledger/action").status = status;
-    await reconcileHumanReplyResumes();
-    expect(read(`humanReplyEvents/${row.id}`).resume_state).toBe(status === "sent" ? "completed" : "unknown");
-  });
-});
 
 describe("cost receipts", () => {
   const base: CohortCostReceipt = { receiptId: "prep", sceneId: "scene", sourceDigest: `sha256:${"a".repeat(64)}`,

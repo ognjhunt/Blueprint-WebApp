@@ -5,7 +5,6 @@ const authority = vi.hoisted(()=>({enabled:true, advisoryTick: vi.fn(), coverage
   jobEvidenceTick: vi.fn(async () => {}), sceneIntakeTick: vi.fn(async () => {})}));
 vi.mock("../utils/jobEvidenceForwardWorker", () => ({processJobEvidenceForwardQueue: authority.jobEvidenceTick}));
 vi.mock("../utils/captureCoverageQueue", () => ({tickCoverageReviews: authority.coverageTick}));
-vi.mock("../utils/siteAssessmentQueue", () => ({tickSiteAssessments: authority.advisoryTick}));
 vi.mock("../utils/taskEvaluationSceneIntake", () => ({processSceneIntakeQueue: authority.sceneIntakeTick}));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return authority.db; }, authAdmin:{getUser:async()=>({customClaims:{admin:authority.enabled},disabled:false})} }));
 
@@ -79,7 +78,6 @@ afterEach(() => {
   authority.db=null;
   authority.sceneIntakeTick.mockReset().mockResolvedValue(undefined);
   authority.jobEvidenceTick.mockReset().mockResolvedValue(undefined);
-  authority.advisoryTick.mockReset();
   authority.coverageTick.mockReset();
   delete process.env.TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS;
 });
@@ -308,30 +306,26 @@ describe("Task Evaluation launch forward worker", () => {
 });
 
 
-it("launch-only loop ticks enabled customer advisory without broad automation and stops with the worker", async () => {
+it("launch-only loop ticks enabled coverage review without broad automation and stops with the worker", async () => {
   vi.useFakeTimers();
   vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED", "true");
   vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER", "true");
   vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "false");
-  authority.advisoryTick.mockClear();
   const stop=startTaskEvaluationLaunchForwardWorker();
   try {
     await vi.advanceTimersByTimeAsync(5_000);
-    expect(authority.advisoryTick).not.toHaveBeenCalled();
     expect(authority.coverageTick).not.toHaveBeenCalled();
     vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "true");
     await vi.advanceTimersByTimeAsync(55_000);
-    expect(authority.advisoryTick).toHaveBeenCalledExactlyOnceWith(2);
     expect(authority.coverageTick).toHaveBeenCalledExactlyOnceWith(2, { notifyOwner: false });
     stop();
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(authority.advisoryTick).toHaveBeenCalledTimes(1);
     expect(authority.coverageTick).toHaveBeenCalledTimes(1);
   } finally {stop();vi.useRealTimers();vi.unstubAllEnvs();}
 });
 
 
-it("keeps slow coverage recovery single-flight while other gated lanes progress", async () => {
+it("keeps slow coverage recovery single-flight", async () => {
   vi.useFakeTimers();
   vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED", "true");
   vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "true");
@@ -342,7 +336,6 @@ it("keeps slow coverage recovery single-flight while other gated lanes progress"
   try {
     await vi.advanceTimersByTimeAsync(30000);
     expect(authority.coverageTick).toHaveBeenCalledTimes(1);
-    expect(authority.advisoryTick).toHaveBeenCalledTimes(4);
     finish();
     await vi.advanceTimersByTimeAsync(10000);
     expect(authority.coverageTick).toHaveBeenCalledTimes(2);

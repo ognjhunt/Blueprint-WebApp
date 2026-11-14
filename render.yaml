@@ -41,8 +41,6 @@ services:
     region: virginia
     autoDeploy: false
     buildCommand: npm ci && npm run build
-    # Avoid a persistent npm launcher competing with this 512 MiB worker's
-    # independently admitted research Python/Firestore subprocesses.
     startCommand: NODE_ENV=production node dist/worker.js
     envVars:
       # This service shares the web build command but starts dist/worker.js and
@@ -56,10 +54,6 @@ services:
         value: "true"
       - key: BLUEPRINT_COMPANY_POLICY_OUTBOX_WORKER_ENABLED
         value: "true"
-      - key: BLUEPRINT_DAILY_RESEARCH_PACKAGE_BUILD
-        value: "true"
-      - key: BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED
-        value: "false"
 
   # External uptime probe, every 10 minutes (scripts/ops/uptime-probe.mjs):
   # /health, /version.json and /health/worker (the worker heartbeat). GitHub

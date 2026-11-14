@@ -24,7 +24,6 @@ import {
 import { PLACEHOLDER_TASK_SUMMARY, TASK_BRIEFS_COLLECTION, briefConfirmedAtSubmission, draftBrief,
   projectConfirmationOntoJob, saveBrief, type SiteTaskSuccessCriteria } from "../utils/siteTaskBrief";
 import { deliverIntakeOpsNoticeAtIntake, initialIntakeOpsNotice } from "../utils/intakeOpsNotice";
-import { admitInboundQualificationRun } from "../utils/inboundQualificationGate";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
 import { checkEmail, EMAIL_REFUSAL_SENTENCES, type EmailRefusal } from "../../client/src/lib/emailAddress";
@@ -37,12 +36,8 @@ import {
   sendFilmLinkHandoff,
   shouldSendFilmerHandoff,
 } from "../utils/filmLinkHandoff";
-import { createSlaTracker } from "../utils/sla-enforcement";
-import { runInboundQualificationForRequest } from "../agents/workflows";
 import { logGrowthEvent } from "../utils/growth-events";
 import { incrementInboundRequestStats } from "../utils/inboundRequestStats";
-import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
-import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
 import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import { admitIntake, admitIntakeMessage, intakeMessageSuppression, intakeRefusal } from "../utils/betaAbuseCaps";
 import { inviteeDecision } from "../utils/inviteeAllowlist";
@@ -2089,22 +2084,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
 
     }
 
-    createLifecycleCadenceForInboundRequest({
-      requestId: payload.requestId,
-      buyerType,
-      email: emailLower,
-      firstName: (payload.firstName ?? "").trim(),
-      lastName: (payload.lastName ?? "").trim(),
-      company: payload.company.trim(),
-      siteName: siteName || targetSiteType || null,
-      proofPathPreference,
-    }).catch((error) => {
-      logger.warn(
-        { error, requestId: payload.requestId },
-        "Failed to create lifecycle cadence enrollment for inbound request",
-      );
-    });
-
     await incrementInboundRequestStats(db, {
       total: 1,
       [`byStatus.submitted`]: 1,
@@ -2207,24 +2186,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
 
     // 9. Trigger async automations (don't block response)
     const automationPromises: Promise<void>[] = [];
-
-    if (
-      routing.queueKey === "exact_site_hosted_review_queue" ||
-      (payload.context?.sourcePageUrl || "").includes("/product") ||
-      (payload.context?.sourcePageUrl || "").includes("/exact-site-hosted-review")
-    ) {
-      automationPromises.push(
-        createSlaTracker({
-          requestId: payload.requestId,
-          buyerEmail: emailLower,
-        }).catch((error) => {
-          logger.error(
-            { error, requestId: payload.requestId },
-            "Failed to create SLA tracker"
-          );
-        })
-      );
-    }
 
     // Ops notice (Slack + ops email), link-only. The pending notice was
     // committed with the request; this records the outcome, and the beta ops
@@ -2335,43 +2296,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
     );
 
     // The internal ops email is part of the link-only ops notice above.
-
-    // Inbound qualification is an LLM call on an anonymous submission: gated by
-    // BLUEPRINT_INBOUND_QUALIFICATION_LLM_ENABLED and a daily cap. A skipped run
-    // stays pending for the qualification loop / a person.
-    automationPromises.push(
-      (async () => {
-        try {
-          const admission = await admitInboundQualificationRun();
-          if (!admission.allowed) {
-            logger.warn(
-              { requestId: payload.requestId, reason: admission.reason, used: admission.used, limit: admission.limit },
-              "Inbound qualification LLM run skipped",
-            );
-            return;
-          }
-          await runInboundQualificationForRequest(inboundRequest as InboundRequest);
-        } catch (error) {
-          logger.error(
-            { error, requestId: payload.requestId },
-            "Failed to run inbound qualification automation"
-          );
-        }
-      })()
-    );
-
-    automationPromises.push(
-      (async () => {
-        try {
-          await runHighIntentLeadEnrichmentForRequest(inboundRequest as InboundRequest);
-        } catch (error) {
-          logger.error(
-            { error, requestId: payload.requestId },
-            "Failed to run high-intent lead enrichment"
-          );
-        }
-      })()
-    );
 
     // Trigger 1 of the registry's three: a robot team telling us about its own
     // system is authoritative for anything it answered, and arrives already in

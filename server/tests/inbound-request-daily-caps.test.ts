@@ -32,15 +32,11 @@ vi.mock("../utils/siteTaskBrief", () => ({
   draftBrief: vi.fn((value: unknown) => value),
   saveBrief: vi.fn(async () => undefined),
 }));
-vi.mock("../utils/lifecycle-cadence", () => ({ createLifecycleCadenceForInboundRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/inboundRequestStats", () => ({ incrementInboundRequestStats: vi.fn(async () => undefined) }));
 vi.mock("../utils/intakeOpsNotice", () => ({
   initialIntakeOpsNotice: vi.fn(() => ({ status: "pending" })),
   deliverIntakeOpsNoticeAtIntake: vi.fn(async () => ({ channels: { slack: "skipped" } })),
 }));
-vi.mock("../agents/workflows", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../agents/workflows")>()), runInboundQualificationForRequest: vi.fn(async () => undefined) }));
-vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/filmLinkHandoff", async () => ({
   ...await vi.importActual<typeof import("../utils/filmLinkHandoff")>("../utils/filmLinkHandoff"),
   sendFilmLinkHandoff: vi.fn(async () => ({ sent: true, filmUrl: "https://example.test/film" })),
@@ -48,7 +44,6 @@ vi.mock("../utils/filmLinkHandoff", async () => ({
 
 const { submitInboundRequest } = await import("../routes/inbound-request");
 const { sendEmail } = await import("../utils/email");
-const { runInboundQualificationForRequest } = await import("../agents");
 const { deliverIntakeOpsNoticeAtIntake } = await import("../utils/intakeOpsNotice");
 const { sendFilmLinkHandoff } = await import("../utils/filmLinkHandoff");
 
@@ -123,7 +118,6 @@ describe("durable daily intake caps", () => {
     expect(sharedFakeFirestoreState.docs.has("inboundRequests/cap-c")).toBe(false);
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/cap-c:task_received")).toBe(false);
     expect(sendEmail).not.toHaveBeenCalled();
-    expect(runInboundQualificationForRequest).not.toHaveBeenCalled();
     expect(deliverIntakeOpsNoticeAtIntake).not.toHaveBeenCalled();
     expect(counter("intake_global")).toEqual([2]);
   });

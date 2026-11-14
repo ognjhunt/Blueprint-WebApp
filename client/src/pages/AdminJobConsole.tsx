@@ -144,7 +144,6 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
           ) : null}
           <div className="flex flex-wrap gap-3">
             <a className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" href={data.links.recommendation}>Open recommendation form</a>
-            <a className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" href={data.links.lead}>Open lead record</a>
           </div>
 
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -250,7 +249,6 @@ export default function AdminJobConsole() {
           </div>
           <div className="flex flex-wrap gap-3">
             <a className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" href="/admin/robot-team-access">Robot teams</a>
-            <a className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" href="/admin/leads">Leads</a>
             <Button variant="secondary" iconLeft={<RefreshCw />}
               onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-job-console"] })}>
               Refresh

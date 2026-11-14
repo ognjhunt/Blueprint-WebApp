@@ -24,10 +24,6 @@ vi.mock("@anthropic-ai/sdk", async (importOriginal) => {
   }
   return { ...real, default: Anthropic };
 });
-vi.mock("../agents/operator-tools", async (importOriginal) => ({
-  ...await importOriginal<typeof import("../agents/operator-tools")>(),
-  getCompanyHistoryAccess: async () => null,
-}));
 
 const usage = { input_tokens: 20, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
 const message = (text: string) => ({ id: `msg_${stub.requests.length}`, model: "claude-opus-5-5",

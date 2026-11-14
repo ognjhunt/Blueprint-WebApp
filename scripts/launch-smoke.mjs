@@ -1,8 +1,6 @@
-import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 
 const baseUrl = String(process.env.ALPHA_BASE_URL || process.env.BASE_URL || "").trim().replace(/\/+$/, "");
-const bearerToken = String(process.env.ALPHA_BEARER_TOKEN || "").trim();
 const liveWriteApproved = String(process.env.ALPHA_SMOKE_ALLOW_LIVE_WRITE || "").trim() === "1";
 const smokeTag = String(process.env.ALPHA_SMOKE_TAG || "alpha-launch-smoke").trim();
 
@@ -68,28 +66,6 @@ async function runHealthChecks() {
   console.log("Health checks passed.");
 }
 
-function runAgentRuntimeSmoke() {
-  // The isolated local smoke is credential-free by design: it must not make a
-  // live provider call. Runtime connectivity stays covered by the live-target
-  // smoke lanes (smoke:launch against preview/production with real config).
-  if (String(process.env.BLUEPRINT_LOCAL_LAUNCH_SMOKE || "").trim() === "1") {
-    console.log(
-      "Skipping agent runtime smoke in the isolated local profile (no provider credentials by design).",
-    );
-    return;
-  }
-
-  const result = spawnSync("npm", ["run", "smoke:agent"], {
-    cwd: process.cwd(),
-    stdio: "inherit",
-    env: process.env,
-  });
-
-  if (result.status !== 0) {
-    throw new Error("Agent runtime smoke test failed.");
-  }
-}
-
 async function runInboundSmoke(csrfSession) {
   const smokeEmail = process.env.ALPHA_SMOKE_EMAIL || "alpha-smoke@example.com";
   const smokeCompany = process.env.ALPHA_SMOKE_COMPANY || "Blueprint Alpha Smoke";
@@ -137,43 +113,6 @@ async function runInboundSmoke(csrfSession) {
   console.log(`Inbound smoke passed (${json.requestId}).`);
 }
 
-async function runPostSignupSmoke(csrfSession) {
-  if (!bearerToken) {
-    console.log("Skipping post-signup smoke because ALPHA_BEARER_TOKEN is not set.");
-    return;
-  }
-
-  const payload = {
-    blueprintId: process.env.ALPHA_SMOKE_BLUEPRINT_ID || "alpha-smoke-blueprint",
-    userId: process.env.ALPHA_SMOKE_USER_ID || "alpha-smoke-user",
-    companyName: process.env.ALPHA_SMOKE_COMPANY || "Blueprint Alpha Smoke",
-    address: process.env.ALPHA_SMOKE_ADDRESS || "101 Launch Way, Durham, NC",
-    companyUrl: process.env.ALPHA_SMOKE_COMPANY_URL || "https://example.com/alpha-smoke",
-    contactName: `${process.env.ALPHA_SMOKE_FIRST_NAME || "Alpha"} ${process.env.ALPHA_SMOKE_LAST_NAME || "Smoke"}`,
-    contactEmail: process.env.ALPHA_SMOKE_EMAIL || "alpha-smoke@example.com",
-    contactPhone: process.env.ALPHA_SMOKE_PHONE || "555-010-2026",
-    mappingDate: process.env.ALPHA_SMOKE_MAPPING_DATE || "2026-03-23",
-    mappingTime: process.env.ALPHA_SMOKE_MAPPING_TIME || "10:00",
-  };
-
-  const { response, json, text } = await fetchJson(`${baseUrl}/api/post-signup-workflows`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${bearerToken}`,
-      "x-csrf-token": csrfSession.csrfToken,
-      cookie: csrfSession.cookie,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok || json?.success !== true) {
-    throw new Error(`Post-signup smoke failed: ${response.status} ${text}`);
-  }
-
-  console.log(`Post-signup smoke passed (${json.blueprintId}).`);
-}
-
 try {
   await runHealthChecks();
 
@@ -199,8 +138,6 @@ try {
 
   const csrfSession = await getCsrfSession();
   await runInboundSmoke(csrfSession);
-  await runPostSignupSmoke(csrfSession);
-  runAgentRuntimeSmoke();
   console.log("Launch smoke passed.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

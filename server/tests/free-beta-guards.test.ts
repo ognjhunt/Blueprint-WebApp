@@ -11,7 +11,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
   return { default: {}, dbAdmin: sharedFakeFirestore };
 });
-vi.mock("../agents/workflows", () => ({ decideDispatchForRequest: () => ({ dispatch: true, channel: "self_capture_upload" }) }));
+vi.mock("../utils/captureDispatch", () => ({ decideCaptureDispatch: () => ({ dispatch: true, channel: "self_capture_upload" }) }));
 vi.mock("../logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock("../utils/robotTeamBalance", () => ({ releaseReservation: vi.fn(), settleReservation: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(async () => ({ enqueued: true })) }));

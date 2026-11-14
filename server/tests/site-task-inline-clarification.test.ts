@@ -4,7 +4,6 @@ import {sharedFakeFirestoreState,sharedFakeFirestore} from "./helpers/fake-fires
 const source=vi.hoisted(()=>({view:null as any}));
 vi.mock("../../client/src/lib/firebaseAdmin",async()=>({dbAdmin:(await import("./helpers/fake-firestore")).sharedFakeFirestore}));
 vi.mock("../utils/siteAssessmentPublic",()=>({loadCurrentSiteAssessmentView:vi.fn(async()=>source.view)}));
-vi.mock("../utils/siteAssessmentQueue",()=>({enqueueNewPublishedSiteAssessment:vi.fn()}));
 vi.mock("../utils/taskLifecycleNotifications",()=>({enqueueTaskLifecycleNotification:vi.fn(async()=>{})}));
 import {advisoryContextDigest} from "../utils/siteAssessmentContext";
 import {browserPendingDecisionKey,type BrowserPending} from "../utils/websiteBrowserPending";

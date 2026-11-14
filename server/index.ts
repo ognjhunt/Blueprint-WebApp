@@ -26,8 +26,6 @@ import {
   resolveClientIpConfig,
   trustProxySetting,
 } from "./utils/clientIp";
-import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
-import { buildFirehoseConfig } from "./utils/marketSignalProviderFirehose";
 import {
   buildSitemapXml,
   getPublicAssetDir,
@@ -46,7 +44,6 @@ import { captureOwnerRawBody } from "./utils/captureOwnerRawBody";
 import { websitePreparationRawBody } from "./routes/internal-website-preparation";
 import { createServerErrorRateMonitor, installProcessErrorHandlers } from "./utils/opsProcessAlerts";
 import { startBetaOpsMonitor } from "./utils/betaOpsMonitor";
-import { announceAutonomousLanesAtBoot } from "./utils/automationLaneSummary";
 import { resolveAllowedOrigins } from "./utils/corsOrigins";
 
 // Before anything else can fail: a stray rejection or uncaught exception is
@@ -54,20 +51,6 @@ import { resolveAllowedOrigins } from "./utils/corsOrigins";
 installProcessErrorHandlers({ processName: "web" });
 
 const env = validateEnv();
-
-// Log Firehose configuration status at startup
-const firehoseConfig = buildFirehoseConfig();
-if (firehoseConfig) {
-  logger.info(
-    { event: "firehose_configured", baseUrl: firehoseConfig.baseUrl },
-    "Firehose configured successfully",
-  );
-} else {
-  logger.warn(
-    { event: "firehose_config_unavailable" },
-    "Firehose not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Firehose signals will be skipped.",
-  );
-}
 
 // Footage review switched on with nothing to run it holds every upload.
 const siteVideoEvidenceConfig = describeSiteVideoEvidenceConfig();
@@ -134,13 +117,6 @@ app.use((req, _res, next) => {
 const disableOpsAutomationScheduler =
   process.env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER === "1" ||
   process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH === "1";
-// SCALE2-02: automation lanes run in the dedicated Render worker service
-// (server/worker.ts, `npm run start:worker`); the web process serves HTTP
-// only. This flag is a transition escape hatch for single-service deploys —
-// the ops automation leader lease still guarantees only one runner even if
-// both the worker service and an opted-in web instance are up.
-const runOpsAutomationInWebProcess =
-  process.env.BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB === "1";
 
 const noIndexPathPatterns = [
   /^\/admin(?:\/|$)/,
@@ -344,7 +320,6 @@ app.use("/api/site-worlds/sessions", hostedSessionLimiter);
 
 // Stricter limiters for sensitive routes
 app.use("/api/marketplace", aiLimiter);
-app.use("/api/post-signup-workflows", aiLimiter);
 
 app.use("/api/auth", authLimiter);
 app.use("/api/create-checkout-session", authLimiter);
@@ -619,46 +594,24 @@ app.use((req, res, next) => {
         );
       });
   }
-  const stopOpsAutomationScheduler =
-    runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
-      ? startOpsAutomationScheduler()
-      : () => undefined;
-  // Customer email must not depend on the ops scheduler being enabled here.
-  // (When the scheduler runs here, its capture_outbox lane already does this;
-  // local QA that disables the scheduler sends nothing either.)
-  const stopOutboxPump =
-    !runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
-      ? startOutboxPump()
-      : () => undefined;
+  // Customer email is delivered from this process; local QA that disables
+  // the background loops sends nothing.
+  const stopOutboxPump = !disableOpsAutomationScheduler
+    ? startOutboxPump()
+    : () => undefined;
   // The beta safety net (intake ops-notice retries/escalation, terminal outbox
   // failure alerts, readiness re-check) runs here by default: in the deployed
   // topology no other process runs the ops scheduler.
   const stopBetaOpsMonitor = !disableOpsAutomationScheduler
     ? startBetaOpsMonitor()
     : () => undefined;
-  void announceAutonomousLanesAtBoot({
-    processName: "web",
-    schedulerRunsHere: runOpsAutomationInWebProcess && !disableOpsAutomationScheduler,
-  }).catch((error) => logger.warn({ err: error }, "Could not announce autonomous lane state"));
   if (!stripeWebhookInlineMode()) {
     logger.warn(
       attachRequestMeta({ route: "stripe-webhook-queue" }),
       "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1: this web process only enqueues Stripe events. They settle only where a worker runs the Stripe queue processor; the deployed worker is launch-forward-only and does not. /health/ready reports this as a blocker unless BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1.",
     );
   }
-  if (!runOpsAutomationInWebProcess) {
-    logger.info(
-      attachRequestMeta({ route: "ops-automation-scheduler" }),
-      "Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service (set BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1 to opt this process in)",
-    );
-  } else if (disableOpsAutomationScheduler) {
-    logger.info(
-      attachRequestMeta({ route: "ops-automation-scheduler" }),
-      "Ops automation scheduler disabled for local QA",
-    );
-  }
   server.on("close", () => {
-    stopOpsAutomationScheduler();
     stopOutboxPump();
     stopBetaOpsMonitor();
   });
