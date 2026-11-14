@@ -93,7 +93,7 @@ export interface JobManagedEvidenceSummary {
   limitations: string[];
   href: string;
   /** `budget` is staff only: Blueprint's internal control, absent in the site's view. */
-  screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
+  screening?: { budget?: { limitUsd?: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number; configurationDigest?: string;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[];
     /** Facts about this robot and the job's object (gripper width, weight), shown on this robot's result only. */
