@@ -660,8 +660,8 @@ describe("the site's answer is emailed once, when it first settles", () => {
     const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
     const [sceneKey, sceneRow] = [...sharedFakeFirestoreState.docs.entries()].find(([key]) => key.startsWith("captureOutbox/req-1:scene_ready"))!;
-    // Rows queued before robot teams' runs left the site's journey (2026-11-12), and the early trial's outcome notice and
-    // chair question queued before Blueprint's own early trial was dropped (2026-11-14), still sit in the outbox.
+    // Rows queued before robot teams' runs left the site's journey (2026-11-12), and the chair question and an outcome
+    // notice that names no hold, queued before Blueprint's own early trial was dropped (2026-11-14), still sit there.
     const retired = ["results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation",
       "evaluation_outcome", "robot_access_question"];
     for (const kind of retired) sharedFakeFirestoreState.docs.set(`captureOutbox/req-1:${kind}:old`, { ...(sceneRow as object),
@@ -1124,5 +1124,21 @@ describe("one answer email for every way a job ends", () => {
       idempotencyKey: "req-1:scene_outcome:job_window_ended" })).toBe(false);
     expect(await taskLifecycleNotificationIsCurrent({ kind: "answer_ready", requestId: "req-1",
       idempotencyKey: "req-1:answer_ready" })).toBe(false);
+  });
+});
+
+describe("a scene-stage hold is still emailed; an early trial outcome is not", () => {
+  it("builds a hold's email from its sentence and the paper check, refuses a trial outcome, and cancels a queued trial row", async () => {
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    const { evaluationOutcomeShown } = await import("../utils/screeningOutcomeNotifications");
+    const held = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+      eventId: `held_scene_check-${"a".repeat(24)}`, screeningOutcome: "held_scene_check" });
+    expect(held.subject).toBe("An update on the simulation of your job");
+    expect(held.body).toMatch(/^The simulated scene failed the check/);
+    expect(held.body).not.toMatch(/early trial|openly available/i);
+    for (const outcome of ["estimate", "reference_only", "infeasible", "no_match"] as const)
+      expect(() => buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+        eventId: `${outcome}-${"a".repeat(24)}`, screeningOutcome: outcome })).toThrow("evaluation_outcome_notice_invalid");
+    expect(await evaluationOutcomeShown("req-1", `req-1:evaluation_outcome:estimate-${"a".repeat(24)}`)).toBe(false);
   });
 });

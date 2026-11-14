@@ -189,6 +189,14 @@ export async function taskLifecycleNotificationIsCurrent(
   const notices=await import('./taskLifecycleNotifications');
   return notices.answerReadyShown(entry.requestId,entry.idempotencyKey);
  }
+ // A scene-stage hold's notice (its outcome named in its key) is sent only while
+ // the job page still states that hold; one naming a trial outcome is never sent
+ // (`evaluationOutcomeShown`).
+ if(entry.kind==='evaluation_outcome'){
+  if(entry.idempotencyKey===undefined)return true;
+  const notices=await import('./screeningOutcomeNotifications');
+  return notices.evaluationOutcomeShown(entry.requestId,entry.idempotencyKey);
+ }
  // A terminal scene outcome (C-04) names its outcome digest in its key, and is
  // sent only while the job page still states that exact outcome and no
  // evaluation outcome email (F-01) has told the site where its job stands.

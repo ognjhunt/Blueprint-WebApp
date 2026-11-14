@@ -176,7 +176,7 @@ describe("the cold-storage hold", () => {
   const holdRun = (detail: string | null) => ({ id: "hold-1", run: { run_kind: "beta_policy_screening_hold", team_namespace: "team",
     state: "blocked", screening_outcome: "held_setup", hold_reason_code: "team_scene_packet_blocked", hold_detail_code: detail } });
   const COLD = "Held on our side while the saved simulation of your job is restored. Nothing is needed from you.";
-  it("is said by its detail on the page; any other detail keeps the reason's sentence", async () => {
+  it("is said by its detail on the page and in its one email; any other detail keeps the reason's sentence", async () => {
     const { sceneScreening, sceneScreeningResult } = await import("../utils/websiteSceneProgression");
     const { projectTaskStatus } = await import("../utils/taskStatusProjection");
     const { heldOutcomeNoticeIntent } = await import("../utils/screeningOutcomeNotifications");
@@ -192,6 +192,10 @@ describe("the cold-storage hold", () => {
     expect(page("something_new")).not.toContain("restored");
     const intent = heldOutcomeNoticeIntent("held_setup", "job-1", "hold-1", "scene-1", "scene_run_in_cold_storage")!;
     expect(intent.hold_detail).toBe("scene_run_in_cold_storage");
+    const email = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "evaluation_outcome", eventId: intent.event_id,
+      screeningOutcome: "held_setup", screeningHoldDetail: "scene_run_in_cold_storage", to: "owner@example.test" });
+    expect(email.body).toContain(COLD);
+    expect(email.body).not.toMatch(/early trial|openly available/i);
     expect(heldOutcomeNoticeIntent("held_setup", "job-1", "hold-1", "scene-1")?.hold_detail).toBeUndefined();
   });
 });

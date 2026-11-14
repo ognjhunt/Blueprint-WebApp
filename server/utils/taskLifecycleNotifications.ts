@@ -34,6 +34,7 @@ import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from 
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
+import { isScreeningResultOutcome, simulationHoldSentence, type ScreeningHoldDetail, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 import { FIRST_LOOK_SOURCE, LIMITS_PAPER, SURENESS_WORDS, firstLookSentence, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
 import { COMPANY_RESPONSE_LABELS, isCompanyResponseState, type CompanyResponseState } from "../../client/src/lib/companyResponses";
@@ -53,6 +54,7 @@ export type TaskLifecycleMilestone = Extract<
   | "company_answered"
   | "introduction_made_site"
   | "screening_not_now"
+  | "evaluation_outcome"
   | "scene_outcome"
   | "footage_before_account"
   | "video_too_large"
@@ -188,6 +190,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "An update on your Blueprint job",
     body: (url) => `Something we need for your job is missing.\n\nYour job page says what, and how to send it. You can also reply to this email.\n\nOpen your job:\n${url}`,
   },
+  // One per scene-stage hold the holds route stores (F-01). The detail is only the hold's sentence about the
+  // simulation and the paper check, built from typed values, never caller text.
+  evaluation_outcome: {
+    subject: "An update on the simulation of your job",
+    body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See where it stands")}`,
+  },
   // One per terminal outcome of the job's scene intent (C-04). The subject is the
   // ending's own, and the detail is only the job page's sentence for it.
   scene_outcome: {
@@ -246,6 +254,9 @@ export async function enqueueTaskLifecycleNotification(params: {
   recaptureReason?: RecaptureReason;
   /** `preparation_needs_attention` only: a part-6 ending; the email says the page's own words for it. */
   preparationEnding?: PreparationEnding;
+  /** `evaluation_outcome` only: the hold's outcome, and its detail when it has words of its own. */
+  screeningOutcome?: ScreeningOutcome;
+  screeningHoldDetail?: ScreeningHoldDetail;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `company_answered` only: the company's answer; the email states its fixed label, nothing else of the company. */
@@ -306,7 +317,7 @@ export async function enqueueTaskLifecycleNotification(params: {
   const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, recaptureReason: _recapture, ...notice } = params;
   // An ending's email gives the paper check as the answer: read it for the email that says so. While the video
   // is still being read (or its answer cannot be read), the email waits, bounded by the reading's own limit.
-  const wantsPaper = !params.siteAnswer && (params.milestone === "preparation_ended"
+  const wantsPaper = !params.siteAnswer && (params.milestone === "preparation_ended" || params.milestone === "evaluation_outcome"
     || (params.milestone === "scene_outcome" && params.sceneOutcomeKind !== "withdrawn"));
   let siteAnswer = params.siteAnswer;
   let paperUnread = false;
@@ -450,6 +461,9 @@ export function buildTaskLifecycleNotification(params: {
   terminalReason?: string | null;
   /** The job in the site's workspace, when the site is claimed. Run notices send it there. */
   workspaceUrl?: string | null;
+  /** `evaluation_outcome` only: the hold's outcome (its event id must name it), and its detail. */
+  screeningOutcome?: ScreeningOutcome;
+  screeningHoldDetail?: ScreeningHoldDetail;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `preparation_needs_attention` only: the early task hold the job page states; the notice is then the held one. */
@@ -488,7 +502,8 @@ export function buildTaskLifecycleNotification(params: {
   if (params.milestone === "company_answered" && !isCompanyResponseState(params.companyAnswerState)) {
     throw new Error("company_answer_state_invalid");
   }
-  const outcomeDetail = params.milestone === "scene_outcome"
+  const outcomeDetail = params.milestone === "evaluation_outcome" ? holdNoticeDetail(params)
+    : params.milestone === "scene_outcome"
       // An ending of the simulation (held, never built, its window ran out): its reason, then the paper check as the
       // one answer, by the same composer as the no-test email. A withdrawal is the site's own ending: no answer.
       ? params.sceneOutcomeKind === "withdrawn" ? sceneOutcomeDetail(params)
@@ -519,7 +534,8 @@ export function buildTaskLifecycleNotification(params: {
     kind: params.milestone,
     ...(isWebsitePreparationNotice(params.milestone) ? {preparationEventId: params.eventId} : {}),
     to: params.to,
-    subject: params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
+    subject: params.milestone === "evaluation_outcome" && paperAnswerLine(params.siteAnswer) ? PAPER_ANSWER_SUBJECT
+      : params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind)
       : params.milestone === "answer_ready" && params.siteAnswer?.state === "cannot_assess" ? "An update on your Blueprint job"
@@ -527,7 +543,7 @@ export function buildTaskLifecycleNotification(params: {
     body: finePrintLast(`${message.body(url, isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "company_answered" ? COMPANY_RESPONSE_LABELS[params.companyAnswerState!]
       : params.milestone === "job_sent" ? String(params.companyCount ?? "")
-      : params.milestone === "scene_outcome" || params.milestone === "answer_ready" ? outcomeDetail
+      : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome" || params.milestone === "answer_ready" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}`),
     replyTo: "hello@tryblueprint.io",
   };
@@ -617,6 +633,26 @@ export async function loadPaperAnswer(requestId: string): Promise<SiteAnswer | u
     logger.warn({ error, requestId }, "Could not read the answer for an email; it says only what holds without it");
     return undefined;
   }
+}
+
+/** The subject of a hold's email that gives the first look. */
+const PAPER_ANSWER_SUBJECT = "Your first look is ready";
+const SIMULATION_DISCLAIMER = "A simulation is not a physical test, and it never certifies physical performance or safety.";
+
+/**
+ * A scene-stage hold's email: the hold's sentence about the simulation, then the paper check as the answer for now.
+ * Only a hold: the event id must name a held outcome, so the dispatch check reads back exactly what the body says.
+ */
+function holdNoticeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
+  screeningHoldDetail?: ScreeningHoldDetail; siteAnswer?: SiteAnswer; paperUnread?: true }): string {
+  const outcome = params.screeningOutcome;
+  if (!isScreeningResultOutcome(outcome) || !outcome.startsWith("held_") || !new RegExp(`^${outcome}-[a-f0-9]{24}$`).test(params.eventId ?? "")) {
+    throw new Error("evaluation_outcome_notice_invalid");
+  }
+  const why = simulationHoldSentence(outcome, params.screeningHoldDetail);
+  const paper = paperLine(params.siteAnswer, { hold: true, unread: params.paperUnread });
+  return paperAnswerLine(params.siteAnswer) ? `${why} ${paper}\n\n${finePrint(LIMITS_PAPER)}`
+    : `${why} ${paper} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
 }
 
 /** An ending's own reason, then its paper-check line. */
