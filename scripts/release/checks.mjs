@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 // one of them gets the full browser suites, not only its related unit tests.
 export const siteDecisionFiles = new Set([
   ...['betaAbuseCaps', 'betaPolicyScreeningContract', 'betaPolicyScreeningHold', 'captureUploadAuthorization',
-    'descriptionAuthority', 'inboundQualificationGate', 'inboundRequestCommit', 'inviteeAllowlist',
+    'descriptionAuthority', 'inboundRequestCommit', 'inviteeAllowlist',
     'recordingConsent', 'siteAssessmentPublic', 'siteTaskBrief', 'taskLifecycleNotifications',
     'taskPreparationOutcome', 'taskStatusProjection', 'websiteBrowserUploadStatus', 'websiteCaptureWithdrawal',
     'websitePreparationStatus', 'websiteRunClosure'].map(name => `server/utils/${name}.ts`),
