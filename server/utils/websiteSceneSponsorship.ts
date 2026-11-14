@@ -1484,8 +1484,7 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || request.source.binding_id !== `${prefix}${request.source.content_digest.slice(7, 39)}`
     || request.task?.task_id !== `website-${authority.task_context_digest.slice(7, 27)}${development ? "-development" : ""}`
     || !family && !navigation && !WEBSITE_SUBJECT_ORIGINS.has(request.task?.subject?.geometry_origin)
-    || request.execution?.max_total_spend_usd !== undefined
-      && request.execution.max_total_spend_usd !== authority.max_total_spend_usd
+    || request.execution?.max_total_spend_usd !== authority.max_total_spend_usd
     || request.execution?.max_paid_attempts !== authority.max_paid_attempts
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch
     // At most what THIS grant allows: a grant issued before the allowance names none, so only 0 passes.

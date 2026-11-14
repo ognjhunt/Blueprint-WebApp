@@ -405,8 +405,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         const root = current?.website_scene_sponsorship;
         const extended = automaticBudgetExtensionGrant(root, undefined, Date.now() / 1000);
         const navigation = isNavigationStrategy(request.task.strategy);
-        const constructionAllowance: number = request.execution.max_total_spend_usd ?? authority.max_total_spend_usd;
-        const additional = navigation ? 0 : constructionAllowance;
+        const additional = navigation ? 0 : request.execution.max_total_spend_usd;
         const job = navigation && !extended ? null
           : await checkWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
             reader: transactionJobLedgerReader(db!, transaction, requestId), additionalCostUsd: additional });
@@ -423,7 +422,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         const overBudget = !navigation && job?.exceeded ? {
           schema_version: "website_job_over_budget.v1", basis: "automatic_budget_extension",
           sponsorship_digest: root.authority_digest as string, allowance: "native_construction_allowance",
-          allowance_usd: constructionAllowance, allowance_exceeded: false,
+          allowance_usd: request.execution.max_total_spend_usd, allowance_exceeded: false,
           job_ceiling_usd: job.ceiling.maximum_cost_usd, job_ceiling_source: job.ceiling.source, job_ceiling_exceeded: true,
           // An unreadable earlier hold is unknown, never a figure.
           job_reserved_or_settled_before_usd: Number.isFinite(job.spend.total_micros) ? job.spend.total_micros / 1_000_000 : null,
