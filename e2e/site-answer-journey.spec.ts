@@ -218,7 +218,11 @@ test.describe("desktop", () => {
       await expect(companyPage.getByText("Before you see jobs, read and agree to our Terms and Privacy Policy.")).toBeVisible({ timeout: 5_000 });
     }).toPass({ timeout: 60_000 });
     await expect(companyPage.locator("body")).not.toContainText("Pick up the sealed carton");
+    // The acceptance must be recorded before the sweep below: the automatic send goes only to a company that has accepted.
+    const accepted = companyPage.waitForResponse(response =>
+      response.url().endsWith("/api/robot-team-access/accept-terms") && response.request().method() === "POST");
     await companyPage.getByRole("button", { name: "I agree to the Terms and Privacy Policy" }).click();
+    expect((await accepted).status()).toBe(200);
 
     // The automatic send (the worker's sweep): one system send to the approved company, its new-job email, the site's notice.
     const swept = await request.post(`${ORIGIN}/api/reliability/auto-send`);
