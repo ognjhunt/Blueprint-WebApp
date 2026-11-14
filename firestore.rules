@@ -125,10 +125,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /hostedSessions/{id} {
-      allow read, write: if false;
-    }
-
     match /operatingGraphEvents/{id} {
       allow read, write: if false;
     }

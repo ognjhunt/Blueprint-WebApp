@@ -19,7 +19,7 @@ Local conventions:
 - Start route mapping in `server/routes.ts`; start app/middleware/rate-limit/CSP questions in `server/index.ts`.
 - Keep external mutation behind existing auth, CSRF, policy, and human-gate checks.
 - Do not infer capture, rights, privacy or entitlement readiness from static fixtures.
-- Treat `server/routes/site-world-sessions.ts`, `server/agents/runtime.ts`, `server/utils/cityLaunchExecutionHarness.ts`, and `server/utils/gtmSendExecutor.ts` as high-risk files.
+- Treat `server/agents/runtime.ts`, `server/utils/cityLaunchExecutionHarness.ts`, and `server/utils/gtmSendExecutor.ts` as high-risk files.
 - Preserve Firestore field names and API response shapes unless a task explicitly changes the contract.
 - Do not touch env files or secrets.
 - Provider portability: server business

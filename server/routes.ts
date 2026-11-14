@@ -31,7 +31,6 @@ import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminRobotTeamsRouter from "./routes/admin-robot-teams";
 import { resendWebhookHandler } from "./routes/resend-webhook";
-import adminSiteWorldsRouter from "./routes/admin-site-worlds";
 import analyticsIngestRouter from "./routes/analytics-ingest";
 import experimentsRouter from "./routes/experiments";
 import internalPipelineRouter from "./routes/internal-pipeline";
@@ -53,7 +52,6 @@ import siteTaskBriefRouter from "./routes/site-task-brief";
 import siteClaimRouter from "./routes/site-claim";
 import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
 import siteWorldsRouter from "./routes/site-worlds";
-import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
 import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware/verifyFirebaseToken";
 import { requireAdminRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
@@ -140,7 +138,6 @@ export function registerRoutes(app: Express) {
     adminRobotTeamAccessRouter,
   );
   app.use("/api/site-worlds", siteWorldsRouter);
-  app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
   app.use("/api/task-evaluation-runs", evaluationReadyRunsRouter);
   app.use("/api/task-evaluation-runs", robotEvalJobRequestsRouter);
   app.use("/api/task-evaluation-result-downloads", taskEvaluationResultDownloadsRouter);
@@ -172,13 +169,6 @@ export function registerRoutes(app: Express) {
     requireAdminRole,
     adminRobotTeamsRouter,
   );
-  app.use(
-    "/api/admin/site-worlds",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    adminSiteWorldsRouter,
-  );
   // R052: admin control surface for the client runtime config (kill-switch /
   // maintenance / min-version). Admin role enforced inside the router.
   app.use(
@@ -209,7 +199,6 @@ export function registerRoutes(app: Express) {
     "/api/internal/task-evaluation-launch-preparations",
     internalTaskEvaluationLaunchPreparationsRouter,
   );
-  app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
   app.use(
     "/api/storage/uploads",
     csrfProtection,

@@ -9,7 +9,6 @@ import { GLOBAL_RATE_LIMIT_SKIP_PATHS } from "./utils/globalRateLimitPolicy";
 import { registerRoutes } from "./routes";
 import { privateWorkLogPath } from "./utils/blueprintWorkLogPrivacy";
 import { startOutboxPump } from "./utils/captureOutbox";
-import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
 import { describeInviteeAllowlist } from "./utils/inviteeAllowlist";
@@ -204,12 +203,6 @@ const uploadLimiter = createRateLimiter({
   prefix: "rl:upload:",
 });
 
-const hostedSessionLimiter = createRateLimiter({
-  windowMs: Number(process.env.RATE_LIMIT_HOSTED_SESSION_WINDOW_MS ?? 15 * 60 * 1000),
-  limit: Number(process.env.RATE_LIMIT_HOSTED_SESSION_MAX ?? 1500),
-  prefix: "rl:hosted-session:",
-});
-
 // Configure middleware
 // Firebase redirects must return to a helper on this same origin. Register
 // before body parsing and app CSP so the upstream helper stays byte-for-byte.
@@ -303,7 +296,6 @@ app.use((req, res, next) => {
 // Apply the baseline limiter to API-style routes without throttling public page loads.
 app.use("/api", globalLimiter);
 app.use("/v1", globalLimiter);
-app.use("/api/site-worlds/sessions", hostedSessionLimiter);
 
 // Stricter limiters for sensitive routes
 app.use("/api/auth", authLimiter);
@@ -382,11 +374,7 @@ app.use((req, res, next) => {
 (async () => {
   registerRoutes(app);
   const server = createServer(app);
-  server.on("upgrade", (req, socket, head) => {
-    if ((req.url || "").startsWith("/api/site-worlds/sessions/")) {
-      void handleHostedSessionUiUpgrade(req, socket, head);
-      return;
-    }
+  server.on("upgrade", (_req, socket) => {
     socket.destroy();
   });
 
