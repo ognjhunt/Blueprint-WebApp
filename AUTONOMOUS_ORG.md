@@ -2,8 +2,8 @@
 
 > **Retired, 2026-11-12.** The role registry that was here (47 Paperclip agent
 > roles, departments, routines, graduation rules) describes the autonomous org
-> of spring 2026 and the frames after it. It is now
-> `docs/archive/2026-11-12-pre-packet/AUTONOMOUS_ORG.md`. Read it only for
+> of spring 2026 and the frames after it. It is in git history (it was
+> `docs/archive/2026-11-12-pre-packet/AUTONOMOUS_ORG.md`). Read it only for
 > history. Do not use it to decide what to build, how to word anything, or who
 > approves what.
 

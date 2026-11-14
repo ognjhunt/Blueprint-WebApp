@@ -30,7 +30,7 @@ setting and no pause. The website change for this is in build.
 ## Implications For Blueprint
 
 Read the source, not a copy. The summary that was here (spring 2026) is in
-`docs/archive/2026-11-12-pre-packet/`.
+git history.
 
 ## Open Questions
 

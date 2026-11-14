@@ -84,8 +84,6 @@ const EXCLUDED_PATH_PARTS = new Set([
 ]);
 
 const EXCLUDED_RELATIVE_PREFIXES = [
-  // Everything that described Blueprint before the 2026-11-12 frame. Its README says it is out of date.
-  "docs/archive/2026-11-12-pre-packet/",
   "client/src/pages/Admin",
   "client/src/pages/admin-",
   "output/agent-improvement-observer/",

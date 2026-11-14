@@ -3,7 +3,6 @@ import { defineConfig } from '@playwright/test';
 const port = Number(process.env.PLAYWRIGHT_PORT || 4173);
 const baseURL = `http://127.0.0.1:${port}`;
 const operatorQaFakeAuthEnabled = process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH === '1';
-const taskEvaluationRunE2eEnabled = process.env.BLUEPRINT_TASK_EVAL_E2E === '1';
 const webServerEnvPrefix = [
   'BLUEPRINT_E2E=1',
   process.env.BLUEPRINT_E2E_STATIC === '1' ? 'BLUEPRINT_E2E_STATIC=1' : '',
@@ -33,13 +32,10 @@ export default defineConfig({
   // targets that file directly. It is excluded from the default sweep so a
   // plain `playwright test` run doesn't load it without that bypass.
   testIgnore: ['**/site-intake-first.spec.ts', '**/site-intake-durability.spec.ts', '**/reliability-program-intake.spec.ts', '**/site-intake-backend-reliability.spec.ts', '**/site-intake-recovery.spec.ts', '**/site-private-link-reliability.spec.ts', '**/site-answer-journey.spec.ts', '**/invited-site-beta.spec.ts', ...(operatorQaFakeAuthEnabled
-    ? taskEvaluationRunE2eEnabled
-      ? ['**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
-      : ['**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
+    ? ['**/workspace-account-setup.spec.ts']
     : [
-        '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts',
+        '**/workspace-account-setup.spec.ts',
         '**/capture-task-review.spec.ts',
-        '**/adp-agent-tasks.spec.ts',
         // Signs in with the operator QA bypass: `npm run qa:operator`.
         '**/job-companies.spec.ts',
       ])],

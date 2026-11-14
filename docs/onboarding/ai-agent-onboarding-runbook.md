@@ -21,7 +21,7 @@ first. The website change for this is in build.
 4. `docs/architecture/command-safety-matrix.md` before any command with live side effects
 5. `docs/architecture/ai-onboarding-map.md` and `docs/architecture/source-of-truth-map.md` for orientation
 
-Do not use `docs/archive/` to decide what to build or how to word anything.
+Do not use git history to decide what to build or how to word anything.
 
 ## Source-Of-Truth Rules
 
