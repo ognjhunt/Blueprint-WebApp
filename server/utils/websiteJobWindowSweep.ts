@@ -151,7 +151,7 @@ function recordedForWindow(record: Record<string, any> | undefined, windowEndedA
 async function storedOutcome(requestId: string, record: Record<string, any>, pastLiveGrace = false): Promise<JobWindowSweepSkip | null> {
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
-    import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+    import("./websiteSceneProgression"), import("./sceneScreening")]);
   const sceneProgression = await readWebsiteSceneProgression(requestId, captureId);
   const screening = await loadSceneScreening(requestId);
   if (resultOutranksWindowEnding({ screening, sceneProgression }, { pastLiveGrace })) return "result_recorded";
@@ -619,7 +619,7 @@ export async function websiteJobWindowEndingShown(requestId: string, idempotency
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
-    import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+    import("./websiteSceneProgression"), import("./sceneScreening")]);
   // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
     sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
@@ -646,7 +646,7 @@ export async function websiteJobNoGrantEndingShown(requestId: string, idempotenc
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
-    import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+    import("./websiteSceneProgression"), import("./sceneScreening")]);
   // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
     sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;

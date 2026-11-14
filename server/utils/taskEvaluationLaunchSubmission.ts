@@ -5,11 +5,9 @@ import { logger } from "../logger";
 import {
   buildTaskEvaluationLaunchRequest,
   forwardTaskEvaluationLaunch,
-  parseTaskEvaluationLaunchWebPreflightReceipt,
   resolvePublishedLaunchProfileCatalog,
   taskEvaluationLaunchInputSchema,
 } from "./taskEvaluationLaunchContract";
-import { canonicalArtifactDigest } from "./taskCandidateContract";
 import {
   taskEvaluationLaunchStoreErrorCode,
   withTaskEvaluationLaunchStoreTimeout,
@@ -122,61 +120,6 @@ async function resolveTaskEvaluationLaunchInput(
     },
   };
   return { ok: true as const, input: parsed.data, profile };
-}
-
-export async function preflightTaskEvaluationLaunch(
-  req: Request,
-  res: Response,
-  context: TaskEvaluationLaunchSubmissionContext,
-) {
-  if (!db) return res.status(503).json({
-    error: "Task Evaluation launch store is unavailable",
-    code: "task_evaluation_launch_store_unavailable",
-    provider_mutation_performed_inside_web_request: false,
-  });
-  const resolved = await resolveTaskEvaluationLaunchInput(req.body, {
-    requireAuthorizationIssuedAt: true,
-  });
-  if (!resolved.ok) return res.status(resolved.status).json(resolved.payload);
-  const candidateRequest = buildTaskEvaluationLaunchRequest({
-    input: resolved.input,
-    profile: resolved.profile,
-    actorId: context.actorId,
-    actorRole: context.actorRole,
-    authorizedAt: resolved.input.authorization_issued_at!,
-  });
-  const receipt = {
-    schema_version: "task_evaluation_launch_web_preflight_receipt.v1",
-    status: "ready",
-    launch_id: resolved.input.launch_id,
-    run_id: resolved.input.run_id,
-    profile_id: resolved.input.profile_id,
-    profile_digest: resolved.input.profile_digest,
-    authorization_issued_at: resolved.input.authorization_issued_at!,
-    candidate_request_digest: candidateRequest.request_digest,
-    authenticated_client_id: context.serviceId,
-    submission_channel: context.channel,
-    webapp_store_available: true,
-    webapp_record_persisted: false,
-    pipeline_request_forwarded: false,
-    pipeline_queue_created: false,
-    provider_mutation_performed_inside_web_request: false,
-    preflight_is_not_execution: true,
-    receipt_digest: "",
-  };
-  receipt.receipt_digest = canonicalArtifactDigest(receipt, "receipt_digest");
-  const parsedReceipt = parseTaskEvaluationLaunchWebPreflightReceipt(receipt);
-  if (!parsedReceipt.ok) {
-    logger.error({ blockers: parsedReceipt.blockers },
-      "Task Evaluation launch preflight receipt validation failed");
-    return res.status(500).json({
-      error: "Task Evaluation launch preflight receipt is invalid",
-      code: "task_evaluation_launch_web_preflight_receipt_invalid",
-      provider_mutation_performed_inside_web_request: false,
-    });
-  }
-  res.set("Cache-Control", "no-store");
-  return res.status(200).json(parsedReceipt.receipt);
 }
 
 export async function submitTaskEvaluationLaunch(

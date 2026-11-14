@@ -58,10 +58,6 @@ vi.mock("../utils/field-encryption", () => ({
     request: { ...record.request, siteName: record.request?.siteName, siteLocation: record.request?.siteLocation } }),
 }));
 
-vi.mock("../utils/robotCheckpoints", () => ({
-  listCheckpoints: async (teamId: string) => state.checkpoints.filter((checkpoint) => checkpoint.teamId === teamId),
-}));
-
 function siteJob(id: string, createdAt: string, extra: Row = {}) {
   table("inboundRequests").set(id, {
     createdAt, account_owner_uid: `owner-${id}`,

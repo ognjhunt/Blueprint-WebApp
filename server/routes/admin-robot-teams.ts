@@ -32,16 +32,8 @@ import {
 } from "../utils/robotTeamSupply";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 import { ROBOT_TEAM_ROLES, SUPPLY_AGREEMENT_TERMS, type RobotTeamRole } from "../types/robot-team-registry";
-import { hasAnyRole } from "../utils/access-control";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { requireAdminRole } from "../middleware/requireAdminRole";
-import {
-  creditTeam,
-  getSpendPolicy,
-  getSpendToday,
-  getTeamBalance,
-  setSpendPolicy,
-} from "../utils/robotTeamBalance";
 
 const router = Router();
 // Every route here is operator-only. The queue and the registry used to check
@@ -316,92 +308,6 @@ router.post("/:teamId/supply-agreement/withdraw", async (req: Request, res: Resp
     logger.error({ err: error, teamId }, "Failed to record a supply withdrawal");
     return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "The withdrawal was not recorded." });
   }
-});
-
-
-/* ------------------------------------------------------- a team's account */
-
-/**
- * The operator's view of a team's account (balance, spend policy and today's
- * spend) and its two levers, a credit and the policy. The agent API that let a
- * team register, fund itself and set its own policy is gone (2026-11-12); these
- * stay as the money controls over runs already on record. The ceiling is the
- * balance: the only entry that increases it is a credit, from a real payment
- * landing or an operator here.
- */
-
-async function requireOps(res: Response) {
-  return hasAnyRole(res, ["admin", "ops"]);
-}
-
-/** Balance, policy and today's spend for one team. */
-router.get("/:teamId/account", async (req: Request, res: Response) => {
-  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
-
-  const teamId = String(req.params.teamId || "").trim();
-  const [balance, policy, spentToday] = await Promise.all([
-    getTeamBalance(teamId),
-    getSpendPolicy(teamId),
-    getSpendToday(teamId),
-  ]);
-
-  return res.json({ teamId, balance, policy, spentTodayUsd: spentToday });
-});
-
-const creditSchema = z
-  .object({
-    amountUsd: z.number().finite().positive().max(1_000_000),
-    reason: z.string().trim().min(1).max(400),
-    /**
-     * The payment, invoice or agreement this credit corresponds to. Doubles as
-     * the idempotency key, so replaying the same funding event cannot credit
-     * twice.
-     */
-    externalReference: z.string().trim().min(3).max(200),
-  })
-  .strict();
-
-router.post("/:teamId/credit", async (req: Request, res: Response) => {
-  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
-
-  const parsed = creditSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({
-      error: "Credit is invalid",
-      code: "credit_invalid",
-      why: "An externalReference is required so the same funding event cannot be credited twice.",
-    });
-  }
-
-  const teamId = String(req.params.teamId || "").trim();
-  const balance = await creditTeam({
-    teamId,
-    amountUsd: parsed.data.amountUsd,
-    reason: parsed.data.reason,
-    idempotencyKey: `credit:${parsed.data.externalReference}`,
-  });
-
-  return res.status(201).json({ ok: true, teamId, balance });
-});
-
-const policySchema = z
-  .object({
-    dailyLimitUsd: z.number().finite().min(0).max(100_000),
-    perRunLimitUsd: z.number().finite().min(0).max(100_000),
-    agentSpendEnabled: z.boolean(),
-  })
-  .strict();
-
-router.put("/:teamId/policy", async (req: Request, res: Response) => {
-  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
-
-  const parsed = policySchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Policy is invalid", code: "policy_invalid" });
-  }
-
-  const teamId = String(req.params.teamId || "").trim();
-  return res.json({ ok: true, policy: await setSpendPolicy({ teamId, ...parsed.data }) });
 });
 
 export default router;

@@ -20,8 +20,6 @@ describe("Route registration", () => {
     for (const route of [
       "/app",
       "/app/captures",
-      "/app/evaluation-runs/:runId",
-      "/app/g1-reviews/:runId",
     ]) {
       expect(source).toContain(`path: "${route}", layout: "protected"`);
       expect(source).not.toContain(`path: "${route}", layout: "public"`);

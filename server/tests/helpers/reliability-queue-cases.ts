@@ -42,10 +42,6 @@ for (const boundary of ["pending", "lease_active", "lease_expired", "unavailable
     attempts === 3 ? "Exhausted ready work stops without provider dispatch; an active lease remains protected; rotating scan must still reach later exhausted work"
       : "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work");
 }
-for (const scenario of ["duplicate", "concurrent_duplicate", "changed_amount", "changed_source", "unknown", "estimated", "supersede_unknown", "supersede_estimate", "missing_predecessor", "settled_immutable", "invalid_currency", "invalid_digest", "negative_amount", "unknown_with_amount", "conflicting_allocation"]) {
-  for (const allocation of ["shared_preparation", "incremental_policy"]) add("notifications_accounting", { scenario, allocation },
-    "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected");
-}
 export const queueCases = cases;
 
 /** Prerequisite for capture-derived notification replay, not another semantic case.

@@ -985,10 +985,7 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
             };
           } else {
             if (record.request.task?.evaluation_source) {
-              const { rebuildTeamEvaluation } = await import("./teamEvaluationSelection");
-              const rebuilt = await rebuildTeamEvaluation(record);
-              if (sceneDigest(rebuilt) !== record.request_digest)
-                throw new Error("stored_request_digest_invalid");
+              throw new Error("stored_request_digest_invalid");
             } else if (!sponsored) {
               const sourceRef = sceneSourceReference(record.source_session_id);
               const publicChoice = record.source_session_id.startsWith("public-")

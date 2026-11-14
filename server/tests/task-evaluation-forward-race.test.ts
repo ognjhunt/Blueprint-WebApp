@@ -102,20 +102,6 @@ describe("immutable forward receipt application", () => {
     await processTaskEvaluationLaunchForwardQueue();
     expect(state.docs.get("taskEvaluationLaunches/launch-001")).toMatchObject({state:"forward_pending",forward_attempt_count:2,forward:{status:"newer"}});
   });
-  it("preserves a policy canary terminal callback during forwarding", async () => {
-    const launch = record();
-    state.docs.set("taskEvaluationPolicyRuns/run-001", {...launch,run_kind:"internal_policy_canary",request:{...launch.request,run_kind:"internal_policy_canary"}});
-    forward.mockImplementation(async () => {
-      await db.collection("taskEvaluationPolicyRuns").doc("run-001").set({state:"completed",phase:"completed",terminal_receipt:{status:"completed"}}, {merge:true});
-      return {status:"forwarded",pipeline_intake_status:"accepted"};
-    });
-    // Rebind the immutable request digest to the policy-canary request fixture.
-    const {canonicalArtifactDigest} = await import("../utils/taskCandidateContract");
-    const run = state.docs.get("taskEvaluationPolicyRuns/run-001") as any;
-    run.request.request_digest=canonicalArtifactDigest(run.request,"request_digest");run.request_digest=run.request.request_digest;
-    await processTaskEvaluationLaunchForwardQueue();
-    expect(state.docs.get("taskEvaluationPolicyRuns/run-001")).toMatchObject({state:"completed",phase:"completed",terminal_receipt:{status:"completed"}});
-  });
   it("fences two overlapping workers from applying two responses", async () => {
     state.docs.set("taskEvaluationLaunches/launch-001", record());
     let release!: () => void;

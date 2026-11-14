@@ -12,8 +12,6 @@ const fence = vi.hoisted(() => vi.fn(async () => true));
 vi.mock('../utils/email', () => ({ sendEmail: send }));
 vi.mock('../utils/taskStatusUpdates', () => ({ enqueueDueTaskStatusUpdates: vi.fn(), taskStatusUpdateIsCurrent: vi.fn(async () => true), acknowledgeTaskStatusUpdate: vi.fn() }));
 vi.mock('../utils/taskLifecycleNotifications', () => ({ reconcileSceneReadyNotifications: vi.fn(), reconcileWebsitePreparationNotifications: vi.fn() }));
-vi.mock('../utils/agentRunResultNotifications', () => ({ reconcileAgentRunResultNotifications: vi.fn() }));
-vi.mock('../utils/taskEvaluationNotificationRetry', () => ({ reconcileTaskEvaluationNotificationRetries: vi.fn() }));
 vi.mock('../utils/taskLifecycleNotificationAuthority', () => ({ taskLifecycleNotificationIsCurrent: fence }));
 import { buildUpdatePreferences } from '../utils/updatePreferences';
 import { accessRecordId, recordAccessApplication, inviteRobotTeam } from '../utils/robotTeamEarlyAccess';

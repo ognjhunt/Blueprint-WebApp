@@ -10,32 +10,15 @@
  *
  * This is not a grep over source files. Each surface is BUILT here the way the
  * server builds it — the can't-simulate-yet email variants from the real gate
- * strings, the robot-team run emails through their real sender and every
- * lifecycle notice — and the banned patterns run over the output. A stale
+ * strings and every lifecycle notice — and the banned patterns run over the output. A stale
  * string that never reaches a customer cannot fail it, and a new one that does
  * cannot hide behind a variable. (The agent contract, its ask answers and the
  * retired-commerce 410 body went with the agent API on 2026-11-12.)
  */
-import { describe, expect, it, vi } from "vitest";
-
-// The robot-team sender is exercised for real; only its recipient lookup and
-// the durable outbox write are replaced, so the built message is captured.
-const outbox = vi.hoisted(() => [] as Array<{ kind: string; subject: string; body: string }>);
-vi.mock("../utils/captureOutbox", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../utils/captureOutbox")>()),
-  enqueueOutbox: vi.fn(async (input: { kind: string; subject: string; body: string }) => {
-    outbox.push(input);
-    return { enqueued: true };
-  }),
-}));
-vi.mock("../utils/robotTeamAccounts", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../utils/robotTeamAccounts")>()),
-  teamAccountEmail: vi.fn(async () => "team@example.test"),
-}));
+import { describe, expect, it } from "vitest";
 
 const { publicBannedCopyPatterns } = await import("../../scripts/qa/brand-polish");
 const { buildTaskNotYetSupportedEmail } = await import("../utils/qualificationEmails");
-const { notifyTeamOfRunOutcome } = await import("../utils/robotTeamNotifications");
 const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
 
 type Banned = { label: string; pattern: RegExp };
@@ -113,23 +96,6 @@ describe("site lifecycle notices", () => {
         });
         expectClean(`${milestone} (${detail ?? "no detail"})`, `${notice.subject}\n${notice.body}`, SITE_EMAIL);
       }
-    }
-  });
-});
-
-/* ---------------------------------------------------- robot-team run emails */
-
-describe("robot-team run emails", () => {
-  it("say nothing about balances, holds or charges for a result and for no result", async () => {
-    outbox.length = 0;
-    await notifyTeamOfRunOutcome({ teamId: "team-1", runId: "run-1", outcome: { kind: "result", episodesSucceeded: 41, episodesRun: 50 } });
-    await notifyTeamOfRunOutcome({ teamId: "team-1", runId: "run-2", outcome: { kind: "no_result" } });
-
-    expect(outbox.map((row) => row.kind)).toEqual(["team_run_result", "team_run_no_result"]);
-    for (const row of outbox) {
-      expectClean(row.kind, `${row.subject}\n${row.body}`, [...CUSTOMER_PROSE, { label: "hold", pattern: /\bhold\b/i }]);
-      // No page lists a team's runs, so the email links to none.
-      expect(row.body).not.toMatch(/tryblueprint\.io\/app|settings\?tab=/);
     }
   });
 });

@@ -16,7 +16,6 @@ vi.mock("../utils/siteTaskBrief", async () => ({ getBrief: async (id: string) =>
 
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
-import { recordCohortCostReceipt, getCohort, cohortContribution, type CohortCostReceipt } from "../utils/cohortEconomics";
 import { enqueueCoverageReview, reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { issueCaptureSupplement, validateCaptureSupplement } from "../utils/captureSupplement";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
@@ -25,29 +24,6 @@ import { readSiteClarification, submitSiteClarification } from "../utils/siteTas
 beforeEach(() => { state.docs.clear(); review.mockReset(); });
 const put = (path: string, value: any) => state.docs.set(path, value);
 const read = (path: string): any => state.docs.get(path);
-
-describe("cost receipts", () => {
-  const base: CohortCostReceipt = { receiptId: "prep", sceneId: "scene", sourceDigest: `sha256:${"a".repeat(64)}`,
-    sourceUri: "gs://receipt", allocation: "shared_preparation", allocationId: "configuration", currency: "USD", status: "unknown", amountUsd: null };
-  it("keeps unknown costs unknown and settles one shared allocation once", async () => {
-    await recordCohortCostReceipt(base); await recordCohortCostReceipt(base);
-    const unknown = (await getCohort("scene"))!;
-    expect(unknown.unknownCostReceipts).toBe(1);
-    expect(cohortContribution({ cohort: unknown, screeningEpisodeCostUsd: 1, finalistEpisodeCostUsd: 1 }).contributionUsd).toBeNull();
-    const settled = { ...base, receiptId: "invoice", sourceDigest: `sha256:${"b".repeat(64)}`, status: "settled" as const, amountUsd: 12, supersedesReceiptId: "prep" };
-    await recordCohortCostReceipt(settled); await recordCohortCostReceipt(settled);
-    expect(await getCohort("scene")).toMatchObject({ siteCostUsd: 12, unknownCostReceipts: 0 });
-    await expect(recordCohortCostReceipt({ ...settled, receiptId: "duplicate" })).rejects.toThrow("cohort_cost_allocation_conflict");
-  });
-  it("does not add policy cost to shared preparation", async () => {
-    await recordCohortCostReceipt({ ...base, allocation: "incremental_policy", status: "settled", amountUsd: 3 });
-    const value = (await getCohort("scene"))!;
-    expect(value).toMatchObject({ siteCostUsd: 0, incrementalPolicyCostUsd: 3 });
-    expect(cohortContribution({ cohort: value, screeningEpisodeCostUsd: 0, finalistEpisodeCostUsd: 0 }).contributionUsd).toBe(-3);
-    expect(cohortContribution({ cohort: value, screeningEpisodeCostUsd: 0, finalistEpisodeCostUsd: 0,
-      episodeCostsIncludePolicyReceipts: true }).additionalPolicyCostUsd).toBe(0);
-  });
-});
 
 describe("coverage continuation", () => {
   const params = { requestId: "req", sceneId: "scene", captureId: "capture" };

@@ -2,42 +2,20 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
-import { CaptureQaInspection } from "@/components/blueprint/app/CaptureQaInspection";
-import { SceneIntakeForm } from "@/components/blueprint/app/SceneIntakeForm";
-import { SiteTaskTestbedInspection } from "@/components/blueprint/app/SiteTaskTestbedInspection";
-import { TaskCandidateReview } from "@/components/blueprint/app/TaskCandidateReview";
-import { TaskEvaluationRunControl } from "@/components/blueprint/app/TaskEvaluationRunControl";
-import { TaskEvaluationRunInspection } from "@/components/blueprint/app/TaskEvaluationRunInspection";
-import { TestbedCompilationControl } from "@/components/blueprint/app/TestbedCompilationControl";
 import { Field, Tag } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   applyCompletedCaptureLifecycle,
   authorizeCaptureReconstruction,
-  compileCaptureTestbed,
   createCaptureUpload,
   executeCaptureReconstruction,
-  authorizeCaptureTaskEvaluationRun,
-  executeCaptureTaskEvaluationRun,
-  getCaptureSiteTaskTestbed,
-  getCaptureQa,
-  getCaptureTaskReview,
-  getCaptureTaskEvaluationRun,
   getCaptureUpload,
   listCaptureUploads,
-  planCaptureTaskEvaluationRun,
   planCaptureReconstruction,
   retryCaptureUploadProcessing,
-  submitTaskDecisionCommand,
   uploadCaptureFile,
-  type CaptureTaskReview,
-  type CaptureQaInspection as CaptureQaInspectionValue,
-  type CaptureSiteTaskTestbedInspection,
-  type CaptureTaskEvaluationRunInspection,
-  type CaptureTestbedCompilationCommand,
   type CaptureUploadSession,
   type CreateCaptureUploadSession,
-  type TaskDecisionCommandRequest,
   type WebCaptureAuthorityProfile,
 } from "@/lib/captureUploads";
 import { Helmet } from "@/lib/helmet";
@@ -103,28 +81,14 @@ const uploadLabels: Record<string, string> = {
   revoked: "Deleted",
 };
 
-const reviewLabels: Record<string, string> = {
-  task_approval_required: "Review the proposed jobs",
-  decision_pending_pipeline_validation: "Task decision recorded",
-  task_approved: "Task approved",
-  task_rejected: "Task rejected",
-  recapture_requested: "More capture requested",
-};
-
-const decidedRunStates = ["decided", "partially_decided", "abstained"];
 
 /** One plain status per capture: what needs the owner first, otherwise the furthest stage reached. */
 function captureStatus(session: CaptureUploadSession): { label: string; tone: "green" | "red" | "neutral" } {
   const lifecycle = session.completed_capture_lifecycle?.state;
   if (session.status === "revoked" || lifecycle === "revoked") return { label: "Deleted", tone: "neutral" };
   if (session.status === "revocation_in_progress" || lifecycle === "revocation_in_progress") return { label: "Deleting", tone: "neutral" };
-  if (decidedRunStates.includes(session.task_evaluation_run?.state || "")) return { label: "Result ready", tone: "green" };
-  if (session.site_task_testbed?.state === "testbed_ready") return { label: "Testbed ready", tone: "green" };
-  if (session.task_review?.status === "task_approval_required") return { label: reviewLabels.task_approval_required, tone: "neutral" };
   if (session.capture_qa?.state === "rejected_or_recapture_required") return { label: "Recapture needed", tone: "red" };
   if (session.reconstruction?.state === "authorization_required") return { label: "Approve the 3D scene plan", tone: "neutral" };
-  const review = reviewLabels[session.task_review?.status || ""];
-  if (review) return { label: review, tone: session.task_review.status === "task_approved" ? "green" : "neutral" };
   if (session.capture_qa?.state === "failed") return { label: "Check failed", tone: "red" };
   if (session.capture_qa?.state === "capture_accepted") return { label: "Capture accepted", tone: "green" };
   if (session.capture_qa?.state === "validating") return { label: "Checking the capture", tone: "neutral" };
@@ -161,16 +125,8 @@ export default function Captures() {
   const [activeSession, setActiveSession] = useState<CaptureUploadSession | null>(null);
   const [sessions, setSessions] = useState<CaptureUploadSession[]>([]);
   const [reviewSession, setReviewSession] = useState<CaptureUploadSession | null>(null);
-  const [taskReview, setTaskReview] = useState<CaptureTaskReview | null>(null);
-  const [captureQaInspection, setCaptureQaInspection] = useState<CaptureQaInspectionValue | null>(null);
-  const [testbedInspection, setTestbedInspection] = useState<CaptureSiteTaskTestbedInspection | null>(null);
-  const [runInspection, setRunInspection] = useState<CaptureTaskEvaluationRunInspection | null>(null);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [decisionSubmitting, setDecisionSubmitting] = useState(false);
-  const [runControlSubmitting, setRunControlSubmitting] = useState(false);
   const [lifecycleSubmitting, setLifecycleSubmitting] = useState<string | null>(null);
   const [reconstructionSubmitting, setReconstructionSubmitting] = useState<string | null>(null);
-  const [testbedCompiling, setTestbedCompiling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ complete: number; total: number } | null>(null);
@@ -223,10 +179,6 @@ export default function Captures() {
 
   function closeCapture() {
     setReviewSession(null);
-    setTaskReview(null);
-    setCaptureQaInspection(null);
-    setTestbedInspection(null);
-    setRunInspection(null);
     setError(null);
   }
 
@@ -240,141 +192,10 @@ export default function Captures() {
     setError(null);
   }
 
-  async function openCapture(session: CaptureUploadSession) {
-    if (!currentUser) return;
+  function openCapture(session: CaptureUploadSession) {
     setReviewSession(session);
-    setReviewLoading(true);
-    setTaskReview(null);
-    setCaptureQaInspection(null);
-    setTestbedInspection(null);
-    setRunInspection(null);
     setError(null);
-    try {
-      const [review, qa, inspection, run] = await Promise.all([
-        getCaptureTaskReview(currentUser, session.session_id),
-        session.capture_qa?.state && session.capture_qa.state !== "not_available"
-          ? getCaptureQa(currentUser, session.session_id)
-          : Promise.resolve(null),
-        session.site_task_testbed?.state === "testbed_ready"
-          ? getCaptureSiteTaskTestbed(currentUser, session.session_id)
-          : Promise.resolve(null),
-        ["decided", "partially_decided", "abstained"].includes(session.task_evaluation_run?.state || "")
-          ? getCaptureTaskEvaluationRun(currentUser, session.session_id)
-          : Promise.resolve(null),
-      ]);
-      setTaskReview(review);
-      setCaptureQaInspection(qa);
-      setTestbedInspection(inspection);
-      setRunInspection(run);
-      window.scrollTo({ top: 0 });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setReviewLoading(false);
-    }
-  }
-
-  async function submitTaskDecision(
-    request: Omit<TaskDecisionCommandRequest, "idempotency_key">,
-  ) {
-    if (!currentUser || !reviewSession || !taskReview?.discovery) return;
-    setDecisionSubmitting(true);
-    setError(null);
-    try {
-      await submitTaskDecisionCommand(currentUser, reviewSession.session_id, {
-        ...request,
-        discovery_digest: taskReview.discovery.discovery_digest,
-        idempotency_key: `web-task-decision-${crypto.randomUUID()}`,
-      });
-      const [review, latestSession] = await Promise.all([
-        getCaptureTaskReview(currentUser, reviewSession.session_id),
-        getCaptureUpload(currentUser, reviewSession.session_id),
-        refresh(),
-      ]);
-      setTaskReview(review);
-      setReviewSession(latestSession);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setDecisionSubmitting(false);
-    }
-  }
-
-  async function planTaskEvaluationRun() {
-    if (!currentUser || !reviewSession) return;
-    setRunControlSubmitting(true);
-    setError(null);
-    try {
-      await planCaptureTaskEvaluationRun(
-        currentUser,
-        reviewSession.session_id,
-        `web-plan-${reviewSession.session_id}`,
-      );
-      const latestSession = await getCaptureUpload(currentUser, reviewSession.session_id);
-      setReviewSession(latestSession);
-      await refresh();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setRunControlSubmitting(false);
-    }
-  }
-
-  async function authorizeTaskEvaluationRun(adapterReferences: string[]) {
-    if (!currentUser || !reviewSession) return;
-    const control = reviewSession.task_evaluation_run_control;
-    if (!control || (
-      control.state !== "authorization_required" && control.state !== "authorization_failed"
-    )) return;
-    setRunControlSubmitting(true);
-    setError(null);
-    try {
-      await authorizeCaptureTaskEvaluationRun(
-        currentUser,
-        reviewSession.session_id,
-        control.run_id,
-        {
-          plan_digest: control.plan_digest,
-          authorized_adapter_references: adapterReferences,
-          idempotency_key: `web-authorize-${control.run_id}`,
-        },
-      );
-      const latestSession = await getCaptureUpload(currentUser, reviewSession.session_id);
-      setReviewSession(latestSession);
-      await refresh();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setRunControlSubmitting(false);
-    }
-  }
-
-  async function executeTaskEvaluationRun() {
-    if (!currentUser || !reviewSession) return;
-    const control = reviewSession.task_evaluation_run_control;
-    if (!control || control.state !== "authorized") return;
-    setRunControlSubmitting(true);
-    setError(null);
-    try {
-      await executeCaptureTaskEvaluationRun(
-        currentUser,
-        reviewSession.session_id,
-        control.run_id,
-      );
-      const [latestSession, inspection] = await Promise.all([
-        getCaptureUpload(currentUser, reviewSession.session_id),
-        getCaptureTaskEvaluationRun(currentUser, reviewSession.session_id),
-      ]);
-      setReviewSession(latestSession);
-      setRunInspection(inspection);
-      await refresh();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      const latestSession = await getCaptureUpload(currentUser, reviewSession.session_id).catch(() => null);
-      if (latestSession) setReviewSession(latestSession);
-    } finally {
-      setRunControlSubmitting(false);
-    }
+    window.scrollTo({ top: 0 });
   }
 
   function buildRequest(selectedFile: File): CreateCaptureUploadSession {
@@ -580,36 +401,12 @@ export default function Captures() {
     }
   }
 
-  async function compileTestbed(command: CaptureTestbedCompilationCommand) {
-    if (!currentUser || !reviewSession) return;
-    setTestbedCompiling(true);
-    setError(null);
-    try {
-      await compileCaptureTestbed(currentUser, reviewSession.session_id, command);
-      const [latestSession, inspection] = await Promise.all([
-        getCaptureUpload(currentUser, reviewSession.session_id),
-        getCaptureSiteTaskTestbed(currentUser, reviewSession.session_id),
-        refresh(),
-      ]);
-      setReviewSession(latestSession);
-      setTestbedInspection(inspection);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      await refresh().catch(() => undefined);
-    } finally {
-      setTestbedCompiling(false);
-    }
-  }
-
   const detail = reviewSession;
   const detailStatus = detail ? captureStatus(detail) : null;
   const reconstruction = detail?.reconstruction;
   const reconstructionBusy = Boolean(detail && reconstructionSubmitting === detail.session_id);
-  const showCompile = Boolean(detail
-    && detail.task_review.status === "task_approved"
-    && ["completed", "partial", "abstained"].includes(detail.reconstruction.state)
-    && !testbedInspection);
-  const hasStageContent = Boolean(captureQaInspection || taskReview?.discovery || testbedInspection || runInspection || showCompile);
+  const hasStageContent = Boolean(reconstruction
+    && (detail?.capture_qa?.state === "capture_accepted" || reconstruction.state !== "not_planned"));
   const canDelete = Boolean(detail
     && detail.pipeline_handoff?.status === "forwarded"
     && detail.completed_capture_lifecycle?.state === "active");
@@ -634,7 +431,6 @@ export default function Captures() {
             <Tag tone={detailStatus.tone}>{detailStatus.label}</Tag>
           </header>
           {errorAlert}
-          {reviewLoading ? <BuyerAppLoadingState label="Loading this capture…" /> : (
             <div className="flex max-w-4xl flex-col gap-14">
               {hasStageContent ? (
                 <p className="text-ink-600">
@@ -644,14 +440,6 @@ export default function Captures() {
               ) : (
                 <p className="text-ink-600">Nothing to review yet. The capture check shows up here once it's done.</p>
               )}
-
-              {captureQaInspection ? <CaptureQaInspection inspection={captureQaInspection} /> : null}
-
-              {taskReview?.discovery ? (
-                <div id="task-review">
-                  <TaskCandidateReview review={taskReview} submitting={decisionSubmitting} onSubmit={submitTaskDecision} />
-                </div>
-              ) : null}
 
               {reconstruction && (detail.capture_qa?.state === "capture_accepted" || reconstruction.state !== "not_planned") ? (
                 <section aria-labelledby="capture-reconstruction">
@@ -692,24 +480,6 @@ export default function Captures() {
                 </section>
               ) : null}
 
-              {showCompile ? (
-                <TestbedCompilationControl sceneId={detail.scene_id} busy={testbedCompiling} onCompile={compileTestbed} />
-              ) : null}
-
-              {testbedInspection ? <SiteTaskTestbedInspection inspection={testbedInspection} /> : null}
-
-              {testbedInspection?.decision_evidence_request && !runInspection ? (
-                <TaskEvaluationRunControl
-                  control={detail.task_evaluation_run_control}
-                  busy={runControlSubmitting}
-                  onPlan={planTaskEvaluationRun}
-                  onAuthorize={authorizeTaskEvaluationRun}
-                  onExecute={executeTaskEvaluationRun}
-                />
-              ) : null}
-
-              {runInspection ? <TaskEvaluationRunInspection inspection={runInspection} /> : null}
-
               {canDelete ? (
                 <section aria-labelledby="capture-delete">
                   <h2 id="capture-delete" className="sr-only">Delete</h2>
@@ -719,7 +489,6 @@ export default function Captures() {
                 </section>
               ) : null}
             </div>
-          )}
         </>
       ) : (
         <>
@@ -870,7 +639,7 @@ export default function Captures() {
                       {unfinishedUpload(session) ? (
                         <button type="button" className="ws-link" onClick={() => resume(session)}>Resume upload</button>
                       ) : !deleted(session) ? (
-                        <button type="button" className="ws-link" onClick={() => void openCapture(session)}>Open</button>
+                        <button type="button" className="ws-link" onClick={() => openCapture(session)}>Open</button>
                       ) : null}
                     </article>
                   );
@@ -879,12 +648,6 @@ export default function Captures() {
             </section>
           ) : null}
 
-          {currentUser ? (
-            <details className="ws-section">
-              <summary>Request an evaluation on a completed scene</summary>
-              <SceneIntakeForm key={JSON.stringify([currentUser.uid, currentUser.tenantId || null])} currentUser={currentUser} sessions={sessions} />
-            </details>
-          ) : null}
         </>
       )}
     </AppShell>

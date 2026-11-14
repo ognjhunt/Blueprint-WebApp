@@ -112,12 +112,14 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     },
   };
 });
-import router from "../routes/task-evaluation-scene-intakes";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobSpend } from "../utils/websiteJobCeiling";
 import {
   buildSceneIntake,
   processSceneIntakeQueue,
+  SCENE_INTAKE_COLLECTION,
+  sceneSourceReference,
+  validateSceneProviderTerms,
   SCENE_FORWARD_RETRY_MAX_MS,
   SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT,
   sceneDigest,
@@ -195,6 +197,35 @@ function source() {
     },
   };
 }
+/**
+ * Records an intake the way the retired team-user intake route did, so the queue cases below can
+ * exercise processSceneIntakeQueue on a stored row.
+ */
+async function seedIntake(req: any, res: any) {
+  try { return await recordIntake(req, res); }
+  catch (error) { return res.status(409).json({ error: error instanceof Error ? error.message : "intake_failed" }); }
+}
+async function recordIntake(req: any, res: any) {
+  const parsed = sceneIntakeCommand.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid" });
+  const owner = sceneOwner(res.locals.firebaseUser || {});
+  const id = `scene-${sceneDigest({ owner, submission_id: parsed.data.submission_id }).slice(7)}`;
+  const ref = (dbAdmin as any).collection(SCENE_INTAKE_COLLECTION).doc(id);
+  const existing = await ref.get();
+  if (existing.exists) return res.status(202).json({ id });
+  const sourceRef = sceneSourceReference(parsed.data.source_session_id);
+  validateSceneProviderTerms(parsed.data);
+  const source = await (dbAdmin as any).collection(sourceRef.collection).doc(sourceRef.id).get();
+  const collisionRef = parsed.data.collision_source_session_id ? sceneSourceReference(parsed.data.collision_source_session_id) : null;
+  const collision = collisionRef ? await (dbAdmin as any).collection(collisionRef.collection).doc(collisionRef.id).get() : null;
+  const request = buildSceneIntake(parsed.data, owner, source?.data() || {}, Date.now() / 1000, collision?.data());
+  const record = { owner_user_id: owner.user_id, organization_id: owner.organization_id,
+    source_session_id: parsed.data.source_session_id, command: parsed.data, command_digest: sceneDigest(parsed.data),
+    request, request_digest: sceneDigest(request), state: "forward_pending", forward_attempt_count: 0,
+    next_forward_at_ms: 0, created_at_iso: new Date().toISOString() };
+  await (dbAdmin as any).runTransaction(async (transaction: any) => transaction.create(ref, record));
+  return res.status(202).json({ id });
+}
 async function app() {
   const application = express();
   application.use(express.json());
@@ -202,7 +233,7 @@ async function app() {
     res.locals.firebaseUser = { uid: req.headers["x-user"] || "owner" };
     next();
   });
-  application.use("/intakes", router);
+  application.post("/intakes", seedIntake);
   application.use("/internal", (await import("../routes/internal-capture-worlds")).default);
   server = createServer(application);
   await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
@@ -1060,21 +1091,6 @@ it.each(["scope", "success_digest", "native_digest", "runtime_digest", "context"
   expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
 });
 describe("persistent authenticated scene intake", () => {
-  it("refuses a sign-in without a verified invited email before any record is queued for the Pipeline", async () => {
-    vi.stubEnv("BLUEPRINT_INVITEE_ALLOWLIST", "invited@site.example");
-    try {
-      const url = await app();
-      const before = store.rows.size;
-      const response = await realFetch(url, { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify(command()) });
-      expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ error: "invitee_email_unverified" });
-      expect(store.rows.size).toBe(before);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-
   it("retains the actual Python handoff-to-progression family's public status without changing numeric or source identities", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(producerFamilyStatus.status))));
     const value = await scenePipelineRequest(producerFamilyStatus.request, producerFamilyStatus.receipt.intent_id);
@@ -1126,85 +1142,6 @@ describe("persistent authenticated scene intake", () => {
     ).toBe(
       "sha256:7b43809d2265a08bef03ae0b63a3ded4da0b19bf19066424c70406b8b53588e9",
     );
-  });
-  it("derives tenant identity and rejects forged actors, changed idempotency bytes, and another owner's source", async () => {
-    const url = await app();
-    const input = command();
-    expect(
-      sceneOwner({ uid: "owner", firebase: { tenant: "tenant-one" } }),
-    ).toEqual({ user_id: "owner", organization_id: "tenant-one" });
-    expect(
-      sceneIntakeCommand.safeParse({ ...input, owner: { user_id: "victim" } })
-        .success,
-    ).toBe(false);
-    expect(
-      (
-        await realFetch(url, {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-user": "other" },
-          body: JSON.stringify(input),
-        })
-      ).status,
-    ).toBe(404);
-    const submit = () =>
-      realFetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
-      });
-    expect((await submit()).status).toBe(202);
-    const original = structuredClone(stored()[1]);
-    expect((await submit()).status).toBe(202);
-    expect(stored()[1]).toEqual(original);
-    expect((await (await realFetch(url)).json()).intakes).toHaveLength(1);
-    input.execution.max_total_spend_usd = 21;
-    expect((await submit()).status).toBe(409);
-  });
-  it("recovers the persisted outbox after request completion, verifies HMAC, and retains Pipeline readback", async () => {
-    const url = await app();
-    await realFetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(command()),
-    });
-    const fetcher = vi.fn(async (_url: any, init: any) => {
-      const headers = init.headers;
-      expect(headers["x-blueprint-pipeline-signature"]).toBe(
-        `sha256=${createHmac("sha256", "test-key")
-          .update(
-            `${headers["x-blueprint-pipeline-timestamp"]}.blueprint-webapp.${headers["x-blueprint-pipeline-nonce"]}.${init.body || ""}`,
-          )
-          .digest("hex")}`,
-      );
-      if (init.method === "POST")
-        return new Response(JSON.stringify(accepted(JSON.parse(init.body))));
-      const request = stored()[1].request;
-      const status = {
-        schema_version: "task_evaluation_scene_intent_status.v1",
-        intent_id: "scene-one",
-        intent_digest: sha("d"),
-        request_digest: sceneDigest(request),
-        owner: request.owner,
-        status: "preparing",
-        phase: "source",
-        blockers: [],
-        attempts: [],
-        result_reference: null,
-        provider_mutation_performed_by_status_read: false,
-      };
-      return new Response(
-        JSON.stringify({ ...status, status_digest: sceneDigest(status) }),
-      );
-    });
-    vi.stubGlobal("fetch", fetcher);
-    await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("accepted");
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    stored()[1].next_forward_at_ms = 0;
-    await processSceneIntakeQueue();
-    expect(stored()[1].pipeline_status.status).toBe("preparing");
-    const other = await realFetch(url, { headers: { "x-user": "other" } });
-    expect((await other.json()).intakes).toEqual([]);
   });
   it("rechecks commercial authority, expiry, source revocation, and stored bytes before any delivery", async () => {
     const url = await app();
@@ -1291,64 +1228,6 @@ describe("persistent authenticated scene intake", () => {
         creator_id: "owner",
       }),
     ).toThrow("source_validation_required");
-  });
-  it("cancels an unissued intent locally and forwards revocation for an accepted intent", async () => {
-    const url = await app();
-    const input = command();
-    await realFetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    let [key] = stored();
-    const fetcher = vi.fn();
-    vi.stubGlobal("fetch", fetcher);
-    expect(
-      (
-        await realFetch(`${url}/${key.split("/")[1]}/revoke`, {
-          method: "POST",
-        })
-      ).status,
-    ).toBe(202);
-    await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("revoked");
-    expect(fetcher).not.toHaveBeenCalled();
-    store.rows.delete(key);
-    input.submission_id = "request-two";
-    await realFetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    fetcher.mockImplementation(
-      async (_url: any, init: any) =>
-        new Response(JSON.stringify(accepted(JSON.parse(init.body)))),
-    );
-    await processSceneIntakeQueue();
-    [key] = stored();
-    await realFetch(`${url}/${key.split("/")[1]}/revoke`, { method: "POST" });
-    fetcher.mockImplementation(async (_url: any, init: any) => {
-      if (init.method === "GET") {
-        return new Response(JSON.stringify(pipelineStatus(stored()[1].request, {
-          status: "revoked",
-          phase: "authority",
-          blockers: ["scene_intake_authority_revoked"],
-          attempts: [],
-        })));
-      }
-      const body = JSON.parse(init.body);
-      expect(body.owner).toEqual({
-        user_id: "owner",
-        organization_id: "user:owner",
-      });
-      return new Response(JSON.stringify(revocationReceipt({ owner: body.owner })));
-    });
-    await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("closeout_pending");
-    expect(stored()[1].revocation_receipt.scope).toBe("future_execution");
-    stored()[1].next_forward_at_ms = 0;
-    await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("revoked");
   });
   it("an owner-approved time-only extension of the same intent moves only the forward expiry", async () => {
     const url = await app();
@@ -1460,48 +1339,6 @@ describe("persistent authenticated scene intake", () => {
     expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
   });
 
-  it("delivers a late terminal failure after revocation while preserving future-execution revocation", async () => {
-    const url = await app();
-    await realFetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(command()),
-    });
-    const fetcher = vi.fn(async (_url: any, init: any) => {
-      if (init.method === "POST" && String(_url).endsWith("/revoke"))
-        return new Response(JSON.stringify(revocationReceipt(stored()[1].request)));
-      if (init.method === "POST")
-        return new Response(JSON.stringify(accepted(JSON.parse(init.body))));
-      const record = stored()[1];
-      const statusPolls = fetcher.mock.calls.filter((call: any[]) => call[1]?.method === "GET").length;
-      return new Response(JSON.stringify(statusPolls === 1
-        ? pipelineStatus(record.request, {
-          status: "revoked",
-          phase: "authority",
-          blockers: ["scene_intake_authority_revoked"],
-        })
-        : pipelineStatus(record.request, {
-          status: "blocked",
-          phase: "policy_canary_blocked",
-          blockers: ["provider_capacity_unavailable"],
-        })));
-    });
-    vi.stubGlobal("fetch", fetcher);
-    await processSceneIntakeQueue();
-    const id = stored()[0].split("/")[1];
-    expect((await realFetch(`${url}/${id}/revoke`, { method: "POST" })).status).toBe(202);
-    await processSceneIntakeQueue();
-    stored()[1].next_forward_at_ms = 0;
-    await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("closeout_pending");
-    expect(stored()[1].pipeline_status.status).toBe("revoked");
-    stored()[1].next_forward_at_ms = 0;
-    await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("blocked");
-    expect(stored()[1].pipeline_status.blockers).toEqual(["provider_capacity_unavailable"]);
-    expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "POST", "GET", "GET"]);
-    expect(fetcher.mock.calls.filter((call: any[]) => call[1]?.method === "POST")).toHaveLength(2);
-  });
 
   it("bounds repeated read-only closeout polling with an explicit blocker", async () => {
     const url = await app();
@@ -1932,32 +1769,6 @@ describe("structured task destination and success contract", () => {
       ),
     ).toBe(true);
   });
-  it("refuses a description-only task with an actionable code and stages nothing", async () => {
-    const url = await app();
-    const descriptionOnly = {
-      ...command(),
-      task: {
-        task_id: "task-one",
-        strategy: "pick_and_place",
-        subject: { description: "block" },
-        support: { description: "table" },
-        destination: { description: "tray" },
-        success: { description: "inside tray" },
-      },
-    };
-    const response = await realFetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(descriptionOnly),
-    });
-    expect(response.status).toBe(400);
-    expect((await response.json()).error).toBe("task_destination_pose_required");
-    expect(
-      [...store.rows.keys()].some((key) =>
-        key.startsWith("taskEvaluationSceneIntakes/"),
-      ),
-    ).toBe(false);
-  });
   it("accepts a destination on a distinct support surface and refuses a malformed one", () => {
     const withDestination = (destination: unknown) =>
       sceneIntakeCommand.safeParse({
@@ -2046,53 +1857,6 @@ describe("structured task destination and success contract", () => {
 });
 
 describe("registered public scene intake", () => {
-  it("uses the authenticated owner and publisher binding without a capture record", async () => {
-    const request = command();
-    request.source_session_id = "public-source-one";
-    request.execution.allowed_providers = ["vast", "openai"];
-    const task = { ...request.task,
-      subject: { description: "small rigid object", source_instance_id: "12" },
-      support: { description: "table", source_instance_id: "13" },
-      destination: { relation: "on", visible_label: "green spot", position_world_m: [.4, .2, .75],
-        orientation_xyzw: [0, 0, 0, 1], kind: "green_region", radius_m: .07 } };
-    Object.assign(request, { task });
-    const item: Record<string, any> = {
-      schema_version: "task_evaluation_public_scene_source_choice.v1", source_kind: "public_scene",
-      binding_id: request.source_session_id, source_content_digest: sha("c"), rights_reference: sha("f"),
-      claim_scope: "development_only", task_proposal: task, task_proposal_digest: sceneDigest(task),
-      required_providers: ["vast", "openai"],
-    };
-    item.choice_digest = sceneDigest(item);
-    const catalog: Record<string, any> = { schema_version: "task_evaluation_public_scene_catalog.v1",
-      provider_mutation_performed: false, sources: [item] };
-    catalog.catalog_digest = sceneDigest(catalog);
-    process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({
-      vast: { digest: sha("e"), label: "Private processing", url: "https://vast.ai/terms" },
-      openai: { digest: sha("e"), label: "Private processing", url: "https://openai.com/policies/services-agreement/" },
-    });
-    const calls: string[] = [];
-    vi.stubGlobal("fetch", vi.fn(async (url: any, init: any) => {
-      calls.push(String(url));
-      if (String(url).endsWith("task-evaluation-public-scene-sources"))
-        return new Response(JSON.stringify(catalog), { status: 200 });
-      return new Response(JSON.stringify(accepted(JSON.parse(init.body))), { status: 202 });
-    }));
-    const base = await app();
-    const post = () => realFetch(base, { method: "POST", headers: { "content-type": "application/json", "x-user": "owner" },
-      body: JSON.stringify(request) });
-    const response = await post();
-    expect(response.status).toBe(202);
-    expect(stored()[1].request.source).toEqual({ kind: "public_scene", binding_id: "public-source-one", content_digest: sha("c") });
-    expect(stored()[1].request.owner).toEqual({ user_id: "owner", organization_id: "user:owner" });
-    expect(stored()[1].request.consent.rights_reference).toBe(sha("f"));
-    expect(store.rows.has("captureUploadSessions/public-source-one")).toBe(false);
-    expect(stored()[1].request.task.destination.kind).toBe("green_region");
-    const before = calls.length;
-    expect((await post()).status).toBe(202);
-    expect(calls.length).toBe(before);
-    await processSceneIntakeQueue();
-    expect(calls.some((url) => url.endsWith("task-evaluation-scene-intents"))).toBe(true);
-  });
 
   it("refuses changed tasks and missing image-processing authority before forwarding", () => {
     const raw = command(); raw.source_session_id = "public-source-one";
@@ -3211,41 +2975,6 @@ describe("the intent's outcome (C-04)", () => {
   });
 });
 
-it.each(["saved_execution_setup_required", "saved_setup_unreadable"])("reopens a team selection and retries %s without reserving a provider attempt", async (failure) => {
-  const url=await app();
-  await realFetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(command())});
-  const row=stored()[1];
-  row.request.task.evaluation_source={evaluation_run_id:"team-one",source_launch_id:"source-one"};
-  row.request_digest=sceneDigest(row.request);
-  const selection=await import("../utils/teamEvaluationSelection");
-  const rebuild=vi.spyOn(selection,"rebuildTeamEvaluation").mockRejectedValueOnce(new Error(failure));
-  const fetcher=vi.fn(async(_url:any,init:any)=>new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
-  vi.stubGlobal("fetch",fetcher);
-  try {
-    await processSceneIntakeQueue();
-    expect(stored()[1].blocker).toBe(failure);
-    expect(stored()[1].forward_attempt_count).toBe(0);
-    expect(fetcher).not.toHaveBeenCalled();
-    expect(rebuild).toHaveBeenCalledTimes(1);
-    stored()[1].next_forward_at_ms=0;
-    rebuild.mockResolvedValue(structuredClone(stored()[1].request));
-    await processSceneIntakeQueue();
-    expect(stored()[1].state).toBe("accepted");
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(fetcher.mock.calls[0][1].body).task.evaluation_source.evaluation_run_id).toBe("team-one");
-  } finally {rebuild.mockRestore();}
-});
-
-
-it("reads one retained request for its exact owner only",async()=>{
-  const url=await app();
-  const created=await realFetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(command())});
-  const receipt=await created.json();
-  const read=await realFetch(`${url}/${receipt.id}`);
-  expect(read.status).toBe(200);
-  expect(await read.json()).toMatchObject({id:receipt.id,request_digest:receipt.request_digest});
-  expect((await realFetch(`${url}/${receipt.id}`,{headers:{"x-user":"other"}})).status).toBe(404);
-});
 
 
 // Beta endings: a Pipeline outage, a configuration slip or a quiet Pipeline must not end a job

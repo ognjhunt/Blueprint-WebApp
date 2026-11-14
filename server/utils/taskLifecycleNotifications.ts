@@ -983,7 +983,7 @@ export async function footageBeforeAccountShown(requestId: string): Promise<bool
   if (!snapshot.exists || !record || await footageArrivedBeforeAccount(requestId, record) !== true) return false;
   const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }, { teamJobAccess }, { projectWebsiteCaptureRights },
     { projectTaskStatus, taskStatusInputFrom }] = await Promise.all([
-    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns"), import("./teamJobAccess"),
+    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./sceneScreening"), import("./teamJobAccess"),
     import("./websiteCaptureRights"), import("./taskStatusProjection")]);
   const [brief, session] = await Promise.all([getBrief(requestId),
     db.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get()]);

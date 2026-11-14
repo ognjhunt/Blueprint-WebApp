@@ -367,10 +367,6 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     await reconcileSceneTestsStartedNotices(Math.min(limit, 5));
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-tests notices"); }
   try {
-    const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
-    await reconcileAgentRunResultNotifications(limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-result notices"); }
-  try {
     const { reconcileWaitingAnswerNotices } = await import("./taskLifecycleNotifications");
     await reconcileWaitingAnswerNotices(Math.min(limit, 5));
   } catch (error) { logger.warn({ error }, "Could not release endings' emails that waited for the reading"); }
@@ -382,10 +378,6 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileSceneOutcomeNotifications } = await import("./sceneOutcomeNotifications");
     await reconcileSceneOutcomeNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-outcome notices"); }
-  try {
-    const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
-    await reconcileTaskEvaluationNotificationRetries(db, limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
   await reconcileOutboxDeliveries(limit);
   // Held "Meet {company}" rows are decided from the facts every pass (J1), before the due rows are read, so a row
   // released here goes in this same pass.
