@@ -231,7 +231,8 @@ describe("build output", () => {
     for (const text of [llms, llmsFull]) expect(text).not.toMatch(/agent-access|agent-team|Agent interfaces|paid_evaluations_disabled/);
     expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
     // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
-    expect(llmsFull).toContain("Each job comes as a job packet: the site's description of the job, its video without sound, a first look at which robots could fit, the simulation of the site, what counts as done, and our early trial's result where one exists.");
+    expect(llmsFull).toContain("Each job comes as a job packet: the site's description of the job, its video without sound, a first look at which robots could fit, the simulation of the site, and what counts as done.");
+    expect(llmsFull).not.toMatch(/early trial/i);
     // The five answers as the site sees them, and what an introduction gives each side (review, 2026-11-12).
     expect(llmsFull).toContain("Blueprint sends each job automatically to the deployment companies it has approved.");
     expect(llmsFull).toContain("\"Interested\", \"Not a fit\", \"Would need something\", \"Tested it: can do\" or \"Tested it: cannot yet\"");
@@ -239,9 +240,9 @@ describe("build output", () => {
     expect(llmsFull).not.toMatch(/approves by hand\. Each job|Some jobs are held/);
     expect(llmsFull).not.toMatch(/only the summary the site approved|never sees the video/);
     expect(llms).toContain("https://tryblueprint.io/beta");
-    // The home page's words (owner, 2026-11-12 ~19:15Z: the outcome, not "job packet"), the trial labelled.
+    // The home page's words (owner, 2026-11-12 ~19:15Z: the outcome, not "job packet"). No early trial is described (dropped 2026-11-14).
     expect(llms).toContain("Get repetitive work done by robots.");
-    expect(llms).toContain("it is not the site's answer, and it does not predict what a deployment company's robot would do");
+    expect(llms).not.toMatch(/early trial|openly available robot software/i);
     expect(llms).toContain("Free for sites.");
     expect(llms).not.toMatch(/top AI robots|which did best|Which robot could do your job/);
     expect(llms).not.toMatch(/compare delivery proposals|full scoring|join by invitation|invited evaluation/);
