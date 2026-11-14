@@ -278,6 +278,12 @@ describe("automatic many-candidate job evaluation", () => {
     expect(screeningPublicationTransition(running, completed)).toBe("updated");
     expect(screeningPublicationTransition(completed, sealScreening({ ...completed, revision: 4,
       budget: { ...completed.budget, reserved_usd: "1", committed_upper_bound_usd: "1" } }))).toBe("updated");
+    // A raised site limit keeps a finished campaign's identity; a lowered one is refused.
+    const raised = sealScreening({ ...completed, revision: 4, budget: { ...completed.budget, limit_usd: "30" } });
+    expect(parseBetaPolicyScreeningPublication(raised)).not.toBeNull();
+    expect(screeningPublicationTransition(completed, raised)).toBe("updated");
+    expect(() => screeningPublicationTransition(raised, sealScreening({ ...raised, revision: 5,
+      budget: { ...raised.budget, limit_usd: "15" } }))).toThrow("screening_budget_limit_lowered");
     expect(() => screeningPublicationTransition(completed, sealScreening({ ...completed, revision: 4, status: "running" }))).toThrow("screening_revision_conflict");
   });
 
