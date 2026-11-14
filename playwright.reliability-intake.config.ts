@@ -1,10 +1,13 @@
 import { defineConfig } from "@playwright/test";
 import path from "node:path";
-const port = 42879;
+// Both ports sit below Linux's ephemeral range (32768-60999). A fixed port inside that range can already be
+// held by an outbound connection or a port-0 listener when the dev server starts, and --strictPort then fails
+// the whole run ("Port 42880 is already in use", CI on main, 2026-11-14).
+const port = 28879;
 // A second, fake-signed-in frontend: footage waits for a saved job (owner
 // decision 2026-10-18), so the start form sends a video only for a signed-in
 // site account, and the transport cases run there.
-const sitePort = 42880;
+const sitePort = 28880;
 const output = path.resolve(process.env.RELIABILITY_INTAKE_OUTPUT || "output/reliability-program/intake/browser");
 export default defineConfig({
   testDir: "./e2e", testMatch: "reliability-program-intake.spec.ts", workers: 1, fullyParallel: false,
