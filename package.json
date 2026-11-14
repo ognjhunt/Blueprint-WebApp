@@ -40,6 +40,7 @@
     "test": "vitest run",
     "test:site-reliability:browser": "playwright test --config playwright.site-reliability.config.ts",
     "test:answer-journey:browser": "playwright test --config playwright.answer-journey.config.ts",
+    "test:core-journey": "npx -y firebase-tools@13.35.1 emulators:exec --only firestore,storage,auth --project demo-blueprint-reliability --config firebase.json \"npx playwright test --config playwright.answer-journey.config.ts --trace off\"",
     "test:workspace:browser": "playwright test --config playwright.workspace.config.ts",
     "test:rules": "npx -y firebase-tools@13.35.1 emulators:exec --only firestore,storage --project blueprint-rules-test \"npx vitest run --config vitest.rules.config.ts\"",
     "human-replies:poll": "tsx scripts/human-replies/poll-gmail-replies.ts",

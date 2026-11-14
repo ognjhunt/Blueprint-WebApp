@@ -1,7 +1,9 @@
 /**
- * Disposable answer-journey harness: the reliability harness (real intake, upload
+ * Disposable core-journey harness: the reliability harness (real intake, upload
  * and task-brief routers, Firestore/Storage emulators, the normal Vite app, every
- * outbound request blocked) plus what the private job page needs to show its answer.
+ * outbound request blocked) plus the routers the rest of the journey uses: the job
+ * page, the deployment company's application, approval, library, job page, media and
+ * answer, and the follow-up links. Accounts come from the local Auth emulator.
  *
  * Real: every Express router mounted here, the coverage queue (`tickCoverageReviews`),
  * the coverage review, the agent runtime and its spend admission, the video adapter
@@ -16,8 +18,9 @@
  *    shaped like a production one (https, storage host) without a real signature, and
  *    the harness serves that host's GET from the local Storage emulator. Its DNS answer
  *    is a fixed public address that is never connected to.
- *  - Scheduling: the production scheduler stays off; `POST /api/reliability/tick` runs
- *    the same `tickCoverageReviews` entry point on demand.
+ *  - Scheduling: the production schedulers stay off; loopback-only `/api/reliability/*`
+ *    routes run the same entry points on demand (`tickCoverageReviews`, `sweepAutomaticSends`,
+ *    `sweepOutcomeQuestions`, `sweepWebsiteJobWindow`).
  * Email is never delivered: the outbox is only read back (`GET /api/reliability/outbox`).
  */
 import http from 'node:http';
@@ -138,10 +141,15 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
 
 (globalThis as { __reliabilityHarnessExtension?: (app: Express) => Promise<void> }).__reliabilityHarnessExtension = async (app) => {
   const bucketName = process.env.FIREBASE_STORAGE_BUCKET!;
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST !== '127.0.0.1:9099') throw new Error('The local Auth emulator is required');
   if (!/^demo-blueprint-reliability(?:-a|-b)?\.appspot\.com$/.test(bucketName)) throw new Error('Demo bucket required');
-  const [{ csrfProtection }, { default: jobWorkflow }, { default: taskListings }, queue, { default: admin }] = await Promise.all([
-    import('../../server/middleware/csrf'), import('../../server/routes/job-workflow'), import('../../server/routes/task-listings'),
-    import('../../server/utils/captureCoverageQueue'), import('firebase-admin'),
+  const [{ csrfProtection }, { default: verifyFirebaseToken }, { requireAdminRole }, { default: jobWorkflow }, { default: siteWorlds },
+    { default: companyMedia }, { default: robotTeamAccess }, { default: adminRobotTeamAccess }, { default: jobOutcomes },
+    { default: workspace }, queue, { default: admin }] = await Promise.all([
+    import('../../server/middleware/csrf'), import('../../server/middleware/verifyFirebaseToken'), import('../../server/middleware/requireAdminRole'),
+    import('../../server/routes/job-workflow'), import('../../server/routes/site-worlds'), import('../../server/routes/company-media'),
+    import('../../server/routes/robot-team-access'), import('../../server/routes/admin-robot-team-access'), import('../../server/routes/job-outcomes'),
+    import('../../server/routes/workspace'), import('../../server/utils/captureCoverageQueue'), import('firebase-admin'),
   ]);
   // The app the product's firebaseAdmin module initialized against the emulators.
   const firebaseApp = admin.apps[0];
@@ -158,7 +166,14 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
 
   // The private job page's own reads (and the deployment-company step it can turn on).
   app.use('/api/job-workflow', csrfProtection, jobWorkflow);
-  app.use('/api/task-listings', taskListings);
+  // The deployment company's side and the job's follow-ups, mounted as server/routes.ts mounts them. Accounts are
+  // real Firebase ID tokens from the Auth emulator, verified by the product's own middleware.
+  app.use('/api/workspace', csrfProtection, verifyFirebaseToken, workspace);
+  app.use('/api/company-media', companyMedia);
+  app.use('/api/job-outcomes', jobOutcomes);
+  app.use('/api/robot-team-access', csrfProtection, robotTeamAccess);
+  app.use('/api/admin/robot-team-access', csrfProtection, verifyFirebaseToken, requireAdminRole, adminRobotTeamAccess);
+  app.use('/api/site-worlds', siteWorlds);
 
   // Runs the production entry point once and waits for its single pass to finish.
   // The queue walks pending reviews ten at a time from a stored cursor, so a job can need more
@@ -177,14 +192,39 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
     }
     res.json({ finished: !queue.isCoverageReviewActive() && !pending, passes, videoModelCalls: harness.videoModel.generateCalls - before });
   });
-  // Runs the no-grant sweep's production entry point for one job at a given time, as the scheduler would: the first
-  // pass starts the job's wait, a pass a window later records its ending and queues its one email.
-  app.post('/api/reliability/no-grant-sweep', loopbackOnly, async (req, res) => {
+  // Runs the job-window sweep's production entry point for one job at a given time, as its scheduler would.
+  app.post('/api/reliability/job-window-sweep', loopbackOnly, async (req, res) => {
     const requestId = String(req.query.requestId || '');
     const atMs = Number(req.query.atMs);
     if (!/^[A-Za-z0-9_-]{1,200}$/.test(requestId) || !Number.isFinite(atMs)) return res.status(400).json({ error: 'requestId and atMs required' });
-    const { sweepWebsiteJobNoGrant } = await import('../../server/utils/websiteJobWindowSweep');
-    res.json({ result: await sweepWebsiteJobNoGrant(requestId, atMs) });
+    const { sweepWebsiteJobWindow } = await import('../../server/utils/websiteJobWindowSweep');
+    res.json({ result: await sweepWebsiteJobWindow(requestId, atMs) });
+  });
+  // One pass of the automatic send (the worker's sweep), on demand.
+  app.post('/api/reliability/auto-send', loopbackOnly, async (_req, res) => {
+    const { sweepAutomaticSends } = await import('../../server/utils/jobAutoSend');
+    res.json(await sweepAutomaticSends());
+  });
+  // One pass of the outcome-question sweep at a given time (the worker runs it every 15 minutes at "now").
+  app.post('/api/reliability/outcomes', loopbackOnly, async (req, res) => {
+    const atMs = Number(req.query.atMs);
+    if (!Number.isFinite(atMs)) return res.status(400).json({ error: 'atMs required' });
+    const { sweepOutcomeQuestions } = await import('../../server/utils/jobOutcomes');
+    res.json(await sweepOutcomeQuestions({ now: new Date(atMs) }));
+  });
+  // What is recorded for one job: its billable events, its company sends and introductions (ids and times only),
+  // and whether approved companies may see it (the product's own predicate).
+  app.get('/api/reliability/job', loopbackOnly, async (req, res) => {
+    const requestId = String(req.query.requestId || '');
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(requestId)) return res.status(400).json({ error: 'requestId required' });
+    const [{ listJobBillableEvents }, { loadCompanyJobAccess }] = await Promise.all([
+      import('../../server/utils/billableEvents'), import('../../server/utils/teamJobAccess')]);
+    const job = dbAdmin.collection('inboundRequests').doc(requestId);
+    const [billable, sends, introductions, { access }] = await Promise.all([listJobBillableEvents(requestId),
+      job.collection('companySends').get(), job.collection('introductions').get(), loadCompanyJobAccess(requestId)]);
+    res.json({ billable, sends: sends.docs.map(row => ({ id: row.id, ...row.data() })),
+      introductions: introductions.docs.map(row => ({ id: row.id, introducedAtIso: row.data().introducedAtIso ?? null })),
+      access: { listed: access.listed, reason: access.reason } });
   });
   // The outbox rows for one job: what would be sent. Nothing here delivers mail.
   app.get('/api/reliability/outbox', loopbackOnly, async (req, res) => {
@@ -192,7 +232,7 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
     if (!/^[A-Za-z0-9_-]{1,200}$/.test(requestId)) return res.status(400).json({ error: 'requestId required' });
     const rows = await dbAdmin.collection('captureOutbox').where('requestId', '==', requestId).get();
     res.json({ rows: rows.docs.map(row => { const value = row.data(); return { idempotencyKey: value.idempotencyKey, kind: value.kind,
-      status: value.status, subject: value.subject, body: value.body, toDomain: String(value.to || '').split('@').pop() }; }) });
+      status: value.status, subject: value.subject, body: value.body, to: String(value.to || '').toLowerCase() }; }) });
   });
   app.get('/api/reliability/health', (_req, res) => res.json({ layer: 'real-handlers/firebase-emulators/scripted-synthetic-video-model',
     project: process.env.GOOGLE_CLOUD_PROJECT, providerDispatchEnabled: false, videoModelMode: 'scripted-synthetic', schedulersEnabled: false,
