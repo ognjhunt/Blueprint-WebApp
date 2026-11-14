@@ -17,13 +17,9 @@ import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views
 import websiteDestinationPicturesRouter from "./routes/website-destination-pictures";
 import screeningPracticeRunVideosRouter from "./routes/screening-practice-run-videos";
 import nativeG1PrivateReviewsRouter, { nativeG1PrivateReviewDownloadsRouter, nativeG1PrivateReviewIngestRouter } from "./routes/native-g1-private-reviews";
-import qrLinkRouter from "./routes/qr-link";
-import appleAssociationRouter from "./routes/apple-app-site-association";
-import { registerRetiredCapturerRoutes } from "./utils/retiredCapturerRoutes";
 import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
 import contactTaskMediaHandler from "./routes/contact-task-media";
-import waitlistHandler from "./routes/waitlist";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
@@ -74,9 +70,9 @@ import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-tas
 import internalTaskEvaluationLaunchPreparationsRouter from "./routes/internal-task-evaluation-launch-preparations";
 import configuredSceneOfferingsRouter from "./routes/configured-scene-offerings";
 import evaluationReadyRunsRouter from "./routes/evaluation-ready-runs";
+import { registerRetiredCapturerRoutes } from "./utils/retiredCapturerRoutes";
 
 export function registerRoutes(app: Express) {
-  app.use(appleAssociationRouter);
   // Capturer money and account routes are switched off (owner, 2026-11-11).
   registerRetiredCapturerRoutes(app);
 
@@ -161,7 +157,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/analytics", csrfProtection, analyticsIngestRouter);
   // Public endpoints (no Firebase auth required).
   app.post("/api/contact", csrfProtection, contactTaskMediaHandler);
-  app.post("/api/waitlist", csrfProtection, waitlistHandler);
   app.post("/api/growth/webhooks/resend", resendWebhookHandler);
   app.use("/api/growth/email", emailPreferencesRouter);
   // Inbound request (lead pipeline) - public submission endpoint
@@ -240,7 +235,6 @@ export function registerRoutes(app: Express) {
     captureUploadsRouter,
   );
   app.use("/api/task-evaluation-scene-intakes", csrfProtection, verifyFirebaseToken, taskEvaluationSceneIntakesRouter);
-  app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
   app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
 }

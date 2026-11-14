@@ -121,10 +121,6 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    match /waitlistTokens/{id} {
-      allow read, write: if false;
-    }
-
     match /action_ledger/{id} {
       allow read, write: if false;
     }

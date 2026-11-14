@@ -279,27 +279,6 @@ autocomplete usable. `Permissions-Policy` permits
 same-origin geolocation only on `/contact/site-operator`, matching the site's
 full-page intake links; camera policy stays scoped to capture upload.
 
-### iOS App + App Clip (server): not in use
-
-Retired 2026-11-11: no capture app is in use, so the capture link always opens
-the browser recorder. The association file answers 404 and no App Clip banner
-is served, whatever `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID`,
-`IOS_APP_CLIP_BUNDLE_ID` and `IOS_APP_STORE_ID` say; those variables (and
-`APP_CLIP_ADDITIONAL_PATHS`) are not in use and can be unset in Render. The
-text below is how it worked before:
-
-- `/.well-known/apple-app-site-association` (and `/apple-app-site-association`)
-  needs `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID` (`Public.BlueprintCapture`) and
-  `IOS_APP_CLIP_BUNDLE_ID` (`Public.BlueprintCapture.Clip`). Unset answers 503;
-  placeholder values answer 204. The applinks paths are `/go`, `/go/*` and
-  `/capture-upload/*`, plus any in `APP_CLIP_ADDITIONAL_PATHS` (comma-separated).
-  Apple fetches the file from both `www.tryblueprint.io` and `tryblueprint.io`;
-  each must answer 200 JSON directly, with no redirect.
-- `IOS_APP_STORE_ID` (the full app's numeric App Store ID), together with
-  `IOS_APP_CLIP_BUNDLE_ID`, adds the App Clip Smart App Banner to
-  `/capture-upload/:token` only. Leave it unset until the app has an App Store
-  record; with it unset no banner is served.
-
 App bundle uploads through the capture link take optional limits:
 `SELF_CAPTURE_MAX_BUNDLE_FILES` (20000), `SELF_CAPTURE_MAX_BUNDLE_BYTES`
 (2 GiB), `SELF_CAPTURE_MAX_BUNDLE_SIDECAR_BYTES` (256 MiB) and
