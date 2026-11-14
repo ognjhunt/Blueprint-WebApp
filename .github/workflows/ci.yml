@@ -150,6 +150,56 @@ jobs:
       - name: Run Firebase security-rules emulator suite
         run: npm run test:rules
 
+  # The core journey, end to end, on every code change: a site starts a job with an email and a video, an approved
+  # deployment company sees it without the site's identity and answers, the site asks for an introduction (both emails
+  # and one billable event, no price), the 14-day follow-up, and withdrawal. Real routers on the Firebase emulators.
+  core-journey:
+    needs: release-scope
+    if: needs.release-scope.outputs.scope != 'content'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Setup Java (Firebase emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Firebase emulator jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-v1
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        timeout-minutes: 20
+        run: bash scripts/ci/install-playwright-chromium.sh
+
+      - name: Prepare the harness's scratch directory
+        # scripts/qa/reliability-local-app.ts keeps its Vite cache under /workspace/reliability-program.
+        run: sudo mkdir -p /workspace && sudo chown "$(id -u):$(id -g)" /workspace
+
+      - name: Run the core-journey spec
+        run: npm run test:core-journey
+
   graphify:
     runs-on: ubuntu-latest
     strategy:
@@ -387,7 +437,7 @@ jobs:
 
   deployment-admission:
     name: Observe automatic deployment admission
-    needs: [check, rules-emulator, test, e2e, public-copy-contracts, build]
+    needs: [check, rules-emulator, core-journey, test, e2e, public-copy-contracts, build]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     # Observe holds even when content-only browser checks were intentionally skipped.
     runs-on: ubuntu-latest
