@@ -6,12 +6,12 @@ import path from "node:path";
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
   if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill(value);
 }
-const origin = "http://127.0.0.1:42879";
+const origin = "http://127.0.0.1:28879";
 const create = "/api/inbound-request";
 const fixtureLink = "/capture-upload/reliability-fixture";
 // These transport cases exercise the signed-in site workspace on a second
 // isolated frontend. Guest transport and restart recovery use the private link.
-const siteOrigin = "http://127.0.0.1:42880";
+const siteOrigin = "http://127.0.0.1:28880";
 const siteCreate = "/api/workspace/capture-start";
 /** A signed-in site account is not asked for an email. */
 async function fillSite(page: Page) {
