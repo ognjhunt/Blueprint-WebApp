@@ -319,6 +319,19 @@ describe("automatic many-candidate job evaluation", () => {
     expect(above("30.000001", "0", 25)).toBe(true);
   });
 
+  it("accepts a publication without a limit and still enforces a limit it carries", () => {
+    const { publication } = screeningFixture();
+    const { limit_usd: _limit, ...unlimited } = publication.budget;
+    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, budget: unlimited }))).not.toBeNull();
+    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication,
+      budget: { ...unlimited, committed_upper_bound_usd: "2", spent_upper_bound_usd: "1", reserved_usd: "0" } }))).toBeNull();
+    for (const budget of [{ ...unlimited, limit_usd: "1000.000001" }, { ...unlimited, limit_usd: "NaN" },
+      { currency: "USD", limit_usd: "10", committed_upper_bound_usd: "11", spent_upper_bound_usd: "11", reserved_usd: "0" }])
+      expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, budget }))).toBeNull();
+    expect(screeningPublicationAboveSafetyLimit({ committed_upper_bound_usd: "51" }, 100)).toBe(false);
+    expect(screeningPublicationAboveSafetyLimit({ committed_upper_bound_usd: "100.000001" }, 100)).toBe(true);
+  });
+
   it("funds a waitlisted candidate from released money without reopening a closed one", () => {
     const { publication } = screeningFixture();
     const at = (base: typeof publication, revision: number, statuses: Record<number, [string, string[]]>) => sealScreening({

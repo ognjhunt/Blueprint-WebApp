@@ -48,10 +48,11 @@ export const SCREENING_LEGACY_SITE_LIMIT_USD = 30;
  */
 export const SCREENING_PUBLICATION_LIMIT_MAX_USD = 1000;
 /** Whether a publication's limit or committed total is above the job's safety limit (or the legacy $30, if larger). */
-export function screeningPublicationAboveSafetyLimit(budget: { limit_usd: string; committed_upper_bound_usd: string },
+export function screeningPublicationAboveSafetyLimit(budget: { limit_usd?: string; committed_upper_bound_usd: string },
   safetyLimitUsd: number) {
   const bound = BigInt(Math.floor(Math.max(safetyLimitUsd, SCREENING_LEGACY_SITE_LIMIT_USD) * 1_000_000));
-  return screeningMoneyMicros(budget.limit_usd) > bound || screeningMoneyMicros(budget.committed_upper_bound_usd) > bound;
+  return budget.limit_usd !== undefined && screeningMoneyMicros(budget.limit_usd) > bound
+    || screeningMoneyMicros(budget.committed_upper_bound_usd) > bound;
 }
 export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred", "infeasible"]);
 /**
@@ -231,7 +232,8 @@ const publicationFields = {
   // and its re-plans, list every catalog row. Both are accepted. A campaign's rows are part of
   // its identity (`screeningCampaignIdentity`), so no revision adds or drops one.
   candidates: z.array(candidate).min(1).max(256),
-  budget: z.object({ currency: z.literal("USD"), limit_usd: dollars, committed_upper_bound_usd: dollars,
+  // `limit_usd` is optional: a publication may carry no limit; one it carries is still checked below.
+  budget: z.object({ currency: z.literal("USD"), limit_usd: dollars.optional(), committed_upper_bound_usd: dollars,
     spent_upper_bound_usd: dollars, reserved_usd: dollars }).strict(),
   generated_at: z.string().datetime({ offset: true }), publication_digest: digest,
 };
@@ -259,11 +261,12 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Progress requires publication v4" });
   }
   const budget = value.budget;
-  if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
+  if (![budget.limit_usd ?? "0", budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
     .every(amount => dollars.safeParse(amount).success)) return;
-  const limit = screeningMoneyMicros(budget.limit_usd), committed = screeningMoneyMicros(budget.committed_upper_bound_usd);
-  if (limit > BigInt(SCREENING_PUBLICATION_LIMIT_MAX_USD * 1_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
-    || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: `Screening must stay within its limit, at most $${SCREENING_PUBLICATION_LIMIT_MAX_USD}` });
+  const limit = budget.limit_usd === undefined ? null : screeningMoneyMicros(budget.limit_usd);
+  const committed = screeningMoneyMicros(budget.committed_upper_bound_usd);
+  if (limit !== null && limit > BigInt(SCREENING_PUBLICATION_LIMIT_MAX_USD * 1_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
+    || limit !== null && committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: `Screening must stay within its limit, at most $${SCREENING_PUBLICATION_LIMIT_MAX_USD}` });
   if (new Set(value.candidates.map(row => row.candidate_id)).size !== value.candidates.length)
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Candidate identities must be unique" });
   const states = new Set<string>(value.candidates.map(row => row.status));

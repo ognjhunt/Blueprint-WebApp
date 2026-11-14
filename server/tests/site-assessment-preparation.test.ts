@@ -635,6 +635,17 @@ it("v2 false task consent stays rejected publicly and may only bind current sign
     {...request,consent:{...request.consent,task_confirmed:true}},
   ]) expect(()=>validateWebsiteSponsoredIntake(invalid,grant)).toThrow("website_scene_sponsorship_binding_invalid");
 });
+it("an intent may omit its dollar figure; one it names is still bounded and must match its grant",async()=>{
+  seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  const request=syntheticPreparedIntake(grant);
+  const {max_total_spend_usd:_spend,...unpriced}=request.execution;
+  expect(websiteSceneExecution.safeParse(unpriced).success).toBe(true);
+  expect(sceneIntakeCommand.shape.execution.safeParse(unpriced).success).toBe(true);
+  expect(()=>validateWebsiteSponsoredIntake({...request,execution:unpriced},grant)).not.toThrow();
+  expect(websiteSceneExecution.safeParse({...unpriced,max_total_spend_usd:1000.01}).success).toBe(false);
+  expect(()=>validateWebsiteSponsoredIntake({...request,execution:{...unpriced,max_total_spend_usd:grant.max_total_spend_usd+1}},grant))
+    .toThrow("website_scene_sponsorship_binding_invalid");
+});
 it("a designed subject the task adds binds like a removed one, and any other origin is refused",async()=>{
   seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
   const request=syntheticPreparedIntake(grant);

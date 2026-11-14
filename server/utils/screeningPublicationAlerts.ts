@@ -33,7 +33,8 @@ export async function recordScreeningPublicationAlerts(publication: BetaPolicySc
     const owed: Array<[Parameters<typeof websiteJobAlert>[3], Record<string, unknown>]> = [];
     const base = { schema_version: "website_screening_publication_alert.v1", campaign_id: publication.campaign_id,
       revision: publication.revision, job_ceiling_usd: ceiling.maximum_cost_usd, safety_limit_usd: safetyLimitUsd,
-      limit_usd: publication.budget.limit_usd, committed_upper_bound_usd: publication.budget.committed_upper_bound_usd,
+      ...(publication.budget.limit_usd !== undefined ? { limit_usd: publication.budget.limit_usd } : {}),
+      committed_upper_bound_usd: publication.budget.committed_upper_bound_usd,
       recorded_at_epoch: Date.now() / 1000 };
     if (screeningPublicationAboveSafetyLimit(publication.budget, safetyLimitUsd)) owed.push(["screening_over_safety_limit", base]);
     const held = publication.candidates.filter(screeningJobCeilingRow).map(row => row.candidate_id);

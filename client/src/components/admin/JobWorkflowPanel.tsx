@@ -152,7 +152,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
                 <p>{item.summary}</p><p>Next: {item.opsNextAction ?? item.nextAction}</p>
                 {item.screening && <PolicyScreeningCandidates screening={item.screening} showCodes />}
                 {item.screening?.budget && <p className="text-runway-mute">Shared site screening budget: up to ${item.screening.budget.committedUpperBoundUsd} committed
-                  of ${item.screening.budget.limitUsd}, including ${item.screening.budget.reservedUsd} reserved for unresolved runs. These are conservative bounds, not invoices.</p>}
+                  {item.screening.budget.limitUsd !== undefined && <> of ${item.screening.budget.limitUsd}</>}, including ${item.screening.budget.reservedUsd} reserved for unresolved runs. These are conservative bounds, not invoices.</p>}
                 {item.limitations.map((limit, index) => <p className="text-runway-mute" key={index}>{limit}</p>)}
                 <p className="break-all text-xs">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>
                 {!item.screening && <a className="text-sm underline" href={`/app/evaluation-runs/${encodeURIComponent(item.runId)}`}>Inspect exact run and evidence</a>}

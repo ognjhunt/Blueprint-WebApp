@@ -223,7 +223,7 @@ export const sceneEvaluationPolicyCandidates = z.array(scenePolicyCandidate).len
   .refine((value) => value.length === 2 && value[0].id !== value[1].id);
 const sceneExecutionFields = {
   purpose: z.literal("scene_preparation").optional(),
-  max_total_spend_usd: z.number().positive().max(1000),
+  max_total_spend_usd: z.number().positive().max(1000).optional(),
   max_paid_attempts: z.number().int().min(1).max(32),
   max_retries: z.number().int().min(0).max(3),
   expires_at_epoch: z.number().positive(),

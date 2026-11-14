@@ -12,7 +12,7 @@ export type ManagedJobEvidenceSummary = {
   outcomeCaveat?: ScreeningOutcomeCaveat;
   /** `nextAction` is what the site may read; `opsNextAction` is staff only. */
   summary: string; nextAction: string; opsNextAction?: string; limitations: string[]; href: string;
-  screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
+  screening?: { budget?: { limitUsd?: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     provenance?: Pick<BetaPolicyScreeningPublication, "schema_version" | "claim_ceiling" | "source" | "generated_at"
       | "publication_digest" | "catalog_digest" | "plan_digest">;
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
