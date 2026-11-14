@@ -295,7 +295,7 @@ jobs:
           BLUEPRINT_E2E_STATIC: "1"
         run: npm run test:e2e
 
-      - name: Run operator-surfaces QA (fake-auth bypass)
+      - name: Run the admin companies QA (fake-auth bypass)
         env:
           BLUEPRINT_E2E_STATIC: "1"
         run: npm run qa:operator

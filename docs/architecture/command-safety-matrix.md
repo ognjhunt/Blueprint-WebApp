@@ -18,7 +18,7 @@ explicit approval for the exact notice and recipient list. See
 | `npm run test:result-consumer:browser` | local browser + mocked APIs | Starts only loopback Vite with dev-only fake auth, no production dotenv files or backend. One worker; all result/media/email calls are fixtures. Set `RESULT_CONSUMER_QA_PORT` and `RESULT_CONSUMER_QA_OUTPUT` for isolated lanes. |
 | `npm run check` | local read/compile only | Runs `tsc -p tsconfig.full.json --noEmit`. Safe default verification for TypeScript contracts. |
 | `npm run audit:assets` | local read only | Scans repo/public assets for root screenshot dumps, oversized files, and unreferenced public image/thumbnail assets. It can fail on generated or stale local files. |
-| `npm run qa:operator` | local browser automation + mocked API fixtures | Starts the Playwright local dev server with local fake auth and the ops automation scheduler disabled, checks internal/private operator surfaces at desktop/mobile sizes, intercepts `/api/**`, writes screenshots and reports under `output/qa/operator-surfaces/latest/`, and does not call live Firebase, Stripe, Notion, Paperclip, Render, Redis, providers, Slack/email, payments, payouts, or sends. |
+| `npm run qa:operator` | local browser automation + mocked API fixtures | Starts the Playwright local dev server with local fake auth and the ops automation scheduler disabled and runs `e2e/job-companies.spec.ts`: the operator's Deployment companies panel on `/admin/jobs` and a signed-in company's answer in the job library. Every `/api/**` call is mocked in the spec. |
 | `npm run smoke:launch:local` | local server write-light | Starts/bundles local production server and runs launch smoke against `127.0.0.1`. It strips several live provider env vars and uses local smoke values, but it can still exercise local Firebase/admin code if env is present. |
 | `npm run autonomy:kpi-source-status` | local fixture/snapshot artifact | Reads a repo-local KPI source snapshot and writes `output/autonomous-org/kpi-source-status-latest/`. It does not export live Firestore, write Notion, send outreach, touch Stripe, call providers, or mutate Paperclip. |
 | `npm run alpha:env` | local env audit | Reads env or a supplied env file and reports missing launch config. Do not paste secrets into logs. |
@@ -64,7 +64,7 @@ Safe local audit. It reads source and `client/public/`, ignores `dist`, `coverag
 
 ### `npm run qa:operator`
 
-Safe local browser QA for internal/private operator surfaces. It sets `VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1`, disables the ops automation scheduler, uses mocked API fixtures, fails on unmocked `/api/**` calls, captures desktop/mobile screenshots, and writes `output/qa/operator-surfaces/latest/report.md`. It proves local UI rendering only, not live operational readiness.
+Safe local browser QA for the admin companies panel and a company's answer page. It sets `VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1`, disables the ops automation scheduler and mocks every `/api/**` call inside the spec. It proves local UI rendering only, not live operational readiness.
 
 ### `npm run test:coverage`
 
