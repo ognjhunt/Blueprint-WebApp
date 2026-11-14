@@ -140,8 +140,6 @@ async function seed(
     else if (url.pathname === "/api/capture-uploads") data = { sessions: [] };
     else if (url.pathname === "/api/task-evaluation-runs")
       data = { ok: true, job_requests: [] };
-    else if (url.pathname === "/api/marketplace/entitlements/current")
-      data = { entitlements: [] };
     else if (url.pathname.startsWith("/api/"))
       data = {
         ok: true,

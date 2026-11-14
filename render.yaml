@@ -29,8 +29,8 @@ services:
         value: "1"
 
   # Dedicated production launch-forward worker. This deployment is explicitly
-  # constrained to Task Evaluation launch reconciliation; unrelated ops and
-  # Stripe queue processors stay off in this service.
+  # constrained to Task Evaluation launch reconciliation; unrelated ops
+  # processors stay off in this service.
   #
   # Env vars are dashboard-managed. The worker needs Firebase Admin plus the
   # canonical Pipeline forward URL/token and launch-forward controls.

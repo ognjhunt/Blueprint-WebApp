@@ -1,14 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../utils/accounting", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../utils/accounting")>();
-  return {
-    ...actual,
-    fetchBuyerOrder: vi.fn(async () => null),
-  };
-});
-
 afterEach(async () => {
   const commerce = await import("../utils/robot-agent-commerce");
   commerce.resetAgentDryRunCommerceForTests();

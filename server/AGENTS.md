@@ -1,6 +1,6 @@
 # Server Agent Guide
 
-This directory owns Express routes, server contracts, agent runtime helpers, Firestore/Firebase Admin usage, and Stripe flows. The frame is the shared block of [`PLATFORM_CONTEXT.md`](../PLATFORM_CONTEXT.md).
+This directory owns Express routes, server contracts, agent runtime helpers, and Firestore/Firebase Admin usage. The frame is the shared block of [`PLATFORM_CONTEXT.md`](../PLATFORM_CONTEXT.md).
 
 Read root [`AGENTS.md`](../AGENTS.md), [`DEPLOYMENT.md`](../DEPLOYMENT.md), and [`docs/architecture/command-safety-matrix.md`](../docs/architecture/command-safety-matrix.md) before running server scripts.
 
@@ -33,4 +33,4 @@ Verification:
 - Default: `npm run check`.
 - Shared utility or route behavior: run the narrow Vitest file for the changed code.
 - Broad server contract changes: `npm run test:coverage`.
-- Live-send, deploy, provider, Paperclip, Notion, Firebase, or Stripe commands require explicit task authorization.
+- Live-send, deploy, provider, Paperclip, Notion or Firebase commands require explicit task authorization.

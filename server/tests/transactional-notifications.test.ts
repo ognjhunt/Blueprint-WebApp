@@ -273,60 +273,6 @@ describe("transactional notifications", () => {
     );
   });
 
-  it("honors creator push preferences and records payout settlement notifications", async () => {
-    process.env.BLUEPRINT_TRANSACTIONAL_PUSH_NOTIFICATIONS_ENABLED = "1";
-    state.docs.set(docKey("creatorPayoutDisbursements", "disb-1"), {
-      creator_id: "creator-1",
-      disbursed_amount_cents: 4500,
-      status: "paid",
-    });
-    state.docs.set(docKey("creatorProfiles", "creator-1"), {
-      email: "creator@example.com",
-      notification_preferences: {
-        payouts: true,
-      },
-      notification_device: {
-        fcm_token: "token-1",
-        authorization_status: "authorized",
-      },
-    });
-    const { dispatchCreatorPayoutSettlementNotifications } = await import(
-      "../utils/transactional-notifications"
-    );
-
-    await dispatchCreatorPayoutSettlementNotifications({
-      disbursementId: "disb-1",
-      status: "paid",
-      stripePayoutId: "po_test_123",
-      sourceEventId: "evt_payout_paid_1",
-    });
-
-    expect(state.sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: "creator@example.com",
-        subject: "Your Blueprint payout was sent",
-      }),
-    );
-    expect(state.sendPush).toHaveBeenCalledWith(
-      expect.objectContaining({
-        token: "token-1",
-        data: expect.objectContaining({
-          event_type: "payout_sent",
-          stripe_payout_id: "po_test_123",
-        }),
-      }),
-    );
-    expect(collectionDocs("transactionalNotifications")).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          event_type: "payout_sent",
-          channel: "push",
-          status: "sent",
-          provider_message_id: "push-message-1",
-        }),
-      ]),
-    );
-  });
   it("keeps an explicit email retry on the email channel only", async () => {
     process.env.BLUEPRINT_TRANSACTIONAL_PUSH_NOTIFICATIONS_ENABLED = "1";
     const { dispatchTransactionalEmailNotification } = await import("../utils/transactional-notifications");

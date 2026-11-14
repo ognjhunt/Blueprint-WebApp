@@ -12,12 +12,8 @@ const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PORT: z.coerce.number().int().positive().default(5000),
-    STRIPE_SECRET_KEY: z.string().trim().min(1).optional(),
-    STRIPE_CONNECT_ACCOUNT_ID: z.string().trim().min(1).optional(),
     FIELD_ENCRYPTION_MASTER_KEY: z.string().trim().optional(),
     FIELD_ENCRYPTION_KMS_KEY_NAME: z.string().trim().optional(),
-    PAPERCLIP_OPS_STRIPE_WEBHOOK_URL: z.string().trim().url().optional(),
-    STRIPE_PUBLIC_BASE_URL: z.string().trim().url().optional(),
     RATE_LIMIT_REDIS_URL: z.string().trim().optional(),
     REDIS_URL: z.string().trim().optional(),
     ALLOWED_ORIGINS: z.string().trim().optional(),

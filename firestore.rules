@@ -145,14 +145,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /creatorPayouts/{id} {
-      allow read, write: if false;
-    }
-
-    match /buyerOrders/{id} {
-      allow read, write: if false;
-    }
-
     match /publishedMarketplaceInventory/{id} {
       allow read, write: if false;
     }

@@ -20,7 +20,7 @@ npm run alpha:check
 Production promotion uses the exact-SHA green `CI` gate in
 `.github/workflows/deploy.yml`, followed by the deployed version and readiness
 readbacks. `alpha:preflight` describes the retired autonomous paid alpha; it
-requires Stripe and old automation flags and is not a free-beta release gate.
+requires old automation flags and is not a free-beta release gate.
 Do not enable billing or retired lifecycle/outreach workers to satisfy it.
 
 Live alpha smoke:
@@ -305,13 +305,6 @@ App bundle uploads through the capture link take optional limits:
 (2 GiB), `SELF_CAPTURE_MAX_BUNDLE_SIDECAR_BYTES` (256 MiB) and
 `SELF_CAPTURE_BUNDLE_PLAN_BODY_LIMIT` (`8mb`). The browser recorder keeps
 `SELF_CAPTURE_MAX_UPLOAD_BYTES` and `SELF_CAPTURE_MAX_PART_BYTES`.
-
-### Stripe (server)
-- `STRIPE_SECRET_KEY`
-- `STRIPE_CONNECT_ACCOUNT_ID`
-- `STRIPE_WEBHOOK_SECRET`
-- `CHECKOUT_ALLOWED_ORIGINS`
-- Optional: `STRIPE_PUBLIC_BASE_URL`, `STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`
 
 ### Agent Runtime (server)
 - one of:
@@ -640,7 +633,6 @@ replace that inbox or the approved Gmail human-reply watcher.
 - Firestore is the active datastore.
 - In production, public world-model pages should surface pipeline-backed site worlds only. Static fixture cards are for non-production and explicit demo mode.
 - Live hosted-session state now prefers Redis when `REDIS_URL` is configured, then falls back to in-process memory, with Firestore acting as async mirroring/trail storage.
-- Marketplace checkout and artifact entitlement flows are only truthful when Firebase Admin, Stripe checkout, and Stripe webhooks are all configured together.
 - Marketplace search and checkout now fail toward live `marketplace_items` inventory in production instead of silently relying on static sample content.
 - Growth telemetry can now mirror experiment exposures, page views, and campaign events into Firestore when `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`, which gives Paperclip and the analytics agent a first-party event stream even before PostHog/GA4 are fully live.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.

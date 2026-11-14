@@ -11,7 +11,6 @@ afterEach(() => {
   delete process.env.GEMINI_API_KEY;
   delete process.env.GOOGLE_API_KEY;
   delete process.env.PORT;
-  delete process.env.STRIPE_PUBLIC_BASE_URL;
 });
 
 describe("server env helpers", () => {
@@ -49,8 +48,8 @@ describe("server env helpers", () => {
   });
 
   it("throws a readable validation error for invalid env values", () => {
-    process.env.STRIPE_PUBLIC_BASE_URL = "not-a-url";
+    process.env.PORT = "not-a-port";
 
-    expect(() => validateEnv()).toThrowError(/STRIPE_PUBLIC_BASE_URL/i);
+    expect(() => validateEnv()).toThrowError(/PORT/i);
   });
 });

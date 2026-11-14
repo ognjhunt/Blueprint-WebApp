@@ -1,7 +1,7 @@
 /**
  * In-memory Firestore fake for SCALE2-01 queue/journal tests.
  *
- * Extends the pattern used by accounting-ledgers.test.ts with the query
+ * A shared in-memory Firestore fake with the query
  * features the webhook queue and reconciliation report need: range operators
  * (<=, >=), orderBy, and limit. Transactions buffer writes and commit
  * atomically after the callback resolves, mirroring Firestore semantics

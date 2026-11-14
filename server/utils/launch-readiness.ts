@@ -1,5 +1,4 @@
 import { authAdmin, dbAdmin } from "../../client/src/lib/firebaseAdmin";
-import { stripeClient } from "../constants/stripe";
 import { isTruthyEnvValue } from "../config/env";
 import { getCityLaunchSenderStatus, getEmailTransportStatus } from "./email";
 import { getHostedSessionLiveStoreStatus } from "./hosted-session-live-store";
@@ -93,11 +92,6 @@ export function buildLaunchReadinessSnapshot() {
     process.env.FIELD_ENCRYPTION_MASTER_KEY?.trim()
     || process.env.FIELD_ENCRYPTION_KMS_KEY_NAME?.trim(),
   );
-  const stripeEnabled = Boolean(
-    process.env.STRIPE_SECRET_KEY?.trim()
-    || process.env.CHECKOUT_ALLOWED_ORIGINS?.trim()
-    || process.env.STRIPE_WEBHOOK_SECRET?.trim(),
-  );
   const pipelineSyncEnabled = Boolean(
     process.env.PIPELINE_SYNC_TOKEN?.trim()
     || isTruthyEnvValue(process.env.BLUEPRINT_PIPELINE_SYNC_REQUIRED),
@@ -124,22 +118,12 @@ export function buildLaunchReadinessSnapshot() {
   // warning is repeated on every readiness pass until it is fixed.
   const slackOpsRequired = false;
   const slackOpsReady = Boolean(process.env.SLACK_WEBHOOK_URL?.trim()) || !productionDeploy;
-  // Mirrors stripeWebhookInlineMode() without importing the queue module.
-  const stripeQueueMode =
-    process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE !== "1"
-    && process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE === "1";
-  const stripeQueueConsumerConfirmed = isTruthyEnvValue(
-    process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED,
-  );
-  const stripeWebhookQueueReady = !stripeQueueMode || stripeQueueConsumerConfirmed;
   const firebaseAdminReady = Boolean(dbAdmin && authAdmin);
   const redisReady =
     !redisRequired
     || (redisConfigured
       && liveSessionStore.backend === "redis"
       && liveSessionStore.redisConnected === true);
-  const stripeReady =
-    !stripeEnabled || Boolean(stripeClient && process.env.STRIPE_WEBHOOK_SECRET?.trim());
   const emailReady = !emailRequired || emailTransport.configured;
   const pipelineSyncReady =
     !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
@@ -160,8 +144,6 @@ export function buildLaunchReadinessSnapshot() {
     firebaseAdmin: firebaseAdminReady || localLaunchSmoke,
     fieldEncryption: fieldEncryptionReady,
     redis: redisReady,
-    stripe: stripeReady,
-    stripeWebhookQueue: stripeWebhookQueueReady,
     email: emailReady,
     slackOpsAlerts: !slackOpsRequired || slackOpsReady,
     pipelineSync: pipelineSyncReady,
@@ -216,24 +198,6 @@ export function buildLaunchReadinessSnapshot() {
       detail: slackOpsReady
         ? "SLACK_WEBHOOK_URL is configured for ops alerts."
         : "SLACK_WEBHOOK_URL is not set: ops alerts (5xx spikes, crashes, undelivered intake notices, readiness) reach nobody.",
-    },
-    stripeWebhookQueue: {
-      required: stripeQueueMode,
-      ready: stripeWebhookQueueReady,
-      detail: !stripeQueueMode
-        ? "Stripe webhooks settle inline in the web process."
-        : stripeQueueConsumerConfirmed
-          ? "Stripe webhook queue mode with a confirmed consumer (BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1)."
-          : "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1 but no queue consumer is confirmed: the deployed worker is launch-forward-only and never drains the queue, so payments would be acknowledged and never settled. Unset the queue flag (inline mode) or run the Stripe queue processor and set BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1.",
-    },
-    stripe: {
-      required: stripeEnabled,
-      ready: stripeReady,
-      detail: stripeEnabled
-        ? stripeReady
-          ? "Stripe secret and webhook configuration are present."
-          : "Stripe is enabled but secret key or webhook secret is missing."
-        : "Stripe launch checks are disabled because Stripe envs are unset.",
     },
     email: {
       required: emailRequired,
@@ -296,7 +260,6 @@ export function buildLaunchReadinessSnapshot() {
     dependencies: {
       liveSessionStore,
       emailTransport,
-      stripeEnabled,
       pipelineSyncEnabled,
       redisRequired,
       betaCohortPolicy,

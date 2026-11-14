@@ -7,7 +7,6 @@ import accountDeletionRouter from "./routes/account-deletion";
 import passwordResetRouter from "./routes/password-reset";
 import adminRobotTeamAccessRouter from "./routes/admin-robot-team-access";
 import type { Express } from "express";
-import createCheckoutSessionHandler from "./routes/api/create-checkout-session";
 import storageUploadsRouter from "./routes/storage-uploads";
 import captureUploadsRouter from "./routes/capture-uploads";
 import taskEvaluationSceneIntakesRouter from "./routes/task-evaluation-scene-intakes";
@@ -63,7 +62,6 @@ import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware
 import { requireAdminRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import { requireAppCheck } from "./middleware/appCheck";
-import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
 import internalCompanyPolicyRegistryCredentialsRouter from "./routes/internal-company-policy-registry-credentials";
 import internalCheckpointPolicyCredentialsRouter from "./routes/internal-checkpoint-policy-credentials";
@@ -159,19 +157,8 @@ export function registerRoutes(app: Express) {
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
-  app.use(
-    "/api/marketplace/entitlements",
-    verifyFirebaseToken,
-    marketplaceEntitlementsRouter,
-  );
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.use("/api/analytics", csrfProtection, analyticsIngestRouter);
-  app.post(
-    "/api/create-checkout-session",
-    csrfProtection,
-    verifyFirebaseToken,
-    createCheckoutSessionHandler,
-  );
   // Public endpoints (no Firebase auth required).
   app.post("/api/contact", csrfProtection, contactTaskMediaHandler);
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
