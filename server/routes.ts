@@ -58,9 +58,6 @@ import { requireAppCheck } from "./middleware/appCheck";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
 import internalCompanyPolicyRegistryCredentialsRouter from "./routes/internal-company-policy-registry-credentials";
 import internalCheckpointPolicyCredentialsRouter from "./routes/internal-checkpoint-policy-credentials";
-import clientRuntimeConfigAdminRouter, {
-  clientRuntimeConfigPublicHandler,
-} from "./routes/client-runtime-config";
 import adminTaskEvaluationLaunchesRouter from "./routes/admin-task-evaluation-launches";
 import verifyTaskEvaluationLaunchAccess from "./middleware/verifyTaskEvaluationLaunchAccess";
 import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-task-evaluation-launch-submissions";
@@ -75,11 +72,6 @@ export function registerRoutes(app: Express) {
 
   // Health check routes (no /api prefix for standard probe paths)
   app.use(healthRouter);
-
-  // R052: capture-client runtime controls (force-update / kill-switch /
-  // maintenance mode). Public read is unauthenticated so a blocked or signed-out
-  // client can still fetch the kill-switch; admin mutations are gated below.
-  app.get("/api/client/runtime-config", clientRuntimeConfigPublicHandler);
 
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
@@ -167,15 +159,6 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     requireAdminRole,
     adminRobotTeamsRouter,
-  );
-  // R052: admin control surface for the client runtime config (kill-switch /
-  // maintenance / min-version). Admin role enforced inside the router.
-  app.use(
-    "/api/admin/client-runtime-config",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    clientRuntimeConfigAdminRouter,
   );
   app.use(
     "/api/admin/task-evaluation-launches",
