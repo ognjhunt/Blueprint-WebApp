@@ -326,6 +326,34 @@ describe("the door (W4)", () => {
     }
   });
 
+  it("a call that lost the create race to another ask under its key is refused, and none of its footage lands", async () => {
+    sequence += 1;
+    const clip = (tag: string) => Buffer.concat([mp4(), Buffer.from(tag)]);
+    await seedFootage("clip-a", "mp4", clip("A"));
+    await seedFootage("clip-b", "mp4", clip("B"));
+    const winner = await signedPost("/api/internal/pipeline/test-jobs", testJobBody({ footage_id: "clip-a" }));
+    expect(winner.status).toBe(201);
+    const id = String(winner.body.job_id);
+    // The second call read "no job" before the first created it: its route-level read sees nothing, so its create is the
+    // recovered one (same retry token), carrying other footage.
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const collection = sharedFakeFirestore.collection.bind(sharedFakeFirestore);
+    let first = true;
+    const read = vi.spyOn(sharedFakeFirestore, "collection").mockImplementation(((name: string) => {
+      const real = collection(name);
+      if (name !== "inboundRequests" || !first) return real;
+      first = false;
+      return { ...real, doc: (docId: string) => ({ ...real.doc(docId), get: async () => ({ exists: false, data: () => undefined }) }) };
+    }) as never);
+    let loser;
+    try { loser = await signedPost("/api/internal/pipeline/test-jobs", testJobBody({ footage_id: "clip-b" })); }
+    finally { read.mockRestore(); }
+    expect(loser).toEqual({ status: 409, body: { code: "internal_test_idempotency_key_reused" } });
+    expect(doc(`inboundRequests/${id}`).internal_test.footage_id).toBe("clip-a");
+    const [video] = await sharedUploadBucket.bucket.file(`scenes/site-${id}/captures/walkthrough-${id}/raw/walkthrough.mp4`).download();
+    expect(video.equals(clip("A"))).toBe(true);
+  });
+
   it("refuses a job id that is not a test job's, and a public form that tries to take a test job's id first", async () => {
     sequence += 1;
     const id = (await import("../routes/internal-test-jobs")).internalTestJobId(testJobBody().idempotency_key);

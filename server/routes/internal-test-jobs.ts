@@ -96,6 +96,13 @@ async function findTestFootage(footageId: string): Promise<Footage | "missing" |
   return isAcceptedVideoHeader(head.subarray(0, VIDEO_SIGNATURE_BYTES)) ? found[0] : "not_video";
 }
 
+/** Whether the stored job is the one this call asks for: the same footage, label and description. */
+async function sameAsk(requestId: string, record: Record<string, any> | undefined,
+  input: { footage_id: string; label: string; description: string }): Promise<boolean> {
+  return record?.internal_test?.footage_id === input.footage_id && record.internal_test.label === input.label
+    && (await getBrief(requestId))?.summary === input.description;
+}
+
 /** Collects what the start form's handler answers, so this route can answer in its own shape. */
 function capturedResponse(locals: Record<string, unknown>) {
   const out: { status: number; body: Record<string, any> | undefined } = { status: 500, body: undefined };
@@ -131,9 +138,7 @@ router.post("/test-jobs", rateLimiter, requirePipelineSignature, async (req: Req
     if (existing) {
       // The same key is the same job. Anything else under this id is not ours to touch.
       if (!isInternalTestJob(existing)) return res.status(409).json({ code: "internal_test_job_id_taken" });
-      if (existing.internal_test?.footage_id !== input.footage_id || existing.internal_test?.label !== input.label
-        || (await getBrief(requestId))?.summary !== input.description)
-        return res.status(409).json({ code: "internal_test_idempotency_key_reused" });
+      if (!await sameAsk(requestId, existing, input)) return res.status(409).json({ code: "internal_test_idempotency_key_reused" });
     } else {
       const nowIso = new Date().toISOString();
       const marker: InternalTestMarker = { label: input.label, footage_id: input.footage_id, created_by: INTERNAL_TEST_CREATED_BY,
@@ -173,6 +178,9 @@ router.post("/test-jobs", rateLimiter, requirePipelineSignature, async (req: Req
           .json({ code: "internal_test_job_not_created", detail: out.body?.message ?? null });
       }
       created = out.status === 201;
+      // A concurrent call with the same key created the job first: it is this job only if it is the same ask.
+      if (!created && !await sameAsk(requestId, (await db.collection("inboundRequests").doc(requestId).get()).data(), input))
+        return res.status(409).json({ code: "internal_test_idempotency_key_reused" });
     }
 
     const landing = await landInternalTestFootage(identity, footage);
