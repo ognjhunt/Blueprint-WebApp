@@ -1,7 +1,7 @@
 // @vitest-environment node
 import fs from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { publicSurfaceTouched, releaseScope, siteDecisionFiles } from './checks.mjs';
+import { publicSurfaceTouched, releaseScope, safetyTests, siteDecisionFiles } from './checks.mjs';
 describe('public-surface copy contracts', () => {
   it('run for any public copy source even when the release scope is narrower than full', () => {
     expect(releaseScope(['client/src/lib/evaluationPricing.ts'])).toBe('code');
@@ -44,6 +44,6 @@ describe('job-page and intake decision helpers get the full scope', () => {
     expect(releaseScope(['client/src/lib/analytics.ts'])).toBe('code');
   });
   it('names only files that exist', () => {
-    for (const file of siteDecisionFiles) expect(fs.existsSync(file), file).toBe(true);
+    for (const file of [...siteDecisionFiles, ...safetyTests]) expect(fs.existsSync(file), file).toBe(true);
   });
 });
