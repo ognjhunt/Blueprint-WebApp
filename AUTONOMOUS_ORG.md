@@ -2,8 +2,8 @@
 
 > **Retired, 2026-11-12.** The role registry that was here (47 Paperclip agent
 > roles, departments, routines, graduation rules) describes the autonomous org
-> of spring 2026 and the frames after it. It is now
-> `docs/archive/2026-11-12-pre-packet/AUTONOMOUS_ORG.md`. Read it only for
+> of spring 2026 and the frames after it. It is in git history (it was
+> `docs/archive/2026-11-12-pre-packet/AUTONOMOUS_ORG.md`). Read it only for
 > history. Do not use it to decide what to build, how to word anything, or who
 > approves what.
 
@@ -25,7 +25,6 @@
   an introduction: the site asks for an introduction with one press, and
   Blueprint emails each side the other's details. Blueprint approves a company
   once.
-- **Paperclip:** every role is retired. Each agent's instruction files in
-  `ops/paperclip/blueprint-company/agents/` say "do nothing", and every routine
-  in `.paperclip.yaml` is paused. What actually runs on the Paperclip host is
-  not recorded in this repo.
+- **Paperclip:** every role is retired. Its agent instruction files and
+  routines are no longer in this repo. What actually runs on the Paperclip host
+  is not recorded in this repo.

@@ -25,7 +25,7 @@ import {
   outcomesOf, type IntroductionLike, type OutcomeQuestionDay, type OutcomeRecord,
 } from "./jobOutcomeGate";
 import { createJobOutcomeToken, verifyJobOutcomeToken, type OutcomeSide } from "./jobOutcomeToken";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 export { outcomeQuestionIsCurrent, OUTCOME_QUESTION_DAYS, type OutcomeRecord } from "./jobOutcomeGate";
 export { OUTCOME_STATE_LABELS, OUTCOME_STATES, type OutcomeState } from "../../client/src/lib/jobOutcomeStates";

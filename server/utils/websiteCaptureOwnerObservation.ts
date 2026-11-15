@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { buildBrowserDelivery, capturedWriteIdentity, matchesBrowserDeliveryRecord, type BrowserDeliveryRecord,
   type WrittenObject } from "./websiteCaptureDelivery";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { bundleDigest, planDigestOf, SITE_CAPTURE_BUNDLE_PLAN_SCHEMA,
   SITE_CAPTURE_COMPLETION_SCHEMA, type BundlePlanRecord } from "./siteCaptureBundle";
 import { isWebsiteCaptureId } from "./websiteCaptureIdentity";

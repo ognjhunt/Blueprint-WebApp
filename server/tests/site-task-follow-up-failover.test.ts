@@ -58,12 +58,6 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   };
   return { default: { firestore: { FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" } } }, dbAdmin: db, storageAdmin: null };
 });
-vi.mock("../agents/operator-tools", async (importOriginal) => ({
-  ...await importOriginal<typeof import("../agents/operator-tools")>(),
-  getCompanyHistoryAccess: async () => null,
-}));
-vi.mock("../agents/adapters/codex-local", () => ({ runCodexLocalTask: vi.fn() }));
-vi.mock("../agents/adapters/acp-harness", () => ({ runAcpHarnessTask: vi.fn() }));
 vi.mock("../logger", () => {
   const capture = (...args: unknown[]) => { logged.push(JSON.stringify(args)); };
   const logger = { info: capture, warn: capture, error: capture, debug: capture, child: () => logger };

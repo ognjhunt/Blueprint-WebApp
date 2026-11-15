@@ -15,7 +15,8 @@ import { humanDecisionDigest } from "./human-reply-admission";
 import { TASK_BRIEFS_COLLECTION, unresolvedGates, type ProposedGateAnswer,
   type SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 /** Bases a model reading produces. A measurement is the operator's figure and stays. */
 const MODEL_READ_BASES = new Set(["description", "observation", "assumption"]);

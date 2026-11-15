@@ -4,7 +4,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
 import { reconcileModelReviewSpend, releaseModelReviewSpend, reserveModelReviewSpend } from "./betaAbuseCaps";
 import { humanDecisionDigest } from "./human-reply-admission";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
 import { advisoryContextDigest } from "./siteAssessmentContext";

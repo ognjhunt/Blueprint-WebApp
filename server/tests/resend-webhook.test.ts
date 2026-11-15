@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const env = vi.hoisted(() => ({ values: {} as Record<string, string | undefined> }));
 const verify = vi.hoisted(() => vi.fn());
-const ingestResendWebhook = vi.hoisted(() => vi.fn());
+const created = vi.hoisted(() => vi.fn(async (_id: string, _value: unknown) => undefined));
 const reconcileVerifiedNotificationEmail = vi.hoisted(() => vi.fn());
 
 vi.mock("../config/env", () => ({
@@ -14,8 +14,13 @@ vi.mock("resend", () => ({
     webhooks = { verify };
   },
 }));
-vi.mock("../utils/growth-ops", () => ({ ingestResendWebhook }));
 vi.mock("../utils/transactional-notifications", () => ({ reconcileVerifiedNotificationEmail }));
+vi.mock("../utils/email-suppression", () => ({ recordEmailSuppression: vi.fn(async () => undefined) }));
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  default: { firestore: { FieldValue: { serverTimestamp: () => "now", increment: (value: number) => value } } },
+  dbAdmin: { collection: () => ({ doc: (id: string) => ({ get: async () => ({ exists: false }),
+    create: (value: unknown) => created(id, value), set: async () => undefined }) }) },
+}));
 
 import { resendWebhookHandler } from "../routes/resend-webhook";
 
@@ -45,7 +50,7 @@ const signed = {
 beforeEach(() => {
   env.values = { RESEND_WEBHOOK_SECRET: "whsec_test" };
   verify.mockReset();
-  ingestResendWebhook.mockReset();
+  created.mockReset();
   reconcileVerifiedNotificationEmail.mockReset();
 });
 
@@ -54,13 +59,13 @@ describe("Resend webhook (kept from the retired growth router)", () => {
     env.values = {};
     const res = await call(signed);
     expect(res.statusCode).toBe(503);
-    expect(ingestResendWebhook).not.toHaveBeenCalled();
+    expect(created).not.toHaveBeenCalled();
   });
 
   it("refuses a delivery without a raw body or a svix id", async () => {
     expect((await call({ headers: signed.headers })).statusCode).toBe(400);
     expect((await call({ rawBody: signed.rawBody })).statusCode).toBe(401);
-    expect(ingestResendWebhook).not.toHaveBeenCalled();
+    expect(created).not.toHaveBeenCalled();
   });
 
   it("refuses a delivery whose signature does not verify", async () => {
@@ -69,7 +74,7 @@ describe("Resend webhook (kept from the retired growth router)", () => {
     });
     const res = await call(signed);
     expect(res.statusCode).toBe(401);
-    expect(ingestResendWebhook).not.toHaveBeenCalled();
+    expect(created).not.toHaveBeenCalled();
     expect(reconcileVerifiedNotificationEmail).not.toHaveBeenCalled();
   });
 
@@ -78,14 +83,14 @@ describe("Resend webhook (kept from the retired growth router)", () => {
     verify.mockReturnValue(event);
     const res = await call(signed);
     expect(verify).toHaveBeenCalledWith(expect.objectContaining({ payload: signed.rawBody, webhookSecret: "whsec_test" }));
-    expect(ingestResendWebhook).toHaveBeenCalledWith(event, "msg_1");
+    expect(created).toHaveBeenCalledWith("msg_1", expect.objectContaining({ event_type: "bounced", recipient: "site@example.com", source: "resend" }));
     expect(reconcileVerifiedNotificationEmail).toHaveBeenCalledWith(event, "msg_1");
     expect(res.statusCode).toBe(202);
   });
 
   it("answers 500 so Resend retries when recording fails", async () => {
     verify.mockReturnValue({ type: "email.complained" });
-    ingestResendWebhook.mockRejectedValue(new Error("firestore down"));
+    created.mockRejectedValue(new Error("firestore down"));
     expect((await call(signed)).statusCode).toBe(500);
   });
 });

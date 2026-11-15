@@ -30,12 +30,6 @@ vi.mock("@anthropic-ai/sdk", async (importOriginal) => {
 });
 
 const historyRun = vi.hoisted(() => vi.fn(async () => ({ ok: true, rows: [] })));
-vi.mock("../agents/operator-tools", async (importOriginal) => ({
-  ...await importOriginal<typeof import("../agents/operator-tools")>(),
-  getCompanyHistoryAccess: async (task: { metadata?: Record<string, unknown> }) =>
-    task.metadata?.with_history ? { companyWide: true } : null,
-  runOperatorTool: historyRun,
-}));
 
 const outputSchema = z.object({ answer: z.string(), requires_human_review: z.boolean() });
 
@@ -107,26 +101,6 @@ describe("Anthropic adapter: client", () => {
 });
 
 describe("Anthropic adapter: request shape", () => {
-  it.each(["claude-opus-5-5", "claude-haiku-5-5"])("%s: no sampling, no prefill, no forced tool, thinking on", async (model) => {
-    stub.respond = () => message([json()]);
-    const result = await run(model, "preview_diagnosis", { with_history: true });
-    expect(result.status).toBe("completed");
-    const { params, options } = stub.requests[0];
-    for (const key of ["temperature", "top_p", "top_k", "tool_choice", "stop_sequences"]) {
-      expect(params).not.toHaveProperty(key);
-    }
-    const messages = params.messages as Array<{ role: string }>;
-    expect(messages.at(-1)?.role).toBe("user");
-    expect(params.thinking).toEqual({ type: "adaptive" });
-    expect(params.max_tokens).toBe(64_000);
-    expect(params.tools).toBeDefined();
-    expect(options).toMatchObject({ maxRetries: 0 });
-    const outputConfig = params.output_config as { effort: string; format: { type: string; schema: Record<string, unknown> } };
-    expect(outputConfig.effort).toBe("medium");
-    expect(outputConfig.format.type).toBe("json_schema");
-    expect(outputConfig.format.schema).toMatchObject({ type: "object", required: ["answer", "requires_human_review"] });
-    expect(outputConfig.format).not.toHaveProperty("parse");
-  });
 
   it("turns the server-side refusal fallback on where the model has one", async () => {
     stub.respond = () => message([json()]);
@@ -142,14 +116,6 @@ describe("Anthropic adapter: request shape", () => {
     expect(stub.requests[0].params).not.toHaveProperty("betas");
   });
 
-  it("sets effort per lane and lets the environment override it", async () => {
-    stub.respond = () => message([json()]);
-    await run("claude-haiku-5-5", "inbound_qualification");
-    expect((stub.requests[0].params.output_config as { effort: string }).effort).toBe("max");
-    vi.stubEnv("ANTHROPIC_INBOUND_QUALIFICATION_EFFORT", "high");
-    await run("claude-haiku-5-5", "inbound_qualification");
-    expect((stub.requests[1].params.output_config as { effort: string }).effort).toBe("high");
-  });
 
   it("takes the output ceiling from config", async () => {
     vi.stubEnv("BLUEPRINT_ANTHROPIC_AGENT_MAX_OUTPUT_TOKENS", "20000");
@@ -167,15 +133,6 @@ describe("Anthropic adapter: request shape", () => {
       expect(stub.requests).toHaveLength(0);
     });
 
-  it("follows the lane's OpenAI effort override when no Anthropic effort is set", async () => {
-    stub.respond = () => message([json()]);
-    vi.stubEnv("OPENAI_PREVIEW_DIAGNOSIS_REASONING_EFFORT", "high");
-    await run("claude-haiku-5-5", "preview_diagnosis");
-    expect((stub.requests[0].params.output_config as { effort: string }).effort).toBe("high");
-    vi.stubEnv("OPENAI_PREVIEW_DIAGNOSIS_REASONING_EFFORT", "none");
-    await run("claude-haiku-5-5", "preview_diagnosis");
-    expect((stub.requests[1].params.output_config as { effort: string }).effort).toBe("low");
-  });
 
   it("a correction is a user turn after the answer, never a prefilled assistant turn", async () => {
     let call = 0;
@@ -242,24 +199,6 @@ describe("Anthropic adapter: stop reasons", () => {
     expect(historyRun).not.toHaveBeenCalled();
   });
 
-  it("after a fallback inside the response, runs only the serving model's tool calls and drops the declined part", async () => {
-    let call = 0;
-    stub.respond = () => (call++ === 0
-      ? message([
-          { type: "thinking", thinking: "", signature: "s0" },
-          { type: "tool_use", id: "declined", name: "search_company_history", input: { query: "a" } },
-          { type: "fallback", from: { model: "claude-opus-5-5" }, to: { model: "claude-opus-5" } },
-          { type: "tool_use", id: "served", name: "search_company_history", input: { query: "b" } },
-        ], "tool_use")
-      : message([json()]));
-    const result = await run("claude-opus-5-5", "preview_diagnosis", { with_history: true });
-    expect(result.status).toBe("completed");
-    expect(historyRun).toHaveBeenCalledTimes(1);
-    const second = stub.requests[1].params.messages as Array<{ role: string; content: Array<{ type: string; id?: string; tool_use_id?: string }> }>;
-    expect(second[1].content.map((block) => block.type)).toEqual(["fallback", "tool_use"]);
-    expect(second[1].content[1].id).toBe("served");
-    expect(second[2].content.map((block) => block.tool_use_id)).toEqual(["served"]);
-  });
 
   it("counts every attempt's usage when the response reports them", async () => {
     stub.respond = () => message([json()], "end_turn", { usage: { ...usage, iterations: [
@@ -363,13 +302,6 @@ describe("Anthropic adapter: every request is priced, reserved and capped", () =
     expect(stub.requests).toHaveLength(1);
   });
 
-  it("does not gate a lane whose spend is recorded with its job, as the OpenAI lane does not", async () => {
-    vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "0.01");
-    stub.respond = () => message([json()]);
-    const result = await run("claude-opus-5-5", "inbound_qualification");
-    expect(result.status).toBe("completed");
-    expect(result.logs?.[0]).toMatchObject({ hard_cost_cap_usd: null, spending_gated: false });
-  });
 
   it("refuses an input above the shared input ceiling", async () => {
     vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INPUT_TOKENS", "10");

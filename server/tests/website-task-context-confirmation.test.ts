@@ -9,8 +9,9 @@ import { draftBrief, type SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import { preparationGrantFollowsBrief } from "../utils/preparationGrantTask";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
-  confirmationParentContextDigests, preparationGrantContextDigest, projectWebsiteCaptureRights, projectWebsiteTaskContext,
+  confirmationParentContextDigests, preparationGrantContextDigest, projectWebsiteTaskContext,
 } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 
 const purpose = "scene_preparation" as const;
 const record = { request: { consent_attestation: { statement_version: "2026-11-01.v1", recorded_at_iso: "2026-11-06T10:00:00.000Z",

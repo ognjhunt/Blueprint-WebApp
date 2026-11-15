@@ -10,7 +10,7 @@ import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "./workerHeartbeat";
 import { recordedWebsiteJobNoGrantEnding, websiteJobNoGrantClock, WEBSITE_JOB_NO_GRANT_CLOCK_FIELD,
   WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD } from "./websiteJobWindowEnding";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { websiteRunClosure } from "./websiteRunClosure";
 

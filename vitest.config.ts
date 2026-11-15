@@ -25,7 +25,6 @@ export default defineConfig({
       "client/src/lib/**/*.{test,spec}.{ts,tsx,js,jsx}",
       "server/tests/**/*.{test,spec}.{ts,tsx,js,jsx}",
       "scripts/**/*.{test,spec}.{ts,tsx,js,jsx}",
-      "ops/paperclip/plugins/blueprint-automation/src/**/*.{test,spec}.{ts,tsx,js,jsx}",
     ],
     exclude: [
       "e2e/**",

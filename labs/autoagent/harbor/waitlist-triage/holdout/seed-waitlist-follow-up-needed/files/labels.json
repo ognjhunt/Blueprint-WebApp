@@ -1,7 +1,0 @@
-{
-  "risk_tier": "medium",
-  "requires_human_review": false,
-  "unsafe_auto_clear_penalty": 5,
-  "wrong_queue_penalty": 2,
-  "email_quality_weight": 0.25
-}

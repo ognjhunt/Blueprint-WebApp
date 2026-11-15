@@ -60,7 +60,6 @@ export function buildContentSecurityPolicy({
   ]);
 
   const cspScriptAllowlist = uniqueNonEmpty([
-    "https://js.stripe.com",
     "https://cdnjs.cloudflare.com",
     "https://apis.google.com",
     "https://accounts.google.com",
@@ -94,13 +93,13 @@ export function buildContentSecurityPolicy({
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https:",
     "font-src 'self' https://fonts.gstatic.com data:",
-    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.youtube-nocookie.com https://*.firebaseapp.com${
+    `frame-src 'self' https://www.youtube-nocookie.com https://*.firebaseapp.com${
       recaptchaEnterprise ? ` ${RECAPTCHA_FRAME_HOSTS.join(" ")}` : ""}`,
     "worker-src 'self' blob: https://cdnjs.cloudflare.com",
     "media-src 'self' blob: https:",
     `connect-src 'self' data: ${
       isProduction ? "" : "http://localhost:5173 ws://localhost:5173"
-    } ${cspConnectAllowlist.join(" ")} https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://maps.googleapis.com https://places.googleapis.com https://js.stripe.com`,
+    } ${cspConnectAllowlist.join(" ")} https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://maps.googleapis.com https://places.googleapis.com`,
     "upgrade-insecure-requests",
   ]
     .map((directive) => directive.trim())

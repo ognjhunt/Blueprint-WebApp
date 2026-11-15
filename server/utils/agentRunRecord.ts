@@ -1,3 +1,5 @@
+import type { RunResultScoring } from "./runResultScoring";
+
 /** Pure contract and construction for one paid evaluation run. */
 
 const DEFAULT_RESERVATION_TTL_MS = 6 * 60 * 60 * 1000;
@@ -130,4 +132,43 @@ export function buildRequestedRunRecord(params: RequestedRunParams): EvalRunReco
 /** Historical runs retain their original sharing agreement. Unknown modes fail closed. */
 export function isSiteEvaluation(run: Pick<EvalRunRecord, "evaluationPurpose">): boolean {
   return run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot";
+}
+
+export interface EpisodeOutcome {
+  cell_id: string;
+  family: string | null;
+  outcome: "success" | "failure" | "void";
+  reason: string;
+}
+
+/** What we store and hand back, observation and claim kept apart. */
+export interface EvalRunResult {
+  evidenceScope?: "development_only" | "simulation";
+  confidencePolicyVersion?: string;
+  confidenceAnnotation?: string;
+  /** As the Pipeline stated it; see `runResultScoring.ts` for what may count. */
+  scoring?: RunResultScoring;
+  evaluationPurpose?: "scored";
+  episodeOutcomes?: EpisodeOutcome[];
+  runId: string;
+  teamId: string;
+  checkpointId: string;
+  sceneId: string;
+  observed: {
+    episodesRun: number;
+    episodesSucceeded: number;
+    successRate: number | null;
+    medianCycleSeconds: number | null;
+  };
+  /**
+   * What the observation supports claiming, which is deliberately less than
+   * the observation itself. Null where the sample cannot support any band.
+   */
+  claimed: {
+    demonstratedSuccessRate: string | null;
+    cycleTime: string | null;
+  };
+  note: string | null;
+  artifactUri: string | null;
+  reportedAtIso: string;
 }

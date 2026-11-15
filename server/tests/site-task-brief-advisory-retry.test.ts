@@ -3,11 +3,10 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
 const seams = vi.hoisted(() => ({ describe: vi.fn(), wake: vi.fn(), advisory: vi.fn() }));
-vi.mock("../utils/siteAssessmentQueue", () => ({ describeSiteAssessmentRetry: seams.describe, tickSiteAssessments: seams.wake }));
 vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: seams.advisory }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: vi.fn(async () => null), confirmBrief: vi.fn() }));
 vi.mock("../utils/websiteBrowserUploadStatus", () => ({ describeBrowserUpload: vi.fn(async () => ({ captureReceived: true, uploadState: "processing_ready" })) }));
-vi.mock("../utils/agentEvalRuns", () => ({ loadSceneScreening: vi.fn(async () => null) }));
+vi.mock("../utils/sceneScreening", () => ({ loadSceneScreening: vi.fn(async () => null) }));
 vi.mock("../utils/captureOutbox", () => ({ enqueueOutbox: vi.fn(), deliverOutbox: vi.fn() }));
 vi.mock("../logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,

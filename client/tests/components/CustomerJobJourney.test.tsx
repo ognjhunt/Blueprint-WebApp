@@ -97,7 +97,6 @@ it("joins the existing job, bounded review, sharing under v4 and Blueprint's rev
     expect(screen.queryByText(/A carton moves onto the pallet/)).toBeNull();
     expect(screen.queryByText(/Untrusted prose/)).toBeNull(); assessment.unmount();
     expect(draft).not.toHaveProperty("recommendation");
-    expect(draft.communications.route).toBe("/api/admin/robot-teams/jobs/req-1/communications");
     const decision = { sourceDigest: draft.decisionSourceDigest, recommendation: "Investigate an isolated carton-handling pilot with the admitted team",
       why: "The observed transfer is technically plausible; weight and guarding remain unverified", decisiveUncertainty: "Actual carton weight is not established by the video",
       nextAction: "Blueprint will obtain the team’s scope and written quote before any physical commitment", question: null };

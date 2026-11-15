@@ -62,7 +62,7 @@ export type OutboxKind =
   | "task_received"
   | "video_received"
   | "scene_ready"
-  /** The job's scene is ready, task objects in, and its first internal test started (owner decision 2026-10-22). */
+  /** The simulation of the site is ready: the Pipeline published the job's company simulation package. */
   | "scene_tests_started"
   | "preparation_needs_attention"
   /** Website scene preparation ended for good (website_preparation_status.v2 failed_terminal). */
@@ -161,10 +161,14 @@ export interface OutboxEntry {
 
 /** Kinds whose feature is gone. A stored row of one is cancelled at dispatch, never sent. The team-run notices to a
  * site (results_ready, run_no_result, awaiting_evaluations, no_team_passed, no_qualified_evaluation) went with robot
- * teams running their own software (frame of 2026-11-12); rows queued before then are cancelled here. */
+ * teams running their own software (frame of 2026-11-12); the question about moving chairs (robot_access_question)
+ * went with Blueprint's own early trial (2026-11-14). Rows queued before then are cancelled here. A queued
+ * evaluation_outcome is not retired: a hold's still goes, and one naming a trial outcome is cancelled by
+ * `evaluationOutcomeShown`. */
 const RETIRED_KINDS: ReadonlySet<string> = new Set(["pilot_recommended", "pilot_booked", "pilot_scheduled",
   "team_pilot_recommended", "team_pilot_booked", "team_pilot_scheduled",
-  "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"]);
+  "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation",
+  "robot_access_question"]);
 
 const DELIVERY_LEASE_MS = 5 * 60 * 1000;
 
@@ -367,25 +371,17 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     await reconcileSceneTestsStartedNotices(Math.min(limit, 5));
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-tests notices"); }
   try {
-    const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
-    await reconcileAgentRunResultNotifications(limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-result notices"); }
-  try {
     const { reconcileWaitingAnswerNotices } = await import("./taskLifecycleNotifications");
     await reconcileWaitingAnswerNotices(Math.min(limit, 5));
   } catch (error) { logger.warn({ error }, "Could not release endings' emails that waited for the reading"); }
   try {
     const { reconcileScreeningOutcomeNotifications } = await import("./screeningOutcomeNotifications");
     await reconcileScreeningOutcomeNotifications(limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-outcome notices"); }
+  } catch (error) { logger.warn({ error }, "Could not reconcile scene-stage hold notices"); }
   try {
     const { reconcileSceneOutcomeNotifications } = await import("./sceneOutcomeNotifications");
     await reconcileSceneOutcomeNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-outcome notices"); }
-  try {
-    const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
-    await reconcileTaskEvaluationNotificationRetries(db, limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
   await reconcileOutboxDeliveries(limit);
   // Held "Meet {company}" rows are decided from the facts every pass (J1), before the due rows are read, so a row
   // released here goes in this same pass.

@@ -122,14 +122,6 @@ describe("redacted lane: never on a path that replays its stored input", () => {
     expect(store.size).toBe(0);
   });
 
-  it("refuses to open a session for the lane or send it a session message", async () => {
-    const { createAgentSession, sendAgentSessionMessage, REDACTED_CONTENT_NOT_REPLAYABLE } = await import("../agents/runtime");
-    await expect(createAgentSession({ title: "t", task_kind: "site_task_follow_up" })).rejects.toThrow(REDACTED_CONTENT_NOT_REPLAYABLE);
-    await expect(sendAgentSessionMessage({ sessionId: "session-1", task: { kind: "site_task_follow_up", input: taskInput } }))
-      .rejects.toThrow(REDACTED_CONTENT_NOT_REPLAYABLE);
-    expect(store.size).toBe(0);
-    expect(adapter).not.toHaveBeenCalled();
-  });
 
   it("leaves the picker's normal call as it was", async () => {
     adapter.mockResolvedValue({ status: "completed", provider: "openai_responses", runtime: "openai_responses", model: "gpt-6-luna",

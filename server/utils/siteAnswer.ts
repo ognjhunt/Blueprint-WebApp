@@ -34,7 +34,7 @@ import { isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief"
 import { multiStepEvidence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasurements";
 import type { PublicRobotFit } from "./websitePreparationStatus";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { teamJobAccess } from "./teamJobAccess";
 import { jobIsShared } from "./jobSharedListing";
 import { hasCurrentRecordingConsent } from "./recordingConsent";

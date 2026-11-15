@@ -5,7 +5,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { signedCaptureLifecycleRequest } from "./captureLifecycleForwarding";
 import { logger } from "../logger";
-import { forgetPracticeRunVideos } from "./screeningPracticeRunVideos";
+import { forgetPracticeRunVideos } from "./websiteCaptureWithdrawalPracticeRunVideos";
 import { forgetWebsiteScenePreviews } from "./websiteScenePreview";
 
 /** The explicit confirmation the signed owner link must send to withdraw. */

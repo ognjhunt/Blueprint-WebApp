@@ -33,7 +33,6 @@ export const HOW_STEPS = [
   { key: "video", title: "Your video", line: "One job that repeats, filmed on any phone." },
   { key: "packet", title: "Your job packet", line: "Your sentence for the job, a first look on paper, a simulation of your site, and what counts as done." },
   { key: "companies", title: "Deployment companies", line: "We share your job, with its video, with deployment companies we approve. We approve each company by hand. They answer, and you choose which to meet." },
-  { key: "trial", title: "Early trial", line: "Sometimes we also try openly available robot software in the simulation. It is a trial, not a prediction of any company's robot." },
 ] as const;
 
 /** What used to be the "Jobs we support" page, in one line. */

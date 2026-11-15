@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
-import { finishedScreening, outcomePublication, screeningFixture, selectionFixture } from "./fixtures/beta-policy-screening";
+import { screeningFixture } from "./fixtures/beta-policy-screening";
 import { buildTaskTargetChoiceAnswer, taskTargetSelection } from '../utils/websiteTaskTargetChoice';
 
 const captures = vi.hoisted(() => ({ received: true as boolean | null }));
@@ -71,61 +71,23 @@ function rejectSelection(jobId: string, contextDigest = `sha256:${'c'.repeat(64)
 const review = { disposition: "options_identified" as const, summary: "A fixed arm can do the scoped transfer.", nextAction: "Blueprint is checking delivery for the approach that worked." };
 
 describe("job workflow authority and durable decisions", () => {
-  it("shows diagnostic screening on a proposed task and drops it when the object is rejected", async () => {
-    const { publication, job, brief, intake, launch } = screeningFixture(true);
+  it("shows no early trial run to the site or to staff, even with its outcome stored", async () => {
+    const { publication, job, brief, intake, launch } = screeningFixture();
     state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
-    const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
-    await ingestBetaPolicyScreening(publication);
+    // A campaign record as an earlier release stored it, bound to this job.
+    state.docs.set(`taskEvaluationPolicyRuns/${publication.campaign_id}`, { run_id: publication.campaign_id,
+      run_kind: "beta_policy_screening", state: "completed", screening_outcome: "estimate", result_record_id: "result-one",
+      job_evidence_binding: { job_id: "job-one" }, website_request_id: "job-one" });
     const view = await api(`/owner/${token("job-one")}`);
     expect(view.status).toBe(200);
-    expect(view.body.briefAgreed).toBe(false);
-    expect(view.body.managedEvidence?.[0]).toMatchObject({ current: true, state: "queued", resultDigest: null });
-    expect(view.body.managedEvidence?.[0].screening?.candidates).toHaveLength(36);
+    expect(view.body.managedEvidence).toEqual([]);
+    expect(view.body).not.toHaveProperty("candidateReadiness");
     expect(view.body).not.toHaveProperty("proposals");
-    rejectSelection('job-one', job.website_scene_sponsorship.task_context_digest);
-    const rejected = await api(`/owner/${token('job-one')}`);
-    expect(rejected.status).toBe(200);
-    expect(rejected.body.managedEvidence?.[0]).toMatchObject({current: false, state: 'queued'});
-  });
-
-  it("shows the rule's choice to the site and staff, with registry matches for staff only", async () => {
-    const { publication, job, brief, intake, launch } = screeningFixture();
-    state.docs.set(launch.path, launch.record);
-    state.docs.set("inboundRequests/job-one", job);
-    state.docs.set("siteTaskBriefs/job-one", brief);
-    state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
-    const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
-    const finished = finishedScreening(publication, 1);
-    await ingestBetaPolicyScreening(finished);
-    const run = state.docs.get(`taskEvaluationPolicyRuns/${finished.campaign_id}`)!;
-    state.docs.set(`taskEvaluationPolicyRuns/${finished.campaign_id}`, { ...run, candidate_selection: {
-      record: selectionFixture(finished), registry_teams: [{ id: "jacobi", name: "Jacobi Robotics" }] } });
-    const view = await api(`/owner/${token("job-one")}`);
-    expect(view.body.managedEvidence?.[0].screening?.selection?.chosen).toMatchObject({ candidateId: "candidate-0",
-      deploymentCompanies: ["Jacobi Robotics", "Delta Technology"], registryTeams: [] });
     const staff = await api("/admin/job-one", "GET", undefined, "ops-token");
-    expect(staff.body.managedEvidence?.[0].screening?.selection?.chosen?.registryTeams).toEqual([{ id: "jacobi", name: "Jacobi Robotics" }]);
-  });
-
-  it("gives the site its run's outcome without the operator's instruction or the shared budget (F-03)", async () => {
-    const { publication, job, brief, intake, launch } = screeningFixture();
-    state.docs.set(launch.path, launch.record);
-    state.docs.set("inboundRequests/job-one", job);
-    state.docs.set("siteTaskBriefs/job-one", brief);
-    state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
-    const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
-    await ingestBetaPolicyScreening(outcomePublication(publication, "held_budget"));
-    const site = (await api(`/owner/${token("job-one")}`)).body.managedEvidence![0];
-    expect(site).toMatchObject({ state: "held", outcome: "held_budget", nextAction: "Nothing is needed from you. Each row lists why it stopped." });
-    expect(site).not.toHaveProperty("opsNextAction");
-    expect(site.screening).not.toHaveProperty("budget");
-    expect(JSON.stringify(site)).not.toMatch(/Owner approval|rerun|limitUsd|UpperBoundUsd|reservedUsd|\$/);
-    const staff = (await api("/admin/job-one", "GET", undefined, "ops-token")).body.managedEvidence![0];
-    expect(staff.opsNextAction).toMatch(/^Held: testing reached a limit on our side/);
-    expect(staff.screening?.budget).toMatchObject({ limitUsd: "15.00", spentUpperBoundUsd: "4" });
+    expect(staff.body.managedEvidence).toEqual([]);
   });
 
   it('returns the job to Blueprint and its saved video when the object selection is rejected', async () => {

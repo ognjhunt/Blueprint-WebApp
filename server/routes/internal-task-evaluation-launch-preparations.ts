@@ -3,7 +3,7 @@ import { Router, type Request, type Response } from "express";
 import {
   readTaskEvaluationLaunchPreparationStatus,
   submitTaskEvaluationLaunchPreparation,
-} from "./admin-task-evaluation-launches";
+} from "../utils/taskEvaluationLaunchSubmission";
 import {
   createTaskEvaluationLaunchSubmissionRateLimiter,
   verifyTaskEvaluationLaunchSubmissionRequest,

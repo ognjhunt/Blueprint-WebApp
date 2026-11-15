@@ -50,6 +50,7 @@ import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { buildTaskLifecycleNotification, paperAnswerForEnding, waitingAnswerNoticeFields, workspaceTaskUrl } from "./taskLifecycleNotifications";
 import { earlyTaskHoldOf } from "./taskPreparationOutcome";
 import { resultOutranksWindowEnding } from "./taskStatusProjection";
+import { retainedTrialResultOutranksEnding } from "./websiteJobWindowRetainedTrial";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isWebsiteJobWindowEndedNoticeKey, recordedWebsiteJobWindowEnding, sealWebsiteJobWindowEnding,
   websiteJobWindowEndedEventId, websiteJobWindowEndedNoticeKey, WEBSITE_JOB_WINDOW_ENDING_FIELD,
@@ -66,7 +67,7 @@ import { isWebsiteJobNoGrantEndedNoticeKey, newWebsiteJobNoGrantClock, recordedW
   sealWebsiteJobNoGrantEnding, websiteJobNoGrantClock, websiteJobNoGrantEndedNoticeKey, WEBSITE_JOB_NO_GRANT_CLOCK_FIELD,
   WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, WEBSITE_JOB_NO_GRANT_ENDING_FIELD, WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD,
   type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { largeVideoIngestBlock } from "./websiteLargeVideoBlock";
 import { newWebsiteLargeVideoAsk, websiteLargeVideoAsk, websiteLargeVideoAskEventId, websiteLargeVideoAskNoticeKey,
   WEBSITE_LARGE_VIDEO_ASK_FIELD, type WebsiteLargeVideoAsk } from "./websiteJobWindowEnding";
@@ -151,10 +152,12 @@ function recordedForWindow(record: Record<string, any> | undefined, windowEndedA
 async function storedOutcome(requestId: string, record: Record<string, any>, pastLiveGrace = false): Promise<JobWindowSweepSkip | null> {
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
-    import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+    import("./websiteSceneProgression"), import("./sceneScreening")]);
   const sceneProgression = await readWebsiteSceneProgression(requestId, captureId);
   const screening = await loadSceneScreening(requestId);
   if (resultOutranksWindowEnding({ screening, sceneProgression }, { pastLiveGrace })) return "result_recorded";
+  // Protects old jobs from a late ending; not a status (`websiteJobWindowRetainedTrial`).
+  if (await retainedTrialResultOutranksEnding(requestId, captureId)) return "result_recorded";
   // The Pipeline's own terminal outcome for the scene (C-04) has its own one email.
   if (sceneProgression?.sceneOutcome?.terminal) return "outcome_told";
   const status = (await db!.collection(SESSIONS).doc(captureId).get()).data()?.website_preparation?.status;
@@ -619,10 +622,12 @@ export async function websiteJobWindowEndingShown(requestId: string, idempotency
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
-    import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+    import("./websiteSceneProgression"), import("./sceneScreening")]);
   // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
     sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
+  // Protects old jobs from a late ending; not a status (`websiteJobWindowRetainedTrial`).
+  if (await retainedTrialResultOutranksEnding(requestId, captureId)) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
   return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))
@@ -646,10 +651,12 @@ export async function websiteJobNoGrantEndingShown(requestId: string, idempotenc
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
-    import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+    import("./websiteSceneProgression"), import("./sceneScreening")]);
   // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
     sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
+  // Protects old jobs from a late ending; not a status (`websiteJobWindowRetainedTrial`).
+  if (await retainedTrialResultOutranksEnding(requestId, captureId)) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
   return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))

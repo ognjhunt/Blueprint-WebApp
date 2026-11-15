@@ -20,7 +20,7 @@ import { bundleDigest } from "../utils/siteCaptureBundle";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import continuationVector from "./fixtures/website-continuation-vector.json";
 import type { BundleStorage, BundleObjectInfo } from "../utils/siteCaptureBundleStorage";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { crossRuntimeDigest, crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
@@ -98,7 +98,7 @@ it.each(["missing", "earlier_recording"])("allows a complete update from an old 
   expect(sharedFakeFirestoreState.docs.get("inboundRequests/req1")).toEqual(before);
 });
 
-it("screens a verified supplementary scene and keeps changed or withdrawn capture evidence historical", async () => {
+it("binds a scene-stage hold to a verified supplementary scene, and refuses it once the capture is withdrawn", async () => {
   const captureId = child();
   const captureBinding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
   const brief = continuationVector.brief as any;
@@ -123,17 +123,20 @@ it("screens a verified supplementary scene and keeps changed or withdrawn captur
   sharedFakeFirestoreState.docs.set(fixture.launch.path, fixture.launch.record);
   sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-one", { ...fixture.intake, website_request_id: "req1",
     source_session_id: captureId, request, request_digest: requestDigest, receipt, pipeline_status: status });
-  const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
+  const { ingestBetaPolicyScreeningHold, parseBetaPolicyScreeningHold } = await import("../utils/betaPolicyScreeningHold");
   const { loadManagedJobEvidence } = await import("../utils/jobManagedEvaluation");
-  expect((await ingestBetaPolicyScreening(publication)).status).toBe("created");
-  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0]).toMatchObject({ current: true, state: "queued" });
-  const media = infos.get(`scenes/site-req1/captures/${captureId}/raw/walkthrough.mov`)!;
-  media.generation = "999";
-  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0].current).toBe(false);
-  media.generation = "123";
+  const sealHold = (revision: number) => {
+    const value = { schema_version: "beta_policy_screening_hold.v1",
+      hold_id: `hold-${createHash("sha256").update(publication.source.scene_intent_id).digest("hex").slice(0, 32)}`,
+      site_id: "site-req1", source: publication.source, status: "held", reason_code: "robot_free_probe_failed",
+      detail_code: "not_passed", revision, generated_at: "2026-11-03T18:00:00+00:00" };
+    return parseBetaPolicyScreeningHold({ ...value, hold_digest: crossRuntimeArtifactDigest(value, "hold_digest") })!;
+  };
+  expect((await ingestBetaPolicyScreeningHold(sealHold(1))).status).toBe("created");
+  // A hold is never listed as a result.
+  expect(await loadManagedJobEvidence("req1", scientificBriefDigest(brief))).toEqual([]);
   (sharedFakeFirestoreState.docs.get(`captureUploadSessions/${captureId}`) as any).capture_access = { future_processing_allowed: false };
-  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0].current).toBe(false);
-  await expect(ingestBetaPolicyScreening(publication)).rejects.toThrow("job_capture_processing_not_authorized");
+  await expect(ingestBetaPolicyScreeningHold(sealHold(2))).rejects.toThrow("job_capture_processing_not_authorized");
 });
 it("serves verified supplementary context through the controller and projects current late withdrawal", async () => {
   const captureId = child();

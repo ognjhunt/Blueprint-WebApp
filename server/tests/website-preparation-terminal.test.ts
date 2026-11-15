@@ -27,7 +27,8 @@ vi.mock("../utils/websiteCaptureOwnerTransport", () => ({ withWebsiteOwnerDeps: 
 vi.mock("../utils/websiteCaptureOwnerObservation", () => ({ observeWebsiteCaptureOwner: async () => runtime.observation }));
 
 const { buildBrowserDelivery } = await import("../utils/websiteCaptureDelivery");
-const { projectWebsiteTaskContext, projectWebsiteCaptureRights } = await import("../utils/websiteTaskContext");
+const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+const { projectWebsiteCaptureRights } = await import("../utils/websiteCaptureRights");
 const { crossRuntimeArtifactDigest, crossRuntimeDigest } = await import("../utils/crossRuntimeCanonical");
 const status = await import("../utils/websitePreparationStatus");
 const { WEBSITE_PREPARATION_WATCH_FIELD, WEBSITE_PREPARATION_WATCH_DUE_FIELD } = await import("../utils/websitePreparationWatch");

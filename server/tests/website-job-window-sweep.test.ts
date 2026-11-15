@@ -31,7 +31,7 @@ vi.mock("../utils/field-encryption", () => ({
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 
-import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
+import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT } from "../utils/taskPreparationOutcome";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_EPOCH, WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_ISO,
@@ -89,9 +89,23 @@ const sealedOutcome = (kind: string, terminal: boolean, reasonCode: string) => {
     kind, terminal, reason_category: "blueprint_fault", reason_code: reasonCode, decided_at_epoch: AFTER - 60 };
   return { ...value, outcome_digest: crossRuntimeDigest(value) };
 };
-const screeningRun = (outcome: string) => docs.set("taskEvaluationPolicyRuns/campaign-one", { run_kind: "beta_policy_screening",
+/** A campaign record of the retired early trial, as an earlier release stored it. */
+const storedCampaign = (outcome: string) => docs.set("taskEvaluationPolicyRuns/campaign-one", { run_kind: "beta_policy_screening",
   team_namespace: "blueprint-operations", state: "completed", screening_outcome: outcome, screening_execution_observed: true,
   source_scene_intent_id: "scene-one", created_at_iso: "2026-11-06T00:00:00Z" });
+/** A blocked scene-stage hold the Pipeline sent for the scene (`betaPolicyScreeningHold`). */
+const sceneHoldRun = (outcome: string) => docs.set("taskEvaluationPolicyRuns/hold-one", { run_kind: "beta_policy_screening_hold",
+  team_namespace: "blueprint-operations", state: "blocked", screening_outcome: outcome, hold_reason_code: "robot_free_probe_failed",
+  source_scene_intent_id: "scene-one", created_at_iso: "2026-11-06T00:00:00Z" });
+/** The company simulation package the Pipeline published for the job's capture: its simulation is ready. */
+const publishSimulation = () => {
+  const value = { schema_version: "website_company_simulation.v1", capture_id: "walkthrough-job-one",
+    simulation_revision: screeningSha("1"), state: "ready", format: "zip_usd_scene_object_success_rule", content_type: "application/zip",
+    digest: screeningSha("2"), size_bytes: 1024, files: ["scene.usda"], permission_basis: "site_sharing_statement",
+    statement_version: "2026-11-12.v4", updated_at_epoch: 1_800_000_000 };
+  docs.set("captureUploadSessions/walkthrough-job-one", { company_simulation: { ...value,
+    simulation_digest: crossRuntimeArtifactDigest(value, "simulation_digest") } });
+};
 /** What a job page shows, from the same reader and projection the two job pages use. */
 const page = async (extra: Record<string, unknown> = {}) => projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null,
   hasStoredCapture: true, jobWorkWindow: await websiteJobWorkWindow(job()), ...extra } as never));
@@ -171,7 +185,7 @@ describe("a job past its window with no outcome", () => {
       pipeline_status: { status: "running", phase: "configuration", blockers: [], attempts: [] } })],
     ["an intake waiting on an internal approval", () => seedIntake({ state: "accepted", pipeline_status: { status: "blocked", phase: "configuration",
       blockers: ["scene_intake_spend_cap_exhausted"], outcome: { ...sealedOutcome("awaiting_spend_approval", false, "spend_cap_reached"), } } })],
-    ["a built scene no evaluation finished on", () => { seedIntake(); screeningRun("setup_repair"); }],
+    ["a built scene no evaluation finished on", () => { seedIntake(); storedCampaign("setup_repair"); }],
     ["preparation that never moved", () => docs.set("captureUploadSessions/walkthrough-job-one", { website_preparation: { status: { state: "preparing" } } })],
     ["a preparation status the Pipeline ended without telling the site", () => docs.set("captureUploadSessions/walkthrough-job-one",
       { website_preparation: { status: { state: "authority_ended" } } })],
@@ -192,8 +206,11 @@ describe("a job the sweep must leave alone", () => {
       capture_withdrawal: { state: "deletion_confirmed", requestedAtIso: "2026-11-09T00:00:00Z" } })],
     ["in the middle of a withdrawal", () => Object.assign(job(), { consent_revoked: true,
       capture_withdrawal: { state: "uploads_stopped_cleanup_pending" }, captureWithdrawalPending: true })],
-    ["estimated", () => { seedIntake(); screeningRun("estimate"); }],
-    ["held by its evaluation", () => { seedIntake(); screeningRun("held_capability"); }],
+    ["with its simulation ready", () => { seedIntake(); publishSimulation(); }],
+    ["held by a scene-stage hold", () => { seedIntake(); sceneHoldRun("held_scene_check"); }],
+    // Protects old jobs from a late ending: a stored early-trial campaign that reached a result, with no package.
+    ["with an old early-trial estimate", () => { seedIntake(); storedCampaign("estimate"); }],
+    ["with an old early-trial hold", () => { seedIntake(); storedCampaign("held_budget"); }],
     ["told the Pipeline's own ending", () => seedIntake({ state: "blocked", pipeline_status: { status: "blocked", phase: "authority",
       blockers: ["scene_intake_authority_expired"], outcome: sealedOutcome("setup_repair", true, "authority_expired") } })],
     ["told its preparation ended for good", () => docs.set("captureUploadSessions/walkthrough-job-one",
@@ -254,14 +271,24 @@ describe("the ending and what comes after it", () => {
     expect((await page({ consentRevoked: true })).headline).toMatch(/consent was withdrawn/);
   });
 
-  it("cancels the email when an estimate arrived first, and the page shows the estimate", async () => {
+  it("cancels a queued ending email when an old early-trial estimate is stored for the scene", async () => {
     seedJob();
     await sweep();
     seedIntake();
-    screeningRun("estimate");
+    storedCampaign("estimate");
     await deliverOutbox();
     expect(outbox().find(([key]) => key === NOTICE)![1].status).toBe("cancelled");
-    expect((await page({ sceneProgression: { state: "evaluated" } })).headline).toMatch(/^Your simulation estimate is ready/);
+  });
+
+  it("cancels the email when a scene-stage hold arrived first, and the page shows the hold", async () => {
+    seedJob();
+    await sweep();
+    seedIntake();
+    sceneHoldRun("held_scene_check");
+    await deliverOutbox();
+    expect(outbox().find(([key]) => key === NOTICE)![1].status).toBe("cancelled");
+    expect((await page({ sceneProgression: { state: "held", heldReason: "held_scene_check" } })).headline)
+      .toMatch(/^The simulated scene failed the check we run before testing robots/);
   });
 
   it("is the job's one ending: a Pipeline ending read afterwards sends no second email and does not change the page", async () => {

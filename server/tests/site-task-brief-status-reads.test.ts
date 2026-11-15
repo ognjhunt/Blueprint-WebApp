@@ -20,7 +20,7 @@ const preparation = vi.hoisted(() => ({
 vi.mock("../utils/websitePreparationStatus", async (orig) => ({ ...(await orig() as object),
   loadCurrentWebsitePreparationStatus: preparation.read, loadCurrentTaskTargetChoiceQuestion: preparation.question }));
 // The optional parts, each replaceable by a read that never answers; the company read by a slow one.
-const slow = vi.hoisted(() => ({ advisory: false, firstLook: false, evidence: false, companyDelayMs: 0,
+const slow = vi.hoisted(() => ({ advisory: false, firstLook: false, outlook: false, companyDelayMs: 0,
   events: [] as string[], advisoryHook: null as null | (() => void) }));
 const never = () => new Promise<never>(() => undefined);
 vi.mock("../utils/siteAssessmentPublic", async (orig) => {
@@ -42,6 +42,7 @@ vi.mock("../utils/teamJobAccess", async (orig) => {
 vi.mock("../utils/jobOutlook", async (orig) => {
   const actual = await orig() as Record<string, (...args: unknown[]) => Promise<unknown>>;
   return { ...actual, loadJobOutlook: async (...args: unknown[]) => {
+    if (slow.outlook) return never();
     const value = await actual.loadJobOutlook(...args);
     slow.events.push("outlook:done");
     return value;
@@ -50,10 +51,6 @@ vi.mock("../utils/jobOutlook", async (orig) => {
 vi.mock("../utils/firstLookTable", async (orig) => {
   const actual = await orig() as Record<string, (...args: unknown[]) => unknown>;
   return { ...actual, loadFirstLookWords: (...args: unknown[]) => slow.firstLook ? never() : actual.loadFirstLookWords(...args) };
-});
-vi.mock("../utils/siteManagedEvidence", async (orig) => {
-  const actual = await orig() as Record<string, (...args: unknown[]) => unknown>;
-  return { ...actual, readSiteManagedEvidence: (...args: unknown[]) => slow.evidence ? never() : actual.readSiteManagedEvidence(...args) };
 });
 const storage = vi.hoisted(() => ({ objects: new Map<string, { generation: string; size: string; crc32c: string; bytes?: Buffer }>() }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -94,7 +91,7 @@ const selector = { request_id: requestId, scene_id: sceneId, capture_id: capture
 
 beforeEach(async () => {
   vi.clearAllMocks(); storage.objects.clear(); sharedFakeFirestoreState.docs.clear();
-  Object.assign(slow, { advisory: false, firstLook: false, evidence: false, companyDelayMs: 0, events: [], advisoryHook: null });
+  Object.assign(slow, { advisory: false, firstLook: false, outlook: false, companyDelayMs: 0, events: [], advisoryHook: null });
   statusRouteTiming.optionalDeadlineMs = STATUS_OPTIONAL_DEADLINE_MS;
   vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
   const app = express(); app.use(express.json()); app.use("/api/site-task-brief", briefRouter);
@@ -168,7 +165,7 @@ describe("one status read", () => {
 
   it("says when the outlook missed the deadline", async () => {
     statusRouteTiming.optionalDeadlineMs = 300;
-    slow.evidence = true;
+    slow.outlook = true;
     const { code, body } = await status();
     expect(code).toBe(200);
     expect(body.outlook).toBeNull();
@@ -189,7 +186,7 @@ describe("one status read", () => {
   });
 
   it("goes out by the deadline with the status, the link and the answer, and the optional parts null", async () => {
-    Object.assign(slow, { advisory: true, firstLook: true, evidence: true });
+    Object.assign(slow, { advisory: true, firstLook: true, outlook: true });
     const started = Date.now();
     const { code, body } = await status();
     const took = Date.now() - started;

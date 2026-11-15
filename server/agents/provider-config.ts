@@ -28,18 +28,8 @@ const STRUCTURED_PROVIDER_VALUES = new Set<StructuredProvider>([
 ]);
 
 const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
-  waitlist_triage: "WAITLIST_AUTOMATION_MODEL",
-  inbound_qualification: "INBOUND_QUALIFICATION_MODEL",
-  post_signup_scheduling: "POST_SIGNUP_MODEL",
-  support_triage: "SUPPORT_TRIAGE_MODEL",
-  preview_diagnosis: "PREVIEW_DIAGNOSIS_MODEL",
-  operator_thread: "OPERATOR_THREAD_MODEL",
-  external_harness_thread: "EXTERNAL_HARNESS_MODEL",
   site_video_evidence: "SITE_VIDEO_EVIDENCE_MODEL",
-  robot_capability_extraction: "ROBOT_CAPABILITY_EXTRACTION_MODEL",
   robot_fit_ranking: "ROBOT_FIT_RANKING_MODEL",
-  capture_dispatch: "CAPTURE_DISPATCH_MODEL",
-  outbound_outreach: "OUTBOUND_OUTREACH_MODEL",
   site_task_follow_up: "SITE_TASK_FOLLOW_UP_MODEL",
 };
 
@@ -154,7 +144,6 @@ const REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"] as c
 export type OpenAiReasoningEffort = (typeof REASONING_EFFORTS)[number];
 
 const TASK_REASONING_EFFORT: Partial<Record<AgentTaskKind, OpenAiReasoningEffort>> = {
-  inbound_qualification: "max",
   // The follow-up picker chooses up to three ids from a short list: the small
   // tier at low effort, as it ran before it went through the runtime.
   site_task_follow_up: "low",
@@ -252,7 +241,7 @@ export function getAgentMaxInputTokens(): number {
  * list, and so does the runtime's rolling spend stop.
  */
 export const ACCOUNTING_ONLY_TASK_KINDS: ReadonlySet<AgentTaskKind> = new Set<AgentTaskKind>([
-  "site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification",
+  "capture_coverage", "capture_video_privacy",
 ]);
 
 /**
@@ -491,11 +480,6 @@ export function getLaneProviderEnvKey(
  * says so rather than pretending the default held.
  */
 const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> = {
-  outbound_outreach: "openai_responses",
-  waitlist_triage: "openai_responses",
-  inbound_qualification: "openai_responses",
-  support_triage: "openai_responses",
-  post_signup_scheduling: "openai_responses",
   // Long context (every research note at once) and careful quoting.
   robot_fit_ranking: "openai_responses",
   // A site's own task text, at the small tier (gpt-6-luna by default).
@@ -507,12 +491,9 @@ const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> 
  * here. The resolution test checks this against the task registry.
  */
 export const PINNED_TASK_PROVIDERS: Partial<Record<AgentTaskKind, AgentProvider>> = {
-  adp_run_operator: "openai_agents_api",
-  external_harness_thread: "acp_harness",
   site_video_evidence: "gemini_video",
   capture_video_privacy: "gemini_video",
   capture_coverage: "gemini_video",
-  site_assessment: "openai_responses",
 };
 
 /** The lane's own default provider, if it has one (the lanes that write to people, and the ranking). */

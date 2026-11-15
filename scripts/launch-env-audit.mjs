@@ -181,20 +181,6 @@ const checks = [
     required: ["OPENAI_API_KEY (only while OPENAI_BASE_URL is unset or https://api.openai.com/v1) | ANTHROPIC_API_KEY (only while ANTHROPIC_BASE_URL is unset or https://api.anthropic.com) | ACP_HARNESS_URL"],
   },
   {
-    label: "Stripe checkout + payout wiring",
-    ok:
-      Boolean(envValue("STRIPE_SECRET_KEY"))
-      && Boolean(envValue("STRIPE_CONNECT_ACCOUNT_ID"))
-      && Boolean(envValue("STRIPE_WEBHOOK_SECRET"))
-      && Boolean(envValue("CHECKOUT_ALLOWED_ORIGINS")),
-    required: [
-      "STRIPE_SECRET_KEY",
-      "STRIPE_CONNECT_ACCOUNT_ID",
-      "STRIPE_WEBHOOK_SECRET",
-      "CHECKOUT_ALLOWED_ORIGINS",
-    ],
-  },
-  {
     // Free beta: autonomous lanes default OFF (=0) and are switched on one at a
     // time by the founder. The audit only requires an explicit decision, so an
     // unset lane cannot be silently enabled by BLUEPRINT_ALL_AUTOMATION_ENABLED.

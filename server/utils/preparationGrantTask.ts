@@ -1,6 +1,7 @@
 import { PLACEHOLDER_TASK_SUMMARY, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
-import { confirmationParentContextDigests, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { confirmationParentContextDigests, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 /** Records which retained preparation grant was issued before the site named its job. */
 export const UNNAMED_TASK_GRANT_FIELD = "website_scene_sponsorship_unnamed_task";

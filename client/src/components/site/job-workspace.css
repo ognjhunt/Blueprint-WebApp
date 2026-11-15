@@ -18,7 +18,6 @@
 .job-workspace .ms-check-row input { flex: 0 0 auto; width: 17px; min-height: 17px; margin-top: 3px; }
 /* A table's cells shrink to their longest word; `anywhere` above would let a word such as "Chosen" break mid-word. */
 .job-workspace table { overflow-wrap: normal; }
-.job-simulation > summary .ms-field-hint { margin-top: 4px; }
 /* The site's answer, at the top of its job page. */
 .site-answer { margin: 0 0 28px; padding-bottom: 8px; color: var(--ms-ink, #19241e); overflow-wrap: break-word; }
 .site-answer h2 { margin: 0 0 2px; font-size: 12px; font-weight: 650; letter-spacing: .6px; text-transform: uppercase; color: var(--ms-muted, #62645d); }
@@ -56,7 +55,6 @@
 .site-proof-mark { font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .5px; color: var(--ms-paper, #f6f5ef); background: var(--ms-green, #203d2e); padding: 1px 8px; }
 .site-answer-proof .site-proof-notes, .site-answer-proof .site-proof-sources { margin: 4px 0 10px; }
 .site-answer-proof .site-proof-for-job { margin: 12px 0 0; font-weight: 600; }
-.site-answer-standalone { margin: 0 0 20px; padding: 0; }
 .site-answer-next .site-answer-consent { margin: 10px 0 0; }
 
 /* The answer said once and short (2026-11-11): chips, reasons, notices, one action, then closed folds. */
@@ -103,7 +101,6 @@
 .site-answer .site-answer-proof { border: 0; background: none; padding: 0; margin: 22px 0 0; }
 .site-answer .site-answer-proof > h3 { margin: 0 0 4px; font-size: 17px; font-weight: 600; }
 .site-answer .site-answer-proof .site-proof-headline { font-size: 15px; font-weight: 500; }
-.site-answer-standalone .site-answer-proof { border: 1px solid var(--ms-rule, #babdb3); background: var(--ms-paper, #f6f5ef); padding: 18px; }
 /* Every optional control, together, in one quiet list under the answer. */
 .job-more { margin: 28px 0 0; }
 /* Saved, with no answer yet: the same controls in their older places, without the list's rules. */
@@ -120,5 +117,3 @@
 /* "How to film ›": a quiet link that opens the how-to in place. */
 .bare-how-to > summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; list-style: none; text-decoration: underline; text-underline-offset: 4px; }
 .bare-how-to > summary::-webkit-details-marker { display: none; }
-/* An older job's standalone "Tested in simulation": the bare rhythm, label → line 8 px, lines 8 px apart. */
-.bare-screen.site-proof-standalone > * + * { margin-top: var(--bare-s2, 8px); }

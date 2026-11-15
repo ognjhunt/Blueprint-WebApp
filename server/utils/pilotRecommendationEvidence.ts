@@ -53,8 +53,7 @@
  * or safety; the physical pilot measures the real result.
  */
 import { humanDecisionDigest } from "./human-reply-admission";
-import { isSiteEvaluation, type EvalRunRecord } from "./agentRunRecord";
-import type { EvalRunResult } from "./agentRunResults";
+import { isSiteEvaluation, type EvalRunRecord, type EvalRunResult } from "./agentRunRecord";
 import { CONFIDENCE_POLICY_VERSION, SUCCESS_RATE_BAND_CLAIM, successRateBand, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
 import { frozenSiteTaskQualification, episodeAccountingFor, MINIMUM_SCORED_EVIDENCE_EPISODES, scoringRefusal, SITE_TASK_SIMULATION_CLAIM_CEILING,
   type EpisodeAccounting, type ScoringRefusal, type SiteTaskQualification } from "./runResultScoring";

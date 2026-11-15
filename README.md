@@ -14,21 +14,10 @@ Blueprint is a three-repo product system:
 
 The site pays nothing. Deployment companies will pay; how is not decided, and no price is stated anywhere. Blueprint pays for preparation and the early trial inside a fixed budget for each site. No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press for each company it wants to meet; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. Each introduction is recorded as a billable event. Nothing is charged and no price is stated until the owner sets one. After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job. The website change for this is in build. The only hard stops are privacy, rights and money (see [`AGENTS.md`](./AGENTS.md)). A simulation result is a bounded estimate and never certifies physical performance or safety.
 
-## Blueprint OS Quick Start
-
-Use this repo as the definitional operating-system layer for WebApp, onboarding, and policy drafts:
-
-- New humans start at [`docs/onboarding/human-new-hire-start-here.md`](./docs/onboarding/human-new-hire-start-here.md), then their role scorecard and relevant policy drafts.
-- AI agents start at [`docs/onboarding/ai-agent-onboarding-runbook.md`](./docs/onboarding/ai-agent-onboarding-runbook.md), then the nearest nested `AGENTS.md`.
-- Managers start at [`docs/onboarding/manager-onboarding-checklist.md`](./docs/onboarding/manager-onboarding-checklist.md).
-- Notion mirrors the same journey for review and visibility through `Blueprint Hub` -> `Company Handbook & Onboarding`.
-
-Authority stays split deliberately: repo docs define doctrine and policy drafts, Notion keeps the workspace readable, and live systems own their specific facts. Legal, HR, payroll, benefits, confidentiality/IP, and employment-administration material remains draft until counsel/PEO-reviewed systems or signed documents approve it.
-
 ## Current Stack
 
 - Frontend: React, Vite, TypeScript, Wouter, TanStack Query, Tailwind-style utility classes, Radix UI, lucide-react, Remotion surfaces.
-- Backend: Express, TypeScript, Firebase Admin, Firestore, Stripe, Redis when configured.
+- Backend: Express, TypeScript, Firebase Admin, Firestore, Redis when configured.
 - Runtime and ops: Render deployment, Notion as workspace/review surface, Resend/Gmail/Slack integrations where explicitly configured. The Paperclip autonomous org is retired (see [`AUTONOMOUS_ORG.md`](./AUTONOMOUS_ORG.md)).
 - AI/runtime lanes: OpenAI, Anthropic's own API, Google Gemini (video) and ACP-compatible paths modeled in repo code and env; Codex is the default implementation lane.
 
@@ -46,19 +35,6 @@ Before substantial changes, read these in order:
 6. [`docs/architecture/source-of-truth-map.md`](./docs/architecture/source-of-truth-map.md)
 7. [`docs/architecture/command-safety-matrix.md`](./docs/architecture/command-safety-matrix.md)
 8. [`docs/onboarding/ai-agent-onboarding-runbook.md`](./docs/onboarding/ai-agent-onboarding-runbook.md)
-9. [`docs/onboarding/human-new-hire-start-here.md`](./docs/onboarding/human-new-hire-start-here.md)
-
-Use [`graphify-out/GRAPH_REPORT.md`](./graphify-out/GRAPH_REPORT.md) as a structural aid, not as authority.
-
-## Company Handbook & Onboarding
-
-Start here for human and AI onboarding:
-
-- Human new hires: [`docs/onboarding/human-new-hire-start-here.md`](./docs/onboarding/human-new-hire-start-here.md)
-- AI agents: [`docs/onboarding/ai-agent-onboarding-runbook.md`](./docs/onboarding/ai-agent-onboarding-runbook.md)
-- Managers: [`docs/onboarding/manager-onboarding-checklist.md`](./docs/onboarding/manager-onboarding-checklist.md)
-
-The policy packet lives in [`docs/company/`](./docs/company/). Legal, HR, payroll, benefits, confidentiality/IP, and employment-administration documents are drafts until counsel/PEO review and signed/approved systems say otherwise.
 
 ## Repo Map
 
@@ -70,10 +46,7 @@ The policy packet lives in [`docs/company/`](./docs/company/). Legal, HR, payrol
 - `server/utils/`: business logic and provider utilities.
 - `server/agents/`: language-model task runtime and provider selection.
 - `scripts/`: local checks, smoke tests, deploy helpers.
-- `ops/paperclip/`: the retired Paperclip company package (stubs) and its host tooling.
-- `docs/company/`: employee handbook and policy packet drafts.
-- `docs/onboarding/`: onboarding paths.
-- `docs/archive/`: history. Not current.
+- `docs/onboarding/`: AI-agent onboarding.
 - `e2e/`: Playwright coverage.
 
 ## Common Commands
@@ -88,20 +61,12 @@ npm run test:e2e
 npm run smoke:launch:local
 ```
 
-Read [`docs/architecture/command-safety-matrix.md`](./docs/architecture/command-safety-matrix.md) before running scripts that can touch live email, provider APIs, Paperclip, Notion, Stripe, Firebase, Render, or production-like targets.
-
-The required architecture refresh is `npm run graphify:pilot:webapp-architecture -- --no-viz`.
-It automatically provisions and reuses the pinned Graphify environment for each checkout;
-fresh sessions need no manual install or environment variable. First use needs Python
-3.10+ with venv/pip and package-download access. See [Graphify setup](./scripts/graphify/README.md)
-for offline reuse, recovery and interpreter overrides.
+Read [`docs/architecture/command-safety-matrix.md`](./docs/architecture/command-safety-matrix.md) before running scripts that can touch live email, provider APIs, Paperclip, Notion, Firebase, Render, or production-like targets.
 
 ## Where Not To Look First
 
-- Do not start with `output/`, `ops/paperclip/reports/`, `.tmp/`, `dist/`, `coverage/`, or generated graph files when deciding current product truth.
-- `ops/paperclip/reports/` holds only files written at runtime and is ignored by git. The 949 reports that were once committed there (April to June 2026, mostly city-launch runs) were removed from the tree on 2026-11-10; `git show 2f9c773a5:ops/paperclip/reports/<path>` prints any of them. Older docs under `knowledge/`, `docs/` and `ops/paperclip/` still cite those paths as history.
-- Do not treat `ops/paperclip/external/` skill packs as architecture guidance.
-- Do not treat Hermes KB, old generated summaries, or graphify output as canonical.
+- Do not start with `output/`, `.tmp/`, `dist/`, `coverage/`, or generated graph files when deciding current product truth.
+- Do not treat Hermes KB or old generated summaries as canonical.
 - Do not start with archived docs or historical specs unless the task is explicitly historical.
 - Do not infer live readiness from static fixtures or demo flags.
 

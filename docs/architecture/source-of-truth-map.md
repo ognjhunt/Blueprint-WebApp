@@ -43,10 +43,9 @@ Do not claim live readiness from repo tests alone when the claim depends on a li
 
 ## Not authority
 
-- `docs/archive/` (history before 2026-11-12)
-- graphify output, `derived/`, `output/`, `coverage/`, `.tmp/`, `dist/`
+- git history (everything before 2026-11-12)
+- `output/`, `coverage/`, `.tmp/`, `dist/`
 - Hermes KB summaries under `knowledge/`
-- `ops/paperclip/` (the org is retired; see `AUTONOMOUS_ORG.md`) and `ops/paperclip/external/`
 - demo fixtures, sample listings, local-only flags
 - AI-authored summaries without matching code, artifact or runtime evidence
 

@@ -1,5 +1,4 @@
 /** The site's planning details and Blueprint's options review, separate from Pipeline-owned evaluation. */
-import { loadJobCandidateReadiness, omitPublishedCandidates } from "../utils/websiteCandidateReadiness";
 import { randomUUID } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
@@ -8,11 +7,12 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { logger } from "../logger";
 import { readWebsiteTargetScope } from '../utils/websiteSceneProgression';
-import { loadManagedJobEvidenceForWorkspace, type ManagedJobEvidenceSummary } from "../utils/jobManagedEvaluation";
+import { loadManagedJobEvidenceForWorkspace } from "../utils/jobManagedEvaluation";
+import type { ManagedJobEvidenceSummary } from "../utils/managedJobEvidenceSummary";
 import { assertSiteJob, managedEvidenceForSite } from "../utils/siteManagedEvidence";
 import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
 import { readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
@@ -57,15 +57,10 @@ async function readWorkflow(requestId: string, admin = false) {
   const selectionSession = (await db.collection('captureUploadSessions')
     .doc(record.active_capture_id || `walkthrough-${requestId}`).get()).data();
   const targetScope = await readWebsiteTargetScope(requestId, record.active_capture_id || `walkthrough-${requestId}`, selectionSession);
-  const [managed, preview] = await Promise.all([
-    briefValue ? loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : {managedEvidence: []},
-    selectionSession?.website_preparation ? loadJobCandidateReadiness(requestId, record.active_capture_id || `walkthrough-${requestId}`) : undefined,
-  ]);
+  const managed = briefValue ? await loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : {managedEvidence: []};
   return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, targetScope.superseded,
     targetScope.correctionsDigest), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
-    ...managed, ...(admin ? {} : { managedEvidence: managed.managedEvidence.map(managedEvidenceForSite) }),
-    ...(preview ? {candidateReadiness: omitPublishedCandidates(preview,
-      targetScope.superseded ? [] : managed.managedEvidence)} : {}) };
+    ...managed, ...(admin ? {} : { managedEvidence: managed.managedEvidence.map(managedEvidenceForSite) }) };
 }
 async function mutateWorkflow(requestId: string, actor: string, event: string,
   mutate: (state: StoredJobMarketplace, brief: Record<string, any> | null, now: string, objectSelectionDigest: string | null) => StoredJobMarketplace) {

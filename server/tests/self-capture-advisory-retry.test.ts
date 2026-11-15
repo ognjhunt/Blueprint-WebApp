@@ -3,7 +3,6 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const seams = vi.hoisted(() => ({ retry: vi.fn(), wake: vi.fn() }));
-vi.mock("../utils/siteAssessmentQueue", () => ({ retrySiteAssessment: seams.retry, tickSiteAssessments: seams.wake }));
 vi.mock("../logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
   dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,

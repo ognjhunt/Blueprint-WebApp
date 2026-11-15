@@ -27,8 +27,8 @@ for (const dependencyPort of [8080, 9199]) await new Promise<void>((resolve, rej
   const socket = net.connect(dependencyPort, '127.0.0.1'); socket.setTimeout(2000);
   socket.once('connect', () => { socket.destroy(); resolve(); }); socket.once('error', reject); socket.once('timeout', () => { socket.destroy(); reject(new Error('Local emulator unavailable')); });
 });
-const [{ default: express }, { createServer: createVite }, { default: react }, { default: theme }, { csrfProtection, csrfCookieHandler }, { default: intake }, { default: uploads }, { default: brief }] = await Promise.all([
-  import('express'), import('vite'), import('@vitejs/plugin-react'), import('@replit/vite-plugin-shadcn-theme-json'), import('../../server/middleware/csrf'), import('../../server/routes/inbound-request'), import('../../server/routes/self-capture-uploads'), import('../../server/routes/site-task-brief'),
+const [{ default: express }, { createServer: createVite }, { default: react }, { csrfProtection, csrfCookieHandler }, { default: intake }, { default: uploads }, { default: brief }] = await Promise.all([
+  import('express'), import('vite'), import('@vitejs/plugin-react'), import('../../server/middleware/csrf'), import('../../server/routes/inbound-request'), import('../../server/routes/self-capture-uploads'), import('../../server/routes/site-task-brief'),
 ]);
 const app = express();
 // Deployed server trusts its one ingress hop; this local harness trusts loopback proxies only.
@@ -47,7 +47,7 @@ const output = path.resolve('/workspace/reliability-program/emulator-ui'); await
 // Concurrent scoped runners share no Vite cache or default HMR listener.
 // Reuse this app's loopback server; source changes are tested by an explicit relaunch.
 const server = http.createServer(app);
-const vite = await createVite({ configFile: false, root: path.resolve('client'), envDir: path.join(output, 'no-env'), cacheDir: path.join(output, `vite-cache-${port}`), plugins: [react(), theme()], resolve: { alias: { '@': path.resolve('client/src') } }, server: { middlewareMode: true, hmr: { server }, watch: null, fs: { allow: [path.resolve('.'), path.resolve('node_modules')] } }, appType: 'spa' });
+const vite = await createVite({ configFile: false, root: path.resolve('client'), envDir: path.join(output, 'no-env'), cacheDir: path.join(output, `vite-cache-${port}`), plugins: [react()], resolve: { alias: { '@': path.resolve('client/src') } }, server: { middlewareMode: true, hmr: { server }, watch: null, fs: { allow: [path.resolve('.'), path.resolve('node_modules')] } }, appType: 'spa' });
 app.use(vite.middlewares);
 server.listen(port, '127.0.0.1', () => console.log(`Disposable reliability UI listening on http://127.0.0.1:${port}`));
 for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, async () => { server.closeAllConnections(); await vite.close(); server.close(() => process.exit(0)); });

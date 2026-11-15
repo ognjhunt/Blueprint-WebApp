@@ -10,8 +10,6 @@ import { LIVE_RUN_GRACE_SECONDS, jobOutlook, outlookHasAnswer, recordedEndingOf,
 import { OUTLOOK_HOLDS } from "../../client/src/lib/jobOutlook";
 import { projectSimulationProof, type SimulationProof } from "../../client/src/lib/simulationProof";
 import { preparingEvaluation, winnerEvaluation } from "../../client/tests/fixtures/siteAnswer";
-import { screeningReasonLabel } from "../../client/src/lib/screeningPlainLanguage";
-import { setupFlagSentence } from "../utils/screeningSetupFlagSentences";
 
 const READY = { state: "ready" as const, unsized: false, reason: null };
 const OTHER = { state: "cannot_assess" as const, unsized: false, reason: "Your job looks like another kind." };
@@ -50,7 +48,7 @@ const ENDINGS: Array<[string, Partial<JobOutlookInput>, string, string]> = [
 function* notEndings(): Generator<[string, JobOutlookInput]> {
   const preparations = [null, ...["preparing", "capacity_delayed", "awaiting_inputs", "failed_retryable", "unavailable", "handed_off",
     "never_seen_state", "", "FAILED_TERMINAL"].map(state => ({ state, geometryOnlyEnd: false }))];
-  const scenes = [null, ...["waiting", "in_progress", "testing", "evaluated", "completed", "made_up_scene", ""].map(state => ({ state }))];
+  const scenes = [null, ...["waiting", "in_progress", "ready", "completed", "made_up_scene", ""].map(state => ({ state }))];
   const proofs: Array<SimulationProof | null> = [null,
     proofOf({ state: "queued", outcome: null, screening: { candidates: [] } }),
     proofOf({ state: "running", outcome: null }),
@@ -74,7 +72,7 @@ describe("the job's outlook, from the rule", () => {
       expect(outlook.sentence, label).toBeTruthy();
       expect(outlookHasAnswer(outlook), label).toBe(phase !== "ended_by_site");
     }
-    expect(jobOutlook(base({ windowEnded: true })).sentence).toBe("The time for this job ran out before our early trial could run.");
+    expect(jobOutlook(base({ windowEnded: true })).sentence).toBe("The time for this job ran out.");
     expect(jobOutlook(base({ noGrantEnded: true })).sentence).toBe("We have not built a simulation for this job.");
     expect(jobOutlook(base({ scene: { state: "held" } })).sentence).toBe("Work on the simulation of your job is on hold.");
     expect(jobOutlook(base({ answer: OTHER, noGrantEnded: true })).sentence).toBe(OTHER.reason);
@@ -109,7 +107,7 @@ describe("the job's outlook, from the rule", () => {
   });
 
   it("keeps another kind of job working while a simulation may still be built, scene in progress included", () => {
-    for (const scene of ["in_progress", "evaluated", "waiting", "made_up"]) {
+    for (const scene of ["in_progress", "ready", "waiting", "made_up"]) {
       const outlook = jobOutlook(base({ answer: OTHER, preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: scene } }));
       expect(WORKING.has(outlook.phase), scene).toBe(true);
     }
@@ -125,7 +123,7 @@ describe("the job's outlook, from the rule", () => {
       ...["waiting", "in_progress", "completed", "made_up"].map(state => [`scene ${state}`,
         { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state } }] as [string, Partial<JobOutlookInput>]),
       ["a run queued with nothing entered", { proof: proofOf({ state: "queued", outcome: null, screening: { candidates: [] } }) }],
-      ["a test waiting on approval", { scene: { state: "testing", waiting: true } }]];
+      ["a ready simulation", { scene: { state: "ready" } }]];
     const failures: Array<[string, Partial<JobOutlookInput>]> = [["no read failed", {}], ["a read failed", { uncertain: true }],
       ["the preparation could not be read", { uncertain: true, preparation: null }], ["the results could not be read", { uncertain: true, proof: null }]];
     let combos = 0;
@@ -154,7 +152,7 @@ describe("the job's outlook, from the rule", () => {
     }
     const blocked = proofOf({ state: "blocked", outcome: null, screening: { candidates: [] } });
     expect(jobOutlook(base({ windowEnded: true, runStoppedByWindow: true, proof: blocked }))).toEqual({ phase: "no_test",
-      reason: "window_ended_during_test", sentence: "The time for this job ran out during our early trial." });
+      reason: "window_ended_during_test", sentence: "The time for this job ran out." });
     // A run that ended on its own, before or after the window passed, keeps its own line.
     expect(jobOutlook(base({ windowEnded: true, windowEndedAtEpoch: 1, proof: blocked })).reason).toBe("run_ended");
     expect(jobOutlook(base({ windowEnded: true, proof: proofOf({}) })).phase).toBe("result");
@@ -166,18 +164,18 @@ describe("the job's outlook, from the rule", () => {
     const now = 2_000_000_000;
     const past = { windowEnded: true, windowEndedAtEpoch: now - LIVE_RUN_GRACE_SECONDS - 1, nowEpoch: now };
     const stale: Array<[string, Partial<JobOutlookInput>]> = [
-      ["a stored scene that says testing", { scene: { state: "testing" } }],
-      ["a completed scene with a test accepted", { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "testing" } }],
+      ["a stored scene that says ready", { scene: { state: "ready" } }],
+      ["a handed-off scene whose simulation is ready", { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "ready" } }],
       ["a run record still saying running", { proof: proofOf({ state: "running", outcome: null }) }],
       ["a run queued with its plan", { proof: proofOf({ ...preparingEvaluation }) }],
       ...["preparing", "capacity_delayed", "awaiting_inputs", "failed_retryable", "handed_off", "never_seen"].map(state =>
         [`preparation ${state}`, { preparation: { state, geometryOnlyEnd: false } }] as [string, Partial<JobOutlookInput>]),
-      ...["waiting", "in_progress", "completed", "evaluated", "made_up"].map(state => [`scene ${state}`, { scene: { state } }] as [string, Partial<JobOutlookInput>]),
+      ...["waiting", "in_progress", "completed", "made_up"].map(state => [`scene ${state}`, { scene: { state } }] as [string, Partial<JobOutlookInput>]),
     ];
     for (const [label, patch] of stale) expect(jobOutlook(base({ ...patch, ...past })), label)
       .toMatchObject({ phase: "no_test", reason: "window_expired" });
     // The stored scene alone is never live, even inside the window.
-    expect(jobOutlook(base({ scene: { state: "testing" }, windowEnded: true })).phase).toBe("no_test");
+    expect(jobOutlook(base({ scene: { state: "ready" }, windowEnded: true })).phase).toBe("no_test");
   });
 
   it("never reads a published scored result as an ending", () => {
@@ -205,9 +203,3 @@ describe("the job's outlook, from the rule", () => {
   });
 });
 
-describe("the review's small items", () => {
-  it("says what a lost policy server means, and labels a try it did not count", () => {
-    expect(setupFlagSentence("session_policy_server_lost")).toBe("This robot's software stopped during the trial, so only some tries were counted.");
-    expect(screeningReasonLabel("policy_server_unavailable").toLowerCase()).toBe("not counted: the robot's software was not running.");
-  });
-});

@@ -139,37 +139,21 @@ export function closedJobStep(facts: JobFacts): Step {
   }
 }
 
-const SCREENING_WAITS: Record<NonNullable<BlueprintScene["progressOutcome"]>, string> = {
-  awaiting_spend_approval: "Screening waits on Blueprint: a limit on our side held it back",
-  setup_repair: "Screening waits for a setup repair: check the screening plan's blockers",
-  superseded: "Screening is planned again for the current candidates",
-};
-
-/** Blueprint's own scene and screening: the next step, and any money or setup wait worth a glance. */
+/** Blueprint's own scene: the next step, and any hold worth a glance. */
 function blueprintSceneStep(scene: BlueprintScene, attention: string[]): Step {
-  const wait = scene.progressOutcome;
-  if (wait === "awaiting_spend_approval") attention.push("Money wait: screening stopped at the job's own limit or at this month's account limit");
-  if (wait === "setup_repair") attention.push("Setup wait: the screening needs a repair");
   switch (scene.state) {
     case "in_progress": return step("scene_preparation", "Pipeline is preparing the scene", "none");
     case "waiting":
       attention.push("Scene preparation is waiting");
       return step("scene_preparation", "Scene preparation is waiting: check the job's preparation watch", "blueprint");
-    case "completed":
-    case "testing":
-      if (wait === "awaiting_spend_approval" || wait === "setup_repair") return step("screening", SCREENING_WAITS[wait], "blueprint");
-      if (scene.state === "testing") return step("screening", "Blueprint is running the candidates", "none");
-      return step("screening", wait ? SCREENING_WAITS[wait] : "Scene ready: the screening starts on its own", "none");
-    case "evaluated":
-      attention.push("Estimate published");
-      return step("estimate", "Estimate published: introduce a deployment company if the site replies", "blueprint");
+    case "completed": return step("scene_preparation", "Scene built: the simulation package is not published yet", "none");
+    case "ready": return step("scene_preparation", "Simulation ready: its package is published", "none");
     case "held":
-      // A failure, a spent allowance or a failed scene check is ours to look at, not demand.
+      // A failure or a failed scene check is ours to look at, not demand.
       if (isScreeningAttentionOutcome(scene.heldReason)) {
-        // A failure on our side reruns after its fix (the Pipeline replans a harness failure once the fix deploys).
-        attention.push(`Evaluation held (${scene.heldReason}): ${scene.heldReason === "held_setup"
-          ? "it reruns only after its cause is fixed" : "it does not restart by itself"}`);
-        return step("held", `Held (${scene.heldReason}): check the run's blockers or the scene's hold reason`, "blueprint");
+        attention.push(`Scene held (${scene.heldReason}): ${scene.heldReason === "held_setup"
+          ? "it moves again only after its cause is fixed" : "it does not restart by itself"}`);
+        return step("held", `Held (${scene.heldReason}): check the scene's hold reason`, "blueprint");
       }
       return step("held", `Held${scene.heldReason ? ` (${scene.heldReason})` : ""}: counted as demand for what to build next`, "none");
     case "ended": return step("ended", `Preparation ended${scene.ending ? ` (${scene.ending})` : ""}`, "none");
@@ -239,7 +223,7 @@ export function deriveJobStage(facts: JobFacts): JobStageResult {
     return result("evaluating", "Admitted; waiting for the run to be recorded", "none");
   }
 
-  // Blueprint's own scene and screening: past the site's steps once it exists.
+  // Blueprint's own scene: past the site's steps once it exists.
   if (facts.scene) {
     const scene = blueprintSceneStep(facts.scene, attention);
     return result(scene.stage, scene.nextAction, scene.actionOwner);

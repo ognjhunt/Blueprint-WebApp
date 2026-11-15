@@ -477,15 +477,6 @@ export const analyticsEvents = {
   signupAttempt: (method: string) =>
     trackEvent("signup_attempt", { method }),
 
-  beginCheckout: (itemId: string, value: number) =>
-    trackEvent("begin_checkout", { item_id: itemId, value, currency: "USD" }),
-
-  completeCheckout: (source: string, value: number) =>
-    trackEvent("checkout_complete", { source, value, currency: "USD" }),
-
-  purchaseComplete: (transactionId: string, value: number) =>
-    trackEvent("purchase", { transaction_id: transactionId, value, currency: "USD" }),
-
   waitlistSignup: (locationType: string) =>
     trackEvent("waitlist_signup", { location_type: locationType }),
 

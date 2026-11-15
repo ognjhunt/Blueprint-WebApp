@@ -121,15 +121,7 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    match /waitlistTokens/{id} {
-      allow read, write: if false;
-    }
-
     match /action_ledger/{id} {
-      allow read, write: if false;
-    }
-
-    match /hostedSessions/{id} {
       allow read, write: if false;
     }
 
@@ -142,14 +134,6 @@ service cloud.firestore {
     }
 
     match /buyerOutcomes/{id} {
-      allow read, write: if false;
-    }
-
-    match /creatorPayouts/{id} {
-      allow read, write: if false;
-    }
-
-    match /buyerOrders/{id} {
       allow read, write: if false;
     }
 

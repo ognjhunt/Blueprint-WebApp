@@ -17,11 +17,11 @@ describe("the questions page", () => {
     expect(document.body.textContent).not.toMatch(/\$\s?\d|per introduction|fee on/i);
   });
 
-  it("says what is in the job packet, that the trial is a trial, and what it is not", () => {
+  it("says what is in the job packet and what it is not", () => {
     render(<Beta />);
     const packet = screen.getByRole("region", { name: "Your job packet" });
     expect(packet).toHaveTextContent(/Your sentence for the job, a first look on paper, a simulation of your site, and what counts as done\./);
-    expect(packet).toHaveTextContent(/It is a trial, not a prediction of any company's robot\./);
+    expect(packet).not.toHaveTextContent(/early trial|openly available/i);
     expect(packet).toHaveTextContent(/It does not certify performance or safety\./);
     expect(screen.getByRole("region", { name: "For sites" })).toHaveTextContent(/other jobs still go to companies, and their simulation waits until we can build one\./);
     expect(packet).not.toHaveTextContent(/proof|guarantee|which did best|AI robot/i);

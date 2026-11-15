@@ -350,43 +350,6 @@ If a run touches legal, rights, privacy, approvals, pricing, commercialization c
 - link to the canonical system
 - open or update the Paperclip work item instead
 
-## Lint Checks
-
-`npm run lint:hermes-kb` validates the repo KB contract.
-
-Current checks:
-
-- required KB directories exist
-- required index files exist
-- compiled and report pages have valid frontmatter
-- `authority`, `source_system`, and `sensitivity` use allowed enum values
-- `source_urls` is a non-empty array of strings
-- `last_verified_at` uses ISO date format
-- `owner` is non-empty
-- `confidence` is numeric and between `0` and `1`
-- required section headings exist by page type
-
-The lint script is intentionally structural, not semantic. It prevents schema drift without pretending to verify factual correctness.
-
-## Ingest Helper
-
-Use `npm run ingest:hermes-kb -- <command> ...` to scaffold new KB entries from templates.
-
-Supported commands:
-
-- `raw-source`
-  - creates `knowledge/raw/<source-system>/<YYYY-MM-DD>/<slug>/source-note.md`
-  - accepts repeated source locators and optional open questions
-- `compiled-page`
-  - creates `knowledge/compiled/<category>/<slug>.md`
-  - supports Blueprint-native page archetypes and optional canonical refs / freshness metadata
-  - updates backlinks, open questions, contradictions, and stale-page cleanup based on the flags provided
-- `report`
-  - creates `knowledge/reports/<category>/<YYYY-MM-DD>-<slug>.md`
-  - supports linked KB pages and recommended follow-up scaffolding
-
-Run `npm run ingest:hermes-kb -- --help` for the current flag set.
-
 ## Agent Rollout
 
 ### Phase 1 writers

@@ -1,12 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
-import { isScreeningHeldOutcome, screeningOutcome, screeningOutcomeSentence, simulationOutcomeEmailSentence,
-  SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
-import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
-import { scientificBriefDigest } from "../utils/jobEvidenceContract";
-import { projectWebsiteSceneProgression, sceneScreening, sceneScreeningResult } from "../utils/websiteSceneProgression";
-import { outcomePublication, PUBLISHED_SCREENING_OUTCOMES, screeningFixture } from "./fixtures/beta-policy-screening";
+import { simulationHoldSentence } from "../utils/betaPolicyScreeningContract";
+import { projectWebsiteSceneProgression, sceneHold } from "../utils/websiteSceneProgression";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 
 const reference = "bp-prep-0123456789abcdef";
@@ -177,73 +173,42 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "waiting" } } as never);
     expect(open.headline).toContain("waiting on our team; nothing is needed from you");
   });
-  it("the scene is ready only once its first test started; built alone is still preparing", () => {
+  it("the simulation is ready once its package is published; built alone is still preparing", () => {
     const handedOff = { ...base, preparationStatus: { state: "handed_off", correlationId: reference } };
-    const testing = projectTaskStatus({ ...handedOff, sceneProgression: { state: "testing" } } as never);
-    expect(testing.decision).toBe("assessing");
-    expect(testing.headline).toBe("Your scene is ready, and we are running our first tests on it. Nothing is needed from you.");
-    expect(testing.operatorAction).toBeNull();
-    const evaluated = projectTaskStatus({ ...handedOff, sceneProgression: { state: "evaluated" } } as never);
-    expect(evaluated.decision).toBe("assessing");
-    expect(evaluated.headline).toBe("Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result. Nothing is needed from you.");
+    const ready = projectTaskStatus({ ...handedOff, sceneProgression: { state: "ready" } } as never);
+    expect(ready.decision).toBe("assessing");
+    expect(ready.headline).toBe("The simulation of your site is ready. Nothing is needed from you.");
+    expect(ready.headline).not.toMatch(/test|estimate|early trial/i);
+    expect(ready.operatorAction).toBeNull();
     const held = projectTaskStatus({ ...handedOff, sceneProgression: { state: "held" } } as never);
     expect(held.decision).toBe("assessing");
     expect(held.headline).toBe("The simulation can't model this kind of task yet. It counts as demand for what we build next. Your first look stays on your job page. Nothing is needed from you.");
-    const outOfReach = projectTaskStatus({ ...handedOff, sceneProgression: { state: "held", heldReason: "infeasible" } } as never);
-    expect(outOfReach.decision).toBe("assessing");
-    expect(outOfReach.headline).toBe("From the robot position planned in the scene built from your video, none of the robots the simulation can run could reach the task. Your first look stays on your job page. Nothing is needed from you.");
-    expect(outOfReach.headline).not.toMatch(/setup blockers|rerun|can't do|cannot do|anywhere/);
     const built = projectTaskStatus({ ...handedOff, sceneProgression: { state: "completed" } } as never);
     expect(built.decision).toBe("assessing");
     expect(built.headline).toBe("We are preparing your job for simulation. Nothing is needed from you.");
     expect(built.headline).not.toMatch(/ready/i);
     // An unlisted job says the same: there is no card for the site to publish.
-    const unlisted = projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "testing" } } as never);
-    expect(unlisted).toEqual(testing);
+    const unlisted = projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "ready" } } as never);
+    expect(unlisted).toEqual(ready);
     expect(projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "completed" } } as never).decision)
       .not.toBe("not_listed");
   });
-  it.each(PUBLISHED_SCREENING_OUTCOMES)("the headline and the run say the same sentence for %s (F-03)", outcome => {
-    // The run as it is stored, read back as the job page reads it, against that run's own summary.
-    const { publication, brief, job } = screeningFixture();
-    const value = outcomePublication(publication, outcome);
-    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
-    const scope = managedJobTask({ binding, record: job, brief });
-    const stored = { run_id: value.campaign_id, run_kind: "beta_policy_screening", state: value.status, result_record_id: "result-one",
-      team_namespace: scope.teamNamespace, screening_outcome: screeningOutcome(value), created_at_iso: "2026-10-26T12:20:00Z",
-      screening_execution_observed: value.candidates.some(row => row.status === "completed"),
-      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
-      configuration_digest: value.plan_digest, source_scene_intent_id: value.source.scene_intent_id,
-      source_scene_revision_digest: value.source.scene_revision_digest, publication_digest: value.publication_digest,
-      publication_revision: value.revision };
-    const sceneProgression = projectWebsiteSceneProgression({ state: "completed", pipeline_status: { phase: "scene_prepared" } },
-      sceneScreeningResult(sceneScreening([{ id: value.campaign_id, run: stored }], scope.teamNamespace)));
-    const headline = projectTaskStatus({ ...base, preparationStatus: { state: "handed_off", correlationId: reference },
-      sceneProgression } as never).headline;
-    const summary = projectManagedJobEvidence(value.campaign_id, stored, { record_id: "result-one", publication: value },
-      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!.summary;
-    const sentence = screeningOutcomeSentence(outcome);
-    // The run's summary keeps the run's own sentence. The site's page says a hold about the simulation,
-    // as the site's email does, and reminds it that its answer stays: the simulation is held, never the job.
-    expect(summary.slice(0, sentence.length)).toBe(sentence);
-    if (isScreeningHeldOutcome(outcome)) {
-      expect(headline).toBe(`${simulationOutcomeEmailSentence(outcome)} Your first look stays on your job page. Nothing is needed from you.`);
-      expect(headline).not.toMatch(/^Held|job is held|No match/);
-    } else expect(headline).toBe(`${sentence} Nothing is needed from you.`);
-    if (outcome === "no_match") expect(headline).toMatch(/^None of the robots the simulation can run matched this task\./);
-    if (outcome !== "held_capability") expect(headline).not.toMatch(/can't (simulate|model) this kind of/);
-    if (outcome !== "estimate") expect(headline).not.toMatch(/estimate is ready/);
-  });
-  it("an unlisted job keeps the outcome sentence, with no publishing step", () => {
-    const handedOff = { ...base, listed: false, preparationStatus: { state: "handed_off", correlationId: reference } };
-    for (const [sceneProgression, outcome] of [[{ state: "held", heldReason: "no_match" }, "no_match"],
-      [{ state: "held", heldReason: "reference_only" }, "reference_only"], [{ state: "evaluated" }, "estimate"]] as const) {
-      const status = projectTaskStatus({ ...handedOff, sceneProgression } as never);
-      expect(status.decision).not.toBe("not_listed");
-      const said = isScreeningHeldOutcome(outcome) ? `${simulationOutcomeEmailSentence(outcome)} Your first look stays on your job page.`
-        : screeningOutcomeSentence(outcome);
-      expect(status.headline.startsWith(said)).toBe(true);
-      expect(status.headline).not.toMatch(/job card/);
+  it.each(["held_capability", "held_setup", "held_scene_check"] as const)(
+    "a stored %s hold says the hold's own sentence about the simulation, never that the job is held", outcome => {
+      const run = { run_kind: "beta_policy_screening_hold", team_namespace: "team", state: "blocked", screening_outcome: outcome,
+        hold_reason_code: "robot_free_probe_failed", hold_detail_code: null };
+      const sceneProgression = projectWebsiteSceneProgression({ state: "completed", pipeline_status: { phase: "scene_prepared" } },
+        { hold: sceneHold([{ id: "hold-1", run }], "team"), simulationReady: true });
+      expect(sceneProgression).toEqual({ state: "held", heldReason: outcome });
+      const headline = projectTaskStatus({ ...base, preparationStatus: { state: "handed_off", correlationId: reference },
+        sceneProgression } as never).headline;
+      expect(headline).toBe(`${simulationHoldSentence(outcome)} Your first look stays on your job page. Nothing is needed from you.`);
+      expect(headline).not.toMatch(/^Held|job is held|estimate/);
+    });
+  it("a campaign record of the retired early trial never speaks for the scene", () => {
+    for (const outcome of ["estimate", "held_budget", "reference_only", "awaiting_spend_approval"]) {
+      const run = { run_kind: "beta_policy_screening", team_namespace: "team", state: "completed", screening_outcome: outcome };
+      expect(sceneHold([{ id: "campaign-1", run }], "team")).toBeNull();
     }
   });
   it("consent withdrawal and earlier gates still win over an ending", () => {
@@ -296,7 +261,7 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
     const READY = { state: "ready" as const, unsized: false, reason: null };
     const outlookOf = (scene: Record<string, any> | null) => jobOutlook({ consentRevoked: false, closedByOwner: false, answer: READY,
       windowEnded: false, noGrantEnded: false, preparation: { state: "handed_off", geometryOnlyEnd: false },
-      scene: scene ? { state: scene.state, attemptFailed: scene.attemptFailed === true, waiting: Boolean(scene.progressOutcome) } : null, proof: null });
+      scene: scene ? { state: scene.state, attemptFailed: scene.attemptFailed === true } : null, proof: null });
     const failed = projectWebsiteSceneProgression({ state: "accepted",
       pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["scene_configuration_failed"] } });
     expect(failed).toEqual({ state: "waiting", attemptFailed: true });

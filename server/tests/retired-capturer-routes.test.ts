@@ -61,10 +61,9 @@ describe("retired capture app, capturer, payout, field-ops and visit routes (202
     expect(reached).not.toHaveBeenCalled();
   });
 
-  it("leaves the Stripe webhook, the browser upload and the live Pipeline callbacks alone", async () => {
+  it("leaves the browser upload and the live Pipeline callbacks alone", async () => {
     const base = await serve();
     const live: Array<[string, string]> = [
-      ["POST", "/api/stripe/webhooks"],
       ["GET", "/api/self-capture/uploads/any-token/status"],
       ["POST", "/api/self-capture/uploads/any-token/complete"],
       ["POST", "/api/workspace/tasks/task-1/recording-consent/withdraw"],

@@ -59,7 +59,8 @@ import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { TASK_CONFIRMATION_VERSION } from "../../client/src/lib/taskConfirmationStatement";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 
 export const TASK_BRIEFS_COLLECTION = "siteTaskBriefs";
@@ -530,9 +531,6 @@ export async function mergeBriefProposals(params: {
       heldForGrant = true;
       return null;
     }
-    const refresh = requestSnapshot.data()?.site_advisory
-      ? await (await import("./siteAssessmentQueue")).prepareBriefContextSiteAssessment(
-        transaction, params.requestId, requestSnapshot.data()!, next) : null;
     if (sourceNote) transaction.set(sourceNote.ref, sourceNote.value);
     transaction.set(ref, next);
     const factDigest = (rows: readonly ProposedGateAnswer[]) => humanDecisionDigest(rows.map(({ fieldId, value, basis }) => ({ fieldId, value, basis })).sort((a, b) => a.fieldId.localeCompare(b.fieldId)));
@@ -542,7 +540,6 @@ export async function mergeBriefProposals(params: {
         pilot_recommendation: { ...requestSnapshot.data()!.pilot_recommendation, reviewRequired: true },
       } : {}),
     }, { merge: true });
-    refresh?.();
     return next;
   });
   if (heldForGrant) logger.info({ requestId: params.requestId,
@@ -777,10 +774,6 @@ export async function confirmBrief(params: {
       const materialChange = humanDecisionDigest({ summary: brief.summary, taskFamily: brief.taskFamily ?? null, answers: gateAnswersOnFile(previousRequest ?? {}),
         unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null }) !== humanDecisionDigest({ summary: confirmed.summary, taskFamily: confirmed.taskFamily ?? null, answers,
         unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null });
-      const nextRecord = { ...requestSnapshot.data(), siteTaskGates: answers };
-      const refresh = requestSnapshot.data()?.site_advisory
-        ? await (await import("./siteAssessmentQueue")).prepareBriefContextSiteAssessment(
-          tx, params.requestId, nextRecord, confirmed) : null;
       tx.set(briefRef, confirmed, { merge: true });
       tx.set(requestRef,
         {
@@ -796,7 +789,6 @@ export async function confirmBrief(params: {
         },
         { merge: true },
       );
-      refresh?.();
     });
   }
 

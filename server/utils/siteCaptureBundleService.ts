@@ -22,7 +22,7 @@ import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { logger } from "../logger";
 import type { PrivacyScreenResult } from "./capturePrivacyScreen";
 import type { CapturePrivacyProducerSource, CapturePrivacyScreenClaim } from "./capturePrivacyRecord";
-import type { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import type { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import {
   BUNDLE_VIDEO_PATH,
   COMPLETION_MARKER_PATH,

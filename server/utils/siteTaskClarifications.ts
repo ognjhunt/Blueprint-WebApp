@@ -4,7 +4,7 @@ import { loadCurrentSiteAssessmentView } from "./siteAssessmentPublic";
 import { projectCurrentSiteJobDecision } from "./siteJobDecision";
 import { advisoryContextDigest } from "./siteAssessmentContext";
 import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 
 export type ClarificationMode = "assessment";

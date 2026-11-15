@@ -2,13 +2,10 @@ import { createHash } from "node:crypto";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../../utils/crossRuntimeCanonical";
 import { canonicalArtifactDigest } from "../../utils/taskCandidateContract";
 import pipelineOffering from "./pipeline-configured-scene-offering.v1.json";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../../utils/websiteTaskContext";
+import { projectWebsiteTaskContext } from "../../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../../utils/websiteCaptureRights";
 import type { SiteTaskBriefRecord } from "../../utils/siteTaskBrief";
-import { SCREENING_OUTCOMES, type BetaPolicyScreeningPublication } from "../../utils/betaPolicyScreeningContract";
-import type { BetaCandidateSelection } from "../../utils/betaCandidateSelection";
-import allCandidatePublication from "./pipeline-beta-policy-screening-all-candidates.v2.json";
-import websiteAllRowsPublication from "./pipeline-beta-policy-screening-website-all-rows.v2.json";
-import websiteRunnableRowsPublication from "./pipeline-beta-policy-screening-website-runnable-rows.v2.json";
+import type { BetaPolicyScreeningPublication } from "../../utils/betaPolicyScreeningContract";
 export const screeningSha = (character: string) => `sha256:${character.repeat(64)}`;
 /**
  * A configured scene's two digests, as the Pipeline publishes them. The
@@ -111,116 +108,4 @@ export function navigationScreeningFixture() {
   return { ...fixture, intake: { ...fixture.intake, request, request_digest: requestDigest,
     receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
     pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
-}
-
-/** Real Python coordinator rows, with development-only WebApp source lineage. */
-export function allCandidateFamilyScreeningFixture() {
-  const fixture = familyScreeningFixture();
-  const seed = allCandidatePublication.candidates.find(row => row.candidate_id === "pi05_droid")!;
-  const request = { ...fixture.intake.request, task: { ...fixture.intake.request.task,
-    policy_selection: { candidate_id: seed.candidate_id, catalog_digest: screeningSha("c"),
-      configuration_digest: seed.configuration_digest } } };
-  const requestDigest = crossRuntimeDigest(request);
-  const receipt = { ...fixture.intake.receipt, request_digest: requestDigest };
-  const status = { ...fixture.intake.pipeline_status, request_digest: requestDigest };
-  return { ...fixture, publication: sealScreening({ ...allCandidatePublication,
-    campaign_id: fixture.publication.campaign_id, site_id: fixture.publication.site_id,
-    source: fixture.publication.source }),
-    intake: { ...fixture.intake, request, request_digest: requestDigest,
-      receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
-      pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
-}
-
-/**
- * One website campaign as the Pipeline publishes it, planned from the 136-row catalog
- * (a local, unpaid planner and coordinator run; one candidate scored 7 of 10, the rest closed).
- * `all_rows` is how a campaign planned before 2026-11-05 (P-DT-12), or a re-plan of one, lists
- * every catalog row; `runnable_rows` is a new campaign's plan, without the 24 scripted baselines
- * and 58 robot × route templates no website job can run. Rebound to `screeningFixture`'s job.
- */
-export function websiteCampaignFixture(shape: "all_rows" | "runnable_rows") {
-  const fixture = screeningFixture();
-  const published = shape === "all_rows" ? websiteAllRowsPublication : websiteRunnableRowsPublication;
-  return { ...fixture, publication: sealScreening({ ...published, campaign_id: fixture.publication.campaign_id,
-    site_id: fixture.publication.site_id, source: fixture.publication.source }) };
-}
-
-export function sealSelection(value: any): BetaCandidateSelection {
-  return { ...value, selection_digest: crossRuntimeArtifactDigest(value, "selection_digest") };
-}
-
-/** The Pipeline rule's record for a terminal publication, with a recorded deployment row for the choice. */
-export function selectionFixture(publication: BetaPolicyScreeningPublication, chosen: Record<string, unknown> = {}) {
-  const eligible = publication.candidates.map((row, index) => ({ row, index })).filter(({ row }) => row.status === "completed"
-    && row.episodes_scored > 0 && row.execution_evidence_kind !== "scripted_simulator_state_baseline")
-    .sort((left, right) => right.row.success_rate! - left.row.success_rate! || right.row.episodes_scored - left.row.episodes_scored
-      || left.row.episodes_void - right.row.episodes_void || left.index - right.index).map(({ row }) => row);
-  const best = eligible[0]?.episodes_succeeded ? eligible[0] : undefined;
-  return sealSelection({ schema_version: "website_candidate_selection.v1", campaign_id: publication.campaign_id,
-    site_id: publication.site_id, plan_digest: publication.plan_digest, publication_digest: publication.publication_digest,
-    publication_revision: publication.revision, result_status: publication.status, catalog_digest: publication.catalog_digest,
-    catalog_basis: "campaign_catalog", rule: "success_rate_then_scored_then_void_then_priority_then_identifier.v1",
-    decided_by: "deterministic_rule_no_human_input",
-    status: best ? "chosen" : eligible.length ? "no_successful_candidate" : "no_evaluated_candidate",
-    chosen: best ? { candidate_id: best.candidate_id, configuration_digest: best.configuration_digest, display_name: best.display_name,
-      success_rate: best.success_rate, episodes_scored: best.episodes_scored, episodes_succeeded: best.episodes_succeeded,
-      configuration_id: "fanuc_m710ic_45m", policy_route_id: "planning_endpoint",
-      deployment_companies: ["Jacobi Robotics", "Delta Technology"], relationship: "company_deployment",
-      evidence_url: "https://jacobirobotics.com/platform", related_teams: ["Jacobi Robotics", "Delta Technology"],
-      partner_blockers: [], ...chosen } : null,
-    tied_with: [], claim_ceiling: "simulation_estimate",
-    candidates: publication.candidates.map((row, index) => ({ candidate_id: row.candidate_id, display_name: row.display_name,
-      priority_rank: index + 1, plan_status: row.blockers.includes("candidate_infeasible_measured_geometry") ? "infeasible"
-        : ["unavailable", "deferred"].includes(row.status) ? row.status : "selected",
-      result_status: row.status, blockers: row.blockers, episodes_planned: row.episodes_planned, episodes_scored: row.episodes_scored,
-      episodes_succeeded: row.episodes_succeeded, episodes_failed: row.episodes_failed, episodes_void: row.episodes_void,
-      success_rate: row.success_rate, session_result_digest: row.session_result_digest,
-      choice_blocker: eligible.includes(row) ? null : row.status === "completed" ? "no_scored_episodes" : "not_evaluated",
-      ...(eligible.includes(row) ? { result_rank: eligible.indexOf(row) + 1 } : {}) })) });
-}
-
-/** A finished 36-candidate run: two scored, one measured out of reach, the rest stopped by the site budget. */
-export function finishedScreening(publication: BetaPolicyScreeningPublication, revision = 2) {
-  return sealScreening({ ...publication, revision, status: "completed", candidates: publication.candidates.map((row, index) =>
-    index < 2 ? { ...row, status: "completed", episodes_scored: 3, episodes_succeeded: 2 - index, episodes_failed: 1 + index,
-      success_rate: (2 - index) / 3, session_result_digest: screeningSha(index ? "7" : "6") }
-      : index === 2 ? { ...row, status: "unavailable", blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] }
-        : { ...row, status: "blocked", blockers: ["beta_screening_site_budget_exhausted"] }) });
-}
-
-/** A scored scripted reference row: hand-coded simulator-state baseline, never a learned policy. */
-export const scriptedBaselineRow = { execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
-  scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } as const;
-
-/** Outcomes a campaign publication can reach. `held_scene_check` comes only from a Pipeline hold (no campaign started). */
-export const PUBLISHED_SCREENING_OUTCOMES = SCREENING_OUTCOMES.filter(outcome => outcome !== "held_scene_check");
-
-/** One terminal or in-progress publication for each screening outcome, from the 36-candidate fixture. */
-export function outcomePublication(publication: BetaPolicyScreeningPublication, outcome: string, revision = 2) {
-  const scored = (row: any, extra: Record<string, unknown> = {}) => ({ ...row, status: "completed", episodes_scored: 3, episodes_succeeded: 2,
-    episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("6"), ...extra });
-  const every = (map: (row: any, index: number) => any, extra: Record<string, unknown> = {}) => sealScreening({ ...publication,
-    revision, status: "blocked", ...extra, candidates: publication.candidates.map(map) });
-  const blocked = (blockers: string[], status = "blocked") => (row: any) => ({ ...row, status, blockers });
-  switch (outcome) {
-    case "estimate": return finishedScreening(publication, revision);
-    case "reference_only": return every((row, index) => index === 0 ? scored(row, scriptedBaselineRow)
-      : blocked(["task_kind_not_supported_by_candidate"])(row), { status: "completed" });
-    case "held_capability": return every(blocked(["task_kind_not_supported_by_candidate"]));
-    case "held_unprepared": return every(blocked(["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"], "unavailable"));
-    case "infeasible": return every(blocked(["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"], "unavailable"));
-    case "no_match": return every((row, index) => index === 0 ? blocked(["candidate_infeasible_measured_geometry"], "unavailable")(row)
-      : blocked(["task_kind_not_supported_by_candidate"])(row));
-    case "held_budget": return every((row, index) => index === 0 ? blocked(["beta_screening_static_preflight_blocked"])(row)
-      : blocked(["site_screening_budget_insufficient"], "deferred")(row),
-    { budget: { ...publication.budget, committed_upper_bound_usd: "4", spent_upper_bound_usd: "4" } });
-    case "held_setup": return every(blocked(["beta_screening_static_preflight_blocked:no_offer"]));
-    // Only the job's dollar ceiling held the candidates back: a wait on the owner's money decision.
-    case "awaiting_spend_approval": return every(blocked(["website_job_ceiling_insufficient"], "deferred"));
-    // Refused for code a deploy changed: the Pipeline plans these again by itself.
-    case "setup_repair": return every(blocked(["beta_screening_implementation_commit_changed"]));
-    case "superseded": return every((row, index) => blocked([index ? "beta_screening_replanned_for_new_implementation"
-      : "beta_screening_static_preflight_blocked"])(row));
-    default: throw new Error(`unknown screening outcome ${outcome}`);
-  }
 }

@@ -193,23 +193,6 @@ warnCheck(
   );
 }
 
-requireCheckWithWaiver("stripe", Boolean(envValue("STRIPE_SECRET_KEY")), "STRIPE_SECRET_KEY is required for checkout.");
-requireCheckWithWaiver(
-  "stripe",
-  Boolean(envValue("STRIPE_CONNECT_ACCOUNT_ID")),
-  "STRIPE_CONNECT_ACCOUNT_ID is required for creator payout and onboarding flows.",
-);
-requireCheckWithWaiver(
-  "stripe",
-  Boolean(envValue("STRIPE_WEBHOOK_SECRET")),
-  "STRIPE_WEBHOOK_SECRET is required for webhook validation.",
-);
-requireCheckWithWaiver(
-  "stripe",
-  Boolean(envValue("CHECKOUT_ALLOWED_ORIGINS")),
-  "CHECKOUT_ALLOWED_ORIGINS is required for alpha checkout launch.",
-);
-
 const automationFlags = {
   BLUEPRINT_WAITLIST_AUTOMATION_ENABLED: isTruthy(process.env.BLUEPRINT_WAITLIST_AUTOMATION_ENABLED),
   BLUEPRINT_INBOUND_AUTOMATION_ENABLED: isTruthy(process.env.BLUEPRINT_INBOUND_AUTOMATION_ENABLED),

@@ -19,16 +19,13 @@ export type WithdrawalState =
   | "none" | "requested" | "cleanup_pending" | "legal_hold" | "external_pending" | "complete";
 
 /**
- * Blueprint's own scene and screening for the job, as its job page reads them
- * (`loadWebsiteSceneProgression`): preparing the scene, screening the
- * candidates, or the screening's outcome.
+ * Blueprint's own scene for the job, as its job page reads it
+ * (`loadWebsiteSceneProgression`): being built, ready, held or ended.
  */
 export interface BlueprintScene {
-  state: "in_progress" | "waiting" | "completed" | "testing" | "evaluated" | "held" | "ended";
-  /** Why a held job is held, when the screening said. */
+  state: "in_progress" | "waiting" | "completed" | "ready" | "held" | "ended";
+  /** Why a held job is held, when the hold said. */
   heldReason: string | null;
-  /** What a planned or running screening waits on. */
-  progressOutcome: "awaiting_spend_approval" | "setup_repair" | "superseded" | null;
   /** The ending the Pipeline decided, when there is one. */
   ending: string | null;
 }
@@ -165,8 +162,6 @@ export const JOB_STAGES = [
   "brief_review",
   "capture",
   "scene_preparation",
-  "screening",
-  "estimate",
   "held",
   "ended",
   "listing",
@@ -185,8 +180,6 @@ export const JOB_STAGE_LABELS: Record<JobStage, string> = {
   brief_review: "Brief review",
   capture: "Capture",
   scene_preparation: "Scene preparation",
-  screening: "Screening",
-  estimate: "Estimate",
   held: "Held",
   ended: "Ended",
   listing: "Public card",

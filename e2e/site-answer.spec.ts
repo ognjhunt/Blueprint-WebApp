@@ -1,11 +1,11 @@
 import { devices, expect, test, type Page } from "@playwright/test";
 import { bareRhythmFindings } from "./helpers/bare-rhythm";
-import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, preparingEvaluation, readyAnswer, serverOutlookFor, winnerEvaluation } from "../client/tests/fixtures/siteAnswer";
+import { allZeroEvaluation, preparingEvaluation, readyAnswer, serverOutlookFor, winnerEvaluation } from "../client/tests/fixtures/siteAnswer";
 import { projectSimulationProof } from "../client/src/lib/simulationProof";
 
 /**
- * The site's job page (frame of 2026-11-12): deployment companies first, then the first look, the simulation of the
- * site and, folded, our own early trial. Every API the page reads is mocked here; no request leaves the browser.
+ * The site's job page (frame of 2026-11-12): deployment companies first, then the first look and the simulation of the
+ * site. Every API the page reads is mocked here; no request leaves the browser.
  */
 const token = "site-answer-fixture";
 
@@ -25,14 +25,6 @@ const SHARED = "We share your job with the deployment companies we approve.";
 /** The recorded statement, word for word: only the words around it changed. */
 
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
-const TRIAL_LINE = "This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.";
-/** Opens the folded early trial, as a site would. */
-async function openTrial(page: Page) {
-  const trial = page.getByRole("region", { name: "Early trial of openly available robot software" });
-  await expect(trial.locator("details")).not.toHaveAttribute("open", "");
-  await trial.locator("summary").click();
-  return trial;
-}
 /** Visible words on the page body: what a person reads before tapping anything. */
 const visibleWords = (page: Page) => page.evaluate(() => ((document.querySelector(".ms-capture-body") as HTMLElement).innerText.match(/[^\s]+/g) ?? [])
   .filter(word => /[\p{L}\p{N}]/u.test(word)).length);
@@ -95,14 +87,14 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, shar
 
 test.use({ serviceWorkers: "block" });
 
-test("the job page leads with deployment companies and the first look, with our early trial folded under its fixed line", async ({ page }) => {
+test("the job page leads with deployment companies and the first look, and shows no early trial", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
   const companies = page.getByRole("region", { name: "Deployment companies" });
   await expect(companies.getByText(OLDER, { exact: true })).toBeVisible();
-  await expect(job.locator("h2, summary")).toHaveText(["Deployment companies", "First look", "Simulation of your site", "Early trial of openly available robot software"]);
+  await expect(job.locator("h2, summary")).toHaveText(["Deployment companies", "First look", "Simulation of your site"]);
   const titleBox = await page.getByRole("heading", { level: 1, name: "Your job" }).boundingBox();
   expect(titleBox!.y).toBeLessThan((await job.boundingBox())!.y);
   const firstLook = page.getByRole("region", { name: "First look" });
@@ -122,15 +114,8 @@ test("the job page leads with deployment companies and the first look, with our 
   const jobText = await job.textContent();
   expect(jobText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256|payload|anonymi[sz]ed|AI robot|paper check|which did best/i);
 
-  // The trial: folded, labelled, never the answer. 7 of 10 against 3 of 10 is about 0.96 under the probability rule:
-  // ahead, not "did best".
-  const trial = await openTrial(page);
-  await expect(trial.getByText(TRIAL_LINE, { exact: true })).toBeVisible();
-  await expect(trial.getByRole("heading", { level: 3, name: "Was ahead in our trial" })).toBeVisible();
-  await expect(trial.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
-  await expect(trial.getByText("Robot software by Physical Intelligence", { exact: true })).toBeVisible();
-  await expect(trial.getByRole("list", { name: "Why" })).toHaveText(/Did the job in 7 of 10 tries.*Ahead of the 2 other robots we tried/s);
-  await expect(trial).toContainText("How sure are we? Fairly sure");
+  await expect(page.getByRole("region", { name: "Early trial of openly available robot software" })).toHaveCount(0);
+  expect(jobText).not.toMatch(/early trial|our trial|openly available/i);
 
   await job.getByRole("button", { name: "See details ›" }).click();
   await page.getByRole("button", { name: "First look: why this robot" }).click();
@@ -143,58 +128,16 @@ test("the job page leads with deployment companies and the first look, with our 
   await job.getByRole("button", { name: "See details ›" }).click();
   await expect(page).toHaveURL(/#details$/);
   await expect(page.getByRole("heading", { level: 1, name: "Details" })).toBeFocused();
-  await page.getByRole("button", { name: "Our early trial" }).click();
-  await expect(page).toHaveURL(/#details\/test$/);
-  await expect(page.getByText(TRIAL_LINE, { exact: true })).toBeVisible();
-  const ranked = page.getByRole("region", { name: "Ranked", exact: true });
-  await expect(ranked).toContainText("In our early trial we ran 3 robots on your job, about 10 tries each, in a simulation of your site.");
-  await expect(ranked.locator("dt").filter({ hasText: /^\d+\. / })).toHaveText(["1. Franka arm + π0.5 · Physical Intelligence",
-    "2. Franka arm + GR00T N1.7 · NVIDIA", "3. Franka arm + MolmoAct 2 · Ai2"]);
-  await expect(ranked).toContainText("1 more robot was planned but did not run. Job settings › Simulation details says why.");
-  await expect(ranked).toContainText(/Finished 7 of 10 tries · likely between \d+% and \d+% · Ahead/);
-  await page.goBack();
-  await expect(page.getByRole("button", { name: "Our early trial" })).toBeFocused();
-  await page.getByRole("button", { name: "How far to trust the trial" }).click();
-  await expect(page.getByRole("region", { name: "Published tests", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "PolaRiS: Scalable Real-to-Sim Evaluations for Generalist Robot Policies" })).toHaveAttribute("target", "_blank");
-  await page.goBack();
+  await expect(page.getByRole("button", { name: "Our early trial" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "How far to trust the trial" })).toHaveCount(0);
   await page.goBack();
   await expect(job.getByRole("button", { name: "See details ›" })).toBeFocused();
   await expect(firstLook.getByText(FIRST_LOOK, { exact: true })).toBeVisible();
-  // Every policy's set-up detail stays one screen away, folded, on Job settings.
+  // Job settings opens, and its simulation details name no trial candidate.
   await job.getByRole("button", { name: "Job settings ›" }).click();
-  const details = page.locator("summary", { hasText: "Simulation details" });
-  await expect(details.locator("xpath=..")).not.toHaveAttribute("open", "");
-  await expect(page.getByText(simulationRun.summary, { exact: true })).toBeHidden();
-  await details.click();
-  await expect(page.getByText(simulationRun.summary, { exact: true })).toBeVisible();
-  // The choice cell reads as one word.
-  const chosen = page.getByRole("cell", { name: "Chosen", exact: true });
-  await expect(chosen).toBeVisible();
-  expect(await chosen.evaluate(cell => { const range = document.createRange(); range.selectNodeContents(cell);
-    return new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size; })).toBe(1);
+  await expect(page.getByRole("cell", { name: "Chosen", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "‹ Back" }).click();
   await expect(firstLook.getByText(FIRST_LOOK, { exact: true })).toBeVisible();
-  expect(unexpected).toEqual([]);
-});
-
-test("when no robot finished the job in our trial, the trial says so with the set-up notice, and the first look still stands", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  const { unexpected } = await mockJob(page, { evaluation: allZeroEvaluation });
-  await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();
-  const trial = await openTrial(page);
-  await expect(trial.getByRole("heading", { level: 3, name: "Tried in our trial" })).toBeVisible();
-  await expect(trial.getByText("No robot finished the job in our trial.", { exact: true })).toBeVisible();
-  await expect(trial.getByText("This result may come from how we set up the simulation of your site, not from the robots.", { exact: true })).toBeVisible();
-  await expect(trial.getByText(/Did best|Was ahead/)).toHaveCount(0);
-  await page.getByRole("button", { name: "See details ›" }).click();
-  await page.getByRole("button", { name: "Our early trial" }).click();
-  const ranked = page.getByRole("region", { name: "Ranked", exact: true });
-  await expect(ranked).toContainText("Finished 0 of 9 tries");
-  await expect(ranked.getByText(SCENE_NOTE_BEYOND_REACH, { exact: true })).toBeVisible();
-  await expect(ranked.getByText(/Did best|Ahead/)).toHaveCount(0);
-  await expect(ranked.getByText(/likely between/)).toHaveCount(0);
   expect(unexpected).toEqual([]);
 });
 
@@ -361,11 +304,10 @@ test("the place question shows its picture and sentence, This is right needs not
   expect(unexpected).toEqual([]);
 });
 
-// Review, 2026-11-12: results prepared before the site corrected the place say so beside them, and nothing else changes.
-// The server decides it per result from the result's own preparation revision (`placeCorrectedSince`); the page shows
-// it beside exactly those results. Replacement results prepared with the corrected place carry no line.
+// Review, 2026-11-12: the place answer changes nothing else on the page. The early trial's results are no longer shown
+// (2026-11-14), so no line about results tested before the correction is said either.
 for (const [name, evaluation, choice, predates, caveat] of [
-  ["results from before the correction", simulationRun, "other", true, true],
+  ["results from before the correction", simulationRun, "other", true, false],
   ["replacement results prepared with the corrected place", simulationRun, "other", false, false],
   ["results, then the guess confirmed", simulationRun, "confirm", false, false],
   ["another place chosen, no results yet", null, "other", false, false],
@@ -448,7 +390,6 @@ const RHYTHM_STATES: Array<{ name: string; evaluation: unknown; hash?: string; m
   { name: "none finished", evaluation: { ...allZeroEvaluation, outcomeCaveat: undefined, screening: { ...allZeroEvaluation.screening!, setupNotes: [] } } },
   { name: "early trial running", evaluation: preparingEvaluation },
   { name: "simulation being built", evaluation: { ...preparingEvaluation, screening: { candidates: [] } } },
-  { name: "the ranked test screen", evaluation: simulationRun, hash: "#details/test" },
   { name: "the details menu", evaluation: simulationRun, hash: "#details" },
 ];
 for (const state of RHYTHM_STATES) {

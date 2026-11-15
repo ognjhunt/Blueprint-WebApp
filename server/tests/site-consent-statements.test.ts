@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { SITE_CONSENT_STATEMENTS, websiteSiteConsents } from "../utils/websiteSceneSponsorship";
+import { SITE_CONSENT_STATEMENTS, websiteSiteConsents } from "../utils/siteConsentStatements";
 
 const form = readFileSync(resolve(__dirname, "../../client/src/components/site/SiteCaptureStart.tsx"), "utf8");
 const route = readFileSync(resolve(__dirname, "../routes/inbound-request.ts"), "utf8");

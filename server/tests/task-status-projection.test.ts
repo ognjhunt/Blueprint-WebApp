@@ -12,7 +12,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   PREPARATION_ENDED_NEXT } from "../utils/taskPreparationOutcome";
-import { jobWorkWindowSentence, screeningOutcomeSentence } from "../utils/betaPolicyScreeningContract";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
 import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { ownerClosure } from "./fixtures/website-run-closure";
@@ -626,23 +625,8 @@ describe("WP-14: a waiting or ended job says what it waits on, and until when", 
   const view = (extra: Record<string, unknown>) => projectTaskStatus(taskStatusInputFrom({
     briefDrafted: true, site_task_brief_confirmed_at: "2026-11-01T00:00:00Z", hasStoredCapture: true, stage: null,
     scenePreviewReady: true, ...extra } as never));
-  it("formats the work window plainly, and gives none without a date", () => {
-    expect(jobWorkWindowSentence(UNTIL)).toBe("We can keep working on this job until November 24, 2026.");
-    for (const none of [null, undefined, 0, Number.NaN]) expect(jobWorkWindowSentence(none as never)).toBe("");
-  });
-  it.each(["awaiting_spend_approval", "setup_repair"] as const)("%s names no rerun or budget and adds the date only when known", outcome => {
-    const progression = { sceneProgression: { state: "testing", progressOutcome: outcome } };
-    const dated = view({ ...progression, jobWorkWindow: { untilEpoch: UNTIL, ended: false } }).headline;
-    expect(dated.startsWith(`${screeningOutcomeSentence(outcome)} We can keep working on this job until November 24, 2026.`)).toBe(true);
-    const undated = view({ ...progression, jobWorkWindow: null }).headline;
-    expect(undated.startsWith(screeningOutcomeSentence(outcome))).toBe(true);
-    expect(undated).not.toMatch(/keep working on this job until/);
-    for (const text of [dated, undated]) {
-      expect(text).not.toMatch(/run your job again|approval|budget|ceiling|\$|in progress|ends by/i);
-    }
-  });
-  it("a finished result never carries the work window", () => {
-    const text = view({ sceneProgression: { state: "evaluated" }, jobWorkWindow: { untilEpoch: UNTIL, ended: false } }).headline;
+  it("a ready simulation never carries the work window", () => {
+    const text = view({ sceneProgression: { state: "ready" }, jobWorkWindow: { untilEpoch: UNTIL, ended: false } }).headline;
     expect(text).not.toMatch(/keep working on this job until/);
   });
   it("an ended authority is said as an end, never a hold or a check in progress", () => {
@@ -678,7 +662,6 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
     ["preparation needs our review", { preparationStatus: { state: "failed_retryable", correlationId: null } }],
     ["no preparation status ever arrived", { preparationOverdue: true }],
     ["the scene waits on our team", { preparationStatus: { state: "handed_off", correlationId: null }, sceneProgression: { state: "waiting" } }],
-    ["the scene waits on an internal approval", { sceneProgression: { state: "testing", progressOutcome: "awaiting_spend_approval" } }],
     ["the scene intake ended on our side", { sceneProgression: { state: "ended" } }],
     ["the Pipeline's own ending arrived afterwards", { sceneProgression: { state: "ended", sceneOutcome: terminalScene } }],
     ["the scene was built and never tested", { scenePreviewReady: true, sceneProgression: { state: "completed" } }],
@@ -696,11 +679,10 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
     expect(view({ consentRevoked: true }).headline).toMatch(/consent was withdrawn/);
     expect(view({ ownerClosureOutcome: projectWebsiteRunClosure({ website_run_closures: { "walkthrough-req1": ownerClosure() } },
       "req1", "walkthrough-req1") }).headline).toBe("Run closed with a conservative abstention");
-    expect(view({ sceneProgression: { state: "evaluated" } }).headline).toMatch(/^Your simulation estimate is ready/);
     expect(view({ sceneProgression: { state: "held", heldReason: "held_capability" } }).headline)
       .toMatch(/^The simulation can't model this kind of task yet\./);
     expect(view({ screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
-    for (const result of [{ consentRevoked: true }, { sceneProgression: { state: "evaluated" } }])
+    for (const result of [{ consentRevoked: true }, { sceneProgression: { state: "held", heldReason: "held_setup" } }])
       expect(view(result).decision).not.toBe("ended");
     // Rewritten (review, 2026-11-11): the sweep records the ending only when no run can still be live (past the window
     // plus the grace the Pipeline takes to stop one), so a run record still saying queued or running is stale here.

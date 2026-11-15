@@ -2,7 +2,8 @@
 import { describe, expect, it } from "vitest";
 import { assertManagedOfferingForJob, managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { jobEvidenceTaskInventoryDigest, scientificBriefDigest } from "../utils/jobEvidenceContract";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { evaluationReadyRunInputSchema, resolvedPolicyRunSelectionSchema } from "../utils/evaluationReadyRunContract";
 import type { ConfiguredSceneOffering } from "../utils/configuredSceneOfferingContract";
 import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";

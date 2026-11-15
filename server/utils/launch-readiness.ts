@@ -1,17 +1,9 @@
 import { authAdmin, dbAdmin } from "../../client/src/lib/firebaseAdmin";
-import { getAgentRuntimeConnectionMetadata } from "../agents/runtime-connectivity";
-import { stripeClient } from "../constants/stripe";
-import {
-  getConfiguredEnvValue,
-  isAutomationLaneEnabled,
-  isTruthyEnvValue,
-} from "../config/env";
+import { isTruthyEnvValue } from "../config/env";
 import { getCityLaunchSenderStatus, getEmailTransportStatus } from "./email";
 import { getHostedSessionLiveStoreStatus } from "./hosted-session-live-store";
-import { buildGrowthIntegrationSummary } from "./provider-status";
 import { getBetaCohortPolicySnapshot } from "./beta-cohort-policy";
 import { describeSiteVideoEvidenceConfig } from "./siteVideoEvidenceConfig";
-import { describeResultArtifactRegistryConfig } from "./taskEvaluationResultArtifactProxy";
 
 type LaunchCheck = {
   required: boolean;
@@ -94,42 +86,10 @@ export function buildLaunchReadinessSnapshot() {
   const liveSessionStore = getHostedSessionLiveStoreStatus();
   const emailTransport = getEmailTransportStatus();
   const cityLaunchSender = getCityLaunchSenderStatus();
-  const agentRuntime = getAgentRuntimeConnectionMetadata();
-  const growthIntegrations = buildGrowthIntegrationSummary();
   const betaCohortPolicy = getBetaCohortPolicySnapshot();
   const fieldEncryptionReady = Boolean(
     process.env.FIELD_ENCRYPTION_MASTER_KEY?.trim()
     || process.env.FIELD_ENCRYPTION_KMS_KEY_NAME?.trim(),
-  );
-  const automationFlags = {
-    waitlist: isAutomationLaneEnabled("BLUEPRINT_WAITLIST_AUTOMATION_ENABLED"),
-    inbound: isAutomationLaneEnabled("BLUEPRINT_INBOUND_AUTOMATION_ENABLED"),
-    support: isAutomationLaneEnabled("BLUEPRINT_SUPPORT_TRIAGE_ENABLED"),
-    payout: isAutomationLaneEnabled("BLUEPRINT_PAYOUT_TRIAGE_ENABLED"),
-    preview: isAutomationLaneEnabled("BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED"),
-    experimentRollout: isAutomationLaneEnabled("BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED"),
-    researchOutbound: isAutomationLaneEnabled("BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED"),
-    creativeFactory: isAutomationLaneEnabled("BLUEPRINT_CREATIVE_FACTORY_ENABLED"),
-    buyerLifecycle: isAutomationLaneEnabled("BLUEPRINT_BUYER_LIFECYCLE_ENABLED"),
-    slaWatchdog: isAutomationLaneEnabled("BLUEPRINT_SLA_WATCHDOG_ENABLED"),
-    notionSync: isAutomationLaneEnabled("BLUEPRINT_NOTION_SYNC_ENABLED"),
-    onboarding: isAutomationLaneEnabled("BLUEPRINT_ONBOARDING_ENABLED"),
-    graduationEval: isAutomationLaneEnabled("BLUEPRINT_ALL_AUTOMATION_ENABLED"),
-  };
-  const anyAutomationEnabled =
-    automationFlags.waitlist ||
-    automationFlags.inbound ||
-    automationFlags.support ||
-    automationFlags.payout ||
-    automationFlags.preview ||
-    automationFlags.slaWatchdog ||
-    automationFlags.notionSync ||
-    automationFlags.onboarding ||
-    automationFlags.graduationEval;
-  const stripeEnabled = Boolean(
-    process.env.STRIPE_SECRET_KEY?.trim()
-    || process.env.CHECKOUT_ALLOWED_ORIGINS?.trim()
-    || process.env.STRIPE_WEBHOOK_SECRET?.trim(),
   );
   const pipelineSyncEnabled = Boolean(
     process.env.PIPELINE_SYNC_TOKEN?.trim()
@@ -157,120 +117,37 @@ export function buildLaunchReadinessSnapshot() {
   // warning is repeated on every readiness pass until it is fixed.
   const slackOpsRequired = false;
   const slackOpsReady = Boolean(process.env.SLACK_WEBHOOK_URL?.trim()) || !productionDeploy;
-  // Mirrors stripeWebhookInlineMode() without importing the queue module.
-  const stripeQueueMode =
-    process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE !== "1"
-    && process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE === "1";
-  const stripeQueueConsumerConfirmed = isTruthyEnvValue(
-    process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED,
-  );
-  const stripeWebhookQueueReady = !stripeQueueMode || stripeQueueConsumerConfirmed;
   const firebaseAdminReady = Boolean(dbAdmin && authAdmin);
   const redisReady =
     !redisRequired
     || (redisConfigured
       && liveSessionStore.backend === "redis"
       && liveSessionStore.redisConnected === true);
-  const stripeReady =
-    !stripeEnabled || Boolean(stripeClient && process.env.STRIPE_WEBHOOK_SECRET?.trim());
   const emailReady = !emailRequired || emailTransport.configured;
   const pipelineSyncReady =
     !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
-  const agentRuntimeReady = !anyAutomationEnabled || agentRuntime.configured;
-  const outboundChannel = (
-    getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL") || "resend"
-  ).toLowerCase();
-  const outboundRecipientsConfigured = Boolean(
-    getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS"),
-  );
-  const outboundTopicsConfigured = Boolean(
-    getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS"),
-  );
-  const researchDeliveryReady =
-    outboundChannel === "resend"
-      ? emailTransport.configured && outboundRecipientsConfigured
-      : false;
-  const experimentAutorolloutReady = !automationFlags.experimentRollout || firebaseAdminReady;
-  const researchOutboundReady =
-    !automationFlags.researchOutbound ||
-    (
-      firebaseAdminReady &&
-      growthIntegrations.researchOutbound.configured &&
-      outboundTopicsConfigured &&
-      researchDeliveryReady
-    );
-  const creativeFactoryReady =
-    !automationFlags.creativeFactory ||
-    firebaseAdminReady;
-  const buyerLifecycleReady =
-    !automationFlags.buyerLifecycle || (firebaseAdminReady && emailTransport.configured);
   const betaCohortControlsReady =
     betaCohortPolicy.enabled
     && !betaCohortPolicy.killSwitchActive
     && (betaCohortPolicy.inviteCap ?? 0) > 0
     && (betaCohortPolicy.cohortDailyLimit ?? 0) > 0
     && (firebaseAdminReady || localLaunchSmoke);
-  const slaWatchdogReady =
-    !automationFlags.slaWatchdog || (firebaseAdminReady && emailTransport.configured);
-  const notionSyncDatabaseConfigured = Boolean(
-    getConfiguredEnvValue(
-      "NOTION_GROWTH_STUDIO_SHIP_BROADCAST_DB_ID",
-      "NOTION_GROWTH_STUDIO_CAMPAIGN_DRAFTS_DB_ID",
-      "NOTION_GROWTH_STUDIO_CREATIVE_RUNS_DB_ID",
-      "NOTION_GROWTH_STUDIO_INTEGRATION_CHECKS_DB_ID",
-      "NOTION_GROWTH_STUDIO_CONTENT_REVIEWS_DB_ID",
-      "NOTION_CAMPAIGNS_DB_ID",
-      "NOTION_CREATIVE_RUNS_DB_ID",
-      "NOTION_GRADUATION_DB_ID",
-      "NOTION_SLA_DB_ID",
-      "NOTION_TASKS_DB_ID",
-    ),
-  );
-  const notionSyncReady =
-    !automationFlags.notionSync ||
-    (
-      firebaseAdminReady
-      && Boolean(getConfiguredEnvValue("NOTION_API_KEY", "NOTION_API_TOKEN"))
-      && notionSyncDatabaseConfigured
-    );
-  const onboardingReady =
-    !automationFlags.onboarding || (firebaseAdminReady && emailTransport.configured);
-  const autonomousAutomationReady =
-    experimentAutorolloutReady &&
-    researchOutboundReady &&
-    creativeFactoryReady &&
-    buyerLifecycleReady &&
-    slaWatchdogReady &&
-    notionSyncReady &&
-    onboardingReady;
 
   const siteVideoEvidence = describeSiteVideoEvidenceConfig();
-  // Reported as a named warning, not a blocker: a missing registry stops
-  // result videos and downloads but must not fail the deploy health gate.
-  const resultArtifacts = describeResultArtifactRegistryConfig();
 
   const checks = {
     server: true,
     firebaseAdmin: firebaseAdminReady || localLaunchSmoke,
     fieldEncryption: fieldEncryptionReady,
     redis: redisReady,
-    stripe: stripeReady,
-    stripeWebhookQueue: stripeWebhookQueueReady,
     email: emailReady,
     slackOpsAlerts: !slackOpsRequired || slackOpsReady,
     pipelineSync: pipelineSyncReady,
-    agentRuntime: agentRuntimeReady,
     betaCohortControls: betaCohortControlsReady,
-    autonomousAutomation: autonomousAutomationReady,
     siteVideoEvidence: siteVideoEvidence.ready,
   };
 
   const launchChecks = {
-    resultArtifacts: {
-      required: false,
-      ready: resultArtifacts.ready,
-      detail: resultArtifacts.detail,
-    },
     siteVideoEvidence: {
       required: siteVideoEvidence.enabled,
       ready: siteVideoEvidence.ready,
@@ -313,24 +190,6 @@ export function buildLaunchReadinessSnapshot() {
         ? "SLACK_WEBHOOK_URL is configured for ops alerts."
         : "SLACK_WEBHOOK_URL is not set: ops alerts (5xx spikes, crashes, undelivered intake notices, readiness) reach nobody.",
     },
-    stripeWebhookQueue: {
-      required: stripeQueueMode,
-      ready: stripeWebhookQueueReady,
-      detail: !stripeQueueMode
-        ? "Stripe webhooks settle inline in the web process."
-        : stripeQueueConsumerConfirmed
-          ? "Stripe webhook queue mode with a confirmed consumer (BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1)."
-          : "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1 but no queue consumer is confirmed: the deployed worker is launch-forward-only and never drains the queue, so payments would be acknowledged and never settled. Unset the queue flag (inline mode) or run the Stripe queue processor and set BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1.",
-    },
-    stripe: {
-      required: stripeEnabled,
-      ready: stripeReady,
-      detail: stripeEnabled
-        ? stripeReady
-          ? "Stripe secret and webhook configuration are present."
-          : "Stripe is enabled but secret key or webhook secret is missing."
-        : "Stripe launch checks are disabled because Stripe envs are unset.",
-    },
     email: {
       required: emailRequired,
       ready: emailReady,
@@ -360,15 +219,6 @@ export function buildLaunchReadinessSnapshot() {
           : "Pipeline sync is enabled but PIPELINE_SYNC_TOKEN is missing."
         : "Pipeline sync is not required.",
     },
-    agentRuntime: {
-      required: anyAutomationEnabled,
-      ready: agentRuntimeReady,
-      detail: anyAutomationEnabled
-        ? agentRuntimeReady
-          ? `${agentRuntime.provider} is configured for enabled automation lanes.`
-          : `Automation lanes are enabled but the selected provider (${agentRuntime.provider}) is not configured.`
-        : "Agent runtime is not required because automation lanes are disabled.",
-    },
     betaCohortControls: {
       required: true,
       ready: betaCohortControlsReady,
@@ -380,86 +230,6 @@ export function buildLaunchReadinessSnapshot() {
             ? "Beta cohort controls require Firebase Admin / Firestore for caps and throttle state."
             : "Beta cohort controls require positive BLUEPRINT_BETA_INVITE_CAP and BLUEPRINT_BETA_COHORT_DAILY_LIMIT.",
     },
-    experimentAutorollout: {
-      required: automationFlags.experimentRollout,
-      ready: experimentAutorolloutReady,
-      detail: automationFlags.experimentRollout
-        ? experimentAutorolloutReady
-          ? growthIntegrations.analytics.firstPartyIngest.enabled
-            ? "Experiment autorollout can evaluate first-party growth events and persist live winning variants."
-            : "Experiment autorollout is enabled and can evaluate existing growth_events data, but first-party analytics ingest is still disabled."
-          : "Experiment autorollout is enabled, but Firebase Admin / Firestore is unavailable for growth_events evaluation."
-        : "Experiment autorollout is disabled.",
-    },
-    researchOutbound: {
-      required: automationFlags.researchOutbound,
-      ready: researchOutboundReady,
-      detail: automationFlags.researchOutbound
-        ? researchOutboundReady
-          ? `Autonomous research outbound is configured for ${growthIntegrations.researchOutbound.providerKey || "market-signal"} discovery and the ${outboundChannel} delivery path.`
-          : outboundChannel === "resend"
-            ? "Autonomous research outbound needs a configured market-signal provider, research topics, BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS, and Resend delivery."
-            : `Autonomous research outbound channel "${outboundChannel}" is not supported. Use resend.`
-        : "Autonomous research outbound is disabled.",
-    },
-    creativeFactory: {
-      required: automationFlags.creativeFactory,
-      ready: creativeFactoryReady,
-      detail: automationFlags.creativeFactory
-        ? creativeFactoryReady
-          ? "Creative factory can generate proof-led prompt packs and route image-heavy execution to webapp-codex without paid image APIs."
-          : "Creative factory is enabled, but Firebase Admin / Firestore is unavailable."
-        : "Creative factory is disabled.",
-    },
-    buyerLifecycle: {
-      required: automationFlags.buyerLifecycle,
-      ready: buyerLifecycleReady,
-      detail: automationFlags.buyerLifecycle
-        ? buyerLifecycleReady
-          ? "Buyer lifecycle outreach can queue provenance-grounded follow-up emails for provisioned entitlements."
-          : "Buyer lifecycle is enabled, but Firebase Admin and a configured email transport are both required."
-        : "Buyer lifecycle is disabled.",
-    },
-    notionSync: {
-      required: automationFlags.notionSync,
-      ready: notionSyncReady,
-      detail: automationFlags.notionSync
-        ? notionSyncReady
-          ? "Notion sync can mirror Blueprint state into the configured Notion databases."
-          : "Notion sync is enabled, but Firebase Admin, a Notion API token, or at least one target Notion database id is missing."
-        : "Notion sync is disabled.",
-    },
-    voiceConcierge: {
-      required: false,
-      ready: growthIntegrations.elevenlabs.configured,
-      detail: growthIntegrations.elevenlabs.configured
-        ? "ElevenLabs web voice is configured."
-        : "Configure ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID to make web voice live.",
-    },
-    telephony: {
-      required: false,
-      ready: growthIntegrations.telephony.configured,
-      detail: growthIntegrations.telephony.configured
-        ? "Twilio-compatible PSTN voice intake is configured."
-        : "Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to make PSTN intake live.",
-    },
-    postSignupDirect: {
-      required: false,
-      ready: Boolean(
-        (
-          (process.env.GOOGLE_CLIENT_EMAIL?.trim() && process.env.GOOGLE_PRIVATE_KEY?.trim())
-          || process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
-          || process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()
-        )
-        && process.env.GOOGLE_CALENDAR_ID?.trim()
-        && (
-          process.env.POST_SIGNUP_SPREADSHEET_ID?.trim()
-          || process.env.SPREADSHEET_ID?.trim()
-        ),
-      ),
-      detail: "Tracks whether post-signup calendar and sheet credentials are present for alpha launch.",
-    },
-    automationFlags,
   };
 
   const blockers = Object.entries(launchChecks)
@@ -481,9 +251,6 @@ export function buildLaunchReadinessSnapshot() {
     dependencies: {
       liveSessionStore,
       emailTransport,
-      agentRuntime,
-      growthIntegrations,
-      stripeEnabled,
       pipelineSyncEnabled,
       redisRequired,
       betaCohortPolicy,

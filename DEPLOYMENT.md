@@ -20,7 +20,7 @@ npm run alpha:check
 Production promotion uses the exact-SHA green `CI` gate in
 `.github/workflows/deploy.yml`, followed by the deployed version and readiness
 readbacks. `alpha:preflight` describes the retired autonomous paid alpha; it
-requires Stripe and old automation flags and is not a free-beta release gate.
+requires old automation flags and is not a free-beta release gate.
 Do not enable billing or retired lifecycle/outreach workers to satisfy it.
 
 Live alpha smoke:
@@ -59,8 +59,7 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
   (`node-version-file: .nvmrc`), `package.json` repeats it as `engines.node`,
   and Render's native Node runtime reads either file unless a `NODE_VERSION`
   environment variable is set on the service (the dashboard value is not
-  visible from this repo). `functions/` declares Node 22 on its own
-  (`functions/package.json`, `firebase.json`).
+  visible from this repo).
 - Build command: `npm ci && npm run build`
 - Web start command: `npm start`
 - Independent production worker start command: `NODE_ENV=production node dist/worker.js`.
@@ -204,15 +203,14 @@ Launch-critical note:
 
 ### Storage Provider
 - `BLUEPRINT_STORAGE_PROVIDER=firebase` keeps client uploads on Firebase Storage.
-- `BLUEPRINT_STORAGE_PROVIDER=backblaze` makes the server route `/api/storage/uploads` store objects in Backblaze B2 (`server/utils/storage-provider.ts`).
-- `VITE_BLUEPRINT_STORAGE_PROVIDER` is listed in `render.required.env.example`, but no file under `client/src` or `server` reads it. The client has no switch that sends uploads to `/api/storage/uploads`; setting the variable changes nothing.
+- `BLUEPRINT_STORAGE_PROVIDER=backblaze` makes `server/utils/storage-provider.ts` store objects in Backblaze B2.
 
 Backblaze B2 server env, required only when the provider is `backblaze`:
 - `BACKBLAZE_B2_KEY_ID`
 - `BACKBLAZE_B2_APPLICATION_KEY`
 - `BACKBLAZE_B2_BUCKET_ID`
 - `BACKBLAZE_B2_BUCKET_NAME`
-- Optional: `BACKBLAZE_B2_KEY_NAME`, `BACKBLAZE_B2_PUBLIC_BASE_URL`
+- Optional: `BACKBLAZE_B2_PUBLIC_BASE_URL`
 - Secret-file variants are supported for sensitive values: `BACKBLAZE_B2_KEY_ID_FILE`, `BACKBLAZE_B2_APPLICATION_KEY_FILE`, `BACKBLAZE_B2_BUCKET_ID_FILE`, and `BACKBLAZE_B2_BUCKET_NAME_FILE`.
 
 Compatibility aliases for the older upload route remain supported: `B2_KEY_ID`, `B2_APP_KEY`, `B2_APPLICATION_KEY`, `B2_BUCKET_ID`, and `B2_BUCKET_NAME`.
@@ -280,39 +278,11 @@ autocomplete usable. `Permissions-Policy` permits
 same-origin geolocation only on `/contact/site-operator`, matching the site's
 full-page intake links; camera policy stays scoped to capture upload.
 
-### iOS App + App Clip (server): not in use
-
-Retired 2026-11-11: no capture app is in use, so the capture link always opens
-the browser recorder. The association file answers 404 and no App Clip banner
-is served, whatever `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID`,
-`IOS_APP_CLIP_BUNDLE_ID` and `IOS_APP_STORE_ID` say; those variables (and
-`APP_CLIP_ADDITIONAL_PATHS`) are not in use and can be unset in Render. The
-text below is how it worked before:
-
-- `/.well-known/apple-app-site-association` (and `/apple-app-site-association`)
-  needs `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID` (`Public.BlueprintCapture`) and
-  `IOS_APP_CLIP_BUNDLE_ID` (`Public.BlueprintCapture.Clip`). Unset answers 503;
-  placeholder values answer 204. The applinks paths are `/go`, `/go/*` and
-  `/capture-upload/*`, plus any in `APP_CLIP_ADDITIONAL_PATHS` (comma-separated).
-  Apple fetches the file from both `www.tryblueprint.io` and `tryblueprint.io`;
-  each must answer 200 JSON directly, with no redirect.
-- `IOS_APP_STORE_ID` (the full app's numeric App Store ID), together with
-  `IOS_APP_CLIP_BUNDLE_ID`, adds the App Clip Smart App Banner to
-  `/capture-upload/:token` only. Leave it unset until the app has an App Store
-  record; with it unset no banner is served.
-
 App bundle uploads through the capture link take optional limits:
 `SELF_CAPTURE_MAX_BUNDLE_FILES` (20000), `SELF_CAPTURE_MAX_BUNDLE_BYTES`
 (2 GiB), `SELF_CAPTURE_MAX_BUNDLE_SIDECAR_BYTES` (256 MiB) and
 `SELF_CAPTURE_BUNDLE_PLAN_BODY_LIMIT` (`8mb`). The browser recorder keeps
 `SELF_CAPTURE_MAX_UPLOAD_BYTES` and `SELF_CAPTURE_MAX_PART_BYTES`.
-
-### Stripe (server)
-- `STRIPE_SECRET_KEY`
-- `STRIPE_CONNECT_ACCOUNT_ID`
-- `STRIPE_WEBHOOK_SECRET`
-- `CHECKOUT_ALLOWED_ORIGINS`
-- Optional: `STRIPE_PUBLIC_BASE_URL`, `STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`
 
 ### Agent Runtime (server)
 - one of:
@@ -326,29 +296,20 @@ App bundle uploads through the capture link take optional limits:
   - `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER` — global; moves every structured lane at once
   - `BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER`
 - Optional per-lane provider selection (overrides the global provider for one lane):
-  - `BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER`
-  - `BLUEPRINT_WAITLIST_AUTOMATION_PROVIDER`
-  - `BLUEPRINT_POST_SIGNUP_PROVIDER`
-  - `BLUEPRINT_SUPPORT_TRIAGE_PROVIDER`
-  - `BLUEPRINT_PAYOUT_EXCEPTION_PROVIDER`
-  - `BLUEPRINT_PREVIEW_DIAGNOSIS_PROVIDER`
-  - `BLUEPRINT_OPERATOR_THREAD_PROVIDER`
-  - `BLUEPRINT_ROBOT_CAPABILITY_EXTRACTION_PROVIDER`
+  - `BLUEPRINT_ROBOT_FIT_RANKING_PROVIDER`
+  - `BLUEPRINT_SITE_TASK_FOLLOW_UP_PROVIDER`
 
   A lane override needs that provider's own key. Without it the lane falls back
   to the global provider rather than going offline, and the fall-through is
   reported as `unhonored_lane_providers` in the agent runtime connectivity
-  metadata (`GET` the admin agent runtime status, or run
-  `tsx scripts/agent-runtime-smoke.ts`). Check there before concluding a lane is
+  metadata (`GET` the admin agent runtime status). Check there before concluding a lane is
   on the model you set — `task_providers` and `task_models` name what each lane
   will actually use.
 - Optional: `OPENAI_DEFAULT_MODEL`
 - Optional OpenAI budget and deadline: `BLUEPRINT_OPENAI_AGENT_MAX_OUTPUT_TOKENS`
   (default `16000`), `OPENAI_TIMEOUT_MS` (default `120000`). Reasoning tokens
   come out of `max_output_tokens` on the Responses API, so a lane at reasoning
-  effort `max` needs both. Default OpenAI model: `gpt-6-luna`. The lanes that
-  write to a person (outbound outreach, waitlist, inbound qualification, support,
-  post-signup scheduling) default to OpenAI when `OPENAI_API_KEY` is set.
+  effort `max` needs both. Default OpenAI model: `gpt-6-luna`.
 - Optional: `ANTHROPIC_DEFAULT_MODEL`
 - Optional: `ACP_DEFAULT_HARNESS`
 - Optional managed-runtime spend guardrails:
@@ -358,51 +319,16 @@ App bundle uploads through the capture link take optional limits:
   `BLUEPRINT_AGENT_COST_STOP_15M_USD`,
   `BLUEPRINT_AGENT_COST_STOP_HOUR_USD`,
   `BLUEPRINT_AGENT_COST_STOP_DAY_USD`
-- Optional Chief-of-Staff wake burst controls:
-  `BLUEPRINT_CHIEF_OF_STAFF_WAKE_TTL_MS`,
-  `BLUEPRINT_CHIEF_OF_STAFF_WAKE_BACKOFF_MS`,
-  `BLUEPRINT_CHIEF_OF_STAFF_WAKE_MAX_ATTEMPTS`
 - Optional analytics mirror:
   `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`
-- Optional per-lane overrides:
-  `OPENAI_WAITLIST_AUTOMATION_MODEL`,
-  `OPENAI_INBOUND_QUALIFICATION_MODEL`,
-  `OPENAI_POST_SIGNUP_MODEL`,
-  `OPENAI_SUPPORT_TRIAGE_MODEL`,
-  `OPENAI_PAYOUT_EXCEPTION_MODEL`,
-  `OPENAI_PREVIEW_DIAGNOSIS_MODEL`,
-  `OPENAI_OPERATOR_THREAD_MODEL`
-- Anthropic per-lane overrides are also supported:
-  `ANTHROPIC_WAITLIST_AUTOMATION_MODEL`,
-  `ANTHROPIC_INBOUND_QUALIFICATION_MODEL`,
-  `ANTHROPIC_POST_SIGNUP_MODEL`,
-  `ANTHROPIC_SUPPORT_TRIAGE_MODEL`,
-  `ANTHROPIC_PAYOUT_EXCEPTION_MODEL`,
-  `ANTHROPIC_PREVIEW_DIAGNOSIS_MODEL`,
-  `ANTHROPIC_OPERATOR_THREAD_MODEL`
-- Optional Gemini Deep Research overrides:
-  `BLUEPRINT_DEEP_RESEARCH_AGENT`
-  `BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_AGENT`
-  `BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE`
-  `BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE`
-  `BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON`
-  `BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_MCP_SERVERS_JSON`
+- Optional per-lane model overrides:
+  `OPENAI_ROBOT_FIT_RANKING_MODEL`,
+  `OPENAI_SITE_TASK_FOLLOW_UP_MODEL`,
+  `ANTHROPIC_ROBOT_FIT_RANKING_MODEL`,
+  `ANTHROPIC_SITE_TASK_FOLLOW_UP_MODEL`
 - Optional Parallel Search MCP-backed agent web tools:
   `SEARCH_API_PROVIDER=parallel_mcp`
   `PARALLEL_API_KEY` only when using an authenticated Parallel account for higher rate limits/account attribution
-
-Deep Research notes:
-- The repo defaults async Deep Research harnesses to Gemini Deep Research Max (`deep-research-max-preview-04-2026`).
-- Use `BLUEPRINT_DEEP_RESEARCH_AGENT=standard` only when you deliberately want the lower-latency Deep Research agent instead of Max.
-- `*_MCP_SERVERS_JSON` must be a JSON array of remote MCP server configs with `name`, `url`, optional `headers`, and optional `allowed_tools`.
-- The Blueprint automation plugin registers `web-search` without a key when `SEARCH_API_PROVIDER=parallel_mcp`; it also registers `web-fetch` for specific public URL extraction through Parallel Search MCP.
-
-Agent-side creative MCP note:
-- Higgsfield MCP is configured at the client/agent layer, not as a required WebApp server secret.
-- Codex: `codex mcp add higgsfield --url https://mcp.higgsfield.ai/mcp`, then complete `codex mcp login higgsfield`.
-- Hermes: `mcp_servers.higgsfield.url=https://mcp.higgsfield.ai/mcp` with `auth: oauth`.
-- Use it only for scoped creative/video issues through the `higgsfield-creative-video` skill. Final image execution stays on Codex `gpt-image-2`.
-- If OAuth returns `redirect_uri` mismatch, the connector is installed but not usable in that client until Higgsfield supports the client's local OAuth callback or provides a compatible auth flow.
 
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
@@ -458,7 +384,6 @@ Launch-critical note:
 - Leave `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS` unset in paid/production flows so pipeline sync fails closed when inbound request bootstrap is missing.
 - Live robot-eval request acceptance requires forwarding to the CapturePipeline intake service by default, and production ignores `ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED=false`. If URL/token are missing, blocked, or fail, the route returns a 5xx while preserving the durable local inbox record. If the Pipeline control plane requires the incoming request to match its active capture root, configure `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON`; the forwarded envelope keeps the original WebApp/public root in `site_package.webapp_capture_root` and does not upgrade simulator, safety, or readiness proof.
 - Before enabling required live robot-eval forwarding, run `npm run pipeline:forwarding:preflight -- --require-forwarding`. Add `-- --probe-intake-audit` only when the Pipeline intake service is up and `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` matches `BLUEPRINT_LIVE_PIPELINE_INTAKE_TOKEN`; WebApp signs the probe and forwarded POSTs with timestamp/nonce HMAC headers instead of sending the token as bearer auth. The probe performs a read-only `GET /api/live-pipeline/intake-audit`, writes a redacted report under `output/pipeline/robot_eval_job_requests/forwarding_preflight.json`, and does not queue a job, allocate GPUs, or prove simulator execution.
-- For a route-level proof after preflight, `npm run pipeline:first-gpu:route-forwarding-proof -- --forward-url <pipeline-intake-url> ...` starts a local WebApp route and POSTs a non-rehearsal request through `/api/robot-eval/job-requests`. Use a local/staging intake URL unless a live Pipeline staging side effect is explicitly intended; this still does not prove production deployment, GPU allocation, simulator execution, safety, or 90%+ sim-only policy-ranking agreement.
 
 ### Redis (server, recommended for live session state)
 - Optional but recommended: `REDIS_URL`
@@ -493,61 +418,14 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
   `BLUEPRINT_CITY_LAUNCH_FROM_NAME`
   `BLUEPRINT_CITY_LAUNCH_REPLY_TO`
   `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION`
-- Optional city-launch push notifications:
-  `BLUEPRINT_CITY_LAUNCH_PUSH_NOTIFICATIONS_ENABLED=1`
-  Requires Firebase Admin credentials above. When unset, city-launch target promotion writes in-app/ledger fallback records and does not attempt FCM delivery.
-- The city-launch coverage, Exact-Site Hosted Review GTM pilot and Meta Ads CLI
-  tooling (`city-launch:*`, `gtm:*` npm scripts, Ad Studio) was retired with the
-  growth lanes on 2026-11-06.
-- Optional human-reply ingest and email watcher:
-  `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN`
-  `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_QUERY`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_INTERVAL_MS`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_BATCH_SIZE`
-  `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_STARTUP_DELAY_MS`
-- Optional Slack human-reply watcher policy:
-  `SLACK_SIGNING_SECRET`
+- Optional Slack direct messages to the founder (`server/utils/slack.ts`):
   `SLACK_BOT_TOKEN`
   `BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID`
-  `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`
-  `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`
-- Optional operating-graph evidence projection worker:
-  `BLUEPRINT_OPERATING_GRAPH_PROJECTION_ENABLED=1`
-  `BLUEPRINT_OPERATING_GRAPH_PROJECTION_INTERVAL_MS`
-  `BLUEPRINT_OPERATING_GRAPH_PROJECTION_BATCH_SIZE`
-  `BLUEPRINT_OPERATING_GRAPH_PROJECTION_STARTUP_DELAY_MS`
 - Optional Notion operational mirror:
   `NOTION_API_KEY` or `NOTION_API_TOKEN`
-  `NOTION_GROWTH_STUDIO_SHIP_BROADCAST_DB_ID`
-  `NOTION_GROWTH_STUDIO_CAMPAIGN_DRAFTS_DB_ID`
-  `NOTION_GROWTH_STUDIO_CREATIVE_RUNS_DB_ID`
-  `NOTION_GROWTH_STUDIO_INTEGRATION_CHECKS_DB_ID`
-  `NOTION_GROWTH_STUDIO_CONTENT_REVIEWS_DB_ID`
 
 Important:
-- For the Growth Studio mirror vars above, use the Notion data source UUIDs for each database, not the outer database page UUIDs.
-- The Growth Studio mirror runs only inside the `notion_sync` scheduler lane; its admin route and `notion:sync:growth-studio` script were retired with the growth lanes.
-- The human-reply Gmail watcher is valid only when the authenticated mailbox is the approved org-facing identity `ohstnhunt@gmail.com`. If Gmail OAuth resolves to another mailbox, the watcher must fail closed.
-- Outbound/reply durability is production-ready only when `npm run human-replies:audit-durability` passes: sender transport is configured, the city-launch sender is marked verified, `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` is set, `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com`, Gmail OAuth is production-ready, and `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1`.
-- Slack DM is the default fast founder-interrupt path when `SLACK_BOT_TOKEN` and `BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID` point to Nijel Hunt. Slack replies are durable only when the Events API can see the DM or allowlisted thread and the reply correlates to a blocker id or Slack thread id.
-- City-launch direct outreach is outwardly launchable only when at least one direct-outreach action has a real recipient and the active sender address is truthful.
 - `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION` is a manual mirror of sender/domain verification state for outbound city-launch mail. Use `verified` only after confirming the configured sender/domain is actually verified in the live provider; leave it unset if verification is unknown, and treat `unverified` as fail-closed for real sends.
-- Governed search discovery is also opt-in. When enabled, it may query only the search provider configured in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_URL`, only if that provider host is allowlisted in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS`, and it will only keep result URLs whose hosts are already allowed by `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`. Search only discovers candidate public contact pages; the same explicit-email extraction rules still apply.
-- `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` also authorizes the internal human-blocker dispatch route used by Blueprint automation tools to queue or send standard blocker packets from Paperclip agent lanes.
-- `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS` is a manual mirror of the Google OAuth consent-screen publishing state. If it is unset, treat Gmail OAuth durability as unknown rather than production-grade.
-- `BLUEPRINT_OPERATING_GRAPH_PROJECTION_ENABLED=1` promotes first-party capture submissions and city-launch supply targets into append-only operating graph events. Leave disabled only when intentionally running projections by `npm run operating-graph:project` or a closure drill.
-- Email to `ohstnhunt@gmail.com` remains the default durable trail for asynchronous founder decisions. Slack is a durable fast path only for configured DM or allowlisted thread replies that land in `humanReplyEvents`, update `humanBlockerThreads`, and resume the owning issue/work item through the same reply worker.
-
-### Creative Pipeline
-- Codex-executed image generation is the default lane for image-heavy brand, marketing, and frontend work.
-- Server-side autonomous workers no longer use paid image APIs.
-- The OpenRouter video generation helper is removed.
 
 ### Voice Concierge (retired)
 The web voice concierge and PSTN intake (`/api/voice/*`) were retired on
@@ -594,27 +472,6 @@ native capture registration are switched off (410) since 2026-11-11.
 - Optional fallback cohort key:
   `BLUEPRINT_BETA_DEFAULT_COHORT=default`
 
-Native capture clients are separately version-gated before beta upload preflight
-and again at capture registration:
-
-- `BLUEPRINT_CAPTURE_CLIENT_KILL_SWITCH=0` (`1` pauses native capture intake before uploads)
-- `BLUEPRINT_CAPTURE_MIN_IOS_VERSION=<short-version>` (for example `1.2.0`)
-- `BLUEPRINT_CAPTURE_MIN_IOS_BUILD=<build-number>` (for example `120`)
-
-The iOS app sends `X-Blueprint-Native-Client`, `X-Blueprint-App-Version`,
-`X-Blueprint-App-Build`, `X-Blueprint-OS-Version`, and
-`X-Blueprint-Device-Model` headers plus matching payload fields. Old or paused
-clients receive `426 capture_client_upgrade_required` or
-`503 capture_client_kill_switch_active` and must not upload raw capture bundles.
-
-Optional review-watchdog workers that only flag overdue human queues:
-
-- `BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED=1`
-- `BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED=1`
-
-These watchdogs do not send outreach, grant permissions, submit disputes, or move funds. They only mark overdue review state in Firestore so operators can work the queue.
-- Optional field-ops reminder worker:
-  `BLUEPRINT_CAPTURER_REMINDER_ENABLED=1`
 - Optional market-signal provider status (reported by the growth integration
   summary): `FIREHOSE_API_TOKEN`, `FIREHOSE_BASE_URL`
 
@@ -635,14 +492,13 @@ receipt, not inbox delivery proof. Configure the signed delivery webhook at
 `/api/growth/webhooks/resend` and set `RESEND_WEBHOOK_SECRET` from its webhook
 details to record delivery, bounce, and complaint events. Keep `hello@` and
 `support@` human replies on their existing mailbox/inbox route; Resend does not
-replace that inbox or the approved Gmail human-reply watcher.
+replace that inbox.
 
 ## Notes
 
 - Firestore is the active datastore.
 - In production, public world-model pages should surface pipeline-backed site worlds only. Static fixture cards are for non-production and explicit demo mode.
 - Live hosted-session state now prefers Redis when `REDIS_URL` is configured, then falls back to in-process memory, with Firestore acting as async mirroring/trail storage.
-- Marketplace checkout and artifact entitlement flows are only truthful when Firebase Admin, Stripe checkout, and Stripe webhooks are all configured together.
 - Marketplace search and checkout now fail toward live `marketplace_items` inventory in production instead of silently relying on static sample content.
 - Growth telemetry can now mirror experiment exposures, page views, and campaign events into Firestore when `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`, which gives Paperclip and the analytics agent a first-party event stream even before PostHog/GA4 are fully live.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.

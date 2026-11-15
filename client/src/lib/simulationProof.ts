@@ -729,44 +729,6 @@ export function testResultOf(proof: SimulationProof | null | undefined): TestRes
   return { kind: "no_clear_winner", top, setupFlag };
 }
 
-/** An option's name in its two parts, the robot and "+ its AI software", for a large answer that breaks between them. */
-export function optionParts(label: string): string[] {
-  const at = label.indexOf(" + ");
-  return at < 0 ? [label] : [label.slice(0, at), `+ ${label.slice(at + 3)}`];
-}
-
-/**
- * The line under the big words when there is no option to name in large type: the top option's count when some
- * finished, how far the closest got when none did. The job page and the result email both say it.
- */
-export function testSubLine(result: TestResult): string | null {
-  if (!result) return null;
-  if (result.kind === "no_clear_winner") {
-    return `Top: ${result.top.label}, did the job in ${result.top.succeeded} of ${result.top.scored} ${result.top.scored === 1 ? "try" : "tries"}.`;
-  }
-  if (result.kind === "none_finished") {
-    return result.top.furthestText ? `Closest: ${result.top.label} ${result.top.furthestText}.`
-      : `${result.count} ${result.count === 1 ? "robot" : "robots"} tried; none finished the job.`;
-  }
-  return null;
-}
-
-/**
- * The test result as one headline, for the job card a company reads and the library's line: the same result the
- * site's screen leads with, numbers and closed-map names only. Said about "your job"; the card re-voices it.
- */
-export function testHeadline(result: TestResult): string | null {
-  if (!result) return null;
-  const tries = (option: SimulationOption) => `${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}`;
-  switch (result.kind) {
-    case "testing": return `Our early trial is running: ${result.entered} ${result.entered === 1 ? "robot" : "robots"} on your job.`;
-    case "winner": return `${result.wording === "did_best" ? "Did best" : "Was ahead"} in our early trial: ${result.top.label}, doing your job in ${tries(result.top)}.`;
-    case "one_option": return `In our early trial: ${result.top.label} did your job in ${tries(result.top)}, the only robot tried.`;
-    case "no_clear_winner": return "In our early trial: no clear winner yet.";
-    case "none_finished": return "No robot finished the job in our trial.";
-  }
-}
-
 /**
  * The simulation test said in words a child can read: each the plain form of the projection's own sentence for the
  * same case (`simulationProof.ts`), so it is true whenever that one is. The projection's sentences stay in the

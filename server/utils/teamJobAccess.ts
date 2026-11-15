@@ -33,7 +33,7 @@ import { sharedJobListing } from "./taskListingDetails";
 import { SHARING_RECORDING_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { operatorListingHold, operatorListingPaused } from "./operatorListing";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { coverageEvidenceFrom } from "./captureCoverageEvidence";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";

@@ -1,43 +1,17 @@
 import type { StructuredTaskDefinition, AgentTaskKind } from "../types";
-import { externalHarnessThreadTask } from "./external-harness-thread";
-import { inboundQualificationTask } from "./inbound-qualification";
-import { operatorThreadTask } from "./operator-thread";
-import { previewDiagnosisTask } from "./preview-diagnosis";
-import { postSignupSchedulingTask } from "./post-signup-scheduling";
-import { supportTriageTask } from "./support-triage";
-import { waitlistTriageTask } from "./waitlist-triage";
-import { adpRunOperatorTask } from "./adp-run-operator";
 import { siteVideoEvidenceTask } from "./site-video-evidence";
-import { siteAssessmentTask } from "./site-assessment";
 import { captureVideoPrivacyTask } from "./capture-video-privacy";
 import { siteTaskBriefReadingTask } from "./site-task-brief-reading";
 import { captureCoverageTask } from "./capture-coverage";
-import { robotCapabilityExtractionTask } from "./robot-capability-extraction";
 import { robotFitRankingTask } from "./robot-fit-ranking";
-import { captureDispatchTask } from "./capture-dispatch";
-import { outboundOutreachTask } from "./outbound-outreach";
-import { runtimeSmokeTestTask } from "./runtime-smoke-test";
 import { siteTaskFollowUpTask } from "./site-task-follow-up";
 
 export const taskDefinitions = {
-  waitlist_triage: waitlistTriageTask,
-  inbound_qualification: inboundQualificationTask,
-  post_signup_scheduling: postSignupSchedulingTask,
-  support_triage: supportTriageTask,
-  preview_diagnosis: previewDiagnosisTask,
-  operator_thread: operatorThreadTask,
-  external_harness_thread: externalHarnessThreadTask,
-  adp_run_operator: adpRunOperatorTask,
   site_video_evidence: siteVideoEvidenceTask,
-  site_assessment: siteAssessmentTask,
   capture_video_privacy: captureVideoPrivacyTask,
   site_task_brief_reading: siteTaskBriefReadingTask,
   capture_coverage: captureCoverageTask,
-  robot_capability_extraction: robotCapabilityExtractionTask,
   robot_fit_ranking: robotFitRankingTask,
-  capture_dispatch: captureDispatchTask,
-  outbound_outreach: outboundOutreachTask,
-  runtime_smoke_test: runtimeSmokeTestTask,
   site_task_follow_up: siteTaskFollowUpTask,
 } satisfies Record<AgentTaskKind, StructuredTaskDefinition<any, any>>;
 

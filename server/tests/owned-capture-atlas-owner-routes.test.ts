@@ -9,7 +9,6 @@ const native = vi.hoisted(() => ({ execute: vi.fn(), retry: vi.fn(), inspect: vi
 vi.mock("../utils/ownedCaptureAtlasExecution", () => ({ executeOwnedAtlas: native.execute,
   retryOwnedAtlas: native.retry, inspectOwnedAtlas: native.inspect, ownedAtlasBundleRequest: native.bundle }));
 vi.mock("../utils/ownedCaptureAtlasPreparation", () => ({ loadOwnedCaptureAtlasConfiguration: native.configuration }));
-vi.mock("../utils/taskEvaluationResultArtifactProxy", () => ({ streamVerifiedPipelineArtifact: native.stream }));
 import { ownedCaptureAtlasExecutionRouter } from "../routes/owned-capture-atlas";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));

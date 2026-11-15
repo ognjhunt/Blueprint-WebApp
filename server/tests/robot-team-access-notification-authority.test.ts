@@ -12,8 +12,6 @@ const beforeDispatch = vi.hoisted(() => vi.fn(async () => true));
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 vi.mock("../utils/taskStatusUpdates", () => ({ enqueueDueTaskStatusUpdates: vi.fn(), taskStatusUpdateIsCurrent: beforeDispatch, acknowledgeTaskStatusUpdate: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotifications: vi.fn(), reconcileWebsitePreparationNotifications: vi.fn(), reconcileFootageBeforeAccountNotices: vi.fn() }));
-vi.mock("../utils/agentRunResultNotifications", () => ({ reconcileAgentRunResultNotifications: vi.fn() }));
-vi.mock("../utils/taskEvaluationNotificationRetry", () => ({ reconcileTaskEvaluationNotificationRetries: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotificationAuthority", () => ({ taskLifecycleNotificationIsCurrent: vi.fn(async () => true) }));
 vi.mock("../utils/newJobAlerts", () => ({ jobAlertIsCurrent: vi.fn(async () => true) }));
 

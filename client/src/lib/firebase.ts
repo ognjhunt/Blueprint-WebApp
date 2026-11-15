@@ -346,21 +346,6 @@ export interface UserData {
     count?: number;
     sharedWith?: number;
   };
-  billingHistory?: Array<{
-    id?: string;
-    date?: Date;
-    amount?: number;
-    status?: string;
-  }>;
-  paymentMethods?: Array<{
-    id?: string;
-    cardholder?: string;
-    brand?: string;
-    last4?: string;
-    expiryDate?: string;
-    isDefault?: boolean;
-    stripePaymentMethodId?: string;
-  }>;
   teamRoles?: {
     count?: number;
     roles?: string[];
@@ -453,19 +438,6 @@ export const getUserData = async (uid: string): Promise<UserData | null> => {
       code: (error as any)?.code,
       message: (error as any)?.message,
     });
-    throw error;
-  }
-};
-
-export const updateUserBillingDetails = async (
-  uid: string,
-  updates: Pick<UserData, "paymentMethods" | "billingHistory">,
-): Promise<void> => {
-  try {
-    const userRef = doc(db, "users", uid);
-    await updateDoc(userRef, updates);
-  } catch (error) {
-    console.error("[Firebase] Error updating billing details:", error);
     throw error;
   }
 };

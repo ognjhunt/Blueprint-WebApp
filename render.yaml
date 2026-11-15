@@ -29,8 +29,8 @@ services:
         value: "1"
 
   # Dedicated production launch-forward worker. This deployment is explicitly
-  # constrained to Task Evaluation launch reconciliation; unrelated ops and
-  # Stripe queue processors stay off in this service.
+  # constrained to Task Evaluation launch reconciliation; unrelated ops
+  # processors stay off in this service.
   #
   # Env vars are dashboard-managed. The worker needs Firebase Admin plus the
   # canonical Pipeline forward URL/token and launch-forward controls.
@@ -41,8 +41,6 @@ services:
     region: virginia
     autoDeploy: false
     buildCommand: npm ci && npm run build
-    # Avoid a persistent npm launcher competing with this 512 MiB worker's
-    # independently admitted research Python/Firestore subprocesses.
     startCommand: NODE_ENV=production node dist/worker.js
     envVars:
       # This service shares the web build command but starts dist/worker.js and
@@ -54,12 +52,6 @@ services:
         value: "1"
       - key: BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER
         value: "true"
-      - key: BLUEPRINT_COMPANY_POLICY_OUTBOX_WORKER_ENABLED
-        value: "true"
-      - key: BLUEPRINT_DAILY_RESEARCH_PACKAGE_BUILD
-        value: "true"
-      - key: BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED
-        value: "false"
 
   # External uptime probe, every 10 minutes (scripts/ops/uptime-probe.mjs):
   # /health, /version.json and /health/worker (the worker heartbeat). GitHub

@@ -12,7 +12,6 @@
  * reported on, including supplements). It never stands in for a Pipeline status.
  */
 import { z } from "zod";
-import type { StoredWebsitePreparation } from "./websitePreparationStatus";
 
 export const WEBSITE_PREPARATION_WATCH_FIELD = "website_preparation_watch";
 /** Top-level number so a single-field range query (automatic index) finds due watches. */
@@ -20,7 +19,6 @@ export const WEBSITE_PREPARATION_WATCH_DUE_FIELD = "website_preparation_watch_du
 
 const FIRST_STATUS_ALERT_MS_ENV = "BLUEPRINT_WEBSITE_PREPARATION_FIRST_STATUS_ALERT_MS";
 const STUCK_ALERT_MS_ENV = "BLUEPRINT_WEBSITE_PREPARATION_STUCK_ALERT_MS";
-const FINAL_STATES = new Set(["handed_off", "authority_ended"]);
 
 /** Delivery is retained with the watch so an unchanged status preserves retry/lease state.
  * A new state writes delivery:null and invalidates the previous sender's lease. */
@@ -81,25 +79,6 @@ export function websitePreparationUploadWatchFields(requestId: string, sceneId: 
     capture_id: captureId, kind: "awaiting_first_status", state: null, terminal_reason: null, attempt_count: null,
     since_iso: new Date(nowMs).toISOString(), due_at_ms: nowMs + firstStatusAlertMs(), alerted_at_iso: null, delivery: null};
   return {[WEBSITE_PREPARATION_WATCH_FIELD]: watch, [WEBSITE_PREPARATION_WATCH_DUE_FIELD]: watch.due_at_ms};
-}
-
-/** The watch after a status commit. The clock runs from the last change of state, not revision. */
-export function nextWebsitePreparationWatch(previous: WebsitePreparationWatch | null,
-  preparation: StoredWebsitePreparation, nowMs = Date.now()): WebsitePreparationWatch | null {
-  const {selector, status} = preparation;
-  if (FINAL_STATES.has(status.state)) return null;
-  const base = {schema_version: "website_preparation_watch.v1" as const, request_id: selector.request_id,
-    capture_id: selector.capture_id, since_iso: new Date(nowMs).toISOString(), alerted_at_iso: null, delivery: null};
-  if (status.state === "failed_terminal") {
-    // Each terminal transition is reported to operators once.
-    if (previous?.kind === "ended" && previous.attempt_count === status.attempt_count) return previous;
-    return {...base, kind: "ended", state: status.state, attempt_count: status.attempt_count,
-      terminal_reason: status.terminal_reason,
-      due_at_ms: nowMs};
-  }
-  if (previous?.kind === "unchanged_state" && previous.state === status.state) return previous;
-  return {...base, kind: "unchanged_state", state: status.state, terminal_reason: null,
-    attempt_count: status.attempt_count, due_at_ms: nowMs + stuckAlertMs()};
 }
 
 /** Whether the site should be told its preparation is taking longer than it should. */

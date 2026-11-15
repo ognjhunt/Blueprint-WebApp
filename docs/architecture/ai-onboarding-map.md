@@ -16,7 +16,7 @@ the shared block of `PLATFORM_CONTEXT.md`; this map only says where things are.
 | Consent records | `client/src/lib/jobCardAnswerConsent.ts`, `client/src/lib/recordingRightsStatement.ts`, `client/src/lib/siteStartConsent.ts` | Versioned statements a site accepted. |
 | Money controls | `server/utils/agentSpendPolicy.ts`, `server/utils/agentSpendLedger.ts` | Spend limits and their owner approvals. |
 | Language-model tasks | `server/agents/runtime.ts`, `server/agents/tasks/` | Prompts and provider selection. |
-| Paperclip (retired) | `AUTONOMOUS_ORG.md`, `ops/paperclip/` | Stubs and host tooling only. |
+| Paperclip (retired) | `AUTONOMOUS_ORG.md` | Retirement notice only. |
 
 Pages and routes change often; trust `routes.tsx` over this table.
 

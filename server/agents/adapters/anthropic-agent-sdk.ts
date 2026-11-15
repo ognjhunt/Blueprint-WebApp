@@ -3,7 +3,6 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
-import { companyHistoryWithheld, getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
 import {
   ACCOUNTING_ONLY_TASK_KINDS,
   ANTHROPIC_API_BASE_URL,
@@ -23,7 +22,6 @@ import {
   type ProviderErrorClassification,
 } from "../provider-errors";
 import { logger } from "../../logger";
-import { digest } from "../../research-learning/contract";
 import {
   ANTHROPIC_COST_FIELDS,
   anthropicDearestRequestCost,
@@ -233,15 +231,6 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
   ];
 
   const messages: MessageParam[] = [{ role: "user", content: task.definition.build_prompt(task.input) }];
-  const historyAccess = await getCompanyHistoryAccess(task, "anthropic_agent_sdk");
-  const historyWithheld = companyHistoryWithheld(task.kind, "anthropic_agent_sdk");
-  if (historyWithheld) traceLogs.push({ event_type: "provider.history_tools.withheld", status: "info",
-    summary: "Company-history tools withheld: the policy does not name this provider for what the history exposes",
-    history_tools_withheld: historyWithheld });
-  const historyTools: Anthropic.Beta.BetaTool[] = historyAccess ? openAiResponsesHistoryTools.map(tool => ({
-    name: tool.name, description: tool.description, input_schema: tool.parameters as Anthropic.Beta.BetaTool.InputSchema,
-  })) : [];
-  const historyCalls: Array<Record<string, unknown>> = [];
   const deadline = Date.now() + anthropicTimeoutMs;
   const receipts: Array<Record<string, unknown>> = [], usageSamples: Array<Record<string, unknown>> = [], providerResponses: Array<Record<string, unknown>> = [];
   const servedModels: string[] = [];
@@ -270,8 +259,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
       model: task.model, tool_mode: task.tool_policy.mode, ...(output !== undefined ? { output } : {}),
       raw_output_text: rawText, logs: traceLogs, error: error ?? null,
       requires_human_review: Boolean(error) || inferRequiresHumanReview(output), requires_approval: false,
-      artifacts: { output_repairs: receipts, usage_samples: usageSamples, provider_responses: providerResponses, company_history_tool_calls: historyCalls,
-        ...(historyWithheld ? { history_tools_withheld: historyWithheld } : {}),
+      artifacts: { output_repairs: receipts, usage_samples: usageSamples, provider_responses: providerResponses,
         served_models: servedModels,
         ...(providerError ? { provider_error: providerError } : {}),
         ...(stopDetails ? { stop_details: stopDetails } : {}),
@@ -312,7 +300,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
     // request's own conservative size (the bytes of the messages, the tools
     // and the output schema), so a lane exempt from the ceiling is never
     // reserved below its real input.
-    const estimatedInputTokens = conservativeOpenAIInputTokenCeiling(messages, historyTools)
+    const estimatedInputTokens = conservativeOpenAIInputTokenCeiling(messages, [])
       + (format ? Buffer.byteLength(JSON.stringify(format), "utf8") : 0);
     if (!accountingOnly && estimatedInputTokens > maxInputTokens) {
       return result(undefined, "inference_input_ceiling_exceeded");
@@ -333,7 +321,6 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
       model: task.model,
       max_tokens: remainingOutput,
       messages,
-      ...(historyTools.length ? { tools: historyTools } : {}),
       thinking: { type: "adaptive" as const },
       output_config: { effort, ...(format ? { format } : {}) },
       ...(shape.fallbackModel ? { betas: [SERVER_SIDE_FALLBACK_BETA], fallbacks: [{ model: shape.fallbackModel }] } : {}),
@@ -433,33 +420,6 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
       continue;
     }
 
-    const calls = servedContent(response.content)
-      .filter((block): block is Anthropic.Beta.BetaToolUseBlock => block.type === "tool_use");
-    if (calls.length) {
-      if (!usageComplete) return result(undefined, "output_correction_usage_unavailable");
-      if (Date.now() >= deadline || remainingOutput <= 0) return result(undefined, "output_correction_budget_exhausted");
-      messages.push({ role: "assistant", content: echoContent(response.content) as Anthropic.Beta.BetaContentBlockParam[] });
-      const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
-      for (const call of calls) {
-        let value: unknown, isError = false;
-        try {
-          if (!historyAccess || !historyTools.some(tool => tool.name === call.name)) throw new Error("company_history_tool_not_allowed");
-          if (!call.input || typeof call.input !== "object" || Array.isArray(call.input)) throw new Error("company_history_tool_arguments_invalid");
-          value = await runOperatorTool(call.name, call.input as Record<string, unknown>, historyAccess);
-          isError = Boolean(value && typeof value === "object" && "ok" in value && value.ok === false);
-        } catch {
-          isError = true;
-          value = { error: "company_history_tool_failed", repair: "Use an advertised read-only history tool and its query/filters/page_size/cursor or record_id schema; access is server-controlled." };
-        }
-        const retained = structuredClone({ args: call.input ?? null, result: value ?? null });
-        historyCalls.push({ tool_call_id: call.id, name: call.name, status: isError ? "error" : "completed",
-          result_status: isError ? "error" : "completed", ...retained,
-          args_sha256: digest(retained.args), result_sha256: digest(retained.result) });
-        results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(value), ...(isError ? { is_error: true } : {}) });
-      }
-      messages.push({ role: "user", content: results });
-      continue;
-    }
     try { return result((task.definition.output_schema as ZodType<TOutput>).parse(extractJsonPayload(rawText))); }
     catch (error) {
       const receipt = { responseId: response.id, ...outputCorrectionEvidence(rawText, error), usage };

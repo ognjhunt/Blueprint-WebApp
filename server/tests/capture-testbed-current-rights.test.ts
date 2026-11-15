@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as store } from "./helpers/fake-firestore";
 import { scientificBriefDigest, jobEvidenceTaskInventoryDigest, scientificContext } from "../utils/jobEvidenceContract";
-import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 const express = createRequire(new URL("../../package.json", import.meta.url))("express");
 
@@ -38,9 +38,6 @@ vi.mock("../utils/storage-provider", () => {
     finishBackblazeResumableCapture: blocked, getBackblazeCaptureFileInfo: blocked,
     listBackblazeCaptureParts: blocked, startBackblazeResumableCapture: blocked, uploadSmallBackblazeCapture: blocked };
 });
-vi.mock("../utils/taskCandidateForwarding", () => ({
-  forwardTaskCandidateDecisionToPipeline: () => { seams.providerCalls.push("task"); throw new Error("unexpected forwarding"); },
-}));
 vi.mock("../utils/captureUploadForwarding", () => ({
   captureUploadIntakeForwardingReadiness: () => { throw new Error("unexpected readiness call"); },
   forwardCaptureUploadToPipeline: () => { seams.providerCalls.push("intake"); throw new Error("unexpected forwarding"); },
@@ -49,11 +46,6 @@ vi.mock("../utils/captureLifecycleForwarding", () => {
   const blocked = () => { seams.providerCalls.push("lifecycle"); throw new Error("unexpected forwarding"); };
   return { applyCompletedCaptureLifecycleToPipeline: blocked, inspectCompletedCaptureLifecycleInPipeline: blocked,
     recordCaptureExternalRevocationEvidenceInPipeline: blocked };
-});
-vi.mock("../utils/taskEvaluationRunForwarding", () => {
-  const blocked = () => { seams.providerCalls.push("evaluation"); throw new Error("unexpected forwarding"); };
-  return { forwardTaskEvaluationRunAuthorizationToPipeline: blocked, forwardTaskEvaluationRunExecutionToPipeline: blocked,
-    forwardTaskEvaluationRunPlanToPipeline: blocked };
 });
 vi.mock("../utils/reconstructionForwarding", async original => {
   const blocked = () => { seams.providerCalls.push("reconstruction"); throw new Error("unexpected forwarding"); };

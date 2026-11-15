@@ -57,14 +57,14 @@ describe("site-content route", () => {
       expect(payload.safety).toContain("provider execution");
       expect(payload.safety).toContain("owner-system evidence");
       // The frame of 2026-11-12: free for sites, no price stated, a job packet whose summary deployment companies
-      // see only with the site's permission, the video private, and the early trial labelled as a trial.
+      // see only with the site's permission, the video private; Blueprint's own early trial is no longer described (2026-11-14).
       expect(JSON.stringify(payload)).toContain("Free for sites. Nothing is charged today.");
       expect(payload.summary).toContain("Blueprint turns a site's video of one recurring job into a job packet.");
       expect(payload.summary).not.toMatch(/judge|evaluate the packet|receive the packet/i);
       expect(payload.summary).toContain("a first look on paper (the robot most likely to fit, from published specifications and a cited track record)");
-      expect(payload.summary).toContain("this early trial is not the site's answer and does not predict what a deployment company's robot would do");
+      expect(payload.summary).not.toMatch(/early trial|openly available/i);
       // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
-      expect(payload.summary).toContain("Blueprint sends each job automatically to the deployment companies it has approved: the site's description of the job, its video without sound, the simulation, what counts as done, the first look and the early trial's result where one exists.");
+      expect(payload.summary).toContain("Blueprint sends each job automatically to the deployment companies it has approved: the site's description of the job, its video without sound, the simulation, what counts as done and the first look.");
       expect(payload.summary).toContain("A site's name, address and contact details go to a company only when the site asks for an introduction.");
       expect(payload.summary).not.toMatch(/stays private|only the summary/);
       expect(payload.summary).not.toMatch(/never sees? the site's own sentence/);

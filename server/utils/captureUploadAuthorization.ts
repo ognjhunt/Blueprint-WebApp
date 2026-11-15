@@ -44,9 +44,9 @@
 import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { canGrantInitialRecordingConsent } from "./descriptionAuthority";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { decideDispatchForRequest } from "../agents/workflows";
+import { bindingGateFieldIds, isCaptureMode } from "../../client/src/data/siteTaskQualification";
 import type { InboundRequest } from "../types/inbound-request";
-import type { CaptureDispatchDecision } from "./captureDispatch";
+import { decideCaptureDispatch, type CaptureDispatchDecision } from "./captureDispatch";
 import { footageArrivedBeforeAccount } from "./siteWalkthrough";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { FOOTAGE_BEFORE_ACCOUNT_SENTENCE } from "./taskPreparationOutcome";
@@ -191,4 +191,41 @@ export async function authorizeCaptureUpload(
     openQuestions: [],
     captureMode: request.request?.capture_mode ?? null,
   };
+}
+
+/**
+ * Decide whether capture starts for this submission, and on what terms.
+ *
+ * The inputs are all already computed: the deterministic gate verdict, the
+ * review clamp, and the capture mode the site chose at intake. This adds no
+ * judgement of its own — it is the existing one-way door applied at the moment
+ * a submission is otherwise finished being screened.
+ *
+ * Capture mode comes off the stored request. Absent means the submission
+ * predates the question, and `decideCaptureDispatch` holds rather than assuming
+ * nobody has to travel.
+ */
+export function decideDispatchForRequest(
+  request: InboundRequest,
+  requiresHumanReview: boolean,
+): CaptureDispatchDecision {
+  const captureMode = isCaptureMode(request.request.capture_mode)
+    ? request.request.capture_mode
+    : null;
+
+  return decideCaptureDispatch({
+    disposition: request.site_task_triage?.disposition,
+    requiresHumanReview,
+    unanswered: request.site_task_triage?.unanswered_field_ids,
+    captureMode,
+    // Provenance is absent for every inbound submission, which reads as
+    // operator-stated -- correct, because the site answered these itself. The
+    // binding list still matters: it is what stops an outbound-converted
+    // request dispatching on gates nobody confirmed.
+    // Every job is self-filmed since 2026-11-11 (visits retired), so the
+    // gates that bind are the self-capture ones whatever was stored.
+    bindingFieldIds: bindingGateFieldIds("self_capture"),
+    gateAnswerSources: request.site_task_gate_sources ?? null,
+    captureRegion: request.request.capture_region ?? null,
+  });
 }

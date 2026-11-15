@@ -11,7 +11,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { FINAL_OUTCOME_STATES, isOutcomeState, type OutcomeState } from "../../client/src/lib/jobOutcomeStates";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { isApprovedDeploymentCompanyRecord } from "./companyTerms";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { OutcomeSide } from "./jobOutcomeToken";
 
 export const JOB_OUTCOME_QUESTION_KIND = "job_outcome_question" as const;

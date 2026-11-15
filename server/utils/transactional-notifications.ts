@@ -571,61 +571,6 @@ export async function dispatchTransactionalNotification(
   }
 }
 
-async function readDisbursement(
-  disbursementId: string,
-): Promise<(Record<string, unknown> & { id: string }) | null> {
-  if (!db || !disbursementId) {
-    return null;
-  }
-  const snapshot = await db.collection("creatorPayoutDisbursements").doc(disbursementId).get();
-  return snapshot.exists
-    ? {
-        id: snapshot.id || disbursementId,
-        ...((snapshot.data() || {}) as Record<string, unknown>),
-      }
-    : null;
-}
-
-export async function dispatchCreatorPayoutSettlementNotifications(input: {
-  disbursementId: string;
-  status: "paid" | "failed" | "canceled";
-  stripePayoutId: string;
-  sourceEventId?: string | null;
-  failureReason?: string | null;
-}) {
-  const disbursement = await readDisbursement(input.disbursementId);
-  if (!disbursement) {
-    return [];
-  }
-  const creatorId = stringValue(disbursement.creator_id, 160);
-  const amountCents = stringValue(disbursement.disbursed_amount_cents, 80);
-  const failed = input.status !== "paid";
-  return dispatchTransactionalNotification({
-    eventType: failed ? "payout_failed" : "payout_sent",
-    recipientType: "creator",
-    recipientUserId: creatorId,
-    subjectId: input.disbursementId,
-    sourceEventId: input.sourceEventId || input.stripePayoutId,
-    sourceCollection: "creatorPayoutDisbursements",
-    sourceDocId: input.disbursementId,
-    title: failed ? "Blueprint payout needs review" : "Blueprint payout sent",
-    body: failed
-      ? `A Blueprint payout for ${amountCents || "your capture"} cents failed or was canceled. ${input.failureReason || "Review the payout status in Blueprint."}`
-      : `A Blueprint payout for ${amountCents || "your capture"} cents was marked paid by Stripe.`,
-    emailSubject: failed ? "Your Blueprint payout needs review" : "Your Blueprint payout was sent",
-    emailText: failed
-      ? `A Blueprint payout for ${amountCents || "your capture"} cents failed or was canceled. ${input.failureReason || "Review the payout status in Blueprint."}`
-      : `A Blueprint payout for ${amountCents || "your capture"} cents was marked paid by Stripe.`,
-    preferenceKey: "payouts",
-    data: {
-      disbursement_id: input.disbursementId,
-      stripe_payout_id: input.stripePayoutId,
-      status: input.status,
-    },
-  });
-}
-
-
 function emailReceiptHash(email: string) {
   return crypto.createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
 }

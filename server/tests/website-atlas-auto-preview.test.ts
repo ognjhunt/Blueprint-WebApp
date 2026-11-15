@@ -51,7 +51,8 @@ import { amendWebsiteAtlasGrantFigure, loadWebsiteAtlasConfiguration, observeWeb
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 import { websitePreparationAccounting } from "../utils/websitePreparationAccounting";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { projectWebsiteAtlasPreview, websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";

@@ -8,7 +8,8 @@ import admin from "firebase-admin";
 import { dbAdmin as db } from "../client/src/lib/firebaseAdmin";
 import { developmentTestSiteEligible } from "../server/utils/websiteSceneSponsorship";
 import { type SiteTaskBriefRecord } from "../server/utils/siteTaskBrief";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../server/utils/websiteTaskContext";
+import { projectWebsiteTaskContext } from "../server/utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../server/utils/websiteCaptureRights";
 
 const requestId = process.argv[2] ?? "";
 try {

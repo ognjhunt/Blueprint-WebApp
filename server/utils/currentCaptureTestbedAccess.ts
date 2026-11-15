@@ -2,7 +2,7 @@
 import { jobEvidenceSourceBindingSchema } from "./reconstructionForwarding";
 import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "./jobEvidenceContract";
 import { stableJson } from "./taskCandidateContract";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 type Snapshot = { exists: boolean; data(): any };
 type Read = (collection: string, id: string) => Promise<Snapshot>;

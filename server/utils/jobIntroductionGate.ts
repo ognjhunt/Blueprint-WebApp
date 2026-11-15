@@ -21,7 +21,7 @@
  * Every other kind passes.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { companyMaySeeJobs } from "./companyTerms";
 
 export const INTRODUCTION_COMPANY_KIND = "introduction_made_company";

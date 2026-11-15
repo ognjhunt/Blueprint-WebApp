@@ -39,40 +39,4 @@ describe("server logging conventions", () => {
 
     expect(offenders).toEqual([]);
   });
-
-  it("keeps stable event names on the audited high-value logging paths", () => {
-    const expectedEvents = new Map<string, string[]>([
-      ["server/utils/email.ts", ["email_transport_unconfigured", "email_dispatch_failed"]],
-      [
-        "server/routes/contact.ts",
-        [
-          "contact_submission_rejected",
-          "contact_form_firestore_required_unavailable",
-          "contact_submission_email_processed",
-        ],
-      ],
-      [
-        "server/utils/idempotency.ts",
-        ["idempotency_read_failed", "idempotency_store_failed"],
-      ],
-      [
-        "server/utils/marketSignalProviderFirehose.ts",
-        [
-          "firehose_market_signals_config_unavailable",
-          "firehose_market_signals_fetch_failed",
-        ],
-      ],
-      [
-        "server/routes/api/create-checkout-session.ts",
-        ["stripe_checkout_session_create_failed"],
-      ],
-    ]);
-
-    for (const [relativePath, events] of expectedEvents.entries()) {
-      const content = fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
-      for (const event of events) {
-        expect(content, `${relativePath} should keep ${event}`).toContain(event);
-      }
-    }
-  });
 });

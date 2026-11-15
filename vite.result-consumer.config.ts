@@ -1,6 +1,5 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
 import path from "node:path";
 import { realpathSync } from "node:fs";
 
@@ -12,7 +11,7 @@ export default defineConfig({
   root: path.join(root, "client"),
   envDir: path.join(output, "no-env"),
   cacheDir: path.join(output, "vite-cache"),
-  plugins: [react(), themePlugin()],
+  plugins: [react()],
   resolve: { alias: { "@": path.join(root, "client/src") } },
   server: {
     host: "127.0.0.1",

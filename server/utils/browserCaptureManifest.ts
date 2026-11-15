@@ -1,6 +1,6 @@
 /** The existing immutable browser manifest and compatibility metadata parser. */
 import type { VideoProbe } from "./selfCaptureMediaMetadata";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { websiteCaptureRetention } from "./websiteCaptureRetention";
 
 /** Retained manifest metadata; new uploads are measured locally by the server. */

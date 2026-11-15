@@ -24,7 +24,6 @@ const ANSWER: JobCardAnswerSummary = {
       quote: "Motoman HC arms palletize.", sourceUrl: "https://example.com/hc", sourceTitle: "HC", publisher: "Yaskawa", publishedOn: null }] },
   confidence: { level: "fair", reason: "The weight and distances are estimated from the site's video." },
   unknowns: ["Which gripper or tool the object needs."],
-  simulation: null,
   note: SITE_ANSWER_NOTE.replace("at your site", "at the site"),
 };
 const card = (overrides: Partial<TaskBrowseCard> = {}): TaskBrowseCard => ({
@@ -70,42 +69,15 @@ describe("Blueprint's answer on a job card", () => {
     expect(screen.getByText("UR20")).toBeVisible();
   });
 
-  it("leads with the simulation test result the site sees, said about the job, with the paper pick one line below", () => {
-    const options = [{ label: "Franka arm + π0.5", maker: "Physical Intelligence", succeeded: 7, scored: 10, furthestText: null },
-      { label: "Franka arm + GR00T N1.7", maker: "NVIDIA", succeeded: 0, scored: 10, furthestText: "touched the object" }];
-    const test = { kind: "winner" as const, wording: "was_ahead" as const, entered: 2, setupFlag: false, options };
-    const { unmount } = render(<JobCardAnswer answer={{ ...ANSWER, headline: "Was ahead on the job: Franka arm + π0.5, doing the job in 7 of 10 tries.", test }} />);
+  it("says nothing of an early trial, even when an older server sends a result", () => {
+    const options = [{ label: "Franka arm + π0.5", maker: "Physical Intelligence", succeeded: 7, scored: 10, furthestText: null }];
+    const legacy = { ...ANSWER, simulation: "No robot finished the job in our trial.",
+      test: { kind: "winner" as const, wording: "was_ahead" as const, entered: 2, setupFlag: false, options } } as typeof ANSWER;
+    render(<JobCardAnswer answer={legacy} />);
     const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
-    expect(within(block).getByText("Was ahead in our early trial")).toBeVisible();
-    expect(block.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
-    expect(within(block).getByText("Robot software by Physical Intelligence")).toBeVisible();
-    expect(within(within(block).getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
-      .toEqual(["✓Did the job in 7 of 10 tries", "✓Ahead of the other robot tried"]);
-    expect(block).toHaveTextContent("How sure are we? Fairly sure");
-    expect(within(block).getByText("First look, on paper, most likely to fit: Universal Robots UR20")).toBeVisible();
-    expect(block.textContent).not.toMatch(/your job|Did best/);
-    expect(within(block).getByText("Tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
-    expect(screen.getByRole("region", { name: "Early trial" })).toHaveTextContent(
-      "1. Franka arm + π0.5 · Physical IntelligenceFinished 7 of 10 tries2. Franka arm + GR00T N1.7 · NVIDIAFinished 0 of 10 tries · touched the object");
-    unmount();
-    // None finished, and testing now: never a winner's label.
-    const { unmount: second } = render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "none_finished", wording: null,
-      options: [{ ...options[1] }] } }} />);
-    expect(screen.getByText("No robot finished the job in our trial.")).toBeVisible();
-    expect(screen.getByText("Closest: Franka arm + GR00T N1.7 touched the object.")).toBeVisible();
-    // No set-up flag here: no notice. With one, the card says it in the site's place, as the page and email do.
-    expect(screen.queryByText(/how we set up the simulation/)).toBeNull();
-    expect(screen.queryByText(/Was ahead|Did best/)).toBeNull();
-    second();
-    const { unmount: third } = render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "no_clear_winner", wording: null, setupFlag: true } }} />);
-    expect(screen.getByText("No clear winner yet")).toBeVisible();
-    expect(screen.getByText("This result may come from how we set up the simulation of the site, not from the robots.")).toBeVisible();
-    third();
-    render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "testing", wording: null, entered: 3, options: [] } }} />);
-    expect(screen.getByText("Our early trial is running")).toBeVisible();
-    expect(screen.getByText("3 robots")).toBeVisible();
-    expect(screen.getByText("Being tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBeVisible();
+    expect(block.textContent).not.toMatch(/early trial|our trial|Franka arm/i);
+    fireEvent.click(within(block).getByRole("button", { name: /See details/ }));
+    expect(screen.queryByRole("region", { name: "Early trial" })).toBeNull();
   });
 
   it("says a pass with little to spare, and a strength it can't tell yet with its whole range, never as a fail", () => {

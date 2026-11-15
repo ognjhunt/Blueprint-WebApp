@@ -25,7 +25,7 @@ function dateInWords(value: string): string {
 /**
  * The company's page for one job (package E, E3). Everything on it comes from the server's closed payload
  * (`server/utils/companyJobPage.ts`): the site's sentence, its quick answers, the country, the video, the first look,
- * the simulation and the early trial, each when it exists, and the answer form. The only download offered is the
+ * and the simulation, each when it exists, and the answer form. The only download offered is the
  * simulation package (E9); the video is played, with its download control hidden (which discourages saving; it cannot
  * prevent it).
  */

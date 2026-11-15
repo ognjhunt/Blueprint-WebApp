@@ -27,7 +27,8 @@ import { recordSceneExecutionWindowExtension } from "../utils/sceneExecutionWind
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { browserPendingDecisionKey } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
-import { projectWebsiteTaskContext, projectWebsiteCaptureRights, legacyRoutingTaskContextDigest } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext, legacyRoutingTaskContextDigest } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const source = {source_id: "video:one",kind:"video",canonical_ref:"gs://blueprint-8c1ca.appspot.com/scenes/site-one/captures/walkthrough-one/raw/walkthrough.mp4#generation=1",
   sha256:"a".repeat(64),checked_at:null,content:{duration_seconds:30,evidence:{summary:"A bin moves",observations:[
@@ -181,7 +182,8 @@ function prepOptions() {
   return {purpose:"scene_preparation" as const,expected_task_context_digest:projectWebsiteTaskContext(brief,
     projectWebsiteCaptureRights(record),{purpose:"scene_preparation",inventory:state.docs.get("siteTaskItemInventories/one") ?? undefined} as any).context_digest};
 }
-import { projectWebsiteTaskContext, projectWebsiteCaptureRights, confirmationParentContextDigests } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext, confirmationParentContextDigests } from "../utils/websiteTaskContext";
+import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { validateWebsiteSponsoredIntake, currentWebsitePreparationStatusContext, renewExpiredWebsiteSceneSponsorship,
   SPONSORSHIP_RENEWAL_ACK } from "../utils/websiteSceneSponsorship";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";

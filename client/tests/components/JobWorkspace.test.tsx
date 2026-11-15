@@ -3,9 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import type { JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
-import { computerTestLine } from "@/components/site/SimulationProof";
-import { projectSimulationProof } from "@/lib/simulationProof";
-import { winnerEvaluation } from "../fixtures/siteAnswer";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
@@ -19,11 +16,10 @@ function workflow(overrides: Partial<JobMarketplaceWorkflow> = {}): JobMarketpla
   };
 }
 const response = (value: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
-/** Every policy and test detail is folded into one block, collapsed until the site opens it. */
+/** Every test detail is folded into one block, collapsed until the site opens it. */
 async function openSimulation() {
   const summary = await screen.findByText("Simulation details");
   expect(summary.closest("details")).not.toHaveAttribute("open");
-  expect(screen.getByText("Every policy we set up, and why any did not run.")).toBeVisible();
   expect(screen.queryByText(/checked against real trials/)).toBeNull();
   fireEvent.click(summary);
 }
@@ -179,112 +175,6 @@ it("shows managed job evidence without any pilot booking surface", async () => {
   expect(screen.queryByText(/Pilot booked|Deployment company selected|Proposed pilot/)).not.toBeInTheDocument();
 });
 
-it("shows every screened candidate without creating a pilot recommendation", async () => {
-  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [{ runId: "screening-one", state: "running", current: true,
-    resultDigest: null, summary: "Early policy screening: 36 candidates.", nextAction: "Candidate progress will update.",
-    limitations: ["Screening does not qualify a pilot."], href: "#managed-evidence-screening-one", screening: {
-      candidates: Array.from({ length: 36 }, (_, index) => ({ candidateId: `candidate-${index}`, name: `Candidate ${index}`,
-        state: index ? "pending" : "running", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0, blockers: [] })) } }] })));
-  render(<JobWorkspace token="owner-token" />);
-  await openSimulation();
-  fireEvent.click(await screen.findByText("Technical evidence and test details"));
-  const table = await screen.findByRole("table", { name: "Candidates evaluated for your job" });
-  expect(within(table).getAllByRole("row")).toHaveLength(37);
-  expect(within(table).getByText("Candidate 35")).toBeVisible();
-  expect(screen.getByText("Screening does not qualify a pilot.")).toBeVisible();
-  expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
-});
-
-it("shows the current simulation result before opening technical history", async () => {
-  const result = {
-    runId: "current-evaluation", state: "completed", outcome: "estimate" as const, current: true, resultDigest: "sha256:accepted-result",
-    summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
-    nextAction: "Blueprint uses this estimate to recommend the next step.",
-    limitations: ["Simulation does not certify physical performance or safety."],
-    href: "#managed-evidence-current-evaluation", screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate",
-      state: "completed", planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [],
-      successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 } }] },
-  };
-  fetchMock.mockResolvedValue(response(workflow({ managedEvidence: [result, { ...result,
-    runId: "previous-evaluation", current: false, summary: "An estimate for the previous recording.", screening: undefined,
-  }] })));
-  render(<JobWorkspace token="owner-token" />);
-  expect(await screen.findByText(result.summary)).not.toBeVisible();
-  await openSimulation();
-  expect(screen.getByText(result.summary)).toBeVisible();
-  expect(screen.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
-  expect(screen.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
-  // The bounded estimate in plain words, with what the range means.
-  expect(screen.getByText("Succeeded in 2 of 3 scored tries; likely between 21% and 94%.")).toBeVisible();
-  expect(screen.getByText("1 failed · 0 unscorable")).toBeVisible();
-  expect(screen.getByText(/^“Likely between” is a 95% confidence range from the scored tries, for this simulated scene only\./)).toBeVisible();
-  expect(within(screen.getByRole("region", { name: "Simulation results for your job" })).getByText(result.limitations[0])).toBeVisible();
-  expect(screen.getByText("Technical evidence and test details").closest("details")).not.toHaveAttribute("open");
-  expect(screen.getByText("An estimate for the previous recording.")).not.toBeVisible();
-  expect(screen.getByText(/Run: current-evaluation/)).not.toBeVisible();
-  expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
-});
-
-it("shows a job whose every candidate was measured out of reach as held, with that reason", async () => {
-  // The server's projection for an all-infeasible run (owner decision 2026-10-31).
-  const held = { runId: "out-of-reach", state: "held", outcome: "infeasible" as const, current: true, resultDigest: "sha256:accepted-result",
-    summary: "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.",
-    nextAction: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
-    limitations: ["2 candidates did not run; each row lists why."], href: "#managed-evidence-out-of-reach",
-    screening: { candidates: ["a", "b"].map(id => ({ candidateId: id, name: `Candidate ${id}`, state: "infeasible", planned: 3,
-      scored: 0, succeeded: 0, failed: 0, void: 0, blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] })) } };
-  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [held] })));
-  render(<JobWorkspace token="owner-token" />);
-  await openSimulation();
-  const region = await screen.findByRole("region", { name: "Simulation results for your job" });
-  expect(within(region).getByText(held.summary)).toBeVisible();
-  expect(within(region).getAllByText(/^Out of reach · 0\/3 scored/)).toHaveLength(2);
-  expect(screen.queryByText(/setup blockers|then rerun/)).toBeNull();
-  fireEvent.click(screen.getByText("Technical evidence and test details"));
-  expect(screen.getByRole("heading", { name: "Held" })).toBeVisible();
-  expect(document.body.textContent).not.toMatch(/candidate_infeasible|measured geometry|station out of reach|[a-z]_[a-z]/);
-});
-
-it("never shows a site raw codes, budget figures, operator instructions or a reference run called an estimate (F-03)", async () => {
-  const candidate = (id: string, state: string, blockers: string[], scored = 0) => ({ candidateId: id, name: `Candidate ${id}`, state,
-    planned: 3, scored, succeeded: scored ? 2 : 0, failed: scored ? 1 : 0, void: 0, blockers });
-  const budget = { limitUsd: "15.00", committedUpperBoundUsd: "4.25", spentUpperBoundUsd: "4.25", reservedUsd: "0" };
-  const repair = { runId: "setup-repair", state: "setup_repair", outcome: "setup_repair" as const, current: true, resultDigest: "sha256:setup",
-    summary: "Simulation evaluation of your job has not finished: a Blueprint update stopped it before it gave an estimate. If a later run gives an estimate, it will show here.",
-    nextAction: "Nothing is needed from you.",
-    // An older or misconfigured server could still send these; the site page never shows them.
-    opsNextAction: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
-    limitations: ["A simulation result is a bounded estimate. It does not certify physical performance or safety."],
-    href: "#managed-evidence-setup-repair", screening: { budget, candidates: [
-      candidate("a", "blocked", ["beta_screening_static_preflight_blocked:no_offer"]),
-      candidate("b", "deferred", ["site_screening_budget_insufficient"]),
-      candidate("d", "deferred", ["website_job_ceiling_insufficient"]),
-      candidate("c", "unavailable", ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"])] } };
-  const reference = { ...repair, runId: "reference-only", state: "reference_only", outcome: "reference_only" as const,
-    summary: "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.",
-    href: "#managed-evidence-reference-only", screening: { candidates: [{ ...candidate("s", "completed", [], 3),
-      executionEvidence: { execution_evidence_kind: "scripted_simulator_state_baseline" as const, action_source: "scripted_simulator_state" as const,
-        scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } }] } };
-  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [repair, reference] })));
-  render(<JobWorkspace token="owner-token" />);
-  await openSimulation();
-  expect(await screen.findByText(reference.summary)).toBeVisible();
-  expect(screen.queryByRole("heading", { name: "Your simulation estimate" })).toBeNull();
-  expect(screen.getAllByRole("heading", { name: "Simulation evaluation" })).toHaveLength(2);
-  fireEvent.click(screen.getByText("Technical evidence and test details"));
-  expect(screen.getByRole("heading", { name: "In progress" })).toBeVisible();
-  expect(screen.getByRole("heading", { name: "Reference baselines only" })).toBeVisible();
-  // Everything the job evaluation shows; the site's own planning form below may speak of its budget.
-  const text = [...screen.getAllByRole("region", { name: "Simulation results for your job" }),
-    screen.getByRole("region", { name: "Managed policy evidence for your job" })].map(region => region.textContent).join(" ");
-  expect(text).not.toMatch(/[a-z]_[a-z]/);
-  expect(text).not.toMatch(/beta screening|budget insufficient|ceiling|registration missing|binding missing/);
-  expect(text).not.toMatch(/development only|rerun|setup blockers|Owner approval|budget|\$|4\.25|15\.00/i);
-  expect(document.body.textContent).not.toMatch(/rerun|setup blockers|Owner approval|4\.25|15\.00|[a-z]_[a-z]/);
-  expect(screen.getAllByText("Not set up in our simulator yet.").length).toBeGreaterThan(0);
-});
-
-
 it("leaves the parent's current update in one place without repeating a stale workflow action", async () => {
   fetchMock.mockResolvedValue(response(workflow({actionOwner:"site",nextAction:"Confirm the old brief."})));
   const current = "Blueprint is preparing the recording; nothing is needed from you.";
@@ -295,20 +185,13 @@ it("leaves the parent's current update in one place without repeating a stale wo
   expect(screen.queryByText("Next action · You")).not.toBeInTheDocument();
 });
 
-it("shares its one workflow read with the page and shows a proof handed back, open, above the folded details", async () => {
-  const loaded = workflow({ briefAgreed: true, managedEvidence: [winnerEvaluation] });
+it("shares its one workflow read with the page and shows no early trial", async () => {
+  const loaded = workflow({ briefAgreed: true, managedEvidence: [] });
   fetchMock.mockResolvedValue(response(loaded));
   const onWorkflow = vi.fn();
-  const proof = projectSimulationProof({ evaluation: [winnerEvaluation], pick: null });
-  render(<JobWorkspace token="owner-token" onWorkflow={onWorkflow} proof={proof} />);
-  const section = await screen.findByRole("region", { name: "Early trial of openly available robot software" });
-  expect(section.closest("details")).toBeNull();
-  // The one line, in plain words, and the ranked list behind it.
-  expect(within(section).getByText(computerTestLine(proof, null)!)).toBeVisible();
-  expect(within(section).getByRole("region", { name: "Ranked" })).toHaveTextContent("1. Franka arm + π0.5");
+  render(<JobWorkspace token="owner-token" onWorkflow={onWorkflow} />);
+  await screen.findByRole("region", { name: "Job progress" });
   await waitFor(() => expect(onWorkflow).toHaveBeenCalledWith(loaded));
   expect(fetchMock).toHaveBeenCalledTimes(1);
-  const details = screen.getByText("Simulation details").closest("details")!;
-  expect(details).not.toHaveAttribute("open");
-  expect(section.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(document.body.textContent).not.toMatch(/early trial|openly available/i);
 });

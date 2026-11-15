@@ -5,7 +5,7 @@
  * interprets what it was handed. Missing fields read as unknown or absent,
  * never as a state nobody recorded.
  */
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { criteriaChangedSinceRequest, passMarkForJob, type PassMark } from "./pilotRecommendationEvidence";
 import { iso, object, text } from "./workspace-projection";
 import { teamJobAccess } from "./teamJobAccess";
@@ -73,13 +73,12 @@ export interface RawJobInputs {
   sceneProgression?: TaskSceneProgression | null;
 }
 
-/** Blueprint's own scene and screening, from the job page's projection. */
+/** Blueprint's own scene, from the job page's projection. */
 export function blueprintSceneOf(progression: TaskSceneProgression | null | undefined): BlueprintScene | null {
   if (!progression) return null;
   return {
     state: progression.state,
     heldReason: progression.heldReason ?? null,
-    progressOutcome: progression.progressOutcome ?? null,
     ending: progression.sceneOutcome?.kind ?? null,
   };
 }

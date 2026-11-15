@@ -1,5 +1,5 @@
 import { isDescriptionAuthorityVersion } from "../../client/src/lib/siteSubmissionAuthority";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 export function hasCurrentDescriptionAuthority(value: unknown, now = Date.now()): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
