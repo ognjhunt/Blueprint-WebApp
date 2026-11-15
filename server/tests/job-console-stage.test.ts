@@ -265,42 +265,31 @@ describe("deriveJobStage", () => {
 
   });
 
-  describe("Blueprint's own scene and screening", () => {
+  describe("Blueprint's own scene", () => {
     const scene = (state: BlueprintScene["state"], extra: Partial<BlueprintScene> = {}): BlueprintScene =>
-      ({ state, heldReason: null, progressOutcome: null, ending: null, ...extra });
+      ({ state, heldReason: null, ending: null, ...extra });
 
     it.each([
       ["in_progress", {}, "scene_preparation", "none", "Pipeline is preparing the scene"],
       ["waiting", {}, "scene_preparation", "blueprint", "Scene preparation is waiting: check the job's preparation watch"],
-      ["completed", {}, "screening", "none", "Scene ready: the screening starts on its own"],
-      ["testing", {}, "screening", "none", "Blueprint is running the candidates"],
-      ["evaluated", {}, "estimate", "blueprint", "Estimate published: introduce a deployment company if the site replies"],
+      ["completed", {}, "scene_preparation", "none", "Scene built: the simulation package is not published yet"],
+      ["ready", {}, "scene_preparation", "none", "Simulation ready: its package is published"],
       ["held", { heldReason: "held_capability" }, "held", "none", "Held (held_capability): counted as demand for what to build next"],
+      ["held", { heldReason: "held_scene_check" }, "held", "blueprint", "Held (held_scene_check): check the scene's hold reason"],
       ["ended", { ending: "infeasible" }, "ended", "none", "Preparation ended (infeasible)"],
     ] as const)("reads %s as the job page does", (state, extra, stage, actionOwner, nextAction) => {
       expect(deriveJobStage(facts({ scene: scene(state, extra) }))).toMatchObject({ stage, actionOwner, nextAction });
     });
 
-    it("names a money or setup wait and makes it Blueprint's move", () => {
-      const money = deriveJobStage(facts({ scene: scene("completed", { progressOutcome: "awaiting_spend_approval" }) }));
-      expect(money).toMatchObject({ stage: "screening", actionOwner: "blueprint",
-        nextAction: "Screening waits on Blueprint: a limit on our side held it back" });
-      expect(money.attention).toContain("Money wait: screening stopped at the job's own limit or at this month's account limit");
-      const setup = deriveJobStage(facts({ scene: scene("testing", { progressOutcome: "setup_repair" }) }));
-      expect(setup).toMatchObject({ stage: "screening", actionOwner: "blueprint" });
-      expect(setup.attention).toContain("Setup wait: the screening needs a repair");
-      expect(deriveJobStage(facts({ scene: scene("completed", { progressOutcome: "superseded" }) }))).toMatchObject({
-        stage: "screening", actionOwner: "none", nextAction: "Screening is planned again for the current candidates" });
-    });
-
-    it("flags a published estimate and a waiting preparation", () => {
-      expect(deriveJobStage(facts({ scene: scene("evaluated") })).attention).toContain("Estimate published");
+    it("flags a hold that is ours and a waiting preparation", () => {
+      expect(deriveJobStage(facts({ scene: scene("held", { heldReason: "held_setup" }) })).attention)
+        .toContain("Scene held (held_setup): it moves again only after its cause is fixed");
       expect(deriveJobStage(facts({ scene: scene("waiting") })).attention).toContain("Scene preparation is waiting");
     });
 
     it("comes after withdrawal and any team's runs, and before the site's own steps", () => {
-      expect(deriveJobStage(facts({ withdrawal: { state: "requested" }, scene: scene("evaluated") })).stage).toBe("withdrawn");
-      expect(deriveJobStage(facts({ runs: { reported: 1, passing: 1 }, scene: scene("testing") })).stage).toBe("passing_run");
+      expect(deriveJobStage(facts({ withdrawal: { state: "requested" }, scene: scene("ready") })).stage).toBe("withdrawn");
+      expect(deriveJobStage(facts({ runs: { reported: 1, passing: 1 }, scene: scene("ready") })).stage).toBe("passing_run");
       expect(deriveJobStage(facts({ capture: { state: "uploaded" }, scene: scene("in_progress") })).stage)
         .toBe("scene_preparation");
     });
@@ -308,9 +297,9 @@ describe("deriveJobStage", () => {
     it("projects the job page's scene reading into the facts", () => {
       expect(blueprintSceneOf(null)).toBeNull();
       expect(blueprintSceneOf({ state: "held", heldReason: "held_capability" } as never))
-        .toEqual({ state: "held", heldReason: "held_capability", progressOutcome: null, ending: null });
+        .toEqual({ state: "held", heldReason: "held_capability", ending: null });
       expect(blueprintSceneOf({ state: "ended", sceneOutcome: { kind: "infeasible", terminal: true, reasonCode: "x",
-        digest: "d" } } as never)).toEqual({ state: "ended", heldReason: null, progressOutcome: null, ending: "infeasible" });
+        digest: "d" } } as never)).toEqual({ state: "ended", heldReason: null, ending: "infeasible" });
     });
   });
 

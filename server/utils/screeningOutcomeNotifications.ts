@@ -1,9 +1,8 @@
 /**
- * The outcome notice intent the screening ingest and the holds route write beside a run's outcome
- * (`outcome_notification_intent`), and the one email that still goes from it: a stored hold's
- * (`run_kind: beta_policy_screening_hold`), telling the site its job is held at the scene stage. Blueprint's own
- * early trial is no longer told (2026-11-14): a campaign's intent stays stored and is never queued, and a queued
- * notice that names a trial outcome is cancelled at dispatch (`evaluationOutcomeShown`).
+ * The outcome notice intent the holds route writes beside a hold (`outcome_notification_intent`), and the one email
+ * that goes from it: a stored hold's (`run_kind: beta_policy_screening_hold`), telling the site its job is held at the
+ * scene stage. Intents stored with campaigns of Blueprint's retired early trial are never queued, and a queued notice
+ * that names a trial outcome is cancelled at dispatch (`evaluationOutcomeShown`).
  *
  * The event id is the outcome and the scene intent, so the same hold on the same scene is one email. Dispatch reads
  * the job page again and cancels a notice whose hold the page no longer states.
@@ -14,8 +13,8 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { automationBatch } from "./automationBatch";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { isScreeningResultOutcome, screeningCandidateRows, screeningOutcome, screeningOutcomeCaveat, SCREENING_OUTCOME_CAVEATS,
-  type BetaPolicyScreeningPublication, type ScreeningOutcome , SCREENING_HOLD_DETAILS, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
+import { isScreeningResultOutcome, SCREENING_OUTCOME_CAVEATS, type ScreeningOutcome, SCREENING_HOLD_DETAILS,
+  type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 
 export const SCREENING_OUTCOME_NOTICE_SCHEMA = "screening_outcome_notification.v1";
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -38,21 +37,7 @@ export type ScreeningOutcomeNoticeIntent = z.infer<typeof intentSchema>;
 export const screeningOutcomeNoticeEventId = (outcome: string, sceneIntentId: string) =>
   `${outcome}-${createHash("sha256").update(sceneIntentId).digest("hex").slice(0, 24)}`;
 
-/** The notice a run with a result outcome owes its site, or null. Pure: ingest writes it beside the outcome. */
-export function screeningOutcomeNoticeIntent(publication: BetaPolicyScreeningPublication, requestId: string): ScreeningOutcomeNoticeIntent | null {
-  const outcome = screeningOutcome(publication);
-  if (!isScreeningResultOutcome(outcome)) return null;
-  const caveat = screeningOutcomeCaveat(publication);
-  // Counts of candidates: the known-good control is a check, not one of them.
-  const rows = screeningCandidateRows(publication.candidates);
-  return { schema_version: SCREENING_OUTCOME_NOTICE_SCHEMA, request_id: requestId, run_id: publication.campaign_id, outcome,
-    event_id: screeningOutcomeNoticeEventId(outcome, publication.source.scene_intent_id),
-    ...(outcome === "estimate" ? { counts: { ran: rows.filter(row => row.status === "completed").length,
-      total: rows.length, scored: rows.reduce((sum, row) => sum + row.episodes_scored, 0) } } : {}),
-    ...(caveat ? { caveat } : {}) };
-}
-
-/** The notice a Pipeline hold owes its site (no campaign started), or null. Same key as a run's: one email per outcome and scene. */
+/** The notice a Pipeline hold owes its site, or null. One email per outcome and scene. */
 export function heldOutcomeNoticeIntent(outcome: ScreeningOutcome | null, requestId: string, runId: string,
   sceneIntentId: string, holdDetail: ScreeningHoldDetail | null = null): ScreeningOutcomeNoticeIntent | null {
   if (!isScreeningResultOutcome(outcome) || outcome === "estimate") return null;
@@ -131,8 +116,9 @@ export async function evaluationOutcomeShown(requestId: string, idempotencyKey: 
   if (!outcome || !isHoldNoticeOutcome(outcome) || !db) return false;
   const record = (await db.collection("inboundRequests").doc(requestId).get()).data();
   if (!record) return false;
-  const [{ readWebsiteSceneProgression }, { siteWalkthroughIdentity }, { sceneProgressionOutcome }] = await Promise.all([
+  const [{ readWebsiteSceneProgression }, { siteWalkthroughIdentity }, { sceneProgressionHold }] = await Promise.all([
     import("./websiteSceneProgression"), import("./siteWalkthrough"), import("./taskStatusProjection")]);
   const progression = await readWebsiteSceneProgression(requestId, siteWalkthroughIdentity(requestId, record).captureId);
-  return !progression?.sceneOutcome && sceneProgressionOutcome(progression) === outcome;
+  // Only a stored hold record speaks without the scene's own outcome (`sceneHold`).
+  return !progression?.sceneOutcome && sceneProgressionHold(progression) === outcome;
 }

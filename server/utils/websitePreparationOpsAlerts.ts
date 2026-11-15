@@ -12,7 +12,8 @@ import { appBaseUrl, opsNoticeRecipient } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
-import { projectWebsiteSceneProgression, rederiveStoredWaits, sceneScreening } from "./websiteSceneProgression";
+import { projectWebsiteSceneProgression } from "./websiteSceneProgression";
+import { SCREENING_HOLD_RUN_KIND } from "./betaPolicyScreeningHold";
 import { currentOwnerSuccessHold, OWNER_SUCCESS_HOLD_FIELD, OWNER_SUCCESS_HOLD_REASON_TEXT } from "./websiteOwnerSuccessConfirmation";
 import { firstStatusAlertMs, isWebsitePreparationCapture, parseWebsitePreparationWatch, stuckAlertMs,
   websitePreparationAlertDeliverySchema, WEBSITE_PREPARATION_WATCH_DUE_FIELD, WEBSITE_PREPARATION_WATCH_FIELD,
@@ -24,15 +25,14 @@ const OWNER_HOLD_ALERT_COLLECTION = "opsOwnerSuccessHoldAlerts";
 const EVALUATION_ALERT_COLLECTION = "opsWebsiteEvaluationHoldAlerts";
 const POLICY_RUNS = "taskEvaluationPolicyRuns";
 /**
- * Finished evaluations that are ours to look at: held on our side, out of the
- * site's allowance, a failed scene check, or waiting on the owner's raise of
- * the job's dollar ceiling. `setup_repair` (a re-plan after a deploy) is still
- * in progress and never reported.
+ * Scene-stage holds that are ours to look at: held on our side, a failed scene
+ * check, or stopped at the account's monthly spend limit. Only stored hold
+ * records (`betaPolicyScreeningHold`) are read; campaign records of the retired
+ * early trial are not.
  */
-const ALERT_EVALUATION_OUTCOMES = new Set(["held_setup", "held_budget", "held_scene_check", "awaiting_spend_approval"]);
-/** Stored outcomes to look at: the reported ones, and older waits read again from their publications first. */
-const STORED_EVALUATION_OUTCOMES = ["held_setup", "held_budget", "held_scene_check", "awaiting_spend_approval", "setup_repair"];
-const TERMINAL_RUN = (data: any) => ["completed", "blocked"].includes(data?.state) && data?.cancellationRequested !== true;
+const ALERT_HOLD_OUTCOMES = ["held_setup", "held_scene_check", "awaiting_spend_approval"];
+const HELD_RECORD = (data: any) => data?.run_kind === SCREENING_HOLD_RUN_KIND && data?.state === "blocked"
+  && data?.cancellationRequested !== true;
 const LEASE_MS = 5 * 60 * 1000;
 const RETRY_MS = 15 * 60 * 1000;
 const MAX_RETRY_MS = 6 * 60 * 60 * 1000;
@@ -426,9 +426,10 @@ export async function scanHeldOwnerSuccessThresholds(deps: AlertDeps = {}): Prom
 }
 
 /**
- * The same recoverable delivery for a website job whose evaluation finished
- * held on our side (C-04 for evaluations): every hold is reported once per
- * outcome, until the run's outcome changes or the site's consent is withdrawn.
+ * The same recoverable delivery for a website job held at the scene stage: every
+ * stored hold record that is blocked is reported once per outcome, until the
+ * hold's outcome changes, it is released or closed, or the site's consent is
+ * withdrawn.
  */
 export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<{ held: number; alerted: number }> {
   const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
@@ -436,37 +437,26 @@ export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<
   const now = deps.now || Date.now, limit = Math.max(1, Math.min(deps.limit ?? 50, 100));
   const held: { id: string; key: string; requestId: string; outcome: string; reason: string | null }[] = [];
   const scenes = new Set<string>();
-  for (const stored of STORED_EVALUATION_OUTCOMES) {
+  for (const stored of ALERT_HOLD_OUTCOMES) {
     const rows = await automationBatch(store as unknown as FirebaseFirestore.Firestore,
       store.collection(POLICY_RUNS).where("screening_outcome", "==", stored) as unknown as FirebaseFirestore.Query,
       `website_evaluation_hold_alerts_${stored}`, limit) as unknown as { docs: Doc[] };
     for (const row of rows.docs) {
       const data = row.data();
-      const requestId = data?.website_request_id ?? data?.job_evidence_binding?.job_id;
-      const intent = data?.source_scene_intent_id, team = data?.team_namespace;
-      if (typeof requestId !== "string" || typeof intent !== "string" || typeof team !== "string" || !TERMINAL_RUN(data)
+      const requestId = data?.website_request_id, intent = data?.source_scene_intent_id, team = data?.team_namespace;
+      if (!HELD_RECORD(data) || typeof requestId !== "string" || typeof intent !== "string" || typeof team !== "string"
         || scenes.has(`${intent}\u0000${team}`)) continue;
       scenes.add(`${intent}\u0000${team}`);
-      // Only what the job page says now is reported: older waits are read again, and a newer
-      // estimate, an open run or a re-plan in progress speaks instead.
-      const runs = (await store.collection(POLICY_RUNS).where("source_scene_intent_id", "==", intent).limit(100).get())
-        .docs.map(doc => ({ id: doc.id, run: doc.data() }));
-      await rederiveStoredWaits(store as never, runs);
-      const scene = sceneScreening(runs, team);
-      if (scene.estimate || scene.running || !scene.outcome || !ALERT_EVALUATION_OUTCOMES.has(scene.outcome)) continue;
-      const speaking = runs.find(({ run }) => run?.screening_outcome === scene.outcome && run?.team_namespace === team);
-      if (!speaking) continue;
-      held.push({ id: speaking.id, key: `${intent}:${scene.outcome}`, requestId, outcome: scene.outcome,
-        reason: typeof speaking.run?.hold_reason_code === "string" ? speaking.run.hold_reason_code : null });
+      held.push({ id: row.id, key: `${intent}:${stored}`, requestId, outcome: stored,
+        reason: typeof data?.hold_reason_code === "string" ? data.hold_reason_code : null });
     }
   }
   const claims: ClaimedAlert[] = [];
   for (const run of held) {
     const ref = store.collection(EVALUATION_ALERT_COLLECTION).doc(run.key);
     const sourceRef = store.collection(POLICY_RUNS).doc(run.id), leaseId = randomUUID();
-    // The speaking run still ends the same way (an older wait still reads as one).
-    const stillHeld = (data: any) => TERMINAL_RUN(data)
-      && (data?.screening_outcome === run.outcome || ["awaiting_spend_approval", "setup_repair"].includes(data?.screening_outcome));
+    // The hold is still blocked with the same outcome.
+    const stillHeld = (data: any) => HELD_RECORD(data) && data?.screening_outcome === run.outcome;
     try {
       const claimed = await store.runTransaction(async tx => {
         const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
@@ -482,7 +472,7 @@ export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<
         return true;
       });
       if (!claimed) continue;
-      claims.push({ id: run.id, line: `- evaluation ${run.id} (request ${run.requestId}) finished without an estimate: `
+      claims.push({ id: run.id, line: `- hold ${run.id} (request ${run.requestId}) holds the scene stage: `
         + `${run.outcome}${run.reason ? ` (${run.reason})` : ""}. ${appBaseUrl()}/admin/leads/${encodeURIComponent(run.requestId)}`,
       update: action => store.runTransaction(async tx => {
         const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
@@ -505,7 +495,7 @@ export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<
       logger.warn({ err: error, runId: run.id }, "Could not claim a held website evaluation alert");
     }
   }
-  return { held: held.length, alerted: await report(claims, deps, "website_evaluation_held", "Website job evaluations finished held") };
+  return { held: held.length, alerted: await report(claims, deps, "website_evaluation_held", "Website jobs held at the scene stage") };
 }
 
 const OVER_BUDGET_ALERT_COLLECTION = "opsWebsiteJobOverBudgetAlerts";

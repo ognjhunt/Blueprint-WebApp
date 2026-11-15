@@ -15,7 +15,7 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 const watch = await import("../utils/websitePreparationWatch");
 const { nextWebsitePreparationWatch } = await import("../utils/websitePreparationStatus");
 const { backfillWebsitePreparationWatches, scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } = await import("../utils/websitePreparationOpsAlerts");
-const { projectWebsiteSceneProgression, loadWebsiteSceneProgression, policyTestAccepted } = await import("../utils/websiteSceneProgression");
+const { projectWebsiteSceneProgression, loadWebsiteSceneProgression } = await import("../utils/websiteSceneProgression");
 const { recordSiteCaptureUploadIdentity } = await import("../utils/siteCaptureUploadIdentity");
 type Stored = import("../utils/websitePreparationStatus").StoredWebsitePreparation;
 
@@ -352,8 +352,8 @@ describe("scene progression after hand-off", () => {
     [{ state: "accepted", pipeline_status: { status: "needs_input", phase: "source", blockers: [] } }, "waiting"],
     [{ state: "forward_blocked", blocker: "pipeline_transport_failed" }, "waiting"],
     [{ state: "accepted", pipeline_status: { status: "running", phase: "configuration" } }, "in_progress"],
-    [{ state: "accepted", pipeline_status: { status: "running", phase: "terminal_reconciliation" } }, "testing"],
-    [{ state: "completed", pipeline_status: { status: "completed", phase: "policy_canary_complete" } }, "testing"],
+    [{ state: "accepted", pipeline_status: { status: "running", phase: "terminal_reconciliation" } }, "in_progress"],
+    [{ state: "completed", pipeline_status: { status: "completed", phase: "policy_canary_complete" } }, "completed"],
     [{ state: "completed", pipeline_status: { status: "completed", phase: "scene_prepared" } }, "completed"],
     [{ state: "unknown_future_state" }, null],
   ])("PROG-001 %j projects to %s", (record, expected) => {
@@ -425,121 +425,56 @@ describe("scene progression after hand-off", () => {
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "in_progress" });
     expect(await loadWebsiteSceneProgression("r2", "walkthrough-r2")).toBeNull();
   });
-  it("PROG-005 a built scene is ready only once a test on its configured scene was accepted", async () => {
+  it("PROG-005 a built scene is ready only once its simulation package is published, never on a policy test", async () => {
     const taskId = `website-${"0".repeat(20)}`;
     state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1",
       created_at_iso: "2026-10-02T00:00:00Z", state: "completed", pipeline_status: { status: "completed", phase: "scene_prepared" },
       request: { task: { task_id: taskId }, owner: { organization_id: "team-a" } } });
     const progression = () => loadWebsiteSceneProgression("r1", "walkthrough-r1");
     expect(await progression()).toEqual({ state: "completed" });
-    // Another team's configured scene of the same task id is not this job's test.
-    state.docs.set("taskEvaluationLaunches/launch-other", { configured_scene_offering: { task: { identity: { id: taskId } }, team_namespace: "team-b" } });
-    state.docs.set("taskEvaluationPolicyRuns/run-other", { source_launch_id: "launch-other", state: "queued_in_pipeline" });
-    expect(await progression()).toEqual({ state: "completed" });
+    // An accepted policy test on the configured scene no longer says anything to the site.
     state.docs.set("taskEvaluationLaunches/launch-a", { configured_scene_offering: { task: { identity: { id: taskId } }, team_namespace: "team-a" } });
-    // Stored but not accepted by the Pipeline, or ended unrun: not started.
-    state.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a", state: "forward_blocked" });
-    expect(await progression()).toEqual({ state: "completed" });
-    state.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a", state: "forward_terminal_blocked",
-      launch_forward: { status: "forwarded" } });
-    expect(await progression()).toEqual({ state: "completed" });
     state.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a", state: "queued_in_pipeline",
       launch_forward: { status: "forwarded" } });
-    expect(await progression()).toEqual({ state: "testing" });
-  });
-  it("PROG-007 finds an accepted test past the first page of runs and the first 30 launches", async () => {
-    const taskId = `website-${"1".repeat(20)}`;
-    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1",
-      created_at_iso: "2026-10-02T00:00:00Z", state: "completed", pipeline_status: { status: "completed", phase: "scene_prepared" },
-      request: { task: { task_id: taskId }, owner: { organization_id: "team-a" } } });
-    for (let index = 0; index < 35; index += 1) state.docs.set(`taskEvaluationLaunches/launch-${String(index).padStart(3, "0")}`,
-      { configured_scene_offering: { task: { identity: { id: taskId } }, team_namespace: "team-a" } });
-    for (let index = 0; index < 150; index += 1) state.docs.set(`taskEvaluationPolicyRuns/run-${String(index).padStart(3, "0")}`,
-      { source_launch_id: `launch-${String(index % 35).padStart(3, "0")}`, state: "failed" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
-    // The only accepted test is the last run, on the last launch.
-    state.docs.set("taskEvaluationPolicyRuns/run-zzz", { source_launch_id: "launch-034", state: "running" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
-  });
-  it("PROG-006 a policy run counts as started only once the Pipeline accepted it", () => {
-    expect(policyTestAccepted({ state: "queued_for_preparation" })).toBe(false);
-    expect(policyTestAccepted({ state: "forward_pending" })).toBe(false);
-    expect(policyTestAccepted({ state: "running" })).toBe(true);
-    expect(policyTestAccepted({ state: "queued_dispatch_blocked", launch_forward: { status: "forwarded" } })).toBe(true);
-    expect(policyTestAccepted({ state: "failed", launch_forward: { status: "forwarded" } })).toBe(false);
-    expect(policyTestAccepted(null)).toBe(false);
+    expect(await progression()).toEqual({ state: "completed" });
+    const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
+    const simulation = { schema_version: "website_company_simulation.v1", capture_id: "walkthrough-r1",
+      simulation_revision: `sha256:${"1".repeat(64)}`, state: "ready", format: "zip_usd_scene_object_success_rule",
+      content_type: "application/zip", digest: `sha256:${"2".repeat(64)}`, size_bytes: 1024, files: ["scene.usda"],
+      permission_basis: "site_sharing_statement", statement_version: "2026-11-12.v4", updated_at_epoch: 1_800_000_000 };
+    // A package for another capture, or one whose digest does not verify, is not this job's.
+    state.docs.set("captureUploadSessions/walkthrough-r1", { company_simulation: { ...simulation, capture_id: "walkthrough-r2",
+      simulation_digest: crossRuntimeArtifactDigest({ ...simulation, capture_id: "walkthrough-r2" }, "simulation_digest") } });
+    expect(await progression()).toEqual({ state: "completed" });
+    state.docs.set("captureUploadSessions/walkthrough-r1", { company_simulation: { ...simulation, simulation_digest: `sha256:${"0".repeat(64)}` } });
+    expect(await progression()).toEqual({ state: "completed" });
+    state.docs.set("captureUploadSessions/walkthrough-r1", { company_simulation: { ...simulation,
+      simulation_digest: crossRuntimeArtifactDigest(simulation, "simulation_digest") } });
+    expect(await progression()).toEqual({ state: "ready" });
   });
 
-  it("PROG-008 screening preparation is not execution, and only this intake's team can mark testing", async () => {
+  it("PROG-008 an early-trial campaign never speaks for the scene; only this intake's team's blocked hold does", async () => {
     state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1",
       created_at_iso: "2026-10-02T00:00:00Z", state: "completed", receipt: { intent_id: "intent-one" },
       pipeline_status: { status: "completed", phase: "scene_prepared" },
       request: { task: { task_id: "task-one" }, owner: { organization_id: "team-a" } } });
     const run = { run_kind: "beta_policy_screening", source_scene_intent_id: "intent-one", team_namespace: "team-a",
-      state: "running", screening_execution_observed: false };
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", run);
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, team_namespace: "team-b", screening_execution_observed: true });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, screening_execution_observed: true });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
-    // A finished evaluation is the job's estimate, never left reading as an open test.
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true,
-      episodes_scored: 3, screening_outcome: "estimate" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "evaluated" });
-    // Scored episodes from scripted reference baselines alone are no estimate (F-03).
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true,
-      episodes_scored: 3, screening_outcome: "reference_only" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "reference_only" });
-    // A completed run with no scored episode has no estimate to show; ours to fix, so still in progress.
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true,
-      episodes_scored: 0, screening_outcome: "setup_repair" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing", progressOutcome: "setup_repair" });
-    // No candidate can do this kind of job yet, or none reached it: held with that reason, not an open test.
-    for (const heldReason of ["held_capability", "held_unprepared", "infeasible", "no_match"]) {
-      state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: heldReason === "held_capability",
-        episodes_scored: 0, screening_outcome: heldReason });
-      expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason });
+      state: "running", screening_execution_observed: true };
+    for (const outcome of [null, "estimate", "reference_only", "held_capability", "held_budget", "no_match", "awaiting_spend_approval",
+      "setup_repair", "superseded"]) {
+      state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: outcome ? "blocked" : "running", screening_outcome: outcome });
+      expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1"), String(outcome)).toEqual({ state: "completed" });
     }
-    // The newest finished campaign speaks for the job, whatever order the campaigns are read in.
-    state.docs.set("taskEvaluationPolicyRuns/screening-aa", { ...run, run_id: "screening-aa", state: "blocked",
-      screening_execution_observed: true, episodes_scored: 0, screening_outcome: "held_capability", created_at_iso: "2026-10-03T00:00:00Z" });
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", episodes_scored: 0,
-      screening_outcome: "infeasible", created_at_iso: "2026-10-02T00:00:00Z" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "held_capability" });
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", episodes_scored: 0,
-      screening_outcome: "infeasible", created_at_iso: "2026-10-04T00:00:00Z" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "infeasible" });
-    // A campaign closed as superseded speaks only through its successor.
-    state.docs.set("taskEvaluationPolicyRuns/screening-zz", { ...run, run_id: "screening-zz", state: "blocked",
-      screening_execution_observed: true, episodes_scored: 0, screening_outcome: "superseded", created_at_iso: "2026-10-05T00:00:00Z" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "infeasible" });
-    state.docs.delete("taskEvaluationPolicyRuns/screening-aa");
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "running", screening_execution_observed: false });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing", progressOutcome: "superseded" });
-    // A test still running wins over any finished campaign but an estimate.
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "running", screening_execution_observed: true });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
-    state.docs.delete("taskEvaluationPolicyRuns/screening-zz");
-    // An estimate from another campaign wins, even when the held one is read first or is newer.
-    state.docs.set("taskEvaluationPolicyRuns/screening-zz", { ...run, run_id: "screening-zz", state: "completed",
-      screening_execution_observed: true, episodes_scored: 3, screening_outcome: "estimate", created_at_iso: "2026-10-02T00:00:00Z" });
-    state.docs.set("taskEvaluationPolicyRuns/screening-aa", { ...run, run_id: "screening-aa", state: "blocked",
-      screening_execution_observed: true, episodes_scored: 0, screening_outcome: "no_match", created_at_iso: "2026-10-06T00:00:00Z" });
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true,
-      episodes_scored: 3, screening_outcome: "reference_only", created_at_iso: "2026-10-07T00:00:00Z" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "evaluated" });
-    state.docs.delete("taskEvaluationPolicyRuns/screening-zz");
-    state.docs.delete("taskEvaluationPolicyRuns/screening-aa");
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: true,
-      episodes_scored: 0, screening_outcome: "awaiting_spend_approval" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing", progressOutcome: "awaiting_spend_approval" });
-    // Waiting on us with nothing executed yet is not a test: the scene stays built, with that sentence.
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: false,
-      episodes_scored: 0, screening_outcome: "setup_repair" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed", progressOutcome: "setup_repair" });
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", team_namespace: "team-b" });
+    const hold = { run_kind: "beta_policy_screening_hold", source_scene_intent_id: "intent-one", team_namespace: "team-a",
+      state: "blocked", screening_outcome: "held_scene_check", hold_reason_code: "robot_free_probe_failed" };
+    state.docs.set("taskEvaluationPolicyRuns/hold-one", { ...hold, team_namespace: "team-b" });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
+    state.docs.set("taskEvaluationPolicyRuns/hold-one", hold);
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "held_scene_check" });
+    for (const closed of ["released", "closed", "cancelled"]) {
+      state.docs.set("taskEvaluationPolicyRuns/hold-one", { ...hold, state: closed });
+      expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1"), closed).toEqual({ state: "completed" });
+    }
   });
   it("PROG-003 alerts once per website scene that stopped after hand-off", async () => {
     state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1", state: "blocked" });

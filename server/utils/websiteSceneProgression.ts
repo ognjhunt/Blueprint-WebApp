@@ -7,12 +7,11 @@
  * the site's latest intake to a coarse state and nothing more: no Pipeline
  * phase, blocker, attempt or spend detail reaches a site.
  *
- * A built scene is not yet "ready" for the site (owner decision 2026-10-22):
- * it is ready once its task objects are in and our first internal test on it
- * has started. That is `testing`: a policy test ran inside the intake, or the
- * Pipeline accepted one on a configured scene of the intake's task. Once the
- * automatic evaluation completes, its estimate is the job's result
- * (`evaluated`, owner decision 2026-10-28).
+ * A built scene is "ready" for the site once the Pipeline has published the
+ * job's company simulation package (`storedCompanySimulation`, the scene,
+ * its object and the success rule); until then it is still being built. A
+ * blocked scene-stage hold the Pipeline sent (`betaPolicyScreeningHold`) is
+ * `held`, in the hold's own sentence; a released hold says nothing.
  *
  * C-04: once the Pipeline sends the intent's one outcome, that outcome decides
  * the state: a terminal hold is `held` (we can't simulate this kind of job
@@ -24,11 +23,10 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import type { TaskSceneProgression } from "./taskStatusProjection";
 import { taskTargetSelection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
-import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningOutcome, storedScreeningOutcome,
-  storedScreeningOutcomeCaveat, type ScreeningOutcome, type ScreeningOutcomeCaveat , screeningHoldDetail, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
+import { isSceneHoldOutcome, screeningHoldDetail, type SceneHoldOutcome, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 import { SCREENING_HOLD_RUN_KIND } from "./betaPolicyScreeningHold";
-import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { adoptedSceneOutcome, sceneOutcomeReading } from "./sceneIntentOutcome";
+import { storedCompanySimulation } from "./websiteCompanySimulation";
 
 // Pipeline blocks that stay blocked once hit (task_evaluation_scene_progression):
 // the configuration failed for good, the policy canary blocked (at or before
@@ -48,31 +46,16 @@ const ENDED_BLOCKERS = new Set([
   ...EXHAUSTED_ALLOWANCES.flatMap(code => [code, `scene_progression_${code}`, `scene_intake_${code}`]),
   "scene_intake_authority_expired", "scene_intake_authority_revoked"]);
 const POLICY_RUN_COLLECTION = "taskEvaluationPolicyRuns";
-// Outcomes a finished run was once stored with while it was in fact final (now `held_budget` or `held_setup`).
-const LEGACY_WAITS = new Set(["awaiting_spend_approval", "setup_repair"]);
 const IN_FLIGHT = new Set(["revocation_pending", "forward_pending", "forward_blocked",
   "commercial_authorization_required", "accepted", "closeout_pending"]);
-// The intake's own policy test ran (its terminal receipts are being joined) or finished.
-const TESTED_PHASES = new Set(["terminal_reconciliation", "policy_canary_complete"]);
-// A policy run the Pipeline accepted, until it ends without running.
-const TEST_ACCEPTED_STATES = new Set(["preparing", "ready_to_activate", "queued", "running", "aggregating",
-  "results_ready", "abstained", "queued_in_pipeline", "queued_dispatch_blocked"]);
-const TEST_ENDED_STATES = new Set(["blocked", "failed", "cancelled", "forward_terminal_blocked",
-  "control_plane_terminal_blocked"]);
 
-/** Whether a stored policy run is a test the Pipeline accepted and that has not ended unrun. */
-export function policyTestAccepted(run: Record<string, any> | null | undefined): boolean {
-  const state = String(run?.state ?? "");
-  if (TEST_ENDED_STATES.has(state)) return false;
-  return TEST_ACCEPTED_STATES.has(state) || run?.launch_forward?.status === "forwarded";
-}
-
-/** A finished job evaluation's outcome for the scene, whether any test on it executed, and what an estimate's sentence adds. */
-export type SceneScreeningResult = { outcome: ScreeningOutcome; observed: boolean; caveat?: ScreeningOutcomeCaveat;
-  holdDetail?: ScreeningHoldDetail };
+/** What a built scene adds to its intake: the scene-stage hold that speaks for it, and whether its simulation is ready. */
+export type SceneStageReading = { hold: SceneHold | null; simulationReady: boolean };
+/** A blocked scene-stage hold: its outcome and, when it has words of its own, its detail. */
+export type SceneHold = { outcome: SceneHoldOutcome; holdDetail?: ScreeningHoldDetail };
 
 export function projectWebsiteSceneProgression(record: Record<string, any> | null | undefined,
-  testAccepted: boolean | SceneScreeningResult = false): TaskSceneProgression | null {
+  stage: SceneStageReading | null = null): TaskSceneProgression | null {
   const outcome = adoptedSceneOutcome(record);
   if (outcome) {
     const sceneOutcome = sceneOutcomeReading(outcome);
@@ -80,15 +63,11 @@ export function projectWebsiteSceneProgression(record: Record<string, any> | nul
     return outcome.kind === "held" ? { state: "held", heldReason: "held_capability", sceneOutcome } : { state: "ended", sceneOutcome };
   }
   const state = record?.state;
-  const phase = record?.pipeline_status?.phase;
-  if (state === "completed" && typeof testAccepted === "object") {
-    const { outcome, observed, caveat } = testAccepted;
-    if (outcome === "estimate") return { state: "evaluated", ...(caveat ? { outcomeCaveat: caveat } : {}) };
-    if (isScreeningHeldOutcome(outcome)) return { state: "held", heldReason: outcome, ...(testAccepted.holdDetail ? { holdDetail: testAccepted.holdDetail } : {}) };
-    // Waiting on us or the owner, or planned again: the scene is tested only once a test executed.
-    return { state: observed ? "testing" : "completed", progressOutcome: outcome };
+  if (state === "completed") {
+    const hold = stage?.hold;
+    if (hold) return { state: "held", heldReason: hold.outcome, ...(hold.holdDetail ? { holdDetail: hold.holdDetail } : {}) };
+    return { state: stage?.simulationReady ? "ready" : "completed" };
   }
-  if (state === "completed") return { state: testAccepted || phase === "policy_canary_complete" ? "testing" : "completed" };
   // The worker's own terminal states: a typed terminal refusal, or the intent's authority ended.
   if (state === "blocked" || state === "expired" || state === "revoked") return { state: "ended" };
   if (!IN_FLIGHT.has(state)) return null;
@@ -100,7 +79,7 @@ export function projectWebsiteSceneProgression(record: Record<string, any> | nul
     return RETRIED_PHASES.has(status.phase) ? { state: "waiting", attemptFailed: true } : { state: "waiting" };
   }
   if (status?.status === "needs_input" || state === "forward_blocked") return { state: "waiting" };
-  return { state: TESTED_PHASES.has(phase) ? "testing" : "in_progress" };
+  return { state: "in_progress" };
 }
 
 /** Every page of a query, in document order: history is never cut at a result count. */
@@ -139,122 +118,38 @@ export async function readWebsiteTargetScope(requestId: string, captureId: strin
   return {correctionsDigest, superseded: true};
 }
 
-/** What a scene's job evaluations say, read in any order. */
-export type SceneScreening = { estimate: boolean; running: boolean; observed: boolean; outcome: ScreeningOutcome | null;
-  /** Every campaign that gave the scene an estimate carries this caveat; one without it speaks for the job plainly. */
-  estimateCaveat?: ScreeningOutcomeCaveat;
-  /** The speaking hold's detail with words of its own (`screeningHoldDetail`). */
-  holdDetail?: ScreeningHoldDetail };
-
 /**
- * The scene's job evaluations in this team (F-03). Any campaign's estimate is
- * the job's result. Otherwise a campaign still open with an executed test is
- * testing. Otherwise the newest finished campaign speaks for the job (by
- * creation time, then id): a newer campaign plans the current candidates
- * again. A campaign closed as superseded speaks only through its successor,
- * and only while no other campaign has finished. A Pipeline hold (no campaign
- * could start, `betaPolicyScreeningHold`) speaks only while no campaign was
- * published for the scene at all, and not once it is released.
+ * The scene-stage hold that speaks for a scene in this team: a stored hold record
+ * (`betaPolicyScreeningHold`) that is blocked with a hold outcome. A released,
+ * cancelled or closed hold says nothing. Campaign records of Blueprint's
+ * retired early trial (`run_kind: beta_policy_screening`) stay stored for
+ * withdrawal and the job ceiling, and are not read here.
  */
-export function sceneScreening(runs: Iterable<{ id: string; run: Record<string, any> | undefined }>, team: string): SceneScreening {
-  let estimate = false, running = false, observed = false, superseded = false, campaigns = false;
-  let newest: { key: string; outcome: ScreeningOutcome } | null = null;
-  let hold: ScreeningOutcome | null = null;
-  let holdDetail: ScreeningHoldDetail | null = null;
-  const estimateCaveats: Array<ScreeningOutcomeCaveat | null> = [];
-  for (const { id, run } of runs) {
-    if (run?.run_kind === SCREENING_HOLD_RUN_KIND && run.team_namespace === team) {
-      const held = storedScreeningOutcome(run.screening_outcome);
-      // A hold speaks as held, or as the one wait a hold can name: Blueprint's own monthly spend limit.
-      if (run.state === "blocked" && (isScreeningHeldOutcome(held) || held === "awaiting_spend_approval")) {
-        hold = held; holdDetail = screeningHoldDetail(run.hold_reason_code, run.hold_detail_code);
-      }
-      continue;
-    }
-    if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
-    campaigns = true;
-    const outcome = storedScreeningOutcome(run.screening_outcome);
-    const executed = run.screening_execution_observed === true;
-    observed ||= executed;
-    if (!["completed", "blocked"].includes(run.state) || !outcome) { running ||= executed; continue; }
-    if (outcome === "estimate") { estimate = true; estimateCaveats.push(storedScreeningOutcomeCaveat(run.screening_outcome_caveat)); }
-    else if (outcome === "superseded") superseded = true;
-    else {
-      const key = `${String(run.created_at_iso ?? "")}\u0000${id}`;
-      if (!newest || key > newest.key) newest = { key, outcome };
-    }
+export function sceneHold(runs: Iterable<{ id: string; run: Record<string, any> | undefined }>, team: string): SceneHold | null {
+  for (const { run } of runs) {
+    if (run?.run_kind !== SCREENING_HOLD_RUN_KIND || run.team_namespace !== team || run.state !== "blocked") continue;
+    if (!isSceneHoldOutcome(run.screening_outcome)) continue;
+    const holdDetail = run.screening_outcome === "held_setup" ? screeningHoldDetail(run.hold_reason_code, run.hold_detail_code) : null;
+    return { outcome: run.screening_outcome, ...(holdDetail ? { holdDetail } : {}) };
   }
-  const estimateCaveat = estimateCaveats.length > 0 && estimateCaveats.every(caveat => caveat !== null
-    && caveat === estimateCaveats[0]) ? estimateCaveats[0] : null;
-  return { estimate, running, observed,
-    outcome: newest?.outcome ?? (superseded ? "superseded" : campaigns ? null : hold),
-    ...(estimateCaveat ? { estimateCaveat } : {}),
-    ...(!newest && !superseded && !campaigns && hold === "held_setup" && holdDetail ? { holdDetail } : {}) };
+  return null;
 }
 
-/** How the scene reads from its job evaluations alone: an outcome, an open test (true), or nothing yet (false). */
-export function sceneScreeningResult(scene: SceneScreening): boolean | SceneScreeningResult {
-  if (scene.estimate) return { outcome: "estimate", observed: true, ...(scene.estimateCaveat ? { caveat: scene.estimateCaveat } : {}) };
-  if (scene.running) return true;
-  return scene.outcome ? { outcome: scene.outcome, observed: scene.observed, ...(scene.holdDetail ? { holdDetail: scene.holdDetail } : {}) } : false;
-}
-
-/**
- * A run stored before every finished run had a final outcome may say it is
- * still waiting on us or the owner: read its accepted publication again, in
- * place. The job page and the ops monitor read the same outcome.
- */
-export async function rederiveStoredWaits(store: { collection: (name: string) => { doc: (id: string) => { get: () => Promise<{ data: () => Record<string, any> | undefined }> } } },
-  runs: Array<{ id: string; run: Record<string, any> | undefined }>): Promise<void> {
-  await Promise.all(runs.map(async row => {
-    const run = row.run;
-    if (run?.run_kind !== "beta_policy_screening" || !["completed", "blocked"].includes(run.state)
-      || !LEGACY_WAITS.has(run.screening_outcome) || typeof run.result_record_id !== "string") return;
-    const result = (await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get()).data();
-    const publication = result ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(result)) : null;
-    if (publication && publication.campaign_id === run.run_id && publication.publication_digest === run.publication_digest)
-      row.run = { ...run, screening_outcome: screeningOutcome(publication) };
-  }));
-}
-
-/**
- * Whether the Pipeline accepted a policy test on a configured scene of this
- * intake's task, in the intake's own team. A configured scene carries the
- * task's objects, so this is the first internal test of the finished scene.
- */
-async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean | SceneScreeningResult> {
-  const taskId = intake.request?.task?.task_id;
+/** The stored hold records of this intake's scene, in its own team. */
+async function readSceneHold(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<SceneHold | null> {
   const team = intake.request?.owner?.organization_id;
-  if (typeof taskId !== "string" || !taskId || typeof team !== "string" || !team) return false;
+  if (typeof team !== "string" || !team || typeof intake.receipt?.intent_id !== "string") return null;
   const runs: Array<{ id: string; run: Record<string, any> | undefined }> = [];
-  if (typeof intake.receipt?.intent_id === "string") {
-    for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
-      .where("source_scene_intent_id", "==", intake.receipt.intent_id))) {
-      runs.push(...rows.map(row => ({ id: row.id, run: row.data() })));
-    }
+  for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
+    .where("source_scene_intent_id", "==", intake.receipt.intent_id))) {
+    runs.push(...rows.map(row => ({ id: row.id, run: row.data() })));
   }
-  await rederiveStoredWaits(store, runs);
-  // An estimate, or a test still running, needs no launch lookup. A finished
-  // outcome without an estimate is a fallback behind any accepted launch test.
-  const scene = sceneScreening(runs, team);
-  if (scene.estimate || scene.running) return sceneScreeningResult(scene);
-  const launchIds: string[] = [];
-  for await (const rows of queryPages(store.collection("taskEvaluationLaunches")
-    .where("configured_scene_offering.task.identity.id", "==", taskId))) {
-    launchIds.push(...rows.filter(row => row.data()?.configured_scene_offering?.team_namespace === team).map(row => row.id));
-  }
-  // Firestore takes at most 30 values in one `in` filter.
-  for (let start = 0; start < launchIds.length; start += 30) {
-    for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
-      .where("source_launch_id", "in", launchIds.slice(start, start + 30)))) {
-      if (rows.some(row => policyTestAccepted(row.data()))) return true;
-    }
-  }
-  return sceneScreeningResult(scene);
+  return sceneHold(runs, team);
 }
 
-/** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */
-export async function readWebsiteSceneProgression(requestId: string, captureId: string): Promise<TaskSceneProgression | null> {
+/** The site's latest scene intake for this capture, and the capture's session. Throws when it cannot be read. */
+export async function readLatestWebsiteSceneIntake(requestId: string, captureId: string):
+  Promise<{ latest: Record<string, any> | undefined; session: Record<string, any> | undefined }> {
   if (!db) throw new Error("website_scene_progression_unavailable");
   let latest: Record<string, any> | undefined;
   const session = (await db.collection('captureUploadSessions').doc(captureId).get()).data();
@@ -265,9 +160,16 @@ export async function readWebsiteSceneProgression(requestId: string, captureId: 
         || String(value.created_at_iso || "") > String(latest.created_at_iso || ""))) latest = value;
     }
   }
-  const tested = latest?.state === "completed" && latest.pipeline_status?.phase !== "policy_canary_complete"
-    && await firstTestAccepted(db, latest);
-  return projectWebsiteSceneProgression(latest, tested);
+  return { latest, session };
+}
+
+/** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */
+export async function readWebsiteSceneProgression(requestId: string, captureId: string): Promise<TaskSceneProgression | null> {
+  if (!db) throw new Error("website_scene_progression_unavailable");
+  const { latest, session } = await readLatestWebsiteSceneIntake(requestId, captureId);
+  const stage = latest?.state === "completed"
+    ? { hold: await readSceneHold(db, latest), simulationReady: storedCompanySimulation(session, captureId) !== null } : null;
+  return projectWebsiteSceneProgression(latest, stage);
 }
 
 /** The same, for a page: unreadable is unknown (null). */

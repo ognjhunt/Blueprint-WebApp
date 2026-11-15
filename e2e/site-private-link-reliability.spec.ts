@@ -511,10 +511,8 @@ test("an old readiness brief link lands on the home page, carrying nothing of th
 // were scored, so the run is not called an estimate; the site reads the same
 // sentence in the headline and the results, and each baseline row says what it is.
 test("a run with only scripted reference baselines is not called an estimate, and shows no early trial", async ({ page }, info) => {
-  const { screeningOutcomeSentence } = await import("../server/utils/betaPolicyScreeningContract");
   const token = "reference-only-result-fixture";
   const sentence = "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.";
-  expect(screeningOutcomeSentence("reference_only")).toBe(sentence);
   const writes: string[] = [];
   await page.route("**/api/**", route => {
     const request = route.request(), url = new URL(request.url());

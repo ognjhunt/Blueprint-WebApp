@@ -103,7 +103,6 @@ const FRAME_FILES = [
   "server/utils/sceneIntentOutcome.ts",
   "server/utils/taskPreparationOutcome.ts",
   "server/utils/taskUpdateCommitment.ts",
-  "server/utils/screeningSetupFlagSentences.ts",
   "server/utils/siteAnswer.ts",
   "server/utils/siteTaskScope.ts",
   "server/routes/site-task-brief.ts",

@@ -23,7 +23,7 @@
  * `awaiting_site` are waits.
  */
 import { z } from "zod";
-import { simulationOutcomeEmailSentence } from "./betaPolicyScreeningContract";
+import { simulationHoldSentence } from "./betaPolicyScreeningContract";
 import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 
 export const SCENE_INTENT_OUTCOME_SCHEMA = "task_evaluation_scene_intent_outcome.v1";
@@ -115,7 +115,7 @@ export const ANSWER_STAYS = "Your first look stays on your job page.";
  * job: the site's answer does not depend on it. Withdrawal is untouched.
  */
 const ENDINGS: Readonly<Record<TerminalSceneOutcomeKind, { sentence: string; closing: string; subject: string }>> = {
-  held: { sentence: simulationOutcomeEmailSentence("held_capability"),
+  held: { sentence: simulationHoldSentence("held_capability"),
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "The simulation of your job is held for now" },
   withdrawn: { sentence: "Permission to use this video for your job was withdrawn or has expired.",
     closing: "You don't need to do anything; this job has stopped.", subject: "Your Blueprint job has stopped" },

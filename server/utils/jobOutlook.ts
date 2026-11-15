@@ -8,14 +8,14 @@
  * - `building`: on the way to a simulation and no ending recorded (before the Pipeline's first status, preparing,
  *   waiting on capacity, awaiting inputs, a retryable failure, handed off, a scene built with no run yet, and any
  *   state that is unknown or unreadable).
- * - `testing`: a run is queued with a plan, running, or its scene reports a test, and no ending recorded.
+ * - `testing`: the simulation of the site is ready (its company simulation package is published), or a run is queued
+ *   with a plan or running, and no ending recorded.
  * - `result`: a published test result scored at least one AI robot.
  * - `no_test`: an ending is recorded and no result exists; the paper check is the answer, with `sentence`.
  * - `cannot_match`: another kind of job, with no grant at the end of the no-grant wait.
  * - `ended_by_site`: the site withdrew recording permission or closed the run; never building, never an answer email.
  *
- * Holds that retry by themselves are not endings (the screening outcome `setup_repair`, a scene outcome that is a
- * wait, `awaiting_spend_approval`). The job window bounds `building` and `testing`: once its ending is recorded the
+ * Holds that retry by themselves are not endings (a scene outcome that is a wait). The job window bounds `building` and `testing`: once its ending is recorded the
  * job is `no_test`.
  */
 import { RUN_ENDED_WITHOUT_RESULT, testNotRunLine, type SimulationProof } from "../../client/src/lib/simulationProof";
@@ -42,9 +42,8 @@ export interface JobOutlookInput {
   keptOnFile?: boolean;
   /** The Pipeline's preparation status, as verified. */
   preparation: { state: string; geometryOnlyEnd: boolean; terminalReason?: string | null } | null;
-  /** The scene's progression after hand-off; `waiting` when its test waits on an outcome (approval, a re-plan);
-   * `attemptFailed` when a build attempt failed and another is coming. */
-  scene: { state: string; waiting?: boolean; attemptFailed?: boolean; endingKind?: string } | null;
+  /** The scene's progression after hand-off; `attemptFailed` when a build attempt failed and another is coming. */
+  scene: { state: string; attemptFailed?: boolean; endingKind?: string } | null;
   /** The job's simulation proof (`projectSimulationProof`), or null when there is no evaluation to read. */
   proof: SimulationProof | null;
   /** Something the decision needs could not be read. An unknown is never an ending, and never hides a recorded one. */
@@ -102,7 +101,7 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   const proof = input.proof;
   const working = (): JobOutlook => {
     const testing = proof?.state === "running" || (proof?.state === "preparing" && proof.options.entered > 0)
-      || input.scene?.state === "testing" || input.scene?.state === "evaluated" || proof?.state === "done";
+      || input.scene?.state === "ready" || proof?.state === "done";
     return testing ? outlook("testing")
       : outlook("building", input.preparation?.state === "failed_retryable" || input.scene?.attemptFailed ? "step_failed" : null);
   };
@@ -258,7 +257,7 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
         : import("./websiteSceneProgression").then(({ loadWebsiteSceneProgression }) => loadWebsiteSceneProgression(requestId, captureId));
       const progression = await read.then(value => ({ value }))
         .catch(() => { uncertain = true; return { value: null }; });
-      scene = progression.value ? { state: progression.value.state, waiting: Boolean(progression.value.progressOutcome),
+      scene = progression.value ? { state: progression.value.state,
         attemptFailed: progression.value.attemptFailed === true,
         ...(progression.value.sceneOutcome ? { endingKind: progression.value.sceneOutcome.kind } : {}) } : null;
     }

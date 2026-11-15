@@ -1086,7 +1086,7 @@ describe("practice-run videos of a job's simulation evaluation", () => {
   it("forgets the job's cached copies when its recording permission is withdrawn", async () => {
     const { mkdir, stat, writeFile } = await import("node:fs/promises");
     const { dirname } = await import("node:path");
-    const { practiceRunVideoCachePath, practiceRunVideoMarkerPath } = await import("../utils/screeningPracticeRunVideos");
+    const { practiceRunVideoCachePath, practiceRunVideoMarkerPath } = await import("../utils/websiteCaptureWithdrawalPracticeRunVideos");
     const body = await screeningRun();
     const [videoId] = body.videoIds;
     await mkdir(dirname(practiceRunVideoMarkerPath("task-1", videoId)), { recursive: true });

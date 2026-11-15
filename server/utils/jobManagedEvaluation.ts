@@ -14,21 +14,13 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateRows, screeningCandidateState,
-  screeningEstimateCountSentence,
-  screeningEstimateRows, screeningExecutionEvidence, screeningJobCeilingRow, screeningOutcome, screeningOutcomeCaveat, screeningOutcomeSentence,
-  SCREENING_PUBLICATION_V1, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V4, SCREENING_REPLANNED_BLOCKER,
-  screeningProgress, screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningOutcome,
-  type ScreeningReviewVideos } from "./betaPolicyScreeningContract";
-import { robotFactNotes, screeningSetupNotes } from "./screeningSetupFlagSentences";
-import { projectCandidateSelection } from "./betaCandidateSelection";
+import type { BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { familyNativePreparationReference, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { navigationPreparationReference } from "./navigationSceneIntake";
 import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
-import { WILSON_CONFIDENCE_PERCENT, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
 import { jobManagedEvidenceBindingSchema, type JobManagedEvidenceBinding } from "./jobManagedEvidenceBinding";
-import type { ManagedJobEvidenceSummary, ScreeningPracticeRun, ScreeningSuccessRange } from "./managedJobEvidenceSummary";
+import type { ManagedJobEvidenceSummary } from "./managedJobEvidenceSummary";
 
 /** Resolve the existing canonical source pointer, never a guessed capture ID. */
 export async function readManagedJobSourceSession(record: Record<string, any> | undefined,
@@ -252,58 +244,6 @@ export function assertManagedOfferingForJob(
   }
 }
 
-function practiceRuns(entry: ScreeningReviewVideos | undefined): { practiceRuns?: ScreeningPracticeRun[] } {
-  return entry ? { practiceRuns: entry.practice_runs.map((run, index) => ({ number: index + 1, outcome: run.outcome,
-    videos: run.videos.map(video => ({ videoId: video.sha256.slice(7), camera: video.camera, phase: video.phase,
-      durationSeconds: video.duration_seconds })) })) } : {};
-}
-
-/**
- * Where a candidate's success rate likely lies, from its scored episodes: the
- * existing Wilson interval at its confidence level, in whole percents. Only a
- * row with scored episodes has one.
- */
-export function screeningSuccessRange(succeeded: number, scored: number): ScreeningSuccessRange | undefined {
-  if (!Number.isInteger(scored) || !Number.isInteger(succeeded) || scored <= 0 || succeeded < 0 || succeeded > scored) return undefined;
-  return { lowerPercent: Math.round(wilsonLowerBound(succeeded, scored) * 100),
-    upperPercent: Math.round(wilsonUpperBound(succeeded, scored) * 100), confidencePercent: WILSON_CONFIDENCE_PERCENT };
-}
-
-/** What the site is told to expect next, per outcome: never an instruction for Blueprint or the owner (F-03). */
-const SITE_NEXT_ACTION: Readonly<Record<ScreeningOutcome, string>> = {
-  estimate: "Blueprint uses this estimate to recommend the next step for your job, then works with a deployment company on any physical pilot.",
-  reference_only: "Nothing is needed from you. Each row shows what ran, or why it could not run.",
-  held_capability: "Nothing is needed from you. Each row lists why it could not run.",
-  held_unprepared: "Nothing is needed from you. Each row lists why it could not run.",
-  infeasible: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
-  no_match: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
-  held_setup: "Nothing is needed from you. Each row lists why it stopped.",
-  held_budget: "Nothing is needed from you. Each row lists why it stopped.",
-  held_scene_check: "Nothing is needed from you.",
-  awaiting_spend_approval: "Nothing is needed from you.",
-  setup_repair: "Nothing is needed from you.",
-  superseded: "Nothing is needed from you. The newer run shows this job's progress.",
-};
-/** Blueprint's own next step, shown in operations views only. */
-const OPS_NEXT_ACTION: Partial<Record<ScreeningOutcome, string>> = {
-  held_setup: "Held on our side: fix the cause in each candidate's blockers, then rerun. Once the fix deploys, the Pipeline plans a harness failure again by itself (a bounded number of times); rerun anything else by hand. Nothing is needed from the site.",
-  held_budget: "Held: testing reached a limit on our side (the job's limit or the site's screening limit) before an estimate. Check for a fault; raising a job's limit is an owner decision (scripts/amend-website-atlas-grant.ts). Nothing is needed from the site.",
-  held_scene_check: "Held: the scene failed its robot-free check, so no campaign started. Rebuild or re-probe the scene to continue. Nothing is needed from the site.",
-  awaiting_spend_approval: "Waiting on Blueprint: the job's limit held testing back (a run the account's monthly limit kept from starting reads the same). Check for a fault; raise the job with scripts/amend-website-atlas-grant.ts if it is right. Nothing is needed from the site.",
-  setup_repair: "Rows refused for code a deploy changed are planned again at the new release by the Pipeline itself. Nothing is needed from the site.",
-};
-/**
- * When the job's dollar ceiling, not the screening budget, is what held the candidates back. A publication's
- * `awaiting_spend_approval` always has such a row, so its OPS_NEXT_ACTION line above is not shown today (a hold run has no
- * result record and never reaches here); it is kept correct for safety.
- */
-const OPS_JOB_CEILING_NEXT_ACTION = "Owner approval needed: this job's dollar ceiling, shared by all of its spending, has too little left "
-  + "to run its candidates. Raising it is the owner's money decision. Nothing is needed from the site.";
-const opsNextAction = (outcome: ScreeningOutcome, candidates: BetaPolicyScreeningPublication["candidates"]) =>
-  (outcome === "awaiting_spend_approval" || outcome === "held_budget")
-    && candidates.some(row => row.status !== "completed" && screeningJobCeilingRow(row))
-    ? OPS_JOB_CEILING_NEXT_ACTION : OPS_NEXT_ACTION[outcome];
-
 /** A projection of already accepted publications, never a second report store. */
 export function projectManagedJobEvidence(
   runId: string, run: Record<string, any>, result: Record<string, any> | null,
@@ -315,8 +255,7 @@ export function projectManagedJobEvidence(
   const base: ManagedJobEvidenceSummary = {
     runId, state: String(run.state || "unavailable"), current: binding.data.brief_digest === currentBriefDigest
       && currentTaskContextDigest !== null && run.job_task_context_digest === currentTaskContextDigest
-      && currentSourceFingerprint !== null && run.job_source_fingerprint === currentSourceFingerprint
-      && !(run.run_kind === "beta_policy_screening" && (run.cancellationRequested === true || ["cancelled", "closed"].includes(run.state))),
+      && currentSourceFingerprint !== null && run.job_source_fingerprint === currentSourceFingerprint,
     resultDigest: null, summary: `Policy run status: ${String(run.state || "unavailable")}. No accepted scientific result is attached.`,
     nextAction: ["blocked", "failed", "cancelled"].includes(run.state)
       ? "Blueprint can inspect the recorded runtime limitation and choose the next useful action. No retry is automatic."
@@ -327,72 +266,6 @@ export function projectManagedJobEvidence(
   if (!result || result.record_id !== run.result_record_id) return base;
   const publication = publicationFromResultRecord(result);
   if (!publication) return base;
-  if ([SCREENING_PUBLICATION_V4, SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V1]
-    .includes(String(publication.schema_version))) {
-    // The automatic run under the site's allowance is the job's evaluation
-    // (owner decision 2026-10-28). Retained v1 rows read the same way; v3 adds set-up flags, v4 progress.
-    const value = parseBetaPolicyScreeningPublication(publication);
-    if (!value || value.campaign_id !== runId || run.run_kind !== "beta_policy_screening"
-      || value.publication_digest !== run.publication_digest || value.revision !== run.publication_revision
-      || value.plan_digest !== run.configuration_digest || value.source.scene_intent_id !== run.source_scene_intent_id
-      || value.source.scene_revision_digest !== run.source_scene_revision_digest
-      || value.source.task_context_digest !== run.job_task_context_digest || value.site_id !== `site-${jobId}`) return base;
-    // The known-good control is a check, said in one sentence among the set-up notes; every list and count here is of candidates.
-    const rows = screeningCandidateRows(value.candidates);
-    const completed = rows.filter(row => row.status === "completed").length;
-    const total = rows.length;
-    const scored = rows.reduce((sum, row) => sum + row.episodes_scored, 0);
-    const notRun = rows.filter(row => ["blocked", "unavailable", "deferred", "infeasible"].includes(row.status)).length;
-    const candidates = (count: number) => `${count} candidate${count === 1 ? "" : "s"}`;
-    // The one outcome the job page headline and the result email also state (F-03).
-    const outcome = screeningOutcome(value);
-    // A zero-success estimate in a scene our own checks flagged says so, in the same sentence everywhere.
-    const caveat = screeningOutcomeCaveat(value);
-    const setupNotes = screeningSetupNotes(value);
-    const replanned = rows.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER));
-    const estimateRows = outcome === "estimate" ? screeningEstimateRows(rows) : [];
-    const estimated = estimateRows.reduce((sum, row) => sum + row.episodes_scored, 0);
-    const status = outcome === null ? value.status : isScreeningHeldOutcome(outcome) && outcome !== "reference_only" ? "held"
-      : outcome === "estimate" ? "completed" : outcome;
-    // The Pipeline's rule-based choice, kept only while it restates this result.
-    const selection = projectCandidateSelection(run.candidate_selection, value);
-    const kept = new Map(screeningReviewVideos(value).map(entry => [entry.candidate_id, entry]));
-    return { ...base, state: status, outcome, ...(caveat ? { outcomeCaveat: caveat } : {}),
-      resultDigest: outcome !== null && outcome !== "superseded" ? value.publication_digest : null,
-      summary: outcome === "estimate" ? `${screeningOutcomeSentence(outcome, caveat)} ${screeningEstimateCountSentence(completed, total, scored)}`
-        : outcome ? screeningOutcomeSentence(outcome)
-          : `Simulation evaluation of your job: ${completed} of ${total} candidates finished; ${scored} episodes scored so far.`,
-      // The site reads what it needs to know; what Blueprint has to do is staff only.
-      nextAction: outcome ? SITE_NEXT_ACTION[outcome]
-        : value.status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
-          : "Candidate progress will update as each test finishes.",
-      ...(outcome && opsNextAction(outcome, rows) ? { opsNextAction: opsNextAction(outcome, rows) } : {}),
-      limitations: [
-        ...(rows.some(row => row.execution_evidence_kind === "scripted_simulator_state_baseline")
-          ? ["Scripted baselines use simulator state. Their outcomes do not establish learned-policy or vendor-policy performance."] : []),
-        ...(estimated ? [`A bounded simulation estimate from ${estimated} scored episode${estimated === 1 ? "" : "s"} across ${candidates(estimateRows.length)}, for this job's recorded task and simulated conditions only.`] : []),
-        "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
-        ...(notRun ? [`${candidates(notRun)} did not run; each row lists why.`] : []),
-        ...(replanned && outcome !== "superseded" ? ["Candidates that had not run yet continue in a newer run."] : []),
-      ],
-      screening: { provenance: { schema_version: value.schema_version, claim_ceiling: value.claim_ceiling,
-        source: value.source, generated_at: value.generated_at, publication_digest: value.publication_digest,
-        catalog_digest: value.catalog_digest, plan_digest: value.plan_digest },
-        budget: { limitUsd: value.budget.limit_usd, committedUpperBoundUsd: value.budget.committed_upper_bound_usd,
-        spentUpperBoundUsd: value.budget.spent_upper_bound_usd, reservedUsd: value.budget.reserved_usd },
-        candidates: rows.map(row => ({ candidateId: row.candidate_id, name: row.display_name,
-        configurationDigest: row.configuration_digest,
-        ...(row.execution_evidence_kind ? { executionEvidence: screeningExecutionEvidence(row) } : {}),
-        state: screeningCandidateState(row), planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
-        failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
-        // Facts about this robot and the object, shown on this robot's result only (`robotFactNotes`).
-        ...(robotFactNotes(row).length ? { robotNotes: robotFactNotes(row) } : {}),
-        ...(row.episodes_scored > 0 ? { successRange: screeningSuccessRange(row.episodes_succeeded, row.episodes_scored) } : {}),
-        // How far its graded episodes got (v4): facts the page states, never a rank.
-        ...(row.progress ? { progress: screeningProgress(row)! } : {}),
-        ...practiceRuns(kept.get(row.candidate_id)) })),
-        ...(selection ? { selection } : {}), ...(setupNotes.length ? { setupNotes } : {}) } };
-  }
   if (publication.run_id !== runId) return base;
   if (publication.schema_version === "task_evaluation_run_publication.v4") {
     const verified = parsePipelinePolicyCanaryPublication(publication);
