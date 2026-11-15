@@ -50,6 +50,7 @@ import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { buildTaskLifecycleNotification, paperAnswerForEnding, waitingAnswerNoticeFields, workspaceTaskUrl } from "./taskLifecycleNotifications";
 import { earlyTaskHoldOf } from "./taskPreparationOutcome";
 import { resultOutranksWindowEnding } from "./taskStatusProjection";
+import { retainedTrialResultOutranksEnding } from "./websiteJobWindowRetainedTrial";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isWebsiteJobWindowEndedNoticeKey, recordedWebsiteJobWindowEnding, sealWebsiteJobWindowEnding,
   websiteJobWindowEndedEventId, websiteJobWindowEndedNoticeKey, WEBSITE_JOB_WINDOW_ENDING_FIELD,
@@ -155,6 +156,8 @@ async function storedOutcome(requestId: string, record: Record<string, any>, pas
   const sceneProgression = await readWebsiteSceneProgression(requestId, captureId);
   const screening = await loadSceneScreening(requestId);
   if (resultOutranksWindowEnding({ screening, sceneProgression }, { pastLiveGrace })) return "result_recorded";
+  // Protects old jobs from a late ending; not a status (`websiteJobWindowRetainedTrial`).
+  if (await retainedTrialResultOutranksEnding(requestId, captureId)) return "result_recorded";
   // The Pipeline's own terminal outcome for the scene (C-04) has its own one email.
   if (sceneProgression?.sceneOutcome?.terminal) return "outcome_told";
   const status = (await db!.collection(SESSIONS).doc(captureId).get()).data()?.website_preparation?.status;
@@ -623,6 +626,8 @@ export async function websiteJobWindowEndingShown(requestId: string, idempotency
   // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
     sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
+  // Protects old jobs from a late ending; not a status (`websiteJobWindowRetainedTrial`).
+  if (await retainedTrialResultOutranksEnding(requestId, captureId)) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
   return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))
@@ -650,6 +655,8 @@ export async function websiteJobNoGrantEndingShown(requestId: string, idempotenc
   // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
     sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
+  // Protects old jobs from a late ending; not a status (`websiteJobWindowRetainedTrial`).
+  if (await retainedTrialResultOutranksEnding(requestId, captureId)) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
   return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))

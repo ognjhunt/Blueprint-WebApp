@@ -329,6 +329,14 @@ describe("a waiting job hears what it is waiting on", () => {
       simulation_revision: `sha256:${"1".repeat(64)}`, state: "ready", format: "zip_usd_scene_object_success_rule",
       content_type: "application/zip", digest: `sha256:${"2".repeat(64)}`, size_bytes: 1024, files: ["scene.usda"],
       permission_basis: "site_sharing_statement", statement_version: "2026-11-12.v4", updated_at_epoch: 1_800_000_000 };
+    // A package dated before this release never sends the email: no site hears "ready" weeks late.
+    const early = { ...simulation, updated_at_epoch: Date.parse("2026-11-10T00:00:00Z") / 1000 };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", { company_simulation:
+      { ...early, simulation_digest: crossRuntimeArtifactDigest(early, "simulation_digest") } });
+    expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(false);
+    expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(false);
+    await reconcileSceneTestsStartedNotices();
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:scene_tests_started")).toBe(false);
     sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", { company_simulation:
       { ...simulation, simulation_digest: crossRuntimeArtifactDigest(simulation, "simulation_digest") } });
     expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(true);

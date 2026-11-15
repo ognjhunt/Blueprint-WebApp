@@ -89,6 +89,10 @@ const sealedOutcome = (kind: string, terminal: boolean, reasonCode: string) => {
     kind, terminal, reason_category: "blueprint_fault", reason_code: reasonCode, decided_at_epoch: AFTER - 60 };
   return { ...value, outcome_digest: crossRuntimeDigest(value) };
 };
+/** A campaign record of the retired early trial, as an earlier release stored it. */
+const storedCampaign = (outcome: string) => docs.set("taskEvaluationPolicyRuns/campaign-one", { run_kind: "beta_policy_screening",
+  team_namespace: "blueprint-operations", state: "completed", screening_outcome: outcome, screening_execution_observed: true,
+  source_scene_intent_id: "scene-one", created_at_iso: "2026-11-06T00:00:00Z" });
 /** A blocked scene-stage hold the Pipeline sent for the scene (`betaPolicyScreeningHold`). */
 const sceneHoldRun = (outcome: string) => docs.set("taskEvaluationPolicyRuns/hold-one", { run_kind: "beta_policy_screening_hold",
   team_namespace: "blueprint-operations", state: "blocked", screening_outcome: outcome, hold_reason_code: "robot_free_probe_failed",
@@ -181,9 +185,7 @@ describe("a job past its window with no outcome", () => {
       pipeline_status: { status: "running", phase: "configuration", blockers: [], attempts: [] } })],
     ["an intake waiting on an internal approval", () => seedIntake({ state: "accepted", pipeline_status: { status: "blocked", phase: "configuration",
       blockers: ["scene_intake_spend_cap_exhausted"], outcome: { ...sealedOutcome("awaiting_spend_approval", false, "spend_cap_reached"), } } })],
-    ["a built scene with only an early-trial campaign stored", () => { seedIntake();
-      docs.set("taskEvaluationPolicyRuns/campaign-one", { run_kind: "beta_policy_screening", team_namespace: "blueprint-operations",
-        state: "completed", screening_outcome: "estimate", source_scene_intent_id: "scene-one", created_at_iso: "2026-11-06T00:00:00Z" }); }],
+    ["a built scene no evaluation finished on", () => { seedIntake(); storedCampaign("setup_repair"); }],
     ["preparation that never moved", () => docs.set("captureUploadSessions/walkthrough-job-one", { website_preparation: { status: { state: "preparing" } } })],
     ["a preparation status the Pipeline ended without telling the site", () => docs.set("captureUploadSessions/walkthrough-job-one",
       { website_preparation: { status: { state: "authority_ended" } } })],
@@ -206,6 +208,9 @@ describe("a job the sweep must leave alone", () => {
       capture_withdrawal: { state: "uploads_stopped_cleanup_pending" }, captureWithdrawalPending: true })],
     ["with its simulation ready", () => { seedIntake(); publishSimulation(); }],
     ["held by a scene-stage hold", () => { seedIntake(); sceneHoldRun("held_scene_check"); }],
+    // Protects old jobs from a late ending: a stored early-trial campaign that reached a result, with no package.
+    ["with an old early-trial estimate", () => { seedIntake(); storedCampaign("estimate"); }],
+    ["with an old early-trial hold", () => { seedIntake(); storedCampaign("held_budget"); }],
     ["told the Pipeline's own ending", () => seedIntake({ state: "blocked", pipeline_status: { status: "blocked", phase: "authority",
       blockers: ["scene_intake_authority_expired"], outcome: sealedOutcome("setup_repair", true, "authority_expired") } })],
     ["told its preparation ended for good", () => docs.set("captureUploadSessions/walkthrough-job-one",
@@ -264,6 +269,15 @@ describe("the ending and what comes after it", () => {
     expect(send).not.toHaveBeenCalled();
     expect(outbox()[0][1].status).toBe("cancelled");
     expect((await page({ consentRevoked: true })).headline).toMatch(/consent was withdrawn/);
+  });
+
+  it("cancels a queued ending email when an old early-trial estimate is stored for the scene", async () => {
+    seedJob();
+    await sweep();
+    seedIntake();
+    storedCampaign("estimate");
+    await deliverOutbox();
+    expect(outbox().find(([key]) => key === NOTICE)![1].status).toBe("cancelled");
   });
 
   it("cancels the email when a scene-stage hold arrived first, and the page shows the hold", async () => {

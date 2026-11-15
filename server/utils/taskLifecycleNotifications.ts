@@ -926,11 +926,20 @@ export async function notifyIfSceneTestsStarted(requestId: string): Promise<{ en
   return enqueueTaskLifecycleNotification({ requestId, milestone: "scene_tests_started" });
 }
 
-/** True while the job page shows the simulation of its site ready. Read again at dispatch. */
+/**
+ * Packages the Pipeline dated before this release never send the "ready" email: a site whose simulation was ready
+ * before the email followed the package must not hear it weeks late.
+ */
+export const SCENE_READY_NOTICE_CUTOVER_EPOCH = Date.parse("2026-11-15T00:00:00Z") / 1000;
+
+/** True while the job page shows the simulation of its site ready, from a package dated after the cutover. Read again at dispatch. */
 export async function sceneTestsStarted(requestId: string): Promise<boolean> {
-  const [{ readWebsiteSceneProgression }, { siteWalkthroughIdentity }] = await Promise.all([
-    import("./websiteSceneProgression"), import("./siteWalkthrough")]);
-  return (await readWebsiteSceneProgression(requestId, siteWalkthroughIdentity(requestId).captureId))?.state === "ready";
+  const [{ readWebsiteSceneProgression, readLatestWebsiteSceneIntake }, { siteWalkthroughIdentity }, { storedCompanySimulation }] = await Promise.all([
+    import("./websiteSceneProgression"), import("./siteWalkthrough"), import("./websiteCompanySimulation")]);
+  const captureId = siteWalkthroughIdentity(requestId).captureId;
+  if ((await readWebsiteSceneProgression(requestId, captureId))?.state !== "ready") return false;
+  const { session } = await readLatestWebsiteSceneIntake(requestId, captureId);
+  return (storedCompanySimulation(session, captureId)?.updated_at_epoch ?? 0) >= SCENE_READY_NOTICE_CUTOVER_EPOCH;
 }
 
 /**

@@ -147,8 +147,9 @@ async function readSceneHold(store: FirebaseFirestore.Firestore, intake: Record<
   return sceneHold(runs, team);
 }
 
-/** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */
-export async function readWebsiteSceneProgression(requestId: string, captureId: string): Promise<TaskSceneProgression | null> {
+/** The site's latest scene intake for this capture, and the capture's session. Throws when it cannot be read. */
+export async function readLatestWebsiteSceneIntake(requestId: string, captureId: string):
+  Promise<{ latest: Record<string, any> | undefined; session: Record<string, any> | undefined }> {
   if (!db) throw new Error("website_scene_progression_unavailable");
   let latest: Record<string, any> | undefined;
   const session = (await db.collection('captureUploadSessions').doc(captureId).get()).data();
@@ -159,6 +160,13 @@ export async function readWebsiteSceneProgression(requestId: string, captureId: 
         || String(value.created_at_iso || "") > String(latest.created_at_iso || ""))) latest = value;
     }
   }
+  return { latest, session };
+}
+
+/** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */
+export async function readWebsiteSceneProgression(requestId: string, captureId: string): Promise<TaskSceneProgression | null> {
+  if (!db) throw new Error("website_scene_progression_unavailable");
+  const { latest, session } = await readLatestWebsiteSceneIntake(requestId, captureId);
   const stage = latest?.state === "completed"
     ? { hold: await readSceneHold(db, latest), simulationReady: storedCompanySimulation(session, captureId) !== null } : null;
   return projectWebsiteSceneProgression(latest, stage);
