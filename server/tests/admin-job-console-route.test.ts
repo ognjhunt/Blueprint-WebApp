@@ -148,9 +148,10 @@ describe("GET /api/admin/jobs", () => {
     const rows = Object.fromEntries(body.jobs.map((job: Row) => [job.requestId, job]));
     expect(rows["job-scene"]).toMatchObject({ stage: "scene_preparation", actionOwner: "none",
       nextAction: "Pipeline is preparing the scene",
-      scene: { state: "in_progress", heldReason: null, progressOutcome: null, ending: null } });
+      scene: { state: "in_progress", heldReason: null, ending: null } });
     expect(rows["job-plain"].scene).toBeNull();
-    expect(body.stages).toEqual(expect.arrayContaining(["scene_preparation", "screening", "estimate", "held", "ended"]));
+    expect(body.stages).toEqual(expect.arrayContaining(["scene_preparation", "held", "ended"]));
+    expect(body.stages).not.toContain("estimate");
   });
 
   it("filters by stage and searches by site name", async () => {

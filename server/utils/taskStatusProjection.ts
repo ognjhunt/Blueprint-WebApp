@@ -31,8 +31,7 @@ import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome,
   isCompletePreparationOutcome } from "./taskPreparationOutcome";
-import { isScreeningHeldOutcome, screeningOutcomeSentenceWithWindow, simulationOutcomeEmailSentence, type ScreeningHeldOutcome, type ScreeningOutcome,
-  type ScreeningOutcomeCaveat , simulationHoldSentence, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
+import { simulationHoldSentence, type SceneHoldOutcome, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
 /**
@@ -202,32 +201,25 @@ export interface TaskPreparationStatus {
 /**
  * Where the job's simulation scene stands after the capture was handed off.
  * `ended` is a block the scene cannot leave on its own; `waiting` is a block
- * on our side that may clear; `completed` is a built scene not yet tested;
- * `testing` is a finished scene, task objects in, whose first internal test
- * has started: the point the site is told it is ready (owner decision
- * 2026-10-22). `evaluated` is a finished automatic evaluation whose simulation
- * estimate is the job's result, and `held` one where no candidate can do this
- * kind of job yet (owner decision 2026-10-28). Coarse by design:
- * no Pipeline detail reaches a site. `heldReason` is why a held job has no
- * estimate, and `progressOutcome` a finished evaluation still in our or the
- * owner's hands, or planned again in a newer run. Each outcome is told in the
- * same sentence the run's own summary gives (`screeningOutcomeSentence`, F-03);
- * a measured reason is station-relative, never a task-level verdict (owner
- * decision 2026-10-31). A held job with no reason reads as `held_capability`.
- * `sceneOutcome` is the Pipeline's own outcome for the scene when it sent one
- * (C-04): an ending and its one email say the same sentence, and a wait says
- * what it waits on. It is read here only to pick that sentence.
+ * on our side that may clear; `in_progress` and `completed` are a simulation
+ * still being built; `ready` is a built scene whose company simulation package
+ * (the scene, the job's object and the success rule) the Pipeline has
+ * published. `held` is a scene-stage hold: the Pipeline's own terminal hold
+ * outcome, or a blocked hold record it sent (`betaPolicyScreeningHold`), each
+ * said in the hold's own sentence (`simulationHoldSentence`). Coarse by design:
+ * no Pipeline detail reaches a site. A held scene with no reason reads as
+ * `held_capability`. `sceneOutcome` is the Pipeline's own outcome for the
+ * scene when it sent one (C-04): an ending and its one email say the same
+ * sentence, and a wait says what it waits on. It is read here only to pick
+ * that sentence.
  */
 export interface TaskSceneProgression {
-  state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
+  state: "in_progress" | "waiting" | "ended" | "completed" | "ready" | "held";
   /** One build attempt failed and the Pipeline keeps trying: a wait, never an ending (review, 2026-11-11). */
   attemptFailed?: true;
-  heldReason?: ScreeningHeldOutcome;
+  heldReason?: SceneHoldOutcome;
   /** `held` only: the hold's detail with words of its own (`simulationHoldSentence`). */
   holdDetail?: ScreeningHoldDetail;
-  progressOutcome?: Extract<ScreeningOutcome, "awaiting_spend_approval" | "setup_repair" | "superseded">;
-  /** `evaluated` only: what the estimate's sentence adds (`screeningOutcomeCaveat`), as the run's summary and email say it. */
-  outcomeCaveat?: ScreeningOutcomeCaveat;
   sceneOutcome?: SceneOutcomeReading;
 }
 
@@ -238,29 +230,27 @@ function sceneEndingMessage(progression: TaskSceneProgression | null | undefined
     ? sceneOutcomeMessage(outcome.kind) : null;
 }
 
-/** The job evaluation outcome a scene's progression states, if any. */
-export function sceneProgressionOutcome(progression: TaskSceneProgression | null | undefined): ScreeningOutcome | null {
-  if (progression?.state === "evaluated") return "estimate";
-  if (progression?.state === "held") return progression.heldReason ?? "held_capability";
-  return progression?.progressOutcome ?? null;
+/** The hold a scene's progression states, if any. */
+export function sceneProgressionHold(progression: TaskSceneProgression | null | undefined): SceneHoldOutcome | null {
+  return progression?.state === "held" ? progression.heldReason ?? "held_capability" : null;
 }
 
 /**
- * Whether a result stands above a recorded window ending: an evaluation run of any kind, an
- * estimate, or a hold an evaluation reached. A terminal outcome the Pipeline's own scene status
- * carries (`sceneOutcome`, C-04) does not: the sweep leaves a job alone when one is already
- * stored, and one that arrives after the ending is the same ending, whose email is not sent twice.
+ * Whether a result stands above a recorded window ending: an evaluation run of any kind, a
+ * stored scene-stage hold, or a simulation whose package is published (the job's simulation did
+ * finish, so "did not finish the simulation in that time" would be false). A terminal outcome the Pipeline's own scene status carries
+ * (`sceneOutcome`, C-04) does not: the sweep leaves a job alone when one is already stored, and
+ * one that arrives after the ending is the same ending, whose email is not sent twice.
  */
 export function resultOutranksWindowEnding(input: { screening?: SceneScreening | null;
   sceneProgression?: TaskSceneProgression | null }, options: { pastLiveGrace?: boolean } = {}): boolean {
   const runs = input.screening;
   // A run record that says queued or running outranks the window's end only while it can still be live: the Pipeline
-  // stops it at the deadline, so past the grace (`LIVE_RUN_GRACE_SECONDS`) it is stale (review, 2026-11-11). A stored
-  // scene that says "testing" with no run record is never evidence of a live test.
+  // stops it at the deadline, so past the grace (`LIVE_RUN_GRACE_SECONDS`) it is stale (review, 2026-11-11).
   const live = options.pastLiveGrace ? 0 : (runs?.queued ?? 0) + (runs?.running ?? 0);
   if (runs && live + runs.reported + runs.noResult > 0) return true;
   const scene = input.sceneProgression;
-  return scene?.state === "evaluated" || scene?.state === "held" && !scene.sceneOutcome;
+  return scene?.state === "ready" || scene?.state === "held" && !scene.sceneOutcome;
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
@@ -299,8 +289,6 @@ interface TaskStatusInput {
   footageBeforeAccount?: boolean;
   /** Recording withdrawal overrides retained derived evidence on every surface. */
   consentRevoked?: boolean;
-  /** Until when Blueprint can keep working on the job (`websiteJobWorkWindow`); absent when unknown. */
-  jobWorkUntilEpoch?: number | null;
   /** The job's work window has passed while its rights still allowed the work. */
   jobWindowEnded?: boolean;
   /**
@@ -734,15 +722,11 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: null,
     };
   }
-  const sceneHeld = input.sceneProgression?.state === "held";
-  const sceneEvaluated = input.sceneProgression?.state === "evaluated";
-  const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
-  // The run's own summary opens with this same sentence (F-03). A hold is said to the site about the
-  // simulation, as its email says it, never "held" about the job: the site has its answer whatever happens here.
-  const sceneOutcome = sceneProgressionOutcome(input.sceneProgression);
-  const resultHeadline = sceneOutcome ? isScreeningHeldOutcome(sceneOutcome)
-    ? `${simulationHoldSentence(sceneOutcome, input.sceneProgression?.holdDetail)} ${ANSWER_STAYS_ON_JOB_PAGE}`
-    : screeningOutcomeSentenceWithWindow(sceneOutcome, input.jobWorkUntilEpoch, input.sceneProgression?.outcomeCaveat) : null;
+  // A hold is said to the site about the simulation, as its email says it, never "held" about the job:
+  // the site has its answer whatever happens here.
+  const sceneHold = sceneProgressionHold(input.sceneProgression);
+  const holdHeadline = sceneHold
+    ? `${simulationHoldSentence(sceneHold, input.sceneProgression?.holdDetail)} ${ANSWER_STAYS_ON_JOB_PAGE}` : null;
   // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
   const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome
     ? sceneWaitMessage(input.sceneProgression.sceneOutcome) : null;
@@ -762,13 +746,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Ready only once the task objects are in and our first test has started.
-  // A finished evaluation's outcome is said even when no test executed.
-  if (sceneTesting || resultHeadline) {
+  // A hold, or a simulation whose package is published: nothing is needed from the site either way.
+  if (holdHeadline || input.sceneProgression?.state === "ready") {
     return {
       ...base,
       decision: "assessing",
-      headline: `${resultHeadline ?? "Your scene is ready, and we are running our first tests on it."} Nothing is needed from you.`,
+      headline: `${holdHeadline ?? "The simulation of your site is ready."} Nothing is needed from you.`,
       operatorAction: null,
     };
   }
@@ -782,7 +765,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Built but not yet tested: still ours to finish, and not yet "ready".
+  // Built, with no package yet: still ours to finish, and not yet "ready".
   if (input.sceneProgression?.state === "completed") {
     return {
       ...base,
@@ -898,7 +881,6 @@ export function taskStatusInputFrom(record: {
     sourceOwned: typeof record.capture_owner_uid === "string" && Boolean(record.capture_owner_uid.trim()),
     ...(record.footageBeforeAccount === true ? { footageBeforeAccount: true } : {}),
     consentRevoked: record.consentRevoked === true,
-    ...(record.jobWorkWindow?.untilEpoch ? { jobWorkUntilEpoch: record.jobWorkWindow.untilEpoch } : {}),
     ...(record.jobWorkWindow?.ended === true ? { jobWindowEnded: true } : {}),
     ...(record.jobWorkWindow?.endingRecorded === true ? { jobWindowEndingRecorded: true,
       ...(record.jobWorkWindow.noGrantWaitingOn === "site" || record.jobWorkWindow.noGrantWaitingOn === "blueprint"

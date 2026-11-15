@@ -35,7 +35,7 @@ export const PIPELINE_SCHEMA_NOT_ACCEPTED_STATUS = 422;
 export const QUARANTINED_PAYLOAD_MAX_CHARS = 200_000;
 const PARSE_ISSUES_MAX = 20;
 
-export type QuarantinedPayloadKind = "beta_policy_screening_publication" | "beta_policy_screening_hold";
+export type QuarantinedPayloadKind = "beta_policy_screening_hold";
 
 /** The payload's own digest when it verifies over the payload; null for anything the Pipeline did not seal. */
 export function sealedPayloadDigest(body: unknown, digestField: string): string | null {

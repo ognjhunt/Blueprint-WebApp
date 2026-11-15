@@ -1,17 +1,19 @@
 // @vitest-environment node
 /**
- * A job whose evaluation could not start after scene publication is held by
- * name: the Pipeline's hold is bound like a campaign, read by the job page as a
- * finished outcome, told to the site once and to our team once, and outranked
- * by any campaign or a release. Real ingest, outbox and ops scan over the
- * shared Firestore fake; the email and Slack transports are spies.
+ * A job held at the scene stage, by name: the Pipeline's hold is bound to the
+ * scene intake and the job, read by the job page as the simulation's hold,
+ * told to the site once and to our team once, and silenced by a release.
+ * Campaign records of Blueprint's retired early trial stay stored and never
+ * speak: the scene's own outcome, a blocked hold, or the published simulation
+ * package does. Real ingest, outbox and ops scan over the shared Firestore
+ * fake; the email and Slack transports are spies.
  */
 import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import { outcomePublication, screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
+import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
-import { screeningOutcomeSentence, simulationOutcomeEmailSentence } from "../utils/betaPolicyScreeningContract";
+import { simulationHoldSentence } from "../utils/betaPolicyScreeningContract";
 
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -24,9 +26,8 @@ vi.mock("../utils/email", () => ({ sendEmail: send }));
 vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: vi.fn(async (value: string) => value.replace(/^encrypted:/, "")) }));
 
 const { ingestBetaPolicyScreeningHold, parseBetaPolicyScreeningHold } = await import("../utils/betaPolicyScreeningHold");
-const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
 const { deliverOutbox } = await import("../utils/captureOutbox");
-const { readWebsiteSceneProgression, sceneScreening } = await import("../utils/websiteSceneProgression");
+const { readWebsiteSceneProgression, sceneHold } = await import("../utils/websiteSceneProgression");
 const { scanHeldWebsiteEvaluations } = await import("../utils/websitePreparationOpsAlerts");
 
 let base: ReturnType<typeof screeningFixture>["publication"];
@@ -39,6 +40,22 @@ function sealHold(fields: Record<string, unknown> = {}) {
 }
 const holdRun = () => state.docs.get(`taskEvaluationPolicyRuns/${holdId(base.source.scene_intent_id)}`) as Record<string, any>;
 const progression = () => readWebsiteSceneProgression("job-one", base.source.capture_id);
+/** A campaign record of the retired early trial, as an earlier release stored it for this scene. */
+function storeCampaign(outcome: string) {
+  state.docs.set("taskEvaluationPolicyRuns/campaign-one", { run_id: "campaign-one", run_kind: "beta_policy_screening",
+    state: outcome === "estimate" ? "completed" : "blocked", screening_outcome: outcome, screening_execution_observed: true,
+    website_request_id: "job-one", team_namespace: "blueprint-operations", source_scene_intent_id: base.source.scene_intent_id,
+    outcome_notification_pending: true, created_at_iso: "2026-10-27T00:00:00.000Z" });
+}
+/** The company simulation package the Pipeline publishes for the job's capture (`storedCompanySimulation`). */
+function publishSimulation() {
+  const value = { schema_version: "website_company_simulation.v1", capture_id: base.source.capture_id,
+    simulation_revision: `sha256:${"1".repeat(64)}`, state: "ready", format: "zip_usd_scene_object_success_rule",
+    content_type: "application/zip", digest: `sha256:${"2".repeat(64)}`, size_bytes: 1024, files: ["scene.usda", "success_rule.json"],
+    permission_basis: "site_sharing_statement", statement_version: "2026-11-12.v4", updated_at_epoch: 1_800_000_000 };
+  state.docs.set(`captureUploadSessions/${base.source.capture_id}`,
+    { company_simulation: { ...value, simulation_digest: crossRuntimeArtifactDigest(value, "simulation_digest") } });
+}
 
 beforeEach(() => {
   state.docs.clear();
@@ -52,13 +69,13 @@ beforeEach(() => {
 });
 
 describe("a website evaluation held before any campaign started", () => {
-  it("reads the account's monthly spend limit as a wait on Blueprint, never a setup problem, and sends no email", async () => {
+  it("stores the account's monthly spend limit as a wait on Blueprint, never a setup problem, and sends no email", async () => {
     await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ reason_code: "team_scene_packet_blocked",
       detail_code: "account_monthly_spend_limit_reached" }))!);
     expect(holdRun()).toMatchObject({ state: "blocked", screening_outcome: "awaiting_spend_approval" });
     expect(holdRun().outcome_notification_pending).toBeUndefined();
-    expect(await progression()).toEqual({ state: "completed", progressOutcome: "awaiting_spend_approval" });
-    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe("Your job is paused on our side. Nothing is needed from you.");
+    // Only the retired trial's campaigns reached that limit; the page reads the simulation as still being built.
+    expect(await progression()).toEqual({ state: "completed" });
     await deliverOutbox();
     expect(send).not.toHaveBeenCalled();
     // Any other detail of the same reason is still the setup hold it was.
@@ -93,7 +110,7 @@ describe("a website evaluation held before any campaign started", () => {
     await expect(progression()).resolves.toMatchObject({ state: "held", heldReason: outcome });
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].text.startsWith(simulationOutcomeEmailSentence(outcome as never))).toBe(true);
+    expect(send.mock.calls[0][0].text.startsWith(simulationHoldSentence(outcome as never))).toBe(true);
     expect(send.mock.calls[0][0].text).not.toMatch(/early trial|openly available/i);
     // The same hold again, or a replay, is not another email.
     await expect(ingestBetaPolicyScreeningHold(hold)).resolves.toMatchObject({ status: "replayed" });
@@ -101,36 +118,21 @@ describe("a website evaluation held before any campaign started", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it("is outranked by any campaign for the scene, and silenced by a release after a re-drive", async () => {
+  it("is silenced by a release after a re-drive, and speaks again when held again", async () => {
     await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold())!);
-    expect(sceneScreening([{ id: "hold", run: holdRun() }], holdRun().team_namespace).outcome).toBe("held_scene_check");
+    expect(sceneHold([{ id: "hold", run: holdRun() }], holdRun().team_namespace)).toEqual({ outcome: "held_scene_check" });
     // A deploy re-drove the probe: released, the page no longer says held.
     const released = parseBetaPolicyScreeningHold(sealHold({ status: "released", reason_code: null, detail_code: null, revision: 2 }))!;
     await expect(ingestBetaPolicyScreeningHold(released)).resolves.toMatchObject({ status: "updated", revision: 2 });
     expect(holdRun()).toMatchObject({ state: "released", screening_outcome: null });
-    await expect(progression()).resolves.not.toMatchObject({ state: "held" });
+    await expect(progression()).resolves.toEqual({ state: "completed" });
     // An older revision never replaces a newer one; the same revision with other bytes is a conflict.
     await expect(ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold())!)).resolves.toMatchObject(
       { status: "replayed", revision: 2 });
     await expect(ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ revision: 2 }))!))
       .rejects.toThrow("screening_hold_revision_conflict");
-    // Held again, then the probe passes and a campaign is published: the campaign speaks.
     await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ revision: 3 }))!);
-    await expect(progression()).resolves.toMatchObject({ state: "held", heldReason: "held_scene_check" });
-    await ingestBetaPolicyScreening(outcomePublication(base, "estimate"));
-    await expect(progression()).resolves.toMatchObject({ state: "evaluated" });
-  });
-
-  it("reads a run stored as still waiting again from its publication, so a final end never stays in progress", async () => {
-    await ingestBetaPolicyScreening(outcomePublication(base, "held_budget"));
-    const stored = state.docs.get("taskEvaluationPolicyRuns/campaign-one") as Record<string, any>;
-    expect(stored.screening_outcome).toBe("held_budget");
-    // As an earlier release stored it.
-    state.docs.set("taskEvaluationPolicyRuns/campaign-one", { ...stored, screening_outcome: "awaiting_spend_approval" });
-    await expect(progression()).resolves.toMatchObject({ state: "held", heldReason: "held_budget" });
-    // A run the Pipeline plans again after a deploy stays in progress.
-    await ingestBetaPolicyScreening(sealScreening({ ...outcomePublication(base, "setup_repair"), campaign_id: "campaign-two" }));
-    await expect(progression()).resolves.toMatchObject({ progressOutcome: "setup_repair" });
+    await expect(progression()).resolves.toEqual({ state: "held", heldReason: "held_scene_check" });
   });
 
   it("keeps the owner's closure on a hold: never shown, emailed or reported", async () => {
@@ -144,44 +146,11 @@ describe("a website evaluation held before any campaign started", () => {
     await expect(scanHeldWebsiteEvaluations({ alert: vi.fn(async () => ({ sent: true })) })).resolves.toEqual({ held: 0, alerted: 0 });
   });
 
-  it("reports only what the job page says now: no older wait an estimate replaced, never a re-plan in progress", async () => {
-    const alert = vi.fn(async () => ({ sent: true }));
-    // An older release stored a spent allowance as a wait; a newer campaign's estimate replaced it.
-    await ingestBetaPolicyScreening(outcomePublication(base, "held_budget"));
-    const stored = state.docs.get("taskEvaluationPolicyRuns/campaign-one") as Record<string, any>;
-    state.docs.set("taskEvaluationPolicyRuns/campaign-one", { ...stored, screening_outcome: "awaiting_spend_approval" });
-    await ingestBetaPolicyScreening(sealScreening({ ...outcomePublication(base, "estimate"), campaign_id: "campaign-two" }));
-    await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 0, alerted: 0 });
-    // Rows planned again after a deploy are still in progress.
-    state.docs.clear();
-    const { job, brief, intake, launch } = screeningFixture();
-    state.docs.set(launch.path, launch.record);
-    state.docs.set("inboundRequests/job-one", job);
-    state.docs.set("siteTaskBriefs/job-one", brief);
-    state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
-    await ingestBetaPolicyScreening(outcomePublication(base, "setup_repair"));
-    await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 0, alerted: 0 });
-    expect(alert).not.toHaveBeenCalled();
-  });
-
-  it("shows a job-ceiling deferral as waiting on Blueprint, reports it to our team and emails the site nothing", async () => {
-    const alert = vi.fn(async () => ({ sent: true }));
-    await ingestBetaPolicyScreening(outcomePublication(base, "awaiting_spend_approval"));
-    const stored = state.docs.get("taskEvaluationPolicyRuns/campaign-one") as Record<string, any>;
-    expect(stored.screening_outcome).toBe("awaiting_spend_approval");
-    expect(stored.outcome_notification_pending).toBeUndefined();
-    await expect(progression()).resolves.toMatchObject({ progressOutcome: "awaiting_spend_approval" });
-    await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 1, alerted: 1 });
-    expect(String((alert.mock.calls[0] as unknown[])[1])).toMatch(/finished without an estimate: awaiting_spend_approval/);
-    await deliverOutbox();
-    expect(send).not.toHaveBeenCalled();
-  });
-
   it.each(["estimate", "held_budget", "reference_only"] as const)(
-    "queues no email for an early trial campaign's %s outcome; only a stored hold is told", async outcome => {
-      await ingestBetaPolicyScreening(outcomePublication(base, outcome));
-      const stored = state.docs.get("taskEvaluationPolicyRuns/campaign-one") as Record<string, any>;
-      expect(stored.run_kind).toBe("beta_policy_screening");
+    "queues no email for a stored early trial campaign's %s outcome; only a stored hold is told", async outcome => {
+      storeCampaign(outcome);
+      const { reconcileScreeningOutcomeNotifications } = await import("../utils/screeningOutcomeNotifications");
+      await reconcileScreeningOutcomeNotifications();
       await deliverOutbox();
       expect(send).not.toHaveBeenCalled();
       expect([...state.docs.keys()].some(key => key.startsWith("captureOutbox/"))).toBe(false);
@@ -203,10 +172,64 @@ describe("a website evaluation held before any campaign started", () => {
     await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 1, alerted: 1 });
     expect(alert).toHaveBeenCalledTimes(1);
     expect(String((alert.mock.calls[0] as unknown[])[1])).toMatch(
-      /finished without an estimate: held_scene_check \(robot_free_probe_failed\)\. .*\/admin\/leads\/job-one/);
+      /holds the scene stage: held_scene_check \(robot_free_probe_failed\)\. .*\/admin\/leads\/job-one/);
     await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toMatchObject({ alerted: 0 });
-    // A campaign that ended on our side is reported the same way.
-    await ingestBetaPolicyScreening(outcomePublication(base, "held_setup"));
-    await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toMatchObject({ alerted: 1 });
+    // A stored campaign of the retired trial is never reported.
+    state.docs.clear();
+    storeCampaign("held_setup");
+    await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 0, alerted: 0 });
+  });
+});
+
+describe("where a job's simulation stands without the early trial", () => {
+  it("an old job with a campaign estimate and a published simulation package reads ready, not evaluated", async () => {
+    storeCampaign("estimate");
+    await expect(progression()).resolves.toEqual({ state: "completed" });
+    publishSimulation();
+    await expect(progression()).resolves.toEqual({ state: "ready" });
+    // Its one email is the scene-ready one; nothing about the trial's estimate.
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0].subject).toBe("The simulation of your site is ready");
+    expect(send.mock.calls[0][0].text).not.toMatch(/estimate|early trial|openly available/i);
+  });
+
+  it("an old job whose campaign ended held on budget, with no hold record, reads as being built", async () => {
+    storeCampaign("held_budget");
+    await expect(progression()).resolves.toEqual({ state: "completed" });
+    const { reconcileScreeningOutcomeNotifications } = await import("../utils/screeningOutcomeNotifications");
+    await reconcileScreeningOutcomeNotifications();
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("a job with a campaign and a new blocked hold shows the hold and emails it once", async () => {
+    storeCampaign("estimate");
+    publishSimulation();
+    await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ reason_code: "team_scene_packet_blocked",
+      detail_code: "scene_run_in_cold_storage" }))!);
+    await expect(progression()).resolves.toEqual({ state: "held", heldReason: "held_setup", holdDetail: "scene_run_in_cold_storage" });
+    const { reconcileScreeningOutcomeNotifications } = await import("../utils/screeningOutcomeNotifications");
+    await reconcileScreeningOutcomeNotifications();
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0].text.startsWith(simulationHoldSentence("held_setup", "scene_run_in_cold_storage"))).toBe(true);
+    await reconcileScreeningOutcomeNotifications();
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("a released hold does not speak: the simulation reads ready once its package is published", async () => {
+    await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold())!);
+    await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ status: "released", reason_code: null,
+      detail_code: null, revision: 2 }))!);
+    publishSimulation();
+    await expect(progression()).resolves.toEqual({ state: "ready" });
+  });
+
+  it("a new job with no campaign is being built until its package is published", async () => {
+    await expect(progression()).resolves.toEqual({ state: "completed" });
+    publishSimulation();
+    await expect(progression()).resolves.toEqual({ state: "ready" });
   });
 });

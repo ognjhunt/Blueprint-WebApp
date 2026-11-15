@@ -11,7 +11,6 @@ import captureUploadsRouter from "./routes/capture-uploads";
 import websiteAtlasPreviewDownloadsRouter from "./routes/website-atlas-preview-downloads";
 import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views";
 import websiteDestinationPicturesRouter from "./routes/website-destination-pictures";
-import screeningPracticeRunVideosRouter from "./routes/screening-practice-run-videos";
 import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
 import contactTaskMediaHandler from "./routes/contact-task-media";
@@ -33,7 +32,6 @@ import internalCaptureTestbedsRouter from "./routes/internal-capture-testbeds";
 import internalBetaPolicyScreeningRouter from "./routes/internal-beta-policy-screening";
 import internalSceneExecutionWindowRouter from "./routes/internal-scene-execution-window";
 import internalOwnerSuccessProposalRouter from "./routes/internal-owner-success-proposal";
-import internalRobotAccessProposalRouter from "./routes/internal-robot-access-proposal";
 import internalCaptureReconstructionRouter from "./routes/internal-capture-reconstruction";
 import internalWebsitePreparationRouter from "./routes/internal-website-preparation";
 import internalCaptureWorldsRouter from "./routes/internal-capture-worlds";
@@ -72,7 +70,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalBetaPolicyScreeningRouter);
   app.use("/api/internal/pipeline", internalSceneExecutionWindowRouter);
   app.use("/api/internal/pipeline", internalOwnerSuccessProposalRouter);
-  app.use("/api/internal/pipeline", internalRobotAccessProposalRouter);
   app.use("/api/internal/pipeline", internalCaptureReconstructionRouter);
   app.use("/api/internal/pipeline", internalWebsitePreparationRouter);
   app.use("/api/internal/pipeline", internalCaptureWorldsRouter);
@@ -104,7 +101,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/website-atlas-preview-downloads", websiteAtlasPreviewDownloadsRouter);
   app.use("/api/website-atlas-preview-views", websiteAtlasPreviewViewsRouter);
   app.use("/api/website-destination-pictures", websiteDestinationPicturesRouter);
-  app.use("/api/screening-practice-run-videos", screeningPracticeRunVideosRouter);
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);

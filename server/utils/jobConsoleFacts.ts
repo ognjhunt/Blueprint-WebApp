@@ -73,13 +73,12 @@ export interface RawJobInputs {
   sceneProgression?: TaskSceneProgression | null;
 }
 
-/** Blueprint's own scene and screening, from the job page's projection. */
+/** Blueprint's own scene, from the job page's projection. */
 export function blueprintSceneOf(progression: TaskSceneProgression | null | undefined): BlueprintScene | null {
   if (!progression) return null;
   return {
     state: progression.state,
     heldReason: progression.heldReason ?? null,
-    progressOutcome: progression.progressOutcome ?? null,
     ending: progression.sceneOutcome?.kind ?? null,
   };
 }

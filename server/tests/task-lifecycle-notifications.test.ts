@@ -310,40 +310,41 @@ describe("a waiting job hears what it is waiting on", () => {
   // The frame of 2026-11-12: no company can request an evaluation, so "Your job is ready for evaluation" is never queued,
   // whatever the job's access says; the site hears its summary is shared by `listing_live` alone.
 
-  it("tells the site once its scene is ready and its first test started, only while true", async () => {
-    const { notifyIfSceneTestsStarted, reconcileSceneTestsStartedNotices, notifySceneTestsStartedForLaunch } =
-      await import("../utils/taskLifecycleNotifications");
+  it("tells the site once the simulation of its site is ready, only while true", async () => {
+    const { notifyIfSceneTestsStarted, reconcileSceneTestsStartedNotices } = await import("../utils/taskLifecycleNotifications");
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
     const taskId = `website-${"0".repeat(20)}`;
     sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
       source_session_id: "walkthrough-req-1", created_at_iso: "2026-10-22T00:00:00Z", state: "completed",
       pipeline_status: { status: "completed", phase: "scene_prepared" },
       request: { task: { task_id: taskId }, owner: { organization_id: "team-a" } } });
-    sharedFakeFirestoreState.docs.set("taskEvaluationLaunches/launch-a", { configured_scene_offering: {
-      task: { identity: { id: taskId } }, team_namespace: "team-a" } });
-    // The room is built, but no test has started: nothing is said yet.
+    // The room is built, but no simulation package is published: nothing is said yet.
     expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(false);
     await reconcileSceneTestsStartedNotices();
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:scene_tests_started")).toBe(false);
     const ready = { kind: "scene_tests_started" as const, requestId: "req-1" };
     expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(false);
-    sharedFakeFirestoreState.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a",
-      state: "queued_in_pipeline", launch_forward: { status: "forwarded" } });
+    const simulation = { schema_version: "website_company_simulation.v1", capture_id: "walkthrough-req-1",
+      simulation_revision: `sha256:${"1".repeat(64)}`, state: "ready", format: "zip_usd_scene_object_success_rule",
+      content_type: "application/zip", digest: `sha256:${"2".repeat(64)}`, size_bytes: 1024, files: ["scene.usda"],
+      permission_basis: "site_sharing_statement", statement_version: "2026-11-12.v4", updated_at_epoch: 1_800_000_000 };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", { company_simulation:
+      { ...simulation, simulation_digest: crossRuntimeArtifactDigest(simulation, "simulation_digest") } });
     expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(true);
-    await notifySceneTestsStartedForLaunch("launch-a");
+    expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(true);
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_tests_started") as Record<string, string>;
     expect(row.subject).toBe("The simulation of your site is ready");
     expect(row.body).toMatch(/^Your work area and its objects are in place\. Nothing is needed from you\.\n\nOpen your job:/);
     expect(row.body).not.toMatch(/first tests|test AI robots|We will email you at the next step/);
-    expect(row.body).not.toMatch(/pass|recommend|robot team/i);
+    expect(row.body).not.toMatch(/pass|recommend|robot team|early trial/i);
     expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(false);
     // The reconciler repairs a lost enqueue, once.
     sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:scene_tests_started");
     await reconcileSceneTestsStartedNotices();
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:scene_tests_started")).toBe(true);
-    // A test that ended unrun is no longer a started test at dispatch.
-    sharedFakeFirestoreState.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a", state: "failed",
-      launch_forward: { status: "forwarded" } });
+    // A package that no longer verifies is not a ready simulation at dispatch.
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", { company_simulation: simulation });
     expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(false);
   });
 

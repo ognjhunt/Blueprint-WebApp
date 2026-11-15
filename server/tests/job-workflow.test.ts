@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
-import { finishedScreening, screeningFixture, selectionFixture } from "./fixtures/beta-policy-screening";
+import { screeningFixture } from "./fixtures/beta-policy-screening";
 import { buildTaskTargetChoiceAnswer, taskTargetSelection } from '../utils/websiteTaskTargetChoice';
 
 const captures = vi.hoisted(() => ({ received: true as boolean | null }));
@@ -71,18 +71,16 @@ function rejectSelection(jobId: string, contextDigest = `sha256:${'c'.repeat(64)
 const review = { disposition: "options_identified" as const, summary: "A fixed arm can do the scoped transfer.", nextAction: "Blueprint is checking delivery for the approach that worked." };
 
 describe("job workflow authority and durable decisions", () => {
-  it("shows no early trial run to the site or to staff, even with its choice and outcome stored", async () => {
+  it("shows no early trial run to the site or to staff, even with its outcome stored", async () => {
     const { publication, job, brief, intake, launch } = screeningFixture();
     state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
-    const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
-    const finished = finishedScreening(publication, 1);
-    await ingestBetaPolicyScreening(finished);
-    const run = state.docs.get(`taskEvaluationPolicyRuns/${finished.campaign_id}`)!;
-    state.docs.set(`taskEvaluationPolicyRuns/${finished.campaign_id}`, { ...run, candidate_selection: {
-      record: selectionFixture(finished), registry_teams: [{ id: "jacobi", name: "Jacobi Robotics" }] } });
+    // A campaign record as an earlier release stored it, bound to this job.
+    state.docs.set(`taskEvaluationPolicyRuns/${publication.campaign_id}`, { run_id: publication.campaign_id,
+      run_kind: "beta_policy_screening", state: "completed", screening_outcome: "estimate", result_record_id: "result-one",
+      job_evidence_binding: { job_id: "job-one" }, website_request_id: "job-one" });
     const view = await api(`/owner/${token("job-one")}`);
     expect(view.status).toBe(200);
     expect(view.body.managedEvidence).toEqual([]);

@@ -62,7 +62,7 @@ export type OutboxKind =
   | "task_received"
   | "video_received"
   | "scene_ready"
-  /** The job's scene is ready, task objects in, and its first internal test started (owner decision 2026-10-22). */
+  /** The simulation of the site is ready: the Pipeline published the job's company simulation package. */
   | "scene_tests_started"
   | "preparation_needs_attention"
   /** Website scene preparation ended for good (website_preparation_status.v2 failed_terminal). */
