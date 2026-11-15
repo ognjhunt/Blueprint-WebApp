@@ -676,3 +676,83 @@ describe("what the Pipeline reads about a test job (W11)", () => {
     expect(await recordWebsiteCompanySimulation(site.jobId, scene, capture, shared.simulation)).toMatchObject({ accepted: true });
   });
 });
+
+/* ----------------------------------------------------------------- the Pipeline's owner read, through the real mask */
+
+describe("the owner observation reads a test job through the masked Firestore read", () => {
+  /** What Firestore's REST read answers under the website's field mask: only the masked paths, typed. */
+  async function maskedRead(jobId: string, record: Record<string, any>) {
+    const { OWNER_FIRESTORE_FIELD_PATHS, decodeMaskedOwnerDocument } = await import("../utils/firestoreOwnerProjection");
+    const fields: Record<string, any> = {};
+    for (const path of OWNER_FIRESTORE_FIELD_PATHS) {
+      const segments = path.split(".");
+      const value = segments.reduce<any>((at, key) => at?.[key], record);
+      if (value === undefined) continue;
+      let cursor = fields;
+      for (const key of segments.slice(0, -1)) cursor = (cursor[key] ??= { mapValue: { fields: {} } }).mapValue.fields;
+      cursor[segments.at(-1)!] = typeof value === "string" ? { stringValue: value }
+        : typeof value === "boolean" ? { booleanValue: value } : { nullValue: "NULL_VALUE" };
+    }
+    const name = `projects/p/databases/(default)/documents/inboundRequests/${jobId}`;
+    return decodeMaskedOwnerDocument(Buffer.from(JSON.stringify({ name, fields, createTime: "2026-11-15T12:00:00Z",
+      updateTime: "2026-11-15T12:00:01.5Z" })), name);
+  }
+  /** The observer's deps over the job's masked record and the real stored capture objects. */
+  async function observe(jobId: string, record: Record<string, any>, purpose?: "scene_preparation") {
+    const { observeWebsiteCaptureOwner } = await import("../utils/websiteCaptureOwnerObservation");
+    const bucket = sharedUploadBucket.bucket;
+    const metadata = async (name: string, generation: string | null) =>
+      (await bucket.file(name, generation ? { generation } : undefined).getMetadata())[0];
+    const marker = await metadata(`scenes/site-${jobId}/captures/walkthrough-${jobId}/raw/capture_upload_complete.json`, null);
+    return observeWebsiteCaptureOwner({ request_id: jobId, scene_id: `site-${jobId}`, capture_id: `walkthrough-${jobId}`,
+      completion_marker_generation: String(marker.generation), ...(purpose ? { purpose } : {}) }, {
+      bucket: "fake-upload-bucket", now: () => 1_790_000_000,
+      readRequest: async () => maskedRead(jobId, record),
+      readMetadata: metadata,
+      readPinned: async (name: string, generation: string) => ({ metadata: await metadata(name, generation),
+        bytes: (await bucket.file(name, { generation }).download())[0] }),
+    } as never);
+  }
+  const RIGHTS_KEYS = ["capture_contributor_payout_eligible", "consent_revoked", "consent_scope", "consent_status",
+    "data_licensing_allowed", "derived_scene_generation_allowed", "recorded_at_iso", "statement_version"];
+
+  it("a test job: the internal grant in its three keys, the marker beside its rights, its own owner subject", async () => {
+    const created = await createTestJob();
+    const record = doc(`inboundRequests/${created.job_id}`);
+    for (const purpose of ["scene_preparation", undefined] as const) {
+      const observed = await observe(created.job_id, record, purpose);
+      expect(observed.consent_attestation).toEqual({ granted: true, statement_version: "internal_test.v1",
+        recorded_at_iso: record.request.consent_attestation.recorded_at_iso });
+      expect(Object.keys(observed.capture_rights).sort()).toEqual([...RIGHTS_KEYS, "internal_test"].sort());
+      expect(observed.capture_rights).toMatchObject({ statement_version: "internal_test.v1", consent_status: "granted",
+        derived_scene_generation_allowed: true, internal_test: { label: "rigid pick 1080p", footage_id: "pexels-854533" } });
+      // A test job is bound to its own owner subject at creation, like any guest site job.
+      expect(observed.capture_owner).toEqual({ user_id: record.capture_owner_uid, basis: "inboundRequests.capture_owner_uid" });
+    }
+  });
+
+  it("a site's job: the same answer as before, with no marker and no basis anywhere", async () => {
+    const site = await startSiteJob();
+    await uploadSiteVideo(site.token);
+    const record = doc(`inboundRequests/${site.jobId}`);
+    const observed = await observe(site.jobId, record, "scene_preparation");
+    expect(Object.keys(observed.capture_rights).sort()).toEqual(RIGHTS_KEYS);
+    expect(Object.keys(observed.consent_attestation).sort()).toEqual(["granted", "recorded_at_iso", "statement_version"]);
+    expect(JSON.stringify(observed)).not.toMatch(/internal_test|basis"?:"blueprint/);
+  });
+
+  it("a basis or marker forged onto a site's job: the rights still follow its own statement", async () => {
+    const site = await startSiteJob();
+    await uploadSiteVideo(site.token);
+    const record = doc(`inboundRequests/${site.jobId}`);
+    const forged = { ...record, internal_test: { label: "forged", footage_id: "forged" },
+      request: { ...record.request, consent_attestation: { ...record.request.consent_attestation, basis: "blueprint_internal_test" } } };
+    const observed = await observe(site.jobId, forged, "scene_preparation");
+    expect(observed.consent_attestation).toEqual({ granted: true, statement_version: "2026-11-12.v4",
+      recorded_at_iso: record.request.consent_attestation.recorded_at_iso });
+    expect(observed.capture_rights.statement_version).toBe("2026-11-12.v4");
+    // The marker is reported beside the rights (any marker counts); the Pipeline refuses rights with that extra key under
+    // a version other than internal_test.v1, so the hand-off stops rather than sharing anything.
+    expect(observed.capture_rights.internal_test).toEqual({ label: "forged", footage_id: "forged" });
+  });
+});
