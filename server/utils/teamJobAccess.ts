@@ -4,6 +4,7 @@
  * ## The rule (package E, E2, owner direction of 2026-11-12)
  *
  * Sharing is the service: a job is listed for every approved deployment company if and only if ALL hold:
+ * - it is not an internal test job (`internal_test`, checked before anything else);
  * - the site accepted recording statement `2026-11-12.v4` or later, and the grant stands (`RECORDING_VERSIONS_THAT_SHARE`);
  * - the listing record is `job-shared-2026-11-12` (`sharedJobListing`); older cards drop out with no data change;
  * - the video passed the privacy screen (the stored privacy decision `proceeded`);
@@ -37,9 +38,12 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { coverageEvidenceFrom } from "./captureCoverageEvidence";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";
+import { isInternalTestJob } from "./internalTestJob";
 
 /** Why a job is closed to robot teams, in the order the checks run. */
 export type TeamJobClosedReason =
+  /** An internal test job (`internalTestJob.ts`): never shown to any company, whatever else it holds. Checked first. */
+  | "internal_test_job"
   /** Not a site's job: a robot team's own request, or no buyer type at all. */
   | "not_a_site_job"
   /** A placeholder the Pipeline created, not a site's submission. */
@@ -217,6 +221,8 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
   const raw = (record ?? {}) as Record<string, any>;
   const closed = (reason: TeamJobClosedReason): TeamJobAccess =>
     ({ listed: false, evaluationAvailable: false, reason, details: null });
+  // An internal test job stays internal (owner, 2026-11-15): refused before every other stop, with its own reason.
+  if (isInternalTestJob(raw)) return closed("internal_test_job");
   if (raw.request?.buyerType !== "site_operator") return closed("not_a_site_job");
   if (raw.debug?.autoCreatedByPipeline === true) return closed("pipeline_placeholder");
   const rights = projectWebsiteCaptureRights(raw);

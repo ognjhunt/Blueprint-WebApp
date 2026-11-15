@@ -1,3 +1,4 @@
+import type { InternalTestMarker } from "../utils/internalTestJob";
 import type { EncryptableString } from "./field-encryption";
 import type {
   BuyerChannelSource,
@@ -96,6 +97,8 @@ export interface ConsentAttestationRecord {
   /** The exact sentence version the operator agreed to. */
   statement_version: string | null;
   recorded_at_iso: string;
+  /** Only on an internal test job's grant (`internal_test.v1`): Blueprint's own test footage, no person's acceptance. */
+  basis?: "blueprint_internal_test";
 }
 
 export type RequestedLane =
@@ -1077,6 +1080,8 @@ export interface InboundRequest {
   terms_acceptance?: TermsAcceptanceRecord | null;
   /** The Privacy Policy version the job was submitted under, written once at creation (see inbound-request.ts). */
   privacy_version_at_submission?: string;
+  /** An internal test job's marker, written once at creation by the internal route (`server/utils/internalTestJob.ts`). */
+  internal_test?: InternalTestMarker;
   debug: {
     schemaVersion: number;
     autoCreatedByPipeline?: boolean;

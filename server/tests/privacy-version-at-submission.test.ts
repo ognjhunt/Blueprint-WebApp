@@ -19,10 +19,12 @@ function sources(dir: string): string[] {
 }
 
 describe("privacy_version_at_submission", () => {
-  it("is written only by the intake that creates the job", () => {
+  it("is written only by the intake that creates the job, and by the internal test-job route that creates a test job", () => {
     const writers = [...sources("server"), ...sources("client/src"), ...sources("scripts")]
       .filter((file) => /privacy_version_at_submission\s*:/.test(fs.readFileSync(path.join(ROOT, file), "utf8")));
-    expect(writers).toEqual(["server/routes/inbound-request.ts"]);
+    // The second writer is deliberate (owner, 2026-11-15): an internal test job has no person, so the route records the
+    // Privacy version in force as Blueprint's own, beside `privacy_version_basis`, into the same one create.
+    expect(writers.sort()).toEqual(["server/routes/inbound-request.ts", "server/routes/internal-test-jobs.ts"]);
   });
 
   it.each([

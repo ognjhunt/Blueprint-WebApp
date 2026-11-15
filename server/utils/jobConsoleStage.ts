@@ -51,6 +51,7 @@ function step(stage: JobStage, nextAction: string, actionOwner: ActionOwner): St
 
 /** Why teams cannot evaluate the job, as an attention line names it. */
 const CLOSED_REASON_LABELS: Record<TeamAccessReason, string> = {
+  internal_test_job: "an internal test job, never shown to a company",
   not_a_site_job: "not a site's job",
   pipeline_placeholder: "a Pipeline placeholder, not a site's job",
   task_not_yet_supported: "we are preparing an evaluation for this kind of job",
@@ -124,6 +125,8 @@ export function closedJobStep(facts: JobFacts): Step {
     case "task_not_yet_supported": return facts.teamAccess.scopeReason === "unclear"
       ? step("brief_review", "Waiting on site to describe the job in one sentence and confirm the brief again", "site")
       : step("not_open", "Held while we prepare an evaluation for this kind of job; counted as demand for what to build next", "none");
+    case "internal_test_job": return step("not_open", `No action: ${CLOSED_REASON_LABELS[reason]}`
+      + (facts.teamAccess.testLabel ? ` (test: ${facts.teamAccess.testLabel})` : ""), "none");
     case "development_only": return step("not_open", "No action: a development capture is never opened to teams", "none");
     case "rights_needs_review": return step("not_open", "Rights review pending: review the capture's rights and privacy", "blueprint");
     case "rights_blocked":

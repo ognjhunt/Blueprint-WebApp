@@ -21,6 +21,7 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { RECORDING_VERSIONS_THAT_SHARE } from "./teamJobAccess";
+import { isInternalTestJob, isInternalTestRecordingGrant } from "./internalTestJob";
 
 export const COMPANY_CLIP_FIELD = "company_clip";
 export const MAX_COMPANY_CLIP_BYTES = 64 * 1024 * 1024;
@@ -44,7 +45,8 @@ export const websiteCompanyClipSchema = z.object({
   fps: z.number().finite().gt(0).max(30.0001),
   duration_seconds: z.number().finite().min(0).max(86400).nullable(),
   has_audio: z.literal(false),
-  permission_basis: z.enum(["site_sharing_statement", "blueprint_owned_capture"]),
+  // `internal_test`: an internal test job's own copy, built and stored privately; never served to a company.
+  permission_basis: z.enum(["site_sharing_statement", "blueprint_owned_capture", "internal_test"]),
   statement_version: z.string().max(64).nullable(),
   updated_at_epoch: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   clip_digest: sha,
@@ -83,7 +85,12 @@ export async function recordWebsiteCompanyClip(requestId: string, sceneId: strin
     if (!request.exists || !record) throw new Error("website_company_clip_request_missing");
     const rights = projectWebsiteCaptureRights(record);
     if (rights.consent_revoked || !rights.derived_scene_generation_allowed) throw new Error("source_revoked");
-    if (!RECORDING_VERSIONS_THAT_SHARE.includes(String(rights.statement_version))) throw new Error("website_company_clip_not_permitted");
+    // Stored for a job under a sharing statement, or, on the `internal_test` basis only, for an internal test job under
+    // its own grant (`internalTestJob.ts`), so its own job page shows the real state. A test job is still shown to no
+    // company: every company read goes through `teamJobAccess`, which refuses it first.
+    const internalTest = isInternalTestJob(record) && isInternalTestRecordingGrant(record.request?.consent_attestation);
+    if (clip.permission_basis === "internal_test" ? !internalTest
+      : !RECORDING_VERSIONS_THAT_SHARE.includes(String(rights.statement_version))) throw new Error("website_company_clip_not_permitted");
     if (!session.exists) throw new Error("website_company_clip_capture_missing");
     const prior = storedCompanyClip(session.data(), captureId);
     if (prior && prior.clip_revision === clip.clip_revision) {

@@ -6,6 +6,7 @@ import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
 import { z } from "zod";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
+import { internalTestRightsMarker } from "./internalTestJob";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { TASK_BRIEFS_COLLECTION, isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import { preparationGrantFollowsBrief, UNNAMED_TASK_GRANT_FIELD } from "./preparationGrantTask";
@@ -431,6 +432,8 @@ export function websiteSceneSponsorship(input: {
       authoring_model: SITE_CONSENT_STATEMENTS.sol_agents_api_consent.model, agents_api_policy: managedPolicy } : {}),
     ...(privacyPolicyVersion ? { privacy_policy_version: privacyPolicyVersion } : {}),
     site_consents: websiteSiteConsents(input.record),
+    // An internal test job's marker, beside its rights (`internalTestJob.ts`); absent on every other job's grant.
+    ...internalTestRightsMarker(input.record),
     ...(anthropicTerms ? { anthropic_provider_terms_reference: anthropicTerms } : {}),
     owner: configured.owner,
     // These are disjoint caps, not two authorizations for the whole budget.

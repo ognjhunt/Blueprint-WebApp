@@ -1,4 +1,5 @@
 import { hasCurrentRecordingConsent } from "./recordingConsent";
+import { internalTestRightsMarker } from "./internalTestJob";
 
 /** The recorded site grant covers scene building/evaluation, never resale. */
 export function projectWebsiteCaptureRights(record: Record<string, any> | undefined) {
@@ -18,5 +19,8 @@ export function projectWebsiteCaptureRights(record: Record<string, any> | undefi
     consent_scope: granted ? ["derived_scene_generation", "robot_evaluation"] : [],
     statement_version: attestation?.statement_version ?? null,
     recorded_at_iso: attestation?.recorded_at_iso ?? null,
+    // Only on an internal test job, beside its grant version, so every reader of the rights (the task context, the
+    // manifest, the owner observation, the Pipeline's live rights read) can tell it is one. Absent on every other job.
+    ...internalTestRightsMarker(record),
   };
 }

@@ -35,6 +35,7 @@ import internalOwnerSuccessProposalRouter from "./routes/internal-owner-success-
 import internalCaptureReconstructionRouter from "./routes/internal-capture-reconstruction";
 import internalWebsitePreparationRouter from "./routes/internal-website-preparation";
 import internalCaptureWorldsRouter from "./routes/internal-capture-worlds";
+import internalTestJobsRouter from "./routes/internal-test-jobs";
 import selfCaptureUploadsRouter from "./routes/self-capture-uploads";
 import siteTaskBriefRouter from "./routes/site-task-brief";
 import siteClaimRouter from "./routes/site-claim";
@@ -73,6 +74,8 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalCaptureReconstructionRouter);
   app.use("/api/internal/pipeline", internalWebsitePreparationRouter);
   app.use("/api/internal/pipeline", internalCaptureWorldsRouter);
+  // Internal test jobs (owner, 2026-11-15): signed Pipeline calls only; never shown to a company, nothing sent.
+  app.use("/api/internal/pipeline", internalTestJobsRouter);
   app.use("/api/self-capture/uploads", selfCaptureUploadsRouter);
   // Same signed link as the camera, because it is the same person doing two
   // things about one submission.

@@ -76,6 +76,8 @@ export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRig
     operator_answers: brief.operatorAnswers ?? {},
     unresolved: brief.operatorUnknown ?? brief.unresolved,
     capture_rights: captureRights ?? projectWebsiteCaptureRights(undefined),
+    // An internal test job's marker, as its capture rights carry it (`internalTestJob.ts`); absent on every other job.
+    ...(captureRights?.internal_test ? { internal_test: captureRights.internal_test } : {}),
     ...(brief.operatorTaskDetails ? { operator_task_details: brief.operatorTaskDetails } : {}),
     ...(brief.successCriteria ? { success_criteria: brief.successCriteria } : {}),
     ...(brief.operatorTaskDetails || brief.successCriteria ? { task_evidence_provenance: {

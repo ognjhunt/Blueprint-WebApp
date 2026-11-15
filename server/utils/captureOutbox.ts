@@ -48,6 +48,7 @@ import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 import { accountNoticeDigest, accountNoticeDispatchBlocker, type AccountNoticeContext } from "./accountNotice";
 import { robotTeamAccessNotificationAuthority, type RobotTeamAccessNoticeContext } from "./robotTeamAccessNotificationAuthority";
+import { loadIsInternalTestJob } from "./internalTestJob";
 import { attemptIsDue, MAX_UNDELIVERED_AGE_MS, providerIdempotencyKey, RESEND_WINDOW_MS, retryDelayMs,
   undeliveredAgeMs, unknownRowState } from "./captureOutboxRetry";
 
@@ -499,6 +500,9 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
         tx.set(doc.ref, uncertain ? retryEnded(reason) : fields, { merge: true });
         return false;
       };
+      // The last check before any send, however the row was queued: nothing about an internal test job is sent.
+      if (await loadIsInternalTestJob(store, entry.requestId, tx))
+        return stop({ status: "cancelled", lastError: "internal_test_job", ...clearedIntroductionDetails(entry) }, "internal_test_job");
       const accountBlocker = await accountNoticeDispatchBlocker(entry);
       if (accountBlocker) return stop({ status: "review_required", lastError: accountBlocker }, accountBlocker);
       const accessNotice = await robotTeamAccessNotificationAuthority(entry, tx);
