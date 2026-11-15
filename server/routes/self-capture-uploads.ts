@@ -86,6 +86,7 @@ import { activateCaptureSupplement, issueCaptureSupplement, validateCaptureSuppl
 import { admitUploadBytes, uploadRefusal } from "../utils/betaAbuseCaps";
 import { requireAppCheck } from "../middleware/appCheck";
 
+import { isInternalTestJob } from "../utils/internalTestJob";
 import { ALLOWED_EXTENSIONS, resolveStoredObjectPath, verifiedStoredVideo,
   originalManifestConsent, verifiedPendingManifest, verifiedPendingMarker,
   belongsToLink, describeBrowserUpload } from "../utils/websiteBrowserUploadStatus";
@@ -586,6 +587,8 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
       const ref = dbAdmin!.collection("inboundRequests").doc(payload.requestId);
       const snap = await tx.get(ref), record = snap.data();
       if (!snap.exists || !record) return "missing";
+      // An internal test job's grant is Blueprint's own (`internal_test.v1`); no statement on its page replaces it.
+      if (isInternalTestJob(record)) return "internal_test_job";
       // Whether the job already has a capture: then the Pipeline is told at once (below).
       captureExists = (await tx.get(dbAdmin!.collection("captureUploadSessions").doc(payload.captureId))).exists;
       let taskStatement: string | null = null;
@@ -610,6 +613,7 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
       void import("../utils/jobAutoSend").then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId))
         .catch(() => undefined);
     }
+    if (outcome === "internal_test_job") return res.status(409).json({ code: "internal_test_job" });
     if (outcome === "missing") return res.status(404).json({ error: "This link does not point at a job we hold." });
     if (outcome === "held") return res.status(409).json({ error: "Recording permission needs review. Contact hello@tryblueprint.io with your job link." });
     // `granted` (a first grant), `upgraded` (v4 replaced an older grant, kept in `consent_attestation_earlier`) or `existing`.
@@ -1237,6 +1241,57 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
       { error, captureId: payload.captureId }, "Could not release failed browser write reservation"));
   }
 });
+
+/* ------------------------------------------------------------ internal test footage */
+
+/**
+ * An internal test job's video (`internal-test-jobs.ts`): Blueprint's own test footage, already in the bucket under
+ * `internal-test-footage/<id>/` (its size and header checked by the route first), copied on the server into the capture's canonical path and finished exactly as
+ * composed parts are (`parts/complete` above): the live upload authorization, the same canonical-write reservation
+ * and absence precondition, the same probe of the stored bytes, the same storage combine into
+ * `walkthrough.<ext>`, then `finishStoredCapture` (manifest, privacy screen, completion marker and delivery record).
+ * Nothing downstream knows how the bytes arrived. A capture already finished is reported, never written again.
+ */
+export async function landInternalTestFootage(payload: CaptureIdentity,
+  source: { objectName: string; generation: string; extension: "mp4" | "mov" }): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!storageAdmin) return { status: 503, body: { code: "capture_delivery_unavailable" } };
+  const authorization = await authorizeCaptureUpload(payload.requestId);
+  if (!authorization.allowed) return { status: 409, body: { code: authorization.holdReason, error: authorization.detail } };
+  if (!ALLOWED_EXTENSIONS.has(source.extension)) return { status: 415, body: { code: "video_extension_not_accepted" } };
+  const bucket = storageAdmin.bucket(storageBucketName());
+  const sourceFile = bucket.file(source.objectName, { generation: source.generation });
+  const sourceVideo = capturedWriteIdentity(source.objectName, (await sourceFile.getMetadata())[0]);
+
+  const objectPath = selfCaptureObjectPath({ sceneId: payload.sceneId, captureId: payload.captureId, extension: source.extension });
+  const rawPrefix = objectPath.slice(0, objectPath.lastIndexOf("/"));
+  let write: Awaited<ReturnType<typeof beginBrowserCanonicalWrite>>;
+  try {
+    write = await beginBrowserCanonicalWrite(payload, objectPath);
+  } catch (error) {
+    if ((error as Error).message === "browser_capture_finalized")
+      return { status: 200, body: { ...(await describeBrowserUpload(payload, authorization.allowed)), code: "capture_already_saved" } };
+    const conflict = (error as Error).message === "browser_pending_conflict";
+    return { status: conflict ? 409 : 503, body: { code: conflict ? "capture_delivery_held" : "capture_delivery_unavailable" } };
+  }
+  let writtenVideo: WrittenObject | null = null;
+  try {
+    const videoMetadata = await probeStoredCaptureVideo(sourceVideo, () =>
+      bucket.file(sourceVideo.object_name, { generation: sourceVideo.generation }).createReadStream());
+    const composed = await bucket.combine([sourceFile], objectPath, { ifGenerationMatch: write.ifGenerationMatch });
+    writtenVideo = capturedWriteIdentity(objectPath, composed[1]);
+    return await finishStoredCapture({ payload, objectPath, rawPrefix, videoMetadata, sizeBytes: sourceVideo.size_bytes,
+      video: writtenVideo, reservation: write.reservation });
+  } catch (error) {
+    if (error instanceof VideoProbeError)
+      return { status: error.code === "video_unreadable" ? 422 : 503, body: { code: error.code } };
+    logger.error({ error, captureId: payload.captureId }, "Could not copy internal test footage into the walkthrough");
+    if (writtenVideo) return retainedProcessingFailure(writtenVideo, true, payload);
+    return { status: 503, body: { code: "capture_delivery_unavailable" } };
+  } finally {
+    await releaseBrowserUpload(write.reservation).catch((error) => logger.warn(
+      { error, captureId: payload.captureId }, "Could not release internal test footage write reservation"));
+  }
+}
 
 /* ------------------------------------------------------------ link gate (supplements; stored app bundles) */
 

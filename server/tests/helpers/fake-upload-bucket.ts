@@ -49,12 +49,26 @@ export function createFakeUploadBucket(name = "fake-upload-bucket") {
 
   const bucket = {
     name,
+    /** `Bucket.combine`: one new object from the named sources (pinned generations honoured), under a precondition. */
+    combine: async (sources: Array<{ name: string; generation?: string }>, destination: string,
+      options?: { ifGenerationMatch?: unknown }) => {
+      checkPrecondition(destination, options?.ifGenerationMatch);
+      const parts = sources.map(source => {
+        const version = at(source.name, source.generation);
+        if (!version) throw missing(source.name);
+        return version.body;
+      });
+      const metadata = store(destination, Buffer.concat(parts));
+      return [{ name: destination }, { ...metadata }] as const;
+    },
     getFiles: async ({ prefix }: { prefix: string }) =>
       [[...versions.keys()].filter(object => object.startsWith(prefix) && latest(object)).map(object => ({ name: object }))],
     file: (object: string, options?: { generation?: string }) => {
       let written: Record<string, unknown> | undefined;
       return {
         name: object,
+        /** The generation this handle is pinned to, as the storage client keeps it. */
+        generation: options?.generation,
         /** What the storage client attaches after a write. */
         get metadata() { return written; },
         save: async (body: unknown, config?: { resumable?: boolean; preconditionOpts?: { ifGenerationMatch?: unknown } }) => {

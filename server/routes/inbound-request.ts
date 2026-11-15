@@ -59,6 +59,7 @@ import {
 import { upsertRobotTeamFromIntake } from "../utils/robotTeamRegistry";
 import { clientIp as resolveClientIp } from "../utils/clientIp";
 import { robotGateFieldsWithLegacyCoverage as robotGateFields } from "../../client/src/data/robotTeamQualification";
+import { INTERNAL_TEST_INTAKE_LOCAL, type InternalTestIntake } from "../utils/internalTestJob";
 
 /**
  * Keep only string answers, trimmed, dropping blanks.
@@ -1023,6 +1024,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
 
   try {
     let payload = req.body as InboundRequestPayload;
+    // Set only by the signed internal test-job route (`internal-test-jobs.ts`), never from a request body: a Blueprint
+    // test job made through this same path, with its marker, its own grant and no person, no address and no message.
+    const internalTest = res.locals[INTERNAL_TEST_INTAKE_LOCAL] as InternalTestIntake | undefined;
 
     // 1. Check honeypot (anti-bot)
     if (payload.honeypot) {
@@ -1105,7 +1109,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
     if (buyerType !== "site_operator" && !payload.firstName?.trim()) missingFields.push("firstName");
     if (buyerType !== "site_operator" && !payload.lastName?.trim()) missingFields.push("lastName");
     if (!payload.company?.trim()) missingFields.push("company");
-    if (!payload.email?.trim()) missingFields.push("email");
+    // A test job has no person and so no address: nothing can be sent to it (`internal-test-jobs.ts`).
+    if (!internalTest && !payload.email?.trim()) missingFields.push("email");
     // The video supplies the observed task. Its authorized capture setup can
     // exist before filming; creating that draft grants no recording rights.
     // Recording rights and description authority are validated below too.
@@ -1128,6 +1133,12 @@ export async function submitInboundRequest(req: Request, res: Response) {
       if (!proofPathPreference) missingFields.push("proofPathPreference");
     }
 
+    // Test job ids are the internal route's own (`internal-test-jobs.ts`): no form may take one first.
+    if (!internalTest && String(payload.requestId ?? "").startsWith("itest-")) {
+      return res.status(400).json({ ok: false, requestId: payload.requestId, status: "submitted", code: "request_id_reserved",
+        message: "This request identifier is not available." } satisfies SubmitInboundRequestResponse);
+    }
+
     if (missingFields.length > 0) {
       return res.status(400).json({
         ok: false,
@@ -1138,8 +1149,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
     }
 
     // 3. Validate email
-    const emailLower = payload.email.toLowerCase().trim();
-    const emailValidation = validateEmail(emailLower);
+    const emailLower = internalTest ? "" : payload.email.toLowerCase().trim();
+    const emailValidation = internalTest ? { valid: true as const } : validateEmail(emailLower);
     if (!emailValidation.valid) {
       return res.status(400).json({
         ok: false,
@@ -1157,7 +1168,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // is not logged or kept.
     // Workspace routes pass the sign-in token's email, which must be verified;
     // the public form's typed email cannot be.
-    const invitee = inviteeDecision(emailLower, { emailVerified: res.locals.workspaceIntake
+    const invitee = internalTest ? { allowed: true as const } : inviteeDecision(emailLower, { emailVerified: res.locals.workspaceIntake
       ? res.locals.workspaceIdentity?.verified === true : undefined });
     if (!invitee.allowed) {
       return res.status(invitee.status).json({
@@ -1264,7 +1275,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // stops the submission — a grant nobody made must never look stored. An
     // absent attestation is the older-client case: it is stored as null, which
     // is "never asked", and is a different thing from a grant.
-    const consentAttestation = buildConsentAttestation(payload.consentAttestation);
+    // A test job's grant is the one the internal route built (`internal_test.v1`); a form's is built from what it sent,
+    // and can never carry the internal basis, so no form can record that version.
+    const consentAttestation = internalTest ? internalTest.consentAttestation : buildConsentAttestation(payload.consentAttestation);
     const descriptionAuthority = buildConsentAttestation(payload.descriptionAuthority);
     const descriptionOnly = buyerType === "site_operator" && payload.descriptionOnly === true;
     if (descriptionOnly && payload.acceptedTerms !== true) {
@@ -1366,35 +1379,37 @@ export async function submitInboundRequest(req: Request, res: Response) {
       }
     }
 
-    // 5. Check rate limits
-    const ipRateLimit = await checkRateLimit(
-      `${RATE_LIMIT_PREFIX}ip:${ipHash}`,
-      RATE_LIMIT_MAX_IP
-    );
-    if (!ipRateLimit.allowed) {
-      logger.warn({ ipHash }, "IP rate limit exceeded");
-      return res.status(429).json({
-        ok: false,
-        requestId: payload.requestId,
-        status: "submitted",
-        message: "Too many requests. Please try again later.",
-      } satisfies SubmitInboundRequestResponse);
-    }
-
+    // 5. Check rate limits. Not for a test job: it is not open intake.
     const emailDomain = emailLower.split("@")[1];
-    const emailHash = hashIp(emailLower);
-    const emailRateLimit = await checkRateLimit(
-      `${RATE_LIMIT_PREFIX}email:${emailHash}`,
-      RATE_LIMIT_MAX_EMAIL
-    );
-    if (!emailRateLimit.allowed) {
-      logger.warn({ emailHash }, "Email address rate limit exceeded");
-      return res.status(429).json({
-        ok: false,
-        requestId: payload.requestId,
-        status: "submitted",
-        message: "You have sent several requests in the last few minutes. Please wait a little and try again.",
-      } satisfies SubmitInboundRequestResponse);
+    if (!internalTest) {
+      const ipRateLimit = await checkRateLimit(
+        `${RATE_LIMIT_PREFIX}ip:${ipHash}`,
+        RATE_LIMIT_MAX_IP
+      );
+      if (!ipRateLimit.allowed) {
+        logger.warn({ ipHash }, "IP rate limit exceeded");
+        return res.status(429).json({
+          ok: false,
+          requestId: payload.requestId,
+          status: "submitted",
+          message: "Too many requests. Please try again later.",
+        } satisfies SubmitInboundRequestResponse);
+      }
+
+      const emailHash = hashIp(emailLower);
+      const emailRateLimit = await checkRateLimit(
+        `${RATE_LIMIT_PREFIX}email:${emailHash}`,
+        RATE_LIMIT_MAX_EMAIL
+      );
+      if (!emailRateLimit.allowed) {
+        logger.warn({ emailHash }, "Email address rate limit exceeded");
+        return res.status(429).json({
+          ok: false,
+          requestId: payload.requestId,
+          status: "submitted",
+          message: "You have sent several requests in the last few minutes. Please wait a little and try again.",
+        } satisfies SubmitInboundRequestResponse);
+      }
     }
 
     // 6. Compute priority and owner
@@ -1730,7 +1745,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // a degraded or contended store the way to unlimited intake. The site's
     // browser keeps its draft and retry identity on a 5xx or 429.
     const capExempt = Boolean(res.locals.workspaceIntake?.workspace_evaluation);
-    if (!capExempt) {
+    // A test job does not use the public intake caps: it is not open intake.
+    if (!capExempt && !internalTest) {
       const intakeAdmission = await admitIntake({ requestId: payload.requestId, clientIp, email: emailLower,
         failClosed: isProduction() });
       if (!intakeAdmission.allowed) {
@@ -1852,7 +1868,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         locale: payload.context?.locale || null,
       },
       enrichment: {
-        companyDomain: emailDomain,
+        companyDomain: emailDomain ?? null,
         companySize: null,
         geo: null,
         notes: null,
@@ -1930,6 +1946,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
       debug: {
         schemaVersion: 3,
       },
+      // A test job's marker, and its Privacy version with what that version rests on, exactly as the internal route
+      // wrote them; in this one create and nowhere else.
+      ...(internalTest ? internalTest.recordFields : {}),
     };
 
     const encryptedInboundRequest = await encryptInboundRequestForStorage(
@@ -1977,14 +1996,15 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // mailbox and per day so a stranger's inbox cannot be flooded through this
     // form; when withheld, the record says why and the response below still
     // hands over the private link. Ops notices are not affected.
-    const messageAdmission = capExempt ? { send: true as const }
+    const messageAdmission = capExempt || internalTest ? { send: true as const }
       : await admitIntakeMessage({ requestId: payload.requestId, recipient: emailLower, kind: "confirmation" });
     const messageSuppression = messageAdmission.send ? null
       : intakeMessageSuppression(receiptUrl ? "task_received" : "confirmation", messageAdmission);
     if (messageSuppression) {
       logger.warn({ requestId: payload.requestId, reason: messageSuppression.reason }, "Intake confirmation email withheld by daily cap");
     }
-    const firstReceipt = receiptUrl && messageAdmission.send ? buildTaskLifecycleNotification({ requestId: payload.requestId,
+    // A test job gets no first email: it has no address, and nothing about it is sent to anyone.
+    const firstReceipt = !internalTest && receiptUrl && messageAdmission.send ? buildTaskLifecycleNotification({ requestId: payload.requestId,
       milestone: "task_received", to: emailLower, captureUrl: receiptUrl }) : null;
     // Non-PII routing facts for the ops notice; committed with the request so
     // "ops has not been told yet" is durable from the first instant.
@@ -1992,7 +2012,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
       buyer_type: buyerType,
       priority,
       queue_label: routing.queueLabel,
-      request_path_label: COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request",
+      // Ops are told a test job is one, by its label.
+      request_path_label: internalTest ? `Internal test job "${internalTest.recordFields.internal_test?.label ?? ""}"`
+        : COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request",
     };
     try {
       await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
@@ -2084,7 +2106,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
 
     }
 
-    await incrementInboundRequestStats(db, {
+    // A test job is not a site's request: it is not counted in the intake figures.
+    if (!internalTest) await incrementInboundRequestStats(db, {
       total: 1,
       [`byStatus.submitted`]: 1,
       [`byPriority.${priority}`]: 1,
@@ -2170,7 +2193,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         }).catch(() => null);
       }
     }
-    if (buyerType === "site_operator") {
+    if (buyerType === "site_operator" && !internalTest) {
       await emitSiteOperatorClaimChecked().catch(() => null);
     }
 

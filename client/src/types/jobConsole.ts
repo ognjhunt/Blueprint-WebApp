@@ -36,6 +36,7 @@ export interface BlueprintScene {
  * that predicate gains a reason this list does not name.
  */
 export type TeamAccessReason =
+  | "internal_test_job"
   | "not_a_site_job"
   | "pipeline_placeholder"
   | "task_not_yet_supported"
@@ -128,6 +129,8 @@ export interface JobFacts {
      * (`site_task_scope.reason`). `unclear` waits on the site's one sentence.
      */
     scopeReason?: string | null;
+    /** Set only for `internal_test_job`: the label its session gave the test. */
+    testLabel?: string | null;
   };
   evaluations: {
     total: number;

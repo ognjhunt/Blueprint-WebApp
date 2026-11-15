@@ -252,6 +252,7 @@ export function teamAccessOf(record: Record<string, any>): JobFacts["teamAccess"
     reason: access.reason,
     sceneHold: access.reason === "scene_not_runnable" ? sceneHoldOf(record) : null,
     ...(access.reason === "task_not_yet_supported" ? { scopeReason: text(object(record.site_task_scope).reason) || null } : {}),
+    ...(access.reason === "internal_test_job" ? { testLabel: text(object(record.internal_test).label) || null } : {}),
   };
 }
 

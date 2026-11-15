@@ -23,6 +23,7 @@ import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { RECORDING_VERSIONS_THAT_SHARE } from "./teamJobAccess";
 import { forwardableRange, rangeCoversWholeFile, verifiedWholeFile } from "./websiteCompanyClip";
+import { isInternalTestJob, isInternalTestRecordingGrant } from "./internalTestJob";
 
 export const COMPANY_SIMULATION_FIELD = "company_simulation";
 /** The contract's `MAX_PACKAGE_BYTES`. */
@@ -45,7 +46,8 @@ export const websiteCompanySimulationSchema = z.object({
   digest: sha,
   size_bytes: z.number().int().min(1).max(MAX_COMPANY_SIMULATION_BYTES),
   files: z.array(memberName).min(1).max(10_000),
-  permission_basis: z.enum(["site_sharing_statement", "blueprint_owned_capture"]),
+  // `internal_test`: an internal test job's own copy, built and stored privately; never served to a company.
+  permission_basis: z.enum(["site_sharing_statement", "blueprint_owned_capture", "internal_test"]),
   statement_version: z.string().max(64).nullable(),
   updated_at_epoch: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   simulation_digest: sha,
@@ -86,7 +88,12 @@ export async function recordWebsiteCompanySimulation(requestId: string, sceneId:
     if (!request.exists || !job) throw new Error("website_company_simulation_request_missing");
     const rights = projectWebsiteCaptureRights(job);
     if (rights.consent_revoked || job.capture_withdrawal || !rights.derived_scene_generation_allowed) throw new Error("source_revoked");
-    if (!RECORDING_VERSIONS_THAT_SHARE.includes(String(rights.statement_version))) throw new Error("website_company_simulation_not_permitted");
+    // Stored for a job under a sharing statement, or, on the `internal_test` basis only, for an internal test job under
+    // its own grant (`internalTestJob.ts`), so its own job page shows the real state. A test job is still shown to no
+    // company: every company read goes through `teamJobAccess`, which refuses it first.
+    const internalTest = isInternalTestJob(job) && isInternalTestRecordingGrant(job.request?.consent_attestation);
+    if (record.permission_basis === "internal_test" ? !internalTest
+      : !RECORDING_VERSIONS_THAT_SHARE.includes(String(rights.statement_version))) throw new Error("website_company_simulation_not_permitted");
     if (!session.exists) throw new Error("website_company_simulation_capture_missing");
     const prior = storedCompanySimulation(session.data(), captureId);
     if (prior && prior.simulation_revision === record.simulation_revision) {

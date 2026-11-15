@@ -391,6 +391,86 @@ describe("every stop closes everything a company can see (E2)", () => {
   });
 });
 
+/* ----------------------------------------------------------------- an internal test job (W2) */
+
+/** The marker the internal test-job route writes (`internalTestJob.ts`). */
+const INTERNAL_TEST = { label: "rigid pick", footage_id: "pexels-854533", created_by: "pipeline_sync_signature",
+  created_at_iso: "2026-11-15T12:00:00.000Z" };
+const markTestJob = () => patchJob({ internal_test: INTERNAL_TEST });
+
+describe("an internal test job is closed on every company surface, though everything else would list it (W2)", () => {
+  type Page = Record<string, any>;
+  /** Each company read, as a company makes it: true when it serves the job. */
+  const SURFACES: Array<[string, (item: Page) => Promise<boolean>]> = [
+    ["the predicate", async () => (await (await import("../utils/teamJobAccess")).loadCompanyJobAccess(ID)).access.listed],
+    ["the library", async () => (await list()).body.items.length > 0],
+    ["the card", async () => (await realFetch(`${base}/api/site-worlds/tasks/${ID}`, { headers: signIn(NORTH) })).status === 200],
+    ["the job page", async () => (await page()).status === 200],
+    ["the video", async item => (await media(item.video.url)).status === 200],
+    ["the scene view", async item => (await media(sceneContentUrl(item.simulation.viewerUrl), { "sec-fetch-dest": "empty" })).status === 200],
+    ["the simulation zip", async item => (await media(item.simulationDownload.url)).status === 200],
+  ];
+  it.each(SURFACES)("%s serves the listed job, and refuses it once it is a test job", async (_name, serves) => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    // Fully listed: the v4 grant, the listing record, the privacy screen passed, the site's sentence.
+    const item = (await page()).body.item as Page;
+    expect(await serves(item)).toBe(true);
+    markTestJob();
+    expect(await serves(item)).toBe(false);
+  });
+
+  it("the answer route refuses a company's answer, and the predicate names its own reason", async () => {
+    markTestJob();
+    expect((await answer(NORTH)).status).not.toBe(200);
+    expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toBe(false);
+    const { loadCompanyJobAccess } = await import("../utils/teamJobAccess");
+    expect((await loadCompanyJobAccess(ID)).access).toEqual({ listed: false, evaluationAvailable: false, reason: "internal_test_job", details: null });
+  });
+
+  it("introductions: no new one, and the gate stops the emails of one already queued", async () => {
+    await interested(NORTH, SOUTH);
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
+    const queued = outbox().filter(row => row.kind === "introduction_made_company");
+    expect(queued).toHaveLength(1);
+    markTestJob();
+    expect(await requestIntroduction({ requestId: ID, alias: "B", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: false });
+    expect(state.docs.has(`inboundRequests/${ID}/introductions/${sha(SOUTH.email)}`)).toBe(false);
+    const { introductionEmailCheck, introductionMayProceed } = await import("../utils/jobIntroductionGate");
+    expect(await introductionMayProceed(ID, sha(NORTH.email))).toMatchObject({ ok: false, reason: "job_not_shared" });
+    expect((await introductionEmailCheck({ kind: queued[0].kind, requestId: ID, idempotencyKey: queued[0].key })).current).toBe(false);
+  });
+
+  it("the automatic send and the new-job emails: none sent for it, and one queued before is not current", async () => {
+    markTestJob();
+    expect(await sendJobToApprovedCompanies(ID)).toMatchObject({ sent: false });
+    expect(await sweepAutomaticSends()).toMatchObject({ sent: 0 });
+    expect(outbox()).toEqual([]);
+    expect([...state.docs.keys()].filter(key => key.startsWith(`inboundRequests/${ID}/companySends/`))).toEqual([]);
+    // A new-job email queued while the job was listed is not current once it is a test job (its dispatch check).
+    patchJob({ internal_test: undefined });
+    await sendJobToApprovedCompanies(ID);
+    const alerts = outbox().filter(row => row.kind === "robot_team_new_task");
+    expect(alerts.length).toBeGreaterThan(0);
+    markTestJob();
+    const { jobAlertIsCurrent } = await import("../utils/newJobAlerts");
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    for (const row of alerts) expect(await sharedFakeFirestore.runTransaction(tx => jobAlertIsCurrent(row as never, tx as never))).toBe(false);
+  });
+
+  it("the follow-up outcome questions: none for it", async () => {
+    await interested(NORTH);
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
+    const { jobTakesOutcomeQuestions, outcomeQuestionIsCurrent, outcomeQuestionKey, JOB_OUTCOME_QUESTION_KIND } = await import("../utils/jobOutcomeGate");
+    // The day-14 question to the site, as the sweep queues it and the outbox checks it before sending.
+    const question = { kind: JOB_OUTCOME_QUESTION_KIND, requestId: ID, idempotencyKey: outcomeQuestionKey(ID, sha(NORTH.email), "site", 14) };
+    expect(await jobTakesOutcomeQuestions(ID, jobDoc())).toBe(true);
+    expect(await outcomeQuestionIsCurrent(question)).toBe(true);
+    markTestJob();
+    expect(await jobTakesOutcomeQuestions(ID, jobDoc())).toBe(false);
+    expect(await outcomeQuestionIsCurrent(question)).toBe(false);
+  });
+});
+
 /* ----------------------------------------------------------------- the automatic send */
 
 describe("the automatic send (E4)", () => {

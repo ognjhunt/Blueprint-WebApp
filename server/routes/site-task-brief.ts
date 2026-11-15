@@ -81,6 +81,7 @@ import { decideOwnerSuccessProposal, loadOwnerSuccessView, ownerSuccessDecisionR
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { loadIsInternalTestJob } from "../utils/internalTestJob";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
@@ -819,6 +820,8 @@ router.post("/:token/film-link/send", async (req: Request, res: Response) => {
       code: "capture_token_film_only",
     });
   }
+  // Nothing about an internal test job leaves Blueprint; an unreadable job is taken as one here.
+  if (await loadIsInternalTestJob(db, payload.requestId).catch(() => true)) return res.status(409).json({ code: "internal_test_job" });
 
   const parsed = filmLinkSendSchema.safeParse(req.body);
   if (!parsed.success) {
