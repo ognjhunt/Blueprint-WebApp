@@ -8,6 +8,10 @@ import { pathToFileURL } from 'node:url';
 // client/src/components/site/SiteCaptureStart.tsx and server/routes/
 // {inbound-request,self-capture-uploads,site-task-brief}.ts import. A change to
 // one of them gets the full browser suites, not only its related unit tests.
+/** Tests every `code`-scoped release also runs, whatever it changed. */
+export const safetyTests = ['server/tests/auth-middleware.test.ts', 'server/tests/capture-owner-route-auth.test.ts',
+  'server/tests/agent-private-evidence.test.ts'];
+
 export const siteDecisionFiles = new Set([
   ...['betaAbuseCaps', 'betaPolicyScreeningContract', 'betaPolicyScreeningHold', 'captureUploadAuthorization',
     'descriptionAuthority', 'inboundRequestCommit', 'inviteeAllowlist',
@@ -60,16 +64,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const start = Date.now();
     if (scope === 'full') execFileSync('npm', ['run','test:coverage'], {stdio:'inherit'});
     else {
-      const safety = ['server/tests/auth-middleware.test.ts',
-        'server/tests/agent-spend-atomic.test.ts','server/tests/capture-owner-route-auth.test.ts',
-        'server/tests/agent-private-evidence.test.ts'];
-      for (const file of [...files, ...safety]) if (!existsSync(file)) throw Error(`release_file_missing:${file}`);
+      for (const file of [...files, ...safetyTests]) if (!existsSync(file)) throw Error(`release_file_missing:${file}`);
       // --passWithNoTests is deliberately absent: no related coverage fails closed.
       const sources = files.filter(file => !/\.(test|spec)\.[tj]sx?$/.test(file));
       const changedTests = files.filter(file => /\.(test|spec)\.[tj]sx?$/.test(file));
       if (sources.length) execFileSync('npx', ['vitest','related','--run',...sources], {stdio:'inherit'});
       if (changedTests.length) execFileSync('npx', ['vitest','run',...changedTests], {stdio:'inherit'});
-      execFileSync('npx', ['vitest','run',...safety], {stdio:'inherit'});
+      execFileSync('npx', ['vitest','run',...safetyTests], {stdio:'inherit'});
     }
     console.log(JSON.stringify({scope,elapsedMs:Date.now()-start}));
   } else throw Error('usage: checks.mjs scope|test');

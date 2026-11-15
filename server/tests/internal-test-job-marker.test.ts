@@ -52,9 +52,10 @@ describe("the marker is written once, by the internal route (W1)", () => {
     const writers = code().filter(({ text }) => writes.some(pattern => pattern.test(text))).map(({ file }) => file);
     // The one writer of the job record's field, and the places that name it in documents that are not the job record:
     // the read-only copy beside the capture rights and in the task context the Pipeline reads (W11), and the
-    // `internal_test` permission basis of a company clip or simulation the Pipeline publishes for one.
+    // `internal_test` permission basis of a company clip or simulation the Pipeline publishes for one, and the owner
+    // read's field mask, which names the marker's paths to read them.
     const DERIVED = ["server/utils/internalTestJob.ts", "server/utils/websiteTaskContext.ts",
-      "server/utils/websiteCompanyClip.ts", "server/utils/websiteCompanySimulation.ts"];
+      "server/utils/websiteCompanyClip.ts", "server/utils/websiteCompanySimulation.ts", "server/utils/firestoreOwnerProjection.ts"];
     expect(writers.sort()).toEqual(["server/routes/internal-test-jobs.ts", ...DERIVED].sort());
     // None of those writes to the job record at all.
     for (const { file, text } of code().filter(({ file }) => DERIVED.includes(file)))

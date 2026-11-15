@@ -4,7 +4,10 @@ import { strictBoundedProofJson } from "./strictBoundedProofJson";
 export const OWNER_FIRESTORE_FIELD_PATHS = [
   "account_owner_uid", "claimed_at_iso", "capture_owner_uid", "capture_owner_bound_at_iso", "request.buyerType", "request.capture_mode",
   "request.consent_attestation.granted", "request.consent_attestation.statement_version",
-  "request.consent_attestation.recorded_at_iso", "consent_revoked", "consent_revoked_at",
+  "request.consent_attestation.recorded_at_iso",
+  // An internal test job's grant shape and the marker the Pipeline reads beside its rights (`internalTestJob.ts`).
+  "request.consent_attestation.basis", "internal_test.label", "internal_test.footage_id",
+  "consent_revoked", "consent_revoked_at",
   "consent_status", "future_processing_allowed", "request.consent_revoked",
   "request.consent_revoked_at", "request.consent_status", "request.future_processing_allowed",
   "capture_rights.consent_revoked", "capture_rights.consent_revoked_at",
