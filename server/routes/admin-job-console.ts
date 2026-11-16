@@ -11,13 +11,17 @@
  * Blueprint sent the job to and what each answered, and holds the job back from
  * every company when needed (`server/utils/jobCompanies.ts`). The product sends
  * nothing to a company.
+ * The simulation package download serves staff the same bytes a company's
+ * download serves, for any job that has a package, internal test jobs included.
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { logger } from "../logger";
 import { JOB_STAGES } from "../utils/jobConsoleStage";
-import { getJobConsoleDetail, listJobConsoleRows, PAGE_LIMIT_MAX } from "../utils/jobConsoleData";
+import { getJobConsoleDetail, jobSimulationPackage, listJobConsoleRows, loadSiteJobRecord, PAGE_LIMIT_MAX } from "../utils/jobConsoleData";
+import { fetchCompanySimulation, forwardableRange } from "../utils/websiteCompanySimulation";
+import { sendThrough } from "./company-media";
 import {
   SourceMeasurementExportError,
   buildSourceMeasurementDocument,
@@ -72,6 +76,44 @@ router.get("/:requestId", async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ err: error, requestId: parsed.data }, "Job console detail failed");
     return res.status(503).json({ error: "The job detail is unavailable. Try again." });
+  }
+});
+
+/**
+ * "Download the simulation package": the zip a company's download serves (`company-media.ts`), read through the same
+ * signed Pipeline read and proxied straight through, ranges included. Not the company rule: an internal test job's
+ * package is served here too. A job with no package, or whose site has withdrawn, answers as the company route does.
+ */
+router.get("/:requestId/simulation.zip", async (req: Request, res: Response) => {
+  res.set("Cache-Control", "private, no-store");
+  res.set("X-Content-Type-Options", "nosniff");
+  const parsed = requestId.safeParse(req.params.requestId);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid job id." });
+  const jobId = parsed.data;
+  const unavailable = () => res.status(404).json({ error: "The simulation is not available.", code: "company_simulation_unavailable" });
+  try {
+    const record = await loadSiteJobRecord(jobId);
+    if (!record) return res.status(404).json({ error: "Site job not found." });
+    const reference = await jobSimulationPackage(jobId, record);
+    if (!reference) return unavailable();
+    const askedAtMs = Date.now();
+    const read = await fetchCompanySimulation(jobId, reference, forwardableRange(req.get("range")));
+    if (!read.ok) {
+      if (read.status === 416) {
+        if (read.contentRange) res.set("Content-Range", read.contentRange);
+        return res.status(416).end();
+      }
+      if (read.issuerRefused) logger.error({ jobId, captureId: reference.capture_id }, "The Pipeline refused the website's signed read of a simulation package for the job console");
+      if (read.status === 404) return unavailable();
+      return res.status(503).json({ error: "The simulation is not available right now. Try again in a few minutes." });
+    }
+    logger.info({ jobId, actor: res.locals.firebaseUser?.uid ?? null, status: read.status }, "Simulation package downloaded from the job console");
+    res.status(read.status).set(read.headers);
+    sendThrough(read.body, res, { jobId, kind: "simulation", askedAtMs });
+  } catch (error) {
+    logger.warn({ err: error, jobId }, "Job console simulation package unavailable");
+    if (!res.headersSent) return res.status(503).json({ error: "The simulation is not available right now. Try again in a few minutes." });
+    res.destroy();
   }
 });
 

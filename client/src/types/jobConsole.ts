@@ -243,4 +243,6 @@ export interface JobConsoleDetail {
   timeline: TimelineEntry[];
   runs: ProjectedRun[];
   links: { lead: string; recommendation: string };
+  /** The admin download of the job's simulation package, when one is ready; else null. */
+  simulationPackageUrl: string | null;
 }

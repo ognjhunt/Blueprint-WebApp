@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import AdminJobConsole from "@/pages/AdminJobConsole";
+import AdminJobConsole, { PACKAGE_URL_REVOKE_DELAY_MS } from "@/pages/AdminJobConsole";
 import type { JobConsoleDetail, JobConsoleRow } from "@/types/jobConsole";
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -48,6 +48,7 @@ const detail: JobConsoleDetail = {
   ],
   runs: [],
   links: { lead: "/admin/leads/job-a", recommendation: "/admin/robot-team-access?job=job-a" },
+  simulationPackageUrl: null,
 };
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -137,5 +138,66 @@ describe("AdminJobConsole", () => {
     expect(screen.queryByRole("heading", { name: "Evaluation requests" })).not.toBeInTheDocument();
     expect(screen.queryByRole("form", { name: /Admit free evaluation/ })).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/free-evaluations/"))).toBe(false);
+  });
+
+  it("offers no simulation package download while the job has none", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+    expect(await screen.findByRole("heading", { level: 2, name: "Dock 4" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Download the simulation package" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/simulation package/i)).not.toBeInTheDocument();
+  });
+
+  it("downloads the simulation package with the admin's sign-in once one is ready", async () => {
+    const zip = "/api/admin/jobs/job-a/simulation.zip";
+    const createObjectURL = vi.fn(() => "blob:package");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL }));
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/jobs/job-a") return json({ ...detail, simulationPackageUrl: zip });
+      if (url === zip) return new Response(new Blob(["PK"]), { status: 200, headers: { "Content-Type": "application/zip" } });
+      if (url.startsWith("/api/admin/jobs?")) return json({ jobs: [row()], nextCursor: null, scanned: 1, stages: [] });
+      return json({ error: "unexpected" }, 500);
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+    const button = await screen.findByRole("button", { name: "Download the simulation package" });
+    // Only the revoke timer is faked; vi.waitFor keeps real timers.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      fireEvent.click(button);
+      await vi.waitFor(() => expect(clicked).toHaveBeenCalledTimes(1));
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === zip)!;
+      expect((init as RequestInit).headers).toMatchObject({ Authorization: "Bearer token" });
+      // The save gets time to start: the object URL is not revoked with the click, only after the delay.
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+      // (vi.waitFor above may have moved the fake clock a few polling intervals.)
+      vi.advanceTimersByTime(PACKAGE_URL_REVOKE_DELAY_MS / 2);
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(PACKAGE_URL_REVOKE_DELAY_MS / 2);
+      expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:package");
+    } finally {
+      vi.useRealTimers();
+      clicked.mockRestore();
+    }
+  });
+
+  it("says why when the package cannot be downloaded", async () => {
+    const zip = "/api/admin/jobs/job-a/simulation.zip";
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/jobs/job-a") return json({ ...detail, simulationPackageUrl: zip });
+      if (url === zip) return json({ error: "The simulation is not available.", code: "company_simulation_unavailable" }, 404);
+      if (url.startsWith("/api/admin/jobs?")) return json({ jobs: [row()], nextCursor: null, scanned: 1, stages: [] });
+      return json({ error: "unexpected" }, 500);
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Download the simulation package" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The simulation is not available.");
   });
 });
