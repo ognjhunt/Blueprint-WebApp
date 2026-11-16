@@ -155,11 +155,10 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "The simulation of your site is ready to view",
     body: (url) => `You can look around the work area you filmed on your job page.\n\nOpen your job:\n${url}`,
   },
-  // "Ready" only once the job's simulation package (the scene with its objects and the success rule) is
-  // published, never when the room alone is built.
+  // "Ready" is sent once the job's simulation package is published, never when only the viewer is ready.
   scene_tests_started: {
     subject: "The simulation of your site is ready",
-    body: (url) => `Your work area and its objects are in place. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+    body: (url) => `Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
   // The one email when a site's job first becomes visible to approved deployment companies (sharing is the service,
   // 2026-11-12). Read again at dispatch: sent only while the job is visible.

@@ -343,7 +343,7 @@ describe("a waiting job hears what it is waiting on", () => {
     expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(true);
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_tests_started") as Record<string, string>;
     expect(row.subject).toBe("The simulation of your site is ready");
-    expect(row.body).toMatch(/^Your work area and its objects are in place\. Nothing is needed from you\.\n\nOpen your job:/);
+    expect(row.body).toMatch(/^Nothing is needed from you\.\n\nOpen your job:/);
     expect(row.body).not.toMatch(/first tests|test AI robots|We will email you at the next step/);
     expect(row.body).not.toMatch(/pass|recommend|robot team|early trial/i);
     expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(false);
