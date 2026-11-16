@@ -10,8 +10,8 @@ You do not need an account, a budget or a chosen robot.
    the work area around it. Keep the private job link that the form returns.
    We also email it to you.
 2. **Job packet.** Blueprint turns your video into a job packet: your sentence
-   for the job, a first look on paper at which robots could fit, a simulation
-   of your site, and what counts as done. Sometimes we also run an early trial
+   for the job, a first look on paper at which robots could fit, and a
+   simulation of your site. Sometimes we also run an early trial
    of openly available robot software in the simulation. It is our own trial,
    not a prediction of any deployment company's robot.
 3. **Deployment companies.** With your permission, Blueprint shares a summary

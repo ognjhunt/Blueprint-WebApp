@@ -9,7 +9,7 @@ direction 2026-11-12).
 | Step | What happens |
 |---|---|
 | 1. Email and video | A site sends an email address and a video of one recurring job. |
-| 2. Job packet | Blueprint turns the video into a job packet: the site's sentence for the job, a first look on paper, a simulation of the site, and what counts as done. Where one exists, the result of our early trial of openly available robot software. |
+| 2. Job packet | Blueprint turns the video into a job packet: the site's sentence for the job, a first look on paper, and a simulation of the site. Where one exists, the result of our early trial of openly available robot software. |
 | 3. Deployment companies | Sharing is the service: Blueprint shares the job with the deployment companies it has approved, and records their responses. Today the website still shares a summary only, after the site's share step; the change is in build. |
 | 4. Where the job stands | The site's job page says plainly: not yet sent, sent and waiting, or the responses given. |
 
