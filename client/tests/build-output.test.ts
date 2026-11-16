@@ -231,7 +231,7 @@ describe("build output", () => {
     for (const text of [llms, llmsFull]) expect(text).not.toMatch(/agent-access|agent-team|Agent interfaces|paid_evaluations_disabled/);
     expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
     // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
-    expect(llmsFull).toContain("Each job comes as a job packet: the site's description of the job, its video without sound, a first look at which robots could fit, the simulation of the site, and what counts as done.");
+    expect(llmsFull).toContain("Each job comes as a job packet: the site's description of the job, its video without sound, a first look at which robots could fit, and the simulation of the site.");
     expect(llmsFull).not.toMatch(/early trial/i);
     // The five answers as the site sees them, and what an introduction gives each side (review, 2026-11-12).
     expect(llmsFull).toContain("Blueprint sends each job automatically to the deployment companies it has approved.");

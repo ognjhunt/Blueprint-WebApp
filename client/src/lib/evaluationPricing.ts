@@ -43,9 +43,9 @@ export const pilotReplacementPolicy =
 export const siteAssessment = {
   amount: betaFeeUsd,
   unit: "during the beta",
-  summary: "One job packet for one recurring job at one site: a first look at which robots could fit, a simulation of the site, and what counts as done.",
+  summary: "One job packet for one recurring job at one site: a first look at which robots could fit and a simulation of the site.",
   covers: [
-    "Your sentence for the job, drafted from your video if you leave it empty, and what counts as done.",
+    "Your sentence for the job, drafted from your video if you leave it empty.",
     "A first look on paper: the robot most likely to fit, from published specifications and where it has been used.",
     "A simulation of your site, built from your video, or “held” when we can't build one for that kind of job yet.",
     "With your permission, a summary of your job shared with deployment companies we approve; any work is agreed between you and the company.",
