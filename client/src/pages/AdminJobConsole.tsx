@@ -79,6 +79,53 @@ function useAdminFetch() {
   };
 }
 
+/**
+ * How long the saved package's object URL lives after the save starts. Revoking it at once can cancel the save in
+ * Safari and older Firefox; FileSaver.js waits 40 seconds for the same reason.
+ */
+export const PACKAGE_URL_REVOKE_DELAY_MS = 40_000;
+
+/** Fetches the package with the admin's sign-in (an address alone cannot carry it) and saves it. */
+function SimulationPackageDownload({ requestId, url }: { requestId: string; url: string }) {
+  const { currentUser } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function download() {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(url, {
+        credentials: "include",
+        headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({})),
+      });
+      if (!response.ok) {
+        const value = await response.json().catch(() => ({}));
+        throw new Error(String(value.error || `Download failed (${response.status})`));
+      }
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `simulation-${requestId}.zip`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), PACKAGE_URL_REVOKE_DELAY_MS);
+    } catch (caught) {
+      setError((caught as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Button variant="secondary" size="sm" disabled={busy} onClick={download}>Download the simulation package</Button>
+      {error ? <p role="alert" className="w-full text-sm text-runway-red">{error}</p> : null}
+    </>
+  );
+}
+
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -144,6 +191,7 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
           ) : null}
           <div className="flex flex-wrap gap-3">
             <a className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" href={data.links.recommendation}>Open recommendation form</a>
+            {data.simulationPackageUrl ? <SimulationPackageDownload requestId={requestId} url={data.simulationPackageUrl} /> : null}
           </div>
 
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

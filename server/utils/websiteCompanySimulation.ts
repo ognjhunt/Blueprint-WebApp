@@ -66,6 +66,17 @@ export function storedCompanySimulation(session: Record<string, any> | undefined
 }
 
 /**
+ * The package Blueprint's own staff may download from the admin job console: the stored reference of the job's current
+ * capture, for any job that has one, internal test jobs included. Not the company rule (no listing, no approval), but
+ * the site's withdrawal still closes it, as it closes every company read.
+ */
+export function adminCompanySimulation(record: Record<string, any> | undefined, session: Record<string, any> | undefined,
+  captureId: string): WebsiteCompanySimulation | null {
+  if (!record || projectWebsiteCaptureRights(record).consent_revoked || record.capture_withdrawal) return null;
+  return storedCompanySimulation(session, captureId);
+}
+
+/**
  * Accept the Pipeline's reference (contract section 1), mirroring the company clip: ids and capture binding match, the
  * digest verifies, the site's grant stands and its recorded statement shares the job (the website keeps no record of
  * a Blueprint-owned capture, so that basis alone is not enough here); idempotent on revision and digest; never older.

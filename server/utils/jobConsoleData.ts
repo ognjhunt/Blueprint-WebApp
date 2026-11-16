@@ -17,6 +17,8 @@ import { object, text } from "./workspace-projection";
 import { loadWebsiteSceneProgression } from "./websiteSceneProgression";
 import { buildJobTimeline, projectJobFacts, projectRuns, type RawEvaluationRequest, type RawJobInputs, type RawRun } from "./jobConsoleFacts";
 import { deriveJobStage, type JobConsoleDetail, type JobConsoleRow, type JobStage } from "./jobConsoleStage";
+import { siteWalkthroughIdentity } from "./siteWalkthrough";
+import { adminCompanySimulation, type WebsiteCompanySimulation } from "./websiteCompanySimulation";
 
 export const SCAN_LIMIT = 200;
 export const PAGE_LIMIT_MAX = 50;
@@ -176,11 +178,10 @@ export async function listJobConsoleRows(params: {
 }
 
 export async function getJobConsoleDetail(requestId: string): Promise<JobConsoleDetail | null> {
-  if (!db) throw new Error("job_console_store_unavailable");
-  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
-  const record = snapshot.exists ? snapshot.data() : undefined;
-  if (!isSiteJobRecord(record)) return null;
-  const [inputs] = await loadInputs([{ id: requestId, data: () => record }]);
+  const record = await loadSiteJobRecord(requestId);
+  if (!record) return null;
+  const [[inputs], simulation] = await Promise.all([loadInputs([{ id: requestId, data: () => record }]),
+    jobSimulationPackage(requestId, record)]);
   const row = rowFromInputs(inputs);
   return {
     job: row,
@@ -190,5 +191,25 @@ export async function getJobConsoleDetail(requestId: string): Promise<JobConsole
       lead: `/admin/leads/${encodeURIComponent(requestId)}`,
       recommendation: `/admin/robot-team-access?job=${encodeURIComponent(requestId)}`,
     },
+    simulationPackageUrl: simulation ? `/api/admin/jobs/${encodeURIComponent(requestId)}/simulation.zip` : null,
   };
+}
+
+/** The site job's record, or null when there is no such site job (the detail's 404). */
+export async function loadSiteJobRecord(requestId: string): Promise<Record<string, any> | null> {
+  if (!db) throw new Error("job_console_store_unavailable");
+  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
+  const record = snapshot.exists ? snapshot.data() : undefined;
+  return isSiteJobRecord(record) ? record! : null;
+}
+
+/**
+ * The job's simulation package for the console's download (`adminCompanySimulation`): the stored reference of the
+ * job's current capture, read the way the company's page reads it; null when it has none or the site has withdrawn.
+ */
+export async function jobSimulationPackage(requestId: string, record: Record<string, any>): Promise<WebsiteCompanySimulation | null> {
+  if (!db) throw new Error("job_console_store_unavailable");
+  const { captureId } = siteWalkthroughIdentity(requestId, record);
+  const session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
+  return adminCompanySimulation(record, session, captureId);
 }
