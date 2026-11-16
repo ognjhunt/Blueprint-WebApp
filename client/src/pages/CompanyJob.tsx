@@ -102,7 +102,7 @@ function CompanyJobBody() {
       <h2>Simulation of the site</h2>
       {page.simulationDownload?.state === "ready" ? <>
         <p><a className="ms-button" href={page.simulationDownload.url} download>Download the simulation</a></p>
-        <p className="ms-field-hint">The site's scene with the job's object in it, and what counts as done. Test in your own tools.</p>
+        <p className="ms-field-hint">The site's scene for this job. The README inside says what it holds. Test in your own tools.</p>
         <p className="ms-field-hint">Open scene.usda. The room's look is a Gaussian splat that some tools cannot show; the collision mesh is in the file too.</p>
       </> : null}
       {page.simulation.state === "ready"

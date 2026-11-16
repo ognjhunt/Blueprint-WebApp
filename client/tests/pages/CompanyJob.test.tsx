@@ -93,7 +93,7 @@ describe("the company's page for one job", () => {
       simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" } }) }) });
     render(<CompanyJob />);
     expect(await screen.findByRole("link", { name: "Download the simulation" })).toHaveAttribute("href", "/api/company-media/jobs/job-1/simulation.zip?x=1");
-    expect(screen.getByText("The site's scene with the job's object in it, and what counts as done. Test in your own tools.")).toBeInTheDocument();
+    expect(screen.getByText("The site's scene for this job. The README inside says what it holds. Test in your own tools.")).toBeInTheDocument();
     expect(screen.getByText("Open scene.usda. The room's look is a Gaussian splat that some tools cannot show; the collision mesh is in the file too.")).toBeInTheDocument();
     expect(screen.queryByText("The simulation of the site is not finished yet.")).toBeNull();
     const form = screen.getByRole("form", { name: "Answer about this job" });
