@@ -49,6 +49,7 @@ const detail: JobConsoleDetail = {
   runs: [],
   links: { lead: "/admin/leads/job-a", recommendation: "/admin/robot-team-access?job=job-a" },
   simulationPackageUrl: null,
+  scenePreviewViewUrl: null,
 };
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -199,5 +200,92 @@ describe("AdminJobConsole", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
     fireEvent.click(await screen.findByRole("button", { name: "Download the simulation package" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The simulation is not available.");
+  });
+
+  describe("View the simulation of the site", () => {
+    const mint = "/api/admin/jobs/job-a/scene-preview-view";
+    const viewer = "/splat-viewer/index.html?content=%2Fapi%2Fwebsite-atlas-preview-views%2Fjob-a%2Fwalkthrough-job-a%2Fscene.ply";
+    function answers(mintAnswer: () => Response, patch: Partial<JobConsoleDetail> = { scenePreviewViewUrl: mint }) {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/admin/jobs/job-a") return json({ ...detail, ...patch });
+        if (url === mint) return mintAnswer();
+        if (url.startsWith("/api/admin/jobs?")) return json({ jobs: [row()], nextCursor: null, scanned: 1, stages: [] });
+        return json({ error: "unexpected" }, 500);
+      });
+    }
+
+    it("is not offered while the job has no stored preview", async () => {
+      renderPage();
+      fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+      expect(await screen.findByRole("heading", { level: 2, name: "Dock 4" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "View the simulation of the site" })).not.toBeInTheDocument();
+    });
+
+    it("mints the ticket with the admin's sign-in and sends the tab it opened to the viewer", async () => {
+      answers(() => json({ url: viewer }), { scenePreviewViewUrl: mint, simulationPackageUrl: "/api/admin/jobs/job-a/simulation.zip" });
+      const tab = { opener: {} as unknown, location: { href: "" }, close: vi.fn() };
+      const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+      try {
+        renderPage();
+        fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+        // Next to the package download.
+        expect(await screen.findByRole("button", { name: "Download the simulation package" })).toBeInTheDocument();
+        fireEvent.click(await screen.findByRole("button", { name: "View the simulation of the site" }));
+        expect(open).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(tab.location.href).toBe(viewer));
+        expect(tab.opener).toBeNull();
+        const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === mint)!;
+        expect((init as RequestInit).headers).toMatchObject({ Authorization: "Bearer token" });
+        expect(tab.close).not.toHaveBeenCalled();
+      } finally {
+        open.mockRestore();
+      }
+    });
+
+    it("offers a link when the browser blocks the new tab", async () => {
+      answers(() => json({ url: viewer }));
+      const open = vi.spyOn(window, "open").mockReturnValue(null);
+      try {
+        renderPage();
+        fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+        fireEvent.click(await screen.findByRole("button", { name: "View the simulation of the site" }));
+        expect(await screen.findByRole("link", { name: "Open the viewer" })).toHaveAttribute("href", viewer);
+      } finally {
+        open.mockRestore();
+      }
+    });
+
+    it("closes the tab and says why when the ticket is refused, and never follows another address", async () => {
+      const tab = { opener: {} as unknown, location: { href: "" }, close: vi.fn() };
+      const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+      try {
+        answers(() => json({ error: "The simulation of the site is not available.", code: "scene_preview_unavailable" }, 404));
+        renderPage();
+        fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+        fireEvent.click(await screen.findByRole("button", { name: "View the simulation of the site" }));
+        expect(await screen.findByRole("alert")).toHaveTextContent("The simulation of the site is not available.");
+        expect(tab.close).toHaveBeenCalledTimes(1);
+        expect(tab.location.href).toBe("");
+      } finally {
+        open.mockRestore();
+      }
+    });
+
+    it("never sends the tab anywhere but the viewer", async () => {
+      const tab = { opener: {} as unknown, location: { href: "" }, close: vi.fn() };
+      const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+      try {
+        answers(() => json({ url: "https://elsewhere.example/" }));
+        renderPage();
+        fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+        fireEvent.click(await screen.findByRole("button", { name: "View the simulation of the site" }));
+        expect(await screen.findByRole("alert")).toBeInTheDocument();
+        expect(tab.close).toHaveBeenCalledTimes(1);
+        expect(tab.location.href).toBe("");
+      } finally {
+        open.mockRestore();
+      }
+    });
   });
 });
