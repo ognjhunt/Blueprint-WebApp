@@ -67,7 +67,13 @@ const NATIVE_COVERAGE_HINTS: ReadonlyArray<[Exclude<UnsupportedTaskReason, "mult
   ["deformable", /\b(fold(s|ed|ing)?|unfold\w*|towels?|cloths?|clothes|clothing|laundry|linens?|garments?|shirts?|fabrics?|textiles?|napkins?|socks?|bed ?sheets?|blankets?|ropes?|cables?|wires?|hoses?|strings?|bags?|bagging|sacks?|pouch(es)?|wrap(s|ped|ping)?|tape|taping|dough|sew(s|ed|ing)?)\b/g],
   ["liquid", /\b(pour(s|ed|ing)?|liquids?|fluids?|spill\w*|spray\w*|sauces?|soups?|drinks?|beverages?|dispens\w*|scoop\w*|wash(es|ed|ing)?|rins\w*|water)\b/g],
   ["assembly", /\b(assembl\w*|insert\w*|screw\w*|unscrew\w*|bolt(s|ed|ing)?|fasten\w*|plug(s|ged|ging)?|pegs?|snap(s|ped|ping)?|install\w*|thread(s|ed|ing)?|weld\w*|glu(e|es|ed|ing)|solder\w*|tighten\w*|loosen\w*|attach\w*|crimp\w*|cnc|fixtures?|chucks?|press[- ]fit\w*|kitting|machine tending)\b/g],
-  ["mobile", /\b(walk\w*|driv(e|es|ing)|drove|navigat\w*|deliver\w*|tow(s|ed|ing)?|forklifts?|pallet jacks?|elevators?|hallways?|corridors?|(each|every) floor|room to room|between (rooms|floors|buildings|sites)|across the (room|floor|site|building|warehouse|store|plant|kitchen)|(push|pull|wheel|roll)\w*[^.;]*\b(carts?|trolleys?|dolly|dollies))\b/g],
+  // Before an object move is read: the robot moving itself, a verb of going followed straight by where it
+  // goes ("go from the doorway to the table", "move over to the bench", "head back to the dock"), so a
+  // "from … to" after it names where the robot goes, never an object relocated (RELOCATION). An object
+  // after the verb ("move the book from the cart to the shelf") is that object moved, so it never matches
+  // here; nor do "moves" and "moved" ("the cup moves to the counter", "boxes moved to the pallet") or a
+  // future "going to" ("is going to pick up the tray").
+  ["mobile", /\b((go(es)?|went|going(?! to\b)|mov(e|ing)|travel(s|ed|led|ing|ling)?|head(s|ed|ing)?|proceed(s|ed|ing)?|c(o|a)me|comes|coming) ((over|back|straight|directly|forward|all the way) )?(from|to|toward|towards|into|onto|through|across|along|around|past|between)|walk\w*|driv(e|es|ing)|drove|navigat\w*|deliver\w*|tow(s|ed|ing)?|forklifts?|pallet jacks?|elevators?|hallways?|corridors?|(each|every) floor|room to room|between (rooms|floors|buildings|sites)|across the (room|floor|site|building|warehouse|store|plant|kitchen)|(push|pull|wheel|roll)\w*[^.;]*\b(carts?|trolleys?|dolly|dollies))\b/g],
   ["closing", /\b(clos(e|es|ed|ing)|shut(s|ting)?)\b[^.;]*\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b|\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b[^.;]*\b(clos(e|es|ed|ing)|shut)\b/g],
   // Interior contact geometry needs a compatible native contract before scoring.
   ["container", /\b(in|into|inside)\s+(?:(?:the|a|an|each|every|its|their|one|its own)\s+)?(?:\w+\s+){0,2}?(bins?|totes?|box(es)?|crates?|containers?|baskets?|buckets?|tubs?|cartons?|cases?)\b/g],

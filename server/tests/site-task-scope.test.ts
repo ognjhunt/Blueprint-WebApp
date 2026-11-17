@@ -124,6 +124,53 @@ describe("screenTaskScope", () => {
     expect(new Set(["scorable", "accepted_for_analysis", "held_for_preparation", "needs_description"])).toContain(held.disposition);
   });
 
+  // The robot going to a place is never an object move, though "from … to" is in the sentence: it reads
+  // as moving around the site, so the job's context is a general task the navigation path picks up
+  // (task_family "general_task"), never a pick-and-place with no object and no goal region.
+  it.each([
+    ["Go from the doorway to the table.", "go from"],
+    ["Go to the table", "go to"],
+    ["The robot goes from the charging dock to the front desk", "goes from"],
+    ["Move from the doorway to the table", "move from"],
+    ["Move over to the workbench", "move over to"],
+    ["Travel from the loading bay to the office", "travel from"],
+    ["Head back to the charging dock", "head back to"],
+    ["Proceed through the doorway to the kitchen", "proceed through"],
+    ["Come over to the counter", "come over to"],
+    ["Walk from the doorway to the table", "walk"],
+    ["Drive from the entrance to the shelf at the back", "drive"],
+    ["Navigate from the lobby to the elevator", "navigate"],
+  ])("reads %j as the robot moving itself, not an object move", (summary, words) => {
+    const verdict = screen(summary);
+    expect(verdict).toMatchObject({ supported: false, kind: null, reason: "mobile", disposition: "accepted_for_analysis" });
+    expect(verdict.matched).toContain(words);
+    expect(projectWebsiteTaskContext({ requestId: "r1", summary, confirmedAtIso: "2026-11-16T14:21:18.212Z",
+      unresolved: [] } as never)).toMatchObject({ task_family: "general_task" });
+    expect(multiStepTaskHold({ summary })).toBeNull();
+  });
+
+  // An object after the verb is that object moved, whatever verb of going the sentence also has.
+  it.each([
+    "Move the blue book from the cart to the top shelf",
+    "Move the box from the table to the shelf",
+    "Moving clean cups from the dish rack to the counter",
+    "Move the tray to the counter",
+    "Cartons from a conveyor onto a pallet",
+    "Take the mug from the table to the counter",
+    "Bring the box from the doorway to the table",
+    "Pick up the tray, then put it on the counter",
+  ])("still reads %j as one object move", summary => {
+    expect(screen(summary)).toMatchObject({ supported: true, kind: "rigid_pick_and_place", reason: null, disposition: "scorable" });
+    expect(projectWebsiteTaskContext({ requestId: "r1", summary, confirmedAtIso: null, unresolved: [] } as never))
+      .toMatchObject({ task_family: "rigid_pick_and_place" });
+  });
+
+  it("never reads an object's own movement or a future tense as the robot going somewhere", () => {
+    expect(screen("Your site task", "The tote is moved from the scale to the outbound rack")).toMatchObject({ kind: "rigid_pick_and_place" });
+    expect(screen("Pick up the tray and put it on the counter", "The tray moves to the counter")).toMatchObject({ kind: "rigid_pick_and_place" });
+    expect(screen("The robot is going to pick up the tray and put it on the counter")).toMatchObject({ kind: "rigid_pick_and_place" });
+  });
+
   it("reads the success definition: it can name the job, or rule it out", () => {
     expect(screen("Your site task", "The tote is placed on the outbound rack")).toMatchObject({ supported: true, kind: "rigid_pick_and_place" });
     expect(screen("Move towels to the shelf", null)).toMatchObject({ supported: false, reason: "deformable" });
