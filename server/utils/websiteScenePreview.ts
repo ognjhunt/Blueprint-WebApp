@@ -172,29 +172,29 @@ export function verifyWebsiteScenePreviewCompanyViewTicket(requestId: string, ca
 }
 
 const ADMIN_VIEW_TICKET_DOMAIN = "website_scene_preview_admin_view";
-/** A Firebase uid as the admin view ticket carries it (`admin=<uid>`); the mint refuses any other shape. */
-const ADMIN_UID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+/** The query marker that selects the admin ticket's domain on the view route; it names no one. */
+export const SCENE_PREVIEW_ADMIN_VIEWER = "1";
 
 /**
  * The same viewer for Blueprint's own staff, from the admin job console (owner ask 2026-11-17), for any job with a
- * stored preview, internal test jobs included. Only the console's admin route mints it, behind the console's gate. The
- * 15-minute ticket is bound to the admin as well as the job and capture, under its own domain, carried as
- * `admin=<uid>`; the view route re-reads the site's rights on every request (`adminViewableWebsiteScenePreview`).
+ * stored preview, internal test jobs included. Only the console's admin route mints it, behind the console's gate, and
+ * logs the admin's uid as it does. The 15-minute ticket is signed over its own domain, the job and the capture, and is
+ * marked `admin=1` so the view route verifies it under that domain only: the address names no person. The view route
+ * re-reads the site's rights on every request (`adminViewableWebsiteScenePreview`).
  */
-export function websiteScenePreviewAdminViewerUrl(requestId: string, captureId: string, adminUid: string, nowSeconds?: number) {
-  if (!WEBSITE_ATLAS_REQUEST_ID.test(requestId) || !WEBSITE_ATLAS_CAPTURE_ID.test(captureId) || !ADMIN_UID.test(adminUid)) return null;
-  const ticket = createSignedDownloadTicket([ADMIN_VIEW_TICKET_DOMAIN, requestId, captureId, adminUid], nowSeconds);
+export function websiteScenePreviewAdminViewerUrl(requestId: string, captureId: string, nowSeconds?: number) {
+  if (!WEBSITE_ATLAS_REQUEST_ID.test(requestId) || !WEBSITE_ATLAS_CAPTURE_ID.test(captureId)) return null;
+  const ticket = createSignedDownloadTicket([ADMIN_VIEW_TICKET_DOMAIN, requestId, captureId], nowSeconds);
   if (!ticket) return null;
-  const query = new URLSearchParams({ source: SCENE_PREVIEW_VIEW_SOURCE, admin: adminUid, expires: String(ticket.expires),
-    signature: ticket.signature });
+  const query = new URLSearchParams({ source: SCENE_PREVIEW_VIEW_SOURCE, admin: SCENE_PREVIEW_ADMIN_VIEWER,
+    expires: String(ticket.expires), signature: ticket.signature });
   const content = `${WEBSITE_ATLAS_PREVIEW_VIEW_ROUTE}/${encodeURIComponent(requestId)}/${encodeURIComponent(captureId)}/scene.ply?${query}`;
   return `/splat-viewer/index.html?${new URLSearchParams({ content })}`;
 }
 
-export function verifyWebsiteScenePreviewAdminViewTicket(requestId: string, captureId: string, adminUid: unknown,
+export function verifyWebsiteScenePreviewAdminViewTicket(requestId: string, captureId: string,
   expires: unknown, signature: unknown, nowSeconds?: number) {
-  if (typeof adminUid !== "string" || !ADMIN_UID.test(adminUid)) return false;
-  return verifySignedDownloadTicket([ADMIN_VIEW_TICKET_DOMAIN, requestId, captureId, adminUid], expires, signature, nowSeconds);
+  return verifySignedDownloadTicket([ADMIN_VIEW_TICKET_DOMAIN, requestId, captureId], expires, signature, nowSeconds);
 }
 
 /**

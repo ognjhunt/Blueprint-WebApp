@@ -13,8 +13,8 @@
  * nothing to a company.
  * The simulation package download serves staff the same bytes a company's
  * download serves, for any job that has a package, internal test jobs included.
- * "View the simulation of the site" mints the same 15-minute viewer ticket the site's own job page mints, bound to the
- * admin, for any job with a stored scene preview, internal test jobs included (`websiteScenePreview.ts`).
+ * "View the simulation of the site" mints the same kind of 15-minute viewer ticket the site's own job page mints, under
+ * its own domain, for any job with a stored scene preview, internal test jobs included (`websiteScenePreview.ts`).
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
@@ -121,8 +121,8 @@ router.get("/:requestId/simulation.zip", async (req: Request, res: Response) => 
 });
 
 /**
- * "View the simulation of the site": answers `{ url }`, the vendored viewer with a 15-minute ticket bound to this admin,
- * this job and its current capture. The console fetches it with the admin's sign-in (an address alone cannot carry it)
+ * "View the simulation of the site": answers `{ url }`, the vendored viewer with a 15-minute ticket for this job and its
+ * current capture, under the admin ticket's own domain; the admin's uid is logged here, at the mint, not carried. The console fetches it with the admin's sign-in (an address alone cannot carry it)
  * and opens the viewer; the viewer's own route serves the bytes and re-reads the site's rights on every request. A job
  * with no stored preview, whose site's grant no longer stands, or whose site has withdrawn gets no ticket. The ticket
  * is never logged.
@@ -141,7 +141,7 @@ router.get("/:requestId/scene-preview-view", async (req: Request, res: Response)
       logger.info({ jobId, actor, status: 404 }, "Simulation of the site not viewable from the job console");
       return res.status(404).json({ error: "The simulation of the site is not available.", code: "scene_preview_unavailable" });
     }
-    const url = actor ? websiteScenePreviewAdminViewerUrl(jobId, found.captureId, actor) : null;
+    const url = websiteScenePreviewAdminViewerUrl(jobId, found.captureId);
     if (!url) {
       logger.warn({ jobId, captureId: found.captureId, actor, status: 503 }, "Could not mint the job console's view of the simulation of the site");
       return res.status(503).json({ error: "The simulation of the site is not available right now. Try again in a few minutes." });

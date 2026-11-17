@@ -6,14 +6,16 @@
  * are fakes.
  *
  * What this pins:
- * - a signed-in admin (or ops) gets the viewer address with a ticket bound to them, the job and its capture, and the
+ * - a signed-in admin (or ops) gets the viewer address with a ticket for the job and its capture under the admin
+ *   ticket's own domain (the address names no person; the mint's log line names the admin), and the
  *   viewer route serves it the same bytes the site's own ticket gets, for a normal job and for an internal test job,
  *   whose company view stays refused;
  * - anyone else is refused the mint exactly as the console's other routes refuse them, each of the gate's two places
  *   holds on its own, and nobody gets past the viewer route without a ticket of their own kind;
  * - no stored preview, a withdrawal and a revocation give no link, no ticket and no bytes, even for a ticket minted
  *   before; operator hold and an older statement do not stop staff;
- * - logs name the job, the capture, the admin's uid and the status: never the ticket or the site.
+ * - logs name the job, the capture, the admin's uid and the status: never the ticket or the site; the request log's
+ *   path for every ticket on the view route carries no query.
  */
 import express from "express";
 import { createHash } from "node:crypto";
@@ -46,6 +48,7 @@ const { requireAdminRole } = await import("../middleware/requireAdminRole");
 const { default: adminJobConsoleRouter } = await import("../routes/admin-job-console");
 const { teamJobAccess } = await import("../utils/teamJobAccess");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
+const { privateWorkLogPath } = await import("../utils/blueprintWorkLogPrivacy");
 const { forgetWebsiteScenePreviews, websiteScenePreviewAdminViewerUrl, websiteScenePreviewCompanyViewerUrl,
   websiteScenePreviewViewerUrl } = await import("../utils/websiteScenePreview");
 
@@ -186,15 +189,17 @@ afterEach(async () => {
 /* ----------------------------------------------------------------- an admin views */
 
 describe("an admin opens a job's scene preview from the job console", () => {
-  it("a normal job: the viewer address, bound to the admin, serving the bytes the site's own ticket serves", async () => {
+  it("a normal job: the viewer address, naming no one, serving the bytes the site's own ticket serves", async () => {
     storePreview();
     const url = await mintedUrl();
     expect(url.startsWith("/splat-viewer/index.html?content=")).toBe(true);
     const content = contentOf(url);
-    // The address carries the job, the capture, the source, the admin's uid and the ticket: nothing else.
+    // The address carries the job, the capture, the source, the admin marker and the ticket: nothing else, no uid.
     expect(content.split("?")[0]).toBe(`/api/website-atlas-preview-views/${ID}/${CAPTURE}/scene.ply`);
     expect([...new URLSearchParams(content.split("?")[1]).keys()].sort()).toEqual(["admin", "expires", "signature", "source"]);
-    expect(new URLSearchParams(content.split("?")[1]).get("admin")).toBe("uid-admin");
+    expect(new URLSearchParams(content.split("?")[1]).get("admin")).toBe("1");
+    expect(url).not.toContain("uid-admin");
+    expect(await mintedUrl(OPS)).not.toContain("uid-ops");
     // The same lifetime as the site's own ticket.
     const owner = websiteScenePreviewViewerUrl(ID, CAPTURE)!;
     const expiry = (u: string) => Number(new URLSearchParams(contentOf(u).split("?")[1]).get("expires"));
@@ -300,15 +305,14 @@ describe("the viewer route serves an admin's ticket and nothing that only looks 
     const owner = contentOf(websiteScenePreviewViewerUrl(ID, CAPTURE)!);
     const company = contentOf(websiteScenePreviewCompanyViewerUrl(ID, CAPTURE, NORTH_ID)!);
     const forged = [
-      // Another admin's uid, or none (it would then be read as the site's own ticket).
-      withQuery(content, q => q.set("admin", "uid-ops")),
+      // Without the admin marker it would be read as the site's own ticket, under another domain.
       withQuery(content, q => q.delete("admin")),
       // Another viewer kind beside it, or in its place.
       withQuery(content, q => q.set("viewer", NORTH_ID)),
       withQuery(content, q => { q.delete("admin"); q.set("viewer", NORTH_ID); }),
       // The site's own and a company's ticket, claiming to be an admin's.
-      withQuery(owner, q => q.set("admin", "uid-admin")),
-      withQuery(company, q => { q.delete("viewer"); q.set("admin", "uid-admin"); }),
+      withQuery(owner, q => q.set("admin", "1")),
+      withQuery(company, q => { q.delete("viewer"); q.set("admin", "1"); }),
       // Another job or capture, a later expiry, the Atlas preview's source.
       content.replace(`/${ID}/`, "/req-other/"),
       content.replace(`/${CAPTURE}/`, "/walkthrough-other/"),
@@ -317,13 +321,26 @@ describe("the viewer route serves an admin's ticket and nothing that only looks 
     ];
     for (const path of forged) expect(shape(await call(path, VIEWER_FETCH)), path).toEqual(UNAVAILABLE);
     expect((await call(content, VIEWER_FETCH)).status).toBe(200);
+    // Each marker is exact: an admin ticket with any other admin value is refused.
+    for (const value of ["2", "uid-admin", "", "true"])
+      expect(shape(await call(withQuery(content, q => q.set("admin", value)), VIEWER_FETCH)), value).toEqual(UNAVAILABLE);
   });
 
-  it("an expired admin ticket and a uid the mint refuses open nothing", async () => {
+  it("a valid company ticket that also carries the admin marker is refused, though alone it is served", async () => {
     storePreview();
-    const old = websiteScenePreviewAdminViewerUrl(ID, CAPTURE, "uid-admin", Math.floor(Date.now() / 1000) - 16 * 60)!;
+    const company = contentOf(websiteScenePreviewCompanyViewerUrl(ID, CAPTURE, NORTH_ID)!);
+    expect((await call(company, VIEWER_FETCH)).status).toBe(200);
+    expect(shape(await call(withQuery(company, q => q.set("admin", "1")), VIEWER_FETCH))).toEqual(UNAVAILABLE);
+    // And the site's own ticket with the marker: it never verifies under the admin domain.
+    const owner = contentOf(websiteScenePreviewViewerUrl(ID, CAPTURE)!);
+    expect((await call(owner, VIEWER_FETCH)).status).toBe(200);
+    expect(shape(await call(withQuery(owner, q => q.set("admin", "1")), VIEWER_FETCH))).toEqual(UNAVAILABLE);
+  });
+
+  it("an expired admin ticket opens nothing", async () => {
+    storePreview();
+    const old = websiteScenePreviewAdminViewerUrl(ID, CAPTURE, Math.floor(Date.now() / 1000) - 16 * 60)!;
     expect(shape(await view(old))).toEqual(UNAVAILABLE);
-    expect(websiteScenePreviewAdminViewerUrl(ID, CAPTURE, "uid admin&viewer=x")).toBeNull();
   });
 
   it("opening the splat as a page is refused, as for every ticket", async () => {
@@ -399,5 +416,17 @@ describe("what the route logs and answers", () => {
       "Simulation of the site opened from the job console"]);
     expect(logged.calls).toContainEqual([{ jobId: ID, actor: "uid-admin", status: 404 },
       "Simulation of the site not viewable from the job console"]);
+  });
+
+  it("the request log's path for the splat and its settings carries no ticket, for every ticket kind", async () => {
+    storePreview();
+    const tickets = [await mintedUrl(), websiteScenePreviewViewerUrl(ID, CAPTURE)!, websiteScenePreviewCompanyViewerUrl(ID, CAPTURE, NORTH_ID)!];
+    for (const content of tickets.map(contentOf)) {
+      for (const path of [content, content.replace("/scene.ply?", "/settings.json?")]) {
+        const logged = privateWorkLogPath(path);
+        expect(logged).toBe(path.split("?")[0]);
+        for (const part of ["?", "signature", "expires", "admin", "viewer", NORTH_ID, "uid-admin"]) expect(logged, part).not.toContain(part);
+      }
+    }
   });
 });
