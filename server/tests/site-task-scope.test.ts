@@ -139,6 +139,9 @@ describe("screenTaskScope", () => {
     "Come over to the counter",
     "The robot goes from the charging dock to the front desk",
     "The robot moves from the lobby to the lift",
+    "Go from the doorway to the table near the window",
+    "Go to the table by the door",
+    "Go through the doorway to the kitchen",
   ])("reads %j as a trip by the robot, as a walk job reads", summary => {
     const walk = "Walk down the aisle to its far end without touching the shelves.";
     const project = (text: string) => projectWebsiteTaskContext({ requestId: "r1", summary: text,
@@ -172,6 +175,13 @@ describe("screenTaskScope", () => {
     ["Grab the mug from the table and head to the counter", null, "rigid_pick_and_place"],
     ["Move the blue book from the cart to the top shelf", null, "rigid_pick_and_place"],
     ["Go from the doorway to the table, then wait", null, "multi_step"],
+    // The multi-step check reads stopping as a second act before any trip is read.
+    ["Move from the charging dock to the front desk and stop", null, "multi_step"],
+    // A place followed straight by the object: the object moved, named last.
+    ["Move to the top shelf the blue book", null, "rigid_pick_and_place"],
+    ["Move from the cart to the shelf all the boxes", null, "rigid_pick_and_place"],
+    ["Move to the shelf the boxes", null, "rigid_pick_and_place"],
+    ["Move into position the empty tote", null, "rigid_pick_and_place"],
   ])("reads %j (success %j) as before: %s", (summary, success, reading) => {
     const verdict = screen(summary, success);
     expect(verdict.kind ?? verdict.reason).toBe(reading);

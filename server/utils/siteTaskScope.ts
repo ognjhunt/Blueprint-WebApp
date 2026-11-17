@@ -97,6 +97,10 @@ const ROBOT_TRIP = /^(?:(?:the |our )?robot (?:(?:should|must|will|can|needs to|
 function robotTrip(summary: string, success: string): string | null {
   const trip = summary.match(ROBOT_TRIP)?.[0];
   if (!trip || STEP_BREAK.test(summary) || /[,:]/.test(summary)) return null;
+  // A place followed straight by another noun phrase names an object after it: "move to the shelf the boxes".
+  const said = summary.slice(trip.length).replace(/[.!?]/g, " ").split(/\s+/).filter(Boolean);
+  if (said.some((word, index) => index + 1 < said.length && !PREPOSITIONS.has(word) && !DETERMINERS.has(word)
+    && !["and", "or"].includes(word) && (DETERMINERS.has(said[index + 1]) || /^\d/.test(said[index + 1])))) return null;
   // A verb form after a determiner is a noun ("the loading dock", "the lift"), so it is set aside.
   const words = `${summary.slice(trip.length)} ; ${success}`.split(/\s+/)
     .filter((word, index, all) => !DETERMINERS.has(all[index - 1] ?? ""));
