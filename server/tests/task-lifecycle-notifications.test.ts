@@ -1125,6 +1125,37 @@ describe("one answer email for every way a job ends", () => {
     expect(await taskLifecycleNotificationIsCurrent(kept)).toBe(false);
   });
 
+  it("drops a queued can't-simulate-yet email for a job now built whatever its kind; a job still kept on file gets it", async () => {
+    const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
+    const { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+    const key = "req-1:brief-screening:task-not-yet-supported";
+    const queue = async () => { send.mockClear(); sharedFakeFirestoreState.docs.delete(`captureOutbox/${key}`);
+      await enqueueOutbox({ idempotencyKey: key, requestId: "req-1", to: "owner@example.com", kind: "screening_not_now",
+        subject: "Your job: we are preparing its job packet", body: "We have accepted your job and are holding it." });
+      await deliverOutbox({ limit: 20 }); };
+    const site = { contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" },
+      site_task_scope: { supported: false, reason: "mobile", disposition: "accepted_for_analysis" } };
+    const marked = { [SCENE_SCREEN_GATE_ENDED_FIELD]: sceneScreenGateEndedMarker("req-1", "2026-11-12T00:00:00.000Z", "job_created"),
+      capture_owner_uid: "site-job-owner" };
+    // Built whatever its kind: dropped, nothing sent.
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...site, ...marked });
+    await queue();
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({ status: "cancelled" });
+    expect(send).not.toHaveBeenCalled();
+    // Still kept on file (no marker, no grant): sent as before.
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", site);
+    await queue();
+    expect(send).toHaveBeenCalledTimes(1);
+    // Held for its several steps, or a brief we could not read, whatever the marker: sent as before.
+    for (const [scope, summary] of [[{ supported: false, reason: "other" }, "Put the mug in the sink, then wipe the counter"],
+      [{ supported: false, reason: "unclear" }, "Your site task"]] as const) {
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...site, ...marked, site_task_scope: scope });
+      sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { requestId: "req-1", summary });
+      await queue();
+      expect(send).toHaveBeenCalledTimes(1);
+    }
+  });
+
   it("cancels a second answer email at dispatch once one has gone out", async () => {
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     sharedFakeFirestoreState.docs.set("captureOutbox/req-1:evaluation_outcome:held_capability-a", { requestId: "req-1",
