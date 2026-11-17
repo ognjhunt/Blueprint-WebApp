@@ -130,16 +130,15 @@ export async function listJobConsoleRows(params: { limit: number; cursor?: strin
   }
   const empty = () => new Map<string, Data>();
   const captures = new Map(page.map(({ id, record }) => [id, siteWalkthroughIdentity(id, record).captureId]));
-  const [briefs, sessions, notices] = await Promise.all([
+  const [briefs, sessions] = await Promise.all([
     getAllDocs("siteTaskBriefs", page.map(row => row.id)).catch(empty),
     getAllDocs("captureUploadSessions", [...captures.values()]).catch(empty),
-    getAllDocs("captureOutbox", page.map(row => `${row.id}:video_received`)).catch(empty),
   ]);
   const rows = await Promise.all(page.map(async ({ id, record }) => {
     const outlook = await readOutlook(id);
     const captureId = captures.get(id)!;
     const { phase, phrase } = standingOf({ outlook, packageBuilt: Boolean(adminCompanySimulation(record, sessions.get(captureId), captureId)),
-      videoReceived: notices.has(`${id}:video_received`), waitsOnBlueprint: blueprintWaits(recordStops(record)) });
+      videoReceived: Boolean(videoReceivedAtIso(sessions.get(captureId))), waitsOnBlueprint: blueprintWaits(recordStops(record)) });
     return {
       requestId: id,
       sentence: sentenceOf(record, briefs.get(id)).sentence,
@@ -243,18 +242,25 @@ function withdrawalStop(record: Data): AdminJobStop {
   const projected = projectWebsiteCaptureWithdrawal(raw);
   const storage = { deleted: "deleted", deleted_late_upload_check_pending: "deleted, a check for late uploads still to run",
     retrying: "deletion is being retried", pending: "not deleted yet" }[projected.storageDeletion.state];
-  const outsideVerified = raw.deliveredCopyCleanupVerified === true;
+  // The Pipeline's receipt covers only the site's mapped files on its host (`cleanup_scope:
+  // "server_mapped_site_local_files"`, `external_cleanup_required: true`) and, separately, the cloud scene folder
+  // (`scenes/<site>/`). Provider copies, delivered packages, launch runs and their evidence, and the archive are cleared
+  // by a separate Pipeline command that nothing on the website records, so they are never said to be removed.
+  const local = raw.localCleanupVerified === true;
+  const cloud = raw.cloudObjectAbsenceVerified === true;
+  const verified = local && cloud ? "The site's mapped files on the Pipeline host and its cloud scene folder are verified removed."
+    : local ? "The site's mapped files on the Pipeline host are verified removed; its cloud scene folder is not verified removed."
+      : cloud ? "Its cloud scene folder is verified removed; the site's mapped files on the Pipeline host are not verified removed."
+        : "Neither the site's mapped files on the Pipeline host nor its cloud scene folder is verified removed.";
   const parts = [
     `Website copies: ${storage}.`,
     projected.pipelineAcknowledged ? "The Pipeline acknowledged it." : "The Pipeline has not acknowledged it yet.",
-    projected.pipelineCleanupVerified ? "The Pipeline's own copies are verified removed." : "The Pipeline's own copies are not verified removed.",
-    outsideVerified ? "Copies outside the Pipeline are verified removed." : "Copies outside the Pipeline are not verified removed.",
+    verified,
+    "Provider copies, delivered packages, launch runs and their evidence, and the archive are not verified removed.",
     ...(projected.legalHold ? ["Cleanup is under a legal hold."] : []),
   ];
-  const done = projected.storageDeletion.state === "deleted" && projected.pipelineAcknowledged && projected.pipelineCleanupVerified
-    && outsideVerified;
-  return { key: "withdrawn", text: `${lead} ${parts.join(" ")}`, atIso,
-    whose: projected.legalHold || done ? "none" : "blueprint" };
+  // No record on the website ever says every copy is gone, so the step stays Blueprint's unless a legal hold stops it.
+  return { key: "withdrawn", text: `${lead} ${parts.join(" ")}`, atIso, whose: projected.legalHold ? "none" : "blueprint" };
 }
 
 /** The rights reasons that keep a site's job from companies, each with whose step it is. */
@@ -336,10 +342,15 @@ async function siteOf(record: Data): Promise<{ name: string | null; place: strin
   }
 }
 
-async function videoReceivedIso(requestId: string): Promise<string | null> {
-  if (!db) return null;
-  const notice = await db.collection("captureOutbox").doc(`${requestId}:video_received`).get();
-  return notice.exists ? text(notice.data()?.createdAtIso) || null : null;
+/**
+ * When the video arrived, from the capture record itself: the browser upload's stored record, its delivery record, or
+ * an app bundle's record. Not from the "we have your video" email notice, which a job with no address (an internal
+ * test job) never gets. Null when the record holds no upload.
+ */
+export function videoReceivedAtIso(session: Data | null | undefined): string | null {
+  const stored = object(session?.browser_stored_upload), pending = object(session?.browser_pending_delivery);
+  const bundle = object(session?.site_capture_bundle);
+  return text(stored.completed_at_iso) || text(pending.completed_at_iso) || text(bundle.recorded_at_iso) || null;
 }
 
 function companyEvents(companies: AdminJobCompanies | null): AdminJobEvent[] {
@@ -399,12 +410,12 @@ export async function getJobConsoleDetail(requestId: string): Promise<AdminJobDe
     answer: answerWork,
   } : undefined;
 
-  const [outlook, site, companies, videoAtIso, money, cost] = await Promise.all([
+  const videoAtIso = videoReceivedAtIso(session);
+  const [outlook, site, companies, money, cost] = await Promise.all([
     readOutlook(requestId, known),
     internalTest ? Promise.resolve(null) : siteOf(record),
     internalTest ? Promise.resolve(null)
       : optional(() => import("./jobCompanies").then(({ loadAdminJobCompanies }) => loadAdminJobCompanies(requestId))),
-    optional(() => videoReceivedIso(requestId)),
     optional(() => moneyStops(requestId)),
     optional(() => costOf(requestId, record)),
   ]);

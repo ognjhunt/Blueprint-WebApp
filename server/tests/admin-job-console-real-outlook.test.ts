@@ -197,4 +197,14 @@ describe("a delivered job's page, with the real outlook", () => {
     expect(body.standing.phrase).not.toBe("Simulation package built");
     expect(body.standing.phrase).not.toMatch(/^Reading the video/);
   });
+
+  it("an internal test job with footage and no package reads that the video is in, from the capture record", async () => {
+    markTestJob();
+    // As `finishStoredCapture` records a landed upload; a test job gets no "we have your video" email notice.
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { browser_stored_upload: { completed_at_iso: "2026-11-16T18:03:00.000Z" } });
+    const body = await detailBody();
+    expect(body.simulationPackageUrl).toBeNull();
+    expect(body.standing.phrase).not.toMatch(/Waiting for the video/);
+    expect(body.events).toContainEqual({ key: "video", text: "Video received", atIso: "2026-11-16T18:03:00.000Z" });
+  });
 });

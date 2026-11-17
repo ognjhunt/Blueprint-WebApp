@@ -185,7 +185,7 @@ describe("GET /api/admin/jobs/:requestId", () => {
   it("returns a site's job: its sentence, name and place, the outlook, sharing, events, and nothing the page does not show", async () => {
     siteJob("job-a", "2026-10-02T00:00:00.000Z", { operator_listing_hold: { held: true, atIso: "2026-10-05T00:00:00.000Z", by: "ops", reason: "Checking" } });
     table("siteTaskBriefs").set("job-a", { summary: "Stack cartons onto the pallet.", confirmedAtIso: "2026-10-02T01:00:00.000Z" });
-    table("captureOutbox").set("job-a:video_received", { createdAtIso: "2026-10-02T02:00:00.000Z" });
+    table("captureUploadSessions").set("walkthrough-job-a", { browser_stored_upload: { completed_at_iso: "2026-10-02T02:00:00.000Z" } });
     outlooks.byId.set("job-a", { phase: "no_test", reason: "window_expired", sentence: "The time for this job ran out." });
     companies.panel = { sharing: { state: "shared_not_visible", words: "Shared, but not visible to companies right now: Blueprint stopped showing it.", reason: "blueprint_hold" },
       autoSend: { sentAtIso: "2026-10-03T00:00:00.000Z", count: 3 }, sends: [],
@@ -230,7 +230,8 @@ describe("GET /api/admin/jobs/:requestId", () => {
     expect(body.stops).toEqual([
       { key: "withdrawn", whose: "blueprint", atIso: "2026-10-06T00:00:00.000Z",
         text: "The site withdrew permission to use its video. Website copies: not deleted yet. The Pipeline acknowledged it."
-          + " The Pipeline's own copies are not verified removed. Copies outside the Pipeline are not verified removed." },
+          + " Neither the site's mapped files on the Pipeline host nor its cloud scene folder is verified removed."
+          + " Provider copies, delivered packages, launch runs and their evidence, and the archive are not verified removed." },
       { key: "money-safety_limit", whose: "blueprint", atIso: new Date(1_791_000_000_000).toISOString(),
         text: "Spending was refused at this job's safety limit." },
     ]);
@@ -248,16 +249,46 @@ describe("GET /api/admin/jobs/:requestId", () => {
       deliveredCopyCleanupVerified: false } });
     const [stop] = (await (await fetch(`${baseUrl}/job-d`, admin)).json()).stops;
     expect(stop.text).toBe("The site withdrew permission to use its video. Website copies: deleted. The Pipeline acknowledged it."
-      + " The Pipeline's own copies are not verified removed. Copies outside the Pipeline are not verified removed.");
+      + " The site's mapped files on the Pipeline host are verified removed; its cloud scene folder is not verified removed."
+      + " Provider copies, delivered packages, launch runs and their evidence, and the archive are not verified removed.");
     expect(stop.whose).toBe("blueprint");
     expect(stop.text).not.toMatch(/Cleanup is confirmed/);
+  });
+
+  it("says only what the Pipeline's receipt verified: its host's mapped files and the cloud scene folder, nothing else", async () => {
+    // The reviewer's case: the website deleted its copies and the Pipeline acknowledged with the full receipt
+    // (`website_capture_withdrawal.py`: local cleanup and cloud absence verified, scope the mapped site files, external
+    // cleanup still required). `deriveWebsiteWithdrawalState` calls that `deletionConfirmed`.
+    siteJob("job-v", "2026-10-02T00:00:00.000Z", { request: { buyerType: "site_operator",
+      consent_attestation: { granted: true, revoked_at_iso: "2026-10-06T00:00:00.000Z" } },
+    capture_withdrawal: { state: "deletion_confirmed", deletionConfirmed: true, webappDeletion: { phase: "deleted" },
+      pipelineAcknowledged: true, pipelineState: "local_cleanup_verified_external_pending", localCleanupVerified: true,
+      cloudStorageCleanupVerified: false, cloudObjectAbsenceVerified: true, cloudObjectCurrentAbsenceStatus: "verified",
+      deliveredCopyCleanupVerified: false, retainedAuditRecords: true, legalHold: false } });
+    const [stop] = (await (await fetch(`${baseUrl}/job-v`, admin)).json()).stops;
+    expect(stop).toEqual({ key: "withdrawn", whose: "blueprint", atIso: "2026-10-06T00:00:00.000Z",
+      text: "The site withdrew permission to use its video. Website copies: deleted. The Pipeline acknowledged it."
+        + " The site's mapped files on the Pipeline host and its cloud scene folder are verified removed."
+        + " Provider copies, delivered packages, launch runs and their evidence, and the archive are not verified removed." });
+    expect(stop.text).not.toMatch(/Pipeline's own copies|Cleanup is confirmed|Nothing is left/);
+  });
+
+  it("reads the video as in from the capture record, with its time, for an internal test job no email is ever sent for", async () => {
+    siteJob("job-tv", "2026-11-16T18:00:00.000Z", { internal_test: TEST_MARKER });
+    table("captureUploadSessions").set("walkthrough-job-tv", { browser_stored_upload: { completed_at_iso: "2026-11-16T18:03:00.000Z" } });
+    outlooks.byId.set("job-tv", { phase: "reading", reason: null, sentence: null });
+    const body = await (await fetch(`${baseUrl}/job-tv`, admin)).json();
+    expect(body.standing.phrase).toBe("Reading the video");
+    expect(body.events).toContainEqual({ key: "video", text: "Video received", atIso: "2026-11-16T18:03:00.000Z" });
+    const row = (await (await fetch(baseUrl, admin)).json()).jobs.find((job: Row) => job.requestId === "job-tv");
+    expect(row.standing).toBe("Reading the video");
   });
 
   it("reads a hold as a hold, and a job with no video as waiting for it, never as an ending or as reading", async () => {
     siteJob("job-h", "2026-10-03T00:00:00.000Z");
     siteJob("job-n", "2026-10-02T00:00:00.000Z");
     siteJob("job-r", "2026-10-01T00:00:00.000Z");
-    table("captureOutbox").set("job-r:video_received", { createdAtIso: "2026-10-01T01:00:00.000Z" });
+    table("captureUploadSessions").set("walkthrough-job-r", { site_capture_bundle: { recorded_at_iso: "2026-10-01T01:00:00.000Z" } });
     outlooks.byId.set("job-h", { phase: "no_test", reason: "scene_held", sentence: "Work on the simulation of your job is on hold." });
     outlooks.byId.set("job-n", { phase: "reading", reason: null, sentence: null });
     outlooks.byId.set("job-r", { phase: "reading", reason: null, sentence: null });
