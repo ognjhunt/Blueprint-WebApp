@@ -2,20 +2,19 @@ import { expect, test, type Page } from "@playwright/test";
 
 /**
  * Package C1, in the browser, with the operator QA sign-in (`VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1`, as
- * `npm run qa:operator` sets it): the operator's "Deployment companies" panel on `/admin/jobs`, and a signed-in
+ * `npm run qa:operator` sets it): the "Deployment companies" staff tool on a job's page at `/admin/jobs`, and a signed-in
  * company's response in the job library with the third answer. Every API the pages read is mocked here; no request
  * leaves the browser.
  */
 const JOB = "job-c1";
 const NORTH = "a".repeat(64);
-const listRow = {
-  requestId: JOB, createdAtIso: "2026-11-10T00:00:00.000Z", siteName: "Dock 4", siteLocation: "", company: "Acme", claimed: false,
-  archived: false, brief: { state: "confirmed", unresolvedGates: 0 }, capture: { state: "covered", missingViews: [] },
-  listing: { state: "live" }, teamAccess: { listed: true, evaluationAvailable: false, reason: "scene_not_runnable", sceneHold: null },
-  evaluations: { total: 0, pendingAdmission: 0, admitted: 0, pending: [] },
-  runs: { queued: 0, running: 0, reported: 0, noResult: 0, passing: 0, belowTarget: 0, best: null },
-  withdrawal: { state: "none" }, opsNotice: null, lastActivityIso: "2026-11-12T00:00:00.000Z", stage: "listing",
-  nextAction: "Send the job to deployment companies", actionOwner: "blueprint", attention: [],
+const listRow = { requestId: JOB, sentence: "Stack cartons onto the pallet.", internalTest: null, phase: "testing",
+  standing: "Simulation ready", receivedAtIso: "2026-11-10T00:00:00.000Z" };
+const detail = {
+  requestId: JOB, job: { sentence: "Stack cartons onto the pallet.", drafted: false, site: { name: "Dock 4", place: "Springfield" }, internalTest: null },
+  standing: { phase: "testing", phrase: "Simulation ready", siteSees: null, companies: "Shared and visible to approved companies.", pipeline: null },
+  simulationPackageUrl: null, simulationPackage: null, cost: null, stops: [],
+  events: [{ key: "received", text: "Job received", atIso: "2026-11-10T00:00:00.000Z" }],
 };
 
 /** Page errors other than the QA server's known missing HMR socket. */
@@ -46,10 +45,8 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
     const path = url.pathname;
     if (!["127.0.0.1", "localhost"].includes(url.hostname)) return route.fulfill({ status: 204, body: "" });
     if (path === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
-    if (path === "/api/admin/jobs" && request.method() === "GET") return route.fulfill({ json: { jobs: [listRow], nextCursor: null, scanned: 1, stages: [] } });
-    if (path === `/api/admin/jobs/${JOB}`) return route.fulfill({ json: { job: listRow, timeline: [], runs: [], admissions: [],
-      admissionDefaults: { episodes: 50, sponsorCapUsd: 20, maxSponsorCapUsd: 20, reservationTtlMs: 1, maxAttempts: 1, evidenceScope: "development_only" },
-      links: { lead: "/admin/leads", recommendation: "/admin/robot-team-access" } } });
+    if (path === "/api/admin/jobs" && request.method() === "GET") return route.fulfill({ json: { jobs: [listRow], nextCursor: null } });
+    if (path === `/api/admin/jobs/${JOB}`) return route.fulfill({ json: detail });
     const base = `/api/admin/jobs/${JOB}/companies`;
     if (path === base) return route.fulfill({ json: panel });
     if (path.startsWith(base) && request.method() === "POST") {
@@ -72,6 +69,8 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`/admin/jobs?job=${JOB}`);
+  // A staff tool on the job's page: closed until opened.
+  await page.getByText("Deployment companies", { exact: true }).click();
   const section = page.getByRole("region", { name: "Deployment companies" });
   await expect(section.getByText("Shared and visible to approved companies.", { exact: true })).toBeVisible();
   await expect(section.getByLabel("Job library address")).toHaveText(`http://127.0.0.1/contact/robot-team#job-${JOB}`);
@@ -85,7 +84,7 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
   await responseForm.getByRole("combobox", { name: /^Company/ }).selectOption(NORTH);
   await responseForm.getByRole("combobox", { name: /^Answer/ }).selectOption("needs_something");
   await responseForm.getByLabel(/Their words/).fill("We would need a second gripper.");
-  await responseForm.getByRole("button", { name: "Record the response" }).click();
+  await responseForm.getByRole("button", { name: "Record the answer" }).click();
   const responses = section.getByRole("region", { name: "Responses" });
   await expect(responses).toContainText("Would need something");
   await expect(responses).toContainText("“We would need a second gripper.”");

@@ -312,7 +312,7 @@ export const appRoutes: AppRoute[] = [
 
   // Admin
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },
-  { path: "/admin/jobs", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
+  { path: "/admin/jobs", layout: "protected", shell: "bare", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
   { path: "/admin/leads", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
   { path: "/admin/leads/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
   { path: "/ops", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },

@@ -1,142 +1,87 @@
 /**
- * Firestore reads for the founder's job console. Read-only and bounded.
+ * The admin job page's reads: what the page shows, and nothing more (`client/src/types/jobConsole.ts`).
  *
- * One page scans at most `SCAN_LIMIT` inbound requests newest-first, keeps the
- * site jobs, and batches every enrichment read across the page: briefs and
- * capture sessions by `getAll`, evaluation requests and runs by `in` queries
- * of at most 30 ids. A page can hold fewer rows than asked for when a stage or
- * search filter is applied; `nextCursor` continues the scan where it stopped.
- * A job with footage also reads Blueprint's scene and screening the way its job
- * page does (`loadWebsiteSceneProgression`), a few queries per job.
- * No index beyond Firestore's automatic single-field ones is required.
+ * No status is worked out here. Where a job stands is its outlook (`loadJobOutlook`), the one decision the site's own
+ * job page shows; the page says that phase in a short phrase and quotes the outlook's own sentence. Everything else is
+ * a record, said as the record says it: the package record, the Pipeline's last report, the job's ledgers, the
+ * privacy, rights and money records that stop a job, and the events whose time a record holds.
+ *
+ * Every read past the job's own record is best effort: one that fails leaves its part out, never the page.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { ADMIN_PHASE_WORDS, STANDING_UNREAD, type AdminJobDetail, type AdminJobEvent, type AdminJobInternalTest,
+  type AdminJobRow, type AdminJobStop } from "../../client/src/types/jobConsole";
+import { COMPANY_RESPONSE_LABELS } from "../../client/src/lib/companyResponses";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
-import { ROBOT_TEAMS_COLLECTION } from "../types/robot-team-registry";
-import { object, text } from "./workspace-projection";
-import { loadWebsiteSceneProgression } from "./websiteSceneProgression";
-import { buildJobTimeline, projectJobFacts, projectRuns, type RawEvaluationRequest, type RawJobInputs, type RawRun } from "./jobConsoleFacts";
-import { deriveJobStage, type JobConsoleDetail, type JobConsoleRow, type JobStage } from "./jobConsoleStage";
+import { iso, object, text } from "./workspace-projection";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
-import { adminCompanySimulation, type WebsiteCompanySimulation } from "./websiteCompanySimulation";
+import { adminCompanySimulation, storedCompanySimulation, type WebsiteCompanySimulation } from "./websiteCompanySimulation";
+import { isInternalTestJob } from "./internalTestJob";
 import { adminViewableWebsiteScenePreview } from "./websiteScenePreview";
+import { isPlaceholderSummary } from "./siteTaskBrief";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
+import { teamJobAccess } from "./teamJobAccess";
+import { operatorListingHold } from "./operatorListing";
+import { loadJobOutlook, type JobOutlook, type JobOutlookKnownReads } from "./jobOutlook";
+import type { PublicWebsitePreparationStatus } from "./websitePreparationStatus";
+import type { TaskSceneProgression } from "./taskStatusProjection";
+import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 
+/** At most this many records are scanned for one page of the list. */
 export const SCAN_LIMIT = 200;
-export const PAGE_LIMIT_MAX = 50;
-const IN_CHUNK = 30;
-const ENRICH_BATCH = 50;
+export const PAGE_LIMIT_MAX = 25;
+/** How long one job's outlook may take before its row says it could not be read. */
+export const OUTLOOK_DEADLINE_MS = 8_000;
 
-type Doc = { id: string; data: () => Record<string, any> | undefined; exists?: boolean };
+type Data = Record<string, any>;
 
-function chunks<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let index = 0; index < items.length; index += size) out.push(items.slice(index, index + size));
-  return out;
-}
-
-export function isSiteJobRecord(record: Record<string, any> | undefined): boolean {
+export function isSiteJobRecord(record: Data | undefined): boolean {
   return Boolean(record) && object(record!.request).buyerType === "site_operator" && !record!.workspace_evaluation;
 }
 
-async function decryptSite(record: Record<string, any>) {
-  try {
-    const decrypted = await decryptInboundRequestForAdmin(record as any) as unknown as Record<string, any>;
-    return {
-      siteName: text(object(decrypted.request).siteName),
-      siteLocation: text(object(decrypted.request).siteLocation),
-      company: text(object(decrypted.contact).company),
-    };
-  } catch {
-    return null;
-  }
+function internalTestOf(record: Data): AdminJobInternalTest | null {
+  return isInternalTestJob(record) ? { label: text(object(record.internal_test).label) || null } : null;
 }
 
-async function getAllDocs(collection: string, ids: string[]): Promise<Map<string, Record<string, any>>> {
-  const out = new Map<string, Record<string, any>>();
+/** The site's own sentence, as its job page reads it (`composeSiteAnswer`): the brief's summary, unless a placeholder. */
+function sentenceOf(record: Data, brief: Data | null | undefined): { sentence: string | null; drafted: boolean } {
+  const summary = typeof brief?.summary === "string" && !isPlaceholderSummary(brief.summary) ? brief.summary.trim() : null;
+  const drafted = Boolean(summary) && !brief?.confirmedAtIso && !record.site_task_brief_confirmed_at
+    && object(record.capture_task_statement_draft).state === "drafted";
+  return { sentence: summary, drafted };
+}
+
+function within<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), ms); });
+  return Promise.race([work.catch(() => null), late]).finally(() => clearTimeout(timer));
+}
+
+function standingOf(outlook: JobOutlook | null): { phase: AdminJobRow["phase"]; phrase: string } {
+  return outlook ? { phase: outlook.phase, phrase: ADMIN_PHASE_WORDS[outlook.phase] ?? STANDING_UNREAD }
+    : { phase: null, phrase: STANDING_UNREAD };
+}
+
+async function readOutlook(requestId: string, known?: JobOutlookKnownReads): Promise<JobOutlook | null> {
+  return within(loadJobOutlook(requestId, known), OUTLOOK_DEADLINE_MS);
+}
+
+async function getAllDocs(collection: string, ids: string[]): Promise<Map<string, Data>> {
+  const out = new Map<string, Data>();
   if (!db || !ids.length) return out;
-  for (const group of chunks(ids, 100)) {
-    const snapshots = await db.getAll(...group.map((id) => db!.collection(collection).doc(id)));
-    snapshots.forEach((snapshot, index) => {
-      const data = snapshot.exists ? snapshot.data() : undefined;
-      if (data) out.set(group[index], data);
-    });
-  }
+  const snapshots = await db.getAll(...ids.map(id => db!.collection(collection).doc(id)));
+  snapshots.forEach((snapshot, index) => {
+    const data = snapshot.exists ? snapshot.data() : undefined;
+    if (data) out.set(ids[index], data);
+  });
   return out;
 }
 
-async function queryIn(collection: string, field: string, values: string[], limit: number): Promise<Doc[]> {
-  if (!db || !values.length) return [];
-  const results = await Promise.all(chunks(values, IN_CHUNK).map((group) =>
-    db!.collection(collection).where(field, "in", group).limit(limit).get()));
-  return results.flatMap((snapshot) => snapshot.docs as unknown as Doc[]);
-}
+/* ------------------------------------------------------------------------- the list */
 
-/** Every read one batch of site jobs needs, in a constant number of round trips. */
-async function loadInputs(docs: Doc[]): Promise<RawJobInputs[]> {
-  const ids = docs.map((doc) => doc.id);
-  const [briefs, sessions, requestDocs, runDocs] = await Promise.all([
-    getAllDocs("siteTaskBriefs", ids),
-    getAllDocs("captureUploadSessions", ids.map((id) => `walkthrough-${id}`)),
-    queryIn("inboundRequests", "workspace_evaluation.opportunityId", ids, 500),
-    queryIn("evaluationRuns", "sceneId", ids, 1000),
-  ]);
-  const runs = runDocs.map((doc) => ({ ...(doc.data() as RawRun), runId: text(doc.data()?.runId) || doc.id }));
-
-  // Team names: runs and recommendations carry a team id; an evaluation request
-  // carries only the requesting account, whose bound team names it.
-  const teamIds = new Set<string>(runs.map((run) => run.teamId).filter(Boolean));
-  const ownerUids = [...new Set(requestDocs.map((doc) => text(doc.data()?.account_owner_uid)).filter(Boolean))];
-  const ownerTeams = new Map<string, { id: string; name: string }>();
-  for (const doc of await queryIn(ROBOT_TEAMS_COLLECTION, "accountUid", ownerUids, 200)) {
-    const data = doc.data() ?? {};
-    if (!ownerTeams.has(text(data.accountUid))) ownerTeams.set(text(data.accountUid), { id: doc.id, name: text(data.name) });
-  }
-  const teams = await getAllDocs(ROBOT_TEAMS_COLLECTION, [...teamIds]);
-  const teamNames = new Map<string, string>();
-  teams.forEach((team, id) => teamNames.set(id, text(team.name) || id));
-  ownerTeams.forEach((team) => teamNames.set(team.id, team.name || team.id));
-
-  return Promise.all(docs.map(async (doc) => {
-    const record = doc.data() ?? {};
-    const evaluationRequests: RawEvaluationRequest[] = requestDocs
-      .filter((request) => object(request.data()?.workspace_evaluation).opportunityId === doc.id)
-      .map((request) => {
-        const data = request.data() ?? {};
-        return { id: request.id, record: data, teamName: ownerTeams.get(text(data.account_owner_uid))?.name || null };
-      });
-    return {
-      requestId: doc.id,
-      record,
-      site: await decryptSite(record),
-      brief: briefs.get(doc.id) ?? null,
-      captureSession: sessions.get(`walkthrough-${doc.id}`) ?? null,
-      sceneProgression: sessions.has(`walkthrough-${doc.id}`)
-        ? await loadWebsiteSceneProgression(doc.id, `walkthrough-${doc.id}`) : null,
-      evaluationRequests,
-      runs: runs.filter((run) => (run as unknown as { sceneId?: string }).sceneId === doc.id),
-      teamNames,
-    };
-  }));
-}
-
-export function rowFromInputs(inputs: RawJobInputs): JobConsoleRow {
-  const facts = projectJobFacts(inputs);
-  return { ...facts, ...deriveJobStage(facts) };
-}
-
-function matchesSearch(row: JobConsoleRow, q: string) {
-  if (!q) return true;
-  const needle = q.toLowerCase();
-  return [row.siteName, row.siteLocation, row.company, row.requestId]
-    .some((value) => value.toLowerCase().includes(needle));
-}
-
-export async function listJobConsoleRows(params: {
-  limit: number;
-  cursor?: string | null;
-  stage?: JobStage | null;
-  q?: string | null;
-}): Promise<{ rows: JobConsoleRow[]; nextCursor: string | null; scanned: number }> {
+/** One page of site jobs, newest first: the job, where it stands, when it was received. */
+export async function listJobConsoleRows(params: { limit: number; cursor?: string | null }):
+  Promise<{ rows: AdminJobRow[]; nextCursor: string | null }> {
   if (!db) throw new Error("job_console_store_unavailable");
   const limit = Math.max(1, Math.min(PAGE_LIMIT_MAX, Math.floor(params.limit)));
   let query = db.collection("inboundRequests").orderBy("createdAt", "desc") as FirebaseFirestore.Query;
@@ -145,60 +90,34 @@ export async function listJobConsoleRows(params: {
     if (start.exists) query = query.startAfter(start);
   }
   const snapshot = await query.limit(SCAN_LIMIT).get();
-  const scannedDocs = snapshot.docs as unknown as Doc[];
-  const rows: JobConsoleRow[] = [];
-  let lastConsumed: string | null = null;
-  let stoppedEarly = false;
-  const q = (params.q ?? "").trim();
-
-  // Enrich in batches and stop as soon as the page is full, so a page with
-  // no filter costs one batch rather than the whole scan window.
-  let index = 0;
-  outer: while (index < scannedDocs.length) {
-    const window = scannedDocs.slice(index, index + ENRICH_BATCH);
-    const siteDocs = window.filter((doc) => isSiteJobRecord(doc.data()));
-    const inputs = await loadInputs(siteDocs);
-    const byId = new Map(inputs.map((input) => [input.requestId, input]));
-    for (const doc of window) {
-      index += 1;
-      lastConsumed = doc.id;
-      const input = byId.get(doc.id);
-      if (!input) continue;
-      const row = rowFromInputs(input);
-      if (params.stage && row.stage !== params.stage) continue;
-      if (!matchesSearch(row, q)) continue;
-      rows.push(row);
-      if (rows.length >= limit) {
-        stoppedEarly = index < scannedDocs.length;
-        break outer;
-      }
-    }
+  const docs = snapshot.docs as unknown as Array<{ id: string; data: () => Data | undefined }>;
+  const page: Array<{ id: string; record: Data }> = [];
+  let consumed = 0;
+  for (const doc of docs) {
+    consumed += 1;
+    const record = doc.data();
+    if (record && isSiteJobRecord(record)) page.push({ id: doc.id, record });
+    if (page.length >= limit) break;
   }
-  const nextCursor = stoppedEarly || scannedDocs.length === SCAN_LIMIT ? lastConsumed : null;
-  return { rows, nextCursor, scanned: index };
+  const briefs = await getAllDocs("siteTaskBriefs", page.map(row => row.id)).catch(() => new Map<string, Data>());
+  const rows = await Promise.all(page.map(async ({ id, record }) => {
+    const outlook = await readOutlook(id);
+    return {
+      requestId: id,
+      sentence: sentenceOf(record, briefs.get(id)).sentence,
+      internalTest: internalTestOf(record),
+      ...(({ phase, phrase }) => ({ phase, standing: phrase }))(standingOf(outlook)),
+      receivedAtIso: iso(record.createdAt),
+    } satisfies AdminJobRow;
+  }));
+  const more = consumed < docs.length || docs.length === SCAN_LIMIT;
+  return { rows, nextCursor: more && docs.length ? docs[consumed - 1].id : null };
 }
 
-export async function getJobConsoleDetail(requestId: string): Promise<JobConsoleDetail | null> {
-  const record = await loadSiteJobRecord(requestId);
-  if (!record) return null;
-  const [[inputs], simulation, scenePreview] = await Promise.all([loadInputs([{ id: requestId, data: () => record }]),
-    jobSimulationPackage(requestId, record), jobScenePreview(requestId, record)]);
-  const row = rowFromInputs(inputs);
-  return {
-    job: row,
-    timeline: buildJobTimeline(inputs, row),
-    runs: projectRuns(inputs),
-    links: {
-      lead: `/admin/leads/${encodeURIComponent(requestId)}`,
-      recommendation: `/admin/robot-team-access?job=${encodeURIComponent(requestId)}`,
-    },
-    simulationPackageUrl: simulation ? `/api/admin/jobs/${encodeURIComponent(requestId)}/simulation.zip` : null,
-    scenePreviewViewUrl: scenePreview ? `/api/admin/jobs/${encodeURIComponent(requestId)}/scene-preview-view` : null,
-  };
-}
+/* ------------------------------------------------------------------------- one job */
 
 /** The site job's record, or null when there is no such site job (the detail's 404). */
-export async function loadSiteJobRecord(requestId: string): Promise<Record<string, any> | null> {
+export async function loadSiteJobRecord(requestId: string): Promise<Data | null> {
   if (!db) throw new Error("job_console_store_unavailable");
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   const record = snapshot.exists ? snapshot.data() : undefined;
@@ -209,7 +128,7 @@ export async function loadSiteJobRecord(requestId: string): Promise<Record<strin
  * The job's simulation package for the console's download (`adminCompanySimulation`): the stored reference of the
  * job's current capture, read the way the company's page reads it; null when it has none or the site has withdrawn.
  */
-export async function jobSimulationPackage(requestId: string, record: Record<string, any>): Promise<WebsiteCompanySimulation | null> {
+export async function jobSimulationPackage(requestId: string, record: Data): Promise<WebsiteCompanySimulation | null> {
   if (!db) throw new Error("job_console_store_unavailable");
   const { captureId } = siteWalkthroughIdentity(requestId, record);
   const session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
@@ -227,4 +146,227 @@ export async function jobScenePreview(requestId: string, record: Record<string, 
   const session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
   const preview = adminViewableWebsiteScenePreview(record, session, captureId);
   return preview ? { captureId, preview } : null;
+}
+
+/** The Pipeline's preparation state, said as its record names it. */
+const PREPARATION_WORDS: Readonly<Record<string, string>> = {
+  preparing: "preparing the job",
+  awaiting_inputs: "waiting for an input before it goes on",
+  capacity_delayed: "waiting for capacity",
+  failed_retryable: "a step failed, and it will try again",
+  failed_terminal: "stopped",
+  authority_ended: "its authority to work on the job ended",
+  handed_off: "handed off to build the scene",
+};
+const TERMINAL_WORDS: Readonly<Record<string, string>> = {
+  permanent_invalid: "an input could not be used",
+  retry_exhausted: "it ran out of retries",
+  budget_exhausted: "it reached the job's budget",
+  capacity_blocked: "it waited too long for capacity",
+  out_of_scope: "the job is outside what it can build",
+};
+const SCENE_WORDS: Readonly<Record<string, string>> = {
+  in_progress: "building the scene",
+  waiting: "the scene is waiting",
+  completed: "the scene is built",
+  ready: "the simulation package is published",
+};
+const plain = (code: string) => code.replace(/_/g, " ");
+
+/** The Pipeline's last report, in plain words, or null when it has reported nothing readable. */
+function pipelineWords(preparation: PublicWebsitePreparationStatus | null, scene: TaskSceneProgression | null): string | null {
+  if (!preparation || preparation.state === "unavailable") return null;
+  let words = PREPARATION_WORDS[preparation.state] ?? plain(preparation.state);
+  if (preparation.state === "failed_terminal" && preparation.terminalReason)
+    words += `: ${TERMINAL_WORDS[preparation.terminalReason] ?? plain(preparation.terminalReason)}`;
+  if (preparation.state === "handed_off" && scene) {
+    words = scene.state === "held" ? `the scene is on hold (${plain(scene.heldReason ?? "held_capability")})`
+      : scene.state === "ended" ? `the scene ended${scene.sceneOutcome?.kind ? ` (${plain(scene.sceneOutcome.kind)})` : ""}`
+        : SCENE_WORDS[scene.state] ?? plain(scene.state);
+    if (scene.attemptFailed) words += "; one attempt failed and it is trying again";
+  }
+  return `The Pipeline reports: ${words}.`;
+}
+
+/** A withdrawal's cleanup, as `capture_withdrawal` records it, and whose step is left. */
+function withdrawalStop(record: Data): AdminJobStop {
+  const attestation = object(object(record.request).consent_attestation);
+  const withdrawal = object(record.capture_withdrawal);
+  const atIso = text(attestation.revoked_at_iso) || text(attestation.withdrawn_at_iso) || text(withdrawal.requestedAtIso)
+    || text(withdrawal.requested_at_iso) || null;
+  const lead = "The site withdrew permission to use its video.";
+  if (withdrawal.deletionConfirmed === true) return { key: "withdrawn", text: `${lead} Cleanup is confirmed.`, whose: "none", atIso };
+  const step: Record<string, string> = {
+    pipeline_acknowledged_cleanup_pending: "The Pipeline has it; confirm the cleanup.",
+    local_cleanup_verified_external_pending: "Our copies are deleted; confirm outside copies are removed.",
+    cleanup_retained_legal_hold: "Cleanup is under a legal hold.",
+  };
+  return { key: "withdrawn", text: `${lead} ${step[text(withdrawal.state)] ?? "Confirm the withdrawal reached the Pipeline."}`,
+    whose: withdrawal.state === "cleanup_retained_legal_hold" ? "none" : "blueprint", atIso };
+}
+
+/** The rights reasons that keep a site's job from companies, each with whose step it is. */
+const RIGHTS_STOPS: Readonly<Record<string, { text: string; whose: AdminJobStop["whose"] }>> = {
+  rights_blocked: { text: "The rights review blocked the video.", whose: "blueprint" },
+  rights_needs_review: { text: "The rights review has not cleared the video yet.", whose: "blueprint" },
+  recording_consent_missing: { text: "No current permission to use the video is on file.", whose: "site" },
+  older_statement: { text: "The site agreed to an older statement, so the job is not shared until it accepts the current one.", whose: "site" },
+  privacy_screen_pending: { text: "The video has not passed the privacy screen yet.", whose: "blueprint" },
+};
+
+/** Money records that stopped spending on the job (`opsWebsiteJobOverBudgetAlerts`), each Blueprint's to look at. */
+const MONEY_STOPS: Readonly<Record<string, string>> = {
+  safety_limit: "Spending was refused at this job's safety limit.",
+  screening_job_ceiling: "Testing was held back at this job's spending limit.",
+};
+
+function epochIso(value: unknown): string | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? new Date(value * 1000).toISOString() : null;
+}
+
+async function moneyStops(requestId: string): Promise<AdminJobStop[]> {
+  if (!db) return [];
+  const rows = await db.collection("opsWebsiteJobOverBudgetAlerts").where("request_id", "==", requestId).limit(20).get();
+  return rows.docs.flatMap(doc => {
+    const data = doc.data() ?? {};
+    return Object.entries(MONEY_STOPS).filter(([kind]) => data[kind]).map(([kind, words]) => ({ key: `money-${kind}`, text: words,
+      whose: "blueprint" as const, atIso: epochIso(object(data[kind]).recorded_at_epoch) ?? (text(data.alerted_at_iso) || null) }));
+  });
+}
+
+/** What the job's ledgers count (`websiteJobSpend`), or null when the job has no ledger entry at all. */
+async function costOf(requestId: string, record: Data): Promise<AdminJobDetail["cost"]> {
+  if (!db) return null;
+  const { transactionJobLedgerReader, websiteJobSpend } = await import("./websiteJobCeiling");
+  const store = db;
+  const ledgers = transactionJobLedgerReader(store, { get: (reference: any) => reference.get() }, requestId);
+  let entries = Object.keys(object(record.website_preparation_reservations)).length;
+  const counted = {
+    sceneIntakes: async () => { const rows = await ledgers.sceneIntakes(); entries += rows.length; return rows; },
+    screeningRuns: async () => { const rows = await ledgers.screeningRuns(); entries += rows.length; return rows; },
+  };
+  const spend = await websiteJobSpend({ record, reader: counted });
+  if (!entries) return null;
+  const micros = Number.isFinite(spend.total_micros) ? spend.total_micros : spend.readable_total_micros;
+  return { spentOrHeldUsd: Math.round(micros / 10_000) / 100, unreadable: spend.unreadable };
+}
+
+async function siteOf(record: Data): Promise<{ name: string | null; place: string | null }> {
+  try {
+    const decrypted = await decryptInboundRequestForAdmin(record as never) as unknown as Data;
+    return { name: text(object(decrypted.request).siteName) || null, place: text(object(decrypted.request).siteLocation) || null };
+  } catch {
+    return { name: null, place: null };
+  }
+}
+
+async function videoReceivedIso(requestId: string): Promise<string | null> {
+  if (!db) return null;
+  const notice = await db.collection("captureOutbox").doc(`${requestId}:video_received`).get();
+  return notice.exists ? text(notice.data()?.createdAtIso) || null : null;
+}
+
+function companyEvents(companies: AdminJobCompanies | null): AdminJobEvent[] {
+  if (!companies) return [];
+  const name = (row: { company: string | null; alias?: string | null }) => row.company ?? (row.alias ? `Company ${row.alias}` : "A company");
+  const events: AdminJobEvent[] = [];
+  if (companies.autoSend) events.push({ key: "auto-send", atIso: companies.autoSend.sentAtIso,
+    text: `Shared with ${companies.autoSend.count} approved deployment ${companies.autoSend.count === 1 ? "company" : "companies"}` });
+  for (const send of companies.sends) if (send.sentBy !== "system" && !send.voidedAtIso && send.sentAtIso)
+    events.push({ key: `send-${send.sendId}`, atIso: send.sentAtIso, text: `Sent to ${name(send)} by hand` });
+  for (const row of companies.responses) if (row.updatedAtIso && row.recordedBy !== "before_c1")
+    events.push({ key: `response-${row.companyId}`, atIso: row.updatedAtIso,
+      text: `${name(row)} answered: ${row.state ? COMPANY_RESPONSE_LABELS[row.state] : "an answer this page cannot read"}` });
+  for (const row of companies.introductions ?? []) {
+    if (row.requestedAtIso)
+      events.push({ key: `introduction-${row.companyId}`, atIso: row.requestedAtIso, text: `The site asked to meet ${name(row)}` });
+    if (row.latestOutcome?.atIso) events.push({ key: `outcome-${row.companyId}`, atIso: row.latestOutcome.atIso,
+      text: `After the introduction to ${name(row)}, the ${row.latestOutcome.by === "site" ? "site" : "company"} said: ${row.latestOutcome.label}` });
+  }
+  return events;
+}
+
+export async function getJobConsoleDetail(requestId: string): Promise<AdminJobDetail | null> {
+  const record = await loadSiteJobRecord(requestId);
+  if (!record || !db) return null;
+  const store = db;
+  const internalTest = internalTestOf(record);
+  const revoked = projectWebsiteCaptureRights(record).consent_revoked;
+  const { captureId } = siteWalkthroughIdentity(requestId, record);
+  const optional = <T>(work: () => Promise<T>): Promise<T | null> => work().catch(() => null);
+
+  const [brief, session] = await Promise.all([
+    optional(() => import("./siteTaskBrief").then(({ getBrief }) => getBrief(requestId))),
+    optional(() => store.collection("captureUploadSessions").doc(captureId).get().then(snapshot => snapshot.data())),
+  ]);
+  // The Pipeline's own report, read as the site's status route reads it; never after a withdrawal.
+  const preparation = !revoked && session?.website_preparation
+    ? await optional(() => import("./websitePreparationStatus")
+      .then(({ loadCurrentWebsitePreparationStatus }) => loadCurrentWebsitePreparationStatus(requestId, captureId))) : null;
+  const scene = preparation?.state === "handed_off"
+    ? await optional(() => import("./websiteSceneProgression")
+      .then(({ loadWebsiteSceneProgression }) => loadWebsiteSceneProgression(requestId, captureId))) : null;
+  // Withdrawn, or the capture session unreadable: the outlook makes every read itself.
+  const answerWork = !revoked && session !== null
+    ? import("./siteAnswer").then(({ loadSiteAnswer }) => loadSiteAnswer(requestId)) : null;
+  // The outlook reads it, and treats a failure as no answer; nothing else waits on it.
+  answerWork?.catch(() => undefined);
+  const known: JobOutlookKnownReads | undefined = answerWork ? {
+    record, captureId, session: session ?? undefined, preparationStatus: preparation, sceneProgression: scene, brief: brief as never,
+    answer: answerWork,
+  } : undefined;
+
+  const [outlook, site, companies, videoAtIso, money, cost] = await Promise.all([
+    readOutlook(requestId, known),
+    internalTest ? Promise.resolve(null) : siteOf(record),
+    internalTest ? Promise.resolve(null)
+      : optional(() => import("./jobCompanies").then(({ loadAdminJobCompanies }) => loadAdminJobCompanies(requestId))),
+    optional(() => videoReceivedIso(requestId)),
+    optional(() => moneyStops(requestId)),
+    optional(() => costOf(requestId, record)),
+  ]);
+
+  const stored = storedCompanySimulation(session ?? undefined, captureId);
+  const packageReady = adminCompanySimulation(record, session ?? undefined, captureId);
+  const { sentence, drafted } = sentenceOf(record, brief);
+
+  // Only privacy, rights and money stop a job; said as each record says it.
+  const stops: AdminJobStop[] = [];
+  if (revoked) stops.push(withdrawalStop(record));
+  else if (!internalTest) {
+    const access = (() => { try { return teamJobAccess(record); } catch { return null; } })();
+    const rights = access?.reason ? RIGHTS_STOPS[access.reason] : undefined;
+    if (rights) stops.push({ key: `rights-${access!.reason}`, text: rights.text, whose: rights.whose, atIso: null });
+    const hold = operatorListingHold(record);
+    if (hold) stops.push({ key: "blueprint-hold", whose: "blueprint", atIso: hold.atIso,
+      text: `Blueprint stopped showing this job to companies${hold.reason ? `: ${hold.reason}` : "."}` });
+  }
+  if (preparation?.state === "failed_terminal" && preparation.terminalReason === "budget_exhausted")
+    stops.push({ key: "money-budget", text: "The Pipeline stopped at this job's budget.", whose: "blueprint", atIso: null });
+  stops.push(...(money ?? []));
+
+  const builtAtIso = stored ? epochIso(stored.updated_at_epoch) : null;
+  const events: AdminJobEvent[] = [
+    ...(iso(record.createdAt) ? [{ key: "received", text: "Job received", atIso: iso(record.createdAt)! }] : []),
+    ...(videoAtIso ? [{ key: "video", text: "Video received", atIso: videoAtIso }] : []),
+    ...(builtAtIso ? [{ key: "package", text: "Simulation package built", atIso: builtAtIso }] : []),
+    ...companyEvents(companies),
+    ...stops.filter(stop => stop.key === "withdrawn" && stop.atIso).map(stop => ({ key: "withdrawn", text: "Permission withdrawn by the site", atIso: stop.atIso! })),
+  ].sort((a, b) => a.atIso.localeCompare(b.atIso));
+
+  const { phase, phrase } = standingOf(outlook);
+  return {
+    requestId,
+    job: { sentence, drafted, site: internalTest ? null : site, internalTest },
+    standing: { phase, phrase, siteSees: outlook?.sentence ?? null,
+      companies: companies && !revoked ? companies.sharing.words : null, pipeline: pipelineWords(preparation, scene) },
+    simulationPackageUrl: packageReady ? `/api/admin/jobs/${encodeURIComponent(requestId)}/simulation.zip` : null,
+    simulationPackage: packageReady ? { files: packageReady.files, sizeBytes: packageReady.size_bytes, builtAtIso } : null,
+    // The same reading as the view route's own (`jobScenePreview`), from the session this read already holds.
+    scenePreviewViewUrl: adminViewableWebsiteScenePreview(record, session ?? undefined, captureId)
+      ? `/api/admin/jobs/${encodeURIComponent(requestId)}/scene-preview-view` : null,
+    cost,
+    stops,
+    events,
+  };
 }

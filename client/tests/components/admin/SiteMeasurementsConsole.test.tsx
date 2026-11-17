@@ -45,10 +45,8 @@ function json(body: unknown, status = 200) {
 }
 
 async function open() {
+  // The admin job page mounts the tool only when staff open it; mounted, it reads.
   const { container } = render(<SiteMeasurementsConsole requestId="job-a" currentUser={null} />);
-  const details = container.querySelector("details")!;
-  details.open = true;
-  fireEvent(details, new Event("toggle"));
   return container;
 }
 
@@ -74,20 +72,16 @@ afterEach(() => {
 });
 
 describe("the readings", () => {
-  it("loads nothing until opened, then shows SI values, provenance and what cannot be filled", async () => {
+  it("reads when mounted, then shows SI values, provenance and what cannot be filled", async () => {
     fetchMock.mockResolvedValueOnce(json({ measurements: MEASUREMENTS, consentRevoked: false, exports: [] }));
-    const { container } = render(<SiteMeasurementsConsole requestId="job-a" currentUser={null} />);
-    expect(fetchMock).not.toHaveBeenCalled();
-    const details = container.querySelector("details")!;
-    details.open = true;
-    fireEvent(details, new Event("toggle"));
-    const table = await screen.findByRole("table");
+    await open();
+    const table = await screen.findByRole("list", { name: "Readings the site recorded" });
     expect(within(table).getByText("Height of the surface where the object starts")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/jobs/job-a/site-measurements");
     expect(screen.getByText("30 inches")).toBeInTheDocument();
     expect(screen.getByText("0.762 m")).toBeInTheDocument();
     expect(screen.getByText("US Letter standard")).toBeInTheDocument();
-    expect(screen.getByText(/Film link · Sam/)).toBeInTheDocument();
+    expect(screen.getByText(/Film link, Sam/)).toBeInTheDocument();
     expect(screen.getByText("Readings cannot fill: collision, task dynamics, task state.")).toBeInTheDocument();
     expect(screen.getByText("Totes vary a little.")).toBeInTheDocument();
   });
@@ -103,7 +97,7 @@ describe("the source document export", () => {
   async function ready() {
     fetchMock.mockResolvedValueOnce(json({ measurements: MEASUREMENTS, consentRevoked: false, exports: [] }));
     await open();
-    await screen.findByRole("table");
+    await screen.findByRole("list", { name: "Readings the site recorded" });
   }
 
   it("refuses a binding that is not JSON without calling the server", async () => {

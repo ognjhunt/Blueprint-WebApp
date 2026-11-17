@@ -1,5 +1,30 @@
 import type { CompanyResponseState } from "../lib/companyResponses";
-import type { TeamAccessReason } from "./jobConsole";
+
+/**
+ * Why a job is not in front of companies: `teamJobAccess`'s reasons (`server/utils/teamJobAccess.ts`).
+ * `sharingInWords` (`server/utils/jobCompanies.ts`) stops compiling if that predicate gains a reason this list does not name.
+ */
+export type TeamAccessReason =
+  | "internal_test_job"
+  | "not_a_site_job"
+  | "pipeline_placeholder"
+  | "task_not_yet_supported"
+  | "not_listed"
+  | "kept_private"
+  | "restricted_to_named_teams"
+  | "operator_paused"
+  | "older_statement"
+  | "privacy_screen_pending"
+  | "no_job_sentence"
+  | "authority_ended"
+  | "closed_by_site"
+  | "consent_withdrawn"
+  | "blueprint_hold"
+  | "development_only"
+  | "rights_blocked"
+  | "rights_needs_review"
+  | "recording_consent_missing"
+  | "scene_not_runnable";
 
 /**
  * The operator's "Deployment companies" panel on `/admin/jobs` (`GET /api/admin/jobs/:id/companies`). Admin only: it

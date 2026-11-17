@@ -8,12 +8,11 @@
  * reading that set the scene's metric scale is ticked here and left out of
  * every check. The server keeps an immutable copy of every export, listed here
  * and downloadable again, and refuses to export once recording consent is
- * withdrawn. Loaded only when opened.
+ * withdrawn. A staff tool on the admin job page: mounted, and so loaded, only when opened.
  */
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
-import { Button, StatusChip } from "@/components/blueprint";
 import {
   UNIT_LABELS,
   familySpec,
@@ -146,135 +145,114 @@ export function SiteMeasurementsConsole({ requestId, currentUser }: {
   const ready = loaded.status === "ready" ? loaded : null;
   const measurements = ready?.measurements ?? null;
 
+  useEffect(() => { if (loaded.status === "idle") void load(); }, []);
+
   return (
-    <details onToggle={(event) => { if (event.currentTarget.open && loaded.status === "idle") void load(); }}>
-      <summary className="runway-rule-head runway-meta cursor-pointer">Site measurements</summary>
-      <div className="mt-4 grid gap-4">
-        {loaded.status === "loading" ? <p className="text-sm text-runway-mute">Loading the site's readings…</p> : null}
-        {loaded.status === "failed" ? <p className="text-sm text-runway-red">{loaded.message}</p> : null}
-        {ready && !measurements ? (
-          <p className="text-sm text-runway-mute">No measurements recorded for this job yet.</p>
-        ) : null}
-        {ready?.consentRevoked ? (
-          <p className="text-sm text-runway-red">
-            Recording consent was withdrawn for this job. Its measurements cannot be exported for qualification.
+    <section aria-label="Site measurements" className="admin-job-tool">
+      {loaded.status === "loading" ? <p className="bare-helper" role="status">Loading the site's readings…</p> : null}
+      {loaded.status === "failed" ? <p className="bare-notice" role="alert">{loaded.message}</p> : null}
+      {ready && !measurements ? <p className="bare-helper">No measurements recorded for this job yet.</p> : null}
+      {ready?.consentRevoked ? (
+        <p className="bare-notice">Recording consent was withdrawn for this job. Its measurements cannot be exported for qualification.</p>
+      ) : null}
+      {measurements ? (
+        <>
+          <p>
+            {familySpec(measurements.family).label}
+            {measurements.articulation ? ` (${ARTICULATION_LABELS[measurements.articulation]})` : ""}
+            , revision {measurements.revision}, updated {dateLabel(measurements.updatedAtIso)}
           </p>
-        ) : null}
-        {measurements ? (
-          <>
-            <p className="text-sm text-runway-body">
-              {familySpec(measurements.family).label}
-              {measurements.articulation ? ` (${ARTICULATION_LABELS[measurements.articulation]})` : ""}
-              {" · "}revision {measurements.revision} · updated {dateLabel(measurements.updatedAtIso)}
-            </p>
-            <div className="overflow-x-auto">
-              <table className="runway-table min-w-[40rem]">
-                <caption className="sr-only">Readings the site recorded</caption>
-                <thead><tr><th scope="col">Reading</th><th scope="col">As entered</th><th scope="col">SI</th><th scope="col">Recorded</th></tr></thead>
-                <tbody>
-                  {measurements.readings.map((reading) => (
-                    <tr key={reading.sampleId}>
-                      <td>{reading.label}<br /><span className="runway-num text-xs text-runway-faint">{reading.sampleId}</span></td>
-                      <td>{reading.basis === "paper_standard"
-                        ? PAPER_LABELS[measurements.referencePaper === "a4" ? "a4" : "letter"]
-                        : `${reading.value} ${reading.unit ? UNIT_LABELS[reading.unit] : ""}`}</td>
-                      <td className="runway-num">{`${reading.si} ${reading.siUnit}`}</td>
-                      <td className="text-xs">
-                        {`${reading.recordedByScope === "film" ? "Film link" : "Owner link"} · ${reading.recordedByName || "no name"}`}
-                        <br />{dateLabel(reading.recordedAtIso)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <ul className="admin-job-list" aria-label="Readings the site recorded">
+            {measurements.readings.map((reading) => (
+              <li key={reading.sampleId}>
+                <span>{reading.label}</span>:{" "}
+                <span>{reading.basis === "paper_standard"
+                  ? PAPER_LABELS[measurements.referencePaper === "a4" ? "a4" : "letter"]
+                  : `${reading.value} ${reading.unit ? UNIT_LABELS[reading.unit] : ""}`}</span>
+                {" ("}<span>{`${reading.si} ${reading.siUnit}`}</span>{")"}
+                <span className="bare-helper">
+                  {` ${reading.recordedByScope === "film" ? "Film link" : "Owner link"}, ${reading.recordedByName || "no name"}, ${dateLabel(reading.recordedAtIso)}. ${reading.sampleId}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {measurements.note ? <p>{measurements.note}</p> : null}
+          <p>
+            {measurements.coverage.complete
+              ? "Every check has readings."
+              : `Readings cannot fill: ${dimensions(measurements.coverage.missingDimensions)}.`}
+          </p>
+          <p className="bare-helper">
+            Site-stated readings. They become qualification evidence only as a pinned source document, beside the
+            simulator's readings, under a reviewed fidelity profile.
+          </p>
+
+          {!ready?.consentRevoked ? (
+            <form method="post" onSubmit={submit} className="ms-form" aria-label="Build the source measurement document">
+              <label htmlFor={`${requestId}-binding`}>Qualification request binding (JSON)
+                <textarea id={`${requestId}-binding`} required
+                  value={bindingText} onChange={(event) => setBindingText(event.target.value)}
+                  placeholder='{"scene_request_id": "…", "site_id": "…", "task_id": "…", … "policy_interface_id": "…"}' />
+              </label>
+              <label htmlFor={`${requestId}-producer`}>Measurement producer
+                <input id={`${requestId}-producer`} required maxLength={192} value={producerId}
+                  onChange={(event) => setProducerId(event.target.value)} />
+              </label>
+              <fieldset className="ms-choice">
+                <legend>Readings that set the scene's metric scale (left out of every check)</legend>
+                {measurements.readings.map((reading) => (
+                  <label key={reading.sampleId} className="ms-check-row">
+                    <input type="checkbox" checked={calibration.includes(reading.sampleId)}
+                      aria-label={`${reading.label} set the scene's metric scale`}
+                      onChange={(event) => setCalibration((current) => event.target.checked
+                        ? [...current, reading.sampleId] : current.filter((id) => id !== reading.sampleId))} />
+                    {reading.label}
+                  </label>
+                ))}
+              </fieldset>
+              {exportError ? <p role="alert" className="bare-notice">{exportError}</p> : null}
+              <button type="submit" className="ms-button" disabled={exporting}>{exporting ? "Building…" : "Build source document"}</button>
+            </form>
+          ) : null}
+
+          {exported ? (
+            <div role="status" className="bare-done">
+              <p>Retain these exact bytes as the request's measurement artifact.</p>
+              <p><code>{exported.sha256}</code></p>
+              <p>
+                {exported.sampleCount} {exported.sampleCount === 1 ? "sample" : "samples"}, {exported.sizeBytes} bytes.
+                {exported.coverage.complete
+                  ? " Every check has its minimum readings."
+                  : ` Cannot fill: ${dimensions(exported.coverage.missingDimensions)}. The qualifier will refuse these checks.`}
+              </p>
+              <p className="bare-helper">
+                {exported.retained.alreadyRetained
+                  ? `Already retained on ${dateLabel(exported.retained.retainedAtIso)} at ${exported.retained.path}.`
+                  : `Retained at ${exported.retained.path}.`}
+              </p>
+              <button type="button" className="bare-quiet-button" onClick={() => download(exported.json, exported.fileName)}
+                aria-label={`Download ${exported.fileName}`}>Download JSON</button>
             </div>
-            {measurements.note ? <p className="text-sm text-runway-body">{measurements.note}</p> : null}
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <StatusChip tone={measurements.coverage.complete ? "proof" : "warn"} square>
-                {measurements.coverage.complete ? "Every check has readings" : "Incomplete"}
-              </StatusChip>
-              <span className="text-runway-body">
-                {measurements.coverage.complete
-                  ? "Readings can fill every check."
-                  : `Readings cannot fill: ${dimensions(measurements.coverage.missingDimensions)}.`}
-              </span>
-            </div>
-            <p className="text-xs text-runway-mute">
-              Site-stated readings. They become qualification evidence only as a pinned source document, beside the
-              simulator's readings, under a reviewed fidelity profile.
-            </p>
+          ) : null}
+        </>
+      ) : null}
 
-            {!ready?.consentRevoked ? (
-              <form method="post" onSubmit={submit} className="grid gap-4" aria-label="Build the source measurement document">
-                <div>
-                  <label className="runway-label" htmlFor={`${requestId}-binding`}>Qualification request binding (JSON)</label>
-                  <textarea id={`${requestId}-binding`} className="runway-input min-h-[8rem] w-full font-mono text-xs" required
-                    value={bindingText} onChange={(event) => setBindingText(event.target.value)}
-                    placeholder='{"scene_request_id": "…", "site_id": "…", "task_id": "…", … "policy_interface_id": "…"}' />
-                </div>
-                <div>
-                  <label className="runway-label" htmlFor={`${requestId}-producer`}>Measurement producer</label>
-                  <input id={`${requestId}-producer`} className="runway-input" required maxLength={192} value={producerId}
-                    onChange={(event) => setProducerId(event.target.value)} />
-                </div>
-                <fieldset className="grid gap-2">
-                  <legend className="runway-label">Readings that set the scene's metric scale (left out of every check)</legend>
-                  {measurements.readings.map((reading) => (
-                    <label key={reading.sampleId} className="flex items-center gap-2 text-sm text-runway-body">
-                      <input type="checkbox" checked={calibration.includes(reading.sampleId)}
-                        aria-label={`${reading.label} set the scene's metric scale`}
-                        onChange={(event) => setCalibration((current) => event.target.checked
-                          ? [...current, reading.sampleId] : current.filter((id) => id !== reading.sampleId))} />
-                      {reading.label}
-                    </label>
-                  ))}
-                </fieldset>
-                {exportError ? <p role="alert" className="text-sm text-runway-red">{exportError}</p> : null}
-                <div><Button type="submit" size="sm" disabled={exporting}>{exporting ? "Building…" : "Build source document"}</Button></div>
-              </form>
-            ) : null}
-
-            {exported ? (
-              <div role="status" className="grid gap-2 border border-runway-green-dim p-4 text-sm text-runway-body">
-                <p>Retain these exact bytes as the request's measurement artifact.</p>
-                <p className="runway-num break-all text-runway-text">{exported.sha256}</p>
-                <p>
-                  {exported.sampleCount} {exported.sampleCount === 1 ? "sample" : "samples"}, {exported.sizeBytes} bytes.
-                  {exported.coverage.complete
-                    ? " Every check has its minimum readings."
-                    : ` Cannot fill: ${dimensions(exported.coverage.missingDimensions)}. The qualifier will refuse these checks.`}
-                </p>
-                <p className="break-all text-xs">
-                  {exported.retained.alreadyRetained
-                    ? `Already retained on ${dateLabel(exported.retained.retainedAtIso)} at ${exported.retained.path}.`
-                    : `Retained at ${exported.retained.path}.`}
-                </p>
-                <div>
-                  <Button type="button" size="sm" variant="secondary" onClick={() => download(exported.json, exported.fileName)}
-                    aria-label={`Download ${exported.fileName}`}>Download JSON</Button>
-                </div>
-              </div>
-            ) : null}
-          </>
-        ) : null}
-
-        {ready && ready.exports.length ? (
-          <div className="grid gap-2">
-            <h4 className="runway-label">Retained exports</h4>
-            <ul className="grid gap-2 text-xs text-runway-body">
-              {ready.exports.map((summary) => (
-                <li key={summary.sha256} className="flex flex-wrap items-center gap-3">
-                  <span>{dateLabel(summary.exportedAtIso)} · revision {summary.revision} · {summary.producerId}</span>
-                  <span className="runway-num break-all text-runway-faint">{summary.sha256}</span>
-                  <Button type="button" size="sm" variant="secondary" onClick={() => void recover(summary)}
-                    aria-label={`Download retained export ${summary.sha256}`}>Download</Button>
-                </li>
-              ))}
-            </ul>
-            {recoveryError ? <p role="alert" className="text-sm text-runway-red">{recoveryError}</p> : null}
-          </div>
-        ) : null}
-      </div>
-    </details>
+      {ready && ready.exports.length ? (
+        <div>
+          <h4 className="bare-rows-title">Retained exports</h4>
+          <ul className="admin-job-list">
+            {ready.exports.map((summary) => (
+              <li key={summary.sha256}>
+                {dateLabel(summary.exportedAtIso)}, revision {summary.revision}, {summary.producerId}{" "}
+                <code>{summary.sha256}</code>{" "}
+                <button type="button" className="bare-quiet-button" onClick={() => void recover(summary)}
+                  aria-label={`Download retained export ${summary.sha256}`}>Download</button>
+              </li>
+            ))}
+          </ul>
+          {recoveryError ? <p role="alert" className="bare-notice">{recoveryError}</p> : null}
+        </div>
+      ) : null}
+    </section>
   );
 }
