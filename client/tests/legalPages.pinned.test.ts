@@ -114,7 +114,12 @@ describe("legal pages are pinned to their versions", () => {
       ["the frames and blurred copies we make from them", "the frames and any blurred copies we make from them"],
       ["Scratch files from rebuilding a scene or blurring footage that sit", "Scratch files from processing footage that sit"],
       ["Frames and blurred copies stored with the capture", "Frames and any blurred copies stored with the capture"],
+      // "this version" meant 2026-11-13.1 when it was written; the new page names that version so the meaning stays.
+      ['"For jobs started and requests sent under this version of the policy or a later one, may read',
+        '"For jobs started and requests sent under the version of this policy effective November 13, 2026, or a later one, may read'],
     ];
+    const paragraphChange: [string, string] = ["under this version of the policy or a later one, by Anthropic, with Google Gemini reviewing the\n          footage;",
+      "under the version of this policy effective November 13, 2026, or a later one, by Anthropic, with Google Gemini\n          reviewing the footage;"];
     const shell = (source: string) => source.slice(source.indexOf("SHARING_SENTENCE ="), source.indexOf("export default function"))
       .replace(/^export const /gm, "const ");
     let expected = shell(read("client/src/pages/PrivacyPrevious.tsx"));
@@ -124,10 +129,11 @@ describe("legal pages are pinned to their versions", () => {
     }
     const privacy = read("client/src/pages/Privacy.tsx");
     expect(shell(privacy)).toBe(expected);
-    // Everything after the effective-date line and the note is the same.
+    // Everything after the effective-date line and the note is the same, but for the AI paragraph's version name.
     const body = (source: string) => source.slice(source.indexOf("        This policy explains how"));
     expect(body(privacy).length).toBeGreaterThan(1000);
-    expect(body(privacy)).toBe(body(read("client/src/pages/PrivacyPrevious.tsx")));
+    expect(body(read("client/src/pages/PrivacyPrevious.tsx")).split(paragraphChange[0])).toHaveLength(2);
+    expect(body(privacy)).toBe(body(read("client/src/pages/PrivacyPrevious.tsx")).replace(paragraphChange[0], paragraphChange[1]));
     const TERMS_FROM = "We do not remove people from the footage or from frames taken from it; we blur faces only in the frames we send to World Labs to rebuild the work area.";
     const TERMS_TO = "We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under an earlier version of our Privacy Policy, we still blur faces in the frames we send to World Labs to rebuild the work area.";
     const previousTerms = JSON.stringify(previousTermsSections);

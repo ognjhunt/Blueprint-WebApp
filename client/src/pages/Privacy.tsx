@@ -181,7 +181,7 @@ export const privacySubprocessorCategories = [
       ["OpenAI", "Reading the job description and frames from a site capture to draft the job brief and prepare the simulated scene, drafting replies, and sorting incoming requests"],
       ["Google Gemini", "Watching site footage, with its sound removed, and frames from it, together with the job description, to draft and check the job brief and to find what the simulated scene needs"],
       ["Meta", "Outlining objects and areas in site footage, with its sound removed, to prepare the simulated scene"],
-      ["Anthropic", "For jobs started and requests sent under this version of the policy or a later one, may read the job description and frames from a site capture to draft the job brief and prepare the simulated scene, draft replies, and sort incoming requests; for earlier jobs, drafting the job brief from capture frames only when a site explicitly chooses that option; and drafting and sorting internal work where we configure it"],
+      ["Anthropic", "For jobs started and requests sent under the version of this policy effective November 13, 2026, or a later one, may read the job description and frames from a site capture to draft the job brief and prepare the simulated scene, draft replies, and sort incoming requests; for earlier jobs, drafting the job brief from capture frames only when a site explicitly chooses that option; and drafting and sorting internal work where we configure it"],
       ["DeepSeek", "Drafting and sorting internal work, where we configure it"],
       ["World Labs", "Rebuilding a work area as a 3D scene from site footage, with its sound removed"],
       ["Vast.ai", "Cloud GPU servers that rebuild scenes and run simulated evaluations"],
@@ -278,8 +278,8 @@ export default function Privacy() {
         <p>
           Frames from a site capture, together with the job description, are processed by AI model providers acting as
           our sub-processors to draft the job brief. These are processed by OpenAI or, for jobs started and requests sent
-          under this version of the policy or a later one, by Anthropic, with Google Gemini reviewing the
-          footage; for an earlier job, Anthropic receives frames only when the site explicitly chose that option. We also
+          under the version of this policy effective November 13, 2026, or a later one, by Anthropic, with Google Gemini
+          reviewing the footage; for an earlier job, Anthropic receives frames only when the site explicitly chose that option. We also
           use the providers listed
           above to rebuild scenes and sort incoming requests. We send each provider only what the step needs, footage
           goes to them with its sound removed, the provider may not use it for its own purposes, and we do not give any

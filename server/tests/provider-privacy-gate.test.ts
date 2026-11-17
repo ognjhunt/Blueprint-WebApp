@@ -116,9 +116,16 @@ describe("the gate's decisions under every version", () => {
   });
 
   it("under 2026-11-13.1, Anthropic may receive what OpenAI may for site data, and still not the staff thread or footage", () => {
-    // 2026-11-17.1 (owner, 2026-11-17: only the face blurring leaves) keeps the rows of 2026-11-13.1 word for word.
+    // 2026-11-17.1 (owner, 2026-11-17: only the face blurring leaves) permits what 2026-11-13.1 does.
     expect(PRIVACY_VERSION).toBe(NO_FACE_BLUR_VERSION);
-    expect(PRIVACY_POLICY_PROVIDER_ROWS[PRIVACY_VERSION].rows).toBe(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].rows);
+    // Every row permits the same; only Anthropic's words name the version they mean instead of "this version".
+    const current = PRIVACY_POLICY_PROVIDER_ROWS[PRIVACY_VERSION].rows, earlier = PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].rows;
+    expect(Object.keys(current)).toEqual(Object.keys(earlier));
+    for (const row of Object.keys(earlier)) {
+      expect(current[row].classes, row).toEqual(earlier[row].classes);
+      expect(current[row].words, row).toBe(row === "Anthropic" ? earlier[row].words.replace("under this version of the policy or a later one",
+        "under the version of this policy effective November 13, 2026, or a later one") : earlier[row].words);
+    }
     expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].page).toBe("client/src/pages/PrivacyPrevious.tsx");
     expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-12.2"].page).toBe("client/src/pages/PrivacyOlder.tsx");
     for (const kind of ALL_KINDS) {
