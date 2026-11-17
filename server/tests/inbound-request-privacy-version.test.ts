@@ -1,5 +1,6 @@
 // @vitest-environment node
 import express from "express";
+import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createServer, type Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
@@ -98,8 +99,8 @@ describe("privacy_version_at_submission on the stored job", () => {
   // Owner, 2026-11-17: a job started under 2026-11-17.1 is not blurred; one started under an earlier version is. The
   // Pipeline reads the grant's `privacy_policy_version`, which is this stored version (`websiteJobPrivacyPolicyVersion`).
   it.each([
-    ["the current form", { acceptedTerms: true, termsVersion: "2026-11-17.1", privacyVersion: "2026-11-17.1" }, "2026-11-17.1"],
-    ["a form opened before 2026-11-17.1", { acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }, "2026-11-13.1"],
+    ["the current form", { acceptedTerms: true, termsVersion: NO_FACE_BLUR_VERSION, privacyVersion: NO_FACE_BLUR_VERSION }, NO_FACE_BLUR_VERSION],
+    ["a form opened before the no-blur version", { acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }, "2026-11-13.1"],
     ["a form opened before 2026-11-13.1", { acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" }, "2026-11-12.2"],
     ["a form that sends no versions", { acceptedTerms: true }, "2026-11-12.2"],
   ])("stores the version %s showed", async (_name, extra, expected) => {
@@ -114,6 +115,18 @@ describe("privacy_version_at_submission on the stored job", () => {
     } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
   });
 
+  // Review, 2026-11-17: Terms 2026-11-12.2 promises the face blur; no page showed it beside the no-blur Privacy version.
+  it.each([["2026-11-12.2", NO_FACE_BLUR_VERSION], [NO_FACE_BLUR_VERSION, "2026-11-13.1"]])(
+    "refuses a request that names Terms %s with Privacy %s, a pair no page showed, and stores nothing", async (terms, privacy) => {
+      const { server, baseUrl } = await start();
+      try {
+        const requestId = `privacy-mixed-${terms}-${privacy}`.replace(/\W/g, "-");
+        const response = await submit(baseUrl, requestId, { acceptedTerms: true, termsVersion: terms, privacyVersion: privacy });
+        expect(response.status).toBe(400);
+        expect(stored(requestId)).toBeUndefined();
+      } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+    });
+
   it("stores no version when no acceptance is recorded in that act", async () => {
     const { server, baseUrl } = await start();
     try {
@@ -127,14 +140,14 @@ describe("privacy_version_at_submission on the stored job", () => {
     } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
   });
 
-  it("keeps a job started before 2026-11-17.1 under its own version: a later retry or the new release does not move it", async () => {
+  it("keeps a job started before the no-blur version under its own version: a later retry or the new release does not move it", async () => {
     const { server, baseUrl } = await start();
     try {
       // Started from the form of 2026-11-13.1 (before this release), then retried from a page showing 2026-11-17.1.
       expect((await submit(baseUrl, "privacy-before-release", { acceptedTerms: true, termsVersion: "2026-11-12.2",
         privacyVersion: "2026-11-13.1" })).status).toBe(201);
-      expect((await submit(baseUrl, "privacy-before-release", { acceptedTerms: true, termsVersion: "2026-11-17.1",
-        privacyVersion: "2026-11-17.1" })).status).toBe(200);
+      expect((await submit(baseUrl, "privacy-before-release", { acceptedTerms: true, termsVersion: NO_FACE_BLUR_VERSION,
+        privacyVersion: NO_FACE_BLUR_VERSION })).status).toBe(200);
       expect(stored("privacy-before-release")?.privacy_version_at_submission).toBe("2026-11-13.1");
       expect(websiteJobPrivacyPolicyVersion(stored("privacy-before-release")!)).toBe("2026-11-13.1");
       // A job stored before this release, under any earlier version it recorded, keeps that version in its grant.

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import express from "express";
+import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -2635,7 +2636,7 @@ describe("the grant names the job's Privacy version and the statements its site 
 
   // Owner, 2026-11-17: the Pipeline blurs a job whose grant does not name 2026-11-17.1. A job started from now on names
   // it; a job started earlier, including one from a form opened before the release, names its own earlier version.
-  it.each(["2026-11-17.1", "2026-11-13.1"])("sends the version %s written at submission in the grant", async (version) => {
+  it.each([NO_FACE_BLUR_VERSION, "2026-11-13.1"])("sends the version %s written at submission in the grant", async (version) => {
     sponsoredCapture();
     const inbound = store.rows.get("inboundRequests/req1");
     inbound.privacy_version_at_submission = version;

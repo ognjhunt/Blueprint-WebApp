@@ -5,6 +5,7 @@
  * every place a provider is chosen.
  */
 import fs from "node:fs";
+import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -75,7 +76,7 @@ describe("the gate's tables", () => {
 
   it("applies the version recorded on the data when known, and the strictest table when it is absent or unknown", () => {
     expect(resolvePrivacyVersion("2026-11-02.1")).toBe("2026-11-02.1");
-    expect(resolvePrivacyVersion("2026-11-17.1")).toBe("2026-11-17.1");
+    expect(resolvePrivacyVersion(NO_FACE_BLUR_VERSION)).toBe(NO_FACE_BLUR_VERSION);
     expect(resolvePrivacyVersion("not-a-version")).toBe(STRICTEST_PRIVACY_TABLE);
     expect(resolvePrivacyVersion(undefined)).toBe(STRICTEST_PRIVACY_TABLE);
     // The strictest table permits nothing that any known version refuses.
@@ -116,7 +117,7 @@ describe("the gate's decisions under every version", () => {
 
   it("under 2026-11-13.1, Anthropic may receive what OpenAI may for site data, and still not the staff thread or footage", () => {
     // 2026-11-17.1 (owner, 2026-11-17: only the face blurring leaves) keeps the rows of 2026-11-13.1 word for word.
-    expect(PRIVACY_VERSION).toBe("2026-11-17.1");
+    expect(PRIVACY_VERSION).toBe(NO_FACE_BLUR_VERSION);
     expect(PRIVACY_POLICY_PROVIDER_ROWS[PRIVACY_VERSION].rows).toBe(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].rows);
     expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].page).toBe("client/src/pages/PrivacyPrevious.tsx");
     expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-12.2"].page).toBe("client/src/pages/PrivacyOlder.tsx");

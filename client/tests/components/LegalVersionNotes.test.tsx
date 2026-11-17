@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import { CurrentLegalVersionNote, LegalUpdateBanner, PreviousLegalVersionNote } from "@/components/site/LegalVersionNotes";
+import { NO_FACE_BLUR_VERSION, legalEffectiveAtMs, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 // The 2026-11-11 revision (filming visits retired) follows the same convention.
 const AFTER = new Date("2026-11-26T12:00:00Z");
@@ -30,7 +31,7 @@ afterEach(() => {
 // November 13) at once (owner: no face blurring for new jobs).
 describe("legal update notice", () => {
   it("announces nothing while no update is pending", () => {
-    at(new Date("2026-11-17T12:00:00Z"));
+    at(new Date(legalEffectiveAtMs(NO_FACE_BLUR_VERSION) + 4 * 3_600_000));
     render(<LegalUpdateBanner />);
     expect(screen.queryByRole("region", { name: "Terms and Privacy Policy update" })).toBeNull();
   });
@@ -42,11 +43,12 @@ describe("legal update notice", () => {
   });
 
   it("links each version to the other and says which one applies", () => {
-    at(new Date("2026-11-17T12:00:00Z"));
+    at(new Date(legalEffectiveAtMs(NO_FACE_BLUR_VERSION) + 4 * 3_600_000));
     render(<><CurrentLegalVersionNote document="terms" /><PreviousLegalVersionNote document="privacy" /></>);
     expect(screen.getByText(/This version replaced the/)).toHaveTextContent("(effective November 12, 2026).");
     expect(screen.getByRole("link", { name: "previous version" })).toHaveAttribute("href", "/terms/previous");
-    expect(screen.getByText(/This version applied until November 17, 2026/)).toHaveTextContent("current Privacy Policy took effect.");
+    expect(screen.getByText(`This version applied until ${legalEffectiveDate(NO_FACE_BLUR_VERSION)}, when the`, { exact: false }))
+      .toHaveTextContent("current Privacy Policy took effect.");
     expect(screen.getByRole("link", { name: "current Privacy Policy" })).toHaveAttribute("href", "/privacy");
   });
 });

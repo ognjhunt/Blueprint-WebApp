@@ -4,6 +4,7 @@
  * passed, and the physical pilot is agreed between the site and the team.
  */
 import { describe, expect, it, vi } from "vitest";
+import { NO_FACE_BLUR_VERSION } from "@/lib/legalAcceptance";
 
 import {
   betaRetentionSchedule,
@@ -62,31 +63,31 @@ describe("terms for the free beta", () => {
     }
   });
 
-  it("puts Terms and Privacy 2026-11-17.1 in force at once; nobody who had accepted is asked again", () => {
+  it("puts the no-blur Terms and Privacy in force at once; nobody who had accepted is asked again", () => {
     // Owner, 2026-11-12: sharing is the service (2026-11-12.1), then no limit on introductions (Terms 2026-11-12.2, the
     // same day). Owner decision 1 of 2026-11-13: Anthropic may process a new job like OpenAI (Privacy 2026-11-13.1). Owner,
     // 2026-11-17: no face blurring for a new job (Terms and Privacy 2026-11-17.1), effective at once, and earlier
     // acceptances keep counting. The version published ahead for November 25 never took effect.
-    expect(TERMS_VERSION).toBe("2026-11-17.1");
-    expect(PRIVACY_VERSION).toBe("2026-11-17.1");
+    expect(TERMS_VERSION).toBe(NO_FACE_BLUR_VERSION);
+    expect(PRIVACY_VERSION).toBe(NO_FACE_BLUR_VERSION);
     expect(ANNOUNCED_SUPERSEDED_VERSION).toBe("2026-11-25.1");
     expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-12.2", "2026-11-13.1"]);
     expect([OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-12.2"]);
-    const now = Date.parse("2026-11-17T18:00:00Z");
+    const now = legalEffectiveAtMs(NO_FACE_BLUR_VERSION) + 10 * 3_600_000;
     // Accepted before this release: still current, nothing is asked again.
     for (const [termsVersion, privacyVersion] of [["2026-11-12.2", "2026-11-12.2"], ["2026-11-12.2", "2026-11-13.1"],
-      ["2026-11-12.2", "2026-11-17.1"], ["2026-11-17.1", "2026-11-13.1"], ["2026-11-17.1", "2026-11-17.1"]])
+      ["2026-11-12.2", NO_FACE_BLUR_VERSION], [NO_FACE_BLUR_VERSION, "2026-11-13.1"], [NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION]])
       expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, now), `${termsVersion} ${privacyVersion}`).toBe(true);
     // What was already asked again stays asked: Terms 2026-11-12.1 and older, with any Privacy version.
     expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-12.1", now)).toBe(false);
-    expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-17.1", now)).toBe(false);
-    expect(acceptedVersionsAreCurrent("2026-11-02.1", "2026-11-17.1", now)).toBe(false);
+    expect(acceptedVersionsAreCurrent("2026-11-12.1", NO_FACE_BLUR_VERSION, now)).toBe(false);
+    expect(acceptedVersionsAreCurrent("2026-11-02.1", NO_FACE_BLUR_VERSION, now)).toBe(false);
     // A Privacy version that did not count before this release still does not.
     expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-02.1", now)).toBe(false);
-    expect(acceptedVersionsAreCurrent("2026-11-17.1", "2026-11-12.1", now)).toBe(false);
+    expect(acceptedVersionsAreCurrent(NO_FACE_BLUR_VERSION, "2026-11-12.1", now)).toBe(false);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 17, 2026");
     expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 17, 2026");
-    expect(legalUpdatePending(Date.parse("2026-11-17T08:00:00Z"))).toBe(false);
+    expect(legalUpdatePending(legalEffectiveAtMs(NO_FACE_BLUR_VERSION))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {
@@ -210,7 +211,7 @@ describe("recording notice, sound and the listing choice", () => {
 });
 
 describe("acceptance while a reissue is announced", () => {
-  it("keeps the versions in force usable before and, as the owner decided for 2026-11-17.1, after the new ones take effect", async () => {
+  it("keeps the versions in force usable before and, as the owner decided for the no-blur version, after the new ones take effect", async () => {
     const legal = await import("@/lib/legalAcceptance");
     const effective = legal.legalEffectiveAtMs(legal.TERMS_VERSION);
     expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, effective - 1)).toBe(true);

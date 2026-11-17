@@ -104,7 +104,7 @@ describe("legal pages are pinned to their versions", () => {
   // 2026-11-17.1 change only the sentences on blurring; a job started under an earlier Privacy version keeps it. The
   // previous pages keep the text of Terms 2026-11-12.2 and Privacy 2026-11-13.1 word for word: only the page shell
   // (imports, the effective-date line, the note, the title and the names) differs, as it did for every previous page.
-  it("2026-11-17.1 changes only the sentences on blurring; the previous pages keep the text in force before it", () => {
+  it("the no-blur version changes only the sentences on blurring; the previous pages keep the text in force before it", () => {
     const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
     const EARLIER_JOB = "For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area.";
     const NOT_BLURRED = "We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. " + EARLIER_JOB;

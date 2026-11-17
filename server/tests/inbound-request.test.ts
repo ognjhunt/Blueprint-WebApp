@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import express from "express";
 import { createServer } from "http";
 import fs from "node:fs";
@@ -869,8 +870,8 @@ describe("inbound request route", () => {
   // Owner, 2026-11-17: a job started from a form opened before 2026-11-17.1 stays under the Privacy version it showed,
   // so the Pipeline still blurs it; only a job started from the current form is under 2026-11-17.1.
   it.each([
-    ["the current form", { termsVersion: "2026-11-17.1", privacyVersion: "2026-11-17.1" }, ["2026-11-17.1", "2026-11-17.1"]],
-    ["a form opened before 2026-11-17.1", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }, ["2026-11-12.2", "2026-11-13.1"]],
+    ["the current form", { termsVersion: NO_FACE_BLUR_VERSION, privacyVersion: NO_FACE_BLUR_VERSION }, [NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION]],
+    ["a form opened before the no-blur version", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }, ["2026-11-12.2", "2026-11-13.1"]],
     ["a form opened before Privacy 2026-11-13.1", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" }, ["2026-11-12.2", "2026-11-12.2"]],
     ["a form that sends no versions (opened before forms sent them)", {}, ["2026-11-12.2", "2026-11-12.2"]],
   ] as const)("records the versions %s showed, never rewritten to the current ones", async (_label, versions, expected) => {
@@ -903,7 +904,7 @@ describe("inbound request route", () => {
       // The job's version for the Privacy gate: the one the form showed, written once, at submission.
       expect(savedRequest?.privacy_version_at_submission).toBe(expected[1]);
       expect(Number.isNaN(Date.parse(String(savedRequest?.terms_acceptance?.accepted_at ?? "")))).toBe(false);
-      expect([TERMS_VERSION, PRIVACY_VERSION]).toEqual(["2026-11-17.1", "2026-11-17.1"]);
+      expect([TERMS_VERSION, PRIVACY_VERSION]).toEqual([NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION]);
     } finally {
       await stopServer(server);
     }
@@ -912,7 +913,7 @@ describe("inbound request route", () => {
   it.each([
     ["an older Privacy version", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-02.1" }],
     ["an older Terms version", { termsVersion: "2026-11-12.1", privacyVersion: "2026-11-13.1" }],
-    ["an older Terms version beside the current Privacy Policy", { termsVersion: "2026-11-12.1", privacyVersion: "2026-11-17.1" }],
+    ["an older Terms version beside the current Privacy Policy", { termsVersion: "2026-11-12.1", privacyVersion: NO_FACE_BLUR_VERSION }],
     ["unknown versions", { termsVersion: "client-supplied-stale", privacyVersion: "client-supplied-stale" }],
   ])("refuses a form that showed %s, recording nothing", async (_label, versions) => {
     process.env.NODE_ENV = "development";

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import express from "express";
+import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createServer, type Server } from "node:http";
 import { createHash, createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -301,7 +302,7 @@ describe("the job's Privacy version in the Atlas authority", () => {
     return (await configure()).authority;
   };
 
-  it.each(["2026-11-17.1", "2026-11-13.1", "2026-11-12.2"])("a job started under %s carries that version, sealed by the digest", async version => {
+  it.each([NO_FACE_BLUR_VERSION, "2026-11-13.1", "2026-11-12.2"])("a job started under %s carries that version, sealed by the digest", async version => {
     const authority = await grantFor(version);
     const stored = store.rows.get(REQUEST).website_atlas_grants["walkthrough-req1"];
     expect(authority.privacy_policy_version).toBe(version);
@@ -311,7 +312,7 @@ describe("the job's Privacy version in the Atlas authority", () => {
     expect(authority.authorization_digest).not.toBe(crossRuntimeDigest(without));
   });
 
-  it.each([["nothing recorded", undefined], ["an unknown version", "2026-01-01.9"], ["a malformed version", ["2026-11-17.1"]],
+  it.each([["nothing recorded", undefined], ["an unknown version", "2026-01-01.9"], ["a malformed version", [NO_FACE_BLUR_VERSION]],
     ["an empty version", ""]])("a job with %s carries no version", async (_name, version) => {
     const authority = await grantFor(version);
     expect(authority).not.toHaveProperty("privacy_policy_version");
@@ -323,7 +324,7 @@ describe("the job's Privacy version in the Atlas authority", () => {
     // Pipeline compares a resumed authority whole with the one it stored, so it is returned byte for byte.
     const before = await grantFor();
     const storedBefore = JSON.stringify(store.rows.get(REQUEST).website_atlas_grants["walkthrough-req1"]);
-    store.rows.get(REQUEST).privacy_version_at_submission = "2026-11-17.1";
+    store.rows.get(REQUEST).privacy_version_at_submission = NO_FACE_BLUR_VERSION;
     const again = await configure();
     expect(JSON.stringify(again.authority)).toBe(JSON.stringify(before));
     expect(again.authority).not.toHaveProperty("privacy_policy_version");
@@ -336,14 +337,14 @@ describe("the job's Privacy version in the Atlas authority", () => {
     // A grant made under 2026-11-13.1 keeps it on every later read, whatever the record says afterwards.
     store.rows.clear(); store.writes.length = 0;
     const first = await grantFor("2026-11-13.1");
-    store.rows.get(REQUEST).privacy_version_at_submission = "2026-11-17.1";
+    store.rows.get(REQUEST).privacy_version_at_submission = NO_FACE_BLUR_VERSION;
     const renewed = await configure();
     expect(renewed.authority.privacy_policy_version).toBe("2026-11-13.1");
     expect(renewed.authority.authorization_digest).toBe(first.authorization_digest);
   });
 
   it("gives a new job's authority the same version as its scene grant", async () => {
-    const authority = await grantFor("2026-11-17.1");
+    const authority = await grantFor(NO_FACE_BLUR_VERSION);
     vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON", JSON.stringify({ owner: { user_id: "site-owner-uid", organization_id: "blueprint" },
       upstream_max_spend_usd: 50, native_max_spend_usd: 50, max_total_spend_usd: 100,
       max_paid_attempts: 32, ttl_seconds: 3600, provider_terms_reference: sha("e") }));
@@ -352,11 +353,12 @@ describe("the job's Privacy version in the Atlas authority", () => {
     const { websiteSceneSponsorship } = await import("../utils/websiteSceneSponsorship");
     const grant = websiteSceneSponsorship({ requestId: "req1", record: store.rows.get(REQUEST),
       brief: store.rows.get("siteTaskBriefs/req1"), now: Date.now() / 1000 });
-    expect(grant.privacy_policy_version).toBe("2026-11-17.1");
+    expect(grant.privacy_policy_version).toBe(NO_FACE_BLUR_VERSION);
     expect(authority.privacy_policy_version).toBe(grant.privacy_policy_version);
   });
 
-  it("accepts the version on an owner's explicit env row, sealed like the rest of it", async () => {
+  // Review, 2026-11-17: nothing checks an owner's row against the job's recorded version, so a row may not name one.
+  it("refuses an owner's explicit env row that names a version; the same row without it is the authority", async () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     upload("bundle");
     store.rows.get(REQUEST).website_scene_sponsorship = { owner: { user_id: "blueprint-preparation" } };
@@ -366,11 +368,16 @@ describe("the job's Privacy version in the Atlas authority", () => {
       provider_training_authorized: false, provider_retention: "project_library_retention_approved",
       maximum_cost_usd: 5, maximum_requests: 8, expires_at_epoch: Date.now() / 1000 + 600, claim_scope: "development_only",
       planner: { provider: "openai", provider_terms_reference: sha("d"), private_processing_authorized: true,
-        provider_training_authorized: false, approval_reference: "owner planning" }, privacy_policy_version: "2026-11-17.1" };
+        provider_training_authorized: false, approval_reference: "owner planning" } };
+    store.rows.get(REQUEST).privacy_version_at_submission = "2026-11-13.1";
+    for (const version of [NO_FACE_BLUR_VERSION, "2026-11-13.1"]) {
+      vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([{ ...row, privacy_policy_version: version }]));
+      await expect(configure()).rejects.toThrow("website_atlas_authorization_invalid");
+    }
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([row]));
-    expect((await configure()).authority).toEqual({ ...row, authorization_digest: crossRuntimeDigest(row) });
-    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([{ ...row, privacy_policy_version: "latest" }]));
-    await expect(configure()).rejects.toThrow("website_atlas_authorization_invalid");
+    const authority = (await configure()).authority;
+    expect(authority).toEqual({ ...row, authorization_digest: crossRuntimeDigest(row) });
+    expect(authority).not.toHaveProperty("privacy_policy_version");
   });
 
   it("an existing stored grant without the field still reads, with the digest it had", async () => {

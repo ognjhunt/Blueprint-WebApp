@@ -8,6 +8,7 @@
  * reads are fakes. (The viewer gate itself, unmocked, is pinned in `robot-team-early-access.test.ts`.)
  */
 import express from "express";
+import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -291,7 +292,7 @@ const simPkg = () => {
 };
 const introduce = (alias: string) => requestIntroduction({ requestId: ID, alias, actor: "site",
   statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
-const SHOWN = { termsVersion: "2026-11-17.1", privacyVersion: "2026-11-17.1" };
+const SHOWN = { termsVersion: NO_FACE_BLUR_VERSION, privacyVersion: NO_FACE_BLUR_VERSION };
 const apply = (body: Record<string, unknown>) => realFetch(`${base}/api/robot-team-access/apply`, { method: "POST",
   headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Mallory", company: "Mallory Corp", robot: "arm",
     workWanted: "pick", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
@@ -310,20 +311,20 @@ describe("Privacy 2026-11-13.1 asks no approved company to agree again", () => {
   });
 });
 
-describe("Terms and Privacy 2026-11-17.1 ask no approved company to agree again", () => {
+describe("the no-blur Terms and Privacy ask no approved company to agree again", () => {
   // Owner, 2026-11-17: the new versions drop the face blurring for jobs started under them; earlier acceptances keep
   // counting, and no deployment company loses access. Terms 2026-11-12.2 is listed as still counting for 2026-11-17.1.
   const record = (termsVersion: string, privacyVersion: string) => ({ status: "approved", partnerRole: "deployment",
     termsAcceptedByUid: "uid-company", termsAcceptance: { ...currentTermsAcceptance(), terms_version: termsVersion, privacy_version: privacyVersion } });
   it("a company holding Terms 2026-11-12.2 keeps seeing jobs, with any Privacy version that counted before", () => {
-    for (const privacy of ["2026-11-12.2", "2026-11-13.1", "2026-11-17.1"])
+    for (const privacy of ["2026-11-12.2", "2026-11-13.1", NO_FACE_BLUR_VERSION])
       expect(companyMaySeeJobs(record("2026-11-12.2", privacy) as never), privacy).toBe(true);
-    expect(companyMaySeeJobs(record("2026-11-17.1", "2026-11-17.1") as never)).toBe(true);
+    expect(companyMaySeeJobs(record(NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION) as never)).toBe(true);
   });
   it("a company that was already asked again is still asked", () => {
     expect(companyMaySeeJobs(record("2026-11-12.1", "2026-11-12.1") as never)).toBe(false);
-    expect(companyMaySeeJobs(record("2026-11-12.1", "2026-11-17.1") as never)).toBe(false);
-    expect(companyMaySeeJobs(record("2026-11-17.1", "2026-11-02.1") as never)).toBe(false);
+    expect(companyMaySeeJobs(record("2026-11-12.1", NO_FACE_BLUR_VERSION) as never)).toBe(false);
+    expect(companyMaySeeJobs(record(NO_FACE_BLUR_VERSION, "2026-11-02.1") as never)).toBe(false);
   });
 });
 
@@ -387,7 +388,7 @@ describe("T2 the unsigned application form cannot create, replace or carry an ac
   it("stores what the form showed on a pending application only; it never satisfies the gate", async () => {
     expect((await apply({ email: "new-company@new.example" })).status).toBe(202);
     const record = recordOf({ email: "new-company@new.example" });
-    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: "2026-11-17.1", privacy_version: "2026-11-17.1" });
+    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: NO_FACE_BLUR_VERSION, privacy_version: NO_FACE_BLUR_VERSION });
     expect(record).not.toHaveProperty("termsAcceptance");
     // Even if it were approved as it stands, the application's tick would not let it see a job.
     expect(companyMaySeeJobs({ ...record, status: "approved" } as never)).toBe(false);
@@ -413,7 +414,7 @@ describe("T3 the accept route", () => {
     expect((await post(NORTH, good)).status).toBe(200);
     const rec = recordOf(NORTH);
     // The stored acceptance records the versions the prompt showed (here the current ones), checked as still current.
-    expect(rec.termsAcceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-17.1", privacy_version: "2026-11-17.1",
+    expect(rec.termsAcceptance).toMatchObject({ accepted_terms: true, terms_version: NO_FACE_BLUR_VERSION, privacy_version: NO_FACE_BLUR_VERSION,
       terms_url: "/terms", privacy_url: "/privacy" });
     expect(Object.keys(rec.termsAcceptance)).not.toContain("extra");
     expect(rec.termsAcceptedByUid).toBe(`uid-${NORTH.email}`);

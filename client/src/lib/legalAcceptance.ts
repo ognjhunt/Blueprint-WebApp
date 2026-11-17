@@ -94,8 +94,11 @@
  *   job is under Privacy 2026-11-17.1 and its frames are not blurred.
  * - A job started earlier keeps its recorded version and its blurring; a later acceptance does not move it.
  */
-/** The id of the 2026-11-17 Terms and Privacy Policy; if the release slips past midnight UTC, change it here. */
-const NO_FACE_BLUR_VERSION = "2026-11-17.1";
+/**
+ * The id of the 2026-11-17 Terms and Privacy Policy, and the one place it is written in code and tests: if the release
+ * slips past midnight UTC, change it here (and the date the pinned test expects the pages to print).
+ */
+export const NO_FACE_BLUR_VERSION = "2026-11-17.1";
 export const TERMS_VERSION = NO_FACE_BLUR_VERSION;
 export const PRIVACY_VERSION = NO_FACE_BLUR_VERSION;
 /**
@@ -147,7 +150,7 @@ export const LEGAL_PAGE_DIGESTS = {
 } as const;
 /** The versions the digests above were recorded against; a version bump without a new digest fails the same test. */
 export const LEGAL_PAGE_DIGEST_VERSIONS = {
-  terms: "2026-11-17.1", privacy: "2026-11-17.1", previousTerms: "2026-11-12.2", previousPrivacy: "2026-11-13.1",
+  terms: NO_FACE_BLUR_VERSION, privacy: NO_FACE_BLUR_VERSION, previousTerms: "2026-11-12.2", previousPrivacy: "2026-11-13.1",
   olderTerms: "2026-11-12.1", olderPrivacy: "2026-11-12.2", announced: "2026-11-25.1", earlierTerms: "2026-11-02.1",
   earlierPrivacy: "2026-11-02.1",
 } as const;
@@ -258,8 +261,25 @@ export type ShownLegalVersions = { terms_version: string; privacy_version: strin
  * is never rewritten to the current one: a page opened before a Privacy change records the Privacy version it showed.
  */
 export function shownVersionsCount(terms: unknown, privacy: unknown, nowMs = Date.now()): ShownLegalVersions | null {
-  return typeof terms === "string" && typeof privacy === "string" && acceptedVersionsAreCurrent(terms, privacy, nowMs)
-    ? { terms_version: terms, privacy_version: privacy } : null;
+  return typeof terms === "string" && typeof privacy === "string" && pageShowedPair(terms, privacy)
+    && acceptedVersionsAreCurrent(terms, privacy, nowMs) ? { terms_version: terms, privacy_version: privacy } : null;
+}
+
+/**
+ * The Terms/Privacy pairs a page has shown together, most recent first: the current pair, and the pairs forms showed
+ * before it that still count. A form records only one of these, so a hand-made request cannot record a pair no page
+ * showed (for example Terms 2026-11-12.2, which promises the face blur, beside Privacy 2026-11-17.1, which ends it for
+ * the job). A new version adds the pair forms showed until then.
+ */
+export const PAIRS_A_PAGE_SHOWED: readonly ShownLegalVersions[] = [
+  { terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION },
+  // Forms from Privacy 2026-11-13.1 until this release.
+  { terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1" },
+  // Forms from 2026-11-12.2 until Privacy 2026-11-13.1 (and every start form that sends no versions).
+  { terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" },
+];
+function pageShowedPair(terms: string, privacy: string) {
+  return PAIRS_A_PAGE_SHOWED.some(pair => pair.terms_version === terms && pair.privacy_version === privacy);
 }
 
 /**

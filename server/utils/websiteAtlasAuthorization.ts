@@ -26,8 +26,8 @@ export type AtlasAuxiliaryProvider = typeof ATLAS_AUXILIARY_PROVIDERS[number];
  * once when an automatic grant is created and sealed by `authorization_digest` like its neighbours (the digest of the
  * whole authority without that key). It is never added to a grant already stored: the Pipeline compares a resumed
  * authority with the one it stored and refuses a changed one (`atlas_runtime_authority_or_policy_changed`). A grant
- * made before this field existed, an env row that does not name it, or a job whose version cannot be read names none,
- * and the Pipeline then blurs. The one place that names the field.
+ * made before this field existed, an explicit env row (whose schema refuses the field), or a job whose version cannot
+ * be read names none, and the Pipeline then blurs. The one place that names the field.
  */
 export const ATLAS_PRIVACY_POLICY_VERSION_FIELD = "privacy_policy_version" as const;
 const privacyPolicyVersion = z.string().regex(/^\d{4}-\d{2}-\d{2}\.[1-9][0-9]*$/);
@@ -49,9 +49,9 @@ const authorization = z.object({
   maximum_requests: z.number().int().min(1).max(1000),
   expires_at_epoch: z.number().finite().positive(),
   claim_scope: z.literal("development_only"),
+  // No `privacy_policy_version`: nothing checks an owner's row against the job's recorded version, so a row naming one
+  // could turn the blur off for an earlier job. The strict schema refuses it; an env-row job names none and is blurred.
   planner: planner.optional(),
-  // Accepted on an owner's explicit row; written by no code.
-  [ATLAS_PRIVACY_POLICY_VERSION_FIELD]: privacyPolicyVersion.optional(),
 }).strict();
 
 type GrantChecks = { termsDigest?: string; plannerTermsDigest?: string; planning?: boolean; now: number };
