@@ -245,4 +245,6 @@ export interface JobConsoleDetail {
   links: { lead: string; recommendation: string };
   /** The admin download of the job's simulation package, when one is ready; else null. */
   simulationPackageUrl: string | null;
+  /** The admin route that opens the job's scene preview in the viewer, when one is stored; else null. */
+  scenePreviewViewUrl: string | null;
 }

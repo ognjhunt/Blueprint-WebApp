@@ -9,4 +9,17 @@ describe("Blueprint Work request-log privacy", () => {
     expect(privateWorkLogPath("/api/location-autocomplete?input=private-address")).toBe("/api/location-autocomplete");
     expect(privateWorkLogPath("/api/unrelated?filter=public")).toBe("/api/unrelated?filter=public");
   });
+
+  it("removes every signed ticket from the addresses that carry one", () => {
+    const ticket = `expires=1794000000&signature=${"a".repeat(64)}`;
+    for (const path of ["/api/website-atlas-preview-views/req-1/walkthrough-req-1/scene.ply",
+      "/api/website-atlas-preview-views/req-1/walkthrough-req-1/settings.json",
+      "/api/website-atlas-preview-downloads/req-1/walkthrough-req-1",
+      "/api/website-destination-pictures/req-1/walkthrough-req-1/place.png",
+      "/api/company-media/jobs/req-1/video.mp4",
+      "/api/company-media/jobs/req-1/simulation.zip"]) {
+      for (const query of [`source=scene&admin=1&${ticket}`, `source=scene&viewer=${"b".repeat(64)}&${ticket}`, ticket])
+        expect(privateWorkLogPath(`${path}?${query}`)).toBe(path);
+    }
+  });
 });

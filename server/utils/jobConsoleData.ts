@@ -19,6 +19,7 @@ import { buildJobTimeline, projectJobFacts, projectRuns, type RawEvaluationReque
 import { deriveJobStage, type JobConsoleDetail, type JobConsoleRow, type JobStage } from "./jobConsoleStage";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { adminCompanySimulation, type WebsiteCompanySimulation } from "./websiteCompanySimulation";
+import { adminViewableWebsiteScenePreview } from "./websiteScenePreview";
 
 export const SCAN_LIMIT = 200;
 export const PAGE_LIMIT_MAX = 50;
@@ -180,8 +181,8 @@ export async function listJobConsoleRows(params: {
 export async function getJobConsoleDetail(requestId: string): Promise<JobConsoleDetail | null> {
   const record = await loadSiteJobRecord(requestId);
   if (!record) return null;
-  const [[inputs], simulation] = await Promise.all([loadInputs([{ id: requestId, data: () => record }]),
-    jobSimulationPackage(requestId, record)]);
+  const [[inputs], simulation, scenePreview] = await Promise.all([loadInputs([{ id: requestId, data: () => record }]),
+    jobSimulationPackage(requestId, record), jobScenePreview(requestId, record)]);
   const row = rowFromInputs(inputs);
   return {
     job: row,
@@ -192,6 +193,7 @@ export async function getJobConsoleDetail(requestId: string): Promise<JobConsole
       recommendation: `/admin/robot-team-access?job=${encodeURIComponent(requestId)}`,
     },
     simulationPackageUrl: simulation ? `/api/admin/jobs/${encodeURIComponent(requestId)}/simulation.zip` : null,
+    scenePreviewViewUrl: scenePreview ? `/api/admin/jobs/${encodeURIComponent(requestId)}/scene-preview-view` : null,
   };
 }
 
@@ -212,4 +214,17 @@ export async function jobSimulationPackage(requestId: string, record: Record<str
   const { captureId } = siteWalkthroughIdentity(requestId, record);
   const session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
   return adminCompanySimulation(record, session, captureId);
+}
+
+/**
+ * The job's scene preview for the console's "View the simulation of the site" (`adminViewableWebsiteScenePreview`): the
+ * stored preview of the job's current capture, internal test jobs included; null when it has none, its site's grant no
+ * longer stands, or the site has withdrawn. The capture id is returned so the view ticket is bound to the same capture.
+ */
+export async function jobScenePreview(requestId: string, record: Record<string, any>) {
+  if (!db) throw new Error("job_console_store_unavailable");
+  const { captureId } = siteWalkthroughIdentity(requestId, record);
+  const session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
+  const preview = adminViewableWebsiteScenePreview(record, session, captureId);
+  return preview ? { captureId, preview } : null;
 }

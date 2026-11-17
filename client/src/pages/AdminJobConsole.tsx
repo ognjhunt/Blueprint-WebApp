@@ -126,6 +126,50 @@ function SimulationPackageDownload({ requestId, url }: { requestId: string; url:
   );
 }
 
+/**
+ * Opens the job's scene preview in the vendored viewer. The ticket is minted with the admin's sign-in (an address alone
+ * cannot carry it), so the tab is opened at the click, before the fetch, and sent to the viewer once the ticket is back.
+ */
+function ScenePreviewView({ url }: { url: string }) {
+  const { currentUser } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [blockedLink, setBlockedLink] = useState<string | null>(null);
+
+  async function view() {
+    setBusy(true);
+    setError(null);
+    setBlockedLink(null);
+    const opened = window.open("", "_blank");
+    if (opened) opened.opener = null;
+    try {
+      const response = await fetch(url, {
+        credentials: "include",
+        headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({})),
+      });
+      const value = await response.json().catch(() => ({}));
+      if (!response.ok || typeof value.url !== "string" || !value.url.startsWith("/splat-viewer/")) {
+        throw new Error(String(value.error || `The viewer could not be opened (${response.status})`));
+      }
+      if (opened) opened.location.href = value.url;
+      else setBlockedLink(value.url);
+    } catch (caught) {
+      opened?.close();
+      setError((caught as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Button variant="secondary" size="sm" disabled={busy} onClick={view}>View the simulation of the site</Button>
+      {blockedLink ? <a className="text-sm underline" href={blockedLink} target="_blank" rel="noopener noreferrer">Open the viewer</a> : null}
+      {error ? <p role="alert" className="w-full text-sm text-runway-red">{error}</p> : null}
+    </>
+  );
+}
+
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -192,6 +236,7 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
           <div className="flex flex-wrap gap-3">
             <a className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" href={data.links.recommendation}>Open recommendation form</a>
             {data.simulationPackageUrl ? <SimulationPackageDownload requestId={requestId} url={data.simulationPackageUrl} /> : null}
+            {data.scenePreviewViewUrl ? <ScenePreviewView url={data.scenePreviewViewUrl} /> : null}
           </div>
 
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
