@@ -8,9 +8,10 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { termsSections } from "@/pages/Terms";
 import { previousTermsSections } from "@/pages/TermsPrevious";
+import { previousTermsSections as olderTermsSections } from "@/pages/TermsOlder";
 import {
-  ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, EARLIER_TERMS_VERSION, LEGAL_PAGE_DIGESTS, LEGAL_PAGE_DIGEST_VERSIONS, PREVIOUS_PRIVACY_VERSION, PREVIOUS_TERMS_VERSION,
-  PRIVACY_VERSION, TERMS_VERSION,
+  ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, EARLIER_TERMS_VERSION, LEGAL_PAGE_DIGESTS, LEGAL_PAGE_DIGEST_VERSIONS, OLDER_PRIVACY_VERSION,
+  OLDER_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION, PREVIOUS_TERMS_VERSION, PRIVACY_VERSION, TERMS_VERSION,
 } from "@/lib/legalAcceptance";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
@@ -34,25 +35,27 @@ describe("legal pages are pinned to their versions", () => {
   it("keeps the 2026-11-25.1 text, published ahead and replaced before it took effect, frozen as a record", () => {
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsAnnounced.tsx"].version).toBe("2026-11-25.1");
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyAnnounced.tsx"].version).toBe("2026-11-25.1");
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/Terms.tsx"].version).toBe("2026-11-12.2");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrevious.tsx"].version).toBe("2026-11-12.2");
   });
 
   // Owner, 2026-11-12 (~21:45Z): "if they want to talk to 1 that should be fine if they want to go through the steps with 8
-  // that should be fine". Version 2026-11-12.2 differs from 2026-11-12.1 by that one sentence and nothing else; the
-  // text of 2026-11-12.1 is kept word for word at /terms/previous, and the 2026-11-02.1 page byte for byte as a record.
+  // that should be fine". Version 2026-11-12.2 differs from 2026-11-12.1 by that one sentence and nothing else. Since
+  // 2026-11-17.1 the text of 2026-11-12.2 is at /terms/previous and the 2026-11-12.1 page is kept byte for byte at
+  // `TermsOlder.tsx`, as the 2026-11-02.1 page is at `TermsEarlier.tsx`.
   it("2026-11-12.2 removes exactly one sentence of 2026-11-12.1; the money sentence stays word for word", () => {
     const LIMIT = " You can ask for up to three introductions for each job.";
-    const previous = JSON.stringify(previousTermsSections), current = JSON.stringify(termsSections);
+    const previous = JSON.stringify(olderTermsSections), current = JSON.stringify(previousTermsSections);
     expect(previous.split(LIMIT)).toHaveLength(2);
     expect(previous.replace(LIMIT, "")).toBe(current);
     expect(current).not.toMatch(/three introductions|up to three/);
     const MONEY = "Blueprint charges no fee for and takes no percentage of any pilot or deployment.";
     expect(previous).toContain(MONEY);
     expect(current).toContain(MONEY);
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrevious.tsx"].version).toBe("2026-11-12.1");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsOlder.tsx"]).toEqual({ version: "2026-11-12.1",
+      sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsEarlier.tsx"]).toEqual({ version: "2026-11-02.1",
       sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" });
-    // The Privacy Policy moved to 2026-11-12.2 with its text unchanged; that text is now frozen at /privacy/previous.
+    // The Privacy Policy moved to 2026-11-12.2 with its text unchanged; that text is now kept at `PrivacyOlder.tsx`.
   });
 
   // Owner decision 1 of 2026-11-13: Anthropic may process a site's job like OpenAI, for jobs started and requests sent
@@ -60,9 +63,10 @@ describe("legal pages are pinned to their versions", () => {
   // Anthropic row and the "AI in the Service" paragraph. Every other row stays word for word, the DeepSeek row
   // included (the Paperclip operations agents in this repository still default to it). The Terms do not change at all
   // and keep their id 2026-11-12.2 (planner: nobody agrees again to text that did not change).
+  // Since 2026-11-17.1 the 2026-11-13.1 text is at /privacy/previous and the 2026-11-12.2 page at `PrivacyOlder.tsx`.
   it("Privacy 2026-11-13.1 changes only two AI rows and the AI paragraph; nothing on the Terms pages changes", () => {
     const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
-    const previous = read("client/src/pages/PrivacyPrevious.tsx"), current = read("client/src/pages/Privacy.tsx");
+    const previous = read("client/src/pages/PrivacyOlder.tsx"), current = read("client/src/pages/PrivacyPrevious.tsx");
     const body = (source: string) => source.slice(source.indexOf("const SHARING_SENTENCE") === -1
       ? 0 : source.indexOf("SHARING_SENTENCE ="), source.indexOf("export default function"))
       .replace(/^export const /gm, "const ");
@@ -87,17 +91,58 @@ describe("legal pages are pinned to their versions", () => {
     expect(tail(current)).toBe(tail(previous));
     expect(current).not.toMatch(/Z\.ai|OpenRouter/);
     expect(current).toContain('["DeepSeek", "Drafting and sorting internal work, where we configure it"]');
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/Terms.tsx"]).toEqual({ version: "2026-11-12.2",
-      sha256: "44b0d966c803df4699ecc20c2dbd9a20f229d99395f9b57eee524a7f0774cc86" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrevious.tsx"]).toEqual({ version: "2026-11-12.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsOlder.tsx"]).toEqual({ version: "2026-11-12.1",
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrevious.tsx"].version).toBe("2026-11-12.2");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyOlder.tsx"]).toEqual({ version: "2026-11-12.2",
+      sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrevious.tsx"].version).toBe("2026-11-13.1");
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyEarlier.tsx"]).toEqual({ version: "2026-11-02.1",
       sha256: "cad7fcac5cc1ec468ab74471a13a5e61a208b697deafd97b4039f01ab38eab3c" });
   });
 
+  // Owner, 2026-11-17: "idc about face blurring - please find where this comes from and remove it." Terms and Privacy
+  // 2026-11-17.1 change only the sentences on blurring; a job started under an earlier Privacy version keeps it. The
+  // previous pages keep the text of Terms 2026-11-12.2 and Privacy 2026-11-13.1 word for word: only the page shell
+  // (imports, the effective-date line, the note, the title and the names) differs, as it did for every previous page.
+  it("2026-11-17.1 changes only the sentences on blurring; the previous pages keep the text in force before it", () => {
+    const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
+    const EARLIER_JOB = "For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area.";
+    const NOT_BLURRED = "We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. " + EARLIER_JOB;
+    const privacyChanges: Array<[string, string]> = [
+      ["We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; the other listed providers receive the footage, with its sound removed, or frames from it as recorded, which can show people, including hands or arms performing the job.", NOT_BLURRED],
+      ["We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; otherwise Blueprint and the listed processing providers process the footage, with its sound removed, and frames from it as recorded, for job review and building the simulation.", NOT_BLURRED],
+      ["the frames and blurred copies we make from them", "the frames and any blurred copies we make from them"],
+      ["Scratch files from rebuilding a scene or blurring footage that sit", "Scratch files from processing footage that sit"],
+      ["Frames and blurred copies stored with the capture", "Frames and any blurred copies stored with the capture"],
+    ];
+    const shell = (source: string) => source.slice(source.indexOf("SHARING_SENTENCE ="), source.indexOf("export default function"))
+      .replace(/^export const /gm, "const ");
+    let expected = shell(read("client/src/pages/PrivacyPrevious.tsx"));
+    for (const [from, to] of privacyChanges) {
+      expect(expected.split(from), from).toHaveLength(2);
+      expected = expected.replace(from, to);
+    }
+    const privacy = read("client/src/pages/Privacy.tsx");
+    expect(shell(privacy)).toBe(expected);
+    // Everything after the effective-date line and the note is the same.
+    const body = (source: string) => source.slice(source.indexOf("        This policy explains how"));
+    expect(body(privacy).length).toBeGreaterThan(1000);
+    expect(body(privacy)).toBe(body(read("client/src/pages/PrivacyPrevious.tsx")));
+    const TERMS_FROM = "We do not remove people from the footage or from frames taken from it; we blur faces only in the frames we send to World Labs to rebuild the work area.";
+    const TERMS_TO = "We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under an earlier version of our Privacy Policy, we still blur faces in the frames we send to World Labs to rebuild the work area.";
+    const previousTerms = JSON.stringify(previousTermsSections);
+    expect(previousTerms.split(TERMS_FROM)).toHaveLength(2);
+    expect(previousTerms.replace(TERMS_FROM, TERMS_TO)).toBe(JSON.stringify(termsSections));
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrevious.tsx"].version).toBe("2026-11-12.2");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrevious.tsx"].version).toBe("2026-11-13.1");
+    // The previous pages are today's pages before this change, word for word in their sections and copy.
+    const previousPrivacy = read("client/src/pages/PrivacyPrevious.tsx");
+    for (const [from] of privacyChanges) expect(previousPrivacy).toContain(from);
+  });
+
   it("each digest was recorded against the version now in force for its page", () => {
     expect({ terms: TERMS_VERSION, privacy: PRIVACY_VERSION, previousTerms: PREVIOUS_TERMS_VERSION, previousPrivacy: PREVIOUS_PRIVACY_VERSION,
+      olderTerms: OLDER_TERMS_VERSION, olderPrivacy: OLDER_PRIVACY_VERSION,
       announced: ANNOUNCED_SUPERSEDED_VERSION, earlierTerms: EARLIER_TERMS_VERSION, earlierPrivacy: EARLIER_PRIVACY_VERSION },
       "a legal version changed without recording its page's new digest; a change needs a new version approved by the owner")
       .toEqual(LEGAL_PAGE_DIGEST_VERSIONS);

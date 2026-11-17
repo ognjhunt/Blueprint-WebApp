@@ -60,8 +60,7 @@ What Blueprint does with your video:
   before any automated review, and before it sends footage to an AI or
   3D-processing provider. It does not analyze speech.
 - Blueprint does not blur your footage or hold it because people appear in it.
-  The one exception: faces are blurred in the frames that go to World Labs to
-  rebuild your scene. Blueprint relies on your consent.
+  Blueprint relies on your consent.
 - Read the [privacy policy](https://tryblueprint.io/privacy) before you upload.
   Do not put credentials or sensitive footage in a support email. Keep your
   original file until your job page confirms receipt.

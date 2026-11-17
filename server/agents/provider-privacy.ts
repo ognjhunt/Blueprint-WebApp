@@ -1,4 +1,4 @@
-import { ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
+import { ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, OLDER_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
 import type { AgentProvider, AgentTaskKind } from "./types";
 
 /**
@@ -201,9 +201,12 @@ export const PAGE_ROWS_WITHOUT_A_ROUTE: Record<string, string> = {
 export const PRIVACY_POLICY_PROVIDER_ROWS: Record<string, { page: string; rows: Record<string, PolicyRow>; same_text_as?: string }> = {
   [EARLIER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyEarlier.tsx", rows: AI_ROWS_2026_11 },
   // 2026-11-12.1 and 2026-11-12.2 are the same words; acceptances were recorded under both.
-  "2026-11-12.1": { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11, same_text_as: PREVIOUS_PRIVACY_VERSION },
-  [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11 },
+  "2026-11-12.1": { page: "client/src/pages/PrivacyOlder.tsx", rows: AI_ROWS_2026_11, same_text_as: OLDER_PRIVACY_VERSION },
+  [OLDER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyOlder.tsx", rows: AI_ROWS_2026_11 },
   [ANNOUNCED_SUPERSEDED_VERSION]: { page: "client/src/pages/PrivacyAnnounced.tsx", rows: AI_ROWS_2026_11 },
+  [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11_13 },
+  // 2026-11-17.1 changes no provider row (owner, 2026-11-17: only the face blurring leaves), so its rows are those of
+  // 2026-11-13.1; Anthropic's row there already covers jobs started "under this version of the policy or a later one".
   [PRIVACY_VERSION]: { page: "client/src/pages/Privacy.tsx", rows: AI_ROWS_2026_11_13 },
 };
 

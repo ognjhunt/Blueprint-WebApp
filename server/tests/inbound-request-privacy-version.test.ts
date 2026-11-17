@@ -36,6 +36,7 @@ vi.mock("../utils/siteTaskBriefReading", () => ({ readBriefFromDescription: vi.f
 vi.mock("../utils/inboundRequestStats", () => ({ incrementInboundRequestStats: vi.fn(async () => undefined) }));
 
 const { submitInboundRequest } = await import("../routes/inbound-request");
+const { websiteJobPrivacyPolicyVersion } = await import("../utils/siteConsentStatements");
 
 function payload(requestId: string, email: string) {
   return {
@@ -94,8 +95,11 @@ const stored = (requestId: string) => sharedFakeFirestoreState.docs.get(`inbound
  * provider gate once: the version the form showed, only when an acceptance is recorded in that same act.
  */
 describe("privacy_version_at_submission on the stored job", () => {
+  // Owner, 2026-11-17: a job started under 2026-11-17.1 is not blurred; one started under an earlier version is. The
+  // Pipeline reads the grant's `privacy_policy_version`, which is this stored version (`websiteJobPrivacyPolicyVersion`).
   it.each([
-    ["the current form", { acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }, "2026-11-13.1"],
+    ["the current form", { acceptedTerms: true, termsVersion: "2026-11-17.1", privacyVersion: "2026-11-17.1" }, "2026-11-17.1"],
+    ["a form opened before 2026-11-17.1", { acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }, "2026-11-13.1"],
     ["a form opened before 2026-11-13.1", { acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" }, "2026-11-12.2"],
     ["a form that sends no versions", { acceptedTerms: true }, "2026-11-12.2"],
   ])("stores the version %s showed", async (_name, extra, expected) => {
@@ -105,6 +109,8 @@ describe("privacy_version_at_submission on the stored job", () => {
       expect((await submit(baseUrl, requestId, extra)).status).toBe(201);
       expect(stored(requestId)?.privacy_version_at_submission).toBe(expected);
       expect(stored(requestId)?.terms_acceptance).toMatchObject({ privacy_version: expected });
+      // The grant the Pipeline reads names the same version.
+      expect(websiteJobPrivacyPolicyVersion(stored(requestId)!)).toBe(expected);
     } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
   });
 
@@ -118,6 +124,22 @@ describe("privacy_version_at_submission on the stored job", () => {
       expect(stored("privacy-none")).toBeDefined();
       expect(stored("privacy-none")).not.toHaveProperty("privacy_version_at_submission");
       expect(stored("privacy-none")?.terms_acceptance ?? null).toBeNull();
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("keeps a job started before 2026-11-17.1 under its own version: a later retry or the new release does not move it", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      // Started from the form of 2026-11-13.1 (before this release), then retried from a page showing 2026-11-17.1.
+      expect((await submit(baseUrl, "privacy-before-release", { acceptedTerms: true, termsVersion: "2026-11-12.2",
+        privacyVersion: "2026-11-13.1" })).status).toBe(201);
+      expect((await submit(baseUrl, "privacy-before-release", { acceptedTerms: true, termsVersion: "2026-11-17.1",
+        privacyVersion: "2026-11-17.1" })).status).toBe(200);
+      expect(stored("privacy-before-release")?.privacy_version_at_submission).toBe("2026-11-13.1");
+      expect(websiteJobPrivacyPolicyVersion(stored("privacy-before-release")!)).toBe("2026-11-13.1");
+      // A job stored before this release, under any earlier version it recorded, keeps that version in its grant.
+      for (const version of ["2026-11-13.1", "2026-11-12.2", "2026-11-02.1"])
+        expect(websiteJobPrivacyPolicyVersion({ privacy_version_at_submission: version })).toBe(version);
     } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
   });
 

@@ -2,6 +2,7 @@ import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Explicit, source-bound Atlas beta disclosure and allowance. ADP-040 / Day 28. */
 import { z } from "zod";
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
+import { websiteJobPrivacyPolicyVersion } from "./siteConsentStatements";
 
 const sha = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const planner = z.object({
@@ -17,6 +18,24 @@ const auxiliaryConsent = z.object({
 }).strict();
 export const ATLAS_AUXILIARY_PROVIDERS = ["meta", "google"] as const;
 export type AtlasAuxiliaryProvider = typeof ATLAS_AUXILIARY_PROVIDERS[number];
+/**
+ * The job's Privacy Policy version in the Atlas authority (owner, 2026-11-17: no face blurring for a job started under
+ * Privacy 2026-11-17.1). The Pipeline blurs the frames it sends to World Labs unless this names that version, and this
+ * authority reaches it before the first frame leaves, unlike the scene grant. Taken from the same source as the scene
+ * grant's `privacy_policy_version` (`websiteJobPrivacyPolicyVersion`: the job's `privacy_version_at_submission`), written
+ * once when an automatic grant is created and sealed by `authorization_digest` like its neighbours (the digest of the
+ * whole authority without that key). It is never added to a grant already stored: the Pipeline compares a resumed
+ * authority with the one it stored and refuses a changed one (`atlas_runtime_authority_or_policy_changed`). A grant
+ * made before this field existed, an env row that does not name it, or a job whose version cannot be read names none,
+ * and the Pipeline then blurs. The one place that names the field.
+ */
+export const ATLAS_PRIVACY_POLICY_VERSION_FIELD = "privacy_policy_version" as const;
+const privacyPolicyVersion = z.string().regex(/^\d{4}-\d{2}-\d{2}\.[1-9][0-9]*$/);
+function atlasPrivacyPolicyVersion(record: Record<string, any>) {
+  const version = websiteJobPrivacyPolicyVersion(record);
+  return version && privacyPolicyVersion.safeParse(version).success ? { [ATLAS_PRIVACY_POLICY_VERSION_FIELD]: version } : {};
+}
+
 const authorization = z.object({
   schema_version: z.literal("website_atlas_authorization.v1"),
   request_id: z.string().min(1), capture_id: z.string().min(1),
@@ -31,6 +50,8 @@ const authorization = z.object({
   expires_at_epoch: z.number().finite().positive(),
   claim_scope: z.literal("development_only"),
   planner: planner.optional(),
+  // Accepted on an owner's explicit row; written by no code.
+  [ATLAS_PRIVACY_POLICY_VERSION_FIELD]: privacyPolicyVersion.optional(),
 }).strict();
 
 type GrantChecks = { termsDigest?: string; plannerTermsDigest?: string; planning?: boolean; now: number };
@@ -143,6 +164,7 @@ const storedGrant = z.object({
   maximum_requests: z.number().int().min(1).max(32),
   created_at_epoch: z.number().int().positive(), expires_at_epoch: z.number().int().positive(),
   claim_scope: z.literal("development_only"),
+  [ATLAS_PRIVACY_POLICY_VERSION_FIELD]: privacyPolicyVersion.optional(),
 }).strict();
 export type WebsiteAtlasStoredGrant = z.infer<typeof storedGrant>;
 /** A stored automatic grant as the schema reads it, or null. Reads only; used by the owner's figure amendment. */
@@ -228,6 +250,7 @@ export async function resolveWebsiteAtlasGrant(input: EnvRowMatch & GrantChecks 
     maximum_cost_usd: policy.maximum_cost_usd, maximum_requests: policy.maximum_requests,
     created_at_epoch: createdAt, expires_at_epoch: createdAt + policy.validity_seconds,
     claim_scope: "development_only",
+    ...atlasPrivacyPolicyVersion(input.record),
   });
   return { grant: checkedGrant(grant, input), created: grant };
 }

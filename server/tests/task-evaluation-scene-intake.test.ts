@@ -2633,6 +2633,18 @@ describe("the grant names the job's Privacy version and the statements its site 
     expect(covered(grant)).toBe(true);
   });
 
+  // Owner, 2026-11-17: the Pipeline blurs a job whose grant does not name 2026-11-17.1. A job started from now on names
+  // it; a job started earlier, including one from a form opened before the release, names its own earlier version.
+  it.each(["2026-11-17.1", "2026-11-13.1"])("sends the version %s written at submission in the grant", async (version) => {
+    sponsoredCapture();
+    const inbound = store.rows.get("inboundRequests/req1");
+    inbound.privacy_version_at_submission = version;
+    inbound.terms_acceptance = acceptance(version);
+    const grant = await loadWebsiteSceneSponsorship("req1", true);
+    expect(grant).toMatchObject({ privacy_policy_version: version, site_consents: [] });
+    expect(covered(grant)).toBe(true);
+  });
+
   it.each([
     ["nothing recorded", {}],
     ["an acceptance made later on the job's page, with no version at submission", { terms_acceptance: acceptance("2026-11-13.1") }],

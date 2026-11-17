@@ -115,6 +115,15 @@ digest, so a task edit does not change it. Terms changes, expiry
 (`website_atlas_consent_expired`) and withdrawn consent (`source_revoked`)
 refuse exactly as for env rows. Reservations never create a grant.
 
+A grant made from 2026-11-17 also names `privacy_policy_version`: the job's
+`privacy_version_at_submission`, the same value as the scene grant's, sealed by
+`authorization_digest`. The Pipeline blurs faces in the frames it sends to World
+Labs unless it names `2026-11-17.1` (owner, 2026-11-17). A grant made earlier
+and a job whose version cannot be read name none, and are blurred; an explicit
+env row may name one. A stored grant is never rewritten: it keeps the version it
+was made with, or none, because the Pipeline refuses a resumed authority that
+changed (`atlas_runtime_authority_or_policy_changed`).
+
 The preview's own auxiliary calls, Meta SAM segmentation and Google independent
 review (`atlas_auxiliary: true`), are covered by the same upload consent (owner
 direction 2026-10-22). When the grant is made, `auxiliary.meta` and

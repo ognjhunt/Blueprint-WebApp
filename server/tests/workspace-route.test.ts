@@ -344,8 +344,9 @@ describe("workspace access and projections", () => {
       expect(recorded).toMatchObject({ acceptedTerms: true, termsVersion: acceptance.terms_version,
         privacyVersion: acceptance.privacy_version, termsAcceptance: acceptance });
       expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(false);
+      // Owner, 2026-11-17: an acceptance of the versions in force before 2026-11-17.1 keeps counting after it.
       clock.mockReturnValue(legalEffectiveAtMs(TERMS_VERSION));
-      expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(true);
+      expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(false);
       expect(state.records.get("users/site-1")).toEqual(recorded);
     } finally { clock.mockRestore(); }
   });
@@ -361,10 +362,12 @@ describe("workspace access and projections", () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(effective - 1);
     try {
       expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(!accepted);
+      // After the effective date the recorded acceptance still decides: the previous versions keep counting (owner,
+      // 2026-11-17), and the legacy fields never stand in for a recorded refusal.
       clock.mockReturnValue(effective);
       const response = await api("/setup", "site-1");
       expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ termsRequired: true });
+      expect(await response.json()).toMatchObject({ termsRequired: !accepted });
       expect(state.records.get("users/site-1")).toEqual(retained);
     } finally { clock.mockRestore(); }
   });
@@ -380,7 +383,8 @@ describe("workspace access and projections", () => {
     const effective = legalEffectiveAtMs(TERMS_VERSION);
     const clock = vi.spyOn(Date, "now");
     try {
-      for (const [now, termsRequired] of [[effective - 1, false], [effective, true], [effective + 1, true]] as const) {
+      // Owner, 2026-11-17: the versions in force before 2026-11-17.1 keep counting after it takes effect too.
+      for (const [now, termsRequired] of [[effective - 1, false], [effective, false], [effective + 1, false]] as const) {
         clock.mockReturnValue(now);
         const response = await api("/setup", "site-1");
         expect(response.status).toBe(200);
@@ -1038,7 +1042,8 @@ describe("capture-first workspace intake", () => {
     expect(response.status).toBe(201);
     expect(state.intakes.at(-1)).toMatchObject({ body: { buyerType: "site_operator" }, metadata: { account_owner_uid: "new-site" } });
     expect(state.records.get("users/new-site")).toMatchObject({ name: "Dana", finishedOnboarding: false,
-      buyerType: "site_operator", company: "Acme Foods", acceptedTerms: true, termsVersion: TERMS_VERSION });
+      // A start form that sends no versions was opened before forms sent them, so it records what its line showed then.
+      buyerType: "site_operator", company: "Acme Foods", acceptedTerms: true, termsVersion: "2026-11-12.2" });
     expect((await api("/tasks/capture-owned/task-link", "new-site", {})).status).toBe(200);
   });
   it("sets up no account without the Terms, and never changes an existing profile", async () => {

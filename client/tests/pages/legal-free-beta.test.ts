@@ -15,6 +15,8 @@ import {
 } from "@/pages/Privacy";
 import { termsSections } from "@/pages/Terms";
 import {
+  OLDER_PRIVACY_VERSION,
+  OLDER_TERMS_VERSION,
   PREVIOUS_PRIVACY_VERSION,
   PREVIOUS_TERMS_VERSION,
   PRIVACY_VERSION,
@@ -30,11 +32,21 @@ const terms = JSON.stringify(termsSections);
 const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, jobClosedDefinition, privacySubprocessorCategories });
 
 describe("terms for the free beta", () => {
-  it("describes footage processing as it happens: no person removal, faces blurred only for World Labs, Meta listed", () => {
+  it("describes footage processing as it happens: no person removal, no blurring for a new job, Meta listed", () => {
     // Owner decision D-16 (2026-11-02): footage is not screened or blurred for providers beyond the World Labs face blur.
+    // Owner, 2026-11-17 ("idc about face blurring"): no face blur either for a job started under 2026-11-17.1; a job
+    // started under an earlier version keeps it, which the Pipeline decides by the job's recorded Privacy version.
     expect(privacy).not.toMatch(/We remove people from the frames/);
-    expect(privacy).toMatch(/We do not remove people from job footage/);
-    expect(privacy).toMatch(/blur faces in the frames we send to World Labs/);
+    expect(privacy).toMatch(/We do not remove people from job footage or blur them\./);
+    expect(privacy).toMatch(/World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people/);
+    expect(privacy).toMatch(/For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area\./);
+    expect(privacy.match(/blur faces/g)).toHaveLength(1);
+    expect(privacy).not.toMatch(/We blur faces in the frames we send to World Labs/);
+    const retention = JSON.stringify(betaRetentionSchedule);
+    expect(retention).toMatch(/the frames and any blurred copies we make from them/);
+    expect(retention).toMatch(/Scratch files from processing footage that sit in our temporary processing storage/);
+    expect(retention).toMatch(/Frames and any blurred copies stored with the capture are kept like the capture/);
+    expect(retention).not.toMatch(/blurring footage|the frames and blurred copies|Frames and blurred copies/);
     const providers = privacySubprocessorCategories.flatMap((group) => group.providers.map(([name]) => name));
     expect(providers).toContain("Meta");
     expect(privacy).not.toMatch(/to flag privacy issues/);
@@ -43,33 +55,38 @@ describe("terms for the free beta", () => {
   it("counts only the 2026-11-12 sharing version once it is in force: every older acceptance is asked again", () => {
     const after = legalEffectiveAtMs(TERMS_VERSION);
     expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, after)).toBe(true);
-    for (const [termsVersion, privacyVersion] of [["2026-11-15.4", "2026-11-15.5"], [PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION],
+    for (const [termsVersion, privacyVersion] of [["2026-11-15.4", "2026-11-15.5"], [OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION],
       [ANNOUNCED_SUPERSEDED_VERSION, ANNOUNCED_SUPERSEDED_VERSION], ["2026-11-15.3", "2026-11-15.4"]]) {
       expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, after)).toBe(false);
       expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, Date.parse("2026-11-20T00:00:00Z"))).toBe(false);
     }
   });
 
-  it("keeps Terms 2026-11-12.2 and puts Privacy 2026-11-13.1 in force at once; a Privacy-only change asks nobody again", () => {
+  it("puts Terms and Privacy 2026-11-17.1 in force at once; nobody who had accepted is asked again", () => {
     // Owner, 2026-11-12: sharing is the service (2026-11-12.1), then no limit on introductions (Terms 2026-11-12.2, the
-    // same day). Owner decision 1 of 2026-11-13: Anthropic may process a new job like OpenAI (Privacy 2026-11-13.1 only;
-    // the Terms keep their id). The version published ahead for November 25 never took effect.
-    expect(TERMS_VERSION).toBe("2026-11-12.2");
-    expect(PRIVACY_VERSION).toBe("2026-11-13.1");
+    // same day). Owner decision 1 of 2026-11-13: Anthropic may process a new job like OpenAI (Privacy 2026-11-13.1). Owner,
+    // 2026-11-17: no face blurring for a new job (Terms and Privacy 2026-11-17.1), effective at once, and earlier
+    // acceptances keep counting. The version published ahead for November 25 never took effect.
+    expect(TERMS_VERSION).toBe("2026-11-17.1");
+    expect(PRIVACY_VERSION).toBe("2026-11-17.1");
     expect(ANNOUNCED_SUPERSEDED_VERSION).toBe("2026-11-25.1");
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-12.2"]);
-    const now = Date.parse("2026-11-13T09:00:00Z");
-    // Accepted before this release (Terms and Privacy 2026-11-12.2): still current, nothing is asked again.
-    expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-12.2", now)).toBe(true);
-    expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-13.1", now)).toBe(true);
-    // A Terms change still asks again: whoever accepted Terms 2026-11-12.1 is asked, with either Privacy version.
+    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-12.2", "2026-11-13.1"]);
+    expect([OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-12.2"]);
+    const now = Date.parse("2026-11-17T18:00:00Z");
+    // Accepted before this release: still current, nothing is asked again.
+    for (const [termsVersion, privacyVersion] of [["2026-11-12.2", "2026-11-12.2"], ["2026-11-12.2", "2026-11-13.1"],
+      ["2026-11-12.2", "2026-11-17.1"], ["2026-11-17.1", "2026-11-13.1"], ["2026-11-17.1", "2026-11-17.1"]])
+      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, now), `${termsVersion} ${privacyVersion}`).toBe(true);
+    // What was already asked again stays asked: Terms 2026-11-12.1 and older, with any Privacy version.
     expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-12.1", now)).toBe(false);
-    expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-13.1", now)).toBe(false);
-    // A Privacy version older than the one it replaced by a new-jobs-only change still asks again.
+    expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-17.1", now)).toBe(false);
+    expect(acceptedVersionsAreCurrent("2026-11-02.1", "2026-11-17.1", now)).toBe(false);
+    // A Privacy version that did not count before this release still does not.
     expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-02.1", now)).toBe(false);
-    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 12, 2026");
-    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 13, 2026");
-    expect(legalUpdatePending(Date.parse("2026-11-13T08:00:00Z"))).toBe(false);
+    expect(acceptedVersionsAreCurrent("2026-11-17.1", "2026-11-12.1", now)).toBe(false);
+    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 17, 2026");
+    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 17, 2026");
+    expect(legalUpdatePending(Date.parse("2026-11-17T08:00:00Z"))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {
@@ -193,12 +210,13 @@ describe("recording notice, sound and the listing choice", () => {
 });
 
 describe("acceptance while a reissue is announced", () => {
-  it("keeps the versions in force usable only before the announced versions take effect", async () => {
+  it("keeps the versions in force usable before and, as the owner decided for 2026-11-17.1, after the new ones take effect", async () => {
     const legal = await import("@/lib/legalAcceptance");
     const effective = legal.legalEffectiveAtMs(legal.TERMS_VERSION);
     expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, effective - 1)).toBe(true);
     for (const now of [effective, effective + 1, effective + 86400000]) {
-      expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, now)).toBe(false);
+      expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, now)).toBe(true);
+      expect(legal.acceptedVersionsAreCurrent(legal.OLDER_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, now)).toBe(false);
       expect(legal.acceptedVersionsAreCurrent(legal.TERMS_VERSION, legal.PRIVACY_VERSION, now)).toBe(true);
     }
     for (const [terms, privacy] of [
@@ -225,12 +243,13 @@ describe("acceptance while a reissue is announced", () => {
     } finally { clock.mockRestore(); }
   });
 
-  it("counts the versions in force until the new ones take effect, and only the new ones after", async () => {
+  it("counts the versions in force until the new ones take effect, and after only those the new ones list", async () => {
     const legal = await import("@/lib/legalAcceptance");
     const before = legal.legalEffectiveAtMs(legal.TERMS_VERSION) - 1;
     const after = legal.legalEffectiveAtMs(legal.TERMS_VERSION) + 1;
     expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, before)).toBe(true);
-    expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, after)).toBe(false);
+    expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, after)).toBe(true);
+    expect(legal.acceptedVersionsAreCurrent(legal.OLDER_TERMS_VERSION, legal.OLDER_PRIVACY_VERSION, after)).toBe(false);
     expect(legal.acceptedVersionsAreCurrent(legal.TERMS_VERSION, legal.PRIVACY_VERSION, before)).toBe(true);
     expect(legal.acceptedVersionsAreCurrent("2026-10-09.1", legal.PREVIOUS_PRIVACY_VERSION, before)).toBe(false);
   });

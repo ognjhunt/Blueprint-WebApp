@@ -291,7 +291,7 @@ const simPkg = () => {
 };
 const introduce = (alias: string) => requestIntroduction({ requestId: ID, alias, actor: "site",
   statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
-const SHOWN = { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" };
+const SHOWN = { termsVersion: "2026-11-17.1", privacyVersion: "2026-11-17.1" };
 const apply = (body: Record<string, unknown>) => realFetch(`${base}/api/robot-team-access/apply`, { method: "POST",
   headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Mallory", company: "Mallory Corp", robot: "arm",
     workWanted: "pick", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
@@ -307,6 +307,23 @@ describe("Privacy 2026-11-13.1 asks no approved company to agree again", () => {
   it("a Terms change still asks again", () => {
     expect(companyMaySeeJobs(record("2026-11-13.1", "2026-11-12.1") as never)).toBe(false);
     expect(companyMaySeeJobs(record("2026-11-02.1", "2026-11-12.2") as never)).toBe(false);
+  });
+});
+
+describe("Terms and Privacy 2026-11-17.1 ask no approved company to agree again", () => {
+  // Owner, 2026-11-17: the new versions drop the face blurring for jobs started under them; earlier acceptances keep
+  // counting, and no deployment company loses access. Terms 2026-11-12.2 is listed as still counting for 2026-11-17.1.
+  const record = (termsVersion: string, privacyVersion: string) => ({ status: "approved", partnerRole: "deployment",
+    termsAcceptedByUid: "uid-company", termsAcceptance: { ...currentTermsAcceptance(), terms_version: termsVersion, privacy_version: privacyVersion } });
+  it("a company holding Terms 2026-11-12.2 keeps seeing jobs, with any Privacy version that counted before", () => {
+    for (const privacy of ["2026-11-12.2", "2026-11-13.1", "2026-11-17.1"])
+      expect(companyMaySeeJobs(record("2026-11-12.2", privacy) as never), privacy).toBe(true);
+    expect(companyMaySeeJobs(record("2026-11-17.1", "2026-11-17.1") as never)).toBe(true);
+  });
+  it("a company that was already asked again is still asked", () => {
+    expect(companyMaySeeJobs(record("2026-11-12.1", "2026-11-12.1") as never)).toBe(false);
+    expect(companyMaySeeJobs(record("2026-11-12.1", "2026-11-17.1") as never)).toBe(false);
+    expect(companyMaySeeJobs(record("2026-11-17.1", "2026-11-02.1") as never)).toBe(false);
   });
 });
 
@@ -370,7 +387,7 @@ describe("T2 the unsigned application form cannot create, replace or carry an ac
   it("stores what the form showed on a pending application only; it never satisfies the gate", async () => {
     expect((await apply({ email: "new-company@new.example" })).status).toBe(202);
     const record = recordOf({ email: "new-company@new.example" });
-    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1" });
+    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: "2026-11-17.1", privacy_version: "2026-11-17.1" });
     expect(record).not.toHaveProperty("termsAcceptance");
     // Even if it were approved as it stands, the application's tick would not let it see a job.
     expect(companyMaySeeJobs({ ...record, status: "approved" } as never)).toBe(false);
@@ -396,7 +413,7 @@ describe("T3 the accept route", () => {
     expect((await post(NORTH, good)).status).toBe(200);
     const rec = recordOf(NORTH);
     // The stored acceptance records the versions the prompt showed (here the current ones), checked as still current.
-    expect(rec.termsAcceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1",
+    expect(rec.termsAcceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-17.1", privacy_version: "2026-11-17.1",
       terms_url: "/terms", privacy_url: "/privacy" });
     expect(Object.keys(rec.termsAcceptance)).not.toContain("extra");
     expect(rec.termsAcceptedByUid).toBe(`uid-${NORTH.email}`);
@@ -409,7 +426,7 @@ describe("T3 the accept route", () => {
     expect((await post(NORTH, { ...good, privacyVersion: "2026-11-02.1" })).status).toBe(400);
     expect((await post(NORTH, { ...good, termsVersion: "2026-11-12.1" })).status).toBe(400);
     expect(recordOf(NORTH).termsAcceptance).toBeUndefined();
-    expect(await post(NORTH, { ...good, privacyVersion: "2026-11-12.2" })).toMatchObject({ status: 200,
+    expect(await post(NORTH, { ...good, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" })).toMatchObject({ status: 200,
       body: { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" } });
     expect(recordOf(NORTH).termsAcceptance).toMatchObject({ terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" });
     expect(companyMaySeeJobs(recordOf(NORTH) as never)).toBe(true);
