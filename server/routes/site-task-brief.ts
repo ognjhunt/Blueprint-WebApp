@@ -102,7 +102,7 @@ import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
-import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
+import { sceneScreenGateEnded, websiteJobGoesAheadWhateverKind } from "../utils/sceneScreenGate";
 import { loadJobWaitsForItsSentence } from "../utils/jobSentenceWait";
 
 const router = Router();
@@ -314,6 +314,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   site_task_triage?: { disposition?: string | null } | null;
   /** The job was filmed after the screen stopped gating (2026-11-11 marker). */
   screenGateEnded?: boolean;
+  /** Built whatever its kind (`websiteJobGoesAheadWhateverKind`). */
+  kindGoesAhead?: boolean;
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
@@ -380,6 +382,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
     site_task_triage: (data.site_task_triage as SiteTaskTriageSummary | undefined) ?? null,
     // The screen gates nothing for a job filmed after 2026-11-11: its status follows the outlook, not the screen.
     screenGateEnded: sceneScreenGateEnded(data, requestId),
+    kindGoesAhead: websiteJobGoesAheadWhateverKind(data, requestId),
     // Stored plaintext fields, which is what the access predicate reads.
     jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
     recommended: Boolean(data.pilot_recommendation),
@@ -1046,10 +1049,12 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     const walkthrough = await savedWalkthrough(payload).catch(() => null);
     let coverageMeasured = false;
     let screenGateEnded = false;
+    let kindGoesAhead = false;
     try {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
       screenGateEnded = request?.screenGateEnded === true;
+      kindGoesAhead = request?.kindGoesAhead === true;
       // The brief can be a no-op while its notification intent is missing.
       // Reuse the durable outbox key to recover failed enqueues without
       // creating another message or changing the confirmed work.
@@ -1059,7 +1064,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           siteName: request.siteName,
           reason: result.scope.reason,
           jobUrl: captureUploadUrlFor(payload.requestId),
-          prepared: screenGateEnded,
+          prepared: kindGoesAhead,
         });
         await enqueueOutbox({
           idempotencyKey: `${payload.requestId}:brief-screening:task-not-yet-supported`,
@@ -1099,7 +1104,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       ok: true,
-      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason, screenGateEnded),
+      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason, kindGoesAhead),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
@@ -1363,7 +1368,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.screenGateEnded ? null : request?.site_task_triage ?? null,
         site_task_scope: request?.site_task_scope ?? null,
-        screenGateEnded: request?.screenGateEnded === true,
+        kindGoesAhead: request?.kindGoesAhead === true,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
         capture_owner_uid: request?.capture_owner_uid,

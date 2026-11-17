@@ -41,7 +41,8 @@ import { JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE, JOB_NO_GRANT_SITE_ENDING_MESSAGE
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS } from "../utils/websiteJobWindow";
 import { websiteJobNoGrantEndedNoticeKey } from "../utils/websiteJobWindowEnding";
-import { sweepWebsiteJobNoGrant, sweepWebsiteJobWindows } from "../utils/websiteJobWindowSweep";
+import { sweepWebsiteJobNoGrant, sweepWebsiteJobWindows, websiteJobKeptOnFile } from "../utils/websiteJobWindowSweep";
+import { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } from "../utils/sceneScreenGate";
 import { websiteJobWorkWindow } from "../utils/websiteSceneSponsorship";
 
 const HOUR = 3600, DAY = 86400;
@@ -207,6 +208,38 @@ describe("a job the no-grant clock must leave alone", () => {
     expect(loads).not.toHaveBeenCalled();
     loads.mockRestore();
     expect(job()).toEqual(before);
+  });
+
+  // A job created since 2026-11-11 is built whatever its kind: with no grant yet it waits as a job of a kind we score.
+  const marked = { [SCENE_SCREEN_GATE_ENDED_FIELD]: sceneScreenGateEndedMarker("job-one", new Date(NOW - DAY * 1000).toISOString(), "job_created"),
+    capture_owner_uid: "site-job-owner", capture_owner_bound_at_iso: new Date(NOW - DAY * 1000).toISOString() };
+  it.each([false, true])("never keeps on file a marked job of a kind accepted for analysis (recording saved: %s)", async received => {
+    recording.received = received;
+    seedJob({ ...marked, site_task_scope: { supported: false, reason: "mobile", disposition: "accepted_for_analysis" } });
+    expect(websiteJobKeptOnFile(job(), "job-one")).toBe(false);
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    const accepted = structuredClone(job());
+    expect(accepted).not.toHaveProperty("kept_on_file_answer_owed_at_iso");
+    expect(accepted).not.toHaveProperty("answer_notices_waiting");
+    // Recorded exactly as the same job of a kind we score.
+    docs.clear();
+    seedJob({ ...marked, site_task_scope: { supported: true, kind: "rigid_pick_and_place", reason: null, disposition: "scorable" } });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    expect(accepted.website_job_no_grant_clock).toEqual(job().website_job_no_grant_clock);
+    expect(accepted.website_job_no_grant_clock.waiting_on).toBe(received ? "blueprint" : "site");
+  });
+
+  it("still keeps on file a job without the marker, or whose source owner was never bound", async () => {
+    for (const changes of [{}, { [SCENE_SCREEN_GATE_ENDED_FIELD]: marked[SCENE_SCREEN_GATE_ENDED_FIELD] }]) {
+      docs.clear();
+      seedJob({ ...changes, site_task_scope: { supported: false, reason: "mobile", disposition: "accepted_for_analysis" } });
+      expect(websiteJobKeptOnFile(job(), "job-one")).toBe(true);
+      expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("kept_on_file");
+      expect(job()).not.toHaveProperty("website_job_no_grant_clock");
+    }
+    // Several steps, or an unread brief, are the site's step, marked or not: never kept on file.
+    for (const reason of ["multi_step", "unclear"])
+      expect(websiteJobKeptOnFile({ ...job(), ...marked, site_task_scope: { supported: false, reason } }, "job-one")).toBe(false);
   });
 
   it("leaves an already-ended job untouched", async () => {

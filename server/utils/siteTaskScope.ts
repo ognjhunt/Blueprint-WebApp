@@ -398,10 +398,8 @@ export function taskScopeReasonSentence(reason: unknown): string {
  * brief we could not read needs one sentence, so it is asked for (audit N3).
  * Any other job we cannot score is accepted; nothing here refuses a job.
  *
- * `prepared`: the job carries the 2026-11-11 marker (`sceneScreenGateEnded`), so its simulation is built
- * whatever its kind (the scope is never a spend gate, `websiteSceneSponsorship`; the Pipeline ships a job
- * of a kind it does not score as a room package, Pipeline #3618). Without it, the older wording stands:
- * such a job with no grant is kept on file (`websiteJobKeptOnFile`).
+ * `prepared`: the job is built whatever its kind (`websiteJobGoesAheadWhateverKind`). Without it, the older
+ * wording stands: such a job with no grant is kept on file (`websiteJobKeptOnFile`).
  */
 export function taskScopeNotYet(reason: unknown, options: { prepared?: boolean } = {}):
   { headline: string; detail: string; nextStep: string } {

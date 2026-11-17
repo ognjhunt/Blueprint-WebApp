@@ -43,3 +43,16 @@ export function sceneScreenGateEnded(record: Record<string, any> | undefined | n
     && marker.decision === "owner_2026_11_11" && marker.capture_id === `walkthrough-${requestId}`
     && [marker.published_at_iso, marker.created_at_iso].some(at => typeof at === "string" && Number.isFinite(Date.parse(at))));
 }
+
+/**
+ * A job whose simulation is built whatever kind of job it is: it carries the marker, and its source owner
+ * was bound by the server before any video (`newWebsiteCaptureOwnerBinding`, every site job created since
+ * the marker). The job's kind is never a spend gate (`websiteSceneSponsorship`), and the Pipeline ships a
+ * kind it does not score as a room package (Pipeline #3618), so its grant comes once its video is with
+ * the Pipeline. A job with no bound owner (a video sent before the job had an account, which cannot be
+ * prepared, or an older record) is not counted here and keeps the older handling.
+ */
+export function websiteJobGoesAheadWhateverKind(record: Record<string, any> | undefined | null, requestId: string): boolean {
+  return sceneScreenGateEnded(record, requestId)
+    && typeof record?.capture_owner_uid === "string" && Boolean(record.capture_owner_uid.trim());
+}

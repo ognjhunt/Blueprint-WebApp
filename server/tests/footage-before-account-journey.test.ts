@@ -240,6 +240,7 @@ async function confirmBrief(token: string) {
       objectVariety: "under_10", deploymentTimeline: "this_quarter", accessWindow: "scheduled" }, unknown: [],
       successCriteria: { successDefinition: "Every carton placed upright", successRate: 90, cycleTimeSeconds: 30, unknown: false } }) });
   expect(response.status, await response.clone().text()).toBe(200);
+  return response.json() as Promise<{ screening: { headline: string; detail: string } | null }>;
 }
 
 /** The Pipeline's signed report that the job's scene is rebuilt, launchable and scoreable. */
@@ -361,9 +362,20 @@ describe("a job whose video arrived before its account", () => {
     // Packing into a tote is a container placement, which no team can run yet.
     const { jobId, token } = await startJob("Pack cartons into totes");
     await legacyGuestUpload(token);
-    await confirmBrief(token);
+    // Marked at creation, but its video arrived before the job had an account: that capture cannot be prepared, so the
+    // confirmation, its email and the page all keep the older wording and never say its simulation is being built.
+    expect(doc(`inboundRequests/${jobId}`).scene_screen_gate_ended).toBeTruthy();
+    const { screening } = await confirmBrief(token);
     await claim(jobId);
-    expect((await jobStatus(token)).status.decision).toBe("not_yet_supported");
+    const status = (await jobStatus(token)).status as { decision: string; headline: string; operatorAction: string };
+    expect(status.decision).toBe("not_yet_supported");
+    const [email] = notices(jobId, "screening_not_now");
+    expect(email).toBeDefined();
+    for (const told of [screening?.headline, screening?.detail, email.body, status.headline, status.operatorAction]) {
+      expect(told).not.toMatch(/we still build the simulation/);
+    }
+    expect(screening?.headline).toBe("We have your job and are preparing an evaluation for it.");
+    expect(status.headline).toBe(screening?.headline);
     await reconcile();
     expect(notices(jobId, "footage_before_account")).toHaveLength(0);
   });

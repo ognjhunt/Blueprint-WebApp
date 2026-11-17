@@ -338,8 +338,8 @@ interface TaskStatusInput {
    * Such a job is not opened to robot teams, so no later rung is true for it.
    */
   taskScope?: { supported: false; reason: string | null } | null;
-  /** The job carries the 2026-11-11 marker (`sceneScreenGateEnded`): its simulation is built whatever its kind. */
-  screenGateEnded?: boolean;
+  /** The job's simulation is built whatever its kind (`websiteJobGoesAheadWhateverKind`). */
+  kindGoesAhead?: boolean;
   /**
    * The current brief names more than one step (`multiStepTaskHold`): held before any spend, so the
    * Pipeline never narrows it to one move. The steps are the ones the screen read.
@@ -498,7 +498,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (input.taskScope && !observedPreparation && !hasRuns) {
     // A video sent before the job had an account cannot be prepared: it keeps the older wording.
     const notYet = taskScopeNotYet(input.taskScope.reason,
-      { prepared: input.screenGateEnded === true && !input.footageBeforeAccount });
+      { prepared: input.kindGoesAhead === true && !input.footageBeforeAccount });
     return {
       ...base,
       decision: "not_yet_supported",
@@ -866,7 +866,7 @@ export function taskStatusInputFrom(record: {
   site_task_triage?: { disposition?: string | null } | null;
   /** `inboundRequests.site_task_scope`, written when the brief is confirmed. */
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
-  screenGateEnded?: boolean;
+  kindGoesAhead?: boolean;
   bookingUrl?: string | null;
   /** Pass the owner uid (or null) when the caller read it; omit when it did not. */
   account_owner_uid?: string | null;
@@ -916,7 +916,7 @@ export function taskStatusInputFrom(record: {
     taskScope: record.site_task_scope?.supported === false
       ? { supported: false, reason: typeof record.site_task_scope.reason === "string" ? record.site_task_scope.reason : null }
       : null,
-    ...(record.screenGateEnded === true ? { screenGateEnded: true } : {}),
+    ...(record.kindGoesAhead === true ? { kindGoesAhead: true } : {}),
     bookingUrl: record.bookingUrl ?? null,
     ...("account_owner_uid" in record ? { claimed: Boolean(record.account_owner_uid) } : {}),
     ...(record.jobAccess ? { openForEvaluations: record.jobAccess.evaluationAvailable,

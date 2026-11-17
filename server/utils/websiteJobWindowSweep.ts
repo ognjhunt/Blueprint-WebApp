@@ -68,6 +68,7 @@ import { isWebsiteJobNoGrantEndedNoticeKey, newWebsiteJobNoGrantClock, recordedW
   WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, WEBSITE_JOB_NO_GRANT_ENDING_FIELD, WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD,
   type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
+import { websiteJobGoesAheadWhateverKind } from "./sceneScreenGate";
 import { largeVideoIngestBlock } from "./websiteLargeVideoBlock";
 import { newWebsiteLargeVideoAsk, websiteLargeVideoAsk, websiteLargeVideoAskEventId, websiteLargeVideoAskNoticeKey,
   WEBSITE_LARGE_VIDEO_ASK_FIELD, type WebsiteLargeVideoAsk } from "./websiteJobWindowEnding";
@@ -335,21 +336,23 @@ function noGrantSkip(record: Record<string, any> | undefined, requestId: string)
   if (recordedWebsiteJobNoGrantEnding(record, requestId)) return "ending_recorded";
   if (record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return "withdrawn";
   if (websiteRunClosure(record, requestId, siteWalkthroughIdentity(requestId, record).captureId)) return "owner_closed";
-  if (websiteJobKeptOnFile(record)) return "kept_on_file";
+  if (websiteJobKeptOnFile(record, requestId)) return "kept_on_file";
   return null;
 }
 
 /**
  * A job of a kind we can't simulate yet, with no grant: kept on file, a recorded ending (review, 2026-11-11). Its one
- * email is the "can't simulate this kind of job yet" one, queued where the job's scope is recorded.
+ * email is the "can't simulate this kind of job yet" one, queued where the job's scope is recorded. A job built
+ * whatever its kind (`websiteJobGoesAheadWhateverKind`) is never kept on file: with no grant yet it waits as a job
+ * of a kind we score does, on the no-grant clock.
  */
 /** When the kept-on-file answer email was first marked owed: set once, so the sweep never marks it again. */
 export const KEPT_ON_FILE_OWED_FIELD = "kept_on_file_answer_owed_at_iso";
 
-export function websiteJobKeptOnFile(record: Record<string, any> | undefined): boolean {
+export function websiteJobKeptOnFile(record: Record<string, any> | undefined, requestId: string): boolean {
   const scope = record?.site_task_scope;
   return Boolean(record && !record.website_scene_sponsorship && scope?.supported === false
-    && !SITE_STEP_SCOPE_REASONS.has(String(scope.reason ?? "")));
+    && !SITE_STEP_SCOPE_REASONS.has(String(scope.reason ?? "")) && !websiteJobGoesAheadWhateverKind(record, requestId));
 }
 
 /**
@@ -359,7 +362,9 @@ export function websiteJobKeptOnFile(record: Record<string, any> | undefined): b
  */
 async function noGrantWaitingOn(requestId: string, record: Record<string, any>,
   brief: Record<string, any>): Promise<WebsiteJobNoGrantWait> {
-  if (record.site_task_scope?.supported === false) return "site";
+  // Only a kind whose next step is the site's own waits on the site; a job built whatever its kind waits as any other.
+  if (record.site_task_scope?.supported === false && (SITE_STEP_SCOPE_REASONS.has(String(record.site_task_scope.reason ?? ""))
+    || !websiteJobGoesAheadWhateverKind(record, requestId))) return "site";
   if (multiStepTaskHold(brief as never)) return "site";
   const walkthrough = await savedWalkthrough(siteWalkthroughIdentity(requestId, record));
   if (!walkthrough) throw new Error("website_job_no_grant_recording_status_unavailable");

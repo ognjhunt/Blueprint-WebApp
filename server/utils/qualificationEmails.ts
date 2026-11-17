@@ -41,8 +41,8 @@ function bulletList(items: readonly string[]): string {
  *
  * Names what the simulation scores today, so the site never waits on an
  * evaluation that would test a different task. The job is accepted; one that
- * carries the 2026-11-11 marker (`prepared`) has its simulation built whatever
- * its kind, and is told so. A job of several steps stays held (it gets no grant).
+ * is built whatever its kind (`prepared`, `websiteJobGoesAheadWhateverKind`)
+ * is told so. A job of several steps stays held (it gets no grant).
  * A brief we could not read is asked for one sentence instead: it is
  * undescribed, not held (audit N3).
  */
@@ -51,7 +51,7 @@ export function buildTaskNotYetSupportedEmail(params: {
   siteName?: string | null;
   reason: unknown;
   jobUrl?: string | null;
-  /** The job carries the 2026-11-11 marker (`sceneScreenGateEnded`): see `taskScopeNotYet`. */
+  /** The job is built whatever its kind (`websiteJobGoesAheadWhateverKind`): see `taskScopeNotYet`. */
   prepared?: boolean;
 }): QualificationEmail {
   const site = params.siteName?.trim();
