@@ -198,7 +198,7 @@ describe("GET /api/admin/jobs/:requestId", () => {
     expect(Object.keys(body).sort()).toEqual(["cost", "events", "job", "requestId", "scenePreviewViewUrl", "simulationPackage", "simulationPackageUrl", "standing", "stops"]);
     expect(body.scenePreviewViewUrl).toBeNull();
     expect(body.job).toEqual({ sentence: "Stack cartons onto the pallet.", drafted: false, site: { name: "Site job-a", place: "Austin, TX" }, internalTest: null });
-    expect(body.standing).toEqual({ phase: "no_test", phrase: "Ended", siteSees: "The time for this job ran out.",
+    expect(body.standing).toEqual({ phase: "no_test", phrase: "Ended; waiting on Blueprint: its hold on sharing", siteSees: "The time for this job ran out.",
       companies: "Shared, but not visible to companies right now: Blueprint stopped showing it.", pipeline: null });
     expect(body.stops).toEqual([{ key: "blueprint-hold", whose: "blueprint", atIso: "2026-10-05T00:00:00.000Z",
       text: "Blueprint stopped showing this job to companies: Checking" }]);
@@ -223,18 +223,63 @@ describe("GET /api/admin/jobs/:requestId", () => {
   it("names only privacy, rights and money stops, each with whose step it is", async () => {
     siteJob("job-w", "2026-10-02T00:00:00.000Z", { request: { buyerType: "site_operator",
       consent_attestation: { granted: true, revoked_at_iso: "2026-10-06T00:00:00.000Z" } },
-    capture_withdrawal: { state: "pipeline_acknowledged_cleanup_pending" } });
+    capture_withdrawal: { state: "pipeline_acknowledged_cleanup_pending", pipelineAcknowledged: true } });
     table("opsWebsiteJobOverBudgetAlerts").set("job-w-safety-limit", { request_id: "job-w",
       safety_limit: { recorded_at_epoch: 1_791_000_000 } });
     const body = await (await fetch(`${baseUrl}/job-w`, admin)).json();
     expect(body.stops).toEqual([
       { key: "withdrawn", whose: "blueprint", atIso: "2026-10-06T00:00:00.000Z",
-        text: "The site withdrew permission to use its video. The Pipeline has it; confirm the cleanup." },
+        text: "The site withdrew permission to use its video. Website copies: not deleted yet. The Pipeline acknowledged it."
+          + " The Pipeline's own copies are not verified removed. Copies outside the Pipeline are not verified removed." },
       { key: "money-safety_limit", whose: "blueprint", atIso: new Date(1_791_000_000_000).toISOString(),
         text: "Spending was refused at this job's safety limit." },
     ]);
     expect(body.events.map((event: Row) => event.text)).toContain("Permission withdrawn by the site");
     expect(body.standing.companies).toBeNull();
+    expect(body.standing.phrase).toBe("Building the simulation; waiting on Blueprint: withdrawal cleanup, budget");
+  });
+
+  it("never rounds a withdrawal up: deletion confirmed still names the cleanup nobody has verified", async () => {
+    siteJob("job-d", "2026-10-02T00:00:00.000Z", { request: { buyerType: "site_operator",
+      consent_attestation: { granted: true, revoked_at_iso: "2026-10-06T00:00:00.000Z" } },
+    // What `deriveWebsiteWithdrawalState` writes once the website deleted its copies and the Pipeline acknowledged.
+    capture_withdrawal: { state: "deletion_confirmed", deletionConfirmed: true, pipelineAcknowledged: true,
+      webappDeletion: { phase: "deleted" }, localCleanupVerified: true, cloudObjectAbsenceVerified: false,
+      deliveredCopyCleanupVerified: false } });
+    const [stop] = (await (await fetch(`${baseUrl}/job-d`, admin)).json()).stops;
+    expect(stop.text).toBe("The site withdrew permission to use its video. Website copies: deleted. The Pipeline acknowledged it."
+      + " The Pipeline's own copies are not verified removed. Copies outside the Pipeline are not verified removed.");
+    expect(stop.whose).toBe("blueprint");
+    expect(stop.text).not.toMatch(/Cleanup is confirmed/);
+  });
+
+  it("reads a hold as a hold, and a job with no video as waiting for it, never as an ending or as reading", async () => {
+    siteJob("job-h", "2026-10-03T00:00:00.000Z");
+    siteJob("job-n", "2026-10-02T00:00:00.000Z");
+    siteJob("job-r", "2026-10-01T00:00:00.000Z");
+    table("captureOutbox").set("job-r:video_received", { createdAtIso: "2026-10-01T01:00:00.000Z" });
+    outlooks.byId.set("job-h", { phase: "no_test", reason: "scene_held", sentence: "Work on the simulation of your job is on hold." });
+    outlooks.byId.set("job-n", { phase: "reading", reason: null, sentence: null });
+    outlooks.byId.set("job-r", { phase: "reading", reason: null, sentence: null });
+    const rows = (await (await fetch(baseUrl, admin)).json()).jobs.map((row: Row) => [row.requestId, row.standing]);
+    expect(rows).toEqual([["job-h", "On hold"], ["job-n", "Waiting for the video"], ["job-r", "Reading the video"]]);
+  });
+
+  it("shows a cancelled introduction as cancelled, and each billable event as recorded or voided with no price", async () => {
+    siteJob("job-i", "2026-10-02T00:00:00.000Z");
+    companies.panel = { sharing: { words: "Shared and visible to approved companies." }, autoSend: null, sends: [], responses: [],
+      introductions: [{ companyId: "c1", company: "North Robotics", alias: "A", requestedAtIso: "2026-10-03T00:00:00.000Z",
+        cancelledAtIso: "2026-10-03T00:05:00.000Z", cancelReason: "company_withdrew", latestOutcome: null }],
+      billableEvents: [
+        { id: "b1", kind: "introduction", companyId: "c1", company: "North Robotics", atIso: "2026-10-03T00:00:00.000Z", priceUsd: null, status: "recorded_no_price" },
+        { id: "b2", kind: "introduction", companyId: "c2", company: "South Robotics", atIso: "2026-10-04T00:00:00.000Z", priceUsd: null, status: "void" },
+      ] };
+    const body = await (await fetch(`${baseUrl}/job-i`, admin)).json();
+    expect(body.events.map((event: Row) => event.text)).toEqual(["Job received", "The site asked to meet North Robotics",
+      "Billable event recorded for the introduction to North Robotics",
+      "The introduction to North Robotics was cancelled (company withdrew); emails not yet sent for it were cancelled",
+      "Billable event for the introduction to South Robotics: voided"]);
+    expect(JSON.stringify(body.events)).not.toMatch(/\$|USD|price/i);
   });
 
   it("counts what the job's ledgers hold, and leaves the part out for a job with none", async () => {
@@ -243,5 +288,17 @@ describe("GET /api/admin/jobs/:requestId", () => {
       b: { admission: { maximum_cost_usd: 2.5 } } } });
     const body = await (await fetch(`${baseUrl}/job-c`, admin)).json();
     expect(body.cost).toEqual({ spentOrHeldUsd: 3.75, unreadable: [] });
+    siteJob("job-0", "2026-10-02T00:00:00.000Z");
+    expect((await (await fetch(`${baseUrl}/job-0`, admin)).json()).cost).toBeNull();
+  });
+
+  it("counts only what can be read, and names what it left out, never a placeholder figure for it", async () => {
+    siteJob("job-u", "2026-10-02T00:00:00.000Z", { website_preparation_reservations: {
+      a: { admission: { maximum_cost_usd: 4 }, settlement: { actual_cost_usd: 1.25 } } } });
+    // A trial run whose result record cannot be read: the ceiling counts a $30 placeholder for it; the page does not.
+    table("taskEvaluationPolicyRuns").set("run-1", { run_kind: "beta_policy_screening", run_id: "run-1",
+      result_record_id: "missing", job_evidence_binding: { job_id: "job-u" } });
+    const body = await (await fetch(`${baseUrl}/job-u`, admin)).json();
+    expect(body.cost).toEqual({ spentOrHeldUsd: 1.25, unreadable: ["screening result missing"] });
   });
 });

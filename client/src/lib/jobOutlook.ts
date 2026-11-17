@@ -18,6 +18,11 @@ export interface JobOutlook {
   sentence: string | null;
 }
 
+/** The site's job page's own lines for a phase with no reason sentence (`SiteAnswer.tsx`); staff are shown the same words. */
+export const READING_LINE = "We're watching your video.";
+export const SIMULATION_BUILDING = "We're building the simulation of your site.";
+export const SIMULATION_READY = "The simulation of your site is ready.";
+
 /** The reason sentences, said the same on the page and in the email. */
 export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_held" | "run_ended" | "other_kind">, string>> = {
   permission_withdrawn: "Permission to use your video was withdrawn, so this job has stopped.",

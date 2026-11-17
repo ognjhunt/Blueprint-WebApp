@@ -5,10 +5,11 @@ asset preparation, policy adapters and planning handoffs in Pipeline and interna
 operator tooling. Customer setup shows the team's actual robot/policy, validation
 status and results.
 
-The existing staff-only `/admin/jobs` console has a collapsed **Robot integration
-planning** disclosure with the visual 16-robot gallery, compatible policy-route
-choices, source evidence, setup requirements and portable handoff export. The
-page is protected by the existing admin/ops route requirement. The global
+The visual 16-robot gallery (`DeploymentEmbodimentShortlist`), with compatible
+policy-route choices, source evidence, setup requirements and portable handoff
+export, is no longer shown on any page: the staff-only `/admin/jobs` page dropped
+its **Robot integration planning** disclosure on 2026-11-17 (owner: "only keep
+stuff that is needed"). The component and its data remain in the repository. The global
 planning export has `source_launch_id: null`; a job request ID is never treated
 as a Pipeline launch ID. Customer policy-test, team-evaluation and Settings
 pages do not offer the full planning catalog.

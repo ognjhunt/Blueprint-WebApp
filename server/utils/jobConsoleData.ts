@@ -9,9 +9,11 @@
  * Every read past the job's own record is best effort: one that fails leaves its part out, never the page.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { ADMIN_PHASE_WORDS, STANDING_UNREAD, type AdminJobDetail, type AdminJobEvent, type AdminJobInternalTest,
+import { ADMIN_PHASE_WORDS, STANDING_NO_VIDEO, STANDING_ON_HOLD, STANDING_PACKAGE_BUILT, STANDING_UNREAD, type AdminJobDetail, type AdminJobEvent, type AdminJobInternalTest,
   type AdminJobRow, type AdminJobStop } from "../../client/src/types/jobConsole";
 import { COMPANY_RESPONSE_LABELS } from "../../client/src/lib/companyResponses";
+import { OUTLOOK_HOLDS, READING_LINE, SIMULATION_BUILDING, SIMULATION_READY } from "../../client/src/lib/jobOutlook";
+import { projectWebsiteCaptureWithdrawal } from "./websiteCaptureWithdrawal";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import { iso, object, text } from "./workspace-projection";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
@@ -57,9 +59,36 @@ function within<T>(work: Promise<T>, ms: number): Promise<T | null> {
   return Promise.race([work.catch(() => null), late]).finally(() => clearTimeout(timer));
 }
 
-function standingOf(outlook: JobOutlook | null): { phase: AdminJobRow["phase"]; phrase: string } {
-  return outlook ? { phase: outlook.phase, phrase: ADMIN_PHASE_WORDS[outlook.phase] ?? STANDING_UNREAD }
-    : { phase: null, phrase: STANDING_UNREAD };
+/** What the site's own job page says for the outlook: its reason sentence, else the page's line for the phase. */
+function sitePageLine(outlook: JobOutlook): string | null {
+  if (outlook.sentence) return outlook.sentence;
+  if (outlook.phase === "reading") return READING_LINE;
+  if (outlook.phase === "building") return SIMULATION_BUILDING;
+  if (outlook.phase === "testing" || outlook.phase === "result") return SIMULATION_READY;
+  return null;
+}
+
+/**
+ * Where the job stands, for staff. The outlook's phase in a short phrase, read with its reason (a hold is not an
+ * ending), except where a record says more: the package record says the package is built (said first; if the site's
+ * page says otherwise, that line is shown beside it, not hidden), and no video has arrived while the outlook reads
+ * "reading". A job waiting on Blueprint (`stops`) says so. Nothing else is worked out here.
+ */
+export function standingOf(input: { outlook: JobOutlook | null; packageBuilt: boolean; videoReceived: boolean;
+  waitsOnBlueprint: string[] }): { phase: AdminJobRow["phase"]; phrase: string; siteSees: string | null } {
+  const { outlook, packageBuilt } = input;
+  const agrees = outlook?.phase === "testing" || outlook?.phase === "result";
+  let phrase: string;
+  let siteSees: string | null = outlook?.sentence ?? null;
+  if (packageBuilt) {
+    phrase = STANDING_PACKAGE_BUILT;
+    siteSees = outlook && !agrees ? sitePageLine(outlook) : null;
+  } else if (!outlook) phrase = STANDING_UNREAD;
+  else if (outlook.phase === "reading") phrase = input.videoReceived ? ADMIN_PHASE_WORDS.reading : STANDING_NO_VIDEO;
+  else if (outlook.phase === "no_test" && outlook.reason && OUTLOOK_HOLDS.has(outlook.reason)) phrase = STANDING_ON_HOLD;
+  else phrase = ADMIN_PHASE_WORDS[outlook.phase] ?? STANDING_UNREAD;
+  if (input.waitsOnBlueprint.length) phrase += `; waiting on Blueprint: ${input.waitsOnBlueprint.join(", ")}`;
+  return { phase: outlook?.phase ?? null, phrase, siteSees };
 }
 
 async function readOutlook(requestId: string, known?: JobOutlookKnownReads): Promise<JobOutlook | null> {
@@ -99,14 +128,24 @@ export async function listJobConsoleRows(params: { limit: number; cursor?: strin
     if (record && isSiteJobRecord(record)) page.push({ id: doc.id, record });
     if (page.length >= limit) break;
   }
-  const briefs = await getAllDocs("siteTaskBriefs", page.map(row => row.id)).catch(() => new Map<string, Data>());
+  const empty = () => new Map<string, Data>();
+  const captures = new Map(page.map(({ id, record }) => [id, siteWalkthroughIdentity(id, record).captureId]));
+  const [briefs, sessions, notices] = await Promise.all([
+    getAllDocs("siteTaskBriefs", page.map(row => row.id)).catch(empty),
+    getAllDocs("captureUploadSessions", [...captures.values()]).catch(empty),
+    getAllDocs("captureOutbox", page.map(row => `${row.id}:video_received`)).catch(empty),
+  ]);
   const rows = await Promise.all(page.map(async ({ id, record }) => {
     const outlook = await readOutlook(id);
+    const captureId = captures.get(id)!;
+    const { phase, phrase } = standingOf({ outlook, packageBuilt: Boolean(adminCompanySimulation(record, sessions.get(captureId), captureId)),
+      videoReceived: notices.has(`${id}:video_received`), waitsOnBlueprint: blueprintWaits(recordStops(record)) });
     return {
       requestId: id,
       sentence: sentenceOf(record, briefs.get(id)).sentence,
       internalTest: internalTestOf(record),
-      ...(({ phase, phrase }) => ({ phase, standing: phrase }))(standingOf(outlook)),
+      phase,
+      standing: phrase,
       receivedAtIso: iso(record.createdAt),
     } satisfies AdminJobRow;
   }));
@@ -188,21 +227,34 @@ function pipelineWords(preparation: PublicWebsitePreparationStatus | null, scene
   return `The Pipeline reports: ${words}.`;
 }
 
-/** A withdrawal's cleanup, as `capture_withdrawal` records it, and whose step is left. */
+/**
+ * A withdrawal, as the withdrawal's own projection reports it (`projectWebsiteCaptureWithdrawal`): each part of the
+ * cleanup said as confirmed or not, never rounded up. The Pipeline's cleanup of its own copies and of copies outside
+ * it are reported apart from the website's deletion and its acknowledgement, and are never inferred from them.
+ */
 function withdrawalStop(record: Data): AdminJobStop {
   const attestation = object(object(record.request).consent_attestation);
-  const withdrawal = object(record.capture_withdrawal);
-  const atIso = text(attestation.revoked_at_iso) || text(attestation.withdrawn_at_iso) || text(withdrawal.requestedAtIso)
-    || text(withdrawal.requested_at_iso) || null;
+  const raw = object(record.capture_withdrawal);
+  const atIso = text(attestation.revoked_at_iso) || text(attestation.withdrawn_at_iso) || text(raw.requestedAtIso)
+    || text(raw.requested_at_iso) || null;
   const lead = "The site withdrew permission to use its video.";
-  if (withdrawal.deletionConfirmed === true) return { key: "withdrawn", text: `${lead} Cleanup is confirmed.`, whose: "none", atIso };
-  const step: Record<string, string> = {
-    pipeline_acknowledged_cleanup_pending: "The Pipeline has it; confirm the cleanup.",
-    local_cleanup_verified_external_pending: "Our copies are deleted; confirm outside copies are removed.",
-    cleanup_retained_legal_hold: "Cleanup is under a legal hold.",
-  };
-  return { key: "withdrawn", text: `${lead} ${step[text(withdrawal.state)] ?? "Confirm the withdrawal reached the Pipeline."}`,
-    whose: withdrawal.state === "cleanup_retained_legal_hold" ? "none" : "blueprint", atIso };
+  if (!Object.keys(raw).length) return { key: "withdrawn", whose: "blueprint", atIso,
+    text: `${lead} No withdrawal record is on file yet, so no cleanup is confirmed.` };
+  const projected = projectWebsiteCaptureWithdrawal(raw);
+  const storage = { deleted: "deleted", deleted_late_upload_check_pending: "deleted, a check for late uploads still to run",
+    retrying: "deletion is being retried", pending: "not deleted yet" }[projected.storageDeletion.state];
+  const outsideVerified = raw.deliveredCopyCleanupVerified === true;
+  const parts = [
+    `Website copies: ${storage}.`,
+    projected.pipelineAcknowledged ? "The Pipeline acknowledged it." : "The Pipeline has not acknowledged it yet.",
+    projected.pipelineCleanupVerified ? "The Pipeline's own copies are verified removed." : "The Pipeline's own copies are not verified removed.",
+    outsideVerified ? "Copies outside the Pipeline are verified removed." : "Copies outside the Pipeline are not verified removed.",
+    ...(projected.legalHold ? ["Cleanup is under a legal hold."] : []),
+  ];
+  const done = projected.storageDeletion.state === "deleted" && projected.pipelineAcknowledged && projected.pipelineCleanupVerified
+    && outsideVerified;
+  return { key: "withdrawn", text: `${lead} ${parts.join(" ")}`, atIso,
+    whose: projected.legalHold || done ? "none" : "blueprint" };
 }
 
 /** The rights reasons that keep a site's job from companies, each with whose step it is. */
@@ -219,6 +271,30 @@ const MONEY_STOPS: Readonly<Record<string, string>> = {
   safety_limit: "Spending was refused at this job's safety limit.",
   screening_job_ceiling: "Testing was held back at this job's spending limit.",
 };
+
+/** The stops the job's own record holds: a withdrawal, a rights reason, Blueprint's hold. */
+function recordStops(record: Data): AdminJobStop[] {
+  if (projectWebsiteCaptureRights(record).consent_revoked) return [withdrawalStop(record)];
+  if (isInternalTestJob(record)) return [];
+  const stops: AdminJobStop[] = [];
+  const access = (() => { try { return teamJobAccess(record); } catch { return null; } })();
+  const rights = access?.reason ? RIGHTS_STOPS[access.reason] : undefined;
+  if (rights) stops.push({ key: `rights-${access!.reason}`, text: rights.text, whose: rights.whose, atIso: null });
+  const hold = operatorListingHold(record);
+  if (hold) stops.push({ key: "blueprint-hold", whose: "blueprint", atIso: hold.atIso,
+    text: `Blueprint stopped showing this job to companies${hold.reason ? `: ${hold.reason}` : "."}` });
+  return stops;
+}
+
+/** What the job waits on Blueprint for, in a word or two each, from its stops. */
+const WAIT_WORDS: Readonly<Record<string, string>> = {
+  withdrawn: "withdrawal cleanup", "rights-rights_blocked": "rights review", "rights-rights_needs_review": "rights review",
+  "rights-privacy_screen_pending": "privacy screen", "blueprint-hold": "its hold on sharing",
+  "money-budget": "budget", "money-safety_limit": "budget", "money-screening_job_ceiling": "budget",
+};
+function blueprintWaits(stops: AdminJobStop[]): string[] {
+  return [...new Set(stops.filter(stop => stop.whose === "blueprint").map(stop => WAIT_WORDS[stop.key] ?? "a step of its own"))];
+}
 
 function epochIso(value: unknown): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? new Date(value * 1000).toISOString() : null;
@@ -247,8 +323,8 @@ async function costOf(requestId: string, record: Data): Promise<AdminJobDetail["
   };
   const spend = await websiteJobSpend({ record, reader: counted });
   if (!entries) return null;
-  const micros = Number.isFinite(spend.total_micros) ? spend.total_micros : spend.readable_total_micros;
-  return { spentOrHeldUsd: Math.round(micros / 10_000) / 100, unreadable: spend.unreadable };
+  // What the readable records add up to: an unreadable record counts nothing here, and the page names it as left out.
+  return { spentOrHeldUsd: Math.round(spend.readable_total_micros / 10_000) / 100, unreadable: spend.unreadable };
 }
 
 async function siteOf(record: Data): Promise<{ name: string | null; place: string | null }> {
@@ -280,9 +356,16 @@ function companyEvents(companies: AdminJobCompanies | null): AdminJobEvent[] {
   for (const row of companies.introductions ?? []) {
     if (row.requestedAtIso)
       events.push({ key: `introduction-${row.companyId}`, atIso: row.requestedAtIso, text: `The site asked to meet ${name(row)}` });
+    if (row.cancelledAtIso) events.push({ key: `introduction-cancelled-${row.companyId}`, atIso: row.cancelledAtIso,
+      text: `The introduction to ${name(row)} was cancelled${row.cancelReason ? ` (${row.cancelReason.replace(/_/g, " ")})` : ""}; emails not yet sent for it were cancelled` });
     if (row.latestOutcome?.atIso) events.push({ key: `outcome-${row.companyId}`, atIso: row.latestOutcome.atIso,
       text: `After the introduction to ${name(row)}, the ${row.latestOutcome.by === "site" ? "site" : "company"} said: ${row.latestOutcome.label}` });
   }
+  // Each introduction is recorded as a billable event: said as recorded or voided, never with a price.
+  for (const event of companies.billableEvents ?? []) if (event.atIso)
+    events.push({ key: `billable-${event.id}`, atIso: event.atIso, text: event.status === "void"
+      ? `Billable event for the introduction to ${name(event)}: voided`
+      : `Billable event recorded for the introduction to ${name(event)}` });
   return events;
 }
 
@@ -331,16 +414,7 @@ export async function getJobConsoleDetail(requestId: string): Promise<AdminJobDe
   const { sentence, drafted } = sentenceOf(record, brief);
 
   // Only privacy, rights and money stop a job; said as each record says it.
-  const stops: AdminJobStop[] = [];
-  if (revoked) stops.push(withdrawalStop(record));
-  else if (!internalTest) {
-    const access = (() => { try { return teamJobAccess(record); } catch { return null; } })();
-    const rights = access?.reason ? RIGHTS_STOPS[access.reason] : undefined;
-    if (rights) stops.push({ key: `rights-${access!.reason}`, text: rights.text, whose: rights.whose, atIso: null });
-    const hold = operatorListingHold(record);
-    if (hold) stops.push({ key: "blueprint-hold", whose: "blueprint", atIso: hold.atIso,
-      text: `Blueprint stopped showing this job to companies${hold.reason ? `: ${hold.reason}` : "."}` });
-  }
+  const stops: AdminJobStop[] = recordStops(record);
   if (preparation?.state === "failed_terminal" && preparation.terminalReason === "budget_exhausted")
     stops.push({ key: "money-budget", text: "The Pipeline stopped at this job's budget.", whose: "blueprint", atIso: null });
   stops.push(...(money ?? []));
@@ -354,11 +428,12 @@ export async function getJobConsoleDetail(requestId: string): Promise<AdminJobDe
     ...stops.filter(stop => stop.key === "withdrawn" && stop.atIso).map(stop => ({ key: "withdrawn", text: "Permission withdrawn by the site", atIso: stop.atIso! })),
   ].sort((a, b) => a.atIso.localeCompare(b.atIso));
 
-  const { phase, phrase } = standingOf(outlook);
+  const { phase, phrase, siteSees } = standingOf({ outlook, packageBuilt: Boolean(packageReady), videoReceived: Boolean(videoAtIso),
+    waitsOnBlueprint: blueprintWaits(stops) });
   return {
     requestId,
     job: { sentence, drafted, site: internalTest ? null : site, internalTest },
-    standing: { phase, phrase, siteSees: outlook?.sentence ?? null,
+    standing: { phase, phrase, siteSees,
       companies: companies && !revoked ? companies.sharing.words : null, pipeline: pipelineWords(preparation, scene) },
     simulationPackageUrl: packageReady ? `/api/admin/jobs/${encodeURIComponent(requestId)}/simulation.zip` : null,
     simulationPackage: packageReady ? { files: packageReady.files, sizeBytes: packageReady.size_bytes, builtAtIso } : null,

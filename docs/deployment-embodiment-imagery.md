@@ -1,6 +1,6 @@
 # Deployment embodiment imagery
 
-Original published images used to identify the planning options in the existing staff-only `/admin/jobs` integration-planning disclosure. Source URLs, credits, portrayal notes, and SHA-256 hashes are retained in `client/src/data/deploymentEmbodimentImages.json`. That display metadata is separate from the digest-bound Pipeline support catalog and does not change catalog or simulation admission.
+Original published images used to identify the planning options in the robot and policy shortlist (`DeploymentEmbodimentShortlist`), which no page shows since the staff-only `/admin/jobs` page dropped its integration-planning disclosure on 2026-11-17. Source URLs, credits, portrayal notes, and SHA-256 hashes are retained in `client/src/data/deploymentEmbodimentImages.json`. That display metadata is separate from the digest-bound Pipeline support catalog and does not change catalog or simulation admission.
 
 Images are retained unmodified; copyright belongs to the named sources. A product image of one arm may represent one component of a two-arm selection; the UI states the selected arm count separately. The KUKA image shows the LBR iiwa family, not independently verified exact iiwa 14 geometry. Simulator documentation renders identify the depicted model, not a validated Blueprint scene. M-710iC/45M and RO1 use labeled schematic configuration illustrations.
 

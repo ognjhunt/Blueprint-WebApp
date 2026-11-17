@@ -26,7 +26,10 @@ function dateLabel(value: string | null | undefined) {
 
 type Loaded = { status: "loading" } | { status: "failed"; message: string } | { status: "ready"; panel: AdminJobCompanies };
 
-export function JobCompaniesConsole({ requestId, currentUser }: { requestId: string; currentUser: FirebaseUser | null }) {
+/** `onChanged`: called after every write that succeeded, so the job's page re-reads what the write changed. */
+export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
+  requestId: string; currentUser: FirebaseUser | null; onChanged?: () => void;
+}) {
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -71,6 +74,7 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
         return false;
       }
       await load(true);
+      onChanged?.();
       return true;
     } catch {
       setActionError(`${failure}. Check your connection and try again.`);

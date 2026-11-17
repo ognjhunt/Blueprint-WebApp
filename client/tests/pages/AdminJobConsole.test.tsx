@@ -57,6 +57,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  window.sessionStorage.clear();
   window.history.replaceState(null, "", "/admin/jobs");
   fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
@@ -113,6 +114,32 @@ describe("a job's page", () => {
     expect(screen.queryByRole("region", { name: "What was built" })).toBeNull();
     expect(screen.queryByRole("region", { name: "What it has cost so far" })).toBeNull();
     expect(screen.getByText("Deployment companies", { selector: "summary" })).toBeInTheDocument();
+  });
+
+  it("reads the job again after a company action, so the sharing line, stops and events above stay true", async () => {
+    const panel = { sharing: { state: "shared_visible", words: "Shared and visible to approved companies.", reason: null }, hold: null,
+      consentRevoked: false, libraryUrl: "https://tryblueprint.io/contact/robot-team#job-job-a", companies: [], sends: [], responses: [] };
+    let held = false;
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/admin/jobs/job-a") return json(held ? { ...siteJob, stops: [...siteJob.stops,
+        { key: "blueprint-hold", text: "Blueprint stopped showing this job to companies.", whose: "blueprint", atIso: null }] } : siteJob);
+      if (url === "/api/admin/jobs/job-a/companies" && !init?.method) return json(panel);
+      if (url === "/api/admin/jobs/job-a/companies/hold") { held = true; return json({ hold: { held: true } }); }
+      return json({ error: "unexpected" }, 500);
+    });
+    window.history.replaceState(null, "", "/admin/jobs?job=job-a");
+    renderPage();
+    await screen.findByRole("heading", { level: 1, name: "Dock 4" });
+    const summary = screen.getByText("Deployment companies", { selector: "summary" });
+    (summary.parentElement as HTMLDetailsElement).open = true;
+    fireEvent(summary.parentElement!, new Event("toggle"));
+    const tool = await screen.findByRole("region", { name: "Deployment companies" });
+    const reads = () => fetchMock.mock.calls.filter(([url]) => String(url) === "/api/admin/jobs/job-a").length;
+    const before = reads();
+    fireEvent.click(await within(tool).findByRole("button", { name: "Stop showing this job to companies" }));
+    await waitFor(() => expect(reads()).toBe(before + 1));
+    expect(await screen.findByText(/Blueprint stopped showing this job to companies\./)).toBeInTheDocument();
   });
 
   it("has no recommendation form, open gates, coverage, public card, ops notice or claim warning", async () => {

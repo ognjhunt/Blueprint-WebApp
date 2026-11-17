@@ -7,7 +7,7 @@
  */
 import type { JobPhase } from "../lib/jobOutlook";
 
-/** An internal test job (`internal_test` on the record): its label, never a site. */
+/** An internal test job (one the console closes as `internal_test_job`): its label, never a site. */
 export interface AdminJobInternalTest {
   label: string | null;
 }
@@ -91,3 +91,9 @@ export const ADMIN_PHASE_WORDS: Readonly<Record<JobPhase, string>> = {
 };
 
 export const STANDING_UNREAD = "Could not read where it stands right now";
+/** The package record says the simulation package is built: said first, whatever the outlook reads (owner review, 2026-11-17). */
+export const STANDING_PACKAGE_BUILT = "Simulation package built";
+/** The outlook reads "reading" while no video has arrived: that is waiting for it, not reading it. */
+export const STANDING_NO_VIDEO = "Waiting for the video";
+/** An ending after which a test can still come (`OUTLOOK_HOLDS`): a hold, never "Ended". */
+export const STANDING_ON_HOLD = "On hold";

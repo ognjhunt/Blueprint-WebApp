@@ -1,7 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
-import { type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
+import { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY, type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
+
+/** The job page's lines for the phase, kept in `@/lib/jobOutlook` so staff see the same words; re-exported here. */
+export { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY };
 import {
   INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
   isIntroductionRefusalReason,
@@ -37,7 +40,6 @@ export const OLDER_JOB_FAILED = "We could not save your agreement just now. Try 
 export const NOT_SHARED_YET = "Your job is not shared with any company yet.";
 /** A withdrawn job, or a closed one whose summary is not visible (review, 2026-11-12). */
 export const NOTHING_IS_SHARED = "Nothing is shared.";
-export const READING_LINE = "We're watching your video.";
 export const READING_HELPER = "Your job page shows it when it is ready.";
 export const EDIT_JOB_LABEL = "Change my job description";
 export const NEW_VIDEO_LABEL = "Send a new video";
@@ -50,8 +52,6 @@ export const SECTION_COMPANIES = "Deployment companies";
 export const SECTION_FIRST_LOOK = "First look";
 export const SECTION_SIMULATION = "Simulation of your site";
 /** The simulation's own lines, by the phase. */
-export const SIMULATION_BUILDING = "We're building the simulation of your site.";
-export const SIMULATION_READY = "The simulation of your site is ready.";
 export const VIEW_SIMULATION_LABEL = "View the simulation of your site";
 export const doneMeans = (rule: string) => `Done means: ${rule.trim().replace(/[.!?]+$/, "")}.`;
 
