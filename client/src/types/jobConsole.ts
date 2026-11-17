@@ -1,250 +1,99 @@
 /**
- * The job console's shared contract: per-job facts, the loop stages, and what
- * the admin API returns. Pure types and constants, read by the server's
- * derivation (`server/utils/jobConsoleStage.ts`) and the admin page.
+ * What the admin job page shows, and nothing more (`GET /api/admin/jobs`, `GET /api/admin/jobs/:id`).
+ *
+ * The page works out no status of its own. Where a job stands is the job's outlook, the one decision the site's own
+ * job page shows (`server/utils/jobOutlook.ts`); everything else is a record, said as the record says it
+ * (`server/utils/jobConsoleData.ts`).
  */
+import type { JobPhase } from "../lib/jobOutlook";
 
-/** `review_pending`: Blueprint's brief review of new evidence is queued. */
-export type BriefState = "none" | "draft" | "review_pending" | "confirmed";
-export type CaptureState =
-  | "none"
-  /** A walkthrough exists; coverage has not been measured. */
-  | "uploaded"
-  | "coverage_short"
-  | "covered"
-  | "scene_ready"
-  | "scene_failed";
-export type ListingState = "none" | "hidden" | "review_required" | "live" | "paused";
-export type WithdrawalState =
-  | "none" | "requested" | "cleanup_pending" | "legal_hold" | "external_pending" | "complete";
-
-/**
- * Blueprint's own scene for the job, as its job page reads it
- * (`loadWebsiteSceneProgression`): being built, ready, held or ended.
- */
-export interface BlueprintScene {
-  state: "in_progress" | "waiting" | "completed" | "ready" | "held" | "ended";
-  /** Why a held job is held, when the hold said. */
-  heldReason: string | null;
-  /** The ending the Pipeline decided, when there is one. */
-  ending: string | null;
+/** An internal test job (one the console closes as `internal_test_job`): its label, never a site. */
+export interface AdminJobInternalTest {
+  label: string | null;
 }
 
-/**
- * Why approved robot teams cannot evaluate a job: `teamJobAccess`'s reasons
- * (`server/utils/teamJobAccess.ts`). `jobConsoleFacts.ts` stops compiling if
- * that predicate gains a reason this list does not name.
- */
-export type TeamAccessReason =
-  | "internal_test_job"
-  | "not_a_site_job"
-  | "pipeline_placeholder"
-  | "task_not_yet_supported"
-  | "not_listed"
-  | "kept_private"
-  | "restricted_to_named_teams"
-  | "operator_paused"
-  | "older_statement"
-  | "privacy_screen_pending"
-  | "no_job_sentence"
-  | "authority_ended"
-  | "closed_by_site"
-  | "consent_withdrawn"
-  | "blueprint_hold"
-  | "development_only"
-  | "rights_blocked"
-  | "rights_needs_review"
-  | "recording_consent_missing"
-  | "scene_not_runnable";
-
-/**
- * For `scene_not_runnable`: the first runnable-scene condition (`isRunnableTask`)
- * the job is missing, the site's before screening's before the Pipeline's.
- */
-export type SceneHold =
-  /** The site has not confirmed the brief. */
-  | "brief_unconfirmed"
-  /** Screening needs a conversation, and the site's written clarification awaits review. */
-  | "clarification_review"
-  /** Screening needs a conversation, and no written clarification awaits review. */
-  | "screening_call"
-  /** Screening said not now, so no scene is built. */
-  | "not_now"
-  /** The brief is confirmed but no screening decision is on file. */
-  | "unscreened"
-  /** Qualified, but the site has not saved the job to an account and no scene grant is on file; the scene waits for one or the other. */
-  | "unclaimed"
-  /** Qualified, and claimed or granted a scene; the Pipeline has not reported a built scene. */
-  | "scene_not_built"
-  /** Built, but the Pipeline has not proven an evaluation can run on it. */
-  | "scene_not_proven"
-  /** Built and proven, but a gate an evaluation needs is unanswered. */
-  | "gates_open";
-
-export interface PendingAdmission {
-  /** The evaluation request's own inboundRequests id; the admit endpoint takes this. */
+/** One row of the list: the job, one phrase for where it stands, when it was received. */
+export interface AdminJobRow {
   requestId: string;
-  teamName: string | null;
-  setupName: string | null;
+  /** The site's own sentence for the job (its brief's summary), exactly as written; null when it has none yet. */
+  sentence: string | null;
+  internalTest: AdminJobInternalTest | null;
+  /** The outlook's phase, or null when it could not be read. */
+  phase: JobPhase | null;
+  /** One short phrase for that phase (`ADMIN_PHASE_WORDS`), or that it could not be read. */
+  standing: string;
+  receivedAtIso: string | null;
 }
 
-export interface BestRunSummary {
-  runId: string;
-  teamId: string;
-  teamName: string | null;
-  episodesRun: number;
-  episodesSucceeded: number;
-  /** Percent, 0–100, rounded to two places. */
-  successRatePct: number | null;
-  medianCycleSeconds: number | null;
-  /** Against the site's own targets. Null when the site set none. Development simulation only. */
-  meetsTarget: boolean | null;
-}
-
-export interface JobFacts {
-  requestId: string;
-  createdAtIso: string | null;
-  siteName: string;
-  siteLocation: string;
-  company: string;
-  claimed: boolean;
-  archived: boolean;
-  brief: { state: BriefState; unresolvedGates: number };
-  capture: { state: CaptureState; missingViews: string[] };
-  listing: { state: ListingState };
-  /**
-   * The answer every team-facing surface gives (`teamJobAccess` on the stored
-   * record): whether approved robot teams can evaluate this job now, and if
-   * not, why. The console never invites teams to a job this closes.
-   */
-  teamAccess: {
-    listed: boolean;
-    evaluationAvailable: boolean;
-    /** Null when teams can evaluate the job. */
-    reason: TeamAccessReason | null;
-    /** Set only for `scene_not_runnable`; null when no known condition is missing. */
-    sceneHold: SceneHold | null;
-    /**
-     * Set only for `task_not_yet_supported`: the recorded screen's reason
-     * (`site_task_scope.reason`). `unclear` waits on the site's one sentence.
-     */
-    scopeReason?: string | null;
-    /** Set only for `internal_test_job`: the label its session gave the test. */
-    testLabel?: string | null;
-  };
-  evaluations: {
-    total: number;
-    pendingAdmission: number;
-    admitted: number;
-    pending: PendingAdmission[];
-  };
-  runs: {
-    queued: number;
-    running: number;
-    /** Concluded with observed episodes. */
-    reported: number;
-    /** Concluded with no observation: blocked, or zero episodes. */
-    noResult: number;
-    /** Reported runs that meet the job's pass mark. */
-    passing: number;
-    /** Reported runs below that pass mark. */
-    belowTarget: number;
-    /** Reported runs with no target to compare against. */
-    best: BestRunSummary | null;
-  };
-  withdrawal: { state: WithdrawalState };
-  /** Absent or null when Blueprint has no scene for the job yet. */
-  scene?: BlueprintScene | null;
-  /** Written by a separate notice lane when present; read defensively. */
-  opsNotice: { state: string; summary: string | null } | null;
-  lastActivityIso: string | null;
-}
-
-export const JOB_STAGES = [
-  "intake",
-  "brief_review",
-  "capture",
-  "scene_preparation",
-  "held",
-  "ended",
-  "listing",
-  "not_open",
-  "awaiting_teams",
-  "evaluating",
-  "no_passing_run",
-  "passing_run",
-  "withdrawn",
-  "closed",
-] as const;
-export type JobStage = typeof JOB_STAGES[number];
-
-export const JOB_STAGE_LABELS: Record<JobStage, string> = {
-  intake: "Intake",
-  brief_review: "Brief review",
-  capture: "Capture",
-  scene_preparation: "Scene preparation",
-  held: "Held",
-  ended: "Ended",
-  listing: "Public card",
-  not_open: "Not open to teams",
-  awaiting_teams: "Awaiting teams",
-  evaluating: "Evaluating",
-  no_passing_run: "No passing run",
-  passing_run: "Passing run",
-  withdrawn: "Withdrawn",
-  closed: "Closed",
-};
-
-export type ActionOwner = "blueprint" | "site" | "robot_team" | "none";
-
-export interface JobStageResult {
-  stage: JobStage;
-  nextAction: string;
-  actionOwner: ActionOwner;
-  /** Side conditions worth a glance that do not change the stage. */
-  attention: string[];
-}
-
-export type RunOutcome = "queued" | "running" | "reported" | "no_result";
-
-export interface ProjectedRun {
-  runId: string;
-  teamId: string;
-  teamName: string | null;
-  outcome: RunOutcome;
-  episodesRun: number | null;
-  episodesSucceeded: number | null;
-  successRatePct: number | null;
-  medianCycleSeconds: number | null;
-  meetsTarget: boolean | null;
-  evidenceScope: string | null;
-  requestedAtIso: string | null;
-  reportedAtIso: string | null;
-}
-
-export interface TimelineEntry {
-  key: string;
-  label: string;
-  atIso: string | null;
-  done: boolean;
-}
-
-export type JobConsoleRow = JobFacts & JobStageResult;
-
-export interface JobConsoleListResponse {
-  jobs: JobConsoleRow[];
+export interface AdminJobListResponse {
+  jobs: AdminJobRow[];
   nextCursor: string | null;
-  scanned: number;
-  stages: readonly JobStage[];
 }
 
-export interface JobConsoleDetail {
-  job: JobConsoleRow;
-  timeline: TimelineEntry[];
-  runs: ProjectedRun[];
-  links: { lead: string; recommendation: string };
-  /** The admin download of the job's simulation package, when one is ready; else null. */
+/** Something that stops the job, only for privacy, rights or money, and whose step it is. */
+export interface AdminJobStop {
+  key: string;
+  text: string;
+  /** Whose step it is: the site's, Blueprint's, or nobody's (nothing is left to do). */
+  whose: "site" | "blueprint" | "none";
+  atIso: string | null;
+}
+
+/** A thing that happened, from a record that holds its time. */
+export interface AdminJobEvent {
+  key: string;
+  text: string;
+  atIso: string;
+}
+
+export interface AdminJobDetail {
+  requestId: string;
+  job: {
+    sentence: string | null;
+    /** The sentence was read from the video by Blueprint, and the site has not confirmed it. */
+    drafted: boolean;
+    /** The site's name and place, for the admin only; null for a job with no site (an internal test job). */
+    site: { name: string | null; place: string | null } | null;
+    internalTest: AdminJobInternalTest | null;
+  };
+  standing: {
+    phase: JobPhase | null;
+    phrase: string;
+    /** The outlook's own sentence, as the site's page says it; null when the outlook has none. */
+    siteSees: string | null;
+    /** The job's sharing, in `sharingInWords`' words; null for an internal test job, which is never shared. */
+    companies: string | null;
+    /** The Pipeline's last report for the job, in plain words; null when it has reported nothing readable. */
+    pipeline: string | null;
+  };
+  /** "Download the simulation package": the console's own route, only while a package is stored. */
   simulationPackageUrl: string | null;
+  /** What the stored package record says it holds. */
+  simulationPackage: { files: string[]; sizeBytes: number; builtAtIso: string | null } | null;
   /** The admin route that opens the job's scene preview in the viewer, when one is stored; else null. */
   scenePreviewViewUrl: string | null;
+  /** What the job's ledgers count so far, in US dollars; null when the job has no ledger entry. */
+  cost: { spentOrHeldUsd: number; unreadable: string[] } | null;
+  stops: AdminJobStop[];
+  events: AdminJobEvent[];
 }
+
+/** The outlook's phase in a short phrase, for staff. One wording per phase; no reading of its own. */
+export const ADMIN_PHASE_WORDS: Readonly<Record<JobPhase, string>> = {
+  reading: "Reading the video",
+  building: "Building the simulation",
+  testing: "Simulation ready",
+  result: "Simulation ready",
+  waiting_on_site: "Waiting on the site to say what the job is",
+  no_test: "Ended",
+  cannot_match: "Kept on file: a kind of job we can't simulate yet",
+  ended_by_site: "Stopped by the site",
+};
+
+export const STANDING_UNREAD = "Could not read where it stands right now";
+/** The package record says the simulation package is built: said first, whatever the outlook reads (owner review, 2026-11-17). */
+export const STANDING_PACKAGE_BUILT = "Simulation package built";
+/** The outlook reads "reading" while no video has arrived: that is waiting for it, not reading it. */
+export const STANDING_NO_VIDEO = "Waiting for the video";
+/** An ending after which a test can still come (`OUTLOOK_HOLDS`): a hold, never "Ended". */
+export const STANDING_ON_HOLD = "On hold";

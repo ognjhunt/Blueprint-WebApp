@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
-import { Button } from "@/components/blueprint";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { JobMarketplaceWorkflow, JobOptionsReview } from "@/types/jobMarketplace";
@@ -106,78 +105,80 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
     }
   }
 
+  // A staff tool on the admin job page: mounted, and so loaded, only when opened.
+  useEffect(() => { if (loadState === "idle") void load(); }, [loadState, requestId]);
+
   const mutationDisabled = busy || mustRefresh;
   const prefix = `job-workflow-${requestId}`;
 
   return (
-    <details onToggle={(event) => { if (event.currentTarget.open && loadState === "idle") void load(); }}>
-      <summary className="runway-rule-head runway-meta cursor-pointer">Job evidence and options assessment</summary>
-      <div className="mt-4 grid gap-5">
-        <p className="text-sm text-runway-mute">Ask Pipeline evidence questions and record the options assessment. These records do not establish a passed evaluation, physical performance or safety.</p>
-        {loadState === "loading" ? <p className="text-sm text-runway-mute">Loading job records…</p> : null}
-        {error ? <p role="alert" className="text-sm text-runway-red">{error}</p> : null}
-        {notice ? <p role="status" className="text-sm text-runway-green">{notice}</p> : null}
-        {loadState !== "idle" ? <div><Button type="button" variant="secondary" size="sm" disabled={busy || loadState === "loading"} onClick={() => void load()}>Refresh job records</Button></div> : null}
+    <section aria-label="Job evidence and options assessment" className="admin-job-tool">
+      <div className="admin-job-tool">
+        <p className="bare-helper">Ask Pipeline evidence questions and record the options assessment. These records do not establish a passed evaluation, physical performance or safety.</p>
+        {loadState === "loading" ? <p className="bare-helper" role="status">Loading job records…</p> : null}
+        {error ? <p role="alert" className="bare-notice">{error}</p> : null}
+        {notice ? <p role="status" className="bare-done">{notice}</p> : null}
+        {loadState !== "idle" ? <div><button type="button" className="bare-quiet-button" disabled={busy || loadState === "loading"} onClick={() => void load()}>Refresh job records</button></div> : null}
         {workflow ? (
           <>
-            {workflow.reviewRequired ? <p className="text-sm text-runway-signal">The job scope or buying requirements changed since the options assessment. Record a new assessment against the current job.</p> : null}
-            <div className="grid gap-1 text-sm text-runway-body">
+            {workflow.reviewRequired ? <p className="bare-notice">The job scope or buying requirements changed since the options assessment. Record a new assessment against the current job.</p> : null}
+            <div>
               <p><span className="font-semibold">Next step:</span> {workflow.nextAction}</p>
-              <p className="text-xs text-runway-mute">Responsible: {workflow.actionOwner.replace(/_/g, " ")}.</p>
+              <p className="bare-helper">Responsible: {workflow.actionOwner.replace(/_/g, " ")}.</p>
             </div>
-            <section className="grid gap-3" aria-label="Job evidence">
-              <h3 className="text-lg font-semibold text-runway-text">Evidence for this job</h3>
-              <p className="text-sm text-runway-mute">Record the options assessment directly when existing evidence is sufficient. Ask Pipeline a specific technical question when an uncertainty affects the decision. Saving a question does not allocate paid resources or invite a team.</p>
-              {(workflow.evidence ?? []).map(item => <article className="grid gap-2 border-t border-runway-line pt-3 text-sm" key={item.requestId}>
-                <p className="font-semibold">{item.question}</p>
+            <section className="admin-job-tool" aria-label="Job evidence">
+              <h3 className="bare-rows-title">Evidence for this job</h3>
+              <p className="bare-helper">Record the options assessment directly when existing evidence is sufficient. Ask Pipeline a specific technical question when an uncertainty affects the decision. Saving a question does not allocate paid resources or invite a team.</p>
+              {(workflow.evidence ?? []).map(item => <article className="admin-job-tool" key={item.requestId}>
+                <p><strong>{item.question}</strong></p>
                 <p>{item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}: {item.summary}</p>
                 {item.claims.map(claim => <p key={claim.claimId}>{claim.claimId}: {claim.verdict.replace(/_/g, " ")} — {claim.rationale}</p>)}
                 <p>Next: {item.nextAction}</p>
-                {item.limitations.map((limit, index) => <p className="text-runway-mute" key={index}>{limit}</p>)}
+                {item.limitations.map((limit, index) => <p className="bare-helper" key={index}>{limit}</p>)}
                 {item.serviceMessage ? <p role="status">{item.serviceMessage}</p> : null}
-                <p className="break-all text-xs text-runway-mute">Request {item.requestId}{item.decisionDigest ? ` · Decision ${item.decisionDigest}` : ""}{item.publicationDigest ? ` · Publication ${item.publicationDigest}` : ""}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="secondary" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/refresh`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.serviceMessage ?? `Evidence status: ${saved?.state.replace(/_/g, " ") ?? "unconfirmed"}.`; })}>Refresh evidence</Button>
-                  {item.current && item.state === "planned" ? <Button type="button" size="sm" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/execute`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.serviceMessage ?? `Pipeline returned ${saved?.state.replace(/_/g, " ") ?? "an unconfirmed state"}. ${saved?.nextAction ?? "Refresh this question before retrying."}`; })}>Run permitted local evidence</Button> : null}
-                  {["planned", "information_required", "blocked", "unavailable"].includes(item.state) ? <Button type="button" size="sm" variant="secondary" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/cancel`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.state === "cancelled" ? "Evidence request cancelled." : `Cancellation was not confirmed. ${saved?.serviceMessage ?? saved?.nextAction ?? "Refresh the evidence status before retrying."}`; })}>Cancel evidence request</Button> : null}
+                <p className="bare-helper">Request {item.requestId}{item.decisionDigest ? ` · Decision ${item.decisionDigest}` : ""}{item.publicationDigest ? ` · Publication ${item.publicationDigest}` : ""}</p>
+                <div>
+                  <button type="button" className="bare-quiet-button" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/refresh`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.serviceMessage ?? `Evidence status: ${saved?.state.replace(/_/g, " ") ?? "unconfirmed"}.`; })}>Refresh evidence</button>
+                  {item.current && item.state === "planned" ? <button type="button" className="ms-button" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/execute`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.serviceMessage ?? `Pipeline returned ${saved?.state.replace(/_/g, " ") ?? "an unconfirmed state"}. ${saved?.nextAction ?? "Refresh this question before retrying."}`; })}>Run permitted local evidence</button> : null}
+                  {["planned", "information_required", "blocked", "unavailable"].includes(item.state) ? <button type="button" className="bare-quiet-button" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/cancel`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.state === "cancelled" ? "Evidence request cancelled." : `Cancellation was not confirmed. ${saved?.serviceMessage ?? saved?.nextAction ?? "Refresh the evidence status before retrying."}`; })}>Cancel evidence request</button> : null}
                 </div>
               </article>)}
-              {(workflow.managedEvidence ?? []).map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="grid gap-2 border-t border-runway-line pt-3 text-sm">
-                <p className="font-semibold">Managed policy run · {item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}</p>
+              {(workflow.managedEvidence ?? []).map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="admin-job-tool">
+                <p><strong>Managed policy run: {item.current ? item.state.replace(/_/g, " ") : "earlier scope"}</strong></p>
                 <p>{item.summary}</p><p>Next: {item.opsNextAction ?? item.nextAction}</p>
-                {item.limitations.map((limit, index) => <p className="text-runway-mute" key={index}>{limit}</p>)}
-                <p className="break-all text-xs">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>
+                {item.limitations.map((limit, index) => <p className="bare-helper" key={index}>{limit}</p>)}
+                <p className="bare-helper">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>
               </article>)}
-              {!workflow.evidenceContext?.question ? <p className="text-sm text-runway-mute"><a className="underline" href={`/app/captures?jobId=${encodeURIComponent(requestId)}`}>Prepare task-specific capture evidence</a> when the question needs new site observations. Use the existing capture task approval and compilation actions; recording permissions and source access still apply.</p> : null}
-              <form aria-label="Ask an evidence question" className="grid gap-3" onSubmit={async event => {
+              {!workflow.evidenceContext?.question ? <p className="bare-helper"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(requestId)}`}>Prepare task-specific capture evidence</a> when the question needs new site observations. Use the existing capture task approval and compilation actions; recording permissions and source access still apply.</p> : null}
+              <form aria-label="Ask an evidence question" className="ms-form" onSubmit={async event => {
                 event.preventDefault(); evidenceKey.current ||= crypto.randomUUID();
                 if (await mutate("/evidence", { question: question.trim() }, "Evidence question saved.", "POST", { "Idempotency-Key": evidenceKey.current })) evidenceKey.current = "";
               }}>
-                <label className="runway-label" htmlFor={`${prefix}-question`}>Question that changes the decision</label>
-                <textarea id={`${prefix}-question`} className="runway-input" required maxLength={2000} value={question} onChange={event => setQuestion(event.target.value)} placeholder="Which uncertainty needs evidence before the decision?" />
-                <div><Button type="submit" size="sm" disabled={mutationDisabled || !workflow.briefAgreed}>Ask Pipeline</Button></div>
-                {!workflow.briefAgreed ? <p className="text-sm text-runway-mute">Agree the job brief before requesting task-specific evidence.</p> : null}
+                <label htmlFor={`${prefix}-question`}>Question that changes the decision</label>
+                <textarea id={`${prefix}-question`} required maxLength={2000} value={question} onChange={event => setQuestion(event.target.value)} placeholder="Which uncertainty needs evidence before the decision?" />
+                <div><button type="submit" className="ms-button" disabled={mutationDisabled || !workflow.briefAgreed}>Ask Pipeline</button></div>
+                {!workflow.briefAgreed ? <p className="ms-field-hint">Agree the job brief before requesting task-specific evidence.</p> : null}
               </form>
             </section>
             <details>
-              <summary className="cursor-pointer text-sm font-semibold text-runway-text">Record the options assessment</summary>
-              <form className="mt-4 grid gap-4" aria-label="Options assessment" onSubmit={(event) => {
+              <summary className="bare-quiet-button">Record the options assessment</summary>
+              <form className="ms-form" aria-label="Options assessment" onSubmit={(event) => {
                 event.preventDefault(); void mutate("/review", review, "Options assessment saved.");
               }}>
-                <fieldset disabled={mutationDisabled} className="grid gap-4">
-                  <div><label className="runway-label" htmlFor={`${prefix}-disposition`}>Assessment</label>
-                    <select id={`${prefix}-disposition`} className="runway-input" value={review.disposition} onChange={(event) => setReview({ ...review, disposition: event.target.value as JobOptionsReview["disposition"] })}>
+                <fieldset disabled={mutationDisabled} className="ms-choice">
+                  <div><label htmlFor={`${prefix}-disposition`}>Assessment</label>
+                    <select id={`${prefix}-disposition`} value={review.disposition} onChange={(event) => setReview({ ...review, disposition: event.target.value as JobOptionsReview["disposition"] })}>
                       <option value="options_identified">Suitable options identified</option><option value="more_information">More information needed</option><option value="no_suitable_option">No suitable option found</option>
                     </select></div>
-                  <div><label className="runway-label" htmlFor={`${prefix}-review`}>Assessment summary</label><textarea id={`${prefix}-review`} className="runway-input min-h-[5rem]" required maxLength={2000} value={review.summary} onChange={(event) => setReview({ ...review, summary: event.target.value })} /></div>
-                  <div><label className="runway-label" htmlFor={`${prefix}-next`}>Next action</label><textarea id={`${prefix}-next`} className="runway-input min-h-[4rem]" required maxLength={2000} value={review.nextAction} onChange={(event) => setReview({ ...review, nextAction: event.target.value })} /></div>
-                  <div><Button type="submit" size="sm">Save assessment</Button></div>
+                  <div><label htmlFor={`${prefix}-review`}>Assessment summary</label><textarea id={`${prefix}-review`} required maxLength={2000} value={review.summary} onChange={(event) => setReview({ ...review, summary: event.target.value })} /></div>
+                  <div><label htmlFor={`${prefix}-next`}>Next action</label><textarea id={`${prefix}-next`} required maxLength={2000} value={review.nextAction} onChange={(event) => setReview({ ...review, nextAction: event.target.value })} /></div>
+                  <div><button type="submit" className="ms-button">Save assessment</button></div>
                 </fieldset>
               </form>
             </details>
           </>
         ) : null}
       </div>
-    </details>
+    </section>
   );
 }

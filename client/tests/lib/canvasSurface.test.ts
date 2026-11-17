@@ -98,6 +98,8 @@ describe("canvasSurfaceFor", () => {
       "/app",
       "/app/tasks/abc123",
       "/settings",
+      "/admin/jobs",
+      "/admin/jobs?job=abc123",
     ]) {
       expect(canvasSurfaceFor(pathname), pathname).toBe("light");
     }

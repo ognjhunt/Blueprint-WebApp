@@ -32,6 +32,9 @@ export const defaultCanvasSurface: CanvasSurface = "light";
 /** Runway-ground routes that are not themselves a path prefix. */
 const darkPaths = new Set(["/capture", "/launch-map"]);
 
+/** Paper routes inside a Runway namespace: the admin job page is built like the site's own job page. */
+const lightPaths = new Set(["/admin/jobs"]);
+
 /** Route namespaces rendered entirely on the Runway ground. */
 const darkPathPrefixes = [
   "/admin",
@@ -48,6 +51,7 @@ function normalizePathname(pathname: string): string {
 
 export function canvasSurfaceFor(pathname: string): CanvasSurface {
   const normalized = normalizePathname(pathname);
+  if (lightPaths.has(normalized)) return "light";
   if (darkPaths.has(normalized)) return "dark";
   if (darkPathPrefixes.some((prefix) => normalized.startsWith(prefix))) {
     return "dark";

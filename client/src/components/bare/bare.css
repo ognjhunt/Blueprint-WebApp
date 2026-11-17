@@ -121,3 +121,26 @@ ul.bare-menu { list-style: none; margin: var(--bare-s4) 0 0; padding: 0; border-
 .bare-screen .bare-withdrawn .owner-withdrawal { margin-top: 0; }
 .bare-screen .bare-withdrawn [role="status"] > * + * { margin-top: var(--bare-s2); }
 .bare-screen .bare-withdrawn .ms-field-hint { font-size: 14px; line-height: 1.45; color: var(--bare-muted); }
+
+/* The admin job page (`pages/AdminJobConsole.tsx`): the same parts and rhythm, a few lines of layout and no colour of
+   its own. A list row is the job on one line and where it stands under it; a part's lines sit 8 px apart. */
+.bare-screen.admin-job .admin-job-sentence { margin-top: var(--bare-s3); font-size: 18px; }
+.bare-screen.admin-job .admin-job-sentence + .bare-helper { margin-top: var(--bare-s2); }
+.bare-screen.admin-job .bare-rows > .bare-lead + .admin-job-lines { margin-top: var(--bare-s2); }
+.bare-screen.admin-job .admin-job-lines > * + * { margin-top: var(--bare-s2); }
+.bare-screen.admin-job .admin-job-lines > p:not(.bare-helper) { font-size: 16px; }
+.bare-screen.admin-job ul.admin-job-list { margin: 0; padding-left: 20px; list-style: disc; }
+.bare-screen.admin-job ul.admin-job-list > li + li { margin-top: var(--bare-s2); }
+.bare-screen.admin-job .admin-job-rows .bare-menu-item { gap: var(--bare-s3); padding-block: var(--bare-s12); }
+.bare-screen.admin-job .admin-job-row { display: grid; gap: var(--bare-s1); min-width: 0; }
+.bare-screen.admin-job .admin-job-row-job { font-size: 17px; overflow-wrap: anywhere; }
+.bare-screen.admin-job .admin-job-tool { padding-top: var(--bare-s2); }
+.bare-screen.admin-job .admin-job-tool > * + * { margin-top: var(--bare-s3); }
+.bare-screen.admin-job .bare-rows .bare-menu { margin-top: 0; }
+.bare-screen.admin-job .admin-job-voided { text-decoration: line-through; color: var(--bare-muted); }
+.bare-screen.admin-job code { font-size: 14px; overflow-wrap: anywhere; }
+.bare-screen.admin-job .admin-job-tool .ms-form { padding-top: 0; gap: var(--bare-s3); }
+.bare-screen.admin-job .admin-job-tool .ms-form .ms-button { min-height: 44px; font-size: 15px; }
+.bare-screen.admin-job ol.admin-job-events { margin: 0; padding: 0; list-style: none; }
+.bare-screen.admin-job ol.admin-job-events > li { display: grid; gap: var(--bare-s1); }
+.bare-screen.admin-job ol.admin-job-events > li + li { margin-top: var(--bare-s12); }

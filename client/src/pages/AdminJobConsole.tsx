@@ -1,48 +1,47 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+/**
+ * The admin job page (`/admin/jobs`, `/admin/jobs?job=<id>`), built the way the site's own job page is built: the
+ * minimal site's theme and header, and the bare-bones parts (`@/components/bare/Bare`).
+ *
+ * It works out nothing. The server says where each job stands, from the same outlook the site's job page shows, and
+ * every other line is a record (`server/utils/jobConsoleData.ts`). Each part shows only when it has something true
+ * to show (owner, 2026-11-17: "only keep stuff that is needed").
+ */
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, RefreshCw } from "lucide-react";
 
-import { Button, Card, Eyebrow, StatusChip } from "@/components/blueprint";
-import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
+import { BareBack, BareButton, BareLead, BareMenu, BareNotice, BareRows, BareScreen } from "@/components/bare/Bare";
 import { JobCompaniesConsole } from "@/components/admin/JobCompaniesConsole";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
-import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
-import { DeploymentEmbodimentShortlist } from "@/components/workspace/DeploymentEmbodimentShortlist";
 import { JobWorkflowPanel } from "@/components/admin/JobWorkflowPanel";
+import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import {
-  JOB_STAGES,
-  JOB_STAGE_LABELS,
-  type ActionOwner,
-  type JobConsoleDetail,
-  type JobConsoleListResponse,
-  type JobConsoleRow,
-  type JobStage,
-} from "@/types/jobConsole";
+import type { AdminJobDetail, AdminJobListResponse, AdminJobRow, AdminJobStop } from "@/types/jobConsole";
 
-type Tone = "proof" | "warn" | "block" | "info" | "neutral";
-
-export function stageTone(stage: JobStage): Tone {
-  if (stage === "passing_run") return "proof";
-  if (stage === "withdrawn" || stage === "no_passing_run" || stage === "ended") return "block";
-  if (stage === "closed" || stage === "held") return "neutral";
-  return "info";
-}
-
-const OWNER_LABELS: Record<ActionOwner, string> = {
-  blueprint: "Blueprint",
-  site: "Site",
-  robot_team: "Robot team",
-  none: "No action",
-};
-
-function dateLabel(value: string | null | undefined) {
-  if (!value) return "Not recorded";
+/** A time in words, in the viewer's own zone; null when the record holds none that reads. */
+export function timeInWords(value: string | null | undefined, withTime = true): string | null {
+  if (!value) return null;
   const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? date.toLocaleString() : "Not recorded";
+  if (!Number.isFinite(date.getTime())) return null;
+  return date.toLocaleString("en-US", withTime
+    ? { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }
+    : { year: "numeric", month: "short", day: "numeric" });
 }
+
+function sizeInWords(bytes: number) {
+  if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
+  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1000))} KB`;
+}
+
+const usd = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+const WHOSE: Readonly<Record<AdminJobStop["whose"], string>> = {
+  site: "The site's step.",
+  blueprint: "Blueprint's step.",
+  none: "Nothing is left to do.",
+};
 
 function readJobParam(): string | null {
   try {
@@ -59,7 +58,7 @@ function writeJobParam(requestId: string | null) {
     else url.searchParams.delete("job");
     window.history.replaceState(window.history.state, "", url.toString());
   } catch {
-    // The selection still works without a shareable URL.
+    // The page still works without a shareable address.
   }
 }
 
@@ -86,7 +85,7 @@ function useAdminFetch() {
 export const PACKAGE_URL_REVOKE_DELAY_MS = 40_000;
 
 /** Fetches the package with the admin's sign-in (an address alone cannot carry it) and saves it. */
-function SimulationPackageDownload({ requestId, url }: { requestId: string; url: string }) {
+function SimulationPackageDownload({ requestId, url, helper }: { requestId: string; url: string; helper: ReactNode }) {
   const { currentUser } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,12 +117,10 @@ function SimulationPackageDownload({ requestId, url }: { requestId: string; url:
     }
   }
 
-  return (
-    <>
-      <Button variant="secondary" size="sm" disabled={busy} onClick={download}>Download the simulation package</Button>
-      {error ? <p role="alert" className="w-full text-sm text-runway-red">{error}</p> : null}
-    </>
-  );
+  return <>
+    <BareButton disabled={busy} onClick={() => void download()} helper={helper}>Download the simulation package</BareButton>
+    {error ? <BareNotice role="alert">{error}</BareNotice> : null}
+  </>;
 }
 
 /**
@@ -161,268 +158,211 @@ function ScenePreviewView({ url }: { url: string }) {
     }
   }
 
-  return (
-    <>
-      <Button variant="secondary" size="sm" disabled={busy} onClick={view}>View the simulation of the site</Button>
-      {blockedLink ? <a className="text-sm underline" href={blockedLink} target="_blank" rel="noopener noreferrer">Open the viewer</a> : null}
-      {error ? <p role="alert" className="w-full text-sm text-runway-red">{error}</p> : null}
-    </>
-  );
+  return <>
+    <p><button type="button" className="bare-quiet-button" disabled={busy} onClick={() => void view()}>View the simulation of the site</button></p>
+    {blockedLink ? <p><a className="bare-link" href={blockedLink} target="_blank" rel="noopener noreferrer">Open the viewer</a></p> : null}
+    {error ? <BareNotice role="alert">{error}</BareNotice> : null}
+  </>;
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="runway-meta">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold text-runway-text">{children}</dd>
-    </div>
-  );
+/**
+ * Which staff tools are open, kept for this browser tab: the sign-in check above the page can re-mount it and a
+ * reload re-draws it, and an open tool must not snap shut under a person halfway through a form.
+ */
+const OPEN_TOOLS_KEY = "admin-job-open-tools";
+function openTools(): Set<string> {
+  try { return new Set(JSON.parse(window.sessionStorage.getItem(OPEN_TOOLS_KEY) || "[]") as string[]); } catch { return new Set(); }
+}
+function rememberTool(id: string, open: boolean) {
+  try {
+    const tools = openTools();
+    if (open) tools.add(id); else tools.delete(id);
+    window.sessionStorage.setItem(OPEN_TOOLS_KEY, JSON.stringify([...tools]));
+  } catch {
+    // Without storage a tool simply opens closed.
+  }
 }
 
-function runSummary(row: JobConsoleRow) {
-  const { runs } = row;
-  const parts = [
-    runs.running ? `${runs.running} running` : "",
-    runs.queued ? `${runs.queued} queued` : "",
-    runs.reported ? `${runs.reported} reported` : "",
-    runs.noResult ? `${runs.noResult} no result` : "",
-  ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "None";
+/** A staff tool: closed until opened, and mounted only then, so the page reads nothing it does not show. */
+function StaffTool({ id, label, children }: { id: string; label: string; children: () => ReactNode }) {
+  const [open, setOpen] = useState(() => openTools().has(id));
+  return <details open={open} onToggle={event => {
+    const next = event.currentTarget.open;
+    rememberTool(id, next);
+    setOpen(next);
+  }}>
+    <summary>{label}</summary>
+    {open ? <div className="admin-job-tool">{children()}</div> : null}
+  </details>;
 }
 
-function bestRunLabel(row: JobConsoleRow) {
-  const best = row.runs.best;
-  if (!best) return "No reported run";
-  const rate = best.successRatePct === null ? "rate not reported" : `${best.successRatePct}% success`;
-  const target = best.meetsTarget === true ? "passes" : best.meetsTarget === false ? "below pass mark" : "no result";
-  return `${best.teamName || best.teamId}: ${rate} over ${best.episodesRun} episodes (${target}, development simulation)`;
+/** The job, in the site's own sentence, or the internal test's label. */
+function jobLine(row: Pick<AdminJobRow, "sentence" | "internalTest">) {
+  if (row.internalTest) return row.internalTest.label ? `Internal test: ${row.internalTest.label}` : "Internal test";
+  return row.sentence ? `“${row.sentence}”` : "The site has not said what the job is yet.";
 }
 
-function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => void }) {
+function JobPage({ requestId, onBack }: { requestId: string; onBack: () => void }) {
   const api = useAdminFetch();
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: ["admin-job-console", "detail", requestId],
     enabled: Boolean(api.currentUser),
-    queryFn: () => api.get<JobConsoleDetail>(`/api/admin/jobs/${encodeURIComponent(requestId)}`),
+    queryFn: () => api.get<AdminJobDetail>(`/api/admin/jobs/${encodeURIComponent(requestId)}`),
   });
   const data = detail.data;
-  const job = data?.job;
+  const back = <BareBack onClick={onBack}>‹ All jobs</BareBack>;
+  if (detail.error) return <>{back}<h1>Job</h1><BareNotice role="alert">{(detail.error as Error).message}</BareNotice></>;
+  if (!data) return <>{back}<h1>Job</h1><p className="bare-helper" role="status">Loading the job…</p></>;
 
-  return (
-    <section aria-labelledby="job-detail-heading" className="runway-panel p-5 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="runway-meta">Job {requestId}</p>
-          <h2 id="job-detail-heading" className="mt-2 break-words text-2xl font-semibold text-runway-text">
-            {job ? job.siteName : "Loading job…"}
-          </h2>
-          {job?.siteLocation ? <p className="mt-1 text-sm text-runway-mute">{job.siteLocation}</p> : null}
-        </div>
-        <Button variant="secondary" size="sm" iconLeft={<ArrowLeft />} onClick={onClose}>Back to jobs</Button>
+  const { job, standing } = data;
+  const title = job.internalTest ? "Internal test" : job.site?.name || "Site job";
+  const sub = job.internalTest ? job.internalTest.label : job.site?.place;
+  const pack = data.simulationPackage;
+  const packageHelper = pack ? [
+    `${pack.files.length} ${pack.files.length === 1 ? "file" : "files"}, ${sizeInWords(pack.sizeBytes)}`,
+    pack.builtAtIso ? `built ${timeInWords(pack.builtAtIso, false)}` : null,
+  ].filter(Boolean).join(", ") + (pack.files.length <= 8 ? `: ${pack.files.join(", ")}.` : ".") : null;
+
+  return <>
+    {back}
+    {/* 1. The job. */}
+    <h1>{title}</h1>
+    {sub ? <p className="bare-sub">{sub}</p> : null}
+    <p className="admin-job-sentence">
+      {job.sentence ? `${job.drafted ? "Read from the video: " : ""}“${job.sentence}”` : "The site has not said what the job is yet."}
+    </p>
+    <p className="bare-helper">Job {data.requestId}</p>
+
+    {/* 2. Where it stands: the outlook the site's own page shows, and the records beside it. */}
+    <BareRows title="Where it stands">
+      <BareLead>{standing.phrase}</BareLead>
+      <div className="admin-job-lines">
+        {standing.siteSees ? <p>The site's page says: “{standing.siteSees}”</p> : null}
+        {standing.companies ? <p>{standing.companies}</p> : null}
+        {standing.pipeline ? <p>{standing.pipeline}</p> : null}
       </div>
-      {detail.error ? <p role="alert" className="mt-4 text-sm text-runway-red">{(detail.error as Error).message}</p> : null}
-      {job && data ? (
-        <div className="mt-6 grid gap-8">
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusChip tone={stageTone(job.stage)} square>{JOB_STAGE_LABELS[job.stage]}</StatusChip>
-            <p className="text-sm text-runway-text"><span className="runway-meta mr-2">Next ({OWNER_LABELS[job.actionOwner]})</span>{job.nextAction}</p>
-          </div>
-          {job.attention.length ? (
-            <ul className="grid gap-1 text-sm text-runway-signal" aria-label="Needs attention">
-              {job.attention.map((item) => <li key={item}>• {item}</li>)}
-            </ul>
-          ) : null}
-          <div className="flex flex-wrap gap-3">
-            <a className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" href={data.links.recommendation}>Open recommendation form</a>
-            {data.simulationPackageUrl ? <SimulationPackageDownload requestId={requestId} url={data.simulationPackageUrl} /> : null}
-            {data.scenePreviewViewUrl ? <ScenePreviewView url={data.scenePreviewViewUrl} /> : null}
-          </div>
+    </BareRows>
 
-          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Fact label="Received">{dateLabel(job.createdAtIso)}</Fact>
-            <Fact label="Last activity">{dateLabel(job.lastActivityIso)}</Fact>
-            <Fact label="Account">{job.claimed ? "Claimed" : "Unclaimed"}</Fact>
-            <Fact label="Brief">{job.brief.state.replace(/_/g, " ")}{job.brief.unresolvedGates ? ` · ${job.brief.unresolvedGates} open gates` : ""}</Fact>
-            <Fact label="Capture">{job.capture.state.replace(/_/g, " ")}</Fact>
-            <Fact label="Public card">{job.listing.state.replace(/_/g, " ")}</Fact>
-            <Fact label="Withdrawal">{job.withdrawal.state.replace(/_/g, " ")}</Fact>
-            <Fact label="Ops notice">{job.opsNotice ? `${job.opsNotice.state}${job.opsNotice.summary ? ` · ${job.opsNotice.summary}` : ""}` : "None"}</Fact>
-          </dl>
+    {/* 3. What was built. */}
+    {data.simulationPackageUrl || data.scenePreviewViewUrl ? <BareRows title="What was built">
+      <div className="admin-job-lines">
+        {data.simulationPackageUrl
+          ? <SimulationPackageDownload requestId={data.requestId} url={data.simulationPackageUrl} helper={packageHelper} /> : null}
+        {data.scenePreviewViewUrl ? <ScenePreviewView url={data.scenePreviewViewUrl} /> : null}
+      </div>
+    </BareRows> : null}
 
-          <div>
-            <h3 className="runway-rule-head runway-meta">Timeline</h3>
-            <ol className="mt-4 grid gap-2">
-              {data.timeline.map((entry) => (
-                <li key={entry.key} className="flex flex-wrap items-center gap-3 text-sm">
-                  <StatusChip tone={entry.done ? "proof" : "neutral"} square dot={entry.done}>{entry.done ? "Done" : "Open"}</StatusChip>
-                  <span className={entry.done ? "text-runway-text" : "text-runway-mute"}>{entry.label}</span>
-                  {entry.atIso ? <span className="runway-num text-xs text-runway-faint">{dateLabel(entry.atIso)}</span> : null}
-                </li>
-              ))}
-            </ol>
-          </div>
+    {/* 4. What it has cost so far: only a figure the job's ledgers hold. */}
+    {data.cost ? <BareRows title="What it has cost so far">
+      <BareLead>{usd(data.cost.spentOrHeldUsd)}</BareLead>
+      <div className="admin-job-lines">
+        <p className="bare-helper">Spent or held: what each step settled at, or the full amount held for a step not settled yet.</p>
+        {data.cost.unreadable.length ? <p className="bare-helper">Left out because it could not be read: {data.cost.unreadable.join(", ")}.</p> : null}
+      </div>
+    </BareRows> : null}
 
-          <JobCompaniesConsole key={`companies-${requestId}`} requestId={requestId} currentUser={api.currentUser} />
-          <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />
-          <JobWorkflowPanel key={requestId} requestId={requestId} currentUser={api.currentUser} onChanged={() => queryClient.invalidateQueries({ queryKey: ["admin-job-console"] })} />
-          <RobotFitConsole key={requestId} requestId={requestId} currentUser={api.currentUser} />
+    {/* 5. What stopped it: privacy, rights or money only. */}
+    {data.stops.length ? <BareRows title="What stopped it">
+      <ul className="admin-job-list">
+        {data.stops.map(stop => <li key={stop.key}>
+          {stop.text} {WHOSE[stop.whose]}
+          {stop.atIso ? <span className="bare-helper"> {timeInWords(stop.atIso)}</span> : null}
+        </li>)}
+      </ul>
+    </BareRows> : null}
 
-          <div>
-            <h3 className="runway-rule-head runway-meta">Runs</h3>
-            {!data.runs.length ? <p className="mt-4 text-sm text-runway-mute">No evaluation runs are recorded for this job.</p> : (
-              <div className="mt-4 overflow-x-auto">
-                <table className="runway-table min-w-[36rem]">
-                  <caption className="sr-only">Evaluation runs for this job</caption>
-                  <thead><tr><th scope="col">Team</th><th scope="col">Outcome</th><th scope="col">Success</th><th scope="col">Episodes</th><th scope="col">Target</th></tr></thead>
-                  <tbody>
-                    {data.runs.map((run) => (
-                      <tr key={run.runId}>
-                        <td>{run.teamName || run.teamId}<br /><span className="runway-num text-xs text-runway-faint">{run.runId}</span></td>
-                        <td>{run.outcome.replace(/_/g, " ")}</td>
-                        <td className="runway-num">{run.successRatePct === null ? "—" : `${run.successRatePct}%`}</td>
-                        <td className="runway-num">{run.episodesRun ?? "—"}</td>
-                        <td>{run.meetsTarget === true ? "Passes" : run.meetsTarget === false ? "Below" : "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="mt-2 text-xs text-runway-mute">Development simulation results. Not physical-success or partner proof.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
+    {/* 6. What happened, from the records that hold a time. */}
+    {/* The time on its own line above each event, at every width. */}
+    {data.events.length ? <BareRows title="What happened">
+      <ol className="admin-job-events">
+        {data.events.map(event => <li key={event.key}>
+          <span className="bare-helper">{timeInWords(event.atIso)}</span>
+          <span>{event.text}</span>
+        </li>)}
+      </ol>
+    </BareRows> : null}
+
+    {/* Staff actions that exist nowhere else. */}
+    <BareRows title="Staff tools">
+      <BareMenu label="Staff tools" items={[
+        ...(job.internalTest ? [] : [{ key: "companies", label: "Deployment companies", body:
+          <StaffTool id={`${requestId}:companies`} label="Deployment companies">{() => <JobCompaniesConsole requestId={requestId} currentUser={api.currentUser}
+            // A hold, a send or an answer changes the sharing line, the stops and the events above: read them again.
+            onChanged={() => void queryClient.invalidateQueries({ queryKey: ["admin-job-console", "detail", requestId] })} />}</StaffTool> }]),
+        { key: "measurements", label: "Site measurements", body:
+          <StaffTool id={`${requestId}:measurements`} label="Site measurements">{() => <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />}</StaffTool> },
+        { key: "evidence", label: "Evidence questions", body:
+          <StaffTool id={`${requestId}:evidence`} label="Evidence questions">{() => <JobWorkflowPanel requestId={requestId} currentUser={api.currentUser} />}</StaffTool> },
+      ]} />
+    </BareRows>
+  </>;
 }
 
-export default function AdminJobConsole() {
+function JobList({ onOpen }: { onOpen: (requestId: string) => void }) {
   const api = useAdminFetch();
-  const queryClient = useQueryClient();
-  const [planningOpen, setPlanningOpen] = useState(false);
-  const [stage, setStage] = useState<JobStage | "">("");
-  const [search, setSearch] = useState("");
-  const [submittedSearch, setSubmittedSearch] = useState("");
-  const [selected, setSelected] = useState<string | null>(() => readJobParam());
-
-  useEffect(() => writeJobParam(selected), [selected]);
-
   const jobs = useInfiniteQuery({
-    queryKey: ["admin-job-console", "list", stage, submittedSearch],
+    queryKey: ["admin-job-console", "list"],
     enabled: Boolean(api.currentUser),
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams({ limit: "50" });
+      const params = new URLSearchParams();
       if (pageParam) params.set("cursor", pageParam);
-      if (stage) params.set("stage", stage);
-      if (submittedSearch) params.set("q", submittedSearch);
-      return api.get<JobConsoleListResponse>(`/api/admin/jobs?${params.toString()}`);
+      const query = params.toString();
+      return api.get<AdminJobListResponse>(`/api/admin/jobs${query ? `?${query}` : ""}`);
     },
-    getNextPageParam: (last) => last.nextCursor,
+    getNextPageParam: last => last.nextCursor,
   });
-  const rows = useMemo(() => jobs.data?.pages.flatMap((page) => page.jobs) ?? [], [jobs.data]);
+  const rows = useMemo(() => jobs.data?.pages.flatMap(page => page.jobs) ?? [], [jobs.data]);
 
-  function onSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmittedSearch(search.trim());
-  }
+  return <>
+    <h1>Jobs</h1>
+    {jobs.isLoading ? <p className="bare-helper" role="status">Loading jobs…</p> : null}
+    {jobs.error ? <BareNotice role="alert">{(jobs.error as Error).message}</BareNotice> : null}
+    {!jobs.isLoading && !jobs.error && !rows.length ? <p className="bare-helper">No jobs yet.</p> : null}
+    {rows.length ? <ul className="bare-menu admin-job-rows" aria-label="Jobs">
+      {rows.map(row => {
+        const received = timeInWords(row.receivedAtIso, false);
+        return <li key={row.requestId}>
+          <a className="bare-menu-item" href={`/admin/jobs?job=${encodeURIComponent(row.requestId)}`}
+            onClick={event => { event.preventDefault(); onOpen(row.requestId); }}>
+            <span className="admin-job-row">
+              <span className="admin-job-row-job">{jobLine(row)}</span>
+              <span className="bare-helper">{row.standing}{received ? ` · Received ${received}` : ""}</span>
+            </span>
+          </a>
+        </li>;
+      })}
+    </ul> : null}
+    {jobs.hasNextPage ? <p>
+      <button type="button" className="bare-quiet-button" disabled={jobs.isFetchingNextPage} onClick={() => void jobs.fetchNextPage()}>
+        {jobs.isFetchingNextPage ? "Loading…" : "Show older jobs"}
+      </button>
+    </p> : null}
+    <BareRows title="Privacy requests">
+      <BareMenu label="Privacy requests" items={[{ key: "deletion", label: "Account and data deletion requests",
+        body: <StaffTool id="privacy-requests" label="Account and data deletion requests">{() => <AccountDeletionQueue />}</StaffTool> }]} />
+    </BareRows>
+  </>;
+}
+
+export default function AdminJobConsole() {
+  const [selected, setSelected] = useState<string | null>(() => readJobParam());
+  useEffect(() => writeJobParam(selected), [selected]);
+  useEffect(() => { window.scrollTo?.(0, 0); }, [selected]);
 
   return (
-    <main className="min-h-screen bg-canvas px-4 py-10 text-ink-900 md:px-8">
-      <div className="mx-auto max-w-[88rem]">
-        <header className="flex flex-col gap-4 border-b border-line pb-8 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <Eyebrow tone="brass" rule>Founder operations</Eyebrow>
-            <h1 className="mt-5 font-display text-4xl font-semibold uppercase tracking-[0.005em] text-runway-text">Job console</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-runway-mute">
-              One row per site job, with where it stands in the beta loop and the next step. Read from the
-              records; every action opens the existing form that checks it.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <a className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" href="/admin/robot-team-access">Robot teams</a>
-            <Button variant="secondary" iconLeft={<RefreshCw />}
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-job-console"] })}>
-              Refresh
-            </Button>
-          </div>
-        </header>
-
-        {selected ? (
-          <div className="mt-8">
-            <JobDetail requestId={selected} onClose={() => setSelected(null)} />
-          </div>
-        ) : (
-          <>
-            <details className="mt-8 border-y border-line py-4" onToggle={event => setPlanningOpen(event.currentTarget.open)}>
-              <summary className="cursor-pointer text-sm font-medium text-runway-text">Robot integration planning</summary>
-              {planningOpen && <div className="embodiment-operator-gallery mx-auto mt-6 max-w-5xl"><DeploymentEmbodimentShortlist /></div>}
-            </details>
-            <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-end">
-              <div className="md:w-64">
-                <label className="runway-label" htmlFor="job-stage-filter">Stage</label>
-                <select id="job-stage-filter" className="runway-input" value={stage}
-                  onChange={(event) => setStage(event.target.value as JobStage | "")}>
-                  <option value="">All stages</option>
-                  {JOB_STAGES.map((value) => <option key={value} value={value}>{JOB_STAGE_LABELS[value]}</option>)}
-                </select>
-              </div>
-              <form className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end" onSubmit={onSearch} role="search">
-                <div className="flex-1">
-                  <label className="runway-label" htmlFor="job-search">Search site name</label>
-                  <input id="job-search" className="runway-input" type="search" value={search} maxLength={120}
-                    onChange={(event) => setSearch(event.target.value)} placeholder="Site, location, company or job id" />
-                </div>
-                <Button type="submit" variant="secondary">Search</Button>
-              </form>
-            </div>
-
-            {jobs.isLoading ? <p className="py-12 text-runway-mute">Loading jobs…</p> : null}
-            {jobs.error ? <p role="alert" className="py-12 text-runway-red">{(jobs.error as Error).message}</p> : null}
-            {!jobs.isLoading && !jobs.error && !rows.length ? (
-              <Card pad="lg" className="mt-8"><p className="text-runway-mute">No site jobs match this view.</p></Card>
-            ) : null}
-
-            {rows.length ? (
-              <ul className="mt-8 grid gap-3" aria-label="Site jobs">
-                {rows.map((row) => (
-                  <li key={row.requestId} className="runway-panel grid gap-4 p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)_auto] md:items-center">
-                    <div className="min-w-0">
-                      <p className="break-words font-semibold text-runway-text">{row.siteName}</p>
-                      <p className="break-words text-xs text-runway-mute">{[row.siteLocation, row.company].filter(Boolean).join(" · ") || row.requestId}</p>
-                      <p className="runway-num mt-1 text-xs text-runway-faint">Last activity {dateLabel(row.lastActivityIso)}</p>
-                    </div>
-                    <div><StatusChip tone={stageTone(row.stage)} square>{JOB_STAGE_LABELS[row.stage]}</StatusChip></div>
-                    <div className="min-w-0 text-sm">
-                      <p className="text-runway-text"><span className="runway-meta mr-2">{OWNER_LABELS[row.actionOwner]}</span>{row.nextAction}</p>
-                      <p className="mt-1 text-xs text-runway-mute">
-                        Requests {row.evaluations.pendingAdmission} pending / {row.evaluations.admitted} admitted · Runs {runSummary(row)}
-                      </p>
-                      {row.runs.best ? <p className="mt-1 text-xs text-runway-mute">Best: {bestRunLabel(row)}</p> : null}
-                      {row.attention.length ? <p className="mt-1 text-xs text-runway-signal">{row.attention.join(" · ")}</p> : null}
-                    </div>
-                    <div>
-                      <Button variant="secondary" size="sm" onClick={() => setSelected(row.requestId)}
-                        aria-label={`Open ${row.siteName}`}>
-                        Open
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {jobs.hasNextPage ? (
-              <div className="mt-6">
-                <Button variant="secondary" disabled={jobs.isFetchingNextPage} onClick={() => jobs.fetchNextPage()}>
-                  {jobs.isFetchingNextPage ? "Loading…" : "Load more jobs"}
-                </Button>
-              </div>
-            ) : null}
-          </>
-        )}
-        <AccountDeletionQueue />
-      </div>
-    </main>
+    // Bare shell, like the site's own job page: the minimal site's theme and header, then one centred column.
+    <div className="minimal-site">
+      <header className="ms-container ms-capture-header" style={{ maxWidth: "680px" }}>
+        <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
+        <span className="ms-back" style={{ marginBottom: 0 }}>Staff</span>
+      </header>
+      <main className="ms-container ms-capture-body" style={{ paddingBlock: "24px 48px", maxWidth: "680px" }}>
+        <BareScreen className="admin-job">
+          {selected ? <JobPage requestId={selected} onBack={() => setSelected(null)} /> : <JobList onOpen={setSelected} />}
+        </BareScreen>
+      </main>
+    </div>
   );
 }

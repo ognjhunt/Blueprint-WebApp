@@ -1,18 +1,15 @@
 /**
- * The founder's job console: one row per site job, with its loop stage and
- * the next action. Read-only. Every write it links to goes through an
- * existing endpoint with its own checks (the recommendation form, the lead
- * page). Three writes live here. The site-measurement export keeps an
- * immutable copy of exactly what it exported, so the evidence handed to the
- * Pipeline stays recoverable. Robot fit keeps a team ranking (a model call
- * staff ask for). The export and the ranking are refused once recording
- * consent is withdrawn.
- * Deployment companies (package C1) records, by hand, which approved companies
- * Blueprint sent the job to and what each answered, and holds the job back from
- * every company when needed (`server/utils/jobCompanies.ts`). The product sends
- * nothing to a company.
- * The simulation package download serves staff the same bytes a company's
- * download serves, for any job that has a package, internal test jobs included.
+ * The admin job page: one row per site job, and one job's page (`client/src/pages/AdminJobConsole.tsx`). The list and
+ * the detail return what the page shows and no more (`server/utils/jobConsoleData.ts`); neither works out a status of
+ * its own. Behind a verified sign-in with the admin or ops role, at the mount (`server/routes.ts`) and here.
+ *
+ * The page's staff tools write through the routes below, each with its own checks. The site-measurement export keeps
+ * an immutable copy of exactly what it exported, so the evidence handed to the Pipeline stays recoverable; it is
+ * refused once recording consent is withdrawn. Deployment companies (package C1) records, by hand, a send and what a
+ * company answered by email, and holds the job back from every company when needed (`server/utils/jobCompanies.ts`).
+ * Robot fit is read and ranked here for the reviewed-job form on `/admin/robot-team-access`.
+ * The simulation package download serves staff the same bytes a company's download serves, for any job that has a
+ * package, internal test jobs included.
  * "View the simulation of the site" mints the same kind of 15-minute viewer ticket the site's own job page mints, under
  * its own domain, for any job with a stored scene preview, internal test jobs included (`websiteScenePreview.ts`).
  */
@@ -20,7 +17,6 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { logger } from "../logger";
-import { JOB_STAGES } from "../utils/jobConsoleStage";
 import { getJobConsoleDetail, jobScenePreview, jobSimulationPackage, listJobConsoleRows, loadSiteJobRecord, PAGE_LIMIT_MAX } from "../utils/jobConsoleData";
 import { websiteScenePreviewAdminViewerUrl } from "../utils/websiteScenePreview";
 import { fetchCompanySimulation, forwardableRange } from "../utils/websiteCompanySimulation";
@@ -48,20 +44,17 @@ const requestId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const listQuery = z.object({
   limit: z.coerce.number().int().positive().max(PAGE_LIMIT_MAX).default(PAGE_LIMIT_MAX),
   cursor: requestId.optional(),
-  stage: z.enum(JOB_STAGES).optional(),
-  q: z.string().trim().max(120).optional(),
-});
+}).strict();
 
 router.get("/", async (req: Request, res: Response) => {
   const parsed = listQuery.safeParse(req.query);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid job console query.", stages: JOB_STAGES });
+    return res.status(400).json({ error: "Invalid job list query." });
   }
   try {
-    const page = await listJobConsoleRows({ limit: parsed.data.limit, cursor: parsed.data.cursor ?? null,
-      stage: parsed.data.stage ?? null, q: parsed.data.q ?? null });
+    const page = await listJobConsoleRows({ limit: parsed.data.limit, cursor: parsed.data.cursor ?? null });
     res.set("Cache-Control", "no-store");
-    return res.json({ jobs: page.rows, nextCursor: page.nextCursor, scanned: page.scanned, stages: JOB_STAGES });
+    return res.json({ jobs: page.rows, nextCursor: page.nextCursor });
   } catch (error) {
     logger.error({ err: error }, "Job console list failed");
     return res.status(503).json({ error: "The job console is unavailable. Try again." });

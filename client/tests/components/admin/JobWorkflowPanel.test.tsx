@@ -30,9 +30,8 @@ function json(body: unknown, status = 200) {
 
 async function open(patch: Partial<JobMarketplaceWorkflow> = {}) {
   fetchMock.mockResolvedValueOnce(json(workflow(patch)));
+  // The admin job page mounts the tool only when staff open it; mounted, it reads.
   const result = render(<JobWorkflowPanel requestId="job-1" currentUser={null} />);
-  const details = result.container.querySelector("details")!;
-  await act(async () => { details.open = true; fireEvent(details, new Event("toggle")); });
   await screen.findByRole("heading", { name: "Evidence for this job" });
   return result;
 }
@@ -41,12 +40,9 @@ beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 afterEach(() => vi.unstubAllGlobals());
 
 describe("JobWorkflowPanel", () => {
-  it("loads job records only when opened and offers no proposal or agreement action", async () => {
+  it("loads the job's records when mounted and offers no proposal or agreement action", async () => {
     fetchMock.mockResolvedValueOnce(json(workflow()));
-    const result = render(<JobWorkflowPanel requestId="job/1" currentUser={null} />);
-    expect(fetchMock).not.toHaveBeenCalled();
-    const details = result.container.querySelector("details")!;
-    await act(async () => { details.open = true; fireEvent(details, new Event("toggle")); });
+    render(<JobWorkflowPanel requestId="job/1" currentUser={null} />);
     expect(await screen.findByRole("heading", { name: "Evidence for this job" })).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/job-workflow/admin/job%2F1");
     expect(screen.getByText(/These records do not establish a passed evaluation, physical performance or safety/)).toBeInTheDocument();
