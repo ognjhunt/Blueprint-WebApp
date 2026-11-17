@@ -67,13 +67,7 @@ const NATIVE_COVERAGE_HINTS: ReadonlyArray<[Exclude<UnsupportedTaskReason, "mult
   ["deformable", /\b(fold(s|ed|ing)?|unfold\w*|towels?|cloths?|clothes|clothing|laundry|linens?|garments?|shirts?|fabrics?|textiles?|napkins?|socks?|bed ?sheets?|blankets?|ropes?|cables?|wires?|hoses?|strings?|bags?|bagging|sacks?|pouch(es)?|wrap(s|ped|ping)?|tape|taping|dough|sew(s|ed|ing)?)\b/g],
   ["liquid", /\b(pour(s|ed|ing)?|liquids?|fluids?|spill\w*|spray\w*|sauces?|soups?|drinks?|beverages?|dispens\w*|scoop\w*|wash(es|ed|ing)?|rins\w*|water)\b/g],
   ["assembly", /\b(assembl\w*|insert\w*|screw\w*|unscrew\w*|bolt(s|ed|ing)?|fasten\w*|plug(s|ged|ging)?|pegs?|snap(s|ped|ping)?|install\w*|thread(s|ed|ing)?|weld\w*|glu(e|es|ed|ing)|solder\w*|tighten\w*|loosen\w*|attach\w*|crimp\w*|cnc|fixtures?|chucks?|press[- ]fit\w*|kitting|machine tending)\b/g],
-  // Before an object move is read: the robot moving itself, a verb of going followed straight by where it
-  // goes ("go from the doorway to the table", "move over to the bench", "head back to the dock"), so a
-  // "from … to" after it names where the robot goes, never an object relocated (RELOCATION). An object
-  // after the verb ("move the book from the cart to the shelf") is that object moved, so it never matches
-  // here; nor do "moves" and "moved" ("the cup moves to the counter", "boxes moved to the pallet") or a
-  // future "going to" ("is going to pick up the tray").
-  ["mobile", /\b((go(es)?|went|going(?! to\b)|mov(e|ing)|travel(s|ed|led|ing|ling)?|head(s|ed|ing)?|proceed(s|ed|ing)?|c(o|a)me|comes|coming) ((over|back|straight|directly|forward|all the way) )?(from|to|toward|towards|into|onto|through|across|along|around|past|between)|walk\w*|driv(e|es|ing)|drove|navigat\w*|deliver\w*|tow(s|ed|ing)?|forklifts?|pallet jacks?|elevators?|hallways?|corridors?|(each|every) floor|room to room|between (rooms|floors|buildings|sites)|across the (room|floor|site|building|warehouse|store|plant|kitchen)|(push|pull|wheel|roll)\w*[^.;]*\b(carts?|trolleys?|dolly|dollies))\b/g],
+  ["mobile", /\b(walk\w*|driv(e|es|ing)|drove|navigat\w*|deliver\w*|tow(s|ed|ing)?|forklifts?|pallet jacks?|elevators?|hallways?|corridors?|(each|every) floor|room to room|between (rooms|floors|buildings|sites)|across the (room|floor|site|building|warehouse|store|plant|kitchen)|(push|pull|wheel|roll)\w*[^.;]*\b(carts?|trolleys?|dolly|dollies))\b/g],
   ["closing", /\b(clos(e|es|ed|ing)|shut(s|ting)?)\b[^.;]*\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b|\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b[^.;]*\b(clos(e|es|ed|ing)|shut)\b/g],
   // Interior contact geometry needs a compatible native contract before scoring.
   ["container", /\b(in|into|inside)\s+(?:(?:the|a|an|each|every|its|their|one|its own)\s+)?(?:\w+\s+){0,2}?(bins?|totes?|box(es)?|crates?|containers?|baskets?|buckets?|tubs?|cartons?|cases?)\b/g],
@@ -89,6 +83,28 @@ const POSITIVE: ReadonlyArray<[SupportedTaskKind, RegExp]> = [
 
 /** "Cartons from a conveyor onto a pallet": a relocation even with no verb. */
 const RELOCATION = /\bfrom\b[^.;]*\b(to|onto|into|on to|in to)\b/;
+
+/**
+ * The summary's own instruction is a trip by the robot: a verb of going opens its first clause, or follows
+ * the robot as subject, and is followed straight by where it goes ("Go from the doorway to the table",
+ * "Move over to the bench", "Head back to the dock", "The robot travels from the lobby to the lift").
+ * Without it, a "from … to" with no known verb reads as an object moved (RELOCATION), and "move" as moving
+ * an object. Never read from the success definition, mid-sentence, or with an object as subject.
+ */
+const ROBOT_TRIP = /^(?:(?:the |our )?robot (?:(?:should|must|will|can|needs to|has to) )?(?:go(?:es)?|mov(?:e|es)|travel(?:s)?|head(?:s)?|proceed(?:s)?|come(?:s)?)|(?:go|going|mov(?:e|ing)|travel(?:ling|ing)?|head(?:ing)?|proceed(?:ing)?|com(?:e|ing))) (?:(?:over|back|straight|directly|forward|all the way) )?(?:from|to|toward|towards|into|through|across|along|around|past|between)\b/;
+
+/** The trip the summary names, when it names nothing else: one clause, and no verb of handling an object. */
+function robotTrip(summary: string, success: string): string | null {
+  const trip = summary.match(ROBOT_TRIP)?.[0];
+  if (!trip || STEP_BREAK.test(summary) || /[,:]/.test(summary)) return null;
+  // A verb form after a determiner is a noun ("the loading dock", "the lift"), so it is set aside.
+  const words = `${summary.slice(trip.length)} ; ${success}`.split(/\s+/)
+    .filter((word, index, all) => !DETERMINERS.has(all[index - 1] ?? ""));
+  const rest = words.join(" ");
+  if (POSITIVE.some(([, pattern]) => hits(rest, pattern).length)) return null;
+  if (words.some(word => VERBS.has(word.replace(/[^a-z-]/g, "")))) return null;
+  return trip;
+}
 
 /** Where one step ends and the next begins. "And" alone joins one step's verbs. */
 const STEP_BREAK = /\b(?:and then|then|after that|afterwards|followed by)\b|;/;
@@ -326,6 +342,9 @@ export function screenTaskScope(input: {
   // Several steps are never read as one (they would be narrowed to its first move): held by name.
   const steps = multiStepEvidence(summary) ?? multiStepEvidence(success);
   if (steps) return { supported: false, kind: null, reason: "multi_step", disposition: "accepted_for_analysis", matched: steps };
+  // A trip by the robot reads as a walk job does, before a bare "from … to" could make it an object move.
+  const trip = robotTrip(summary, success);
+  if (trip) return { supported: false, kind: null, reason: "mobile", disposition: "accepted_for_analysis", matched: [trip] };
   const verdict = classifyAction(summary) ?? classifyAction(success);
   if (verdict) return verdict;
   // An unfamiliar verb is a valid task description. Only absent/placeholder
