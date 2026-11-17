@@ -138,7 +138,7 @@ export const EARLIER_TERMS_VERSION = "2026-11-02.1";
  */
 export const LEGAL_PAGE_DIGESTS = {
   "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "7ae14645a549551d9035bef2e036a49d4fe9e1fb16753284cd27051db229b8b8" },
-  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "891035e8a57ea9f2fcb2600621e99158adefdaa4d74c2ef7ed8fbf435a1a82ff" },
+  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "a847a152d44b6d45ddc3986f34d5810761114774ff254489942d889d0e02c709" },
   "client/src/pages/TermsAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "2a56699800d45d0ce2d63598021799a7abbc3027612b1cdfaaf9c0c98cf2cd97" },
   "client/src/pages/PrivacyAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "ae47ecfdb9bbf404ac0d070c02816d2a99f7d4460616e8b06435fbbcb3f115f9" },
   "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" },

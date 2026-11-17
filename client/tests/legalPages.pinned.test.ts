@@ -114,6 +114,10 @@ describe("legal pages are pinned to their versions", () => {
       ["the frames and blurred copies we make from them", "the frames and any blurred copies we make from them"],
       ["Scratch files from rebuilding a scene or blurring footage that sit", "Scratch files from processing footage that sit"],
       ["Frames and blurred copies stored with the capture", "Frames and any blurred copies stored with the capture"],
+      // "Our previous policy" meant 2026-10-13.1 when it was written (2026-10-16, beside the reissue 2026-11-15.2): the
+      // version whose retention row said "180 days after the job closes". The new page names it by its effective date.
+      ["Recordings collected under our previous policy keep its 180 days after the job closes schedule",
+        "Recordings collected under the version of this policy effective October 13, 2026 keep its 180 days after the job closes schedule"],
       // "this version" meant 2026-11-13.1 when it was written; the new page names that version so the meaning stays.
       ['"For jobs started and requests sent under this version of the policy or a later one, may read',
         '"For jobs started and requests sent under the version of this policy effective November 13, 2026, or a later one, may read'],
