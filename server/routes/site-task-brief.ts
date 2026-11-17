@@ -84,8 +84,8 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { loadIsInternalTestJob } from "../utils/internalTestJob";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
-import { buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
-import { multiStepTaskHold, taskKindToldToSite, taskScopeNotYet } from "../utils/siteTaskScope";
+import { buildTaskHeldForStepsEmail, buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
+import { multiStepHoldMessage, multiStepTaskHold, taskKindToldToSite, taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
@@ -441,6 +441,12 @@ function screeningOutcome(disposition: string, screenGateEnded = false): {
     };
   }
   return null;
+}
+
+/** What a site hears when its job is held for its several steps: the job page's own words (`multiStepHoldMessage`). */
+function stepsHoldOutcome(steps: readonly string[]) {
+  const held = multiStepHoldMessage(steps);
+  return { headline: held.headline, detail: held.action, bookingUrl: null };
 }
 
 /** What a site hears when its job is a kind we cannot score yet. */
@@ -1043,8 +1049,12 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     // hears about it by email, whatever its gate verdict. A job built whatever
     // its kind hears what a job we score hears (`taskKindToldToSite`), unless it
     // is held for its several steps. The outbox can retry delivery without a
-    // timed check-in.
+    // timed check-in. A job held for its several steps hears its job page's
+    // words, whatever kind the screen read.
     let scoreable = result.scope.supported;
+    const stepsHeld = multiStepTaskHold(result.brief);
+    // Whether the job record was read: unread, nothing is said about the job's kind.
+    let recordRead = false;
     // A site that filmed first is never asked to film again. Unknown is not
     // "not filmed": the job page says which, and the reply does not guess.
     const walkthrough = await savedWalkthrough(payload).catch(() => null);
@@ -1054,13 +1064,18 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
       screenGateEnded = request?.screenGateEnded === true;
-      if (!scoreable && !multiStepTaskHold(result.brief)
+      recordRead = Boolean(request);
+      if (!scoreable && !stepsHeld
         && !taskKindToldToSite(result.scope.reason, request?.kindGoesAhead === true)) scoreable = true;
       // The brief can be a no-op while its notification intent is missing.
       // Reuse the durable outbox key to recover failed enqueues without
       // creating another message or changing the confirmed work.
       if (request?.contactEmail && !scoreable) {
-        const email = buildTaskNotYetSupportedEmail({
+        const email = stepsHeld ? buildTaskHeldForStepsEmail({
+          firstName: request.contactFirstName || "there",
+          steps: stepsHeld.steps,
+          jobUrl: captureUploadUrlFor(payload.requestId),
+        }) : buildTaskNotYetSupportedEmail({
           firstName: request.contactFirstName || "there",
           siteName: request.siteName,
           reason: result.scope.reason,
@@ -1104,7 +1119,11 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       ok: true,
-      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason),
+      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded)
+        : stepsHeld ? stepsHoldOutcome(stepsHeld.steps)
+        // The record could not be read, so whether the job is built whatever its kind is unknown: say nothing about it.
+        : !recordRead && result.scope.reason !== "unclear" ? null
+        : taskScopeOutcome(result.scope.reason),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,

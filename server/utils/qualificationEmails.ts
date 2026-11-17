@@ -17,7 +17,7 @@
  */
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
-import { SUPPORTED_TASK_LINES, taskScopeNotYet, taskScopeReasonSentence } from "./siteTaskScope";
+import { multiStepHoldMessage, SUPPORTED_TASK_LINES, taskScopeNotYet, taskScopeReasonSentence } from "./siteTaskScope";
 
 export type QualificationEmail = {
   subject: string;
@@ -75,6 +75,30 @@ export function buildTaskNotYetSupportedEmail(params: {
   ].join("\n");
   return { subject: unclear ? "Your job brief needs one sentence about the job" : "Your job: we are preparing its job packet",
     body, variant: "not_yet" };
+}
+
+/**
+ * A job held for its several steps, whatever kind the screen read: the job page's own words
+ * (`multiStepHoldMessage`), so the confirmation, this email and the page say the same thing.
+ */
+export function buildTaskHeldForStepsEmail(params: {
+  firstName: string;
+  steps: readonly string[];
+  jobUrl?: string | null;
+}): QualificationEmail {
+  const held = multiStepHoldMessage(params.steps);
+  const body = [
+    emailGreeting(firstNameOf(params.firstName)),
+    "",
+    held.headline,
+    "",
+    held.action,
+    "",
+    `If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`,
+    "",
+    EMAIL_SIGN_OFF,
+  ].join("\n");
+  return { subject: "Your job is on hold because it has more than one step", body, variant: "not_yet" };
 }
 
 /**

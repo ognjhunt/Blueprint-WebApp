@@ -61,6 +61,16 @@ vi.mock("../utils/field-encryption", async (importOriginal) => {
   }) };
 });
 
+/** Armed by a test: the job record read that follows the walkthrough read fails once. */
+const recordRead = vi.hoisted(() => ({ armed: false, failNext: false }));
+vi.mock("../utils/siteWalkthrough", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/siteWalkthrough")>();
+  return { ...actual, savedWalkthrough: vi.fn(async (...args: Parameters<typeof actual.savedWalkthrough>) => {
+    if (recordRead.armed) { recordRead.armed = false; recordRead.failNext = true; }
+    return actual.savedWalkthrough(...args);
+  }) };
+});
+
 const notifySlackScreeningCallNeeded = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
 vi.mock("../utils/slack", () => ({ notifySlackScreeningCallNeeded }));
 
@@ -221,6 +231,32 @@ describe("the confirmation says what our screen decided", () => {
     });
     const film = await (await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("film")}`)).json();
     expect(film.brief.pilotIntent).toBeUndefined();
+  });
+
+  it("says nothing about the job's kind when its record cannot be read at confirmation", async () => {
+    await saveBrief(draftBrief({
+      requestId: "req-1", summary: "Folding towels for wash-and-fold orders", captureMode: "self_capture", proposed: [],
+    }));
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const collection = sharedFakeFirestore.collection.bind(sharedFakeFirestore);
+    const spy = vi.spyOn(sharedFakeFirestore, "collection").mockImplementation(((name: string) => {
+      const real = collection(name);
+      if (name !== "inboundRequests") return real;
+      return new Proxy(real, { get: (target, key) => key !== "doc" ? Reflect.get(target, key)
+        : (id: string) => new Proxy(target.doc(id), { get: (doc, prop) => prop === "get" && recordRead.failNext
+          ? async () => { recordRead.failNext = false; throw new Error("record unavailable"); }
+          : typeof Reflect.get(doc, prop) === "function" ? Reflect.get(doc, prop).bind(doc) : Reflect.get(doc, prop) }) });
+    }) as never);
+    recordRead.armed = true;
+    try {
+      const body = (await (await confirm(clearAnswers())).json()) as { screening: unknown };
+      // The walkthrough read armed the failure and the record read consumed it.
+      expect(recordRead.armed).toBe(false);
+      expect(recordRead.failNext).toBe(false);
+      // Never a claim that the job is held: the plain reply, with nothing about its kind.
+      expect(body.screening).toBeNull();
+      expect(enqueueOutbox).not.toHaveBeenCalled();
+    } finally { spy.mockRestore(); recordRead.armed = false; recordRead.failNext = false; }
   });
 
   it("says we are preparing an evaluation, names what we can score, and records it, for a job we cannot score yet", async () => {

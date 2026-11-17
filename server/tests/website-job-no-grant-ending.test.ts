@@ -229,6 +229,36 @@ describe("a job the no-grant clock must leave alone", () => {
     expect(accepted.website_job_no_grant_clock.waiting_on).toBe(received ? "blueprint" : "site");
   });
 
+  // Review of #1311: a job the sweep kept on file before this change had no clock running. Its wait starts at the pass
+  // that first sees it now, never backfilled from its creation, and it ends after a full window with the one email.
+  it.each([
+    ["no clock", {}],
+    ["a clock frozen from before it was kept on file",
+      { website_job_no_grant_clock: { schema_version: "website_job_no_grant_clock.v1", request_id: "job-one", waiting_on: "site",
+        since_epoch: NOW / 1000 - 10 * DAY, window_seconds: WINDOW, capture_id: "walkthrough-job-one" } }],
+  ])("starts the clock at the pass for a stored kept-on-file job built whatever its kind (%s)", async (_name, clock) => {
+    const created = new Date(NOW - 8 * DAY * 1000).toISOString();
+    seedJob({ ...marked, createdAt: created, kept_on_file_answer_owed_at_iso: new Date(NOW - 7 * DAY * 1000).toISOString(),
+      site_task_scope: { supported: false, reason: "mobile", disposition: "accepted_for_analysis" }, ...clock });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "site", since_epoch: NOW / 1000, window_seconds: WINDOW });
+    expect(job()).not.toHaveProperty("website_job_no_grant_ending");
+    expect(outbox()).toHaveLength(0);
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW - 1))).toBe("waiting");
+    expect(await sweepAt(WINDOW)).toEqual({ examined: 1, ended: 1, noticesQueued: 1, failed: 0 });
+    expect(job().website_job_no_grant_ending).toMatchObject({ waiting_since_epoch: NOW / 1000, ended_at_epoch: NOW / 1000 + WINDOW,
+      notice: "queued" });
+    expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
+  });
+
+  it("starts the clock at the pass for a job built whatever its kind that it has never seen, however old", async () => {
+    seedJob({ ...marked, createdAt: new Date(NOW - 30 * DAY * 1000).toISOString(),
+      site_task_scope: { supported: false, reason: "other", disposition: "accepted_for_analysis" } });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    expect(job().website_job_no_grant_clock).toMatchObject({ since_epoch: NOW / 1000 });
+    expect(job()).not.toHaveProperty("website_job_no_grant_ending");
+  });
+
   it("still keeps on file a job without the marker, or whose source owner was never bound", async () => {
     for (const changes of [{}, { [SCENE_SCREEN_GATE_ENDED_FIELD]: marked[SCENE_SCREEN_GATE_ENDED_FIELD] }]) {
       docs.clear();

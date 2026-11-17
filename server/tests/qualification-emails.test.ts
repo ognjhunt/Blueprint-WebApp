@@ -59,7 +59,7 @@ describe("the screen", () => {
 
 describe("the ended screening emails", () => {
   it("are gone: only the can't-simulate-yet email is still built", () => {
-    expect(Object.keys(qualificationEmails).sort()).toEqual(["buildTaskNotYetSupportedEmail", "screeningEmailWouldHaveBeenSent"]);
+    expect(Object.keys(qualificationEmails).sort()).toEqual(["buildTaskHeldForStepsEmail", "buildTaskNotYetSupportedEmail", "screeningEmailWouldHaveBeenSent"]);
   });
 
   it("still say where one would have gone, so no model draft starts in its place", () => {

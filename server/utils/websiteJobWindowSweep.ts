@@ -422,8 +422,14 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const askRef = ask ? store.collection(CAPTURE_OUTBOX_COLLECTION).doc(websiteLargeVideoAskNoticeKey(requestId, ask)) : null;
   const askEmailOwed = Boolean(askRef) && !(await askRef!.get()).exists;
   const observedClock = websiteJobNoGrantClock(observed, requestId);
+  // A job built whatever its kind that the sweep kept on file before 2026-11-17 had no clock running (or one frozen
+  // from before it was kept on file): its wait starts at the pass that first sees it now, as a job of a kind we score
+  // started at its first sighting, and is never backfilled. Once started, its clock postdates the kept-on-file mark.
+  const keptOnFileAt = storedEpoch(observed![KEPT_ON_FILE_OWED_FIELD]);
+  const newlyClocked = keptOnFileAt !== null ? !observedClock || observedClock.since_epoch < keptOnFileAt
+    : !observedClock && observed!.site_task_scope?.supported === false && websiteJobGoesAheadWhateverKind(observed, requestId);
   // A replacement recording is new site activity: the wait restarts from it, like a change of whose step it is.
-  const restart = !observedClock || observedClock.waiting_on !== waitingOn
+  const restart = newlyClocked || !observedClock || observedClock.waiting_on !== waitingOn
     || (observedClock.capture_id !== undefined && observedClock.capture_id !== identity.captureId);
   const askWrite = Boolean(ask && recordedAsk?.ask_digest !== ask.ask_digest) || staleAsk || askEmailOwed;
   if (!askWrite && !restart && observedClock!.since_epoch + observedClock!.window_seconds > nowEpoch) return "waiting";
@@ -431,7 +437,7 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   // since its latest site activity would have ended before this change: it is ended now, with no
   // email and no page. A job whose stored times cannot be read is taken as old, never as new.
   const windowSeconds = websiteJobWindowSeconds();
-  const latestActivity = observedClock ? undefined : await latestSiteActivityEpoch(requestId, observed!);
+  const latestActivity = observedClock || newlyClocked ? undefined : await latestSiteActivityEpoch(requestId, observed!);
   const backfill: WebsiteJobNoGrantEndingNotice | null = latestActivity === undefined ? null
     : latestActivity === null ? "none_age_unknown"
     : nowEpoch - latestActivity >= windowSeconds ? "none_waited_before_this_change" : null;
