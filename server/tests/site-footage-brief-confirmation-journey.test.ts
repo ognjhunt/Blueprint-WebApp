@@ -333,12 +333,19 @@ describe("a site that sends footage with no description", () => {
     const body = await confirmBrief(token, { summary: "Cartons", successCriteria: { successDefinition: null, successRate: null,
       cycleTimeSeconds: null, unknown: true } });
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "other",disposition:"accepted_for_analysis" });
-    expect(body.screening?.headline).toMatch(/preparing an evaluation/i);
+    // A job created today is built whatever its kind (Pipeline #3618): it is told so, and never that it is held.
+    const notHeld = "This does not hold up your job: we still build the simulation of your site.";
+    expect(body.screening?.headline).toBe("We have your job.");
+    expect(body.screening?.detail).toContain(`${notHeld} If we read your job wrong, reply to our email.`);
     const notice = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
     expect(notice?.subject).toMatch(/preparing its job packet/i);
     expect(notice?.subject).not.toMatch(/one sentence/i);
-    expect(notice?.body).toMatch(/accepted your job/);
-    expect((await jobStatus(token)).status.headline).toMatch(/preparing an evaluation/i);
+    expect(notice?.body).toContain(`\n\n${notHeld}\n\nIf we read your job wrong, reply to this email.`);
+    const status = (await jobStatus(token)).status;
+    expect(status.headline).toBe("We have your job.");
+    expect(status.operatorAction).toMatch(/This does not hold up your job: we still build the simulation of your site\. If we read your job wrong, reply to our email\.$/);
+    for (const told of [body.screening?.headline, body.screening?.detail, notice?.body, status.headline, status.operatorAction])
+      expect(told).not.toMatch(/holding|on file|preparing an evaluation|when we can (evaluate|build)|decide what we build/i);
   });
 });
 

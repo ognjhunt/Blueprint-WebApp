@@ -441,8 +441,8 @@ function screeningOutcome(disposition: string, screenGateEnded = false): {
 }
 
 /** What a site hears when its job is a kind we cannot score yet. */
-function taskScopeOutcome(reason: unknown) {
-  const notYet = taskScopeNotYet(reason);
+function taskScopeOutcome(reason: unknown, prepared: boolean) {
+  const notYet = taskScopeNotYet(reason, { prepared });
   return { headline: notYet.headline, detail: `${notYet.detail} ${notYet.nextStep}`, bookingUrl: null };
 }
 
@@ -1059,6 +1059,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           siteName: request.siteName,
           reason: result.scope.reason,
           jobUrl: captureUploadUrlFor(payload.requestId),
+          prepared: screenGateEnded,
         });
         await enqueueOutbox({
           idempotencyKey: `${payload.requestId}:brief-screening:task-not-yet-supported`,
@@ -1098,7 +1099,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       ok: true,
-      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason),
+      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason, screenGateEnded),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
@@ -1362,6 +1363,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.screenGateEnded ? null : request?.site_task_triage ?? null,
         site_task_scope: request?.site_task_scope ?? null,
+        screenGateEnded: request?.screenGateEnded === true,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
         capture_owner_uid: request?.capture_owner_uid,

@@ -394,6 +394,26 @@ describe("a job we cannot score", () => {
     expect(taskScopeNotYet("liquid").headline).toMatch(/preparing an evaluation/i);
     expect(taskScopeNotYet("liquid").nextStep).toMatch(/stays on file.*email you when we can evaluate it/i);
   });
+
+  it("tells a job built whatever its kind that it is not held, and leaves several steps and an unread brief as they are", () => {
+    expect(taskScopeNotYet("liquid", { prepared: true })).toEqual({
+      headline: "We have your job.",
+      detail: `Your job involves liquids, and needs task-specific evaluation preparation. ${SUPPORTED_TASK_SCOPE} `
+        + "This does not hold up your job: we still build the simulation of your site.",
+      nextStep: "If we read your job wrong, reply to our email.",
+    });
+    expect(taskScopeNotYet("multi_step", { prepared: true })).toEqual(taskScopeNotYet("multi_step"));
+    expect(taskScopeNotYet("unclear", { prepared: true })).toEqual(taskScopeNotYet("unclear"));
+    const page = (extra: Record<string, unknown>) => projectTaskStatus(taskStatusInputFrom({
+      briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-11-17",
+      site_task_scope: { supported: false, reason: "mobile" }, screening: null, ...extra } as never));
+    const prepared = page({ screenGateEnded: true });
+    expect(prepared).toMatchObject({ decision: "not_yet_supported", headline: "We have your job." });
+    expect(prepared.operatorAction).toMatch(/moving around the site.*we still build the simulation of your site\. If we read your job wrong, reply to our email\.$/);
+    // Without the marker, or for a video sent before the job had an account, the older wording stands.
+    expect(page({}).headline).toMatch(/preparing an evaluation/);
+    expect(page({ screenGateEnded: true, hasStoredCapture: true, footageBeforeAccount: true }).headline).toMatch(/preparing an evaluation/);
+  });
 });
 
 describe("scoredTaskDescription", () => {

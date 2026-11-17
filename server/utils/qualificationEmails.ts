@@ -17,7 +17,7 @@
  */
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
-import { SUPPORTED_TASK_LINES, taskScopeNotYet, taskScopeReasonSentence } from "./siteTaskScope";
+import { NOT_HELD_SENTENCE, SUPPORTED_TASK_LINES, taskScopeNotYet, taskScopeReasonSentence } from "./siteTaskScope";
 
 export type QualificationEmail = {
   subject: string;
@@ -40,19 +40,22 @@ function bulletList(items: readonly string[]): string {
  * A job we cannot score in simulation yet, whatever its gate verdict.
  *
  * Names what the simulation scores today, so the site never waits on an
- * evaluation that would test a different task. Under the owner's rule the job
- * is accepted and held while we prepare an evaluation for its kind, and it
- * counts as demand for what to build next. A brief we could not read is asked
- * for one sentence instead: it is undescribed, not held (audit N3).
+ * evaluation that would test a different task. The job is accepted; one that
+ * carries the 2026-11-11 marker (`prepared`) has its simulation built whatever
+ * its kind, and is told so. A job of several steps stays held (it gets no grant).
+ * A brief we could not read is asked for one sentence instead: it is
+ * undescribed, not held (audit N3).
  */
 export function buildTaskNotYetSupportedEmail(params: {
   firstName: string;
   siteName?: string | null;
   reason: unknown;
   jobUrl?: string | null;
+  /** The job carries the 2026-11-11 marker (`sceneScreenGateEnded`): see `taskScopeNotYet`. */
+  prepared?: boolean;
 }): QualificationEmail {
   const site = params.siteName?.trim();
-  const notYet = taskScopeNotYet(params.reason);
+  const notYet = taskScopeNotYet(params.reason, { prepared: params.prepared });
   const unclear = params.reason === "unclear";
   const body = [
     emailGreeting(firstNameOf(params.firstName)),
@@ -64,6 +67,7 @@ export function buildTaskNotYetSupportedEmail(params: {
     "",
     unclear
       ? "We need to clarify the job before we can test it. Your job stays on file."
+      : params.prepared && params.reason !== "multi_step" ? NOT_HELD_SENTENCE
       : "We have accepted your job and are holding it while we prepare a simulation for its kind. We email you when we can build it.",
     "",
     unclear

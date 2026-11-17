@@ -145,3 +145,16 @@ describe("storage round trip", () => {
     expect(restored.request.taskVideoUrl).toBeNull();
   });
 });
+
+describe("the can't-score-this-kind email", () => {
+  it("tells a job built whatever its kind that it is not held; several steps and an unread brief keep their own lines", () => {
+    const email = (reason: string, prepared: boolean) => qualificationEmails.buildTaskNotYetSupportedEmail({
+      firstName: "Dana", reason, jobUrl: "https://tryblueprint.io/capture-upload/tok", prepared }).body;
+    expect(email("push", true)).toContain("\n\nThis does not hold up your job: we still build the simulation of your site.\n\n"
+      + "If we read your job wrong, reply to this email. Your job page: https://tryblueprint.io/capture-upload/tok\n\n");
+    expect(email("push", true)).not.toMatch(/holding|on file|when we can build it/);
+    expect(email("push", false)).toContain("holding it while we prepare a simulation for its kind. We email you when we can build it.");
+    expect(email("multi_step", true)).toBe(email("multi_step", false));
+    expect(email("unclear", true)).toBe(email("unclear", false));
+  });
+});
