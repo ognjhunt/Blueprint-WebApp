@@ -156,7 +156,10 @@ jobs:
   core-journey:
     needs: release-scope
     if: needs.release-scope.outputs.scope != 'content'
-    runs-on: ubuntu-latest
+    # Pinned: `ubuntu-latest` became Ubuntu 26.04 on 2026-11-17 and the pinned Playwright (1.57.0) installs
+    # Chromium only on 20.04, 22.04 and 24.04. Back to `ubuntu-latest` once Playwright is on a version that
+    # knows 26.04. The same pin is on `e2e` and `public-copy-contracts`, the other two browser jobs.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Checkout
@@ -246,7 +249,7 @@ jobs:
   e2e:
     needs: release-scope
     if: needs.release-scope.outputs.scope == 'full'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned for Playwright's Chromium install; see `core-journey`
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -333,7 +336,7 @@ jobs:
   public-copy-contracts:
     needs: release-scope
     if: needs.release-scope.outputs.scope != 'full' && needs.release-scope.outputs.public_surface == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned for Playwright's Chromium install; see `core-journey`
     timeout-minutes: 25
     steps:
       - name: Checkout

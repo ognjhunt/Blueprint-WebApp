@@ -84,6 +84,32 @@ const POSITIVE: ReadonlyArray<[SupportedTaskKind, RegExp]> = [
 /** "Cartons from a conveyor onto a pallet": a relocation even with no verb. */
 const RELOCATION = /\bfrom\b[^.;]*\b(to|onto|into|on to|in to)\b/;
 
+/**
+ * The summary's own instruction is a trip by the robot: a verb of going opens its first clause, or follows
+ * the robot as subject, and is followed straight by where it goes ("Go from the doorway to the table",
+ * "Move over to the bench", "Head back to the dock", "The robot travels from the lobby to the lift").
+ * Without it, a "from … to" with no known verb reads as an object moved (RELOCATION), and "move" as moving
+ * an object. Never read from the success definition, mid-sentence, or with an object as subject.
+ */
+const ROBOT_TRIP = /^(?:(?:the |our )?robot (?:(?:should|must|will|can|needs to|has to) )?(?:go(?:es)?|mov(?:e|es)|travel(?:s)?|head(?:s)?|proceed(?:s)?|come(?:s)?)|(?:go|going|mov(?:e|ing)|travel(?:ling|ing)?|head(?:ing)?|proceed(?:ing)?|com(?:e|ing))) (?:(?:over|back|straight|directly|forward|all the way) )?(?:from|to|toward|towards|into|through|across|along|around|past|between)\b/;
+
+/** The trip the summary names, when it names nothing else: one clause, and no verb of handling an object. */
+function robotTrip(summary: string, success: string): string | null {
+  const trip = summary.match(ROBOT_TRIP)?.[0];
+  if (!trip || STEP_BREAK.test(summary) || /[,:]/.test(summary)) return null;
+  // A place followed straight by another noun phrase names an object after it: "move to the shelf the boxes".
+  const said = summary.slice(trip.length).replace(/[.!?]/g, " ").split(/\s+/).filter(Boolean);
+  if (said.some((word, index) => index + 1 < said.length && !PREPOSITIONS.has(word) && !DETERMINERS.has(word)
+    && !["and", "or"].includes(word) && (DETERMINERS.has(said[index + 1]) || /^\d/.test(said[index + 1])))) return null;
+  // A verb form after a determiner is a noun ("the loading dock", "the lift"), so it is set aside.
+  const words = `${summary.slice(trip.length)} ; ${success}`.split(/\s+/)
+    .filter((word, index, all) => !DETERMINERS.has(all[index - 1] ?? ""));
+  const rest = words.join(" ");
+  if (POSITIVE.some(([, pattern]) => hits(rest, pattern).length)) return null;
+  if (words.some(word => VERBS.has(word.replace(/[^a-z-]/g, "")))) return null;
+  return trip;
+}
+
 /** Where one step ends and the next begins. "And" alone joins one step's verbs. */
 const STEP_BREAK = /\b(?:and then|then|after that|afterwards|followed by)\b|;/;
 
@@ -320,6 +346,9 @@ export function screenTaskScope(input: {
   // Several steps are never read as one (they would be narrowed to its first move): held by name.
   const steps = multiStepEvidence(summary) ?? multiStepEvidence(success);
   if (steps) return { supported: false, kind: null, reason: "multi_step", disposition: "accepted_for_analysis", matched: steps };
+  // A trip by the robot reads as a walk job does, before a bare "from … to" could make it an object move.
+  const trip = robotTrip(summary, success);
+  if (trip) return { supported: false, kind: null, reason: "mobile", disposition: "accepted_for_analysis", matched: [trip] };
   const verdict = classifyAction(summary) ?? classifyAction(success);
   if (verdict) return verdict;
   // An unfamiliar verb is a valid task description. Only absent/placeholder

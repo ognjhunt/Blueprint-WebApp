@@ -124,6 +124,69 @@ describe("screenTaskScope", () => {
     expect(new Set(["scorable", "accepted_for_analysis", "held_for_preparation", "needs_description"])).toContain(held.disposition);
   });
 
+  // A summary whose own instruction is a trip by the robot reads as a walk job does (task_family
+  // "general_task", which the navigation path picks up), never as an object move with no object and no
+  // goal region: "Go from the doorway to the table." was stored as pick-and-place.
+  it.each([
+    "Go from the doorway to the table.",
+    "Go from the doorway to the loading dock",
+    "Go to the table",
+    "Move from the doorway to the table",
+    "Move over to the workbench",
+    "Head back to the charging dock",
+    "Travel from the loading bay to the office",
+    "Proceed through the doorway to the kitchen",
+    "Come over to the counter",
+    "The robot goes from the charging dock to the front desk",
+    "The robot moves from the lobby to the lift",
+    "Go from the doorway to the table near the window",
+    "Go to the table by the door",
+    "Go through the doorway to the kitchen",
+  ])("reads %j as a trip by the robot, as a walk job reads", summary => {
+    const walk = "Walk down the aisle to its far end without touching the shelves.";
+    const project = (text: string) => projectWebsiteTaskContext({ requestId: "r1", summary: text,
+      confirmedAtIso: "2026-11-16T14:21:18.212Z", unresolved: [] } as never);
+    expect(screen(walk)).toMatchObject({ supported: false, kind: null, reason: "mobile", disposition: "accepted_for_analysis" });
+    expect(screen(summary)).toMatchObject({ supported: false, kind: null, reason: "mobile", disposition: "accepted_for_analysis" });
+    expect(project(summary).task_family).toBe(project(walk).task_family);
+    expect(project(summary).task_family).toBe("general_task");
+    expect(multiStepTaskHold({ summary })).toBeNull();
+  });
+
+  // Each read exactly as before the trip reading existed (checked against origin/main's function): an object
+  // as subject, a verb of going in a relative clause or another sense, a trip in the success definition, a
+  // trip beside a manipulation, and an object moved.
+  it.each([
+    ["The boxes go from the conveyor to the pallet", null, "rigid_pick_and_place"],
+    ["Parcels come from the scale to the outbound rack", null, "rigid_pick_and_place"],
+    ["Items move from the conveyor to the tote", null, "rigid_pick_and_place"],
+    ["Trays travel from the oven to the rack", null, "rigid_pick_and_place"],
+    ["The tote goes from the scale to the outbound rack", null, "rigid_pick_and_place"],
+    ["Pick up the parts that come from the press and put them on the tray", null, "rigid_pick_and_place"],
+    ["Restock the shelf with cans that come from the back room", null, "rigid_pick_and_place"],
+    ["Take the bottle from the fridge to the counter when guests come to the table", null, "rigid_pick_and_place"],
+    ["Take the parts that come from the press to the rack", null, "rigid_pick_and_place"],
+    ["Put the print head into the dock", null, "rigid_pick_and_place"],
+    ["Put the tool where it can go to the next station", null, "rigid_pick_and_place"],
+    ["Pick up the mug and put it on the counter", "Mugs come to rest upright on the counter", "rigid_pick_and_place"],
+    ["Move the box from the table to the shelf", "The box must go from the table to the shelf", "rigid_pick_and_place"],
+    ["Pick up the tray and put it on the counter", "The tray is on the counter and the robot goes back to the dock", "rigid_pick_and_place"],
+    ["Go to the shelf and pick up the box", null, "rigid_pick_and_place"],
+    ["Grab the mug from the table and head to the counter", null, "rigid_pick_and_place"],
+    ["Move the blue book from the cart to the top shelf", null, "rigid_pick_and_place"],
+    ["Go from the doorway to the table, then wait", null, "multi_step"],
+    // The multi-step check reads stopping as a second act before any trip is read.
+    ["Move from the charging dock to the front desk and stop", null, "multi_step"],
+    // A place followed straight by the object: the object moved, named last.
+    ["Move to the top shelf the blue book", null, "rigid_pick_and_place"],
+    ["Move from the cart to the shelf all the boxes", null, "rigid_pick_and_place"],
+    ["Move to the shelf the boxes", null, "rigid_pick_and_place"],
+    ["Move into position the empty tote", null, "rigid_pick_and_place"],
+  ])("reads %j (success %j) as before: %s", (summary, success, reading) => {
+    const verdict = screen(summary, success);
+    expect(verdict.kind ?? verdict.reason).toBe(reading);
+  });
+
   it("reads the success definition: it can name the job, or rule it out", () => {
     expect(screen("Your site task", "The tote is placed on the outbound rack")).toMatchObject({ supported: true, kind: "rigid_pick_and_place" });
     expect(screen("Move towels to the shelf", null)).toMatchObject({ supported: false, reason: "deformable" });
