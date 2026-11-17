@@ -65,9 +65,9 @@ describe("site screening emails", () => {
   it("never introduces platform charges or assumes a city in the can't-simulate-yet email, for any reason", () => {
     for (const reason of ["deformable", "liquid", "assembly", "mobile", "closing", "push", "container",
       "articulated", "other", "multi_step", "unclear"] as const) {
-      for (const jobUrl of ["https://tryblueprint.io/capture-upload/tok", null]) for (const prepared of [false, true]) {
-        const email = buildTaskNotYetSupportedEmail({ firstName: "Dana", siteName: "Riverside DC", reason, jobUrl, prepared });
-        expectClean(`${reason} ${jobUrl ?? "no link"}${prepared ? " prepared" : ""}`, `${email.subject}\n${email.body}`, SITE_EMAIL);
+      for (const jobUrl of ["https://tryblueprint.io/capture-upload/tok", null]) {
+        const email = buildTaskNotYetSupportedEmail({ firstName: "Dana", siteName: "Riverside DC", reason, jobUrl });
+        expectClean(`${reason} ${jobUrl ?? "no link"}`, `${email.subject}\n${email.body}`, SITE_EMAIL);
       }
     }
   });

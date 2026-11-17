@@ -386,8 +386,14 @@ const REASON_SENTENCES: Record<UnsupportedTaskReason, string> = {
   unclear: "From your job brief, we could not tell which kind of job this is.",
 };
 
-/** For a job whose simulation is built whatever its kind: the kind it was read as does not hold it up. */
-export const NOT_HELD_SENTENCE = "This does not hold up your job: we still build the simulation of your site.";
+/**
+ * Whether the site is told how its job's kind was read (`taskScopeNotYet`). A job built whatever its kind
+ * (`goesAhead`: `websiteJobGoesAheadWhateverKind`) is told exactly what a job of a kind we score is told,
+ * unless its reading asks something of the site: several steps (held), or a brief we could not read.
+ */
+export function taskKindToldToSite(reason: unknown, goesAhead: boolean): boolean {
+  return !goesAhead || reason === "multi_step" || reason === "unclear";
+}
 
 export function taskScopeReasonSentence(reason: unknown): string {
   return REASON_SENTENCES[(reason as UnsupportedTaskReason)] ?? REASON_SENTENCES.other;
@@ -396,13 +402,9 @@ export function taskScopeReasonSentence(reason: unknown): string {
 /**
  * What the site is told, on the confirmation, the job page and by email. A
  * brief we could not read needs one sentence, so it is asked for (audit N3).
- * Any other job we cannot score is accepted; nothing here refuses a job.
- *
- * `prepared`: the job is built whatever its kind (`websiteJobGoesAheadWhateverKind`). Without it, the older
- * wording stands: such a job with no grant is kept on file (`websiteJobKeptOnFile`).
+ * Any other job we cannot score is accepted; nothing here refuses a job. Said only where `taskKindToldToSite`.
  */
-export function taskScopeNotYet(reason: unknown, options: { prepared?: boolean } = {}):
-  { headline: string; detail: string; nextStep: string } {
+export function taskScopeNotYet(reason: unknown): { headline: string; detail: string; nextStep: string } {
   if (reason === "multi_step") {
     return {
       headline: "Your job is on hold because it has more than one step.",
@@ -415,13 +417,6 @@ export function taskScopeNotYet(reason: unknown, options: { prepared?: boolean }
       headline: "Your job brief needs one sentence about the job before we can evaluate it.",
       detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE}`,
       nextStep: "Describe the job in one sentence at the top of your job brief and confirm it again.",
-    };
-  }
-  if (options.prepared) {
-    return {
-      headline: "We have your job.",
-      detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE} ${NOT_HELD_SENTENCE}`,
-      nextStep: "If we read your job wrong, reply to our email.",
     };
   }
   return {

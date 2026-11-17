@@ -26,7 +26,7 @@
  */
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
-import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
+import { multiStepHoldMessage, taskKindToldToSite, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome,
@@ -338,8 +338,6 @@ interface TaskStatusInput {
    * Such a job is not opened to robot teams, so no later rung is true for it.
    */
   taskScope?: { supported: false; reason: string | null } | null;
-  /** The job's simulation is built whatever its kind (`websiteJobGoesAheadWhateverKind`). */
-  kindGoesAhead?: boolean;
   /**
    * The current brief names more than one step (`multiStepTaskHold`): held before any spend, so the
    * Pipeline never narrows it to one move. The steps are the ones the screen read.
@@ -496,9 +494,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   }
 
   if (input.taskScope && !observedPreparation && !hasRuns) {
-    // A video sent before the job had an account cannot be prepared: it keeps the older wording.
-    const notYet = taskScopeNotYet(input.taskScope.reason,
-      { prepared: input.kindGoesAhead === true && !input.footageBeforeAccount });
+    const notYet = taskScopeNotYet(input.taskScope.reason);
     return {
       ...base,
       decision: "not_yet_supported",
@@ -913,10 +909,11 @@ export function taskStatusInputFrom(record: {
     supplementWouldFinish: Boolean(coverage?.supplement_would_finish),
     screening: record.screening ?? null,
     disposition: dispositionFrom(record.site_task_triage?.disposition),
+    // A job built whatever its kind is shown what a job of a kind we score is shown (`taskKindToldToSite`).
     taskScope: record.site_task_scope?.supported === false
+      && taskKindToldToSite(record.site_task_scope.reason, record.kindGoesAhead === true)
       ? { supported: false, reason: typeof record.site_task_scope.reason === "string" ? record.site_task_scope.reason : null }
       : null,
-    ...(record.kindGoesAhead === true ? { kindGoesAhead: true } : {}),
     bookingUrl: record.bookingUrl ?? null,
     ...("account_owner_uid" in record ? { claimed: Boolean(record.account_owner_uid) } : {}),
     ...(record.jobAccess ? { openForEvaluations: record.jobAccess.evaluationAvailable,

@@ -85,7 +85,7 @@ import { loadIsInternalTestJob } from "../utils/internalTestJob";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
-import { multiStepTaskHold, taskScopeNotYet } from "../utils/siteTaskScope";
+import { multiStepTaskHold, taskKindToldToSite, taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
@@ -444,8 +444,8 @@ function screeningOutcome(disposition: string, screenGateEnded = false): {
 }
 
 /** What a site hears when its job is a kind we cannot score yet. */
-function taskScopeOutcome(reason: unknown, prepared: boolean) {
-  const notYet = taskScopeNotYet(reason, { prepared });
+function taskScopeOutcome(reason: unknown) {
+  const notYet = taskScopeNotYet(reason);
   return { headline: notYet.headline, detail: `${notYet.detail} ${notYet.nextStep}`, bookingUrl: null };
 }
 
@@ -1040,21 +1040,22 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     }
 
     // Screening occurs here for public-form sites. Only a job we cannot score
-    // hears about it by email, whatever its gate verdict: it is not opened to
-    // robot teams, so no other next step is true for it. The outbox can retry
-    // delivery without a timed check-in.
-    const scoreable = result.scope.supported;
+    // hears about it by email, whatever its gate verdict. A job built whatever
+    // its kind hears what a job we score hears (`taskKindToldToSite`), unless it
+    // is held for its several steps. The outbox can retry delivery without a
+    // timed check-in.
+    let scoreable = result.scope.supported;
     // A site that filmed first is never asked to film again. Unknown is not
     // "not filmed": the job page says which, and the reply does not guess.
     const walkthrough = await savedWalkthrough(payload).catch(() => null);
     let coverageMeasured = false;
     let screenGateEnded = false;
-    let kindGoesAhead = false;
     try {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
       screenGateEnded = request?.screenGateEnded === true;
-      kindGoesAhead = request?.kindGoesAhead === true;
+      if (!scoreable && !multiStepTaskHold(result.brief)
+        && !taskKindToldToSite(result.scope.reason, request?.kindGoesAhead === true)) scoreable = true;
       // The brief can be a no-op while its notification intent is missing.
       // Reuse the durable outbox key to recover failed enqueues without
       // creating another message or changing the confirmed work.
@@ -1064,7 +1065,6 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           siteName: request.siteName,
           reason: result.scope.reason,
           jobUrl: captureUploadUrlFor(payload.requestId),
-          prepared: kindGoesAhead,
         });
         await enqueueOutbox({
           idempotencyKey: `${payload.requestId}:brief-screening:task-not-yet-supported`,
@@ -1104,7 +1104,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       ok: true,
-      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason, kindGoesAhead),
+      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
