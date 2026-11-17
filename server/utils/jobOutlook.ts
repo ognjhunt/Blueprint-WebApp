@@ -271,7 +271,7 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
   };
   const [answer, keptOnFile, windowEndedAtEpoch, awaitsSiteSentence] = await Promise.all([
     (given ? Promise.resolve(given.answer) : loadSiteAnswer(requestId)).catch(() => null),
-    import("./websiteJobWindowSweep").then(({ websiteJobKeptOnFile }) => websiteJobKeptOnFile(record)),
+    import("./websiteJobWindowSweep").then(({ websiteJobKeptOnFile }) => websiteJobKeptOnFile(record, requestId)),
     import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
       .then(window => window.endedAtEpoch ?? null).catch(() => null),
     readAwaitsSiteSentence(),

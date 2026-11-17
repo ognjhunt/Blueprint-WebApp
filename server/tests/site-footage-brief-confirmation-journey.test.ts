@@ -326,6 +326,25 @@ describe("a site that sends footage with no description", () => {
     expect(outbox(`${jobId}:brief-screening:task-not-yet-supported`)).toBeUndefined();
   });
 
+  it("still tells a job held for its several steps that it is held, whatever kind the screen read", async () => {
+    const { jobId, token } = await startJob({ task: "" });
+    await claim(jobId);
+    await sendFootage(token);
+    const body = await confirmBrief(token, { summary: "Put the mug in the sink, then wipe the counter", successCriteria: {
+      successDefinition: null, successRate: null, cycleTimeSeconds: null, unknown: true } });
+    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false });
+    // The confirmation, its email and the job page say the same thing, in the page's words.
+    const status = (await jobStatus(token)).status;
+    expect(status.headline).toBe("Your job is on hold because it has more than one step.");
+    expect(status.operatorAction).toMatch(/^Our simulation tests one step at a time.*We won't test only part of your job without asking you\. To have one step tested, change your job description to that one step and confirm it\./);
+    expect(body.screening).toEqual({ headline: status.headline, detail: status.operatorAction, bookingUrl: null });
+    const email = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
+    expect(email?.subject).toBe("Your job is on hold because it has more than one step");
+    expect(email?.body).toContain(`\n\n${status.headline}\n\n${status.operatorAction}\n\nIf we read your job wrong, reply to this email.`);
+    for (const told of [body.screening?.detail, email?.body])
+      expect(told).not.toMatch(/evaluation for its kind|native evaluators|can score these|when we can (evaluate|build)/);
+  });
+
   it("accepts an unfamiliar description for analysis without a keyword whitelist", async () => {
     const { jobId, token } = await startJob({ task: "" });
     await claim(jobId);
@@ -333,12 +352,23 @@ describe("a site that sends footage with no description", () => {
     const body = await confirmBrief(token, { summary: "Cartons", successCriteria: { successDefinition: null, successRate: null,
       cycleTimeSeconds: null, unknown: true } });
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "other",disposition:"accepted_for_analysis" });
-    expect(body.screening?.headline).toMatch(/preparing an evaluation/i);
-    const notice = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
-    expect(notice?.subject).toMatch(/preparing its job packet/i);
-    expect(notice?.subject).not.toMatch(/one sentence/i);
-    expect(notice?.body).toMatch(/accepted your job/);
-    expect((await jobStatus(token)).status.headline).toMatch(/preparing an evaluation/i);
+    // A job created today is built whatever its kind (Pipeline #3618): it hears what a job of a kind we score hears.
+    // At confirmation that is no screening message and no email; its page follows the same ladder.
+    expect(body.screening).toBeNull();
+    expect(outbox(`${jobId}:brief-screening:task-not-yet-supported`)).toBeUndefined();
+    const status = (await jobStatus(token)).status;
+    expect(status.decision).not.toBe("not_yet_supported");
+    expect(`${status.headline} ${status.operatorAction ?? ""}`).not.toMatch(/evaluat\w* preparation|native evaluators|on file|holding/i);
+    // The same steps for a job of a kind we score: the same reply, the same page, the same (no) email.
+    const scored = await startJob({ task: "" });
+    await claim(scored.jobId);
+    await sendFootage(scored.token);
+    const scoredBody = await confirmBrief(scored.token, { summary: "Pick up each carton and place it at the end of the table",
+      successCriteria: { successDefinition: null, successRate: null, cycleTimeSeconds: null, unknown: true } });
+    expect(doc(`inboundRequests/${scored.jobId}`).site_task_scope).toMatchObject({ supported: true });
+    expect(body).toEqual(scoredBody);
+    expect(status).toEqual((await jobStatus(scored.token)).status);
+    expect(outbox(`${scored.jobId}:brief-screening:task-not-yet-supported`)).toBeUndefined();
   });
 });
 

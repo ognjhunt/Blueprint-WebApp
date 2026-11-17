@@ -26,7 +26,7 @@
  */
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
-import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
+import { multiStepHoldMessage, taskKindToldToSite, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome,
@@ -862,6 +862,7 @@ export function taskStatusInputFrom(record: {
   site_task_triage?: { disposition?: string | null } | null;
   /** `inboundRequests.site_task_scope`, written when the brief is confirmed. */
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
+  kindGoesAhead?: boolean;
   bookingUrl?: string | null;
   /** Pass the owner uid (or null) when the caller read it; omit when it did not. */
   account_owner_uid?: string | null;
@@ -908,7 +909,9 @@ export function taskStatusInputFrom(record: {
     supplementWouldFinish: Boolean(coverage?.supplement_would_finish),
     screening: record.screening ?? null,
     disposition: dispositionFrom(record.site_task_triage?.disposition),
+    // A job built whatever its kind is shown what a job of a kind we score is shown (`taskKindToldToSite`).
     taskScope: record.site_task_scope?.supported === false
+      && taskKindToldToSite(record.site_task_scope.reason, record.kindGoesAhead === true)
       ? { supported: false, reason: typeof record.site_task_scope.reason === "string" ? record.site_task_scope.reason : null }
       : null,
     bookingUrl: record.bookingUrl ?? null,

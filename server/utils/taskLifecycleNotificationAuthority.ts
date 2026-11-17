@@ -68,6 +68,20 @@ async function endedBySite(requestId:string,transaction?:FirebaseFirestore.Trans
  const [{websiteRunClosure},{siteWalkthroughIdentity}]=await Promise.all([import('./websiteRunClosure'),import('./siteWalkthrough')]);
  return Boolean(websiteRunClosure(record,requestId,siteWalkthroughIdentity(requestId,record).captureId));
 }
+/** Whether the job's "can't simulate this kind of job yet" email is still the site's to hear (`taskKindToldToSite`). */
+async function kindStillToldToSite(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+ if(!db)throw new Error('capture_notification_authority_unavailable');
+ const [{websiteJobGoesAheadWhateverKind},{multiStepTaskHold,taskKindToldToSite},{TASK_BRIEFS_COLLECTION}]=await Promise.all([
+  import('./sceneScreenGate'),import('./siteTaskScope'),import('./siteTaskBrief')]);
+ const ref=db.collection('inboundRequests').doc(requestId);
+ const record=(transaction?await transaction.get(ref):await ref.get()).data();
+ if(!record)return true;
+ const scope=record.site_task_scope;
+ if(scope?.supported!==false||taskKindToldToSite(scope.reason,websiteJobGoesAheadWhateverKind(record,requestId)))return true;
+ const briefRef=db.collection(TASK_BRIEFS_COLLECTION).doc(requestId);
+ const brief=(transaction?await transaction.get(briefRef):await briefRef.get()).data();
+ return Boolean(multiStepTaskHold(brief as never));
+}
 /**
  * The start form's "we can't simulate this kind of job yet" notice went out (or may have): a kept-on-file answer for
  * the same job, given for the same reason, would repeat it, so it is skipped. Never any other answer.
@@ -109,6 +123,9 @@ export async function taskLifecycleNotificationIsCurrent(
   &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
  // That kept notice is still the site's to hear only while the job is the site's: not after it withdrew or closed it.
  if(entry.kind==='screening_not_now'&&entry.idempotencyKey!==undefined&&await endedBySite(entry.requestId,transaction))return false;
+ // Queued before a job built whatever its kind stopped hearing about its kind (`taskKindToldToSite`): not sent. A job
+ // held for its steps, a brief we could not read, and a job still kept on file keep theirs.
+ if(entry.kind==='screening_not_now'&&entry.idempotencyKey!==undefined&&!await kindStillToldToSite(entry.requestId,transaction))return false;
  // The answer slots: at most one paper-check answer and one test result per job, never a paper check after a result,
  // and none once the site closed its own run.
  // Checked once the row exists (its key names the email); queueing without a key is decided at dispatch.

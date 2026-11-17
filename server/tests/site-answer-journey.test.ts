@@ -27,6 +27,7 @@ import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
 import { JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
+import { SCENE_SCREEN_GATE_ENDED_FIELD } from "../utils/sceneScreenGate";
 
 const seams = vi.hoisted(() => ({
   /** The scripted video-model reply for each capture, keyed by capture id. */
@@ -443,18 +444,21 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect((await status(token)).outlook).toEqual({ phase: "cannot_match", reason: "other_kind", sentence: answer.reason });
   }
 
-  it("says a job of another kind cannot be checked, in the fit check's own words, and keeps it on file with one email", async () => {
-    // The towel job is named in the form's optional task line.
+  it("says a job of another kind cannot be checked, in the fit check's own words; a job made today is never kept on file", async () => {
+    // The towel job is named in the form's optional task line. A job made today is built whatever its kind
+    // (`websiteJobGoesAheadWhateverKind`), so with no grant yet it waits as the untyped job does.
     const { jobId, token } = await startJob("Fold the towels");
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "deformable" });
     await sendVideo(token);
     await readVideo(jobId, TOWELS);
-    await expectOtherKind(jobId, token, true);
+    await expectOtherKind(jobId, token);
   }, 30_000);
 
-  it("gives no robot pick to a typed towel job even when the reading names the object and a height", async () => {
+  it("gives no robot pick to a typed towel job even when the reading names the object and a height, and keeps an older one on file", async () => {
     const { jobId, token } = await startJob("Fold the towels");
     await sendVideo(token);
+    // A job from before 2026-11-11 (no marker): kept on file with one email, as before.
+    delete doc(`inboundRequests/${jobId}`)[SCENE_SCREEN_GATE_ENDED_FIELD];
     await readVideo(jobId, TOWELS_WITH_HEIGHT);
     await expectOtherKind(jobId, token, true);
   }, 30_000);
@@ -476,11 +480,17 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const { answer } = await status(token);
     expect(answer.state).toBe("ready");
     expect(answer.headline).toMatch(/^Most likely to fit: /);
-    // Its scope is a kind we can't simulate yet, so the job is kept on file, a recorded ending (review, 2026-11-11):
-    // the paper check is its answer, emailed once with that reason, never with a later result promised.
+    // A job made today is built whatever its kind: it is never kept on file, so it is building and owes no answer email.
+    expect((await status(token)).outlook.phase).toMatch(/^(building|testing)$/);
+    expect(answerNotices(jobId)).toHaveLength(0);
+    // The same job from before 2026-11-11 (no marker) is kept on file, a recorded ending (review, 2026-11-11): the paper
+    // check is its answer, emailed once with that reason, never with a later result promised.
+    delete doc(`inboundRequests/${jobId}`)[SCENE_SCREEN_GATE_ENDED_FIELD];
     expect((await status(token)).outlook).toMatchObject({ phase: "cannot_match", reason: "kept_on_file" });
+    const { sweepWebsiteJobNoGrant } = await import("../utils/websiteJobWindowSweep");
+    expect(await sweepWebsiteJobNoGrant(jobId, NOW.getTime())).toBe("kept_on_file");
+    await vi.waitFor(() => expect(answerNotices(jobId)).toHaveLength(1));
     const kept = answerNotices(jobId);
-    expect(kept).toHaveLength(1);
     expect(kept[0].body).toContain(`We can't build a simulation for this kind of job yet. We've kept your job on file. On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used.`);
     expect(kept[0].body).not.toMatch(/test result comes later/);
   }, 30_000);

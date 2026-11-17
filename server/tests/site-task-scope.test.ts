@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 import {
   MULTI_STEP_TASK_HOLD, SUPPORTED_TASK_LINES, SUPPORTED_TASK_SCOPE, multiStepEvidence, multiStepHoldMessage, multiStepTaskHold,
   screenTaskScope,
-  scoredTaskDescription, taskScopeHeld, taskScopeNotYet, taskScopeRecord,
+  scoredTaskDescription, taskKindToldToSite, taskScopeHeld, taskScopeNotYet, taskScopeRecord,
 } from "../utils/siteTaskScope";
 import { teamJobAccess } from "../utils/teamJobAccess";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
@@ -393,6 +393,25 @@ describe("a job we cannot score", () => {
     expect(unclear.nextStep).toMatch(/describe the job in one sentence/i);
     expect(taskScopeNotYet("liquid").headline).toMatch(/preparing an evaluation/i);
     expect(taskScopeNotYet("liquid").nextStep).toMatch(/stays on file.*email you when we can evaluate it/i);
+  });
+
+  it("speaks of the kind only to a job not built whatever its kind, or one whose reading asks something of the site", () => {
+    for (const reason of ["mobile", "other", "deformable", "container", null]) {
+      expect(taskKindToldToSite(reason, true)).toBe(false);
+      expect(taskKindToldToSite(reason, false)).toBe(true);
+    }
+    for (const reason of ["multi_step", "unclear"]) expect(taskKindToldToSite(reason, true)).toBe(true);
+    const page = (extra: Record<string, unknown>) => projectTaskStatus(taskStatusInputFrom({
+      briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-11-17", screening: null, ...extra } as never));
+    // A job built whatever its kind is shown what the same job of a kind we score is shown.
+    for (const hasStoredCapture of [false, true]) {
+      const scored = page({ hasStoredCapture, site_task_scope: { supported: true, kind: "rigid_pick_and_place" } });
+      expect(page({ hasStoredCapture, kindGoesAhead: true, site_task_scope: { supported: false, reason: "mobile" } })).toEqual(scored);
+      expect(scored.decision).not.toBe("not_yet_supported");
+    }
+    // Without the flag (no marker, or a video sent before the job had an account) the older wording stands.
+    expect(page({ site_task_scope: { supported: false, reason: "mobile" } }).headline).toMatch(/preparing an evaluation/);
+    expect(page({ kindGoesAhead: true, site_task_scope: { supported: false, reason: "unclear" } }).headline).toMatch(/one sentence/);
   });
 });
 

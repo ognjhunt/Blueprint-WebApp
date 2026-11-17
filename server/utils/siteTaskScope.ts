@@ -386,6 +386,15 @@ const REASON_SENTENCES: Record<UnsupportedTaskReason, string> = {
   unclear: "From your job brief, we could not tell which kind of job this is.",
 };
 
+/**
+ * Whether the site is told how its job's kind was read (`taskScopeNotYet`). A job built whatever its kind
+ * (`goesAhead`: `websiteJobGoesAheadWhateverKind`) is told exactly what a job of a kind we score is told,
+ * unless its reading asks something of the site: several steps (held), or a brief we could not read.
+ */
+export function taskKindToldToSite(reason: unknown, goesAhead: boolean): boolean {
+  return !goesAhead || reason === "multi_step" || reason === "unclear";
+}
+
 export function taskScopeReasonSentence(reason: unknown): string {
   return REASON_SENTENCES[(reason as UnsupportedTaskReason)] ?? REASON_SENTENCES.other;
 }
@@ -393,8 +402,7 @@ export function taskScopeReasonSentence(reason: unknown): string {
 /**
  * What the site is told, on the confirmation, the job page and by email. A
  * brief we could not read needs one sentence, so it is asked for (audit N3).
- * Any other job we cannot score yet is accepted and held while we prepare its
- * evaluation; nothing here refuses a job.
+ * Any other job we cannot score is accepted; nothing here refuses a job. Said only where `taskKindToldToSite`.
  */
 export function taskScopeNotYet(reason: unknown): { headline: string; detail: string; nextStep: string } {
   if (reason === "multi_step") {
