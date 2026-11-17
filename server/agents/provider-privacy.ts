@@ -1,4 +1,4 @@
-import { ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
+import { ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, OLDER_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
 import type { AgentProvider, AgentTaskKind } from "./types";
 
 /**
@@ -177,6 +177,19 @@ const AI_ROWS_2026_11_13: Record<string, PolicyRow> = {
 };
 
 /**
+ * The provider rows of version 2026-11-17.1: those of 2026-11-13.1, with Anthropic's row naming the version it
+ * refers to ("the version of this policy effective November 13, 2026, or a later one") instead of "this version",
+ * so its meaning stays exactly what it was. It permits exactly what the 2026-11-13.1 row permits.
+ */
+const AI_ROWS_2026_11_17: Record<string, PolicyRow> = {
+  ...AI_ROWS_2026_11_13,
+  Anthropic: {
+    words: "For jobs started and requests sent under the version of this policy effective November 13, 2026, or a later one, may read the job description and frames from a site capture to draft the job brief and prepare the simulated scene, draft replies, and sort incoming requests; for earlier jobs, drafting the job brief from capture frames only when a site explicitly chooses that option; and drafting and sorting internal work where we configure it",
+    classes: AI_ROWS_2026_11_13.Anthropic.classes,
+  },
+};
+
+/**
  * Rows the Privacy Policy states for a company no lane of this website's agent
  * runtime can route to: no provider id here names the row, so it permits
  * nothing (its classes are empty). Each is named with the reason the page keeps
@@ -201,10 +214,13 @@ export const PAGE_ROWS_WITHOUT_A_ROUTE: Record<string, string> = {
 export const PRIVACY_POLICY_PROVIDER_ROWS: Record<string, { page: string; rows: Record<string, PolicyRow>; same_text_as?: string }> = {
   [EARLIER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyEarlier.tsx", rows: AI_ROWS_2026_11 },
   // 2026-11-12.1 and 2026-11-12.2 are the same words; acceptances were recorded under both.
-  "2026-11-12.1": { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11, same_text_as: PREVIOUS_PRIVACY_VERSION },
-  [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11 },
+  "2026-11-12.1": { page: "client/src/pages/PrivacyOlder.tsx", rows: AI_ROWS_2026_11, same_text_as: OLDER_PRIVACY_VERSION },
+  [OLDER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyOlder.tsx", rows: AI_ROWS_2026_11 },
   [ANNOUNCED_SUPERSEDED_VERSION]: { page: "client/src/pages/PrivacyAnnounced.tsx", rows: AI_ROWS_2026_11 },
-  [PRIVACY_VERSION]: { page: "client/src/pages/Privacy.tsx", rows: AI_ROWS_2026_11_13 },
+  [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11_13 },
+  // 2026-11-17.1 permits what 2026-11-13.1 does (owner, 2026-11-17: only the face blurring leaves); Anthropic's row
+  // names the version it means instead of "this version".
+  [PRIVACY_VERSION]: { page: "client/src/pages/Privacy.tsx", rows: AI_ROWS_2026_11_17 },
 };
 
 /**

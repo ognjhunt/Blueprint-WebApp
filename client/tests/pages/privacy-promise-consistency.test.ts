@@ -71,11 +71,14 @@ describe("the video", () => {
     expect(`${termsText}\n${privacyText}`).not.toMatch(/never (?:give your recording to|delivered to) a robot team|video stays private|anonymized job card/i);
   });
 
-  it("is not licensed for training, and faces are blurred only for World Labs", () => {
+  // Owner, 2026-11-17: no face blurring for a job started under 2026-11-17.1; a job started under an earlier Privacy
+  // version keeps the World Labs face blur. Both documents say so in the same terms.
+  it("is not licensed for training, and faces are blurred only for an earlier job, only for World Labs", () => {
     expect(termsText).toContain("We do not license your recording to anyone for training without your written agreement.");
-    expect(termsText).toContain("we blur faces only in the frames we send to World Labs");
+    expect(termsText).toContain("We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under an earlier version of our Privacy Policy, we still blur faces in the frames we send to World Labs to rebuild the work area.");
+    expect(termsText).not.toContain("we blur faces only in the frames we send to World Labs");
     expect(termsText).toContain("Companies see your video as you filmed it, without its sound.");
-    expect(annexRow("People in job footage")).toContain("We blur faces in the frames we send to World Labs");
+    expect(annexRow("People in job footage")).toContain("We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area.");
     expect(annexRow("People in job footage")).toContain("Companies see your video as you filmed it, without its sound.");
   });
 

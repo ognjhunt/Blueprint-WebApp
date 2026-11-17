@@ -72,8 +72,35 @@
  * - A job started earlier keeps what it was promised: the data-class gate reads the Privacy version recorded when the
  *   job was started (`server/agents/runtime.ts`), and a later acceptance on the job's page does not move it.
  */
-export const TERMS_VERSION = "2026-11-12.2";
-export const PRIVACY_VERSION = "2026-11-13.1";
+/*
+ * 2026-11-17 (owner: "idc about face blurring - please find where this comes from and remove it."). Terms and Privacy
+ * Policy 2026-11-17.1 no longer promise face blurring: for a job started under them, the frames sent to World Labs are
+ * not blurred. A job started under an earlier Privacy version keeps the blurring that was promised to it; the Pipeline
+ * decides by the version recorded on the job (`privacy_version_at_submission`, sent in the grant as
+ * `privacy_policy_version`), so a job started from a form opened before this release stays under the version it showed.
+ * The documents share the id. They take effect at once (owner, 2026-11-17), with no advance email: the owner was told
+ * that Terms section 12 and the Privacy Policy's "Changes to this policy" promise account holders an email before a
+ * material change takes effect, and chose this. The text of Terms 2026-11-12.2 is frozen at `TermsPrevious.tsx`
+ * (/terms/previous) and of Privacy 2026-11-13.1 at `PrivacyPrevious.tsx` (/privacy/previous); the pages that were there
+ * (Terms 2026-11-12.1, Privacy 2026-11-12.2) are kept byte for byte at `TermsOlder.tsx` and `PrivacyOlder.tsx` (not
+ * routed).
+ *
+ * Who it binds, and how:
+ * - Nobody is asked to agree again (owner, 2026-11-17: earlier acceptances keep counting). The change concerns only
+ *   jobs started from now on, so an account or a deployment company that accepted Terms 2026-11-12.2 with Privacy
+ *   2026-11-12.2 or 2026-11-13.1 keeps everything it had: `EARLIER_TERMS_VERSIONS_STILL_COUNTING` and
+ *   `EARLIER_PRIVACY_VERSIONS_STILL_COUNTING` list those versions for 2026-11-17.1, and `companyMaySeeJobs` stays true.
+ * - A site starting a job from this release accepts Terms and Privacy 2026-11-17.1 under the start form's line; that
+ *   job is under Privacy 2026-11-17.1 and its frames are not blurred.
+ * - A job started earlier keeps its recorded version and its blurring; a later acceptance does not move it.
+ */
+/**
+ * The id of the 2026-11-17 Terms and Privacy Policy, and the one place it is written in code and tests: if the release
+ * slips past midnight UTC, change it here (and the date the pinned test expects the pages to print).
+ */
+export const NO_FACE_BLUR_VERSION = "2026-11-17.1";
+export const TERMS_VERSION = NO_FACE_BLUR_VERSION;
+export const PRIVACY_VERSION = NO_FACE_BLUR_VERSION;
 /**
  * Published ahead on 2026-11-11 for November 25 and replaced before it took effect. Acceptances recorded under it keep
  * it; its text is frozen at `client/src/pages/TermsAnnounced.tsx` and `PrivacyAnnounced.tsx` (not routed). It no
@@ -90,10 +117,15 @@ export const ANNOUNCED_SUPERSEDED_VERSION = "2026-11-25.1";
  * notice Terms section 12 promises can be given before it takes effect. The
  * date is a placeholder for the owner to confirm; no notice is sent by code.
  */
-/** The Terms in force before 2026-11-12.2 are 2026-11-12.1. The Privacy Policy in force before 2026-11-13.1 is
- * 2026-11-12.2 (the same words as 2026-11-12.1). */
-export const PREVIOUS_TERMS_VERSION = "2026-11-12.1";
-export const PREVIOUS_PRIVACY_VERSION = "2026-11-12.2";
+/** The Terms in force before 2026-11-17.1 are 2026-11-12.2. The Privacy Policy in force before 2026-11-17.1 is
+ * 2026-11-13.1. */
+export const PREVIOUS_TERMS_VERSION = "2026-11-12.2";
+export const PREVIOUS_PRIVACY_VERSION = "2026-11-13.1";
+/** The Terms that were "previous" until 2026-11-17.1: kept byte for byte at `client/src/pages/TermsOlder.tsx`, not routed. */
+export const OLDER_TERMS_VERSION = "2026-11-12.1";
+/** The Privacy Policy that was "previous" until 2026-11-17.1 (the same words as 2026-11-12.1): kept byte for byte at
+ * `client/src/pages/PrivacyOlder.tsx`, not routed. */
+export const OLDER_PRIVACY_VERSION = "2026-11-12.2";
 /** The Privacy Policy that was "previous" until 2026-11-13.1: kept byte for byte at `client/src/pages/PrivacyEarlier.tsx`, not routed. */
 export const EARLIER_PRIVACY_VERSION = "2026-11-02.1";
 /** The Terms that were "previous" until 2026-11-12.2: kept byte for byte at `client/src/pages/TermsEarlier.tsx`, not routed. */
@@ -105,19 +137,22 @@ export const EARLIER_TERMS_VERSION = "2026-11-02.1";
  * version and this digest are updated together.
  */
 export const LEGAL_PAGE_DIGESTS = {
-  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "44b0d966c803df4699ecc20c2dbd9a20f229d99395f9b57eee524a7f0774cc86" },
-  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "26a1411d6bd826830b61ff1c85bdc13433fdfd90586e8bca153996a496831938" },
+  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "7ae14645a549551d9035bef2e036a49d4fe9e1fb16753284cd27051db229b8b8" },
+  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "a847a152d44b6d45ddc3986f34d5810761114774ff254489942d889d0e02c709" },
   "client/src/pages/TermsAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "2a56699800d45d0ce2d63598021799a7abbc3027612b1cdfaaf9c0c98cf2cd97" },
   "client/src/pages/PrivacyAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "ae47ecfdb9bbf404ac0d070c02816d2a99f7d4460616e8b06435fbbcb3f115f9" },
-  "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" },
+  "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" },
+  "client/src/pages/TermsOlder.tsx": { version: OLDER_TERMS_VERSION, sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" },
   "client/src/pages/TermsEarlier.tsx": { version: EARLIER_TERMS_VERSION, sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" },
-  "client/src/pages/PrivacyPrevious.tsx": { version: PREVIOUS_PRIVACY_VERSION, sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" },
+  "client/src/pages/PrivacyPrevious.tsx": { version: PREVIOUS_PRIVACY_VERSION, sha256: "cc64b063dc906beb69ba2e7ddcdd02cadaf2e27e86c0b59157478cc038eb8099" },
+  "client/src/pages/PrivacyOlder.tsx": { version: OLDER_PRIVACY_VERSION, sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" },
   "client/src/pages/PrivacyEarlier.tsx": { version: EARLIER_PRIVACY_VERSION, sha256: "cad7fcac5cc1ec468ab74471a13a5e61a208b697deafd97b4039f01ab38eab3c" },
 } as const;
 /** The versions the digests above were recorded against; a version bump without a new digest fails the same test. */
 export const LEGAL_PAGE_DIGEST_VERSIONS = {
-  terms: "2026-11-12.2", privacy: "2026-11-13.1", previousTerms: "2026-11-12.1", previousPrivacy: "2026-11-12.2",
-  announced: "2026-11-25.1", earlierTerms: "2026-11-02.1", earlierPrivacy: "2026-11-02.1",
+  terms: NO_FACE_BLUR_VERSION, privacy: NO_FACE_BLUR_VERSION, previousTerms: "2026-11-12.2", previousPrivacy: "2026-11-13.1",
+  olderTerms: "2026-11-12.1", olderPrivacy: "2026-11-12.2", announced: "2026-11-25.1", earlierTerms: "2026-11-02.1",
+  earlierPrivacy: "2026-11-02.1",
 } as const;
 
 /**
@@ -175,15 +210,35 @@ export interface LegalAcceptanceRecord<TAcceptedAt = unknown> {
  * `client/tests/legalAcceptance.privacy-current.test.ts` fails, asking for the decision. A Terms change still asks.
  */
 const EARLIER_PRIVACY_VERSIONS_STILL_COUNTING: Readonly<Record<string, readonly string[]>> = {
-  "2026-11-13.1": [PREVIOUS_PRIVACY_VERSION],
+  "2026-11-13.1": ["2026-11-12.2"],
+  // 2026-11-17.1 changes only what happens to jobs started under it (no face blurring); every version that counted
+  // beside the current Terms before it still counts (owner, 2026-11-17: earlier acceptances keep counting).
+  [NO_FACE_BLUR_VERSION]: ["2026-11-13.1", "2026-11-12.2"],
 };
 export const PRIVACY_VERSIONS_CURRENT_WITH_TERMS: ReadonlySet<string> =
   new Set([PRIVACY_VERSION, ...(EARLIER_PRIVACY_VERSIONS_STILL_COUNTING[PRIVACY_VERSION] ?? [])]);
 
+/**
+ * For a Terms version, the earlier Terms versions whose acceptance still counts. Until 2026-11-17.1 every Terms change
+ * asked everyone again; an earlier version may be listed ONLY when the newer Terms change nothing for existing accounts
+ * and deployment companies: their changes concern only jobs started from then on. Keyed by the version that decided it,
+ * so a new TERMS_VERSION inherits nothing: until its own entry is written, only the new version counts (everyone,
+ * deployment companies included, is asked again; `server/utils/companyTerms.ts`), and
+ * `client/tests/legalAcceptance.terms-current.test.ts` fails, asking for the decision.
+ */
+const EARLIER_TERMS_VERSIONS_STILL_COUNTING: Readonly<Record<string, readonly string[]>> = {
+  // 2026-11-17.1 changes only what happens to jobs started under it (no face blurring), so an account or a deployment
+  // company that accepted 2026-11-12.2 keeps everything it had (owner, 2026-11-17: nobody is asked to accept again, and
+  // no deployment company loses access). 2026-11-12.1 and older were already asked again and stay so.
+  [NO_FACE_BLUR_VERSION]: ["2026-11-12.2"],
+};
+export const TERMS_VERSIONS_CURRENT: ReadonlySet<string> =
+  new Set([TERMS_VERSION, ...(EARLIER_TERMS_VERSIONS_STILL_COUNTING[TERMS_VERSION] ?? [])]);
+
 export function acceptedVersionsAreCurrent(terms: unknown, privacy: unknown, nowMs = Date.now()): boolean {
   // Each document on its own: the current version counts; while a document's update is announced but not yet in
   // force, its previous version counts too, so nobody is asked to accept a document early.
-  const termsCurrent = terms === TERMS_VERSION
+  const termsCurrent = (typeof terms === "string" && TERMS_VERSIONS_CURRENT.has(terms))
     || (nowMs < legalEffectiveAtMs(TERMS_VERSION) && terms === PREVIOUS_TERMS_VERSION);
   const privacyCurrent = (typeof privacy === "string" && PRIVACY_VERSIONS_CURRENT_WITH_TERMS.has(privacy))
     || (nowMs < legalEffectiveAtMs(PRIVACY_VERSION) && privacy === PREVIOUS_PRIVACY_VERSION);
@@ -206,8 +261,25 @@ export type ShownLegalVersions = { terms_version: string; privacy_version: strin
  * is never rewritten to the current one: a page opened before a Privacy change records the Privacy version it showed.
  */
 export function shownVersionsCount(terms: unknown, privacy: unknown, nowMs = Date.now()): ShownLegalVersions | null {
-  return typeof terms === "string" && typeof privacy === "string" && acceptedVersionsAreCurrent(terms, privacy, nowMs)
-    ? { terms_version: terms, privacy_version: privacy } : null;
+  return typeof terms === "string" && typeof privacy === "string" && pageShowedPair(terms, privacy)
+    && acceptedVersionsAreCurrent(terms, privacy, nowMs) ? { terms_version: terms, privacy_version: privacy } : null;
+}
+
+/**
+ * The Terms/Privacy pairs a page has shown together, most recent first: the current pair, and the pairs forms showed
+ * before it that still count. A form records only one of these, so a hand-made request cannot record a pair no page
+ * showed (for example Terms 2026-11-12.2, which promises the face blur, beside Privacy 2026-11-17.1, which ends it for
+ * the job). A new version adds the pair forms showed until then.
+ */
+export const PAIRS_A_PAGE_SHOWED: readonly ShownLegalVersions[] = [
+  { terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION },
+  // Forms from Privacy 2026-11-13.1 until this release.
+  { terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1" },
+  // Forms from 2026-11-12.2 until Privacy 2026-11-13.1 (and every start form that sends no versions).
+  { terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" },
+];
+function pageShowedPair(terms: string, privacy: string) {
+  return PAIRS_A_PAGE_SHOWED.some(pair => pair.terms_version === terms && pair.privacy_version === privacy);
 }
 
 /**

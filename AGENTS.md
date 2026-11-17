@@ -70,8 +70,10 @@ technical robot action and its contract.
 Fail closed only for:
 
 - **Privacy:** the site's consent is respected, including its withdrawal.
-  Faces are blurred in the frames sent to World Labs; people in captures are
-  not otherwise screened or blurred.
+  Faces are blurred in the frames sent to World Labs only for a job started
+  under an earlier Privacy Policy. Footage of a job started under the current
+  policy is not blurred. People in captures are not otherwise screened or
+  blurred.
 - **Rights:** capture permissions, revocation, and licenses.
 - **Money:** spending stays inside its budget. Internal budgets are Blueprint's
   controls, never a step for the site.

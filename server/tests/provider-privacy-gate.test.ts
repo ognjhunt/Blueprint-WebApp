@@ -5,6 +5,7 @@
  * every place a provider is chosen.
  */
 import fs from "node:fs";
+import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -75,6 +76,7 @@ describe("the gate's tables", () => {
 
   it("applies the version recorded on the data when known, and the strictest table when it is absent or unknown", () => {
     expect(resolvePrivacyVersion("2026-11-02.1")).toBe("2026-11-02.1");
+    expect(resolvePrivacyVersion(NO_FACE_BLUR_VERSION)).toBe(NO_FACE_BLUR_VERSION);
     expect(resolvePrivacyVersion("not-a-version")).toBe(STRICTEST_PRIVACY_TABLE);
     expect(resolvePrivacyVersion(undefined)).toBe(STRICTEST_PRIVACY_TABLE);
     // The strictest table permits nothing that any known version refuses.
@@ -103,7 +105,8 @@ describe("the gate's decisions under every version", () => {
     for (const version of [...versions, STRICTEST_PRIVACY_TABLE]) {
       for (const kind of ALL_KINDS) {
         const sendsRestricted = LANE_DATA_CLASSES[kind].classes.some((dataClass) => (restricted as readonly string[]).includes(dataClass));
-        const providers = version === PRIVACY_VERSION ? ["acp_harness", "openclaw", "codex_local"] as const
+        // 2026-11-13.1 and 2026-11-17.1 (which changes no provider row) let Anthropic receive what OpenAI may.
+        const providers = version === PRIVACY_VERSION || version === "2026-11-13.1" ? ["acp_harness", "openclaw", "codex_local"] as const
           : ["anthropic_agent_sdk", "acp_harness", "openclaw", "codex_local"] as const;
         for (const provider of providers) {
           if (sendsRestricted) expect(privacyDecision(provider, kind, version).permitted, `${version} ${kind} ${provider}`).toBe(false);
@@ -113,7 +116,18 @@ describe("the gate's decisions under every version", () => {
   });
 
   it("under 2026-11-13.1, Anthropic may receive what OpenAI may for site data, and still not the staff thread or footage", () => {
-    expect(PRIVACY_VERSION).toBe("2026-11-13.1");
+    // 2026-11-17.1 (owner, 2026-11-17: only the face blurring leaves) permits what 2026-11-13.1 does.
+    expect(PRIVACY_VERSION).toBe(NO_FACE_BLUR_VERSION);
+    // Every row permits the same; only Anthropic's words name the version they mean instead of "this version".
+    const current = PRIVACY_POLICY_PROVIDER_ROWS[PRIVACY_VERSION].rows, earlier = PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].rows;
+    expect(Object.keys(current)).toEqual(Object.keys(earlier));
+    for (const row of Object.keys(earlier)) {
+      expect(current[row].classes, row).toEqual(earlier[row].classes);
+      expect(current[row].words, row).toBe(row === "Anthropic" ? earlier[row].words.replace("under this version of the policy or a later one",
+        "under the version of this policy effective November 13, 2026, or a later one") : earlier[row].words);
+    }
+    expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].page).toBe("client/src/pages/PrivacyPrevious.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-12.2"].page).toBe("client/src/pages/PrivacyOlder.tsx");
     for (const kind of ALL_KINDS) {
       const openAi = privacyDecision("openai_responses", kind, PRIVACY_VERSION).permitted;
       expect(privacyDecision("anthropic_agent_sdk", kind, PRIVACY_VERSION).permitted, kind).toBe(openAi);

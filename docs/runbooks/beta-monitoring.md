@@ -134,6 +134,14 @@ Redis outages fail open: rate limiting lets requests through within ~750 ms
    does. No account holder was emailed; Terms section 12 and the Privacy
    Policy's "Changes" section still promise that, so it stays on the counsel
    list (tracker G-01).
+   **2026-11-17 (owner):** Terms and Privacy `2026-11-17.1` drop the face blur
+   ("idc about face blurring") and took effect at once: a job started under
+   them is not blurred; a job started under an earlier Privacy version keeps
+   the World Labs face blur. Earlier acceptances keep counting (Terms
+   `2026-11-12.2`, Privacy `2026-11-12.2` and `2026-11-13.1`): nobody is asked
+   again and no deployment company loses access. No account holder was emailed;
+   the owner was told Terms section 12 and the Privacy Policy's "Changes"
+   section promise it, and chose this. It stays on the counsel list (G-01).
 9. **Uptime cron (every 10 minutes)**: Render → New → Cron Job, from this
    repo's `main`: name `blueprint-uptime-probe`, region Virginia, schedule
    `*/10 * * * *`, build command `node --version`, start command

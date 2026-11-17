@@ -1,5 +1,6 @@
 // @vitest-environment node
 import express from "express";
+import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createServer, type Server } from "node:http";
 import { createHash, createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,6 +55,7 @@ import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
+import { parseWebsiteAtlasStoredGrant } from "../utils/websiteAtlasAuthorization";
 import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { projectWebsiteAtlasPreview, websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
 import { crc32, orientPlyForViewer, plyViewerOrientationStream, viewerSettingsFromAtlasCamera,
@@ -286,6 +288,103 @@ describe("automatic consented Atlas grant", () => {
     // Without the retained sponsor an env row has no valid signer.
     delete store.rows.get(REQUEST).website_scene_sponsorship;
     await expect(configure()).rejects.toThrow("website_atlas_source_owner_mismatch");
+  });
+});
+
+// Owner, 2026-11-17: no face blurring for a job started under Privacy 2026-11-17.1. The Atlas authority reaches the
+// Pipeline before the first frame leaves for World Labs, so a new grant names the job's Privacy version, sealed by its
+// digest; the Pipeline blurs when it names none or an earlier one.
+describe("the job's Privacy version in the Atlas authority", () => {
+  const grantFor = async (version?: unknown) => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    if (version !== undefined) store.rows.get(REQUEST).privacy_version_at_submission = version;
+    return (await configure()).authority;
+  };
+
+  it.each([NO_FACE_BLUR_VERSION, "2026-11-13.1", "2026-11-12.2"])("a job started under %s carries that version, sealed by the digest", async version => {
+    const authority = await grantFor(version);
+    const stored = store.rows.get(REQUEST).website_atlas_grants["walkthrough-req1"];
+    expect(authority.privacy_policy_version).toBe(version);
+    expect(stored.privacy_policy_version).toBe(version);
+    expect(authority.authorization_digest).toBe(crossRuntimeDigest(stored));
+    const { privacy_policy_version: _version, ...without } = stored;
+    expect(authority.authorization_digest).not.toBe(crossRuntimeDigest(without));
+  });
+
+  it.each([["nothing recorded", undefined], ["an unknown version", "2026-01-01.9"], ["a malformed version", [NO_FACE_BLUR_VERSION]],
+    ["an empty version", ""]])("a job with %s carries no version", async (_name, version) => {
+    const authority = await grantFor(version);
+    expect(authority).not.toHaveProperty("privacy_policy_version");
+    expect(store.rows.get(REQUEST).website_atlas_grants["walkthrough-req1"]).not.toHaveProperty("privacy_policy_version");
+  });
+
+  it("leaves an existing grant and its digest as they are, and a renewal keeps the version first given", async () => {
+    // A grant made before this release names no version; the job's record changing later does not add one. The
+    // Pipeline compares a resumed authority whole with the one it stored, so it is returned byte for byte.
+    const before = await grantFor();
+    const storedBefore = JSON.stringify(store.rows.get(REQUEST).website_atlas_grants["walkthrough-req1"]);
+    store.rows.get(REQUEST).privacy_version_at_submission = NO_FACE_BLUR_VERSION;
+    const again = await configure();
+    expect(JSON.stringify(again.authority)).toBe(JSON.stringify(before));
+    expect(again.authority).not.toHaveProperty("privacy_policy_version");
+    expect(again.authority.authorization_digest).toBe(crossRuntimeDigest(JSON.parse(storedBefore)));
+    // The non-authorizing read the Pipeline makes on resume returns it unchanged too, and nothing is rewritten.
+    const read = await configure({ create: false });
+    expect(JSON.stringify(read.authority)).toBe(JSON.stringify(before));
+    expect(JSON.stringify(store.rows.get(REQUEST).website_atlas_grants["walkthrough-req1"])).toBe(storedBefore);
+    expect(store.writes).toEqual(["website_atlas_grants"]);
+    // A grant made under 2026-11-13.1 keeps it on every later read, whatever the record says afterwards.
+    store.rows.clear(); store.writes.length = 0;
+    const first = await grantFor("2026-11-13.1");
+    store.rows.get(REQUEST).privacy_version_at_submission = NO_FACE_BLUR_VERSION;
+    const renewed = await configure();
+    expect(renewed.authority.privacy_policy_version).toBe("2026-11-13.1");
+    expect(renewed.authority.authorization_digest).toBe(first.authorization_digest);
+  });
+
+  it("gives a new job's authority the same version as its scene grant", async () => {
+    const authority = await grantFor(NO_FACE_BLUR_VERSION);
+    vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON", JSON.stringify({ owner: { user_id: "site-owner-uid", organization_id: "blueprint" },
+      upstream_max_spend_usd: 50, native_max_spend_usd: 50, max_total_spend_usd: 100,
+      max_paid_attempts: 32, ttl_seconds: 3600, provider_terms_reference: sha("e") }));
+    store.rows.get("siteTaskBriefs/req1").confirmedAtIso = new Date().toISOString();
+    store.rows.get(REQUEST).site_task_triage = { disposition: "qualified" };
+    const { websiteSceneSponsorship } = await import("../utils/websiteSceneSponsorship");
+    const grant = websiteSceneSponsorship({ requestId: "req1", record: store.rows.get(REQUEST),
+      brief: store.rows.get("siteTaskBriefs/req1"), now: Date.now() / 1000 });
+    expect(grant.privacy_policy_version).toBe(NO_FACE_BLUR_VERSION);
+    expect(authority.privacy_policy_version).toBe(grant.privacy_policy_version);
+  });
+
+  // Review, 2026-11-17: nothing checks an owner's row against the job's recorded version, so a row may not name one.
+  it("refuses an owner's explicit env row that names a version; the same row without it is the authority", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload("bundle");
+    store.rows.get(REQUEST).website_scene_sponsorship = { owner: { user_id: "blueprint-preparation" } };
+    const row = { schema_version: "website_atlas_authorization.v1", request_id: "req1", capture_id: "walkthrough-req1",
+      task_context_digest: contextDigest(), source_video_digest: sha("5"), provider_terms_reference: sha("a"),
+      accepted_by: "blueprint-preparation", approval_reference: "owner test", private_processing_authorized: true,
+      provider_training_authorized: false, provider_retention: "project_library_retention_approved",
+      maximum_cost_usd: 5, maximum_requests: 8, expires_at_epoch: Date.now() / 1000 + 600, claim_scope: "development_only",
+      planner: { provider: "openai", provider_terms_reference: sha("d"), private_processing_authorized: true,
+        provider_training_authorized: false, approval_reference: "owner planning" } };
+    store.rows.get(REQUEST).privacy_version_at_submission = "2026-11-13.1";
+    for (const version of [NO_FACE_BLUR_VERSION, "2026-11-13.1"]) {
+      vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([{ ...row, privacy_policy_version: version }]));
+      await expect(configure()).rejects.toThrow("website_atlas_authorization_invalid");
+    }
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([row]));
+    const authority = (await configure()).authority;
+    expect(authority).toEqual({ ...row, authorization_digest: crossRuntimeDigest(row) });
+    expect(authority).not.toHaveProperty("privacy_policy_version");
+  });
+
+  it("an existing stored grant without the field still reads, with the digest it had", async () => {
+    const before = await grantFor();
+    const stored = store.rows.get(REQUEST).website_atlas_grants["walkthrough-req1"];
+    expect(parseWebsiteAtlasStoredGrant(stored)).toEqual(stored);
+    expect(before.authorization_digest).toBe(crossRuntimeDigest(stored));
   });
 });
 

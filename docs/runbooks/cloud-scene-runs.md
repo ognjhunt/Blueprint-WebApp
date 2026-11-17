@@ -182,7 +182,10 @@ for every capture, so people in the footage never hold an upload. Owner
 decision D-16 (2026-11-02) keeps it so: no blurring or screening beyond the
 Pipeline's face blur on frames sent to World Labs
 (`BlueprintCapturePipeline/src/blueprint_pipeline/atlas_privacy_screen.py`).
-Blueprint relies on the site's consent.
+Owner, 2026-11-17: that face blur stops for a job started under Privacy
+`2026-11-17.1` (the grant's `privacy_policy_version`); a job started under an
+earlier version, or with none recorded, is still blurred. Blueprint relies on
+the site's consent.
 
 A capture recorded before that commit can still carry
 `inboundRequests/<requestId>.capture_privacy_screen` with `eligibility:
