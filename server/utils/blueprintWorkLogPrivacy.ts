@@ -5,8 +5,19 @@
 const TICKET_QUERY_ROUTES = ["/api/website-atlas-preview-views/", "/api/website-atlas-preview-downloads/",
   "/api/website-destination-pictures/", "/api/company-media/"];
 
-/** OAuth material, signed tickets and private address searches must not enter request logs. */
+/**
+ * Routes whose address carries the site's own signed job link as its first segment (every route these routers
+ * serve starts with `/:token`). Anyone holding the link acts as the site, so the segment and the query never enter
+ * a log; the rest of the address stays, so the log still says which step was asked for.
+ */
+const SIGNED_LINK_PATH_ROUTES = ["/api/site-task-brief/", "/api/self-capture/uploads/", "/api/site-claim/",
+  "/api/job-facts/", "/api/job-outcomes/"];
+
+/** OAuth material, signed tickets and links, and private address searches must not enter request logs. */
 export function privateWorkLogPath(url: string): string {
+  const path = url.split("?", 1)[0];
+  const linkRoute = SIGNED_LINK_PATH_ROUTES.find(prefix => path.startsWith(prefix));
+  if (linkRoute) return `${linkRoute}[link]${path.slice(linkRoute.length).replace(/^[^/]*/, "")}`;
   if (/[?&]invitation=/.test(url)) return url.split("?", 1)[0];
   if (url.split("?", 1)[0].startsWith("/api/location-autocomplete")) return url.split("?", 1)[0];
   if (TICKET_QUERY_ROUTES.some(prefix => url.startsWith(prefix))) return url.split("?", 1)[0];
