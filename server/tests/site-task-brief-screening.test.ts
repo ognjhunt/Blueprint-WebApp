@@ -317,7 +317,9 @@ describe("the confirmation for a job past the screen's cutover", () => {
     expect(body.disposition).toBe(disposition);
     const said = `${body.screening.headline} ${body.screening.detail}`;
     expect(said).not.toMatch(/not building|before we build|before clearing the scene|no scene|aren't building/i);
-    expect(said).toMatch(/still build/i);
+    expect(said).toMatch(/does not hold up your job|do not hold up your job/i);
+    // A job packet may carry no robot test: none is promised.
+    expect(said).not.toMatch(/still build|test robots|the test fit/i);
     expect(body.screening.bookingUrl).toBeNull();
   });
 });

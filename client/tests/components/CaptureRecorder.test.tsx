@@ -80,12 +80,12 @@ it("leaves out what the camera does not report instead of defaulting it", async 
   expect(metadata.recordedAtEpochMs).toBeLessThanOrEqual(Date.now());
 });
 
-it("says how to film the job before recording starts: slowly, in a half circle around the object and where it goes", async () => {
+it("says how to film the job before recording starts: slowly, in a half circle around where the job happens", async () => {
   render(<CaptureRecorder token="tok" checklist={[]} />);
   fireEvent.click(await screen.findByRole("button", { name: "Open the camera" }));
   await screen.findByRole("button", { name: "Start recording" });
-  expect(FILM_AROUND_THE_JOB).toBe("Walk slowly in a half circle around the object and where it goes, keeping both in view.");
-  expect(screen.getByText(/^Walk slowly in a half circle around the object and where it goes, keeping both in view\. Film the work, not the worker\./))
+  expect(FILM_AROUND_THE_JOB).toBe("Walk slowly in a half circle around where the job happens, keeping it in view.");
+  expect(screen.getByText(/^Walk slowly in a half circle around where the job happens, keeping it in view\. Film the work, not the worker\./))
     .toBeVisible();
 });
 

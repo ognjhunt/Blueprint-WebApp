@@ -25,4 +25,4 @@ export const FOOTAGE_UPLOAD_NOTICE =
  * film-link email). An arc around the job shows it from several directions; a video that walks straight past
  * sees it from about one, which leaves small and shiny objects blurry in the simulation.
  */
-export const FILM_AROUND_THE_JOB = "Walk slowly in a half circle around the object and where it goes, keeping both in view.";
+export const FILM_AROUND_THE_JOB = "Walk slowly in a half circle around where the job happens, keeping it in view.";

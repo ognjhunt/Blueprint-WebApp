@@ -237,6 +237,22 @@ describe("a job the no-grant clock must leave alone", () => {
     expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
   });
 
+  it("tells a job an earlier release kept on file that it ended, even after its kept-on-file email went out", async () => {
+    seedJob({ ...marked, createdAt: new Date(NOW - 8 * DAY * 1000).toISOString(),
+      kept_on_file_answer_owed_at_iso: new Date(NOW - 7 * DAY * 1000).toISOString(),
+      site_task_scope: { supported: false, reason: "mobile", disposition: "accepted_for_analysis" } });
+    docs.set("captureOutbox/job-one:answer_ready:kept_on_file", { requestId: "job-one", kind: "answer_ready",
+      idempotencyKey: "job-one:answer_ready:kept_on_file", status: "sent", to: "owner@example.com",
+      subject: "An update on your Blueprint job", body: "We can't build a simulation for this kind of job yet. We've kept your job on file." });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    expect(await sweepAt(WINDOW)).toEqual({ examined: 1, ended: 1, noticesQueued: 1, failed: 0 });
+    send.mockClear();
+    await deliverOutbox();
+    expect(docs.get(NOTICE)).toMatchObject({ status: "sent" });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toMatchObject({ to: "owner@example.com", subject: "Your Blueprint job has ended" });
+  });
+
   it.each([["marked", marked], ["without the marker", {}]])(
     "starts the clock at the pass for a job of another kind it has never seen, however old (%s)", async (_name, changes) => {
       seedJob({ ...changes, createdAt: new Date(NOW - 30 * DAY * 1000).toISOString(),

@@ -28,6 +28,9 @@ export function answerSlotOf(kind: OutboxKind, idempotencyKey: string | undefine
   if(stored==='paper')return 'paper';
   return /:estimate-/.test(key)?'result':'paper';
  }
+ // An earlier release's kept-on-file answer told the site its job was kept on file for its kind. That is no longer
+ // true, so it fills no slot: the job's real ending email still goes and tells the site where its job stands.
+ if(kind==='answer_ready'&&/:answer_ready:kept_on_file$/.test(key))return null;
  if(kind==='answer_ready'||kind==='preparation_ended')return 'paper';
  if(kind==='scene_outcome')return /:withdrawn-/.test(key)?null:'paper';
  // The confirmation's "your job brief needs one sentence" email is a notice, not an answer: it sits outside both

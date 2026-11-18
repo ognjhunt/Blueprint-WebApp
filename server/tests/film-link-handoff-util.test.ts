@@ -78,7 +78,7 @@ describe("sending composes a film-scoped link and reports honestly", () => {
     expect(text).toMatch(/everywhere else the recorder opens in your browser/);
     expect(text).not.toMatch(/no app|app to install|app needed/i);
     // How to film the job, in the job page's own words: an arc around it, not a walk straight past.
-    expect(text).toContain("\n\nWalk slowly in a half circle around the object and where it goes, keeping both in view.\n\n");
+    expect(text).toContain("\n\nWalk slowly in a half circle around where the job happens, keeping it in view.\n\n");
   });
 
   it("refuses a bad email or number before sending", async () => {

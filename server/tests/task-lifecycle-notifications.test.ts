@@ -944,6 +944,28 @@ describe("one answer email for every way a job ends", () => {
       expect(answerSlotTaken(notice, kind, key), key).toBe(false);
   });
 
+  // No job is kept on file now. An earlier release's kept-on-file answer still queued is dropped at send, and one that
+  // went out fills no slot: the job's real ending email still goes.
+  it("drops a queued kept-on-file answer at send, and never lets a sent one stop the job's ending email", async () => {
+    const { answerSlotTaken, taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
+    composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
+      pick: null, reason: "The video did not show the job clearly enough for us to size it." };
+    const kept = "req-1:answer_ready:kept_on_file";
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "answer_ready", requestId: "req-1", idempotencyKey: kept })).toBe(false);
+    send.mockClear();
+    await enqueueOutbox({ idempotencyKey: kept, requestId: "req-1", to: "owner@example.com", kind: "answer_ready",
+      subject: "An update on your Blueprint job", body: "We can't build a simulation for this kind of job yet. We've kept your job on file." });
+    await deliverOutbox({ limit: 20 });
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${kept}`)).toMatchObject({ status: "cancelled" });
+    expect(send).not.toHaveBeenCalled();
+    // One that went out: the no-grant ending's email, a paper-slot email, is not blocked by it; any other answer is.
+    const ending = "req-1:scene_outcome:job_no_grant_ended";
+    expect(answerSlotTaken([{ kind: "answer_ready", idempotencyKey: kept, status: "sent" }], "scene_outcome", ending)).toBe(false);
+    expect(answerSlotTaken([{ kind: "answer_ready", idempotencyKey: "req-1:answer_ready:unsized", status: "sent" }], "scene_outcome", ending))
+      .toBe(true);
+  });
+
   it("queues every owed answer email from the pump by the recorder's key, and bounds the reading's wait", async () => {
     const { reconcileWaitingAnswerNotices, waitingAnswerNoticeFields, READING_WAIT_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
     const outbox = () => [...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"));

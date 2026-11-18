@@ -402,20 +402,20 @@ function screeningOutcome(disposition: string, screenGateEnded = false): {
   bookingUrl: string | null;
 } | null {
   // A job uploaded after the owner's decision of 2026-11-11: the screen's
-  // reading is a note, and the scene is built whatever it says.
+  // reading is a note, and holds nothing. Only what is always true is said:
+  // the job goes ahead, and a job packet may carry no robot test.
   if (screenGateEnded && disposition === "not_now") {
     return {
       headline: "Noted: one of your answers may make a robot test less reliable at this site.",
-      detail: "This does not hold up your job: we still build its scene and test robots on it. Your job page shows the "
-        + "answer we noted; if it changes, update the brief.",
+      detail: "This does not hold up your job. Your job page shows the answer we noted; if it changes, update the brief.",
       bookingUrl: null,
     };
   }
   if (screenGateEnded && disposition === "needs_conversation") {
     return {
       headline: "A few questions about the site are still open.",
-      detail: "They do not hold up your job: we still build its scene and test robots on it. Answering them in "
-        + "writing below helps the test fit your site; you can leave anything you don't know.",
+      detail: "They do not hold up your job. Answering them in writing below adds them to your job packet; you can "
+        + "leave anything you don't know.",
       bookingUrl: null,
     };
   }
