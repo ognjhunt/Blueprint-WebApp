@@ -34,6 +34,8 @@ describe("Blueprint Work request-log privacy", () => {
       [`/api/site-claim/${link}`, "/api/site-claim/[link]"],
       [`/api/job-facts/${link}`, "/api/job-facts/[link]"],
       [`/api/job-outcomes/${link}`, "/api/job-outcomes/[link]"],
+      [`/api/job-workflow/owner/${link}/evidence/sha256-abc`, "/api/job-workflow/owner/[link]/evidence/sha256-abc"],
+      [`/API/Site-Task-Brief/${link}/status`, "/api/site-task-brief/[link]/status"],
     ];
     for (const [url, logged] of cases) {
       expect(privateWorkLogPath(url)).toBe(logged);
