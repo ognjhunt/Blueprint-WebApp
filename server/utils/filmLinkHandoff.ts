@@ -14,6 +14,7 @@
  */
 
 import { isApprovedCaptureRegion, type CaptureRegion } from "../../client/src/data/captureResidency";
+import { FILM_AROUND_THE_JOB } from "../../client/src/lib/footageNotice";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { sendEmail } from "./email";
 import { looksLikePhoneNumber, sendSms } from "./sms";
@@ -98,6 +99,7 @@ export async function sendFilmLinkHandoff(params: {
     text:
       `Someone has asked you to film a short walkthrough of a work area${clause} for a Blueprint robot evaluation.\n\n` +
       `Open this link on your phone. On an iPhone it opens a small Blueprint camera when that is available; everywhere else the recorder opens in your browser. No account is needed, and about thirty seconds of the actual cycle is enough:\n${filmUrl}\n\n` +
+      `${FILM_AROUND_THE_JOB}\n\n` +
       `You can record and upload from this link. Confirming the task details stays with the site operator who sent it to you.`,
     replyTo: "ops@tryblueprint.io",
   });

@@ -506,7 +506,9 @@ describe("video first owner return", () => {
     expect(await screen.findByText(/^Tell people nearby that the video goes to Blueprint/)).toBeVisible();
     const howTo = screen.getByText("How to film ›").closest("details")!;
     expect(howTo).not.toHaveAttribute("open");
-    expect(screen.getByText(/^Move slowly and overlap your passes/)).not.toBeVisible();
+    // How to film leads with the half circle around the object and where it goes.
+    expect(screen.getByText(/^Walk slowly in a half circle around the object and where it goes, keeping both in view\. Move slowly and overlap your passes/))
+      .not.toBeVisible();
   });
   it("lets the owner link withdraw recording permission after an explicit confirmation", async () => {
     const fetcher = ownerFetch(false);

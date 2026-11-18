@@ -19,3 +19,10 @@ export const FILMING_NOTICE =
 export const FOOTAGE_UPLOAD_NOTICE =
   "Only upload footage you may share. People in it must know it goes to Blueprint and to deployment companies we approve. "
   + "Avoid conversations: we remove the sound.";
+
+/**
+ * How to film the job itself, said where the site films (the recorder, the job page's "How to film" and the
+ * film-link email). An arc around the job shows it from several directions; a video that walks straight past
+ * sees it from about one, which leaves small and shiny objects blurry in the simulation.
+ */
+export const FILM_AROUND_THE_JOB = "Walk slowly in a half circle around the object and where it goes, keeping both in view.";
