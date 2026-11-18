@@ -1,4 +1,4 @@
-const PRIVATE_LINK_PATH = /(\/(?:capture-upload|claim|api\/self-capture\/uploads|api\/site-task-brief|api\/site-claim|api\/task-listings\/owner)\/)[^/?#\s"'<>]+/g;
+const PRIVATE_LINK_PATH = /(\/(?:capture-upload|claim|api\/self-capture\/uploads|api\/site-task-brief|api\/site-claim|api\/task-listings\/owner|api\/job-facts|api\/job-outcomes|api\/job-workflow\/owner)\/)[^/?#\s"'<>]+/gi;
 
 /** Strip URL credentials, every query/fragment, and bearer-link path tokens from telemetry only. */
 export function redactInvitationUrl(value: string): string {

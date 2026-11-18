@@ -6,9 +6,11 @@ it('omits all query and fragment values from absolute and relative analytics URL
   expect(redactInvitationUrl('https://tryblueprint.io/contact')).toBe('https://tryblueprint.io/contact');
 });
 it('redacts bearer path segments in frontend and API routes', () => {
-  for (const path of ['/capture-upload', '/claim', '/api/self-capture/uploads', '/api/site-task-brief', '/api/site-claim', '/api/task-listings/owner']) {
+  for (const path of ['/capture-upload', '/claim', '/api/self-capture/uploads', '/api/site-task-brief', '/api/site-claim', '/api/task-listings/owner',
+    '/api/job-facts', '/api/job-outcomes', '/api/job-workflow/owner']) {
     expect(redactInvitationUrl(`${path}/private-token/status?access=secret`)).toBe(`${path}/[redacted]/status`);
   }
+  expect(redactInvitationUrl('/API/Site-Task-Brief/private-token/status')).toBe('/API/Site-Task-Brief/[redacted]/status');
 });
 it('scrubs URLs embedded in diagnostics and authorization strings', () => {
   const safe = redactTelemetryText('Failed GET https://tryblueprint.io/capture-upload/private-token?access=secret#fragment Authorization: Bearer abc.private');

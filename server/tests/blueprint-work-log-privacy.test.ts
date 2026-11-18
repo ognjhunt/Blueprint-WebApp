@@ -22,4 +22,25 @@ describe("Blueprint Work request-log privacy", () => {
         expect(privateWorkLogPath(`${path}?${query}`)).toBe(path);
     }
   });
+
+  it("removes the site's signed job link from every address that carries one in its path", () => {
+    const link = `v1.${"c".repeat(40)}.${"d".repeat(43)}`;
+    const cases: Array<[string, string]> = [
+      [`/api/site-task-brief/${link}`, "/api/site-task-brief/[link]"],
+      [`/api/site-task-brief/${link}/status?x=1`, "/api/site-task-brief/[link]/status"],
+      [`/api/site-task-brief/${link}/items/item-7`, "/api/site-task-brief/[link]/items/item-7"],
+      [`/api/self-capture/uploads/${link}/parts/3`, "/api/self-capture/uploads/[link]/parts/3"],
+      [`/api/self-capture/uploads/${link}`, "/api/self-capture/uploads/[link]"],
+      [`/api/site-claim/${link}`, "/api/site-claim/[link]"],
+      [`/api/job-facts/${link}`, "/api/job-facts/[link]"],
+      [`/api/job-outcomes/${link}`, "/api/job-outcomes/[link]"],
+      [`/api/job-workflow/owner/${link}/evidence/sha256-abc`, "/api/job-workflow/owner/[link]/evidence/sha256-abc"],
+      [`/API/Site-Task-Brief/${link}/status`, "/api/site-task-brief/[link]/status"],
+    ];
+    for (const [url, logged] of cases) {
+      expect(privateWorkLogPath(url)).toBe(logged);
+      expect(privateWorkLogPath(url)).not.toContain(link);
+    }
+    expect(privateWorkLogPath("/api/site-task-brief-other/x")).toBe("/api/site-task-brief-other/x");
+  });
 });
