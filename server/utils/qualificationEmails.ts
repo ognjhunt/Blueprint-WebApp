@@ -1,6 +1,11 @@
 /**
- * The one screening-time email a site still gets: "we can't simulate this kind
- * of job yet".
+ * The one screening-time email a site still gets: "your job brief needs one
+ * sentence about the job", when the brief it confirmed gives none.
+ *
+ * No email is sent about a job's kind or shape: an accepted job of any kind
+ * is told what every accepted job is told (owner: "accept every job then
+ * determine what is needed from there"). The "we can't simulate this kind of
+ * job yet" and "on hold because it has more than one step" emails ended.
  *
  * ## The four-conditions emails ended (owner decision 2026-11-11)
  *
@@ -11,13 +16,12 @@
  *
  * ## Not written by a model
  *
- * Every sentence below is fixed copy or a string the site's own answer
- * selected, so the same submission produces the same email and the copy is
- * reviewed once rather than spot-checked forever.
+ * Every sentence below is fixed copy, so the same submission produces the
+ * same email and the copy is reviewed once rather than spot-checked forever.
  */
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
-import { multiStepHoldMessage, SUPPORTED_TASK_LINES, taskScopeNotYet, taskScopeReasonSentence } from "./siteTaskScope";
+import { UNCLEAR_BRIEF_ASK } from "./siteTaskScope";
 
 export type QualificationEmail = {
   subject: string;
@@ -32,73 +36,25 @@ function firstNameOf(fullOrFirst: string): string {
   return trimmed.split(/\s+/)[0];
 }
 
-function bulletList(items: readonly string[]): string {
-  return items.map((item) => `- ${item}`).join("\n");
-}
-
 /**
- * A job we cannot score in simulation yet, whatever its gate verdict.
- *
- * Names what the simulation scores today, so the site never waits on an
- * evaluation that would test a different task. Sent only where
- * `taskKindToldToSite`: a job built whatever its kind is sent what a job of a
- * kind we score is sent, which is nothing at confirmation. A brief we could
- * not read is asked for one sentence instead: it is undescribed, not held
- * (audit N3).
+ * A confirmed brief that gives no sentence about the job (`taskBriefUnclear`): the site is asked for one, in the
+ * job page's own words (`UNCLEAR_BRIEF_ASK`). Nothing about the job's kind, and no list of what our simulation
+ * scores.
  */
-export function buildTaskNotYetSupportedEmail(params: {
+export function buildBriefUnclearEmail(params: {
   firstName: string;
-  siteName?: string | null;
-  reason: unknown;
   jobUrl?: string | null;
 }): QualificationEmail {
-  const site = params.siteName?.trim();
-  const notYet = taskScopeNotYet(params.reason);
-  const unclear = params.reason === "unclear";
   const body = [
     emailGreeting(firstNameOf(params.firstName)),
     "",
-    taskScopeReasonSentence(params.reason),
+    UNCLEAR_BRIEF_ASK.detail,
     "",
-    "Today our simulation can score these kinds of job:",
-    bulletList(SUPPORTED_TASK_LINES),
-    "",
-    unclear
-      ? "We need to clarify the job before we can test it. Your job stays on file."
-      : "We have accepted your job and are holding it while we prepare a simulation for its kind. We email you when we can build it.",
-    "",
-    unclear
-      ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
-      : `${params.reason === "multi_step" ? `${notYet.nextStep} ` : ""}If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`,
+    `${UNCLEAR_BRIEF_ASK.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`,
     "",
     EMAIL_SIGN_OFF,
   ].join("\n");
-  return { subject: unclear ? "Your job brief needs one sentence about the job" : "Your job: we are preparing its job packet",
-    body, variant: "not_yet" };
-}
-
-/**
- * A job held for its several steps, whatever kind the screen read: the job page's own words
- * (`multiStepHoldMessage`), so the confirmation, this email and the page say the same thing.
- */
-export function buildTaskHeldForStepsEmail(params: {
-  firstName: string;
-  steps: readonly string[];
-  jobUrl?: string | null;
-}): QualificationEmail {
-  const held = multiStepHoldMessage(params.steps);
-  const body = [
-    emailGreeting(firstNameOf(params.firstName)),
-    "",
-    held.headline,
-    "",
-    held.action,
-    "",
-    `If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`,
-    "",
-    EMAIL_SIGN_OFF,
-  ].join("\n");
-  return { subject: "Your job is on hold because it has more than one step", body, variant: "not_yet" };
+  return { subject: "Your job brief needs one sentence about the job", body, variant: "not_yet" };
 }
 
 /**

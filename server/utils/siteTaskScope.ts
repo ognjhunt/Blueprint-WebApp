@@ -1,9 +1,10 @@
 /**
- * Intake accepts every task family. Text recognition below is only a hint about
- * the two native evaluators, never a robot-capability verdict or job refusal.
- * Current video and source-bound robot research decide which approaches need
- * investigation. Unknown evaluator coverage stays accepted for analysis and
- * counts as demand; it must not be coerced into a pick-and-place evaluation.
+ * Intake accepts every job, whatever its kind or shape (owner: "accept every job then determine what
+ * is needed from there"). Text recognition below is only a hint about the two native evaluators, never a
+ * robot-capability verdict, a hold or a refusal: every accepted job is told the same thing, and the Pipeline
+ * prepares every kind, shipping the room package with a note when a piece cannot be prepared. Unknown evaluator
+ * coverage stays accepted for analysis; it must not be coerced into a pick-and-place evaluation. The one thing
+ * asked of the site here is the job's own sentence, when its brief gives none (`UNCLEAR_BRIEF_ASK`).
  */
 
 /** `articulated_open_close`: opening one door, drawer or lid of a fixture (Pipeline #2943). */
@@ -25,7 +26,8 @@ export type UnsupportedTaskReason =
 /**
  * `scorable` is a native task-shape hint, never execution authority.
  * `accepted_for_analysis` keeps arbitrary tasks open for video/database
- * assessment; `held_for_preparation` remains readable on historical records.
+ * assessment, and is prepared like any other job; `held_for_preparation`
+ * remains readable on historical records and holds nothing.
  * `needs_description` means no description was supplied.
  */
 export type TaskScopeDisposition = "scorable" | "accepted_for_analysis" | "held_for_preparation" | "needs_description";
@@ -45,23 +47,9 @@ export interface SiteTaskScope extends SiteTaskScopeVerdict {
   schemaVersion: "site_task_scope.v1";
   basis: "brief_text_screen";
   screenedAtIso: string;
-  /** For a held job, the kind it asks for: demand evidence for what to build next. */
+  /** For a job our native evaluators do not score, the kind it asks for: demand evidence, never a hold. */
   demandKind: Exclude<UnsupportedTaskReason, "unclear"> | null;
 }
-
-/**
- * The scope, in the words every surface uses: the kinds of job Blueprint's own
- * evaluation can score today. Blueprint runs the candidates itself (owner,
- * 2026-10-26), so this names what our simulation scores, not what any team runs.
- */
-export const SUPPORTED_TASK_LINES = [
-  "Picking up one rigid object and placing it on a supported destination surface",
-  "Opening one door, drawer or lid of a fixture",
-] as const;
-
-export const SUPPORTED_TASK_SCOPE =
-  "The existing native evaluators cover: picking up one rigid object and placing it at another spot "
-  + "on a supported destination surface, and opening one door, drawer or lid of a fixture.";
 
 const NATIVE_COVERAGE_HINTS: ReadonlyArray<[Exclude<UnsupportedTaskReason, "multi_step" | "unclear">, RegExp]> = [
   ["deformable", /\b(fold(s|ed|ing)?|unfold\w*|towels?|cloths?|clothes|clothing|laundry|linens?|garments?|shirts?|fabrics?|textiles?|napkins?|socks?|bed ?sheets?|blankets?|ropes?|cables?|wires?|hoses?|strings?|bags?|bagging|sacks?|pouch(es)?|wrap(s|ped|ping)?|tape|taping|dough|sew(s|ed|ing)?)\b/g],
@@ -150,7 +138,8 @@ function kindsIn(step: string): { kinds: Set<SupportedTaskKind>; matched: string
  * The parts verbs play in one move: picking up, putting down, moving in one go, or another act (opening,
  * wiping, loading a machine, handing over). One step is one object, picked up and put down at one place
  * at most. The act list is long on purpose: a verb it does not know cannot add a step, and a missed step
- * narrows the job silently, while a wrong hold only asks the site to rephrase.
+ * narrows the job silently, while a wrong reading of several steps only leaves the job's family to the Pipeline's
+ * own reading (`general_task`): the job is accepted and prepared either way.
  */
 type VerbRole = "pickup" | "place" | "relocate" | "act";
 const VERB_LEMMAS: ReadonlyArray<[VerbRole, string]> = [
@@ -274,6 +263,11 @@ function actionIn(words: string[]): Omit<Action, "text"> | null {
   return { role, object: phrase.pronoun ? null : phrase.noun, destination: destinationOf(words, phrase.end, role) };
 }
 
+/** Whether a text names an action on the site, whatever its kind: a verb this reader knows, used as a verb. */
+export function namesAnAction(text: string | null | undefined): boolean {
+  return actionSegments(text ?? "").some(words => actionIn(words) !== null);
+}
+
 /**
  * The steps a text names when it names more than one, else null. One step is one object, picked up and put
  * down at one place at most, whatever joins its verbs: "pick up the tray and put it on the counter" is one
@@ -343,7 +337,7 @@ export function screenTaskScope(input: {
       return { supported: false, kind: null, reason, disposition: "accepted_for_analysis", matched: [...new Set(found)] };
     }
   }
-  // Several steps are never read as one (they would be narrowed to its first move): held by name.
+  // Several steps are never read as one (they would be narrowed to its first move). The job goes ahead as any other.
   const steps = multiStepEvidence(summary) ?? multiStepEvidence(success);
   if (steps) return { supported: false, kind: null, reason: "multi_step", disposition: "accepted_for_analysis", matched: steps };
   // A trip by the robot reads as a walk job does, before a bare "from … to" could make it an object move.
@@ -359,116 +353,32 @@ export function screenTaskScope(input: {
 }
 
 export function taskScopeRecord(verdict: SiteTaskScopeVerdict, screenedAtIso: string): SiteTaskScope {
-  const held = ["held_for_preparation", "accepted_for_analysis"].includes(verdict.disposition) && verdict.reason && verdict.reason !== "unclear";
+  const demand = ["held_for_preparation", "accepted_for_analysis"].includes(verdict.disposition) && verdict.reason && verdict.reason !== "unclear";
   return { schemaVersion: "site_task_scope.v1", ...verdict, matched: verdict.matched.slice(0, 20),
     basis: "brief_text_screen", screenedAtIso,
-    demandKind: held ? verdict.reason as Exclude<UnsupportedTaskReason, "unclear"> : null };
-}
-
-/** True when the job is accepted and held while we prepare an evaluation for its kind. */
-export function taskScopeHeld(record: { site_task_scope?: unknown } | null | undefined): boolean {
-  const scope = record?.site_task_scope as { supported?: unknown; reason?: unknown } | null | undefined;
-  return scope?.supported === false && scope.reason !== "unclear";
-}
-
-const REASON_SENTENCES: Record<UnsupportedTaskReason, string> = {
-  deformable: "Your job involves soft or flexible items, such as cloth, bags or cables, and needs task-specific evaluation preparation.",
-  liquid: "Your job involves liquids, and needs task-specific evaluation preparation.",
-  assembly: "Your job involves fitting, inserting or fastening parts, and needs task-specific evaluation preparation.",
-  mobile: "Your job involves moving around the site, and needs task-specific evaluation preparation.",
-  closing: "Your job closes a door or drawer, and needs task-specific evaluation preparation.",
-  push: "Your job pushes or slides an object, and needs task-specific evaluation preparation.",
-  container: "Your job places an object inside a container, such as a bin or tote, and needs task-specific evaluation preparation.",
-  // Read only from screens recorded before Pipeline #2943; the screen no longer returns it.
-  articulated: "Your job opens a door or drawer, which our evaluation could not score before.",
-  other: "Your job needs task-specific evaluation preparation.",
-  multi_step: "Your job has more than one step. Our simulation tests one step at a time, so we hold your job rather than test only part of it.",
-  unclear: "From your job brief, we could not tell which kind of job this is.",
-};
-
-/**
- * Whether the site is told how its job's kind was read (`taskScopeNotYet`). A job built whatever its kind
- * (`goesAhead`: `websiteJobGoesAheadWhateverKind`) is told exactly what a job of a kind we score is told,
- * unless its reading asks something of the site: several steps (held), or a brief we could not read.
- */
-export function taskKindToldToSite(reason: unknown, goesAhead: boolean): boolean {
-  return !goesAhead || reason === "multi_step" || reason === "unclear";
-}
-
-export function taskScopeReasonSentence(reason: unknown): string {
-  return REASON_SENTENCES[(reason as UnsupportedTaskReason)] ?? REASON_SENTENCES.other;
+    demandKind: demand ? verdict.reason as Exclude<UnsupportedTaskReason, "unclear"> : null };
 }
 
 /**
- * What the site is told, on the confirmation, the job page and by email. A
- * brief we could not read needs one sentence, so it is asked for (audit N3).
- * Any other job we cannot score is accepted; nothing here refuses a job. Said only where `taskKindToldToSite`.
+ * What the site is asked, on the confirmation, the job page and by email, when its brief gives no sentence about
+ * the job (`reason: "unclear"`): the one thing the job needs from the site. Every other reading of a job's kind or
+ * shape is said nowhere: an accepted job of any kind is told what every accepted job is told.
  */
-export function taskScopeNotYet(reason: unknown): { headline: string; detail: string; nextStep: string } {
-  if (reason === "multi_step") {
-    return {
-      headline: "Your job is on hold because it has more than one step.",
-      detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE}`,
-      nextStep: MULTI_STEP_NEXT_STEP,
-    };
-  }
-  if (reason === "unclear") {
-    return {
-      headline: "Your job brief needs one sentence about the job before we can evaluate it.",
-      detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE}`,
-      nextStep: "Describe the job in one sentence at the top of your job brief and confirm it again.",
-    };
-  }
-  return {
-    headline: "We have your job and are preparing an evaluation for it.",
-    detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE} We are holding your job while we build an `
-      + "evaluation for its kind, and jobs like yours decide what we build next.",
-    nextStep: "Your job stays on file, and we will email you when we can evaluate it. "
-      + "If we read your job wrong, reply to our email.",
-  };
-}
+export const UNCLEAR_BRIEF_ASK = {
+  headline: "Your job brief needs one sentence about the job before we can evaluate it.",
+  detail: "From your job brief, we could not tell what the job is.",
+  nextStep: "Describe the job in one sentence at the top of your job brief and confirm it again.",
+} as const;
 
-/** The typed hold for a job whose description names more than one step. Held before any spend: no grant,
- * reservation or scene intake is admitted for it (websiteSceneSponsorship.ts), so it is never narrowed. */
-export const MULTI_STEP_TASK_HOLD = "website_multi_step_task_preparation_required";
-const MULTI_STEP_NEXT_STEP = "To have one step tested, change your job description to that one step and confirm it. "
-  + "Otherwise your job stays on hold and your video stays saved; you do not need to send it again.";
-
-/**
- * The current brief's multi-step hold, with the steps it was read from, or null.
- *
- * Read from the steps themselves, whatever reason the screen gives: "put the mug in the sink, then wipe
- * the counter" screens as `other` (wiping) and is still several steps. Pure, and never part of the task
- * context, so a job it does not hold keeps its context digest: only `screenTaskScope`'s own verdict
- * shapes that projection (`projectWebsiteTaskContext`), and it changes only for a job held here.
- */
-export function multiStepTaskHold(brief: { summary?: string | null;
-  successCriteria?: { successDefinition?: string | null } | null } | null | undefined):
-  { code: typeof MULTI_STEP_TASK_HOLD; steps: string[] } | null {
-  if (!brief) return null;
-  const success = brief.successCriteria?.successDefinition;
-  const steps = multiStepEvidence(brief.summary) ?? multiStepEvidence(success);
-  if (steps) return { code: MULTI_STEP_TASK_HOLD, steps };
-  // Steps of different kinds, or one the screen could not place ("pick up the box, then wait for approval").
-  const verdict = screenTaskScope({ summary: brief.summary, successDefinition: success });
-  return verdict.reason === "multi_step" ? { code: MULTI_STEP_TASK_HOLD, steps: verdict.matched.slice(0, 6) } : null;
-}
-
-/** What the job page says while a multi-step job is held: which steps we read, and the one thing that moves it. */
-export function multiStepHoldMessage(steps: readonly string[]): { headline: string; action: string } {
-  const read = steps.length > 1 ? ` We read these steps: ${steps.map(step => `“${step}”`).join(", ")}.` : "";
-  return {
-    headline: "Your job is on hold because it has more than one step.",
-    action: `Our simulation tests one step at a time, such as picking up one object and putting it down somewhere else.${read} `
-      + `We won't test only part of your job without asking you. ${MULTI_STEP_NEXT_STEP}`,
-  };
+/** Whether a stored scope reading asks the site for its job's sentence (`UNCLEAR_BRIEF_ASK`). */
+export function taskBriefUnclear(scope: { supported?: unknown; reason?: unknown } | null | undefined): boolean {
+  return scope?.supported === false && scope.reason === "unclear";
 }
 
 /**
  * The task Blueprint's simulation actually scored, from the Pipeline's task
- * kind or strategy, in the site's terms and the same words as
- * `SUPPORTED_TASK_LINES`. Null when the kind is missing or unknown, so a card
- * never guesses what was tested.
+ * kind or strategy, in the site's terms. Null when the kind is missing or
+ * unknown, so a card never guesses what was tested.
  */
 export function scoredTaskDescription(kind: unknown): string | null {
   switch (typeof kind === "string" ? kind.trim() : "") {

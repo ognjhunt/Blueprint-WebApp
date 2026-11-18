@@ -65,8 +65,8 @@ import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { listMatchableRobotTeams, quotableCapability } from "./robotTeamRegistry";
 import { supplySummary } from "./robotTeamSupply";
 import { getBrief, isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
-import { taskScopeReasonSentence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord, type StoredReading } from "./siteTaskMeasurements";
+import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "./siteTaskScope";
 import { teamEvaluationTerms } from "./teamJobAccess";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
@@ -482,7 +482,7 @@ function verdictOf(checks: FitCheck[]): FitVerdict {
 function notRated(inputs: RobotFitInputs): string | null {
   const scope = inputs.request?.site_task_scope as { supported?: unknown; kind?: unknown; reason?: unknown } | undefined;
   if (!scope) return "This job's task has not been screened yet. Robot forms are rated once its brief is confirmed.";
-  if (scope.supported === false) return taskScopeReasonSentence(scope.reason);
+  if (taskBriefUnclear(scope)) return UNCLEAR_BRIEF_ASK.detail;
   if (scope.supported !== true || scope.kind !== "rigid_pick_and_place") {
     return "Robot forms are rated for jobs that pick up one rigid object and put it down. This job is another kind.";
   }

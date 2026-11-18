@@ -10,6 +10,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { CaptureRecorder } from "@/components/site/CaptureRecorder";
+import { FILM_AROUND_THE_JOB } from "@/lib/footageNotice";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => headers }));
 
@@ -78,3 +79,13 @@ it("leaves out what the camera does not report instead of defaulting it", async 
   expect(metadata).not.toHaveProperty("widthPx");
   expect(metadata.recordedAtEpochMs).toBeLessThanOrEqual(Date.now());
 });
+
+it("says how to film the job before recording starts: slowly, in a half circle around where the job happens", async () => {
+  render(<CaptureRecorder token="tok" checklist={[]} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Open the camera" }));
+  await screen.findByRole("button", { name: "Start recording" });
+  expect(FILM_AROUND_THE_JOB).toBe("Walk slowly in a half circle around where the job happens, keeping it in view.");
+  expect(screen.getByText(/^Walk slowly in a half circle around where the job happens, keeping it in view\. Film the work, not the worker\./))
+    .toBeVisible();
+});
+

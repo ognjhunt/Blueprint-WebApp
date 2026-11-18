@@ -358,25 +358,20 @@ describe("a job whose video arrived before its account", () => {
     expect(await taskLifecycleNotificationIsCurrent({ requestId: jobId, kind: "footage_before_account" })).toBe(false);
   });
 
-  it("shows a job the screen cannot score yet as not yet supported, not as waiting on its video", async () => {
-    // Packing into a tote is a container placement, which no team can run yet.
+  it("shows a job of another kind whose video arrived before its account as any such job: by its video, never its kind", async () => {
+    // Packing into a tote is a container placement, which our native evaluators do not score: it makes no difference.
     const { jobId, token } = await startJob("Pack cartons into totes");
     await legacyGuestUpload(token);
-    // Marked at creation, but its video arrived before the job had an account: that capture cannot be prepared, so the
-    // confirmation, its email and the page all keep the older wording and never say its simulation is being built.
     expect(doc(`inboundRequests/${jobId}`).scene_screen_gate_ended).toBeTruthy();
     const { screening } = await confirmBrief(token);
     await claim(jobId);
-    const status = (await jobStatus(token)).status as { decision: string; headline: string; operatorAction: string };
-    expect(status.decision).toBe("not_yet_supported");
-    const [email] = notices(jobId, "screening_not_now");
-    expect(email).toBeDefined();
-    for (const told of [screening?.headline, screening?.detail, email.body, status.headline, status.operatorAction]) {
-      expect(told).not.toMatch(/we still build the simulation/);
-    }
-    expect(screening?.headline).toBe("We have your job and are preparing an evaluation for it.");
-    expect(status.headline).toBe(screening?.headline);
+    const status = (await jobStatus(token)).status as { decision: string; headline: string; operatorAction: string | null };
+    expect(status.decision).toBe("footage_before_account");
+    expect(status.headline).toMatch(ARRIVED_BEFORE);
+    expect(notices(jobId, "screening_not_now")).toHaveLength(0);
+    for (const told of [screening?.headline, screening?.detail, status.headline, status.operatorAction])
+      expect(told ?? "").not.toMatch(/preparing an evaluation|kind of job|can score|on file/i);
     await reconcile();
-    expect(notices(jobId, "footage_before_account")).toHaveLength(0);
+    expect(notices(jobId, "footage_before_account")).toHaveLength(1);
   });
 });

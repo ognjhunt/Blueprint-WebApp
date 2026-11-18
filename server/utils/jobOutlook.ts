@@ -12,7 +12,6 @@
  *   with a plan or running, and no ending recorded.
  * - `result`: a published test result scored at least one AI robot.
  * - `no_test`: an ending is recorded and no result exists; the paper check is the answer, with `sentence`.
- * - `cannot_match`: another kind of job, with no grant at the end of the no-grant wait.
  * - `ended_by_site`: the site withdrew recording permission or closed the run; never building, never an answer email.
  *
  * Holds that retry by themselves are not endings (a scene outcome that is a wait). The job window bounds `building` and `testing`: once its ending is recorded the
@@ -38,8 +37,6 @@ export interface JobOutlookInput {
   windowEnded: boolean;
   /** The no-grant sweep recorded the end of the job's wait for a grant. */
   noGrantEnded: boolean;
-  /** A job of a kind we can't simulate yet, with no grant: the no-grant sweep keeps it on file (`websiteJobKeptOnFile`). */
-  keptOnFile?: boolean;
   /** The Pipeline's preparation status, as verified. */
   preparation: { state: string; geometryOnlyEnd: boolean; terminalReason?: string | null } | null;
   /** The scene's progression after hand-off; `attemptFailed` when a build attempt failed and another is coming. */
@@ -85,9 +82,7 @@ export const proofScoredAnyRobot = (proof: SimulationProof | null | undefined) =
  * - an evaluation record in a terminal state, or held (`could_not_run`);
  * - a scene outcome recorded as final (`held`, `ended`);
  * - preparation `failed_terminal`, and the Pipeline's `authority_ended`;
- * - a job of a kind we can't simulate yet kept on file by the no-grant sweep (`cannot_match`);
- * - the job window's ending, and the no-grant wait's ending, each written by its sweep (another kind of job, with
- *   no grant at the end of that wait, is `cannot_match`);
+ * - the job window's ending, and the no-grant wait's ending, each written by its sweep, whatever the job's kind;
  * - a robot-fit-only end recorded by the Pipeline;
  * - the video reader's final "cannot size this job".
  */
@@ -163,16 +158,14 @@ function recordedEnding(input: JobOutlookInput,
   // decided above; a job whose window ending is recorded says its time ran out; anything else says only that it ended.
   if (input.preparation?.state === "authority_ended") return outlook("no_test", input.windowEnded === true ? "authority_ended" : "job_ended");
   if (input.windowEnded === true) return outlook("no_test", "window_expired");
-  if (input.keptOnFile === true) return outlook("cannot_match", "kept_on_file");
-  if (input.noGrantEnded === true) return answer?.state === "cannot_assess" && !answer.unsized && answer.reason
-    ? outlook("cannot_match", "other_kind", answer.reason) : outlook("no_test", "no_grant");
+  if (input.noGrantEnded === true) return outlook("no_test", "no_grant");
   if (input.preparation?.geometryOnlyEnd === true) return outlook("no_test", "robot_fit_only");
   if (answer?.state === "cannot_assess" && answer.unsized) return outlook("no_test", "unsized");
   return null;
 }
 
 export { outlookHasAnswer } from "../../client/src/lib/jobOutlook";
-const RECORDED_PHASES: ReadonlySet<string> = new Set(["ended_by_site", "result", "no_test", "cannot_match"]);
+const RECORDED_PHASES: ReadonlySet<string> = new Set(["ended_by_site", "result", "no_test"]);
 
 /** The answer's part of the outlook input. */
 export const outlookAnswerOf = (answer: SiteAnswer | null | undefined): JobOutlookInput["answer"] => answer
@@ -269,9 +262,8 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
     const brief = given ? { value: given.brief } : await getBrief(requestId).then(value => ({ value }), () => null);
     return brief !== null && jobWaitsForItsSentence({ requestId, record, brief: brief.value, preparationTaskNotNamed, isPlaceholder: isPlaceholderSummary });
   };
-  const [answer, keptOnFile, windowEndedAtEpoch, awaitsSiteSentence] = await Promise.all([
+  const [answer, windowEndedAtEpoch, awaitsSiteSentence] = await Promise.all([
     (given ? Promise.resolve(given.answer) : loadSiteAnswer(requestId)).catch(() => null),
-    import("./websiteJobWindowSweep").then(({ websiteJobKeptOnFile }) => websiteJobKeptOnFile(record, requestId)),
     import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
       .then(window => window.endedAtEpoch ?? null).catch(() => null),
     readAwaitsSiteSentence(),
@@ -289,7 +281,6 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
     answer: outlookAnswerOf(answer),
     windowEnded: Boolean(recordedWebsiteJobWindowEnding(record)),
     noGrantEnded: Boolean(recordedWebsiteJobNoGrantEnding(record, requestId)),
-    keptOnFile,
     windowEndedAtEpoch,
     runStoppedByWindow, resultUnknown,
     awaitsSiteSentence,

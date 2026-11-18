@@ -210,8 +210,8 @@ describe("the job page's sections, bare bones", () => {
   describe.each([
     ["building", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [preparingEvaluation], pick: readyAnswer.pick }),
       outlook: { phase: "building" as const, reason: null, sentence: null } }, false],
-    ["held, kept on file", { answer: cannotAssessAnswer, proof: null, outlook: { phase: "cannot_match" as const, reason: "kept_on_file" as const,
-      sentence: "We can't build a simulation for this kind of job yet. We've kept your job on file." } }, false],
+    ["another kind, no grant", { answer: cannotAssessAnswer, proof: null, outlook: { phase: "no_test" as const, reason: "no_grant" as const,
+      sentence: "We have not built a simulation for this job." } }, false],
     ["with a first look", { answer: readyAnswer, proof: null, outlook: { phase: "no_test" as const, reason: "window_expired" as const,
       sentence: "The time for this job ran out." } }, false],
     ["with a trial result", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick }),

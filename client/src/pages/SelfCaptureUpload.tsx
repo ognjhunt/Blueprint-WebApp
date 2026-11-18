@@ -41,7 +41,7 @@ import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRe
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
-import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
+import { FILM_AROUND_THE_JOB, FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
 import { withCsrfHeader } from "@/lib/csrf";
 import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo, type VideoUploadResult } from "@/lib/selfCaptureVideo";
@@ -1163,7 +1163,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               <details className="bare-how-to">
                 <summary>How to film ›</summary>
                 <p className="ms-field-hint">
-                  Move slowly and overlap your passes. Cover every surface near where the work
+                  {FILM_AROUND_THE_JOB} Move slowly and overlap your passes. Cover every surface near where the work
                   happens, from a few heights. Ideally the scene is still, with nobody in frame; if work is going on, film anyway.
                 </p>
               </details>

@@ -31,7 +31,6 @@ const ENDINGS: Array<[string, Partial<JobOutlookInput>, string, string]> = [
   ["preparation authority_ended, the window's ending recorded", { preparation: { state: "authority_ended", geometryOnlyEnd: false }, windowEnded: true }, "no_test", "authority_ended"],
   ["preparation authority_ended, no reason known", { preparation: { state: "authority_ended", geometryOnlyEnd: false } }, "no_test", "job_ended"],
   ["a run the window's end stopped (its own record says so)", { runStoppedByWindow: true, proof: proofOf({ state: "blocked", outcome: null, screening: { candidates: [] } }) }, "no_test", "window_ended_during_test"],
-  ["kept on file by the no-grant sweep", { answer: OTHER, keptOnFile: true }, "cannot_match", "kept_on_file"],
   ["scene outcome final: held", { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "held" } }, "no_test", "scene_held"],
   ["scene outcome final: ended", { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "ended" } }, "no_test", "scene_stopped"],
   ...["failed", "blocked", "cancelled", "closed", "forward_terminal_blocked", "control_plane_terminal_blocked"].map(state =>
@@ -41,7 +40,8 @@ const ENDINGS: Array<[string, Partial<JobOutlookInput>, string, string]> = [
   ["evaluation finished, no AI robot scored", { proof: proofOf({ state: "completed", outcome: "estimate", screening: { candidates: [] } }) }, "no_test", "no_ai_robot_scored"],
   ["the reader's final cannot size", { answer: UNSIZED }, "no_test", "unsized"],
   ["robot-fit-only end recorded by the Pipeline", { preparation: { state: "awaiting_inputs", geometryOnlyEnd: true } }, "no_test", "robot_fit_only"],
-  ["another kind of job, no grant by the end of the wait", { answer: OTHER, noGrantEnded: true }, "cannot_match", "other_kind"],
+  // Whatever the job's kind: a first look that cannot check robots against it ends as any other job does.
+  ["another kind of job, no grant by the end of the wait", { answer: OTHER, noGrantEnded: true }, "no_test", "no_grant"],
 ];
 
 /** A deterministic spread of states that are not recorded endings: real ones, made-up names, and nulls everywhere. */
@@ -75,12 +75,11 @@ describe("the job's outlook, from the rule", () => {
     expect(jobOutlook(base({ windowEnded: true })).sentence).toBe("The time for this job ran out.");
     expect(jobOutlook(base({ noGrantEnded: true })).sentence).toBe("We have not built a simulation for this job.");
     expect(jobOutlook(base({ scene: { state: "held" } })).sentence).toBe("Work on the simulation of your job is on hold.");
-    expect(jobOutlook(base({ answer: OTHER, noGrantEnded: true })).sentence).toBe(OTHER.reason);
+    expect(jobOutlook(base({ answer: OTHER, noGrantEnded: true }))).toEqual(jobOutlook(base({ noGrantEnded: true })));
     expect(jobOutlook(base({ preparation: { state: "authority_ended", geometryOnlyEnd: false }, windowEnded: true })).sentence)
       .toBe(jobOutlook(base({ windowEnded: true })).sentence);
-    expect(jobOutlook(base({ answer: OTHER, keptOnFile: true })).sentence).toBe("We can't build a simulation for this kind of job yet. We've kept your job on file.");
     // A published result outranks both.
-    expect(jobOutlook(base({ keptOnFile: true, proof: proofOf({}) })).phase).toBe("result");
+    expect(jobOutlook(base({ noGrantEnded: true, proof: proofOf({}) })).phase).toBe("result");
     expect(jobOutlook(base({ preparation: { state: "authority_ended", geometryOnlyEnd: false }, proof: proofOf({}) })).phase).toBe("result");
   });
 

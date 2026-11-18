@@ -44,6 +44,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
+import { FILM_AROUND_THE_JOB } from "@/lib/footageNotice";
 
 /** Emitted often enough that a dropped connection costs seconds, not minutes. */
 const TIMESLICE_MS = 4_000;
@@ -512,7 +513,7 @@ export function CaptureRecorder(props: {
             Start recording
           </button>
           <p className="ms-field-hint">
-            Film the work, not the worker. Keep this page open while it uploads.
+            {FILM_AROUND_THE_JOB} Film the work, not the worker. Keep this page open while it uploads.
           </p>
           {shotLine}
         </>

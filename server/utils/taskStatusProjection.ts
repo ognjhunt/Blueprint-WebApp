@@ -26,7 +26,7 @@
  */
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
-import { multiStepHoldMessage, taskKindToldToSite, taskScopeNotYet } from "./siteTaskScope";
+import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome,
@@ -62,8 +62,8 @@ export type TaskDecision =
   | "call_needed"
   /** Confirmed, and an answer only the site can change blocks evaluation. */
   | "not_now"
-  /** Confirmed, and the job is a kind we cannot score in simulation yet. */
-  | "not_yet_supported"
+  /** Confirmed, but the brief gives no sentence about the job: the site is asked for one (`UNCLEAR_BRIEF_ASK`). */
+  | "describe_job"
   /** Cleared, and waiting on the operator to save the site to an account. */
   | "save_account"
   /** Confirmed, filmed, covered. As far as we take it before the Pipeline. */
@@ -334,15 +334,11 @@ interface TaskStatusInput {
    */
   disposition?: "qualified" | "needs_conversation" | "not_now" | null;
   /**
-   * The confirmed job's scope screen, when it found a kind we cannot score.
-   * Such a job is not opened to robot teams, so no later rung is true for it.
+   * The confirmed brief gives no sentence about the job (`taskBriefUnclear`), so the site is asked for one.
+   * No other reading of the job's kind or shape reaches this ladder: an accepted job of any kind is shown
+   * what every accepted job is shown.
    */
-  taskScope?: { supported: false; reason: string | null } | null;
-  /**
-   * The current brief names more than one step (`multiStepTaskHold`): held before any spend, so the
-   * Pipeline never narrows it to one move. The steps are the ones the screen read.
-   */
-  multiStepHold?: { steps: string[] } | null;
+  briefUnclear?: boolean;
   /** Where the site books the screening call, when one is needed. */
   bookingUrl?: string | null;
   /**
@@ -409,13 +405,6 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // A native handoff supersedes an optional reconstruction preview's failure.
   const hasRuns = input.screening && input.screening.queued + input.screening.running
     + input.screening.reported + input.screening.noResult > 0;
-  // A job that names several steps gets no grant, reservation or scene intake, so it is held before any
-  // spend. Said by name, with the one step that moves it, ahead of whatever the refused preparation reports.
-  if (input.multiStepHold && !hasRuns && input.preparationStatus?.state !== "handed_off" && !input.sceneProgression) {
-    const held = multiStepHoldMessage(input.multiStepHold.steps);
-    return { ...base, decision: "not_yet_supported", stage: null, missingViews: [], headline: held.headline,
-      operatorAction: held.action };
-  }
   // An explicit rejection supersedes estimates on the guessed object. Keep
   // the footage and the repair with Blueprint; more recording is optional.
   if (input.targetChoiceAnswer === "none_of_these") {
@@ -493,13 +482,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: null };
   }
 
-  if (input.taskScope && !observedPreparation && !hasRuns) {
-    const notYet = taskScopeNotYet(input.taskScope.reason);
+  if (input.briefUnclear && !observedPreparation && !hasRuns) {
     return {
       ...base,
-      decision: "not_yet_supported",
-      headline: notYet.headline,
-      operatorAction: `${notYet.detail} ${notYet.nextStep}`,
+      decision: "describe_job",
+      headline: UNCLEAR_BRIEF_ASK.headline,
+      operatorAction: `${UNCLEAR_BRIEF_ASK.detail} ${UNCLEAR_BRIEF_ASK.nextStep}`,
     };
   }
 
@@ -852,7 +840,6 @@ export function taskStatusInputFrom(record: {
   preparationOutcome?: TaskOutcome | null;
   ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
-  multiStepHold?: { steps: string[] } | null;
   targetChoiceAnswer?: "confirm_guess" | "other_candidate" | "none_of_these" | null;
   targetChoiceRestoringGuess?: boolean;
   preparationOverdue?: boolean;
@@ -862,7 +849,6 @@ export function taskStatusInputFrom(record: {
   site_task_triage?: { disposition?: string | null } | null;
   /** `inboundRequests.site_task_scope`, written when the brief is confirmed. */
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
-  kindGoesAhead?: boolean;
   bookingUrl?: string | null;
   /** Pass the owner uid (or null) when the caller read it; omit when it did not. */
   account_owner_uid?: string | null;
@@ -896,7 +882,6 @@ export function taskStatusInputFrom(record: {
     preparationOutcome: record.preparationOutcome ?? null,
     ownerClosureOutcome: record.ownerClosureOutcome ?? null,
     preparationStatus: record.preparationStatus ?? null,
-    ...(record.multiStepHold ? { multiStepHold: { steps: [...record.multiStepHold.steps] } } : {}),
     ...(record.targetChoiceAnswer ? { targetChoiceAnswer: record.targetChoiceAnswer } : {}),
     ...(record.targetChoiceRestoringGuess ? {targetChoiceRestoringGuess: true} : {}),
     ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
@@ -909,11 +894,8 @@ export function taskStatusInputFrom(record: {
     supplementWouldFinish: Boolean(coverage?.supplement_would_finish),
     screening: record.screening ?? null,
     disposition: dispositionFrom(record.site_task_triage?.disposition),
-    // A job built whatever its kind is shown what a job of a kind we score is shown (`taskKindToldToSite`).
-    taskScope: record.site_task_scope?.supported === false
-      && taskKindToldToSite(record.site_task_scope.reason, record.kindGoesAhead === true)
-      ? { supported: false, reason: typeof record.site_task_scope.reason === "string" ? record.site_task_scope.reason : null }
-      : null,
+    // A job of any kind is shown what every accepted job is shown; only a brief with no sentence about the job asks for one.
+    ...(taskBriefUnclear(record.site_task_scope) ? { briefUnclear: true } : {}),
     bookingUrl: record.bookingUrl ?? null,
     ...("account_owner_uid" in record ? { claimed: Boolean(record.account_owner_uid) } : {}),
     ...(record.jobAccess ? { openForEvaluations: record.jobAccess.evaluationAvailable,

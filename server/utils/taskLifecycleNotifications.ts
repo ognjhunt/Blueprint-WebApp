@@ -354,7 +354,7 @@ export async function holdAnswerNotice(params: WaitingNoticeParams, extra: Recor
 type OwedTry = { outcome: "delivered" } | { outcome: "settled"; reason: string } | { outcome: "retry" };
 /** Final reasons from the queue: the email is no longer owed (the site ended the job, or there is no one to send to). */
 const SETTLED_REASONS: ReadonlySet<string> = new Set(["consent_withdrawn", "request_missing", "contact_missing", "not_due",
-  "kept_already_told", "ended_by_site"]);
+  "ended_by_site"]);
 async function rowExists(key: string): Promise<boolean> {
   return Boolean(db && (await db.collection(CAPTURE_OUTBOX_COLLECTION).doc(key).get()).exists);
 }
@@ -721,7 +721,7 @@ function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Te
 
 /** The endings whose only email is `answer_ready`: each recorded by the code that calls `notifyIfAnswerSettled`. */
 const ANSWER_READY_ENDINGS: ReadonlySet<string> = new Set(["unsized", "robot_fit_only", "run_ended", "authority_ended", "job_ended",
-  "window_ended_during_test", "kept_on_file"]);
+  "window_ended_during_test"]);
 
 /**
  * The paper-check answer for an ending that has no email of its own: the video reader's final "cannot size this
@@ -732,10 +732,8 @@ function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookVi
   // The video's reading ran out: the ending's reason, and plainly that there is no paper check.
   if (unread && outlook && endingEmailDue(outlook)) return `${outlook.sentence ?? ""} ${NO_PAPER_UNREAD}`.trim();
   if (!answerEmailDue(answer, outlook)) throw new Error("answer_ready_notice_invalid");
-  // Kept on file: its own sentence, then plainly whether there is a paper check, with the reader's reason.
   // Sharing is the service (2026-11-12): there is no share step to point to.
   const share = "";
-  if (outlook!.reason === "kept_on_file") return `${outlook!.sentence} ${paperLine(answer, { hold: false })}${share}`;
   if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
   return `${outlook!.sentence ?? OUTLOOK_SENTENCES.job_ended} ${paperLine(answer, { hold: false })}${share}\n\n${finePrint(LIMITS_PAPER)}`;
 }
@@ -749,8 +747,7 @@ export function answerEmailDue(answer: SiteAnswer | null | undefined, outlook: J
 
 /** The ending is one this email carries. */
 const endingEmailDue = (outlook: JobOutlookView) =>
-  (outlook.phase === "no_test" || (outlook.phase === "cannot_match" && outlook.reason === "kept_on_file"))
-  && ANSWER_READY_ENDINGS.has(String(outlook.reason));
+  outlook.phase === "no_test" && ANSWER_READY_ENDINGS.has(String(outlook.reason));
 
 /**
  * Queue the paper-check answer for one of `ANSWER_READY_ENDINGS`, called by the code that records it, in the same
@@ -759,8 +756,7 @@ const endingEmailDue = (outlook: JobOutlookView) =>
  */
 export async function notifyIfAnswerSettled(requestId: string, waitingSince?: string, options: { hold?: boolean } = {}):
   Promise<{ enqueued: boolean; reason?: string; key?: string }> {
-  const [{ loadSiteAnswer }, { loadJobOutlookDecision }, { keptOnFileAlreadyTold }] = await Promise.all([import("./siteAnswer"),
-    import("./jobOutlook"), import("./taskLifecycleNotificationAuthority")]);
+  const [{ loadSiteAnswer }, { loadJobOutlookDecision }] = await Promise.all([import("./siteAnswer"), import("./jobOutlook")]);
   const answer = await loadSiteAnswer(requestId).catch(() => undefined);
   const decision = await loadJobOutlookDecision(requestId).catch(() => null);
   // Owed, not sent: written durably unless the caller is the reconcile, which keeps the entry it is trying.
@@ -772,8 +768,6 @@ export async function notifyIfAnswerSettled(requestId: string, waitingSince?: st
   // A result may exist when the results could not be read: "result unknown" is never "no result" for an email.
   if (decision.resultUnknown) return owe();
   const queue = async (outlook: JobOutlook, extra: { siteAnswer?: SiteAnswer; paperUnread?: true }) => {
-    // Kept on file, after the start form's notice for the same reason already went out: not a second time.
-    if (outlook.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId)) return { enqueued: false, reason: "kept_already_told" };
     // One row per ending (its reason in the key): a later, different ending is never blocked by an earlier row.
     const result = await enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", eventId: String(outlook.reason),
       outlook, ...extra });
@@ -798,8 +792,7 @@ export async function notifyIfAnswerSettled(requestId: string, waitingSince?: st
  * throws and the row stays queued for a later pass.
  */
 export async function answerReadyShown(requestId: string, idempotencyKey?: string): Promise<boolean> {
-  const [{ loadSiteAnswer }, { loadJobOutlookDecision }, { keptOnFileAlreadyTold }] = await Promise.all([import("./siteAnswer"),
-    import("./jobOutlook"), import("./taskLifecycleNotificationAuthority")]);
+  const [{ loadSiteAnswer }, { loadJobOutlookDecision }] = await Promise.all([import("./siteAnswer"), import("./jobOutlook")]);
   const decision = await loadJobOutlookDecision(requestId);
   if (decision.outlook.phase === "ended_by_site") return false;
   if (decision.resultUnknown) throw new Error("answer_ready_result_unknown");
@@ -813,17 +806,15 @@ export async function answerReadyShown(requestId: string, idempotencyKey?: strin
   if (unreadable) {
     const ending = decision.ending;
     if (!ending || !endingEmailDue(ending) || !matches(ending)) throw new Error("answer_ready_answer_unreadable");
-    return !(ending.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId));
+    return true;
   }
   // An email queued after the reading ran out stands while its recorded ending does.
   if (answer?.state === "reading") {
     const ending = decision.ending;
-    if (!ending || !endingEmailDue(ending) || !matches(ending)) return false;
-    return !(ending.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId));
+    return Boolean(ending && endingEmailDue(ending) && matches(ending));
   }
   if (!decision.certain) throw new Error("answer_ready_outlook_unknown");
   if (!matches(decision.outlook)) return false;
-  if (decision.outlook.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId)) return false;
   return answerEmailDue(answer, decision.outlook);
 }
 

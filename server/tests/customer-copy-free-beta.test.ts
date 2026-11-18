@@ -18,7 +18,7 @@
 import { describe, expect, it } from "vitest";
 
 const { publicBannedCopyPatterns } = await import("../../scripts/qa/brand-polish");
-const { buildTaskNotYetSupportedEmail } = await import("../utils/qualificationEmails");
+const { buildBriefUnclearEmail } = await import("../utils/qualificationEmails");
 const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
 
 type Banned = { label: string; pattern: RegExp };
@@ -59,16 +59,13 @@ function expectClean(label: string, text: string, banned: readonly Banned[]) {
 
 /* ------------------------------------------------------------ site emails */
 
-// The four-conditions screening emails ended (owner decision 2026-11-11). The
-// one screening-time email left is "we can't simulate this kind of job yet".
+// The four-conditions screening emails ended (owner decision 2026-11-11), and so did every email about a job's kind
+// or shape. The one screening-time email left asks a brief with no sentence about the job for one.
 describe("site screening emails", () => {
-  it("never introduces platform charges or assumes a city in the can't-simulate-yet email, for any reason", () => {
-    for (const reason of ["deformable", "liquid", "assembly", "mobile", "closing", "push", "container",
-      "articulated", "other", "multi_step", "unclear"] as const) {
-      for (const jobUrl of ["https://tryblueprint.io/capture-upload/tok", null]) {
-        const email = buildTaskNotYetSupportedEmail({ firstName: "Dana", siteName: "Riverside DC", reason, jobUrl });
-        expectClean(`${reason} ${jobUrl ?? "no link"}`, `${email.subject}\n${email.body}`, SITE_EMAIL);
-      }
+  it("never introduces platform charges or assumes a city in the brief-sentence email", () => {
+    for (const jobUrl of ["https://tryblueprint.io/capture-upload/tok", null]) {
+      const email = buildBriefUnclearEmail({ firstName: "Dana", jobUrl });
+      expectClean(jobUrl ?? "no link", `${email.subject}\n${email.body}`, SITE_EMAIL);
     }
   });
 });

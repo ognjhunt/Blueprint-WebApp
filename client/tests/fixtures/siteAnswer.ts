@@ -225,7 +225,8 @@ export const preparingEvaluation: Evaluation = evaluationOf("fixture-preparing",
 export function serverOutlookFor(answer: { state: string; reason?: string | null }, proof: unknown): JobOutlook {
   const view = proof as Parameters<typeof testResultOf>[0];
   if (answer.state === "reading") return { phase: "reading", reason: null, sentence: null };
-  if (answer.state === "cannot_assess") return { phase: "cannot_match", reason: "other_kind", sentence: answer.reason ?? null };
+  // A first look that cannot check robots ends, whatever the job's kind, as a job with no grant does.
+  if (answer.state === "cannot_assess") return { phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." };
   const test = testResultOf(view);
   const state = (view as { state?: string } | null)?.state;
   if (test?.kind === "testing" || state === "running") return { phase: "testing", reason: null, sentence: null };

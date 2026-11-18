@@ -558,10 +558,9 @@ describe("a video that arrived before the job's account", () => {
       screening: { queued: 1, running: 0, reported: 0, noResult: 0 } as never })).decision).not.toBe("footage_before_account");
   });
 
-  it("preserves scope limits while keeping legacy-source recovery with Blueprint", () => {
+  it("asks for the job's sentence only, never its kind, while keeping legacy-source recovery with Blueprint", () => {
     const arrived = { briefDrafted: true, hasStoredCapture: true, footageBeforeAccount: true } as const;
-    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true,
-      taskScope: { supported: false, reason: "container" } } as never)).decision).toBe("not_yet_supported");
+    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true, briefUnclear: true })).decision).toBe("describe_job");
     expect(projectTaskStatus(base({ ...arrived, briefConfirmed: false })).decision).toBe("footage_before_account");
     expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true, disposition: "qualified", claimed: false })))
       .toMatchObject({ decision: "footage_before_account", operatorAction: null });
@@ -577,7 +576,7 @@ describe("a video that arrived before the job's account", () => {
 describe("source-bound preparation supersedes earlier intake hints", () => {
   it.each(["not_now", "needs_conversation"] as const)("shows observed preparation while %s facts stay unresolved", disposition => {
     const status = projectTaskStatus(base({briefDrafted: true, briefConfirmed: true, hasStoredCapture: true,
-      claimed: false, disposition, taskScope: {supported: false, reason: "task_family_not_supported"},
+      claimed: false, disposition, briefUnclear: true,
       preparationStatus: {state: "preparing", correlationId: null}}));
     expect(status.decision).toBe("assessing");
     expect(status.headline).toMatch(/preparing your job/i);

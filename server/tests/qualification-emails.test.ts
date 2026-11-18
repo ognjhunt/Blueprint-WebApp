@@ -58,8 +58,13 @@ describe("the screen", () => {
 
 
 describe("the ended screening emails", () => {
-  it("are gone: only the can't-simulate-yet email is still built", () => {
-    expect(Object.keys(qualificationEmails).sort()).toEqual(["buildTaskHeldForStepsEmail", "buildTaskNotYetSupportedEmail", "screeningEmailWouldHaveBeenSent"]);
+  it("are gone, and so are the emails about a job's kind or shape: only the brief-sentence email is still built", () => {
+    expect(Object.keys(qualificationEmails).sort()).toEqual(["buildBriefUnclearEmail", "screeningEmailWouldHaveBeenSent"]);
+    const email = qualificationEmails.buildBriefUnclearEmail({ firstName: "Dana Whitfield", jobUrl: "https://tryblueprint.io/capture-upload/tok" });
+    expect(email.subject).toBe("Your job brief needs one sentence about the job");
+    expect(email.body).toContain("Describe the job in one sentence at the top of your job brief and confirm it again. "
+      + "Your job page: https://tryblueprint.io/capture-upload/tok");
+    expect(email.body).not.toMatch(/kind of job|can score|on hold|one step at a time|picking up one rigid object/i);
   });
 
   it("still say where one would have gone, so no model draft starts in its place", () => {

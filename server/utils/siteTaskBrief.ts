@@ -619,7 +619,7 @@ export interface ConfirmationResult {
   sources: GateAnswerSources;
   disposition: string;
   readiness: ReadinessVerdict;
-  /** Whether we can score this kind of job in simulation today, as recorded on the job. */
+  /** The screen's reading of the job's kind, as recorded on the job: a hint and demand evidence, never a hold. */
   scope: SiteTaskScope;
 }
 

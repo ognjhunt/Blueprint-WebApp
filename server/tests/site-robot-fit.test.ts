@@ -135,7 +135,11 @@ describe("every form of robot, rated against the job's needs", () => {
     const unscreened = computeRobotFitJob(inputs({ request: { request: {} } }));
     expect(unscreened).toMatchObject({ rated: false, forms: [], notRatedReason: expect.stringContaining("not been screened") });
     const unsupported = computeRobotFitJob(inputs({ request: { site_task_scope: { supported: false, reason: "deformable" } } }));
-    expect(unsupported.notRatedReason).toContain("soft or flexible");
+    // One plain reason for every other kind; no per-kind sentence. A brief with no sentence about the job says so.
+    expect(unsupported).toMatchObject({ rated: false, notRatedReason:
+      "Robot forms are rated for jobs that pick up one rigid object and put it down. This job is another kind." });
+    expect(computeRobotFitJob(inputs({ request: { site_task_scope: { supported: false, reason: "unclear" } } })).notRatedReason)
+      .toBe("From your job brief, we could not tell what the job is.");
     const legacyArticulated = computeRobotFitJob(inputs({ request: { site_task_scope: { supported: true, kind: "articulated_open_close" } } }));
     expect(legacyArticulated.rated).toBe(false);
   });

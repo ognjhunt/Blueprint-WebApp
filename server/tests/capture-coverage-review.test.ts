@@ -141,12 +141,16 @@ describe("a measurement cannot authorise a spend on its own", () => {
 });
 
 describe("drafting the job from the footage", () => {
-  it("keeps only a proposed instruction an evaluation can run", async () => {
+  it("keeps a proposed instruction that names a job, whatever its kind", async () => {
     const { draftedTaskStatement } = await import("../utils/captureCoverageReview");
     expect(draftedTaskStatement({ proposed_task_statement: " Pick up the glass vase and place it on the sideboard ",
       unreadable_reasons: [] })).toBe("Pick up the glass vase and place it on the sideboard");
     expect(draftedTaskStatement({ proposed_task_statement: "Open the dishwasher door", unreadable_reasons: [] }))
       .toBe("Open the dishwasher door");
+    // A kind our native evaluators do not score is a job all the same: the site is not asked for a sentence over it.
+    for (const statement of ["Pick up the towel from the basket and place it on the shelf", "Close the cabinet door",
+      "Put the carton into the tote"])
+      expect(draftedTaskStatement({ proposed_task_statement: statement, unreadable_reasons: [] })).toBe(statement);
     // A description of the room is not a job, and an unreadable clip names nothing.
     expect(draftedTaskStatement({ proposed_task_statement: "A dining room with a table and chairs", unreadable_reasons: [] })).toBeNull();
     expect(draftedTaskStatement({ proposed_task_statement: "Pick up the vase", unreadable_reasons: ["too dark"] })).toBeNull();

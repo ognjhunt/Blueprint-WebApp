@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { earlyTaskHoldOutcome, projectPreparationOutcome } from "../server/utils/taskPreparationOutcome";
-import { multiStepHoldMessage, multiStepTaskHold } from "../server/utils/siteTaskScope";
+import { projectTaskStatus, taskStatusInputFrom } from "../server/utils/taskStatusProjection";
 
 const legacyJobWorkflow = () => ({
   schemaVersion: "job_marketplace.v1", revision: "fixture-revision", stage: "job_submitted",
@@ -350,21 +350,22 @@ test("a job we can't simulate yet is held in one plain sentence, never as a proc
   await page.screenshot({ path: info.outputPath("early-task-hold.png"), fullPage: true });
 });
 
-test("a job with several steps is held by name and asks the site to split it, never narrowed", async ({ page }, info) => {
-  const token = "multi-step-hold-fixture";
+test("a job with several steps is accepted and told what any accepted job is told, never held for its steps", async ({ page }, info) => {
+  const token = "multi-step-accepted-fixture";
   const summary = "Take the plates to the kitchen then load the dishwasher";
-  // The server's own copy for this brief (siteTaskScope.multiStepHoldMessage), as projectTaskStatus sends it.
-  const held = multiStepHoldMessage(multiStepTaskHold({ summary })!.steps);
+  // The server's own status for this job, as projectTaskStatus sends it: the same as for a job of one step.
+  const status = projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null, hasStoredCapture: true,
+    site_task_brief_confirmed_at: "2026-11-18", site_task_scope: { supported: false, reason: "multi_step" } }));
+  expect(status).toEqual(projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null, hasStoredCapture: true,
+    site_task_brief_confirmed_at: "2026-11-18", site_task_scope: { supported: true, kind: "rigid_pick_and_place" } })));
   const writes: string[] = [];
-  await heldJobRoutes(page, token, summary, { ok: true, scope: "owner", captureReceived: true,
-    status: { decision: "not_yet_supported", headline: held.headline, operatorAction: held.action, missingViews: [] } }, writes);
+  await heldJobRoutes(page, token, summary, { ok: true, scope: "owner", captureReceived: true, status }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("Your job is on hold because it has more than one step.", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/We read these steps: “take the plates to the kitchen”, “load the dishwasher”\./).first()).toBeVisible();
-  await expect(page.getByText(/change your job description to that one step and confirm it/).first()).toBeVisible();
-  await expect(page.getByText(/robot fit|Robots we checked/)).toHaveCount(0);
+  await expect(page.getByText(status.headline, { exact: true }).first()).toBeVisible();
+  const body = await page.locator("body").textContent();
+  expect(body).not.toMatch(/on hold|more than one step|one step at a time|split|this kind of job/i);
   expect(writes).toEqual([]);
-  await page.screenshot({ path: info.outputPath("multi-step-hold.png"), fullPage: true });
+  await page.screenshot({ path: info.outputPath("multi-step-accepted.png"), fullPage: true });
 });
 
 test("private claim navigation resets credentials and consent before the next summary arrives", async ({ page }, info) => {

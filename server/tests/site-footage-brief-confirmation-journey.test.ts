@@ -304,7 +304,6 @@ it("links a claimed site's emails to its jobs in its account", async () => {
  */
 describe("a site that sends footage with no description", () => {
   it("is asked for one sentence at confirmation, and that sentence is what is screened", async () => {
-    const { teamJobAccess } = await import("../utils/teamJobAccess");
     const { getBrief } = await import("../utils/siteTaskBrief");
     const { jobId, token } = await startJob({ task: "" });
     await claim(jobId);
@@ -322,27 +321,26 @@ describe("a site that sends footage with no description", () => {
     expect((await confirmBrief(token, { summary })).disposition).toBe("qualified");
     expect((await getBrief(jobId))?.summary).toBe(summary);
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: true, kind: "rigid_pick_and_place" });
-    expect(teamJobAccess(doc(`inboundRequests/${jobId}`)).reason).not.toBe("task_not_yet_supported");
     expect(outbox(`${jobId}:brief-screening:task-not-yet-supported`)).toBeUndefined();
   });
 
-  it("still tells a job held for its several steps that it is held, whatever kind the screen read", async () => {
-    const { jobId, token } = await startJob({ task: "" });
-    await claim(jobId);
-    await sendFootage(token);
-    const body = await confirmBrief(token, { summary: "Put the mug in the sink, then wipe the counter", successCriteria: {
-      successDefinition: null, successRate: null, cycleTimeSeconds: null, unknown: true } });
-    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false });
-    // The confirmation, its email and the job page say the same thing, in the page's words.
-    const status = (await jobStatus(token)).status;
-    expect(status.headline).toBe("Your job is on hold because it has more than one step.");
-    expect(status.operatorAction).toMatch(/^Our simulation tests one step at a time.*We won't test only part of your job without asking you\. To have one step tested, change your job description to that one step and confirm it\./);
-    expect(body.screening).toEqual({ headline: status.headline, detail: status.operatorAction, bookingUrl: null });
-    const email = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
-    expect(email?.subject).toBe("Your job is on hold because it has more than one step");
-    expect(email?.body).toContain(`\n\n${status.headline}\n\n${status.operatorAction}\n\nIf we read your job wrong, reply to this email.`);
-    for (const told of [body.screening?.detail, email?.body])
-      expect(told).not.toMatch(/evaluation for its kind|native evaluators|can score these|when we can (evaluate|build)/);
+  it("accepts a job of several steps as any other job: the same reply, the same page, no email, whatever kind the screen read", async () => {
+    const confirmed = async (summary: string) => {
+      const { jobId, token } = await startJob({ task: "" });
+      await claim(jobId);
+      await sendFootage(token);
+      const body = await confirmBrief(token, { summary, successCriteria: {
+        successDefinition: null, successRate: null, cycleTimeSeconds: null, unknown: true } });
+      return { jobId, body, status: (await jobStatus(token)).status };
+    };
+    const steps = await confirmed("Put the mug in the sink, then wipe the counter");
+    expect(doc(`inboundRequests/${steps.jobId}`).site_task_scope).toMatchObject({ supported: false });
+    const one = await confirmed("Pick up each carton and place it at the end of the table");
+    expect(steps.body).toEqual(one.body);
+    expect(steps.status).toEqual(one.status);
+    expect(outbox(`${steps.jobId}:brief-screening:task-not-yet-supported`)).toBeUndefined();
+    expect(`${steps.status.headline} ${steps.status.operatorAction ?? ""} ${JSON.stringify(steps.body)}`)
+      .not.toMatch(/on hold|more than one step|one step at a time|evaluation for its kind|native evaluators|can score these/i);
   });
 
   it("accepts an unfamiliar description for analysis without a keyword whitelist", async () => {
@@ -352,12 +350,12 @@ describe("a site that sends footage with no description", () => {
     const body = await confirmBrief(token, { summary: "Cartons", successCriteria: { successDefinition: null, successRate: null,
       cycleTimeSeconds: null, unknown: true } });
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "other",disposition:"accepted_for_analysis" });
-    // A job created today is built whatever its kind (Pipeline #3618): it hears what a job of a kind we score hears.
+    // Every job is built whatever its kind (Pipeline #3618): it hears what a job of a kind we score hears.
     // At confirmation that is no screening message and no email; its page follows the same ladder.
     expect(body.screening).toBeNull();
     expect(outbox(`${jobId}:brief-screening:task-not-yet-supported`)).toBeUndefined();
     const status = (await jobStatus(token)).status;
-    expect(status.decision).not.toBe("not_yet_supported");
+    expect(status.decision).not.toBe("describe_job");
     expect(`${status.headline} ${status.operatorAction ?? ""}`).not.toMatch(/evaluat\w* preparation|native evaluators|on file|holding/i);
     // The same steps for a job of a kind we score: the same reply, the same page, the same (no) email.
     const scored = await startJob({ task: "" });

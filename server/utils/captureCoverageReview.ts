@@ -34,7 +34,7 @@ import type { SiteVideoJobEstimatesOutput } from "../agents/tasks/site-video-evi
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { selfCaptureObjectPath } from "./captureUploadToken";
 import { getBrief, isPlaceholderSummary, nameUnnamedTask } from "./siteTaskBrief";
-import { screenTaskScope } from "./siteTaskScope";
+import { namesAnAction, screenTaskScope } from "./siteTaskScope";
 
 /** Long enough for a model to fetch the video, short enough not to be a handle. */
 const SIGNED_URL_TTL_MS = 30 * 60 * 1000;
@@ -103,11 +103,15 @@ export interface CoverageFinding {
  * different from "it does not cover the scene" and very different from "it
  * does".
  */
-/** The reviewer's proposed job, only when it names one an evaluation can run (a rigid move or open/close). */
+/**
+ * The reviewer's proposed job, when it names one, whatever its kind: an action on the site (a towel picked up is a
+ * job as a vase is), or a move the screen reads with no verb ("Cartons from a conveyor onto a pallet"). A
+ * description of the room names no action and is not a job.
+ */
 export function draftedTaskStatement(output: { proposed_task_statement?: string | null; unreadable_reasons?: readonly string[] }) {
   const statement = output.proposed_task_statement?.trim().slice(0, 300);
   if (!statement || output.unreadable_reasons?.length || isPlaceholderSummary(statement)) return null;
-  return screenTaskScope({ summary: statement }).supported ? statement : null;
+  return namesAnAction(statement) || screenTaskScope({ summary: statement }).supported ? statement : null;
 }
 
 /** Why a read waited rather than failed: another call for the same capture holds its one-at-a-time budget. */

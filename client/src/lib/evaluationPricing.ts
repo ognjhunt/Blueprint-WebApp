@@ -47,7 +47,7 @@ export const siteAssessment = {
   covers: [
     "Your sentence for the job, drafted from your video if you leave it empty.",
     "A first look on paper: the robot most likely to fit, from published specifications and where it has been used.",
-    "A simulation of your site, built from your video, or “held” when we can't build one for that kind of job yet.",
+    "A simulation of your site, built from your video, whatever the kind of job.",
     "With your permission, a summary of your job shared with deployment companies we approve; any work is agreed between you and the company.",
   ],
   allIn:
