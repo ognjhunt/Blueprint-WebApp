@@ -1,22 +1,17 @@
 // @vitest-environment node
 /**
- * Which jobs we can score in simulation today, and what follows when we cannot.
+ * How the brief's text is read for kind and shape, and that no reading of either holds or refuses a job.
  *
- * The Pipeline builds every non-articulated website job as pick-and-place, so
- * a job we cannot score must be held here, never coerced into a narrower task
- * a team could pass. A team evaluation runs a rigid pick-and-place onto a spot
- * on its destination surface, or opening one door or drawer (Pipeline
- * `team_scene_packet.py` since #2943, `website_task_preparation.py`), so
- * placing an object inside a container is held (audit N4). Under the owner's
- * rule (2026-10-26) a held job is accepted, told we are preparing its
- * evaluation and counted as demand; nothing is refused by keyword.
+ * The screen names the two kinds Blueprint's native evaluators score (a rigid pick-and-place onto a spot on its
+ * destination surface, or opening one door or drawer) and otherwise a hint of the job's kind, counted as demand.
+ * Every job is accepted and goes ahead the same, whatever the screen reads, a job of several steps included (owner:
+ * "accept every job then determine what is needed from there"). The one thing asked of the site is its job's own
+ * sentence, when the brief gives none.
  */
 import { sharedJobFields } from "./helpers/listedTaskCard";
 import { describe, expect, it } from "vitest";
 import {
-  MULTI_STEP_TASK_HOLD, SUPPORTED_TASK_LINES, SUPPORTED_TASK_SCOPE, multiStepEvidence, multiStepHoldMessage, multiStepTaskHold,
-  screenTaskScope,
-  scoredTaskDescription, taskKindToldToSite, taskScopeHeld, taskScopeNotYet, taskScopeRecord,
+  multiStepEvidence, namesAnAction, screenTaskScope, scoredTaskDescription, taskBriefUnclear, taskScopeRecord, UNCLEAR_BRIEF_ASK,
 } from "../utils/siteTaskScope";
 import { teamJobAccess } from "../utils/teamJobAccess";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
@@ -111,17 +106,17 @@ describe("screenTaskScope", () => {
       .toMatchObject({ supported: true, kind: "rigid_pick_and_place" });
   });
 
-  it("records a held job as demand for what to build next, and an unreadable brief as not yet described", () => {
-    const held = taskScopeRecord(screen("Folding towels for wash-and-fold orders"), "2026-10-26T00:00:00Z");
-    expect(held).toMatchObject({ disposition: "accepted_for_analysis", demandKind: "deformable" });
-    expect(taskScopeHeld({ site_task_scope: held })).toBe(true);
+  it("records a job of another kind as demand, and an unreadable brief as not yet described", () => {
+    const other = taskScopeRecord(screen("Folding towels for wash-and-fold orders"), "2026-10-26T00:00:00Z");
+    expect(other).toMatchObject({ disposition: "accepted_for_analysis", demandKind: "deformable" });
+    expect(taskBriefUnclear(other)).toBe(false);
     const undescribed = taskScopeRecord(screen("Your site task"), "2026-10-26T00:00:00Z");
     expect(undescribed).toMatchObject({ disposition: "needs_description", demandKind: null });
-    expect(taskScopeHeld({ site_task_scope: undescribed })).toBe(false);
+    expect(taskBriefUnclear(undescribed)).toBe(true);
     const scorable = taskScopeRecord(screen("Opening the sample drawer before each batch"), "2026-10-26T00:00:00Z");
     expect(scorable).toMatchObject({ disposition: "scorable", demandKind: null });
     // Nothing is refused by keyword: no harness capability verdict exists yet.
-    expect(new Set(["scorable", "accepted_for_analysis", "held_for_preparation", "needs_description"])).toContain(held.disposition);
+    expect(new Set(["scorable", "accepted_for_analysis", "held_for_preparation", "needs_description"])).toContain(other.disposition);
   });
 
   // A summary whose own instruction is a trip by the robot reads as a walk job does (task_family
@@ -150,7 +145,7 @@ describe("screenTaskScope", () => {
     expect(screen(summary)).toMatchObject({ supported: false, kind: null, reason: "mobile", disposition: "accepted_for_analysis" });
     expect(project(summary).task_family).toBe(project(walk).task_family);
     expect(project(summary).task_family).toBe("general_task");
-    expect(multiStepTaskHold({ summary })).toBeNull();
+    expect(multiStepEvidence(summary)).toBeNull();
   });
 
   // Each read exactly as before the trip reading existed (checked against origin/main's function): an object
@@ -204,10 +199,10 @@ describe("multiStepEvidence", () => {
     ["Take the plates to the kitchen, then load the dishwasher", ["take the plates to the kitchen", "load the dishwasher"]],
   ])("reads %j as the steps it names", (text, steps) => {
     expect(multiStepEvidence(text)).toEqual(steps);
-    expect(multiStepTaskHold({ summary: text })).toEqual({ code: MULTI_STEP_TASK_HOLD, steps });
   });
 
-  // A missed step narrows the job silently; a wrong hold only asks the site to rephrase.
+  // A missed step narrows the job's reading silently. A job read as several steps goes ahead as any other job:
+  // it is accepted and sent to the Pipeline, and told what every job is told.
   it.each([
     "Open the fridge and take out the milk",
     "Move the box to the shelf and then move the bottle to the bin",
@@ -239,12 +234,14 @@ describe("multiStepEvidence", () => {
     "Put away the dishes then close the cupboard",
     "Move the tray to the counter and load the cart",
     "Open the oven and take out the tray",
-  ])("holds %j as several steps", text => {
+  ])("reads %j as several steps, and holds nothing for it", text => {
     expect(multiStepEvidence(text)?.length).toBeGreaterThan(1);
-    expect(multiStepTaskHold({ summary: text })?.code).toBe(MULTI_STEP_TASK_HOLD);
     // The success definition alone names the steps just as well.
-    expect(multiStepTaskHold({ summary: "Your site task", successCriteria: { successDefinition: text } })?.code)
-      .toBe(MULTI_STEP_TASK_HOLD);
+    expect(screen("Your site task", text).reason).not.toBe("unclear");
+    const page = (summary: string) => projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null, hasStoredCapture: true,
+      site_task_brief_confirmed_at: "2026-11-18",
+      site_task_scope: taskScopeRecord(screen(summary), "2026-11-18T00:00:00Z") }));
+    expect(page(text)).toEqual(page("Pick up the tray and put it on the counter"));
   });
 
   // Picking up and putting down the same object is one step, whatever joins its verbs.
@@ -284,14 +281,13 @@ describe("multiStepEvidence", () => {
     "Cartons from a conveyor onto a pallet",
     "Folding towels for wash-and-fold orders",
     "Your site task",
-  ])("reads %j as one step at most, and does not hold it", text => {
+  ])("reads %j as one step at most", text => {
     expect(multiStepEvidence(text)).toBeNull();
-    expect(multiStepTaskHold({ summary: text })).toBeNull();
     expect(screen(text).reason).not.toBe("multi_step");
   });
 
-  // Holding a job never touches the task context of one it does not hold: these are the context digests
-  // the task screen gave on main before this check existed (capture-447's own description first).
+  // Reading steps never touches the task context of a job of one step: these are the context digests
+  // the task screen gave on main before the check existed (capture-447's own description first).
   it.each(Object.entries({
     "Pick up the wooden tray from the dining table and place it at the other end of the same table": "sha256:528b531dbe0d50d7b93690d084212664cbebc981a06deb8ecd9d1ecff391d6bd",
     "Pick up the wooden tray and place it at the other end of the table": "sha256:1da6e27073d9627de0ade86b1e45fd01b4192de1da160d0e0edd0a7dd5bc0c23",
@@ -318,51 +314,25 @@ describe("a job we cannot score", () => {
   it("never holds an evaluation on the scope hint: the job's own scene decides", () => {
     const unrecognised = teamJobAccess({ ...listed, site_task_scope: { supported: false, reason: "deformable" } });
     expect(unrecognised).toMatchObject({ listed: true });
-    expect(unrecognised.reason).not.toBe("task_not_yet_supported");
     expect(unrecognised).toEqual(teamJobAccess(listed));
     expect(teamJobAccess({ ...listed, site_task_scope: { supported: true, kind: "rigid_pick_and_place" } }))
       .toEqual(teamJobAccess(listed));
   });
 
-  it("shows the scope hint while no preparation or evaluation has been observed", () => {
-    const status = projectTaskStatus(taskStatusInputFrom({
-      briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-10-01",
-      site_task_triage: { disposition: "qualified" }, site_task_scope: { supported: false, reason: "liquid" },
-      screening: null,
-      site_task_next_update_iso: null,
-    }));
-    expect(status.decision).toBe("not_yet_supported");
-    expect(status.headline).toMatch(/preparing an evaluation/);
-    expect(status.operatorAction).toMatch(/liquids.*cover: picking up one rigid object and placing it at another spot on a supported destination surface, and opening one door, drawer or lid/);
+  it("shows a job of any kind what every accepted job is shown, before and after its video", () => {
+    const page = (extra: Record<string, unknown>) => projectTaskStatus(taskStatusInputFrom({
+      briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-11-18", screening: null,
+      site_task_triage: { disposition: "qualified" }, ...extra } as never));
+    for (const hasStoredCapture of [false, true]) {
+      const scored = page({ hasStoredCapture, site_task_scope: { supported: true, kind: "rigid_pick_and_place" } });
+      for (const reason of ["liquid", "mobile", "other", "deformable", "container", "closing", "articulated", "multi_step", null]) {
+        expect(page({ hasStoredCapture, site_task_scope: { supported: false, reason } })).toEqual(scored);
+      }
+      expect(JSON.stringify(scored)).not.toMatch(/preparing an evaluation|on hold|kind of job|one step at a time/);
+    }
   });
 
-  it("holds a job that names several steps by name, and asks the site to split it", () => {
-    const hold = multiStepTaskHold({ summary: "Take the plates to the kitchen then load the dishwasher" });
-    expect(hold).toEqual({ code: MULTI_STEP_TASK_HOLD, steps: ["take the plates to the kitchen", "load the dishwasher"] });
-    expect(MULTI_STEP_TASK_HOLD).toBe("website_multi_step_task_preparation_required");
-    expect(multiStepTaskHold({ summary: "Pick up the tray and put it on the counter" })).toBeNull();
-    expect(multiStepTaskHold({ summary: "Your site task" })).toBeNull();
-    expect(multiStepTaskHold(null)).toBeNull();
-    // A refused preparation reports a retryable stop; the job page says why it is held instead.
-    const status = projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null, hasStoredCapture: true,
-      multiStepHold: hold, preparationStatus: { state: "failed_retryable", correlationId: null } }));
-    expect(status.decision).toBe("not_yet_supported");
-    expect(status.headline).toBe("Your job is on hold because it has more than one step.");
-    expect(status.operatorAction).toBe("Our simulation tests one step at a time, such as picking up one object and putting it "
-      + "down somewhere else. We read these steps: “take the plates to the kitchen”, “load the dishwasher”. We won't test "
-      + "only part of your job without asking you. To have one step tested, change your job description to that one step "
-      + "and confirm it. Otherwise your job stays on hold and your video stays saved; you do not need to send it again.");
-    expect(status.outcome).toBeUndefined();
-    // A run already reported, or a scene already handed off, keeps its own rung.
-    expect(projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null, multiStepHold: hold,
-      screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } })).decision).not.toBe("not_yet_supported");
-    expect(multiStepHoldMessage(["one step"]).action).not.toMatch(/We read these steps/);
-    expect(taskScopeNotYet("multi_step")).toMatchObject({ headline: "Your job is on hold because it has more than one step.",
-      nextStep: expect.stringMatching(/change your job description to that one step and confirm it/) });
-    expect(taskScopeNotYet("multi_step").detail).toMatch(/tests one step at a time.*rather than test only part of it/);
-  });
-
-  it("shows an actual queued evaluation ahead of an older scope hint without claiming execution or results", () => {
+  it("shows an actual queued evaluation whatever the scope hint, without claiming execution or results", () => {
     const status = projectTaskStatus(taskStatusInputFrom({
       briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-10-01",
       site_task_triage: { disposition: "qualified" }, site_task_scope: { supported: false, reason: "liquid" },
@@ -374,44 +344,24 @@ describe("a job we cannot score", () => {
     expect(status.operatorAction).toBeNull();
   });
 
-  it("names only the job kinds Blueprint's evaluation can score, everywhere", () => {
-    expect(SUPPORTED_TASK_LINES).toEqual(["Picking up one rigid object and placing it on a supported destination surface",
-      "Opening one door, drawer or lid of a fixture"]);
-    expect(SUPPORTED_TASK_SCOPE).toMatch(/opening one door, drawer or lid/);
-    // Screens recorded before Pipeline #2943 still read with their own reason.
-    expect(taskScopeNotYet("articulated").detail).toMatch(/opens a door or drawer/);
-    expect(taskScopeNotYet("container").detail).toMatch(/inside a container/);
-    expect(taskScopeNotYet("closing").detail).not.toMatch(/scores opening/);
-  });
-
-  it("asks for one sentence when it could not tell which job this is, instead of calling it out of scope", () => {
-    const unclear = taskScopeNotYet("unclear");
-    expect(unclear.headline).toMatch(/one sentence/i);
-    expect(unclear.headline).toMatch(/before we can evaluate it/);
-    expect(unclear.headline).not.toMatch(/robot teams?/i);
-    expect(unclear.headline).not.toMatch(/preparing an evaluation/i);
-    expect(unclear.nextStep).toMatch(/describe the job in one sentence/i);
-    expect(taskScopeNotYet("liquid").headline).toMatch(/preparing an evaluation/i);
-    expect(taskScopeNotYet("liquid").nextStep).toMatch(/stays on file.*email you when we can evaluate it/i);
-  });
-
-  it("speaks of the kind only to a job not built whatever its kind, or one whose reading asks something of the site", () => {
-    for (const reason of ["mobile", "other", "deformable", "container", null]) {
-      expect(taskKindToldToSite(reason, true)).toBe(false);
-      expect(taskKindToldToSite(reason, false)).toBe(true);
-    }
-    for (const reason of ["multi_step", "unclear"]) expect(taskKindToldToSite(reason, true)).toBe(true);
+  it("asks for one sentence when it could not tell what the job is, and names no kind of job and no scored list", () => {
+    expect(UNCLEAR_BRIEF_ASK.headline).toMatch(/one sentence/i);
+    expect(UNCLEAR_BRIEF_ASK.headline).not.toMatch(/robot teams?/i);
+    expect(UNCLEAR_BRIEF_ASK.nextStep).toMatch(/describe the job in one sentence/i);
+    expect(Object.values(UNCLEAR_BRIEF_ASK).join(" ")).not.toMatch(/kind|evaluators? cover|picking up one rigid object/i);
     const page = (extra: Record<string, unknown>) => projectTaskStatus(taskStatusInputFrom({
       briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-11-17", screening: null, ...extra } as never));
-    // A job built whatever its kind is shown what the same job of a kind we score is shown.
-    for (const hasStoredCapture of [false, true]) {
-      const scored = page({ hasStoredCapture, site_task_scope: { supported: true, kind: "rigid_pick_and_place" } });
-      expect(page({ hasStoredCapture, kindGoesAhead: true, site_task_scope: { supported: false, reason: "mobile" } })).toEqual(scored);
-      expect(scored.decision).not.toBe("not_yet_supported");
-    }
-    // Without the flag (no marker, or a video sent before the job had an account) the older wording stands.
-    expect(page({ site_task_scope: { supported: false, reason: "mobile" } }).headline).toMatch(/preparing an evaluation/);
-    expect(page({ kindGoesAhead: true, site_task_scope: { supported: false, reason: "unclear" } }).headline).toMatch(/one sentence/);
+    expect(page({ site_task_scope: { supported: false, reason: "unclear" } })).toMatchObject({ decision: "describe_job",
+      headline: UNCLEAR_BRIEF_ASK.headline, operatorAction: `${UNCLEAR_BRIEF_ASK.detail} ${UNCLEAR_BRIEF_ASK.nextStep}` });
+    expect(taskBriefUnclear({ supported: false, reason: "unclear" })).toBe(true);
+    for (const reason of ["multi_step", "mobile", "other", null]) expect(taskBriefUnclear({ supported: false, reason })).toBe(false);
+  });
+
+  it("drafts a job from the video's own words whatever its kind, and never a description of the room", () => {
+    for (const text of ["Pick up the towel from the basket and place it on the shelf", "Close the cabinet door", "Wipe the counter",
+      "Pick up the glass vase and place it on the sideboard"]) expect(namesAnAction(text)).toBe(true);
+    for (const text of ["A dining room with a table and chairs", "A hallway with a door", "A sink full of water",
+      "A counter with a set of plates", ""]) expect(namesAnAction(text)).toBe(false);
   });
 });
 
@@ -420,7 +370,6 @@ describe("scoredTaskDescription", () => {
     expect(scoredTaskDescription("rigid_pick_place")).toBe("Pick up the object and place it in the target area");
     expect(scoredTaskDescription("pick_and_place")).toBe("Pick up the object and place it in the target area");
     expect(scoredTaskDescription("planar_push")).toBe("Push the object across the surface into the target area");
-    // The same words as SUPPORTED_TASK_LINES: one door, drawer or lid.
     expect(scoredTaskDescription("articulated_open_close")).toBe("Open the door, drawer or lid and hold it open");
     expect(scoredTaskDescription("deformable_fold")).toBeNull();
     expect(scoredTaskDescription(undefined)).toBeNull();

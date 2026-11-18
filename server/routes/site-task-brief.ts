@@ -84,8 +84,8 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { loadIsInternalTestJob } from "../utils/internalTestJob";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
-import { buildTaskHeldForStepsEmail, buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
-import { multiStepHoldMessage, multiStepTaskHold, taskKindToldToSite, taskScopeNotYet } from "../utils/siteTaskScope";
+import { buildBriefUnclearEmail } from "../utils/qualificationEmails";
+import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
@@ -102,7 +102,7 @@ import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
-import { sceneScreenGateEnded, websiteJobGoesAheadWhateverKind } from "../utils/sceneScreenGate";
+import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 import { loadJobWaitsForItsSentence } from "../utils/jobSentenceWait";
 
 const router = Router();
@@ -314,8 +314,6 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   site_task_triage?: { disposition?: string | null } | null;
   /** The job was filmed after the screen stopped gating (2026-11-11 marker). */
   screenGateEnded?: boolean;
-  /** Built whatever its kind (`websiteJobGoesAheadWhateverKind`). */
-  kindGoesAhead?: boolean;
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
@@ -382,7 +380,6 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
     site_task_triage: (data.site_task_triage as SiteTaskTriageSummary | undefined) ?? null,
     // The screen gates nothing for a job filmed after 2026-11-11: its status follows the outlook, not the screen.
     screenGateEnded: sceneScreenGateEnded(data, requestId),
-    kindGoesAhead: websiteJobGoesAheadWhateverKind(data, requestId),
     // Stored plaintext fields, which is what the access predicate reads.
     jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
     recommended: Boolean(data.pilot_recommendation),
@@ -443,17 +440,9 @@ function screeningOutcome(disposition: string, screenGateEnded = false): {
   return null;
 }
 
-/** What a site hears when its job is held for its several steps: the job page's own words (`multiStepHoldMessage`). */
-function stepsHoldOutcome(steps: readonly string[]) {
-  const held = multiStepHoldMessage(steps);
-  return { headline: held.headline, detail: held.action, bookingUrl: null };
-}
-
-/** What a site hears when its job is a kind we cannot score yet. */
-function taskScopeOutcome(reason: unknown) {
-  const notYet = taskScopeNotYet(reason);
-  return { headline: notYet.headline, detail: `${notYet.detail} ${notYet.nextStep}`, bookingUrl: null };
-}
+/** What a site hears when its brief gives no sentence about the job: the job page's own words (`UNCLEAR_BRIEF_ASK`). */
+const BRIEF_UNCLEAR_OUTCOME = { headline: UNCLEAR_BRIEF_ASK.headline,
+  detail: `${UNCLEAR_BRIEF_ASK.detail} ${UNCLEAR_BRIEF_ASK.nextStep}`, bookingUrl: null };
 
 /**
  * Whether the site is saved to an account yet, for the owner link only.
@@ -1045,16 +1034,9 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       });
     }
 
-    // Screening occurs here for public-form sites. Only a job we cannot score
-    // hears about it by email, whatever its gate verdict. A job built whatever
-    // its kind hears what a job we score hears (`taskKindToldToSite`), unless it
-    // is held for its several steps. The outbox can retry delivery without a
-    // timed check-in. A job held for its several steps hears its job page's
-    // words, whatever kind the screen read.
-    let scoreable = result.scope.supported;
-    const stepsHeld = multiStepTaskHold(result.brief);
-    // Whether the job record was read: unread, nothing is said about the job's kind.
-    let recordRead = false;
+    // Every accepted job hears the same thing, whatever its kind or shape. Only a brief with no sentence about
+    // the job is asked for one, by email too; the outbox can retry delivery without a timed check-in.
+    const briefUnclear = taskBriefUnclear(result.scope);
     // A site that filmed first is never asked to film again. Unknown is not
     // "not filmed": the job page says which, and the reply does not guess.
     const walkthrough = await savedWalkthrough(payload).catch(() => null);
@@ -1064,21 +1046,12 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
       screenGateEnded = request?.screenGateEnded === true;
-      recordRead = Boolean(request);
-      if (!scoreable && !stepsHeld
-        && !taskKindToldToSite(result.scope.reason, request?.kindGoesAhead === true)) scoreable = true;
       // The brief can be a no-op while its notification intent is missing.
       // Reuse the durable outbox key to recover failed enqueues without
       // creating another message or changing the confirmed work.
-      if (request?.contactEmail && !scoreable) {
-        const email = stepsHeld ? buildTaskHeldForStepsEmail({
+      if (request?.contactEmail && briefUnclear) {
+        const email = buildBriefUnclearEmail({
           firstName: request.contactFirstName || "there",
-          steps: stepsHeld.steps,
-          jobUrl: captureUploadUrlFor(payload.requestId),
-        }) : buildTaskNotYetSupportedEmail({
-          firstName: request.contactFirstName || "there",
-          siteName: request.siteName,
-          reason: result.scope.reason,
           jobUrl: captureUploadUrlFor(payload.requestId),
         });
         await enqueueOutbox({
@@ -1090,7 +1063,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           body: email.body,
         });
         void deliverOutbox({ limit: 5 }).catch((error) =>
-          logger.warn({ error, requestId: payload.requestId }, "Task scope email delivery deferred to outbox"));
+          logger.warn({ error, requestId: payload.requestId }, "Brief sentence email delivery deferred to outbox"));
       }
       // The four-conditions screen sends no email of its own, and no fallback
       // "brief confirmed" one (owner decision 2026-11-11). Its verdict still
@@ -1104,7 +1077,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     // the request carries the next step and Slack rings. For a marked job both
     // are a note: its scene is built whatever the screen says. Best-effort;
     // neither may fail the operator's confirmation.
-    if (!result.reusedConfirmation && scoreable && result.disposition === "needs_conversation" && db) {
+    if (!result.reusedConfirmation && !briefUnclear && result.disposition === "needs_conversation" && db) {
       const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
         .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
         .catch(() => []);
@@ -1119,11 +1092,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       ok: true,
-      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded)
-        : stepsHeld ? stepsHoldOutcome(stepsHeld.steps)
-        // The record could not be read, so whether the job is built whatever its kind is unknown: say nothing about it.
-        : !recordRead && result.scope.reason !== "unclear" ? null
-        : taskScopeOutcome(result.scope.reason),
+      screening: briefUnclear ? BRIEF_UNCLEAR_OUTCOME : screeningOutcome(result.disposition, screenGateEnded),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
@@ -1375,8 +1344,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         preparationOutcome: payload.scope === "owner" && request && !request.captureRights.consent_revoked
           ? request.preparationOutcome : null,
         preparationStatus,
-        // The current brief, not a stored screen: a held job moves as soon as the site splits its task.
-        multiStepHold: request?.captureRights.consent_revoked ? null : multiStepTaskHold(brief),
         targetChoiceAnswer,
         targetChoiceRestoringGuess: payload.scope === 'owner' && targetChoiceAnswer === 'confirm_guess'
           && preparationStatus?.state === 'awaiting_inputs'
@@ -1387,7 +1354,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.screenGateEnded ? null : request?.site_task_triage ?? null,
         site_task_scope: request?.site_task_scope ?? null,
-        kindGoesAhead: request?.kindGoesAhead === true,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
         capture_owner_uid: request?.capture_owner_uid,

@@ -48,8 +48,6 @@ export type TeamJobClosedReason =
   | "not_a_site_job"
   /** A placeholder the Pipeline created, not a site's submission. */
   | "pipeline_placeholder"
-  /** The confirmed job is a kind the simulation cannot score yet (`siteTaskScope.ts`). */
-  | "task_not_yet_supported"
   /** No current card grant: the site kept the job private, hid the card, or a material change awaits its review. */
   | "not_listed"
   /** The retired dossier recorded the job as private. */

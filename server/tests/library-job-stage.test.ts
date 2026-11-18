@@ -34,14 +34,10 @@ describe("the job library's label for where a job's simulation stands", () => {
     outlook.value = { outlook: { phase: "result", reason: null }, certain: true };
     expect(await stage()).toBe("simulation_built");
   });
-  it("says no simulation for this kind of job when it is kept on file or another kind", async () => {
-    for (const value of [{ phase: "cannot_match", reason: "kept_on_file" }, { phase: "cannot_match", reason: "other_kind" }]) {
-      outlook.value = { outlook: value, certain: true };
-      expect(await stage(), value.reason).toBe("no_simulation");
-    }
-  });
   it("shows nothing for a held job, another ending, or any state it cannot read for certain", async () => {
+    // No ending is labelled by the job's kind: a job of another kind that got no grant is shown as any other.
     for (const value of [{ outlook: { phase: "no_test", reason: "scene_held" }, certain: true },
+      { outlook: { phase: "no_test", reason: "no_grant" }, certain: true },
       { outlook: { phase: "no_test", reason: "window_expired" }, certain: true },
       { outlook: { phase: "ended_by_site", reason: "closed_by_owner" }, certain: true },
       { outlook: { phase: "building", reason: null }, certain: false }]) {

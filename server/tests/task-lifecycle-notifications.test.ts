@@ -562,8 +562,8 @@ describe("the site's answer is emailed once, when it first settles", () => {
     reason: "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet." });
   const unsized = () => answer({ state: "cannot_assess", headline: "We can't check robots against this job yet.", pick: null, runnerUp: null,
     reason: "The video did not show the job clearly enough for us to size it." });
-  // The answer email is built from the job's outlook (review, 2026-11-11): another kind of job, or an ending with no test.
-  const OTHER = { phase: "cannot_match", reason: "other_kind", sentence: null };
+  // The answer email is built from the job's outlook (review, 2026-11-11): an ending with its own email, or one with none.
+  const OTHER = { phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." };
   const UNSIZED = { phase: "no_test", reason: "unsized", sentence: "Your video didn't show the job clearly enough for us to measure it." };
   const build = async (siteAnswer: unknown, outlook: unknown = OTHER) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
     requestId: "req-1", milestone: "answer_ready", to: "owner@example.com", siteAnswer: siteAnswer as never, outlook: outlook as never,
@@ -691,7 +691,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     for (const kind of retired)
       expect(sharedFakeFirestoreState.docs.get(`captureOutbox/req-1:${kind}:old`)).toMatchObject({ status: "cancelled" });
   });
-  it("cancels the ended screening and team-request emails already queued, and still sends the can't-simulate-yet one (owner decision 2026-11-11)", async () => {
+  it("cancels the ended screening and team-request emails already queued, and still sends the brief-sentence one (owner decision 2026-11-11)", async () => {
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
     const ended = [
@@ -710,12 +710,14 @@ describe("the site's answer is emailed once, when it first settles", () => {
       .toMatchObject({ enqueued: false });
     expect(await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "pilot_request", eventId: "application-2" }))
       .toMatchObject({ enqueued: false });
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") ?? {};
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_scope: { supported: false, reason: "unclear" } });
     await enqueueOutbox({ idempotencyKey: "req-1:brief-screening:task-not-yet-supported", requestId: "req-1", to: "owner@example.com",
-      kind: "screening_not_now", subject: "Your job: we are preparing its job packet", body: "Kept" });
+      kind: "screening_not_now", subject: "Your job brief needs one sentence about the job", body: "Kept" });
     await deliverOutbox({ limit: 20 });
     for (const row of ended) expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${row.key}`)).toMatchObject({ status: "cancelled" });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your job: we are preparing its job packet");
+    expect(send.mock.calls[0][0].subject).toBe("Your job brief needs one sentence about the job");
   });
 });
 
@@ -789,7 +791,7 @@ describe("one answer email for every way a job ends", () => {
       "job window expired": { paper: 1, result: 0, rows: [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }] },
       "job of another kind": { paper: 1, result: 0, rows: [{ kind: "answer_ready", idempotencyKey: "req-1:answer_ready" },
         { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }] },
-      "can't simulate this kind of job yet, then another kind": { paper: 1, result: 0, rows: [
+      "the brief-sentence notice, then a paper answer": { paper: 1, result: 0, rows: [
         { kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" },
         { kind: "answer_ready", idempotencyKey: "req-1:answer_ready" }] },
       "a paper email that failed to send, then the window": { paper: 1, result: 0, rows: [
@@ -932,17 +934,14 @@ describe("one answer email for every way a job ends", () => {
     expect(decided.reads).toContain(`query:${noGrant}:dispatching`);
   });
 
-  // Review, 2026-11-11: the start form's "can't simulate this kind of job yet" email is a notice, not an answer.
-  it("never lets the start form's notice fill an answer slot; it only stops a kept-on-file answer repeating it", async () => {
-    const { answerSlotTaken, keptOnFileAlreadyTold } = await import("../utils/taskLifecycleNotificationAuthority");
+  // Review, 2026-11-11: the confirmation's "your job brief needs one sentence" email is a notice, not an answer.
+  it("never lets the confirmation's notice fill an answer slot", async () => {
+    const { answerSlotTaken } = await import("../utils/taskLifecycleNotificationAuthority");
     const notice = [{ kind: "screening_not_now" as const, idempotencyKey: "req-1:brief-screening:task-not-yet-supported", status: "sent" }];
     for (const [kind, key] of [["scene_outcome", "req-1:scene_outcome:job_window_ended"], ["preparation_ended", "req-1:preparation_ended:sha256:x"],
       ["evaluation_outcome", "req-1:evaluation_outcome:held_setup-abc"], ["answer_ready", "req-1:answer_ready"],
       ["evaluation_outcome", "req-1:evaluation_outcome:estimate-abc"]] as const)
       expect(answerSlotTaken(notice, kind, key), key).toBe(false);
-    expect(await keptOnFileAlreadyTold("req-1")).toBe(false);
-    sharedFakeFirestoreState.docs.set("captureOutbox/req-1:brief-screening:task-not-yet-supported", { ...notice[0], requestId: "req-1" });
-    expect(await keptOnFileAlreadyTold("req-1")).toBe(true);
   });
 
   it("queues every owed answer email from the pump by the recorder's key, and bounds the reading's wait", async () => {
@@ -1023,21 +1022,17 @@ describe("one answer email for every way a job ends", () => {
     expect(await taskLifecycleNotificationIsCurrent({ kind: "answer_ready", requestId: "req-1", idempotencyKey: "req-1:answer_ready:robot_fit_only" })).toBe(false);
   });
 
-  // N5: the reading-limit branch applies the same checks as every other: no repeat of the start form's notice.
-  it("never repeats the kept-on-file notice after the reading's limit, nor answers a job the site ended", async () => {
+  // N5: the reading-limit branch applies the same checks as every other: no answer for a job the site ended.
+  it("never answers a job the site ended after the reading's limit", async () => {
     const { notifyIfAnswerSettled, READING_WAIT_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
     composedAnswer.current = { state: "reading" };
     const outlookModule = await import("../utils/jobOutlook");
-    const kept = { phase: "cannot_match", reason: "kept_on_file", sentence: "We can't build a simulation for this kind of job yet. We've kept your job on file." } as const;
+    const ending = { phase: "no_test", reason: "job_ended", sentence: "This job has ended." } as const;
     const decided = vi.spyOn(outlookModule, "loadJobOutlookDecision").mockResolvedValue({
-      outlook: { phase: "reading", reason: null, sentence: null }, certain: true, ending: kept, resultUnknown: false });
+      outlook: { phase: "ended_by_site", reason: "closed_by_owner", sentence: "You closed this job's simulation run." },
+      certain: true, ending, resultUnknown: false });
     const old = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
     try {
-      sharedFakeFirestoreState.docs.set("captureOutbox/req-1:brief-screening:task-not-yet-supported", { requestId: "req-1",
-        kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported", status: "sent" });
-      expect(await notifyIfAnswerSettled("req-1", old)).toEqual({ enqueued: false, reason: "kept_already_told" });
-      decided.mockResolvedValue({ outlook: { phase: "ended_by_site", reason: "closed_by_owner", sentence: "You closed this job's simulation run." },
-        certain: true, ending: kept, resultUnknown: false });
       expect(await notifyIfAnswerSettled("req-1", old)).toEqual({ enqueued: false, reason: "ended_by_site" });
     } finally { decided.mockRestore(); }
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.includes(":answer_ready"))).toEqual([]);
@@ -1116,16 +1111,18 @@ describe("one answer email for every way a job ends", () => {
   });
 
 
-  it("cancels the kept can't-simulate-yet email at dispatch after the site withdrew or closed its run", async () => {
+  it("cancels the brief-sentence email at dispatch after the site withdrew or closed its run", async () => {
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     const kept = { kind: "screening_not_now" as const, requestId: "req-1", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" };
+    const site = { contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" },
+      site_task_scope: { supported: false, reason: "unclear" } };
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", site);
     expect(await taskLifecycleNotificationIsCurrent(kept)).toBe(true);
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" },
-      request: { buyerType: "site_operator" }, consent_revoked: true });
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...site, consent_revoked: true });
     expect(await taskLifecycleNotificationIsCurrent(kept)).toBe(false);
   });
 
-  it("drops a queued can't-simulate-yet email for a job now built whatever its kind; a job still kept on file gets it", async () => {
+  it("drops a queued email about a job's kind or several steps, whatever the marker; a brief with no sentence still gets its ask", async () => {
     const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
     const { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
     const key = "req-1:brief-screening:task-not-yet-supported";
@@ -1133,24 +1130,23 @@ describe("one answer email for every way a job ends", () => {
       await enqueueOutbox({ idempotencyKey: key, requestId: "req-1", to: "owner@example.com", kind: "screening_not_now",
         subject: "Your job: we are preparing its job packet", body: "We have accepted your job and are holding it." });
       await deliverOutbox({ limit: 20 }); };
-    const site = { contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" },
-      site_task_scope: { supported: false, reason: "mobile", disposition: "accepted_for_analysis" } };
+    const site = { contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" } };
     const marked = { [SCENE_SCREEN_GATE_ENDED_FIELD]: sceneScreenGateEndedMarker("req-1", "2026-11-12T00:00:00.000Z", "job_created"),
       capture_owner_uid: "site-job-owner" };
-    // Built whatever its kind: dropped, nothing sent.
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...site, ...marked });
-    await queue();
-    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({ status: "cancelled" });
-    expect(send).not.toHaveBeenCalled();
-    // Still kept on file (no marker, no grant): sent as before.
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", site);
-    await queue();
-    expect(send).toHaveBeenCalledTimes(1);
-    // Held for its several steps, or a brief we could not read, whatever the marker: sent as before.
-    for (const [scope, summary] of [[{ supported: false, reason: "other" }, "Put the mug in the sink, then wipe the counter"],
-      [{ supported: false, reason: "unclear" }, "Your site task"]] as const) {
-      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...site, ...marked, site_task_scope: scope });
-      sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { requestId: "req-1", summary });
+    for (const changes of [marked, {}]) {
+      // Another kind, or several steps: dropped, nothing sent.
+      for (const [scope, summary] of [[{ supported: false, reason: "mobile" }, "Walk down the aisle"],
+        [{ supported: false, reason: "other" }, "Put the mug in the sink, then wipe the counter"],
+        [{ supported: false, reason: "multi_step" }, "Take the plates to the kitchen then load the dishwasher"]] as const) {
+        sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...site, ...changes, site_task_scope: scope });
+        sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { requestId: "req-1", summary });
+        await queue();
+        expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({ status: "cancelled" });
+        expect(send).not.toHaveBeenCalled();
+      }
+      // A brief we could not read is still asked for its sentence.
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...site, ...changes, site_task_scope: { supported: false, reason: "unclear" } });
+      sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { requestId: "req-1", summary: "Your site task" });
       await queue();
       expect(send).toHaveBeenCalledTimes(1);
     }

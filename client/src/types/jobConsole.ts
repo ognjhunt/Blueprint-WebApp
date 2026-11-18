@@ -86,7 +86,6 @@ export const ADMIN_PHASE_WORDS: Readonly<Record<JobPhase, string>> = {
   result: "Simulation ready",
   waiting_on_site: "Waiting on the site to say what the job is",
   no_test: "Ended",
-  cannot_match: "Kept on file: a kind of job we can't simulate yet",
   ended_by_site: "Stopped by the site",
 };
 

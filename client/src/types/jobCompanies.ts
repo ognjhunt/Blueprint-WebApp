@@ -8,7 +8,6 @@ export type TeamAccessReason =
   | "internal_test_job"
   | "not_a_site_job"
   | "pipeline_placeholder"
-  | "task_not_yet_supported"
   | "not_listed"
   | "kept_private"
   | "restricted_to_named_teams"

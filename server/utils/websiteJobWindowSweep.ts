@@ -58,7 +58,7 @@ import { isWebsiteJobWindowEndedNoticeKey, recordedWebsiteJobWindowEnding, sealW
 import { websiteRunClosure } from "./websiteRunClosure";
 import { sponsorshipValidUntil, websiteJobWindowSeconds } from "./websiteSceneSponsorship";
 import { TASK_BRIEFS_COLLECTION } from "./siteTaskBrief";
-import { multiStepTaskHold } from "./siteTaskScope";
+import { taskBriefUnclear } from "./siteTaskScope";
 import { savedWalkthrough } from "./siteWalkthrough";
 import { stuckAlertMs } from "./websitePreparationWatch";
 import { isApprovedCaptureRegion } from "../../client/src/data/captureResidency";
@@ -68,7 +68,6 @@ import { isWebsiteJobNoGrantEndedNoticeKey, newWebsiteJobNoGrantClock, recordedW
   WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, WEBSITE_JOB_NO_GRANT_ENDING_FIELD, WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD,
   type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
-import { websiteJobGoesAheadWhateverKind } from "./sceneScreenGate";
 import { largeVideoIngestBlock } from "./websiteLargeVideoBlock";
 import { newWebsiteLargeVideoAsk, websiteLargeVideoAsk, websiteLargeVideoAskEventId, websiteLargeVideoAskNoticeKey,
   WEBSITE_LARGE_VIDEO_ASK_FIELD, type WebsiteLargeVideoAsk } from "./websiteJobWindowEnding";
@@ -274,8 +273,6 @@ export type JobNoGrantSweepResult =
   | "owner_closed"
   | "result_recorded"
   | "outcome_told"
-  /** The site was told its job stays on file until Blueprint can evaluate its kind (`taskScopeNotYet`). */
-  | "kept_on_file"
   /** The pass saw this wait for the first time (or the wait moved from the site to Blueprint): its clock starts now. */
   | "clock_started"
   /** The clock has not run as long as a grant's window would. */
@@ -286,9 +283,6 @@ export type JobNoGrantSweepResult =
   | "changed"
   | "ended_notice_queued"
   | "ended_no_notice";
-
-/** Task-scope reasons whose next step is the site's own (`taskScopeNotYet`); any other kind is kept on file. */
-const SITE_STEP_SCOPE_REASONS = new Set(["multi_step", "unclear"]);
 
 /**
  * What makes a request a website job for this sweep, from the record: a site operator's request
@@ -336,36 +330,24 @@ function noGrantSkip(record: Record<string, any> | undefined, requestId: string)
   if (recordedWebsiteJobNoGrantEnding(record, requestId)) return "ending_recorded";
   if (record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return "withdrawn";
   if (websiteRunClosure(record, requestId, siteWalkthroughIdentity(requestId, record).captureId)) return "owner_closed";
-  if (websiteJobKeptOnFile(record, requestId)) return "kept_on_file";
   return null;
 }
 
 /**
- * A job of a kind we can't simulate yet, with no grant: kept on file, a recorded ending (review, 2026-11-11). Its one
- * email is the "can't simulate this kind of job yet" one, queued where the job's scope is recorded. A job built
- * whatever its kind (`websiteJobGoesAheadWhateverKind`) is never kept on file: with no grant yet it waits as a job
- * of a kind we score does, on the no-grant clock.
+ * When an earlier release kept a job of a kind we did not score on file, with no grant (its answer email marked
+ * owed). No job is kept on file now: every job with no grant waits on the no-grant clock, whatever its kind. Read
+ * only so that such a job's wait starts at the pass that first sees it, never backfilled.
  */
-/** When the kept-on-file answer email was first marked owed: set once, so the sweep never marks it again. */
 export const KEPT_ON_FILE_OWED_FIELD = "kept_on_file_answer_owed_at_iso";
-
-export function websiteJobKeptOnFile(record: Record<string, any> | undefined, requestId: string): boolean {
-  const scope = record?.site_task_scope;
-  return Boolean(record && !record.website_scene_sponsorship && scope?.supported === false
-    && !SITE_STEP_SCOPE_REASONS.has(String(scope.reason ?? "")) && !websiteJobGoesAheadWhateverKind(record, requestId));
-}
 
 /**
  * Whose step the job waits on, read as the job pages read it: the site's until a finished recording
- * is saved, or while the job is held for a step only the site can take; Blueprint's after that.
+ * is saved, or while its brief gives no sentence about the job; Blueprint's after that.
  * Throws when the recording's status cannot be read, so no job is ended on a guess.
  */
-async function noGrantWaitingOn(requestId: string, record: Record<string, any>,
-  brief: Record<string, any>): Promise<WebsiteJobNoGrantWait> {
-  // Only a kind whose next step is the site's own waits on the site; a job built whatever its kind waits as any other.
-  if (record.site_task_scope?.supported === false && (SITE_STEP_SCOPE_REASONS.has(String(record.site_task_scope.reason ?? ""))
-    || !websiteJobGoesAheadWhateverKind(record, requestId))) return "site";
-  if (multiStepTaskHold(brief as never)) return "site";
+async function noGrantWaitingOn(requestId: string, record: Record<string, any>): Promise<WebsiteJobNoGrantWait> {
+  // A brief with no sentence about the job waits on the site's sentence; a job of any kind waits as any other.
+  if (taskBriefUnclear(record.site_task_scope)) return "site";
   const walkthrough = await savedWalkthrough(siteWalkthroughIdentity(requestId, record));
   if (!walkthrough) throw new Error("website_job_no_grant_recording_status_unavailable");
   return walkthrough.received ? "blueprint" : "site";
@@ -395,22 +377,13 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const jobRef = store.collection(JOBS).doc(requestId);
   observed ??= (await jobRef.get()).data();
   const early = noGrantSkip(observed, requestId);
-  // Kept on file is a recorded ending (review, 2026-11-11): the pass that marks it queues its one paper-slot email,
-  // idempotently, with the reader's reason. A "can't simulate this kind of job yet" email already sent fills the slot.
-  // Once per job: the pass that first sees it marks the email owed (with the mark, in one transaction); later passes
-  // skip, and the reconcile delivers or settles the owed entry.
-  if (early === "kept_on_file" && !observed?.[KEPT_ON_FILE_OWED_FIELD]) {
-    const { holdAnswerNotice, notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
-    await holdAnswerNotice({ requestId, milestone: "answer_ready" }, { [KEPT_ON_FILE_OWED_FIELD]: new Date(nowMs).toISOString() });
-    await notifyIfAnswerSettled(requestId).catch(error => logger.warn({ error, requestId }, "Could not queue the kept-on-file email"));
-  }
   if (early) return early;
   const brief = await noGrantJobBrief(requestId);
   if (!brief) return "not_a_job";
   const outcome = await storedOutcome(requestId, observed!);
   if (outcome) return outcome as JobNoGrantSweepResult;
   const identity = siteWalkthroughIdentity(requestId, observed!);
-  const recordingWait = await noGrantWaitingOn(requestId, observed!, brief);
+  const recordingWait = await noGrantWaitingOn(requestId, observed!);
   // Only a saved recording can be too large; an unreadable marker leaves the ordinary path.
   const block = recordingWait === "blueprint" ? await largeVideoIngestBlock(identity) : null;
   const ask = block ? newWebsiteLargeVideoAsk({ request_id: requestId, capture_id: identity.captureId,
@@ -422,12 +395,13 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const askRef = ask ? store.collection(CAPTURE_OUTBOX_COLLECTION).doc(websiteLargeVideoAskNoticeKey(requestId, ask)) : null;
   const askEmailOwed = Boolean(askRef) && !(await askRef!.get()).exists;
   const observedClock = websiteJobNoGrantClock(observed, requestId);
-  // A job built whatever its kind that the sweep kept on file before 2026-11-17 had no clock running (or one frozen
-  // from before it was kept on file): its wait starts at the pass that first sees it now, as a job of a kind we score
-  // started at its first sighting, and is never backfilled. Once started, its clock postdates the kept-on-file mark.
+  // A job of a kind we do not score that an earlier release kept on file had no clock running (or one frozen from
+  // before it was kept on file), and so does one it would have kept on file but had not seen yet: its wait starts at
+  // the pass that first sees it now, as a job of a kind we score started at its first sighting, and is never
+  // backfilled. Once started, its clock postdates the kept-on-file mark.
   const keptOnFileAt = storedEpoch(observed![KEPT_ON_FILE_OWED_FIELD]);
   const newlyClocked = keptOnFileAt !== null ? !observedClock || observedClock.since_epoch < keptOnFileAt
-    : !observedClock && observed!.site_task_scope?.supported === false && websiteJobGoesAheadWhateverKind(observed, requestId);
+    : !observedClock && observed!.site_task_scope?.supported === false;
   // A replacement recording is new site activity: the wait restarts from it, like a change of whose step it is.
   const restart = newlyClocked || !observedClock || observedClock.waiting_on !== waitingOn
     || (observedClock.capture_id !== undefined && observedClock.capture_id !== identity.captureId);

@@ -2,14 +2,14 @@
  * The job's outlook, as the server decides it once (`server/utils/jobOutlook.ts`) for the job page, the sharing
  * routes and every answer email. The page shows the screen for the phase and never works it out itself.
  */
-export type JobPhase = "reading" | "building" | "testing" | "result" | "no_test" | "cannot_match" | "ended_by_site"
+export type JobPhase = "reading" | "building" | "testing" | "result" | "no_test" | "ended_by_site"
   /** The job waits for the site to say what the robot should do in one sentence (review, 2026-11-12). */
   | "waiting_on_site";
 export type JobOutlookReason =
   | "permission_withdrawn" | "closed_by_owner"
   | "window_expired" | "no_grant" | "preparation_failed" | "scene_held" | "scene_stopped"
   | "run_held" | "run_ended" | "no_ai_robot_scored" | "robot_fit_only" | "unsized"
-  | "step_failed" | "other_kind" | "authority_ended" | "kept_on_file" | "job_ended" | "window_ended_during_test" | "task_not_named"
+  | "step_failed" | "authority_ended" | "job_ended" | "window_ended_during_test" | "task_not_named"
   | "not_processed_in_time" | "simulation_stopped";
 export interface JobOutlook {
   phase: JobPhase;
@@ -24,14 +24,12 @@ export const SIMULATION_BUILDING = "We're building the simulation of your site."
 export const SIMULATION_READY = "The simulation of your site is ready.";
 
 /** The reason sentences, said the same on the page and in the email. */
-export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_held" | "run_ended" | "other_kind">, string>> = {
+export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_held" | "run_ended">, string>> = {
   permission_withdrawn: "Permission to use your video was withdrawn, so this job has stopped.",
   closed_by_owner: "You closed this job's simulation run.",
   window_expired: "The time for this job ran out.",
   // The Pipeline's own record that the job's authority ended before a test ran: said as the window ending is.
   authority_ended: "The time for this job ran out.",
-  // A job of a kind we can't simulate yet, kept on file by the no-grant sweep: no simulation is coming for now.
-  kept_on_file: "We can't build a simulation for this kind of job yet. We've kept your job on file.",
   // An ended authority the Pipeline gives no reason for: true, and no claim about why.
   job_ended: "This job has ended.",
   task_not_named: "Tell us in one sentence what the robot should do, so we can build the simulation of your job.",
@@ -61,9 +59,9 @@ export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_h
  */
 export const OUTLOOK_HOLDS: ReadonlySet<JobOutlookReason> = new Set(["run_held", "scene_held"]);
 
-/** Whether the phase lets the site share its job: a trial result, the first look after an ending, or another kind. */
+/** Whether the phase lets the site share its job: a trial result, or the first look after an ending. */
 export const outlookHasAnswer = (outlook: Pick<JobOutlook, "phase">) =>
-  outlook.phase === "result" || outlook.phase === "no_test" || outlook.phase === "cannot_match";
+  outlook.phase === "result" || outlook.phase === "no_test";
 
 /** Why sharing waits, by the job's phase: the owner closed the job, the job waits for its sentence, or the packet is being built. */
 export type ShareRefusalReason = "job_closed" | "needs_job_sentence" | "packet_not_ready";

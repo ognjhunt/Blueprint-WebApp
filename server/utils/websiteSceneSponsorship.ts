@@ -1,7 +1,6 @@
 import { websitePreparationCaptureId, websitePreparationRenewal, websitePreparationRevision } from "./websitePreparationRevision";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
-import { MULTI_STEP_TASK_HOLD, multiStepTaskHold } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
 import { z } from "zod";
@@ -237,22 +236,6 @@ function developmentTestSiteAuthorized(record: Record<string, any>, contextDiges
   catch { return false; }
   return Array.isArray(allowed) && allowed.includes(contextDigest)
     && developmentTestSiteEligible(record);
-}
-
-/** A job whose description names more than one step is held before any spend, by name: no grant,
- * Atlas allowance, reservation or scene intake is admitted for it, so the Pipeline never narrows it to
- * one move. The site splits the task, or the job stays held. Settling spend already admitted is
- * unaffected. An owner-listed development test site keeps its own authorization. */
-export function assertNoMultiStepTaskHold(input: { brief: SiteTaskBriefRecord; record: Record<string, any>;
-  inventory?: TaskItemInventoryRecord | null; purpose?: "scene_preparation" }) {
-  if (!multiStepTaskHold(input.brief)) return;
-  const purpose = "purpose" in input ? input.purpose : retainedWebsiteScenePurpose(input.record) ?? "scene_preparation";
-  const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record),
-    { inventory: input.inventory, purpose, preparationGrantContextDigest: preparationGrantContextDigest(input.record) });
-  const retained = input.record.website_scene_sponsorship?.task_context_digest;
-  if (!developmentTestSiteAuthorized(input.record, context.context_digest)
-    && !(typeof retained === "string" && developmentTestSiteAuthorized(input.record, retained)))
-    throw new Error(MULTI_STEP_TASK_HOLD);
 }
 
 /** When a retained grant stops being valid: its own expiry, or the verified time-only
@@ -556,8 +539,6 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
       ...(options?.expected_task_context_digest !== undefined ? {expected_task_context_digest: purpose === "scene_preparation" ? current.context_digest
         : projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {inventory: input.inventory, purpose,
           preparationGrantContextDigest: preparationGrantContextDigest(record)}).context_digest} : {})});
-    // Before the grant is stored or returned: a job held for its several steps gets no spending authority.
-    if (create) assertNoMultiStepTaskHold(input);
     if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority,
       ...(authority.purpose === "scene_preparation" && isPlaceholderSummary(input.brief.summary)
         ? { [UNNAMED_TASK_GRANT_FIELD]: authority.authority_digest } : {}) });
@@ -1280,8 +1261,6 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       // cannot spend again just because it lacks the first worker's files.
       return { ...reservations[key].admission, status: "already_reserved" };
     }
-    assertNoMultiStepTaskHold({ brief: brief.data() as SiteTaskBriefRecord, record,
-      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
     // Atlas beta authorization is a separate explicit owner allowance. Its rows
     // never replenish the pre-existing preparation budget, or vice versa.
     const previous = Object.values(reservations).filter(row => !atlas && !row.admission.atlas_authorization_digest
@@ -1380,8 +1359,6 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
       throw new Error("task_brief_missing");
     const rights = projectWebsiteCaptureRights(record);
     if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
-    if (input.create !== false) assertNoMultiStepTaskHold({ brief: brief.data() as SiteTaskBriefRecord, record,
-      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
     const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding: binding,

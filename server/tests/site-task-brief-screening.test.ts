@@ -128,12 +128,14 @@ function tokenFor(scope: "owner" | "film") {
   });
 }
 
-async function confirm(answers: Record<string, string> = {}) {
+const CARTON_SUCCESS = { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30, unknown: false };
+/** Success criteria that name nothing, so only the summary says what the job is. */
+const NO_SUCCESS = { successDefinition: null, successRate: null, cycleTimeSeconds: null, unknown: true };
+async function confirm(answers: Record<string, string> = {}, successCriteria: Record<string, unknown> = CARTON_SUCCESS) {
   return fetch(`${baseUrl}/api/site-task-brief/${tokenFor("owner")}/confirm`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ confirmedBy: "Dana Okafor", answers,
-      successCriteria: { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30, unknown: false } }),
+    body: JSON.stringify({ confirmedBy: "Dana Okafor", answers, successCriteria }),
   });
 }
 
@@ -162,21 +164,24 @@ describe("the confirmation says what our screen decided", () => {
     expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(notified);
   });
 
-  it.each(["outbox_write", "contact_read"].map(failure => ({ failure, unsupported: true })))(
-    "an unchanged retry repairs a missing intent after $failure (unsupported=$unsupported) without replacing the brief", async ({ failure, unsupported }) => {
-    if (unsupported) await saveBrief(draftBrief({ requestId: "req-1", summary: "Folding towels for wash-and-fold orders", captureMode: "self_capture", proposed: [] }));
+  // The one screening-time email left asks a brief that gives no sentence about the job for one.
+  it.each(["outbox_write", "contact_read"].map(failure => ({ failure, unclear: true })))(
+    "an unchanged retry repairs a missing intent after $failure (unclear=$unclear) without replacing the brief", async ({ failure, unclear }) => {
+    if (unclear) await saveBrief(draftBrief({ requestId: "req-1", summary: "your site task", captureMode: "self_capture", proposed: [] }));
     if (failure === "outbox_write") vi.mocked(enqueueOutbox).mockResolvedValueOnce({ enqueued: false });
     else notificationRead.unavailable = true;
     const answers = clearAnswers();
-    expect((await confirm(answers)).status).toBe(200);
+    const success = unclear ? NO_SUCCESS : CARTON_SUCCESS;
+    expect((await confirm(answers, success)).status).toBe(200);
     const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(0);
-    expect((await confirm(answers)).status).toBe(200);
+    expect((await confirm(answers, success)).status).toBe(200);
     expect([...sharedFakeFirestoreState.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/"))).toEqual(before);
-    const key = unsupported ? "task-not-yet-supported" : "qualified";
-    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/req-1:brief-screening:${key}`)).toMatchObject({ status: "pending", attempts: 0, kind: unsupported ? "screening_not_now" : "brief_confirmed" });
+    const key = unclear ? "task-not-yet-supported" : "qualified";
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/req-1:brief-screening:${key}`)).toMatchObject({ status: "pending", attempts: 0,
+      kind: unclear ? "screening_not_now" : "brief_confirmed", subject: "Your job brief needs one sentence about the job" });
     const repaired = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
-    expect((await confirm(answers)).status).toBe(200);
+    expect((await confirm(answers, success)).status).toBe(200);
     expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(repaired);
   });
 
@@ -259,30 +264,33 @@ describe("the confirmation says what our screen decided", () => {
     } finally { spy.mockRestore(); recordRead.armed = false; recordRead.failNext = false; }
   });
 
-  it("says we are preparing an evaluation, names what we can score, and records it, for a job we cannot score yet", async () => {
+  it("tells a job of another kind what every job is told, with no email, and records its kind only as demand", async () => {
     await saveBrief(draftBrief({
       requestId: "req-1", summary: "Folding towels for wash-and-fold orders", captureMode: "self_capture", proposed: [],
     }));
     const response = await confirm(clearAnswers());
-    const body = (await response.json()) as { disposition: string; screening: any };
-    // The gates clear; the kind of job does not.
+    const body = (await response.json()) as { disposition: string; screening: unknown };
     expect(body.disposition).toBe("qualified");
-    expect(body.screening.headline).toMatch(/preparing an evaluation/);
-    expect(body.screening.detail).toMatch(/soft or flexible items/);
-    expect(body.screening.bookingUrl).toBeNull();
-    expect(enqueueOutbox).toHaveBeenCalledTimes(1);
-    const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { kind: string; subject: string; body: string; idempotencyKey: string };
-    expect(sent).toMatchObject({ kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" });
-    // Only the job kind a robot team's evaluation can run (audit N4).
-    expect(sent.body).toMatch(/these kinds of job:\n- Picking up one rigid object and placing it on a supported destination surface\n- Opening one door, drawer or lid of a fixture\n\n/);
-    expect(sent.body).not.toMatch(/door or drawer/);
-    expect(sent.body).toMatch(/holding it while we prepare a simulation for its kind/);
-    expect(sent.subject).toBe("Your job: we are preparing its job packet");
-    expect(`${sent.subject}\n${sent.body}`).not.toMatch(/\bmatch|\$|price/i);
+    // The same reply a job of a kind we score gets once the site clears: nothing about its kind, no hold, no list.
+    expect(body.screening).toBeNull();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
     expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
-      site_task_scope: { schemaVersion: "site_task_scope.v1", supported: false, kind: null, reason: "deformable" },
+      site_task_scope: { schemaVersion: "site_task_scope.v1", supported: false, kind: null, reason: "deformable", demandKind: "deformable" },
     });
+  });
+
+  it("asks a brief that gives no sentence about the job for one, by reply and email, and names no kind of job", async () => {
+    await saveBrief(draftBrief({ requestId: "req-1", summary: "your site task", captureMode: "self_capture", proposed: [] }));
+    const body = (await (await confirm(clearAnswers(), NO_SUCCESS)).json()) as { screening: any };
+    expect(body.screening).toEqual({ headline: "Your job brief needs one sentence about the job before we can evaluate it.",
+      detail: "From your job brief, we could not tell what the job is. Describe the job in one sentence at the top of your job brief and confirm it again.",
+      bookingUrl: null });
+    expect(enqueueOutbox).toHaveBeenCalledTimes(1);
+    const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { kind: string; subject: string; body: string; idempotencyKey: string };
+    expect(sent).toMatchObject({ kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported",
+      subject: "Your job brief needs one sentence about the job" });
+    expect(`${sent.subject}\n${sent.body}`).not.toMatch(/kind of job|can score|on hold|\bmatch|\$|price/i);
   });
 
   it("says not yet, without a call, when an answer blocks it", async () => {

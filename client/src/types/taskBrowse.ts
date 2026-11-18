@@ -85,11 +85,11 @@ export interface TeamEvaluationTerms {
     parameterBounds: Record<string, [number, number]> };
   policyInterfaces: Array<{ policyInterfaceId: string; robot: "droid_franka" | "team_declared"; summary: string }>;
 }
-export type LibraryJobStage = "no_video" | "video_received" | "simulation_building" | "simulation_built" | "no_simulation";
+export type LibraryJobStage = "no_video" | "video_received" | "simulation_building" | "simulation_built";
 /** The card's label for where the job's simulation stands, true in each state; no label when the state is unknown. */
 export const libraryStageLabels: Readonly<Record<LibraryJobStage, string>> = {
   no_video: "No video yet", video_received: "Video received", simulation_building: "Simulation being built",
-  simulation_built: "Simulation built", no_simulation: "No simulation for this kind of job",
+  simulation_built: "Simulation built",
 };
 export const opportunityLabels = { open: "Open", past: "Past", not_seeking: "Not looking for a company yet" };
 

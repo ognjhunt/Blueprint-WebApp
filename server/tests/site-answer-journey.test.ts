@@ -409,44 +409,29 @@ describe("a site's answer, from an email and a video to a deployment company", (
   }, 30_000);
 
   const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down (folding), which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.";
-  async function expectOtherKind(jobId: string, token: string, typed = false) {
+  async function expectOtherKind(jobId: string, token: string) {
     const { answer } = await status(token);
     expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
       reason: OTHER_KIND, pick: null, runnerUp: null });
     expect(answer.reason).not.toMatch(/evaluation preparation|simulation/i);
     // Rewritten (review, 2026-11-11): another kind of job is not an ending while a simulation may still be built, so
-    // the reading queues no email, and the page shows the working screen.
-    // A typed job of a kind we can't simulate yet is already kept on file, so its one email goes once the video is read.
-    expect(answerNotices(jobId)).toHaveLength(typed ? 1 : 0);
-    if (!typed) expect((await status(token)).outlook.phase).toMatch(/^(building|testing)$/);
-    // Its ending is the no-grant wait's: that one email gives the reader's reason, and says there is no paper check.
+    // the reading queues no email, and the page shows the working screen. No job is kept on file for its kind.
+    expect(answerNotices(jobId)).toHaveLength(0);
+    expect((await status(token)).outlook.phase).toMatch(/^(building|testing)$/);
+    // Its ending is the no-grant wait's, as for any job: that one email gives the reader's reason, and says there is no
+    // paper check.
     const { sweepWebsiteJobNoGrant } = await import("../utils/websiteJobWindowSweep");
     const results = [await sweepWebsiteJobNoGrant(jobId, NOW.getTime()), await sweepWebsiteJobNoGrant(jobId, NOW.getTime() + 60 * 86_400_000)];
-    if (typed) {
-      // A job whose typed task is a kind we can't simulate yet is kept on file: a recorded ending (review, 2026-11-11),
-      // so the page gives that answer; the sweep adds no ending email of its own.
-      expect(results).toEqual(["kept_on_file", "kept_on_file"]);
-      expect(notices(jobId).filter(row => row.kind === "scene_outcome")).toHaveLength(0);
-      // The sweep that marks it queues its one paper-slot email, once, with the reader's reason.
-      const kept = answerNotices(jobId);
-      expect(kept).toHaveLength(1);
-      expect(kept[0].body).toContain(`We can't build a simulation for this kind of job yet. We've kept your job on file. There is no first look for this job. ${answer.reason}`);
-      expect(kept[0].body).not.toMatch(/test result comes later/);
-      expect((await status(token)).outlook).toEqual({ phase: "cannot_match", reason: "kept_on_file",
-        sentence: "We can't build a simulation for this kind of job yet. We've kept your job on file." });
-      return;
-    }
     expect(results).toEqual(["clock_started", "ended_notice_queued"]);
     const endings = notices(jobId).filter(row => row.kind === "scene_outcome");
     expect(endings).toHaveLength(1);
     expect(endings[0].body).toContain(`There is no first look for this job. ${answer.reason}`);
-    expect(endings[0].body).not.toMatch(/Most likely to fit|closest is|test result comes later/);
-    expect((await status(token)).outlook).toEqual({ phase: "cannot_match", reason: "other_kind", sentence: answer.reason });
+    expect(endings[0].body).not.toMatch(/Most likely to fit|closest is|test result comes later|kind of job yet|kept your job on file/);
+    expect((await status(token)).outlook).toEqual({ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." });
   }
 
-  it("says a job of another kind cannot be checked, in the fit check's own words; a job made today is never kept on file", async () => {
-    // The towel job is named in the form's optional task line. A job made today is built whatever its kind
-    // (`websiteJobGoesAheadWhateverKind`), so with no grant yet it waits as the untyped job does.
+  it("says a job of another kind cannot be checked, in the fit check's own words; it is never kept on file", async () => {
+    // The towel job is named in the form's optional task line. With no grant yet it waits as the untyped job does.
     const { jobId, token } = await startJob("Fold the towels");
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "deformable" });
     await sendVideo(token);
@@ -454,13 +439,13 @@ describe("a site's answer, from an email and a video to a deployment company", (
     await expectOtherKind(jobId, token);
   }, 30_000);
 
-  it("gives no robot pick to a typed towel job even when the reading names the object and a height, and keeps an older one on file", async () => {
+  it("gives no robot pick to a typed towel job even when the reading names the object and a height, with or without the marker", async () => {
     const { jobId, token } = await startJob("Fold the towels");
     await sendVideo(token);
-    // A job from before 2026-11-11 (no marker): kept on file with one email, as before.
+    // A job from before 2026-11-11 (no marker) goes the same way: no job is kept on file for its kind.
     delete doc(`inboundRequests/${jobId}`)[SCENE_SCREEN_GATE_ENDED_FIELD];
     await readVideo(jobId, TOWELS_WITH_HEIGHT);
-    await expectOtherKind(jobId, token, true);
+    await expectOtherKind(jobId, token);
   }, 30_000);
 
   it("reads a towel job from the video alone as another kind, with or without numbers", async () => {
@@ -480,19 +465,14 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const { answer } = await status(token);
     expect(answer.state).toBe("ready");
     expect(answer.headline).toMatch(/^Most likely to fit: /);
-    // A job made today is built whatever its kind: it is never kept on file, so it is building and owes no answer email.
+    // Never kept on file for its kind: it is building and owes no answer email, with or without the 2026-11-11 marker.
     expect((await status(token)).outlook.phase).toMatch(/^(building|testing)$/);
     expect(answerNotices(jobId)).toHaveLength(0);
-    // The same job from before 2026-11-11 (no marker) is kept on file, a recorded ending (review, 2026-11-11): the paper
-    // check is its answer, emailed once with that reason, never with a later result promised.
     delete doc(`inboundRequests/${jobId}`)[SCENE_SCREEN_GATE_ENDED_FIELD];
-    expect((await status(token)).outlook).toMatchObject({ phase: "cannot_match", reason: "kept_on_file" });
+    expect((await status(token)).outlook.phase).toMatch(/^(building|testing)$/);
     const { sweepWebsiteJobNoGrant } = await import("../utils/websiteJobWindowSweep");
-    expect(await sweepWebsiteJobNoGrant(jobId, NOW.getTime())).toBe("kept_on_file");
-    await vi.waitFor(() => expect(answerNotices(jobId)).toHaveLength(1));
-    const kept = answerNotices(jobId);
-    expect(kept[0].body).toContain(`We can't build a simulation for this kind of job yet. We've kept your job on file. On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used.`);
-    expect(kept[0].body).not.toMatch(/test result comes later/);
+    expect(await sweepWebsiteJobNoGrant(jobId, NOW.getTime())).toBe("clock_started");
+    expect(answerNotices(jobId)).toHaveLength(0);
   }, 30_000);
 
 });

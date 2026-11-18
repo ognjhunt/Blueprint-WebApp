@@ -25,9 +25,6 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest, decide
     thumbnailUrl: taskThumbnailUrl(id, record) };
 }
 
-/** Outlook reasons that mean no simulation is coming for this kind of job. A hold (`scene_held`) covers budget and set-up holds too, so it gets no label. */
-const NO_SIMULATION_FOR_THIS_KIND: ReadonlySet<string> = new Set(["kept_on_file", "other_kind"]);
-
 /**
  * Where a listed job's simulation stands, from its real state: the stored recording, the Pipeline's rebuilt scene and
  * the job's outlook (one decision for the job page, the emails and this label). Null whenever any read is uncertain
@@ -43,8 +40,7 @@ export async function libraryJobStage(id: string, record: Record<string, any>): 
     if (!walkthrough.received) return "no_video";
     const decision = await loadJobOutlookDecision(id);
     if (!decision.certain) return null;
-    const { phase, reason } = decision.outlook;
-    if (phase === "cannot_match" || (reason && NO_SIMULATION_FOR_THIS_KIND.has(reason))) return "no_simulation";
+    const { phase } = decision.outlook;
     if (phase === "testing" || phase === "result") return "simulation_built";
     if (phase === "building") return "simulation_building";
     if (phase === "reading" || phase === "waiting_on_site") return "video_received";

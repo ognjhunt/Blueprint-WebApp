@@ -30,9 +30,8 @@ export function answerSlotOf(kind: OutboxKind, idempotencyKey: string | undefine
  }
  if(kind==='answer_ready'||kind==='preparation_ended')return 'paper';
  if(kind==='scene_outcome')return /:withdrawn-/.test(key)?null:'paper';
- // The start form's "we can't simulate this kind of job yet" email is a notice, not an answer: it sits outside both
- // slots and blocks nothing (review, 2026-11-11). Its one effect is that a kept-on-file answer for the same reason is
- // not sent again (`keptOnFileAlreadyTold`).
+ // The confirmation's "your job brief needs one sentence" email is a notice, not an answer: it sits outside both
+ // slots and blocks nothing (review, 2026-11-11).
  return null;
 }
 type SlotRow={kind: OutboxKind; idempotencyKey: string; status: string; answerSlot?: unknown};
@@ -68,29 +67,17 @@ async function endedBySite(requestId:string,transaction?:FirebaseFirestore.Trans
  const [{websiteRunClosure},{siteWalkthroughIdentity}]=await Promise.all([import('./websiteRunClosure'),import('./siteWalkthrough')]);
  return Boolean(websiteRunClosure(record,requestId,siteWalkthroughIdentity(requestId,record).captureId));
 }
-/** Whether the job's "can't simulate this kind of job yet" email is still the site's to hear (`taskKindToldToSite`). */
-async function kindStillToldToSite(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+/**
+ * Whether the confirmation's notice (its fixed key, `brief-screening:task-not-yet-supported`) is still the site's to
+ * hear: only while the job's brief still gives no sentence about the job (`taskBriefUnclear`). A notice about a job's
+ * kind or shape queued by an earlier release is not sent: an accepted job of any kind is told what every job is told.
+ */
+async function briefStillUnclear(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
  if(!db)throw new Error('capture_notification_authority_unavailable');
- const [{websiteJobGoesAheadWhateverKind},{multiStepTaskHold,taskKindToldToSite},{TASK_BRIEFS_COLLECTION}]=await Promise.all([
-  import('./sceneScreenGate'),import('./siteTaskScope'),import('./siteTaskBrief')]);
+ const {taskBriefUnclear}=await import('./siteTaskScope');
  const ref=db.collection('inboundRequests').doc(requestId);
  const record=(transaction?await transaction.get(ref):await ref.get()).data();
- if(!record)return true;
- const scope=record.site_task_scope;
- if(scope?.supported!==false||taskKindToldToSite(scope.reason,websiteJobGoesAheadWhateverKind(record,requestId)))return true;
- const briefRef=db.collection(TASK_BRIEFS_COLLECTION).doc(requestId);
- const brief=(transaction?await transaction.get(briefRef):await briefRef.get()).data();
- return Boolean(multiStepTaskHold(brief as never));
-}
-/**
- * The start form's "we can't simulate this kind of job yet" notice went out (or may have): a kept-on-file answer for
- * the same job, given for the same reason, would repeat it, so it is skipped. Never any other answer.
- */
-export async function keptOnFileAlreadyTold(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
- if(!db)throw new Error('capture_notification_authority_unavailable');
- const ref=db.collection('captureOutbox').doc(`${requestId}:brief-screening:task-not-yet-supported`);
- const row=(transaction?await transaction.get(ref):await ref.get()).data();
- return Boolean(row&&OUTBOX_WENT_OUT.has(String(row.status)));
+ return Boolean(record&&taskBriefUnclear(record.site_task_scope));
 }
 /** Call inside the dispatch transaction before recording an external side effect.
  * Intake receipts, fresh-link renewal and separate business notices keep their
@@ -106,7 +93,7 @@ export async function taskLifecycleNotificationIsCurrent(
   ||entry.kind==='screening_cleared'||entry.kind==='assessment_ready')return false;
  // Ended by the owner 2026-11-11: the team-request email and the four-conditions
  // screen's emails. Rows already queued are cancelled here, not sent. The
- // "can't simulate this kind of job yet" email shares the `screening_not_now`
+ // "your job brief needs one sentence" email shares the `screening_not_now`
  // kind and is kept, by its own fixed key.
  if(entry.kind==='pilot_request'||entry.kind==='brief_confirmed'||entry.kind==='input_needed')return false;
  // "Meet {company}" (PACKAGE_E E6; planner 20:35Z, H2): one commit point. It may go only once the company's email is
@@ -123,9 +110,8 @@ export async function taskLifecycleNotificationIsCurrent(
   &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
  // That kept notice is still the site's to hear only while the job is the site's: not after it withdrew or closed it.
  if(entry.kind==='screening_not_now'&&entry.idempotencyKey!==undefined&&await endedBySite(entry.requestId,transaction))return false;
- // Queued before a job built whatever its kind stopped hearing about its kind (`taskKindToldToSite`): not sent. A job
- // held for its steps, a brief we could not read, and a job still kept on file keep theirs.
- if(entry.kind==='screening_not_now'&&entry.idempotencyKey!==undefined&&!await kindStillToldToSite(entry.requestId,transaction))return false;
+ // Sent only while the brief still gives no sentence about the job: a notice about a job's kind or shape is not sent.
+ if(entry.kind==='screening_not_now'&&entry.idempotencyKey!==undefined&&!await briefStillUnclear(entry.requestId,transaction))return false;
  // The answer slots: at most one paper-check answer and one test result per job, never a paper check after a result,
  // and none once the site closed its own run.
  // Checked once the row exists (its key names the email); queueing without a key is decided at dispatch.

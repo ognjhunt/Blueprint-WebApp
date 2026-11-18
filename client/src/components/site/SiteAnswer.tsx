@@ -366,7 +366,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
   </>;
 
   // Section 3: the simulation of the site, by the phase; the server's reason sentence for an ending.
-  const ended = phase === "no_test" || phase === "ended_by_site" || phase === "cannot_match";
+  const ended = phase === "no_test" || phase === "ended_by_site";
   const notRun = cannot || !ended ? null : outlook?.sentence ?? null;
   const simulationLine = phase === "building" ? (outlook?.reason === "step_failed" && outlook.sentence ? outlook.sentence : SIMULATION_BUILDING)
     : phase === "testing" || phase === "result" ? SIMULATION_READY
