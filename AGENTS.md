@@ -74,8 +74,13 @@ Fail closed only for:
   policy is not blurred. People in captures are not otherwise screened or
   blurred.
 - **Rights:** capture permissions, revocation, and licenses.
-- **Money:** spending stays inside its budget. Internal budgets are Blueprint's
-  controls, never a step for the site.
+- **Money:** spending stays inside its budget: one cap per job, $40 for
+  everything a job spends across every provider and every retry (owner decision
+  2026-11-19; `contracts/pipeline/website-job-spend-cap.v1.json`, mirrored from
+  the Pipeline's `config/website_job_spend_cap.v1.json`), and the account's
+  monthly limit on top. Nothing raises a job's cap; at the cap the job ships
+  what it has, flagged. Internal budgets are Blueprint's controls, never a step
+  for the site.
 
 Everything else keeps going. If something is missing, ambiguous or
 unverified, flag it where the person can see it and continue the same job;
