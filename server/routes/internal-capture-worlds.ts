@@ -23,7 +23,7 @@ import type { WorldReconstructionRecord } from "../utils/worldReconstruction";
 import { getBrief, TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import { TASK_ITEM_INVENTORY_COLLECTION, type TaskItemInventoryRecord } from "../utils/taskItemInventory";
 import { countsTowardTask, loadWebsiteCaptureRights, loadWebsiteTaskInventory, preparationGrantContextDigest, projectWebsiteTaskContext,
-  taskContextSiteIdentity } from "../utils/websiteTaskContext";
+  siteJobFactsForPipeline, taskContextSiteIdentity } from "../utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "../utils/websiteCaptureBinding";
 import { assertWebsiteRunOpen } from "../utils/websiteRunClosure";
@@ -623,7 +623,9 @@ router.post(
   guard,
   async (req: Request, res: Response) => {
     const parsed = z.object({ request_id: z.string().trim().min(1).max(200),
-      scene_id: z.string().trim().min(1).max(220), purpose: z.literal("scene_preparation").optional() }).strict().safeParse(req.body);
+      scene_id: z.string().trim().min(1).max(220), purpose: z.literal("scene_preparation").optional(),
+      // The site's quick answers, for a read that binds nothing (`SITE_JOB_FACTS_FIELD`): never a preparation read.
+      include_site_job_facts: z.literal(true).optional() }).strict().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ code: "task_context_request_invalid" });
     const { request_id: requestId, scene_id: sceneId } = parsed.data;
     if (sceneId !== `site-${requestId}`) {
@@ -642,7 +644,7 @@ router.post(
       // The site's identity is removed from its own words for a job created with that rule (`websiteTaskContext.ts`).
       return res.json(projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(requestId), {
         siteIdentity: await taskContextSiteIdentity(record), inventory, captureId: req.params.captureId, captureBinding,
-        purpose: parsed.data.purpose,
+        purpose: parsed.data.purpose, ...(parsed.data.include_site_job_facts ? { siteJobFacts: siteJobFactsForPipeline(record) } : {}),
         preparationGrantContextDigest: preparationGrantContextDigest(record) }));
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
