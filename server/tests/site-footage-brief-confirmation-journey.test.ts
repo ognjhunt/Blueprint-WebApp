@@ -205,6 +205,36 @@ async function claim(jobId: string) {
  */
 const UNCONFIRMED_AT_UPLOAD = { withoutTaskConfirmation: true } as const;
 
+describe("a site that types its identity into its job", () => {
+  // Data minimisation (`websiteTaskContext.ts`): a job started from the form is created under the rule, so its task
+  // context and its upload manifest reach the Pipeline without the site's typed location, email or a street address.
+  it("is created under the identity rule, and the Pipeline's copy of its words carries none of its identity", async () => {
+    const jobId = `site-footage-${sequence + 1}`;
+    const email = `${jobId}@example.test`;
+    const task = `Pick up each packed carton at our Austin, TX dock, 12 Mill Road, and place it at the end of the table. Questions: ${email}`;
+    const { token } = await startJob({ task });
+    const { TASK_CONTEXT_IDENTITY_FIELD, projectWebsiteTaskContext, taskContextSiteIdentity } = await import("../utils/websiteTaskContext");
+    const { projectWebsiteCaptureRights } = await import("../utils/websiteCaptureRights");
+    const record = doc(`inboundRequests/${jobId}`);
+    expect(record[TASK_CONTEXT_IDENTITY_FIELD]).toBe(true);
+    const context = projectWebsiteTaskContext(doc(`siteTaskBriefs/${jobId}`), projectWebsiteCaptureRights(record),
+      { siteIdentity: await taskContextSiteIdentity(record) });
+    expect(context.description).toBe("Pick up each packed carton at our dock, and place it at the end of the table. Questions: [removed]");
+    await sendFootage(token);
+    const manifests = [
+      ...await Promise.all(sharedUploadBucket.objectNames().filter(name => name.endsWith("manifest.json"))
+        .map(async name => String((await sharedUploadBucket.bucket.file(name).download())[0]))),
+      ...[...state.docs.values()].flatMap(value => typeof (value as any)?.manifest_json === "string" ? [(value as any).manifest_json]
+        : typeof (value as any)?.stored_upload?.manifest_json === "string" ? [(value as any).stored_upload.manifest_json] : []),
+    ];
+    expect(manifests.length).toBeGreaterThan(0);
+    for (const manifest of manifests) {
+      expect(manifest).toContain("Pick up each packed carton at our dock");
+      for (const planted of ["Austin", email, "Mill Road"]) expect(manifest).not.toContain(planted);
+    }
+  });
+});
+
 describe("a site that sends its footage before confirming its brief", () => {
   it("continues on its job page without requiring brief confirmation", async () => {
     const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);

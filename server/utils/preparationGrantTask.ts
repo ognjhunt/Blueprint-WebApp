@@ -1,6 +1,7 @@
 import { PLACEHOLDER_TASK_SUMMARY, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { confirmationParentContextDigests, projectWebsiteTaskContext } from "./websiteTaskContext";
+import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 /** Records which retained preparation grant was issued before the site named its job. */
@@ -14,6 +15,7 @@ export const UNNAMED_TASK_GRANT_FIELD = "website_scene_sponsorship_unnamed_task"
  * development test site), stays bound to the task it was issued for. */
 export function preparationGrantFollowsBrief(grant: Record<string, any> | undefined, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
+  siteIdentity: KnownSiteIdentity | null;
 }) {
   if (grant?.purpose !== "scene_preparation" || grant.agents_api_policy !== undefined
     || grant.development_test_site !== undefined) return false;
@@ -22,9 +24,11 @@ export function preparationGrantFollowsBrief(grant: Record<string, any> | undefi
   // The site confirmed the very brief the grant was issued for: consent state, not task content, so the
   // grant follows its confirmed successor (same allowance, clock and spend history). An edit does not.
   if (confirmationParentContextDigests(input.brief, projectWebsiteCaptureRights(input.record),
-    { inventory: input.inventory, purpose: "scene_preparation" }).includes(grant.task_context_digest)) return true;
+    { siteIdentity: input.siteIdentity, inventory: input.inventory, purpose: "scene_preparation" }).includes(grant.task_context_digest))
+    return true;
   // Grants issued before the marker: only a provable first naming of the placeholder task.
   return grant.task_context_digest === projectWebsiteTaskContext(
     { ...input.brief, summary: PLACEHOLDER_TASK_SUMMARY, confirmedAtIso: null },
-    projectWebsiteCaptureRights(input.record), { inventory: input.inventory, purpose: "scene_preparation" }).context_digest;
+    projectWebsiteCaptureRights(input.record), { siteIdentity: input.siteIdentity, inventory: input.inventory,
+      purpose: "scene_preparation" }).context_digest;
 }

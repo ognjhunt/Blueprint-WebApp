@@ -8,11 +8,11 @@ import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import vector from "./fixtures/website-context-vector.json";
 import { ownerClosure } from "./fixtures/website-run-closure";
 
-const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null, persisted: [] as Record<string, unknown>[], closures: {} as Record<string, unknown>, workspaceTask: undefined as Record<string, unknown> | undefined }));
+const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null, persisted: [] as Record<string, unknown>[], closures: {} as Record<string, unknown>, workspaceTask: undefined as Record<string, unknown> | undefined, jobFacts: undefined as Record<string, unknown> | undefined }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => state.brief, TASK_BRIEFS_COLLECTION: "siteTaskBriefs" }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: { firestore: { FieldValue: { serverTimestamp: () => "server-time" } } }, dbAdmin: {
   runTransaction: async (callback: any) => callback({ get: (ref: any) => ref.get(), set: (ref: any, value: any) => ref.set(value) }),
-  collection: (name: string) => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: name !== "siteTaskItemInventories", data: () => name === "siteTaskItemInventories" ? undefined : name === "siteTaskBriefs" ? state.brief : ({ request: { consent_attestation: state.consent }, notification_request_id: "req1", website_run_closures: state.closures, workspace_task: state.workspaceTask }) }) }) }),
+  collection: (name: string) => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: name !== "siteTaskItemInventories", data: () => name === "siteTaskItemInventories" ? undefined : name === "siteTaskBriefs" ? state.brief : ({ request: { consent_attestation: state.consent }, notification_request_id: "req1", website_run_closures: state.closures, workspace_task: state.workspaceTask, job_facts: state.jobFacts }) }) }) }),
 } }));
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -29,7 +29,7 @@ function brief(confirmed: boolean): SiteTaskBriefRecord {
     confirmedBy: "private owner identity", operatorAnswers: confirmed ? { item_rigidity: "rigid" } : null,
     operatorUnknown: confirmed ? ["cycle"] : null };
 }
-afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; state.persisted = []; state.closures = {}; state.workspaceTask = undefined; });
+afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; state.persisted = []; state.closures = {}; state.workspaceTask = undefined; state.jobFacts = undefined; });
 
 it("returns the terminal owner-close code to the worker without revoking source consent", async () => {
   state.brief = brief(false);
@@ -130,6 +130,40 @@ it("reads confirmation after upload and rejects unsigned or mismatched capture r
 });
 
 const grant = { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-19T00:00:00Z" };
+
+// The site's quick answers on its job page reach the Pipeline for its job sheet (`SITE_JOB_FACTS_FIELD`), only on a
+// read that asks for them: they bind nothing, so a tap during preparation never changes a digest a grant holds.
+it("serves the site's quick answers only to a read that asks, as owner-stated, and changes no other read", async () => {
+  const { default: router } = await import("../routes/internal-capture-worlds");
+  const app = express(); app.use(express.json()); app.use(router);
+  const server = createServer(app);
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address(); if (!address || typeof address === "string") throw new Error("bind failed");
+  const post = (extra: Record<string, unknown> = {}) => fetch(`http://127.0.0.1:${address.port}/creator-captures/walkthrough-req1/task-context`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", purpose: "scene_preparation", ...extra }),
+  });
+  try {
+    state.brief = brief(true); state.consent = grant;
+    const before = await (await post()).text();
+    state.jobFacts = { perHour: "60_300", hours: "two_shifts", weight: "unsure", bogus: "free text", updatedAtIso: "2026-11-19T10:00:00.000Z" };
+    // Every read that does not ask is byte for byte what it was, whatever the site tapped.
+    expect(await (await post()).text()).toBe(before);
+    const asked = await (await post({ include_site_job_facts: true })).json();
+    expect(asked.site_job_facts).toEqual({ basis: "owner_stated_unverified", updated_at: "2026-11-19T10:00:00.000Z", answers: {
+      item_weight: { code: "unsure", answer: "Not sure", label: "Weight", question: "How heavy is the item?" },
+      items_per_hour: { code: "60_300", answer: "60 to 300", label: "How many an hour", question: "How many an hour?" },
+      hours_per_day: { code: "two_shifts", answer: "Two shifts", label: "Hours a day", question: "How many hours a day does this job run?" },
+    } });
+    const { site_job_facts: _facts, context_digest: _digest, ...rest } = asked;
+    const { context_digest: _plainDigest, ...plain } = JSON.parse(before);
+    expect(rest).toEqual(plain);
+    // No answers: the asked read is the plain read.
+    state.jobFacts = undefined;
+    expect(await (await post({ include_site_job_facts: true })).text()).toBe(before);
+    expect((await post({ include_site_job_facts: false })).status).toBe(400);
+  } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
+});
 it("forwards only the recorded scene-building grant, never data resale or a revoked grant", () => {
   expect(projectWebsiteCaptureRights({ request: { consent_attestation: grant } })).toMatchObject({
     derived_scene_generation_allowed: true, data_licensing_allowed: false, consent_status: "granted",

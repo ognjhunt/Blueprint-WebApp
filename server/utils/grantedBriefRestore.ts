@@ -15,7 +15,8 @@ import { humanDecisionDigest } from "./human-reply-admission";
 import { TASK_BRIEFS_COLLECTION, unresolvedGates, type ProposedGateAnswer,
   type SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
-import { projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteTaskContext, taskContextSiteIdentity } from "./websiteTaskContext";
+import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 
 /** Bases a model reading produces. A measurement is the operator's figure and stays. */
@@ -29,13 +30,13 @@ export type GrantedBriefRestorePlan =
   | { status: "restorable"; remove: number[]; restored: SiteTaskBriefRecord };
 
 export function planGrantedBriefRestore(record: Record<string, any>, brief: SiteTaskBriefRecord,
-  inventory: TaskItemInventoryRecord | null): GrantedBriefRestorePlan {
+  inventory: TaskItemInventoryRecord | null, siteIdentity: KnownSiteIdentity | null): GrantedBriefRestorePlan {
   const grant = record.website_scene_sponsorship;
   if (!grant) return { status: "no_grant" };
   const rights = projectWebsiteCaptureRights(record);
   const purpose = grant.purpose === "scene_preparation" ? "scene_preparation" as const : undefined;
   const context = (value: SiteTaskBriefRecord) =>
-    projectWebsiteTaskContext(value, rights, { inventory, purpose }).context_digest;
+    projectWebsiteTaskContext(value, rights, { siteIdentity, inventory, purpose }).context_digest;
   if (context(brief) === grant.task_context_digest) return { status: "matches_grant" };
   if (brief.confirmedAtIso) return { status: "confirmed" };
   const rows: readonly ProposedGateAnswer[] = brief.proposed ?? [];
@@ -70,7 +71,7 @@ export async function restoreGrantedBrief(requestId: string, { apply }: { apply:
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
     const record = request.data()!, current = brief.data() as SiteTaskBriefRecord;
     const plan = planGrantedBriefRestore(record, current,
-      inventory.exists ? inventory.data() as TaskItemInventoryRecord : null);
+      inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, await taskContextSiteIdentity(record));
     if (plan.status !== "restorable") return { applied: false, ...plan };
     const removed = plan.remove.map(index => current.proposed[index]);
     const summary = { status: plan.status, removed_fields: removed.map(row => row.fieldId),

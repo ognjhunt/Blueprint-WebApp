@@ -29,6 +29,7 @@ import type { BrowserPending } from "./websiteBrowserPending";
 import { retainedWebsiteScenePurpose, currentWebsitePreparationStatusContext } from "./websiteSceneSponsorship";
 import { parseWebsitePreparationWatch, stuckAlertMs, WEBSITE_PREPARATION_WATCH_DUE_FIELD,
   WEBSITE_PREPARATION_WATCH_FIELD, type WebsitePreparationWatch } from "./websitePreparationWatch";
+import { taskContextSiteIdentity } from "./websiteTaskContext";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/);
 const sceneId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,124}$/);
@@ -574,7 +575,7 @@ async function verifyCurrent(selector: WebsitePreparationSelector, transaction?:
     || observed.purpose !== purpose || (purpose ? observed.capture_owner?.user_id ?? null : observed.capture_owner?.user_id) !== owner
     || !purpose && owner === null
     || currentWebsitePreparationStatusContext({requestId: selector.request_id, brief, record: request ?? {}, inventory,
-      captureId: selector.capture_id, captureBinding: binding}).context_digest !== selector.task_context_digest) throw unavailable();
+      captureId: selector.capture_id, captureBinding: binding, siteIdentity: await taskContextSiteIdentity(request)}).context_digest !== selector.task_context_digest) throw unavailable();
   return {fingerprint: sourceFingerprint(session), binding, owner,
     ...(purpose ? {sponsorshipDigest: request!.website_scene_sponsorship.authority_digest} : {})};
 }
@@ -599,7 +600,8 @@ const defaultDeps: WebsitePreparationDeps = {
         || owner !== authority.owner || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
         || authority.sponsorshipDigest !== undefined && request?.website_scene_sponsorship?.authority_digest !== authority.sponsorshipDigest
         || currentWebsitePreparationStatusContext({requestId: selector.request_id, brief, record: request ?? {}, inventory,
-          captureId: selector.capture_id, captureBinding: authority.binding}).context_digest !== selector.task_context_digest) throw unavailable();
+          captureId: selector.capture_id, captureBinding: authority.binding,
+          siteIdentity: await taskContextSiteIdentity(request)}).context_digest !== selector.task_context_digest) throw unavailable();
       const preparation = mergeWebsitePreparationStatus(parseStored(session.website_preparation), selector, status);
       const watch = nextWebsitePreparationWatch(parseWebsitePreparationWatch(session[WEBSITE_PREPARATION_WATCH_FIELD]),
         preparation, Date.now());

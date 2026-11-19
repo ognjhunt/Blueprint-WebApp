@@ -4,6 +4,106 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { TaskItem, TaskItemInventoryRecord } from "./taskItemInventory";
+import { REMOVED, identifyingDetailsRemoved, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { knownSiteIdentity } from "./siteIdentity";
+import { JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_QUESTIONS, JOB_FACT_SHORT_LABELS, sanitizeJobFacts, type JobFactKey }
+  from "../../client/src/lib/jobFacts";
+
+/**
+ * The Pipeline never receives the site's identity (data minimisation, 2026-11-19). The site's own words in the task
+ * context (its sentence, its answers, the object details and the success definition it typed) go to the Pipeline
+ * with the site's name, organisation, contact names, typed address, email, phone and any street address or contact
+ * detail removed: the same `removeIdentifyingDetails` the sentence a deployment company reads goes through
+ * (`companyJobPage.ts`). A text with nothing to remove is sent exactly as stored, byte for byte, so its context and
+ * its digest are what they were before.
+ *
+ * Which jobs: a job created from this change on carries this field, set once when it is created. A job created before
+ * it does not, and keeps its task context as typed, byte for byte: the Pipeline already holds that text (the upload
+ * manifest and the context it sealed for preparation), and every record bound to the context's digest (the
+ * preparation grant and its continuations, Atlas grants, preparation status, target choices, the Pipeline's own
+ * sealed context and lineage) stays valid. So no job in flight sees its digest change, and nothing paid is bought
+ * again. A new job is cleaned from its very first projection, before anything is bound to it.
+ */
+export const TASK_CONTEXT_IDENTITY_FIELD = "task_context_without_site_identity";
+
+/**
+ * The identity a job's task context is cleaned of: the record's decrypted identity for a job created with
+ * `TASK_CONTEXT_IDENTITY_FIELD`, else null (its text goes as typed). Every projection whose text or digest matters
+ * passes this, so every digest of one job is computed from the same text.
+ */
+export async function taskContextSiteIdentity(record: Record<string, any> | null | undefined): Promise<KnownSiteIdentity | null> {
+  return record?.[TASK_CONTEXT_IDENTITY_FIELD] === true ? knownSiteIdentity(record) : null;
+}
+
+/**
+ * The site's quick answers on its job page (`job_facts`: weight, size, how many an hour, hours a day, when), as the
+ * Pipeline's job sheet prints them: the site's own statements, never checked (`basis: "owner_stated_unverified"`).
+ * Each is a closed code with its fixed words; there is no free text in them, so nothing to clean.
+ *
+ * They are NOT part of the task context a grant, a preparation or a status binds to. A site taps these at any time,
+ * mostly while its job is being prepared; inside a bound context every tap would change the digest, and the job would
+ * be prepared, and paid for, again. So the task-context route adds them only to a read that asks for them
+ * (`include_site_job_facts`), which binds nothing: the Pipeline keeps them beside the capture for the job sheet
+ * (`website_site_job_facts`). Every other projection, and every digest, is what it was.
+ *
+ * Shape (`site_job_facts`, stable): `{ basis: "owner_stated_unverified", updated_at: string | null, answers: {
+ * <key>: { code, answer, label, question } } }`, with keys `item_weight`, `item_size_longest_side`, `items_per_hour`,
+ * `hours_per_day` and `wanted_by`, present only for the questions the site answered ("Not sure" is an answer:
+ * code `unsure`).
+ */
+export const SITE_JOB_FACTS_FIELD = "site_job_facts";
+const SITE_JOB_FACT_KEYS: Readonly<Record<JobFactKey, string>> = { weight: "item_weight", size: "item_size_longest_side",
+  perHour: "items_per_hour", hours: "hours_per_day", timing: "wanted_by" };
+export interface SiteJobFacts {
+  basis: "owner_stated_unverified";
+  updated_at: string | null;
+  answers: Record<string, { code: string; answer: string; label: string; question: string }>;
+}
+/** The record's quick answers in the Pipeline's shape, or null when the site answered none. */
+export function siteJobFactsForPipeline(record: Record<string, any> | null | undefined): SiteJobFacts | null {
+  const facts = sanitizeJobFacts(record?.job_facts);
+  if (!facts) return null;
+  const answers: SiteJobFacts["answers"] = {};
+  for (const key of JOB_FACT_KEYS) {
+    const code = facts[key];
+    const choice = code ? (JOB_FACT_CHOICES[key] as ReadonlyArray<{ code: string; label: string }>).find(item => item.code === code) : null;
+    if (choice) answers[SITE_JOB_FACT_KEYS[key]] = { code: choice.code, answer: choice.label, label: JOB_FACT_SHORT_LABELS[key],
+      question: JOB_FACT_QUESTIONS[key] };
+  }
+  return { basis: "owner_stated_unverified", updated_at: facts.updatedAtIso || null, answers };
+}
+
+/** One text without the site's identity, or the very same text when there is nothing to remove. A text that was
+ * nothing but the site's identity reads `[removed]`, never empty: the Pipeline refuses a context with no description. */
+function withoutIdentity(text: string, identity: KnownSiteIdentity): string {
+  if (!identifyingDetailsRemoved(text, identity)) return text;
+  const cleaned = removeIdentifyingDetails(text, identity);
+  return cleaned.trim() ? cleaned : REMOVED;
+}
+
+/**
+ * The site's sentence as the upload manifest carries it to the Pipeline (`browserCaptureManifest.ts`): the same text the
+ * task context carries, so a job created with `TASK_CONTEXT_IDENTITY_FIELD` never sends its identity there either.
+ */
+export async function manifestTaskDescription(requestId: string, summary: string): Promise<string> {
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const identity = await taskContextSiteIdentity((await db.collection("inboundRequests").doc(requestId).get()).data());
+  return identity ? withoutIdentity(summary, identity) : summary;
+}
+
+/** The brief with the site's identity removed from every free text the task context carries. Pure. */
+export function briefWithoutSiteIdentity(brief: SiteTaskBriefRecord, identity: KnownSiteIdentity | null): SiteTaskBriefRecord {
+  if (!identity) return brief;
+  const text = (value: unknown) => typeof value === "string" ? withoutIdentity(value, identity) : value;
+  const texts = <T extends Record<string, unknown> | null | undefined>(value: T): T => value && typeof value === "object"
+    ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, text(item)])) as T : value;
+  const criteria = brief.successCriteria;
+  return { ...brief, summary: text(brief.summary) as string,
+    ...(brief.operatorAnswers !== undefined ? { operatorAnswers: texts(brief.operatorAnswers) } : {}),
+    ...(brief.operatorTaskDetails !== undefined ? { operatorTaskDetails: texts(brief.operatorTaskDetails) } : {}),
+    ...(criteria ? { successCriteria: { ...criteria, ...(typeof criteria.successDefinition === "string"
+      ? { successDefinition: text(criteria.successDefinition) as string } : {}) } } : {}) };
+}
 
 export async function loadWebsiteCaptureRights(requestId: string) {
   if (!db) throw new Error("website_capture_rights_store_unavailable");
@@ -35,9 +135,14 @@ function projectTaskItem(item: TaskItem, requestId: string) {
 }
 
 type TaskContextEvidence = {
+  /** The identity the job's text is cleaned of (`taskContextSiteIdentity`); null sends the text as typed. Required, so
+   * every digest of one job is computed from the same text. */
+  siteIdentity: KnownSiteIdentity | null;
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, unknown>; purpose?: "scene_preparation";
   /** The task context the job's retained preparation grant was issued for (`preparationGrantContextDigest`). */
   preparationGrantContextDigest?: string;
+  /** Only the task-context route's read that asks for them (`SITE_JOB_FACTS_FIELD`); never a projection a digest binds. */
+  siteJobFacts?: SiteJobFacts | null;
 };
 
 /** The task context digest the job's retained preparation grant was issued for: what its preparation sealed. */
@@ -55,8 +160,10 @@ export function preparationGrantContextDigest(record: Record<string, any> | unde
  * (`confirmationParentContextDigests`). The parent is the context the retained preparation grant was issued
  * for, so it is the digest preparation sealed, byte for byte. Only a confirmation that changed answers names
  * it: one that changed nothing but the confirmation is recognised from the context itself. */
-export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRights?: ReturnType<typeof projectWebsiteCaptureRights>,
-  evidence?: TaskContextEvidence) {
+export function projectWebsiteTaskContext(stored: SiteTaskBriefRecord, captureRights: ReturnType<typeof projectWebsiteCaptureRights> | undefined,
+  evidence: TaskContextEvidence) {
+  // The site's identity out of its own words first: everything below, the digest and its parents included, reads them.
+  const brief = briefWithoutSiteIdentity(stored, evidence?.siteIdentity ?? null);
   // Legacy confirmed captures retain their digest. An unconfirmed proposal
   // must bind its explicit task semantics before any native preparation can
   // default it into a narrower evaluator; old ambiguous grants fail closed.
@@ -87,9 +194,10 @@ export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRig
     ...(evidence?.captureBinding ? { capture_binding: evidence.captureBinding } : {}),
     ...(evidence?.inventory?.items.some(countsTowardTask) ? { task_items: evidence.inventory.items.filter(countsTowardTask)
       .map(item => projectTaskItem(item, brief.requestId)) } : {}),
+    ...(evidence?.siteJobFacts ? { [SITE_JOB_FACTS_FIELD]: evidence.siteJobFacts } : {}),
   };
   const sealed = evidence?.preparationGrantContextDigest;
-  const parent = brief.confirmedAtIso && sealed && confirmationParents(brief, captureRights, evidence).answered.includes(sealed)
+  const parent = brief.confirmedAtIso && sealed && confirmationParents(stored, captureRights, evidence).answered.includes(sealed)
     ? sealed : undefined;
   const stated = parent ? { ...value, confirmation_parent_context_digest: parent } : value;
   return { ...stated, context_digest: canonicalArtifactDigest(stated, "context_digest") };
@@ -127,8 +235,8 @@ function confirmationParentBriefs(brief: SiteTaskBriefRecord) {
   return { pure, answered };
 }
 
-function confirmationParents(brief: SiteTaskBriefRecord, captureRights?: ReturnType<typeof projectWebsiteCaptureRights>,
-  evidence?: TaskContextEvidence): { pure: string[]; answered: string[] } {
+function confirmationParents(brief: SiteTaskBriefRecord, captureRights: ReturnType<typeof projectWebsiteCaptureRights> | undefined,
+  evidence: TaskContextEvidence): { pure: string[]; answered: string[] } {
   if (!brief.confirmedAtIso) return { pure: [], answered: [] };
   const base = { ...evidence, preparationGrantContextDigest: undefined };
   const without = (context: Record<string, unknown>, fields: readonly string[]) => canonicalArtifactDigest(
@@ -153,8 +261,8 @@ function confirmationParents(brief: SiteTaskBriefRecord, captureRights?: ReturnT
  * success definition, item details, rights). Only a digest a retained record holds is ever matched against
  * these. The confirmation itself is the brief's own. */
 export function confirmationParentContextDigests(brief: SiteTaskBriefRecord,
-  captureRights?: ReturnType<typeof projectWebsiteCaptureRights>,
-  evidence?: Parameters<typeof projectWebsiteTaskContext>[2]): string[] {
+  captureRights: ReturnType<typeof projectWebsiteCaptureRights> | undefined,
+  evidence: Parameters<typeof projectWebsiteTaskContext>[2]): string[] {
   const { pure, answered } = confirmationParents(brief, captureRights, evidence);
   return [...pure, ...answered];
 }

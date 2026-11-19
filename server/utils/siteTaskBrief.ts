@@ -59,7 +59,7 @@ import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { TASK_CONFIRMATION_VERSION } from "../../client/src/lib/taskConfirmationStatement";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
-import { projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteTaskContext, taskContextSiteIdentity } from "./websiteTaskContext";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 
@@ -475,12 +475,13 @@ async function movesGrantedTask(transaction: FirebaseFirestore.Transaction, requ
   const rights = projectWebsiteCaptureRights(record);
   const purpose = grant.purpose === "scene_preparation" ? "scene_preparation" as const : undefined;
   const sealed = purpose ? grant.task_context_digest : undefined;
-  const context = (value: SiteTaskBriefRecord) => projectWebsiteTaskContext(value, rights, { inventory, purpose,
+  const siteIdentity = await taskContextSiteIdentity(record);
+  const context = (value: SiteTaskBriefRecord) => projectWebsiteTaskContext(value, rights, { siteIdentity, inventory, purpose,
     preparationGrantContextDigest: sealed }).context_digest;
   if (context(brief) === context(next)) return false;
   // preparationGrantTask imports this module; load it when it is needed.
   const { preparationGrantFollowsBrief } = await import("./preparationGrantTask");
-  return !preparationGrantFollowsBrief(grant, { brief: next, record, inventory });
+  return !preparationGrantFollowsBrief(grant, { brief: next, record, inventory, siteIdentity });
 }
 
 export async function mergeBriefProposals(params: {

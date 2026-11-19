@@ -15,7 +15,8 @@ import { firstLookRowFromAnswerRobot, firstLookRowInWords } from "../../client/s
 import { readJobFacts } from "./jobFacts";
 import { firstLookFromStoredPreparation } from "./firstLookTable";
 import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
-import { removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { removeIdentifyingDetails } from "../../client/src/lib/contactRedaction";
+import { knownSiteIdentity } from "./siteIdentity";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { companyClipUrl, storedCompanyClip } from "./websiteCompanyClip";
@@ -90,31 +91,8 @@ export async function countryOf(record: Record<string, any>): Promise<string | n
   return record.request?.capture_region === "us" ? "United States" : null;
 }
 
-/**
- * Everything the job record holds that names or reaches the site, decrypted the way the introduction does it. Read only
- * to remove it from the sentence; never logged, never returned.
- */
-export async function knownSiteIdentity(record: Record<string, any>): Promise<KnownSiteIdentity> {
-  const read = async (value: unknown): Promise<string | null> => {
-    if (value === null || value === undefined || value === "") return null;
-    try { return String(await decryptFieldValue(value as never) ?? "").trim() || null; } catch { return null; }
-  };
-  const contact = record.contact ?? {}, request = record.request ?? {}, place = request.siteLocationMetadata ?? {};
-  const [first, last, company, email, phone, siteName, siteLocation, formatted, city, postal] = [
-    await read(contact.firstName), await read(contact.lastName), await read(contact.company), await read(contact.email),
-    await read(contact.phone), await read(request.siteName), await read(request.siteLocation), await read(place.formattedAddress),
-    await read(place.city), await read(place.postalCode)];
-  const plain = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
-  const placeholder = (value: string | null) => value === "Untitled site" || value === "Location pending" ? null : value;
-  return {
-    names: [placeholder(siteName), company, first && last ? `${first} ${last}` : null, first, last,
-      plain(record.siteName), plain(record.submitterName), plain(record.contactFirstName), plain(record.contactName)],
-    // The site's and the organisation's own names: their distinctive words are removed alone too, when capitalised.
-    organisations: [placeholder(siteName), company, plain(record.siteName)],
-    addresses: [placeholder(siteLocation), formatted, city, postal, plain(record.site_address)],
-    contacts: [email, phone, plain(record.contactEmail), plain(record.contactPhone)],
-  };
-}
+/** Everything the job record holds that names or reaches the site (`siteIdentity.ts`). */
+export { knownSiteIdentity };
 
 /** The page payload for one viewer, or null when the job is not listed (refused alike with a job that does not exist). */
 export async function loadCompanyJobPage(requestId: string, viewer: { companyId: string }): Promise<CompanyJobPage | null> {
@@ -154,7 +132,9 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
     // text and any other contact detail removed (`removeIdentifyingDetails`): a company gets those only through an
     // introduction the site asks for.
-    sentence: removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), await knownSiteIdentity(record)),
+    // Identity that cannot be read right now: no sentence this time, never one that might still name the site.
+    sentence: await knownSiteIdentity(record).then(known => removeIdentifyingDetails(
+      String(brief?.summary ?? "").trim().slice(0, 2000), known)).catch(() => ""),
     jobFacts: jobFactsInWords(facts),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }

@@ -7,7 +7,7 @@ import { buildBrowserCaptureManifest, type BrowserVideoMetadata } from "./browse
 import { probeCaptureVideo, probeStoredCaptureVideo, VideoProbeError } from "./selfCaptureMediaMetadata";
 import { authorizeCaptureUpload } from "./captureUploadAuthorization";
 import { getBrief } from "./siteTaskBrief";
-import { loadWebsiteCaptureRights } from "./websiteTaskContext";
+import { loadWebsiteCaptureRights, manifestTaskDescription } from "./websiteTaskContext";
 import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
 import { notifySlackFootageNeedsReview } from "./slack";
 import { screenCaptureForPrivacy } from "./capturePrivacyScreen";
@@ -170,7 +170,9 @@ export async function finishStoredCapture(params: {
       const manifestJson = JSON.stringify(buildBrowserCaptureManifest({ payload,
         objectPath, video: params.videoMetadata, sizeBytes: params.sizeBytes,
         captureRights, firstReceivedAtIso,
-        taskContext: { description: brief?.summary ?? "", confirmed: Boolean(brief?.confirmedAtIso),
+        // The site's sentence without its identity, for a job created with that rule (`websiteTaskContext.ts`).
+        taskContext: { description: await manifestTaskDescription(payload.requestId, brief?.summary ?? ""),
+          confirmed: Boolean(brief?.confirmedAtIso),
           confirmed_at: brief?.confirmedAtIso ?? null },
       }), null, 2);
       storedUpload = { schema_version: "website_browser_stored_upload.v1",
