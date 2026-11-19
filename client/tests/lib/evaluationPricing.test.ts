@@ -35,6 +35,9 @@ describe("free beta pricing", () => {
       "entriesForBalance",
       "included",
       "includedLimit",
+      // The $99 entry price and the Stripe top-up minimum (removed 2026-11-19).
+      "entryPrice",
+      "minTopupUsd",
     ]) {
       expect(pricing, name).not.toHaveProperty(name);
     }

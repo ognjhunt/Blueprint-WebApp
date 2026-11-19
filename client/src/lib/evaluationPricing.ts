@@ -11,23 +11,13 @@
  * company. Blueprint takes no cut of it and charges nothing for it.
  */
 
-/**
- * Historical paid-run planning price.
- *
- * @deprecated historical; not charged during the free beta. Kept only because
- * server-side cost accounting (`cohortEconomics.ts`) still prices the compute
- * behind an evaluation against it. No public surface
- * may quote it.
+/*
+ * No price lives here. The old $99 entry price and the Stripe top-up minimum
+ * were removed on 2026-11-19: nothing read them (`cohortEconomics.ts` and
+ * `MIN_TOPUP_USD` no longer exist), and a price a public page can import is a
+ * price it can quote. Deployment companies will pay; how is not decided, and
+ * no price is stated anywhere (owner, 2026-11-12).
  */
-export const entryPrice = 99;
-
-/**
- * Historical smallest Stripe top-up. Mirrors `MIN_TOPUP_USD` on the server.
- *
- * @deprecated historical; not charged during the free beta. Top-ups are
- * disabled; this stays only so preserved historical balances reconcile.
- */
-export const minTopupUsd = entryPrice;
 
 /** What Blueprint charges anyone during the beta. */
 export const betaFeeUsd = 0;

@@ -85,11 +85,6 @@ const definitions = [
       "A result where some claims are answered while others remain unresolved or abstained. The answered claims do not silently upgrade the unresolved ones.",
   },
   {
-    term: "Legacy commerce compatibility",
-    definition:
-      "Historical orders and entitlements remain readable under their original access controls. New standalone quote and checkout endpoints are retired and create no payment or entitlement state.",
-  },
-  {
     term: "Capture provenance",
     definition:
       "The capture record, timestamps, device/context metadata, privacy handling, rights posture, freshness, and restrictions attached to downstream outputs.",

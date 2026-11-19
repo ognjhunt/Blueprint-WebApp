@@ -445,11 +445,6 @@ export interface HostedSessionRecord {
   presentationLaunchState?: PresentationLaunchState | null;
   activeOperation?: HostedSessionPendingOperation | null;
   latestRuntimeFailure?: HostedSessionFailureDiagnostic | null;
-  metering: {
-    sessionSeconds: number;
-    billableHours: number;
-    priceLabel?: string | null;
-  };
   launchContext: {
     site_world_spec_uri: string;
     site_world_registration_uri: string;

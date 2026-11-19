@@ -17,10 +17,9 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest, decide
   const ready = access.evaluationAvailable;
   const captured = Boolean(raw.capture_privacy_screen?.screened_at_iso || raw.capture_coverage
     || record.pipeline?.artifacts?.worldlabs_world_manifest_uri);
+  // No price, not even 0: no price is stated anywhere (owner, 2026-11-12). The card's old `costUsd` went on 2026-11-19.
   return { ...access.details, id, stage: ready ? "ready" : captured ? "preparing" : "capture",
-    // A free beta evaluation costs the team nothing; the deprecated entry
-    // price is never quoted (CLAUDE.md), so an open job reports 0.
-    evaluationAvailable: ready, costUsd: ready ? 0 : null,
+    evaluationAvailable: ready,
     publishedAtIso: raw.public_task_listing.approvedAtIso, jobUrl: `/jobs/${encodeURIComponent(id)}`,
     thumbnailUrl: taskThumbnailUrl(id, record) };
 }

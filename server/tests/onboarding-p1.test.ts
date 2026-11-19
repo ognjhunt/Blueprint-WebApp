@@ -45,7 +45,8 @@ describe("public task disclosure", () => {
   it("publishes only the closed category of the job, with no contact, intake, storage, footage or stored free text", () => {
     const card = projectTaskBrowseCard("req1", record());
     // The stored title is free text, so the card shows the neutral category (2026-11-12: never trust stored text).
-    expect(card).toMatchObject({ title: "Work assessment opportunity", opportunity: "open", evaluationAvailable: true, stage: "ready", costUsd: 0 });
+    expect(card).toMatchObject({ title: "Work assessment opportunity", opportunity: "open", evaluationAvailable: true, stage: "ready" });
+    expect(card).not.toHaveProperty("costUsd");
     expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs|Move cartons|US Midwest|Warehouse|Sealed cartons/);
   });
   it("rebuilds a shared card from its category and never shows the site's proposed terms or any stored text", () => {
@@ -74,7 +75,7 @@ describe("public task disclosure", () => {
   });
   it("public interest in a pilot cannot make an unproven scene runnable", () => {
     const source = record({ evaluation_readiness: null });
-    expect(projectTaskBrowseCard("req1", source)).toMatchObject({ stage: "preparing", evaluationAvailable: false, costUsd: null });
+    expect(projectTaskBrowseCard("req1", source)).toMatchObject({ stage: "preparing", evaluationAvailable: false });
     expect(isRunnableTask(source)).toBe(false);
   });
   it("shows capture progress separately and keeps closed scenes out of paid supply", () => {
