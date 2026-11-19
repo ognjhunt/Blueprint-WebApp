@@ -132,7 +132,9 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
     // text and any other contact detail removed (`removeIdentifyingDetails`): a company gets those only through an
     // introduction the site asks for.
-    sentence: removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), await knownSiteIdentity(record)),
+    // Identity that cannot be read right now: no sentence this time, never one that might still name the site.
+    sentence: await knownSiteIdentity(record).then(known => removeIdentifyingDetails(
+      String(brief?.summary ?? "").trim().slice(0, 2000), known)).catch(() => ""),
     jobFacts: jobFactsInWords(facts),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }

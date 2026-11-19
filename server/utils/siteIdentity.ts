@@ -10,7 +10,10 @@ import { decryptFieldValue } from "./field-encryption";
 export async function knownSiteIdentity(record: Record<string, any>): Promise<KnownSiteIdentity> {
   const read = async (value: unknown): Promise<string | null> => {
     if (value === null || value === undefined || value === "") return null;
-    try { return String(await decryptFieldValue(value as never) ?? "").trim() || null; } catch { return null; }
+    // A stored field that cannot be decrypted is unknown, not absent: removing identity with it missing would let
+    // the name through. Fail closed: the caller retries later (the Pipeline's projection) or shows nothing (a page).
+    try { return String(await decryptFieldValue(value as never) ?? "").trim() || null; }
+    catch { throw new Error("site_identity_unreadable"); }
   };
   const contact = record.contact ?? {}, request = record.request ?? {}, place = request.siteLocationMetadata ?? {};
   // In parallel: each field may be one key-service call, and some callers read this inside a transaction.
