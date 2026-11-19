@@ -19,22 +19,26 @@
  * `held` (terminal) is a capability limit: we can't simulate this kind of job
  * yet. `withdrawn` (terminal) is rights or consent ending. `setup_repair` waits
  * while Blueprint can still fix it, and ends only when the execution window
- * expired or a non-extendable allowance ran out. `awaiting_spend_approval` and
- * `awaiting_site` are waits.
+ * expired or a non-extendable allowance ran out. `spending_cap_reached`
+ * (terminal, owner decision 2026-11-19) is the job's one spending cap: no further
+ * paid call starts and the job keeps what it has; nothing waits for an owner.
+ * `awaiting_site` is a wait. The Pipeline's old `awaiting_spend_approval` wait is
+ * no longer a kind: one still stored is not adopted, and the next status replaces it.
  */
+import { OUTLOOK_SENTENCES } from "../../client/src/lib/jobOutlook";
 import { z } from "zod";
 import { simulationHoldSentence } from "./betaPolicyScreeningContract";
 import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 
 export const SCENE_INTENT_OUTCOME_SCHEMA = "task_evaluation_scene_intent_outcome.v1";
-export const SCENE_INTENT_OUTCOME_KINDS = ["setup_repair", "awaiting_spend_approval", "awaiting_site", "withdrawn", "held"] as const;
+export const SCENE_INTENT_OUTCOME_KINDS = ["setup_repair", "spending_cap_reached", "awaiting_site", "withdrawn", "held"] as const;
 export type SceneIntentOutcomeKind = typeof SCENE_INTENT_OUTCOME_KINDS[number];
 /**
  * The endings the site is told about once. `stopped` is the WebApp's own general ending, never a kind the Pipeline
  * sends under that meaning: a terminal outcome whose kind this release does not know is adopted as it (review,
  * 2026-11-12), so the job ends, spending stops and the site hears once that the simulation stopped.
  */
-export const TERMINAL_SCENE_OUTCOME_KINDS = ["held", "withdrawn", "setup_repair", "stopped"] as const;
+export const TERMINAL_SCENE_OUTCOME_KINDS = ["held", "withdrawn", "setup_repair", "spending_cap_reached", "stopped"] as const;
 export type TerminalSceneOutcomeKind = typeof TERMINAL_SCENE_OUTCOME_KINDS[number];
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -69,7 +73,7 @@ export function sceneIntentOutcomeBinds(outcome: SceneIntentOutcome, status: { i
 
 const isTerminalKind = (value: unknown): value is TerminalSceneOutcomeKind =>
   (TERMINAL_SCENE_OUTCOME_KINDS as readonly unknown[]).includes(value);
-const WAIT_KINDS = new Set<string>(["setup_repair", "awaiting_spend_approval", "awaiting_site"]);
+const WAIT_KINDS = new Set<string>(["setup_repair", "awaiting_site"]);
 /** The pairings the contract defines: endings are terminal, waits are not. */
 const definedPairing = (outcome: SceneIntentOutcome) => outcome.terminal ? isTerminalKind(outcome.kind) : WAIT_KINDS.has(outcome.kind);
 /** The only cause of a WebApp revoke that is the site's rights ending (the capture's consent or rights). */
@@ -121,6 +125,8 @@ const ENDINGS: Readonly<Record<TerminalSceneOutcomeKind, { sentence: string; clo
     closing: "You don't need to do anything; this job has stopped." },
   setup_repair: { sentence: "We could not finish building the simulation of your site, and we have stopped trying.",
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
+  spending_cap_reached: { sentence: OUTLOOK_SENTENCES.spending_cap_reached,
+    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
   stopped: { sentence: "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens.",
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
 };
@@ -140,10 +146,7 @@ export function sceneWaitMessage(reading: Pick<SceneOutcomeReading, "kind" | "re
   { headline: string; operatorAction: string | null } | null {
   if (reading.kind === "setup_repair") return { operatorAction: null,
     headline: `We are fixing a setup problem on our side before your job's simulation can continue. ${NOTHING_NEEDED}` };
-  if (reading.kind === "awaiting_spend_approval") return { operatorAction: null,
-    headline: `Your job is waiting on an internal budget approval at Blueprint. ${NOTHING_NEEDED}` };
   if (reading.kind === "awaiting_site") return { operatorAction: SITE_ANSWER,
     headline: Object.hasOwn(SITE_NEEDS, reading.reasonCode) ? SITE_NEEDS[reading.reasonCode] : "Your job is waiting for something from you." };
   return null;
 }
-

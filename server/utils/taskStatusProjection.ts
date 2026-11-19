@@ -30,7 +30,7 @@ import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome,
-  isCompletePreparationOutcome } from "./taskPreparationOutcome";
+  isCompletePreparationOutcome, isSpendingCapOutcome } from "./taskPreparationOutcome";
 import { simulationHoldSentence, type SceneHoldOutcome, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
@@ -442,7 +442,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return { ...base, decision: "footage_received", stage: null, missingViews: [], headline: sceneEnding, operatorAction: null };
   }
   const asked = input.preparationStatus?.outcome
-    ?? (!nativeProgress && !input.scenePreviewReady ? input.preparationOutcome : null)
+    ?? (!nativeProgress && (!input.scenePreviewReady || isSpendingCapOutcome(input.preparationOutcome)) ? input.preparationOutcome : null)
     ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
       || input.scenePreparationFailed && !nativeProgress
       || input.sceneProgression?.state === "ended" && !sceneEnding ? processingFailure() : null);

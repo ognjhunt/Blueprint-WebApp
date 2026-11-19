@@ -10,7 +10,7 @@ export type JobOutlookReason =
   | "window_expired" | "no_grant" | "preparation_failed" | "scene_held" | "scene_stopped"
   | "run_held" | "run_ended" | "no_ai_robot_scored" | "robot_fit_only" | "unsized"
   | "step_failed" | "authority_ended" | "job_ended" | "window_ended_during_test" | "task_not_named"
-  | "not_processed_in_time" | "simulation_stopped";
+  | "not_processed_in_time" | "simulation_stopped" | "spending_cap_reached";
 export interface JobOutlook {
   phase: JobPhase;
   reason: JobOutlookReason | null;
@@ -45,6 +45,7 @@ export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_h
   // scene check (review, 2026-11-11).
   scene_held: "Work on the simulation of your job is on hold.",
   scene_stopped: "We could not finish building the simulation of your site.",
+  spending_cap_reached: "We reached our spending cap for this job, so we stopped building the simulation of your site.",
   robot_fit_only: "For this job we give a first look on paper only.",
   unsized: "Your video didn't show the job clearly enough for us to measure it.",
   // A finished test in which no AI robot could be scored is an ending, never a result (review, 2026-11-11).

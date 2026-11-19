@@ -185,6 +185,22 @@ describe("each introduction is one billable event, recorded only after the site'
     for (const planted of SITE_PLANTED) expect(raw).not.toContain(planted.toLowerCase());
   });
 
+  // Owner decision 2026-11-19 ("One cap at $40"): the job's spending cap governs what Blueprint spends building the
+  // packet, never the introduction. A job past its cap, its scene ended at the cap, still records the same one event.
+  it("records the same one event for a job that reached its spending cap", async () => {
+    const job = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    job.website_preparation_reservations = { spent: { admission: { maximum_cost_usd: 40, request_count: 1,
+      provider: "world_labs_atlas" }, settlement: { actual_cost_usd: 40, status: "settled" } } };
+    state.docs.set("taskEvaluationSceneIntakes/scene-capped", { website_request_id: ID, state: "blocked", receipt: {},
+      request: { execution: { max_total_spend_usd: 20 } }, pipeline_status: { status: "blocked", phase: "preparation",
+        blockers: ["scene_intake_spend_cap_exhausted"], attempts: [],
+        outcome: { kind: "spending_cap_reached", terminal: true, reason_code: "spend_cap_reached" } } });
+    const result = await press("Company A");
+    expect(result, JSON.stringify(result.body)).toMatchObject({ status: 200, body: { ok: true } });
+    expect(events()).toEqual([{ id: eventId(NORTH), kind: "introduction", requestId: ID, companyId: sha(NORTH.email),
+      atIso: result.body.introducedAtIso, priceUsd: null, status: "recorded_no_price" }]);
+  });
+
   it("records one event for a double press, and never rewrites it", async () => {
     const first = await press("A");
     expect(first.status).toBe(200);

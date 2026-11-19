@@ -38,11 +38,7 @@ import {
   settleWebsitePreparationSpend,
   currentWebsiteSceneContext,
   loadWebsiteAtlasConfiguration,
-  automaticBudgetExtensionGrant,
-  websiteJobOverBudgetAlert,
-  WEBSITE_JOB_SAFETY_LIMIT_REACHED,
-  websiteJobSafetyLimitAlert,
-  websiteJobSafetyLimitRecord,
+  WEBSITE_JOB_SPEND_CAP_REACHED,
   websiteJobSpendUnreadableAlert,
 } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
@@ -344,8 +340,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         return res.json(req.body.create === false
           ? await observeWebsitePreparationSpend(requestId, spend, req.params.captureId)
           // The Pipeline asks for this reservation after its own account-limit precheck
-          // (require_paid_resource_budget): the one path a flagged grant may pass its budget on.
-          : await reserveWebsitePreparationSpend(requestId, spend, req.params.captureId, { hostRequested: true }));
+          // (require_paid_resource_budget); here the job's spending cap decides.
+          : await reserveWebsitePreparationSpend(requestId, spend, req.params.captureId));
       }
       const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship" && req.body.create !== false, req.params.captureId,
         operation === "scene-sponsorship" ? { purpose: req.body.purpose, expected_task_context_digest: req.body.expected_task_context_digest,
@@ -365,7 +361,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       const id = `scene-${sceneDigest({ owner: request.owner, submission_id: request.submission_id }).slice(7)}`;
       const ref = db.collection(SCENE_INTAKE_COLLECTION).doc(id);
       const preparedBinding = await resolveWebsiteCaptureBinding(requestId, sceneId, req.params.captureId);
-      const safetyLimitReached = await db.runTransaction(async transaction => {
+      const spendCapReached = await db.runTransaction(async transaction => {
         const prior = await transaction.get(ref);
         const current = (await transaction.get(db!.collection("inboundRequests").doc(requestId))).data();
         const currentBrief = (await transaction.get(db!.collection(TASK_BRIEFS_COLLECTION).doc(requestId))).data() as SiteTaskBriefRecord;
@@ -380,50 +376,23 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
           if (prior.data()?.request_digest !== sceneDigest(request)) throw new Error("idempotency_conflict");
           return false;
         }
-        // One dollar ceiling per job (owner, 2026-10-30): a new intake grants native
-        // construction its allowance only while every ledger the job spends from fits.
-        // A navigation intake keeps its scene as filmed: it reserves $0 and grants no
-        // construction allowance (owner, 2026-11-07), so it adds nothing to check.
-        // Owner decision 2026-11-10: this route records the intake and buys nothing; every paid
-        // launch under it is admitted on the host, which checks the account's monthly limit
-        // (require_paid_resource_admission). So on a grant naming the automatic budget
-        // extension the ceiling is a warning: the intake is admitted with a note, and the job's
-        // one over-budget alert for this grant is recorded if it has none yet.
-        // Owner decision 2026-11-11: on such a grant nothing passes the job's safety limit, a
-        // navigation intake included (it adds $0, so it is refused only once the job is already
-        // past the limit). The job's one safety-limit alert is recorded with the refusal, which is
-        // thrown once this transaction commits. A grant without the flag is unchanged.
-        const root = current?.website_scene_sponsorship;
-        const extended = automaticBudgetExtensionGrant(root, undefined, Date.now() / 1000);
+        // One cap per job (owner, 2026-11-19): a new intake holds native construction's allowance in full,
+        // while it can still start an attempt, only when what the job already spent or holds on every ledger
+        // plus that allowance fits under the job's cap. Nothing passes it. A navigation intake keeps its
+        // scene as filmed: it reserves $0 and grants no construction allowance (owner, 2026-11-07), so it
+        // adds nothing to check. Every paid launch under the intake is still admitted on the host, which
+        // also checks the account's monthly limit (require_paid_resource_admission).
         const navigation = isNavigationStrategy(request.task.strategy);
-        const additional = navigation ? 0 : request.execution.max_total_spend_usd;
-        const job = navigation && !extended ? null
-          : await checkWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
-            reader: transactionJobLedgerReader(db!, transaction, requestId), additionalCostUsd: additional });
-        // A record whose figure cannot be read is counted as before and reported once per job (owner, 2026-11-11).
+        const job = navigation ? null
+          : await checkWebsiteJobCeiling({ record: current ?? {},
+            reader: transactionJobLedgerReader(db!, transaction, requestId),
+            additionalCostUsd: request.execution.max_total_spend_usd });
+        // A record whose figure cannot be read is counted as unbounded and reported once per job.
         const recordUnreadable = job ? await websiteJobSpendUnreadableAlert(db!, transaction, requestId, job.spend,
           { stage: "scene_intake", scene_intake_id: id }) : () => {};
-        if (!navigation && job?.exceeded && !extended) { recordUnreadable(); return true; }
-        if (extended && job?.pastSafetyLimit) {
-          const recordSafety = await websiteJobSafetyLimitAlert(db!, transaction, requestId, websiteJobSafetyLimitRecord(job,
-            { stage: "scene_intake", scene_intake_id: id, additional_cost_usd: additional }));
-          recordSafety(); recordUnreadable();
-          return true;
-        }
-        const overBudget = !navigation && job?.exceeded ? {
-          schema_version: "website_job_over_budget.v1", basis: "automatic_budget_extension",
-          sponsorship_digest: root.authority_digest as string, allowance: "native_construction_allowance",
-          allowance_usd: request.execution.max_total_spend_usd, allowance_exceeded: false,
-          job_ceiling_usd: job.ceiling.maximum_cost_usd, job_ceiling_source: job.ceiling.source, job_ceiling_exceeded: true,
-          // An unreadable earlier hold is unknown, never a figure.
-          job_reserved_or_settled_before_usd: Number.isFinite(job.spend.total_micros) ? job.spend.total_micros / 1_000_000 : null,
-          recorded_at_epoch: Date.now() / 1000 } : null;
-        const recordAlert = overBudget
-          ? await websiteJobOverBudgetAlert(db!, transaction, requestId, overBudget, { scene_intake_id: id }) : () => {};
-        recordAlert();
         recordUnreadable();
+        if (job?.exceeded) return true;
         transaction.create(ref, {
-          ...(overBudget ? { over_budget: overBudget } : {}),
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
           source_session_id: websitePreparationCaptureId(request), website_request_id: requestId,
           sponsorship_digest: authority.authority_digest,
@@ -434,7 +403,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         });
         return false;
       });
-      if (safetyLimitReached) throw new Error(WEBSITE_JOB_SAFETY_LIMIT_REACHED);
+      if (spendCapReached) throw new Error(WEBSITE_JOB_SPEND_CAP_REACHED);
       return res.status(202).json({ id, request_digest: sceneDigest(request), state: "forward_pending" });
     } catch (error) {
       const code = error instanceof Error ? error.message : "website_scene_sponsorship_unavailable";

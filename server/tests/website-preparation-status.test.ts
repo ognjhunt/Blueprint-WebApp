@@ -617,4 +617,3 @@ it("v2 status transaction refuses concurrent authority/account changes",async()=
     await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
   }
 });
-

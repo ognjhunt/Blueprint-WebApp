@@ -512,15 +512,17 @@ const JOB_ALERT_LINE: Record<JobAlertKind, (value: Record<string, any>) => strin
     + `(limit $${value.limit_usd}, committed $${value.committed_upper_bound_usd}, campaign ${value.campaign_id}). `
     + "The result was kept and counted in full, so the job admits no more spend. A person needs to look.",
   screening_job_ceiling: value => `: testing held ${value.candidate_count ?? "some"} AI robot(s) back at this job's limit of `
-    + `${usd(value.job_ceiling_usd)} (campaign ${value.campaign_id}). Decide whether to raise it `
-    + "(scripts/amend-website-atlas-grant.ts).",
+    + `${usd(value.job_ceiling_usd)} (campaign ${value.campaign_id}). Nothing raises a job's cap (owner, 2026-11-19); `
+    + "the job ships what it has.",
   spend_unreadable: value => `: this job's spend cannot be read: ${(Array.isArray(value.records) ? value.records : []).join(", ")
     || "a record"}${value.record_count > 20 ? ` and ${value.record_count - 20} more` : ""}. It is counted as before; a person needs to look.`,
 };
 
 /**
- * Owner decision 2026-11-10: a job whose grant names the automatic budget extension is
- * not stopped by its own dollar figures; the owner is told early instead. The reservation
+ * Owner decision 2026-11-10 (ended 2026-11-19: one cap at $40 per job, nothing passes it, so no new
+ * over-budget or safety-limit marker is written; markers already stored are still reported once): a job
+ * whose grant names the automatic budget extension is not stopped by its own dollar figures; the owner is
+ * told early instead. The reservation
  * that first takes a job past its original budget records one marker per job and grant
  * (reserveWebsitePreparationSpend); this pass reports it once, through the same
  * recoverable delivery (Slack first, ops email as fallback). Internal only: nothing is

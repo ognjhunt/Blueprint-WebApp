@@ -41,6 +41,8 @@ export interface JobOutlookInput {
   preparation: { state: string; geometryOnlyEnd: boolean; terminalReason?: string | null } | null;
   /** The scene's progression after hand-off; `attemptFailed` when a build attempt failed and another is coming. */
   scene: { state: string; attemptFailed?: boolean; endingKind?: string } | null;
+  /** The verified preview for this capture ended at the job's cap before a native scene was built. */
+  atlasSpendingCapReached?: boolean;
   /** The job's simulation proof (`projectSimulationProof`), or null when there is no evaluation to read. */
   proof: SimulationProof | null;
   /** Something the decision needs could not be read. An unknown is never an ending, and never hides a recorded one. */
@@ -104,12 +106,14 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   // site's own endings; then a published scored result; then every recorded ending). A read that failed elsewhere
   // (`uncertain`) never hides one of them; it only keeps a job with none of them working.
   if (proofScoredAnyRobot(proof)) return outlook("result");
+  const ending = recordedEndingOf(input);
+  if (ending?.reason === "spending_cap_reached") return ending;
   if (!input.answer || input.answer.state === "reading") return outlook("reading");
   // A live run is testing, whatever the clock says: the window's end stops it through its own authority, and the run's
   // terminal record then says so (`window_ended_during_test`).
   if (liveRun(input)) return outlook("testing");
   // Waiting for the site to name its job: neither building nor an ending.
-  return recordedEndingOf(input) ?? (input.awaitsSiteSentence === true ? outlook("waiting_on_site", "task_not_named") : working());
+  return ending ?? (input.awaitsSiteSentence === true ? outlook("waiting_on_site", "task_not_named") : working());
 }
 
 /**
@@ -148,6 +152,9 @@ function recordedEnding(input: JobOutlookInput,
     return outlook("no_test", ended ? "run_ended" : "run_held", testNotRunLine(proof));
   }
   if (input.scene?.state === "held") return outlook("no_test", "scene_held");
+  if (input.scene?.state === "ended" && input.scene.endingKind === "spending_cap_reached"
+    || input.atlasSpendingCapReached === true && input.preparation?.state !== "handed_off")
+    return outlook("no_test", "spending_cap_reached");
   // An ending whose kind this release does not know (`stopped`): it says only that the simulation stopped.
   if (input.scene?.state === "ended") return outlook("no_test", input.scene.endingKind === "stopped" ? "simulation_stopped" : "scene_stopped");
   // `capacity_blocked` covers every cause the Pipeline sends it for (its disk or staging stayed short; the job waited
@@ -216,9 +223,10 @@ export async function loadJobOutlookDecision(requestId: string, known?: JobOutlo
 async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads | undefined, outlookOnly: boolean):
   Promise<{ outlook: JobOutlook; certain: boolean; ending: JobOutlook | null; resultUnknown: boolean }> {
   const [{ siteWalkthroughIdentity }, { projectWebsiteCaptureRights }, { websiteRunClosure },
-    { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding }, { loadSiteAnswer }] = await Promise.all([
+    { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding }, { loadSiteAnswer },
+    { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview }] = await Promise.all([
     import("./siteWalkthrough"), import("./websiteCaptureRights"),
-    import("./websiteRunClosure"), import("./websiteJobWindowEnding"), import("./siteAnswer")]);
+    import("./websiteRunClosure"), import("./websiteJobWindowEnding"), import("./siteAnswer"), import("./websiteAtlasPreview")]);
   if (!dbAdmin) throw new Error("job_outlook_unavailable");
   // What the caller read is used only for the job's current capture; otherwise every read is made here.
   const given = known && known.captureId === siteWalkthroughIdentity(requestId, known.record).captureId ? known : undefined;
@@ -284,6 +292,7 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
     windowEndedAtEpoch,
     runStoppedByWindow, resultUnknown,
     awaitsSiteSentence,
+    atlasSpendingCapReached: atlasPreviewReachedSpendingCap(selectWebsiteAtlasPreview(record, captureId)),
     preparation, scene, proof, uncertain,
   };
   const outlook = jobOutlook(input);

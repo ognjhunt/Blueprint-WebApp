@@ -281,7 +281,9 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
     ["withdrawn", "consent_expired", "Permission to use this video for your job was withdrawn or has expired. You don't need to do anything; this job has stopped."],
     ["setup_repair", "retry_cap_exhausted", "We could not finish building the simulation of your site, and we have stopped trying. Your first look stays on your job page. Nothing is needed from you."],
     ["setup_repair", "authority_expired", "We could not finish building the simulation of your site, and we have stopped trying. Your first look stays on your job page. Nothing is needed from you."],
-  ] as const)("a terminal %s outcome (%s) says on the page what the job's ending is", async (kind, reasonCode, sentence) => {
+    ["spending_cap_reached", "spend_cap_reached", "We reached our spending cap for this job, so we stopped building the simulation of your site. Your first look stays on your job page. Nothing is needed from you."],
+    ["spending_cap_reached", "job_ceiling_reached", "We reached our spending cap for this job, so we stopped building the simulation of your site. Your first look stays on your job page. Nothing is needed from you."],
+  ] as const)("a terminal %s outcome (%s) says on the page what the job's ending is", (kind, reasonCode, sentence) => {
     for (const scenePreviewReady of [false, true]) {
       const status = project(progression(kind, true, reasonCode), { scenePreviewReady });
       expect(status.headline).toBe(sentence);
@@ -302,7 +304,6 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
   it.each([
     ["setup_repair", "pipeline_fault", "We are fixing a setup problem on our side before your job's simulation can continue. Nothing is needed from you.", null],
     ["setup_repair", "a_later_reason", "We are fixing a setup problem on our side before your job's simulation can continue. Nothing is needed from you.", null],
-    ["awaiting_spend_approval", "job_ceiling_reached", "Your job is waiting on an internal budget approval at Blueprint. Nothing is needed from you.", null],
     ["awaiting_site", "site_consent_required", "Your job is waiting for you to confirm permission to process your video.", "hello@tryblueprint.io"],
     ["awaiting_site", "task_brief_required", "Your job is waiting for a description of the job you filmed.", "hello@tryblueprint.io"],
     ["awaiting_site", "a_later_reason", "Your job is waiting for something from you.", "hello@tryblueprint.io"],

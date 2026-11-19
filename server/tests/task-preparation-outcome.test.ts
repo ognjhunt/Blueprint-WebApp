@@ -12,7 +12,8 @@ const base = { briefDrafted: true, briefConfirmed: false, hasStoredCapture: true
   stage: null, coversScene: null, missingViews: [], supplementWouldFinish: false };
 function atlas(state = "failed", reason: string | null = "atlas_scene_planner_requires_reconciliation", capture = "walkthrough-r1") {
   const value = { schema_version: "website_atlas_preview.v1", capture_id: capture, revision: 2,
-    state, reason, updated_at_epoch: 1793109960, bundle: null,
+    state, reason, updated_at_epoch: 1793109960,
+    bundle: state === "ready" ? { digest: sha, size_bytes: 1, filename: "retained.zip" } : null,
     splat_available: false, mesh_available: false, claim_ceiling: "development_only",
     scale_status: "unscaled_provider_world_units" };
   return { ...value, preview_digest: crossRuntimeArtifactDigest(value, "preview_digest") };
@@ -22,6 +23,14 @@ function current(value = atlas(), capture = "walkthrough-r1") {
 }
 
 describe("source-bound preparation closeout", () => {
+  it.each(["failed", "ready"])("shows a spending cap closeout with a %s preview", (state) => {
+    const preparationOutcome = projectAtlasPreparationOutcome(current(atlas(state, "spending_cap_reached")));
+    const projected = projectTaskStatus({ ...base, preparationOutcome, scenePreviewReady: state === "ready", visualReconstructionReady: state === "ready" });
+    expect(projected.outcome).toMatchObject({
+      reason: "We reached our spending cap for this job, so we stopped building the simulation of your site.",
+      nextStep: "Nothing is needed from you.", actionOwner: "none",
+    });
+  });
   it("verifies and replays the exact saved production receipt without a provider or model call", () => {
     const preview = selectWebsiteAtlasPreview({website_atlas_previews: {[retainedStop.capture_id]: retainedStop}}, retainedStop.capture_id);
     expect(preview?.preview_digest).toBe("sha256:b5dd634e35a7fbd792d5cea5ce0e8134f856bfd4d352aacebb729a9d6789fadc");

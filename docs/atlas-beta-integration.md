@@ -53,20 +53,25 @@ its held maximum:
 - every row of `website_preparation_reservations`: the Atlas allowance and the
   preparation-only sponsorship's upstream rows;
 - each sponsored scene intake's native allowance (`request.execution.max_total_spend_usd`,
-  or a recorded extension), held in full until the intake closes, then what its
-  attempts reserved;
+  or an extension recorded before 2026-11-19), held in full until the intake closes
+  or the Pipeline reports a terminal outcome, then what its attempts reserved;
 - the beta-screening site ledger, from its latest published snapshot
   (`committed_upper_bound_usd`); a run without a readable publication counts the
   whole $30 screening site limit.
 
-The ceiling is the Atlas authorization the admission is made under, else the
-job's stored Atlas grant for that capture, else
-`BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON.maximum_cost_usd`, else the owner
-default of $40 (`WEBSITE_JOB_CEILING_DEFAULT_USD`). Over it, admission refuses
-`website_scene_preparation_budget_exhausted`, which the Pipeline already holds as
-`budget_exhausted`. The per-ledger caps still apply inside it; no reservation,
-grant or settlement is rewritten. The non-creating `atlas-configuration` read
-adds a `job_ceiling` summary; its other figures stay Atlas-only.
+The cap is one number for every job, $40 (owner decision 2026-11-19, "One cap
+at $40"): `WEBSITE_JOB_SPEND_CAP_USD`, read from
+`contracts/pipeline/website-job-spend-cap.v1.json`, the byte-for-byte mirror of
+the Pipeline's `config/website_job_spend_cap.v1.json`. Nothing raises it: an
+Atlas authorization or grant figure, the grant policy, an owner amendment and
+the automatic budget extension no longer set or pass it. Over it, admission
+refuses `website_scene_preparation_budget_exhausted`, which the Pipeline reads
+as the job's spending cap reached: no further paid call starts and the job goes
+on without that piece, flagged `spending_cap_reached`. It is the only dollar
+check; the request count stays a runaway bound. No reservation, grant or
+settlement is rewritten. The non-creating `atlas-configuration` read adds a
+`job_ceiling` summary, and its `remaining_cost_usd` is the Atlas grant's figure
+left, never more than the job has left under its cap.
 
 Pipeline retains the input selection, original frame hashes, normalized RGB,
 camera, linear-depth EXR, confidence maps, provider asset IDs, and operation

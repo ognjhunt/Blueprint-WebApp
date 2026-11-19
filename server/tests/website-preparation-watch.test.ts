@@ -374,7 +374,8 @@ describe("scene progression after hand-off", () => {
     ["setup_repair", true, "scene_configuration_failed", { state: "ended" }],
     ["setup_repair", true, "stalled", { state: "ended" }],
     ["setup_repair", false, "pipeline_fault", { state: "waiting" }],
-    ["awaiting_spend_approval", false, "spend_cap_reached", { state: "waiting" }],
+    // Owner decision 2026-11-19: the job's spending cap ends the simulation with what it has; nothing waits.
+    ["spending_cap_reached", true, "spend_cap_reached", { state: "ended" }],
     ["awaiting_site", false, "task_brief_required", { state: "waiting" }],
   ] as const)("PROG-009 a %s outcome (terminal %s, %s) decides the scene's state ahead of its blockers (C-04)",
     (kind, terminal, reasonCode, expected) => {
