@@ -225,12 +225,16 @@ function Section({ id, title, children }: { id: string; title: string; children:
  * site accepted recording statement v4; there is no share button. A shared job says so, then the send line, the answers
  * and the introductions. An older job says what changed and offers v4 once, as the agreement that shares it.
  */
-function Companies({ token, answer, onChanged, ended }: { token: string; answer: SiteAnswerView; onChanged?: () => void;
-  ended: "withdrawn" | "closed" | null }) {
+export function JobCompanyResponses({ token, sharing = { state: "not_shared", sharedAtIso: null }, activity, onChanged, ended = null }: {
+  token: string;
+  sharing?: JobSharing;
+  activity?: SiteCompanyActivity;
+  onChanged?: () => void;
+  ended?: "withdrawn" | "closed" | null;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const sharing: JobSharing = answer.sharing ?? { state: "not_shared", sharedAtIso: null };
   async function agree() {
     if (busy) return;
     setBusy(true); setError("");
@@ -253,12 +257,12 @@ function Companies({ token, answer, onChanged, ended }: { token: string; answer:
   if (ends) body = <BareGroup><BareLead>{NOTHING_IS_SHARED}</BareLead></BareGroup>;
   else if (sharing.state === "visible" || sharing.state === "preparing" || agreed) body = <BareGroup>
     <BareLead>{SHARED_LINE}</BareLead>
-    <CompanyEntries token={token} activity={answer.companies} onIntroduced={onChanged} />
+    <CompanyEntries token={token} activity={activity} onIntroduced={onChanged} />
   </BareGroup>;
   else if (sharing.state === "not_visible") body = <BareGroup>
     <BareLead>{SHARED_LINE}</BareLead>
     <BareNotice role="status">{NOT_VISIBLE_LINE}</BareNotice>
-    <CompanyEntries token={token} activity={answer.companies} onIntroduced={onChanged} />
+    <CompanyEntries token={token} activity={activity} onIntroduced={onChanged} />
   </BareGroup>;
   else if (sharing.olderStatement) body = <BareGroup>
     <BareLead>{OLDER_JOB_LINES}</BareLead>
@@ -307,7 +311,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
   const cannot = answer.state === "cannot_assess" && phase !== "building" && phase !== "testing" && phase !== "result";
 
   const endedBySite = phase === "ended_by_site" ? (outlook?.reason === "permission_withdrawn" ? "withdrawn" as const : "closed" as const) : null;
-  const companies = <Companies token={token} answer={answer} onChanged={onIntroductionRequested} ended={endedBySite} />;
+  const companies = <JobCompanyResponses token={token} sharing={answer.sharing} activity={answer.companies} onChanged={onIntroductionRequested} ended={endedBySite} />;
 
   // Section 2: the first look.
   let firstLook: ReactNode;

@@ -193,8 +193,8 @@ A capture recorded before that commit can still carry
 (`GET /api/self-capture/uploads/<token>`) runs the screen again, which now
 proceeds, and records the clearance (`resumeHeldPrivacyScreen` in
 `server/utils/capturePrivacyResume.ts`). Processing still needs current
-recording permission and rights. `scripts/rescreen-held-capture.ts` is no
-longer needed: the same commit removed the retry limit that its budget reset.
+recording permission and rights. Listing a job for deployment companies does
+not wait on this record (`teamJobAccess`).
 
 ### 4. Find the scene on the host and raise the preparation cap
 

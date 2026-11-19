@@ -12,7 +12,7 @@ const initialJobWorkflow = () => ({
 test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== "1", "Requires isolated fixture identity");
 
 for (const width of [390, 1440]) {
-  test(`invited site return, correction, retry and options review without a proposal choice at ${width}px`, async ({ page }) => {
+  test(`invited site return, correction and retry, with no options review or proposal choice at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const unexpected: string[] = [];
     const posts: { path: string; body: Record<string, unknown> }[] = [];
@@ -151,10 +151,13 @@ for (const width of [390, 1440]) {
     expect(posts.filter(entry => entry.path.endsWith("/processing-retry"))).toHaveLength(1);
     await expect(page.getByText("Video received; physical performance remains uncertain", { exact: true })).toBeVisible();
 
-    // Blueprint's options review is shown; the site is never offered a proposal, booking or outcome form.
+    // Blueprint's written options review was removed (2026-11-19): even one the server still sent is not shown, and the
+    // site is never offered a proposal, booking, outcome or planning-details form.
     optionsAssessed = true;
     await page.reload();
-    await expect(page.getByText(review.summary, { exact: true })).toBeVisible();
+    await expect(page.getByText("Video received; physical performance remains uncertain", { exact: true })).toBeVisible();
+    await expect(page.getByText(review.summary, { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Planning details", { exact: false })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Delivery proposals", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Choose this/ })).toHaveCount(0);
     await expect(page.getByRole("form", { name: "Pilot outcome" })).toHaveCount(0);

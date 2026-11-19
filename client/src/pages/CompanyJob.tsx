@@ -14,6 +14,10 @@ import type { CompanyJobPage } from "@/types/taskBrowse";
 /** The job library: the signed-in list on the companies' page, at its own section. */
 export const JOB_LIBRARY_URL = "/contact/robot-team#robot-team-access";
 export const VIDEO_PREPARING = "The video is being prepared.";
+/** Said for a job the site sent with its description only. */
+export const NO_VIDEO_YET = "No video yet. The site sent this job with its description only.";
+/** Under the answer form when there is no video: how to ask for one with the answers that exist. */
+export const ASK_FOR_VIDEO = "Need a video to decide? Answer Would need something and say so.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
 export const NO_FIRST_LOOK = "Our first look is not ready yet.";
 
@@ -87,7 +91,7 @@ function CompanyJobBody() {
         ? <video src={page.video.url} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
             playsInline onContextMenu={event => event.preventDefault()} style={{ maxWidth: "100%" }}
             width={page.video.width} height={page.video.height} aria-label="The site's video, without sound" />
-        : <p>{VIDEO_PREPARING}</p>}
+        : <p>{page.video.state === "none" ? NO_VIDEO_YET : VIDEO_PREPARING}</p>}
     </section>
 
     <section aria-label="First look">
@@ -142,6 +146,7 @@ function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; p
         {COMPANY_RESPONSE_STATES.filter(state => page.simulationDownload?.state === "ready" || !TESTED_RESPONSE_STATES.includes(state)).map(state => <label key={state}><input type="radio" name="state" value={state}
           checked={answer === state} onChange={() => setAnswer(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
+      {page.video.state === "none" && <p className="ms-field-hint">{ASK_FOR_VIDEO}</p>}
       <label>A few words about your answer (what you would need, timing, or a question)
         <textarea name="inputs" required minLength={4} maxLength={2000} value={inputs} onChange={event => setInputs(event.target.value)} /></label>
       <button className="ms-button" disabled={saving}>{saving ? "Saving…" : "Send answer"}</button>

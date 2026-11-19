@@ -269,7 +269,6 @@ const RIGHTS_STOPS: Readonly<Record<string, { text: string; whose: AdminJobStop[
   rights_needs_review: { text: "The rights review has not cleared the video yet.", whose: "blueprint" },
   recording_consent_missing: { text: "No current permission to use the video is on file.", whose: "site" },
   older_statement: { text: "The site agreed to an older statement, so the job is not shared until it accepts the current one.", whose: "site" },
-  privacy_screen_pending: { text: "The video has not passed the privacy screen yet.", whose: "blueprint" },
 };
 
 /** Money records that stopped spending on the job (`opsWebsiteJobOverBudgetAlerts`), each Blueprint's to look at. */
@@ -295,7 +294,7 @@ function recordStops(record: Data): AdminJobStop[] {
 /** What the job waits on Blueprint for, in a word or two each, from its stops. */
 const WAIT_WORDS: Readonly<Record<string, string>> = {
   withdrawn: "withdrawal cleanup", "rights-rights_blocked": "rights review", "rights-rights_needs_review": "rights review",
-  "rights-privacy_screen_pending": "privacy screen", "blueprint-hold": "its hold on sharing",
+  "blueprint-hold": "its hold on sharing",
   "money-budget": "budget", "money-safety_limit": "budget", "money-screening_job_ceiling": "budget",
 };
 function blueprintWaits(stops: AdminJobStop[]): string[] {

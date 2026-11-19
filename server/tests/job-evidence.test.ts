@@ -103,7 +103,7 @@ describe("job evidence producer and commercial boundary", () => {
     expect(result.status).toBe(409); expect(result.body.code).toBe("video_required");
     expect([...state.docs.keys()].some(key => key.includes("/jobEvidenceRequests/"))).toBe(false);
   });
-  it("retains signed publications immutably and returns owner-safe historical applicability independently of budgets", async () => {
+  it("retains signed publications immutably and returns owner-safe historical applicability", async () => {
     const publication = boundPublication(); const endpoint = "/api/internal/job-evidence-publications";
     expect((await api(endpoint, "POST", publication)).status).toBe(401);
     expect((await api(endpoint, "POST", publication, signed(publication))).body.status).toBe("published");
@@ -112,8 +112,6 @@ describe("job evidence producer and commercial boundary", () => {
     const initial = (await api(ownerPath)).body;
     expect(initial.evidence[0].current).toBe(true); expect(initial).not.toHaveProperty("selection");
     expect(JSON.stringify(initial)).not.toMatch(/PRIVATE_CONTACT|authorization_candidates|decision_envelope|requested_by|ops-user/);
-    await api(`${ownerPath}/requirements`, "PATCH", { installationBudget: "$40,000 planning ceiling" });
-    expect((await api(ownerPath)).body.evidence[0].current).toBe(true);
     state.docs.set("siteTaskBriefs/job-1", { ...brief, summary: "Changed physical task" });
     expect((await api(ownerPath)).body.evidence[0].current).toBe(false);
     const linked = await fetch(`${base}${ownerPath}/evidence/${encodeURIComponent(publication.publication_digest)}`);
@@ -190,7 +188,7 @@ describe("job evidence producer and commercial boundary", () => {
     state.docs.set("inboundRequests/job-1", mismatched);
     const stale = (await api("/api/job-workflow/admin/job-1", "GET", undefined, { authorization: "Bearer ops" })).body;
     expect(stale.evidenceContext.question).toBeNull(); expect(stale.evidence[0].current).toBe(false);
-    expect(stale.stage).toBe("brief_agreed");
+    expect(stale.briefAgreed).toBe(true);
     const execution = await api(`/api/job-workflow/admin/job-1/evidence/${saved.request_id}/execute`, "POST", {}, { authorization: "Bearer ops" });
     expect(execution.status).toBe(409); expect(execution.body.code).toBe("evidence_scope_changed");
   });

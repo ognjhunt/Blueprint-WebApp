@@ -35,13 +35,3 @@ export async function screenCaptureForPrivacy(_params: {
 }): Promise<PrivacyScreenResult> {
   return { ...PROCEED_WITH_TERMS };
 }
-
-/** Convert a completed legacy review without reinstating its people hold. */
-export function privacyResultFromEvidence(_evidence: CaptureVideoPrivacyOutput): PrivacyScreenResult {
-  return { ...PROCEED_WITH_TERMS };
-}
-
-/** Kept for readers of a legacy in-flight receipt. */
-export function reviewStillRunning(): PrivacyScreenResult {
-  return { ...PROCEED_WITH_TERMS };
-}

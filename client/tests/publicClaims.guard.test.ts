@@ -68,7 +68,6 @@ const FRAME_FILES = [
   "client/src/components/site/CaptureRecorder.tsx",
   "client/src/components/site/FilmLinkHandoff.tsx",
   "client/src/components/site/Header.tsx",
-  "client/src/components/site/JobWorkspace.tsx",
   "client/src/components/site/LegalVersionNotes.tsx",
   "client/src/components/site/LoadingScreen.tsx",
   "client/src/components/site/LocationAutocomplete.tsx",

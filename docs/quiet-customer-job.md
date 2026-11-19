@@ -23,10 +23,10 @@ Account saving stays closed and optional at intake, during reconstruction and
 when results arrive. The private owner link already opens the result; it does
 not tell the customer to claim an account to see it.
 
-Blueprint can record its options review against its own draft after the
-recording is received, without a separate brief-confirmation step. The brief's
-confirmed flag is never fabricated. A changed scope or object selection still
-invalidates the review. The delivery-proposal choice this slice first simplified
+Blueprint's written options review and the site's planning details (budgets,
+current cost, timing) were removed on 2026-11-19: the site's answer is the
+deployment companies' responses. Any stored copy is left as it is and no longer
+read or written. The delivery-proposal choice this slice first simplified
 was retired with the booking and proposal features (owner decision 2026-10-28):
 Blueprint works with a deployment company, and the site and that company agree
 any pilot directly. The optional task-specific scientific evidence request

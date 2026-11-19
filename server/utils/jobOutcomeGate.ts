@@ -65,7 +65,7 @@ export function dueOutcomeQuestionDay(introduction: IntroductionLike | null | un
 
 /**
  * The job still takes questions: the site has not withdrawn, and companies can see it under the whole
- * E2 rule (sentence, privacy screen, holds, authority end, the site closing the job). Inside a
+ * E2 rule (sentence, holds, authority end, the site closing the job). Inside a
  * transaction pass `tx` so every read participates.
  */
 export async function jobTakesOutcomeQuestions(requestId: string, record: Record<string, unknown> | null | undefined,

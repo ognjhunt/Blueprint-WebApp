@@ -294,6 +294,23 @@ describe("the company's page for one job (E3)", () => {
     expect(body.item.simulation).toEqual({ state: "not_finished" });
   });
 
+  it("lists a job sent with its description only (v5): no video yet, and the company can answer, asking for one", async () => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, {});
+    patchJob({ capture_privacy_screen: undefined, request: { ...jobDoc().request, consent_attestation: null,
+      description_authority: { granted: true, statement_version: "2026-11-12.v5", recorded_at_iso: "2026-11-12T10:00:00.000Z" } },
+      public_task_listing: { ...jobDoc().public_task_listing, approvedBy: "description_statement", recordingStatementVersion: null,
+        descriptionStatementVersion: "2026-11-12.v5" } });
+    const { status, body, raw } = await page();
+    expect(status).toBe(200);
+    expect(body.item).toMatchObject({ video: { state: "none" }, simulation: { state: "not_finished" }, country: "United States" });
+    expect(body.item.sentence).toContain("Stack 12 kg cartons onto the pallet");
+    expect(body.item.jobFacts.length).toBeGreaterThan(0);
+    expectNoSiteIn("the no-video page", raw);
+    expect((await list()).body.items).toMatchObject([{ id: ID, stage: "capture" }]);
+    expect((await answer(NORTH, { state: "needs_something", inputs: "A video of the job, please." })).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toMatchObject({ state: "needs_something" });
+  });
+
   it("is for a signed-in, approved account only", async () => {
     expect((await realFetch(`${base}/api/site-worlds/jobs/${ID}`)).status).toBe(404);
     expect((await page(PENDING)).status).toBe(404);
@@ -349,12 +366,13 @@ describe("the company's page for one job (E3)", () => {
     expectNoSiteIn("the library list", raw);
   });
 
-  it("is not listed without the site's sentence, or before the privacy screen, or under an older statement", async () => {
+  it("is not listed without the site's sentence, or under an older statement", async () => {
     state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Your site task", confirmedAtIso: null });
     expect((await page()).status).toBe(404);
     state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: SENTENCE, confirmedAtIso: null });
+    // A held upload-time privacy record from before 2026-09-24 no longer keeps the job from companies.
     patchJob({ capture_privacy_screen: { ...passedPrivacyScreen(ID), proceeded: false, eligibility: "pending" } });
-    expect((await page()).status).toBe(404);
+    expect((await page()).status).toBe(200);
     patchJob({ capture_privacy_screen: passedPrivacyScreen(ID),
       request: { ...jobDoc().request, consent_attestation: { ...sharedRecordingGrant(), statement_version: "2026-11-11.v3" } } });
     expect((await page()).status).toBe(404);
@@ -412,7 +430,7 @@ describe("an internal test job is closed on every company surface, though everyt
   ];
   it.each(SURFACES)("%s serves the listed job, and refuses it once it is a test job", async (_name, serves) => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
-    // Fully listed: the v4 grant, the listing record, the privacy screen passed, the site's sentence.
+    // Fully listed: the v4 grant, the listing record, the site's sentence.
     const item = (await page()).body.item as Page;
     expect(await serves(item)).toBe(true);
     markTestJob();

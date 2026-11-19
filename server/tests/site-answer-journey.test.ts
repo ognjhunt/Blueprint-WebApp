@@ -27,6 +27,9 @@ import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
 import { JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
+import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
+import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
+import { currentTermsAcceptance } from "./helpers/sharedJob";
 import { SCENE_SCREEN_GATE_ENDED_FIELD } from "../utils/sceneScreenGate";
 
 const seams = vi.hoisted(() => ({
@@ -178,13 +181,15 @@ beforeEach(() => {
  * The start form with an email, a country and a video, sharing left unticked. No task is typed unless
  * `task` is given: the form's task line is optional, and typing one sends its confirmation box with it.
  */
-async function startJob(task?: string) {
+async function startJob(task?: string, descriptionOnly = false) {
   const jobId = `site-answer-${++sequence}`;
   const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${(sequence % 250) + 1}` },
-    body: JSON.stringify(siteCaptureStartSubmission({ requestId: jobId, retryToken: `r${jobId}`.padEnd(64, "x"),
+    body: JSON.stringify({ ...siteCaptureStartSubmission({ requestId: jobId, retryToken: `r${jobId}`.padEnd(64, "x"),
       sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${jobId}@example.test`,
-      task: task ?? "", withoutTaskConfirmation: !task, keepPrivate: true })) });
+      task: task ?? "", withoutTaskConfirmation: !task, keepPrivate: !descriptionOnly }),
+      ...(descriptionOnly ? { hasExistingFootage: false, descriptionOnly: true, consentAttestation: null,
+        descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" } } : {}) }) });
   expect(response.status, await response.clone().text()).toBe(201);
   const token = ((await response.json()) as { captureUrl: string }).captureUrl.split("/capture-upload/")[1];
   expect(token).toBeTruthy();
@@ -213,7 +218,7 @@ async function sendVideo(token: string) {
 async function status(token: string) {
   const response = await fetch(`${base}/api/site-task-brief/${token}/status`);
   expect(response.status, await response.clone().text()).toBe(200);
-  return (await response.json()) as { captureReceived: boolean; answer: any; outlook?: any };
+  return (await response.json()) as { captureReceived: boolean; answer: any; companyStatus: any; outlook?: any };
 }
 
 /** The coverage review worker, as the scheduler ticks it, reading the scripted reply for this job. */
@@ -246,6 +251,35 @@ function post(path: string, body: unknown) {
 /* ------------------------------------------------------------ the journey */
 
 describe("a site's answer, from an email and a video to a deployment company", () => {
+  it("lets a description-only owner see a reply, ask to meet the company, and withdraw without recording consent", async () => {
+    const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+    const { loadCompanyJobAccess } = await import("../utils/teamJobAccess");
+    const email = "deploy@example.test";
+    const companyId = accessRecordId(email);
+    state.docs.set(`robotTeamAccess/${companyId}`, { status: "approved", partnerRole: "deployment",
+      email, name: "Deployment contact", company: "Deployment company", termsAcceptance: currentTermsAcceptance(),
+      termsAcceptedByUid: "deployment-account" });
+    const { jobId, token } = await startJob("Move sealed cartons from a conveyor onto a pallet.", true);
+    const ref = `inboundRequests/${jobId}`;
+    state.docs.set(ref, { ...doc(ref), company_aliases: { [companyId]: "A" } });
+    state.docs.set(`${ref}/robotTeamInterest/${companyId}`, { state: "interested", recordedBy: "company",
+      updatedAtIso: NOW.toISOString(), statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION });
+
+    expect(await status(token)).toMatchObject({ captureReceived: false, answer: null, companyStatus: {
+      sharing: { state: "visible" }, descriptionOnly: true,
+      companies: { entries: [{ kind: "answered", alias: "Company A", state: "interested", canIntroduce: true }] },
+    } });
+    const introduction = await post(`/api/site-task-brief/${token}/introductions`,
+      { alias: "A", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
+    expect(introduction.status, await introduction.clone().text()).toBe(200);
+    expect(doc(ref).request.consent_attestation).toBeNull();
+    const withdrawn = await post(`/api/self-capture/uploads/${token}/withdrawal`, { confirm: "withdraw_recording_permission" });
+    expect(withdrawn.status, await withdrawn.clone().text()).toBe(202);
+    expect(await withdrawn.json()).toMatchObject({ withdrawal: { descriptionOnly: true } });
+    expect((await loadCompanyJobAccess(jobId)).access).toMatchObject({ listed: false, reason: "consent_withdrawn" });
+    expect((await status(token)).companyStatus).toBeNull();
+  });
+
   it("is null before the video, reads, settles once, follows the site's weight, shares on request and goes on withdrawal", async () => {
     const { listTaskBrowseCards } = await import("../utils/taskBrowse");
     const { verifyCaptureUploadToken } = await import("../utils/captureUploadToken");

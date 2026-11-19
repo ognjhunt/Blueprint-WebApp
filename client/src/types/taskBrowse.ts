@@ -125,8 +125,11 @@ export interface CompanyJobPage {
   jobFacts: string[];
   /** The country only, or null when the site gave none we can read. */
   country: string | null;
-  /** The sound-free company clip behind a short ticket, or "The video is being prepared." */
-  video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" };
+  /**
+   * The sound-free company clip behind a short ticket, "The video is being prepared.", or `none`: the site sent the job
+   * with its description only, so there is no video yet.
+   */
+  video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" } | { state: "none" };
   /** "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet". */
   simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */

@@ -709,14 +709,15 @@ function jobCardListed(request: Record<string, any>): boolean {
   return isRecord(request.public_task_listing) && request.public_task_listing.enabled === true;
 }
 
-/** Why a shared job is not in front of companies yet, as opposed to held: the video check or the job sentence. */
-const PREPARING_REASONS = new Set<string>(["privacy_screen_pending", "no_job_sentence", "not_listed"]);
+/** Why a shared job is not in front of companies yet, as opposed to held: the job sentence, or its listing record. */
+const PREPARING_REASONS = new Set<string>(["no_job_sentence", "not_listed"]);
 
 /**
  * Where the job stands with deployment companies (2026-11-12, sharing is the service). A job is shared if, and only if,
- * its site accepted recording statement v4 or later and its listing record was written (`jobSharedListing.ts`):
+ * its site accepted recording statement v4 or later (or sent it without a video under description v5) and its listing
+ * record was written (`jobSharedListing.ts`):
  * - `visible`: the one predicate that decides what an approved company can see (`teamJobAccess`) lists it;
- * - `preparing`: shared, and not in front of companies until its video passes the privacy check;
+ * - `preparing`: shared, and not in front of companies until the site has said what the job is;
  * - `not_visible`: shared, but held (Blueprint's hold, a rights hold, the site closed it);
  * - `not_shared`: never shared. `olderStatement` says the site agreed to an older statement and its page offers v4.
  * The date is when the site accepted the statement that shares the job.

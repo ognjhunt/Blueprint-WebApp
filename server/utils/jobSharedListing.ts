@@ -1,14 +1,17 @@
 /**
  * Sharing is the service (owner, 2026-11-12; PACKAGE_D D1.1). A job is shared with the deployment companies Blueprint
- * has approved if, and only if, its site accepted recording statement `2026-11-12.v4` or later. There is no other
- * switch: no share box, no "Share my job", no Share settings, no pause.
+ * has approved if, and only if, its site accepted recording statement `2026-11-12.v4` or later, or sent the job without
+ * a video under description statement `2026-11-12.v5` (whose sentence says the same) and has no recording grant. There
+ * is no other switch: no share box, no "Share my job", no Share settings, no pause.
  *
- * When v4 is accepted (at submission with a video, or later on the job's page) the listing record below is written. It
- * has no text of its own: it records that the job is shared under recording v4. The details are the category-only
- * draft (`anonymizedOpportunityDraft`), never the site's own words, name or address.
+ * When v4 is accepted (at submission with a video, or later on the job's page), or v5 at submission, the listing record
+ * below is written. It has no text of its own: it records the statement the job is shared under. The details are the
+ * category-only draft (`anonymizedOpportunityDraft`), never the site's own words, name or address.
  */
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { RECORDING_RIGHTS_STATEMENT_V4_VERSION, isSharingRecordingStatementVersion } from "../../client/src/lib/recordingRightsStatement";
+import { isSharingDescriptionAuthorityVersion } from "../../client/src/lib/siteSubmissionAuthority";
+import { hasCurrentDescriptionAuthority } from "./descriptionAuthority";
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
@@ -20,22 +23,29 @@ export interface JobSharedListing {
   consentVersion: typeof JOB_SHARED_LISTING_VERSION;
   approvedAtIso: string;
   wentLiveIso: string;
-  approvedBy: "recording_statement";
-  recordingStatementVersion: string;
+  approvedBy: "recording_statement" | "description_statement";
+  /** The recording statement the job is shared under, or null for a job shared by its description statement (v5). */
+  recordingStatementVersion: string | null;
+  /** Only for a job sent without a video: the description statement (v5) it is shared under. */
+  descriptionStatementVersion?: string;
   thumbnailDigest: null;
   reviewRequired: false;
 }
 
 export function buildJobSharedListing(params: { taskStatement: string | null | undefined; atIso: string;
-  recordingStatementVersion?: string }): JobSharedListing {
+  recordingStatementVersion?: string; descriptionStatementVersion?: string }): JobSharedListing {
+  const byDescription = Boolean(params.descriptionStatementVersion) && !params.recordingStatementVersion;
   return {
     enabled: true,
     details: anonymizedOpportunityDraft(params.taskStatement ?? ""),
     consentVersion: JOB_SHARED_LISTING_VERSION,
     approvedAtIso: params.atIso,
     wentLiveIso: params.atIso,
-    approvedBy: "recording_statement",
-    recordingStatementVersion: params.recordingStatementVersion ?? RECORDING_RIGHTS_STATEMENT_V4_VERSION,
+    ...(byDescription
+      ? { approvedBy: "description_statement" as const, recordingStatementVersion: null,
+        descriptionStatementVersion: params.descriptionStatementVersion }
+      : { approvedBy: "recording_statement" as const,
+        recordingStatementVersion: params.recordingStatementVersion ?? RECORDING_RIGHTS_STATEMENT_V4_VERSION }),
     thumbnailDigest: null,
     reviewRequired: false,
   };
@@ -48,13 +58,29 @@ export function isJobSharedListing(record: unknown): boolean {
 }
 
 /** The site accepted a sharing recording statement (v4 or later), granted and not withdrawn. */
-export function sharingStatementAccepted(record: unknown): boolean {
+export function recordingStatementShares(record: unknown): boolean {
   const attestation = (record as { request?: { consent_attestation?: Record<string, unknown> } } | null)?.request?.consent_attestation;
   return Boolean(attestation) && attestation!.granted === true && isSharingRecordingStatementVersion(attestation!.statement_version)
     && !attestation!.revoked_at_iso && !attestation!.withdrawn_at_iso;
 }
 
-/** The job is shared under the current rule: v4 accepted and its listing record written. */
+/**
+ * A job sent without a video under a sharing description statement (v5), granted and not withdrawn, that holds no
+ * recording grant at all. A job that later records under an older recording statement is not shared by this.
+ */
+export function descriptionStatementShares(record: unknown): boolean {
+  const request = (record as { request?: Record<string, any> } | null)?.request;
+  return request?.buyerType === "site_operator" && request.consent_attestation == null
+    && hasCurrentDescriptionAuthority(request.description_authority)
+    && isSharingDescriptionAuthorityVersion(request.description_authority.statement_version);
+}
+
+/** The site accepted a statement that shares the job: recording v4 or later, or description v5 with no video. */
+export function sharingStatementAccepted(record: unknown): boolean {
+  return recordingStatementShares(record) || descriptionStatementShares(record);
+}
+
+/** The job is shared under the current rule: a sharing statement accepted and its listing record written. */
 export function jobIsShared(record: unknown): boolean {
   return sharingStatementAccepted(record) && isJobSharedListing(record);
 }

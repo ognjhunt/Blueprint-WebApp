@@ -13,7 +13,6 @@ export type TeamAccessReason =
   | "restricted_to_named_teams"
   | "operator_paused"
   | "older_statement"
-  | "privacy_screen_pending"
   | "no_job_sentence"
   | "authority_ended"
   | "closed_by_site"
@@ -23,7 +22,8 @@ export type TeamAccessReason =
   | "rights_blocked"
   | "rights_needs_review"
   | "recording_consent_missing"
-  | "scene_not_runnable";
+  | "scene_not_runnable"
+  | "no_video_yet";
 
 /**
  * The operator's "Deployment companies" panel on `/admin/jobs` (`GET /api/admin/jobs/:id/companies`). Admin only: it

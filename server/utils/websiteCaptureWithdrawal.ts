@@ -48,6 +48,7 @@ export function projectWebsiteCaptureWithdrawal(withdrawal: Record<string, any>)
   return {
     state: derived.state,
     requestedAtIso: withdrawal.requestedAtIso ?? null,
+    ...(withdrawal.descriptionOnly === true ? { descriptionOnly: true } : {}),
     uploadsStopped: true,
     taskPaused: true,
     queuedRunsCancellationRequested: true,
@@ -94,7 +95,8 @@ export async function recordWebsiteCaptureWithdrawal(params: {
     // reads, written with its writes, so it is as durable as the withdrawal.
     const { planWithdrawalCompanyNotices } = await import("./withdrawalCompanyNotice");
     const notices = await planWithdrawalCompanyNotices(transaction, params.requestId, record);
-    const withdrawal = { state: "uploads_stopped_cleanup_pending", requestedAtIso: new Date().toISOString(),
+    const { descriptionStatementShares } = await import("./jobSharedListing");
+    const withdrawal = { ...(descriptionStatementShares(record) ? { descriptionOnly: true } : {}), state: "uploads_stopped_cleanup_pending", requestedAtIso: new Date().toISOString(),
       requestedBy: params.requestedBy, requestId: params.requestId,
       sceneId: `site-${params.requestId}`, captureId: `walkthrough-${params.requestId}`,
       deletionConfirmed: false, pipelineAcknowledged: false, localCleanupVerified: false,

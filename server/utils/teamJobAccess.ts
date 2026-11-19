@@ -5,13 +5,15 @@
  *
  * Sharing is the service: a job is listed for every approved deployment company if and only if ALL hold:
  * - it is not an internal test job (`internal_test`, checked before anything else);
- * - the site accepted recording statement `2026-11-12.v4` or later, and the grant stands (`RECORDING_VERSIONS_THAT_SHARE`);
+ * - the site accepted recording statement `2026-11-12.v4` or later, and the grant stands (`RECORDING_VERSIONS_THAT_SHARE`),
+ *   or sent the job without a video under description statement `2026-11-12.v5` and holds no recording grant
+ *   (`descriptionStatementShares`): listed with no video yet (`no_video_yet`);
  * - the listing record is `job-shared-2026-11-12` (`sharedJobListing`); older cards drop out with no data change;
- * - the video passed the privacy screen (the stored privacy decision `proceeded`);
  * - the job sentence exists (the site's brief holds a real sentence);
  * and none of: the site's withdrawal, Blueprint's operator hold, a rights hold, an authority end (the Pipeline's
  * preparation `authority_ended`), the site closing its job (`website_run_closures`, or `workspace_task` paused/closed).
- * A first look or a simulation is NOT required.
+ * A first look or a simulation is NOT required. Nor is an upload-time privacy decision: no screen has held a capture
+ * since 2026-09-24 (`capturePrivacyScreen.ts` always proceeds), so waiting for its record only stranded jobs.
  *
  * Two of these facts live outside the job record (the brief, the preparation state). A caller that holds only the
  * record and passes no `context` gets every other check; every company-facing surface uses `loadCompanyJobAccess`,
@@ -39,6 +41,7 @@ import { coverageEvidenceFrom } from "./captureCoverageEvidence";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";
 import { isInternalTestJob } from "./internalTestJob";
+import { descriptionStatementShares } from "./jobSharedListing";
 
 /** Why a job is closed to robot teams, in the order the checks run. */
 export type TeamJobClosedReason =
@@ -58,8 +61,6 @@ export type TeamJobClosedReason =
   | "operator_paused"
   /** The job was not submitted under a recording statement that shares it (v4 or later), or the grant does not stand. */
   | "older_statement"
-  /** The video has not passed the privacy screen. */
-  | "privacy_screen_pending"
   /** The site has not given the job's sentence yet. */
   | "no_job_sentence"
   /** The Pipeline ended Blueprint's authority to work on the job. */
@@ -79,7 +80,9 @@ export type TeamJobClosedReason =
   /** No current recording grant covers building and evaluating the scene. */
   | "recording_consent_missing"
   /** The scene has not been shown to run an evaluation yet. */
-  | "scene_not_runnable";
+  | "scene_not_runnable"
+  /** Listed: the site sent the job with its description only (v5), so there is no video yet. */
+  | "no_video_yet";
 
 export type TeamJobAccess =
   | { listed: false; evaluationAvailable: false; reason: TeamJobClosedReason; details: null }
@@ -191,12 +194,6 @@ export function recordingSharesJob(raw: Record<string, any>): boolean {
     && !grant.revoked_at_iso && !grant.withdrawn_at_iso;
 }
 
-/** The stored privacy decision for the video let it proceed. */
-export function privacyScreenPassed(raw: Record<string, any>): boolean {
-  const decision = raw.capture_privacy_source_bound_decision || raw.capture_privacy_screen;
-  return decision?.proceeded === true && decision?.eligibility !== "rejected" && decision?.eligibility !== "pending";
-}
-
 /** The site closed its job: a run closure on record for any capture. */
 export function closedBySite(raw: Record<string, any>): boolean {
   const closures = raw.website_run_closures;
@@ -239,12 +236,13 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
     return closed("development_only");
   const legacy = legacyRestriction(raw);
   if (legacy) return closed(legacy);
-  if (!recordingSharesJob(raw)) return closed("older_statement");
+  const sharedWithoutVideo = !recordingSharesJob(raw) && descriptionStatementShares(raw);
+  if (!recordingSharesJob(raw) && !sharedWithoutVideo) return closed("older_statement");
   const listing = sharedJobListing(raw);
   if (!listing) return closed("not_listed");
-  if (!privacyScreenPassed(raw)) return closed("privacy_screen_pending");
   if (context.brief !== undefined && !briefHasSentence(context.brief)) return closed("no_job_sentence");
   const details = listing.details;
+  if (sharedWithoutVideo) return { listed: true, evaluationAvailable: false, reason: "no_video_yet", details };
   if (!rights.derived_scene_generation_allowed)
     return { listed: true, evaluationAvailable: false, reason: "recording_consent_missing", details };
   if (!isRunnableTask(raw as InboundRequest))
