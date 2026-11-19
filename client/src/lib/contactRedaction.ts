@@ -21,7 +21,9 @@ const BARE_DOMAIN = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org
 /** A run of digits with phone separators, optionally led by + or "(". Checked further in `isPhone`. */
 const PHONE_CANDIDATE = /(?:\+|\(\s*)?\d[\d\s().\-/]{4,}\d/g;
 
-function isPhone(candidate: string): boolean {
+const RANGE_UNIT = /^\s+(?:boxes?|cartons?|cases?|totes?|items?|pieces?|units?|pallets?|parts?|bins?|cycles?|mm|cm|m|kg|g|lbs?|oz|seconds?|minutes?|hours?)\b/i;
+
+function isPhone(candidate: string, following: string): boolean {
   const digits = candidate.replace(/\D/g, "");
   if (digits.length < 7 || digits.length > 15) return false;
   const text = candidate.trim();
@@ -30,7 +32,7 @@ function isPhone(candidate: string): boolean {
   if (/^\d{1,3}(?:[ ,.]\d{3})+$/.test(text)) return false; // thousands: "1 200 000", "1.200.000"
   if (/^\d+(?:\.\d+)?$/.test(text) && !/^0/.test(text) && digits.length < 10) return false; // one plain number under ten digits
   const range = /^(\d{1,4})\s*-\s*(\d{1,4})$/.exec(text); // a range, such as "1000-2000 boxes a week"
-  if (range && range[1].length === range[2].length && Number(range[1]) < Number(range[2])) return false;
+  if (range && range[1].length === range[2].length && Number(range[1]) < Number(range[2]) && RANGE_UNIT.test(following)) return false;
   return true;
 }
 
@@ -54,10 +56,10 @@ export function removeContactDetails(text: string): string {
     .replace(LINK, REMOVED)
     .replace(BARE_DOMAIN, REMOVED)
     .replace(HANDLE, REMOVED)
-    .replace(PHONE_CANDIDATE, match => {
+    .replace(PHONE_CANDIDATE, (match: string, offset: number, normalized: string) => {
       // Keep the separators the match swallowed at its edges.
       const lead = /^\s*/.exec(match)?.[0] ?? "";
-      return isPhone(match) ? `${lead}${REMOVED}` : match;
+      return isPhone(match, normalized.slice(offset + match.length)) ? `${lead}${REMOVED}` : match;
     });
 }
 

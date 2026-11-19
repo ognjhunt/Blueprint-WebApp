@@ -133,7 +133,7 @@ describe("the job packet export's street and contact rules, carried to the websi
     expect(removeIdentifyingDetails(input, nobody)).toBe(input);
   });
 
-  it.each(["0049 30 1234567", "06 12 34 56 78", "555-014-2999", "+44 20 7946 0958"])("removes the phone number %s", phone => {
+  it.each(["0049 30 1234567", "06 12 34 56 78", "555-014-2999", "+44 20 7946 0958", "2345-6789"])("removes the phone number %s", phone => {
     expect(removeIdentifyingDetails(`Call or write: ${phone}, thanks.`, nobody)).toBe("Call or write: [removed], thanks.");
   });
 
