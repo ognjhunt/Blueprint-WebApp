@@ -29,8 +29,10 @@ function annexRow(label: string): string {
   return row![1];
 }
 
+// Terms and Privacy 2026-11-19.1 (owner: the early trial dropped): the sharing sentence no longer names an early trial
+// result, the one item that left what a company receives. Nothing a company receives was added.
 const PROMISES = {
-  sharing: "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, our first look at which robots fit, and the result of any early trial we run.",
+  sharing: "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.",
   contacts: "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.",
   companyUse: "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.",
   withdrawal: "You can withdraw your job at any time. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.",
@@ -72,13 +74,15 @@ describe("the video", () => {
   });
 
   // Owner, 2026-11-17: no face blurring for a job started under 2026-11-17.1; a job started under an earlier Privacy
-  // version keeps the World Labs face blur. Both documents say so in the same terms.
+  // version keeps the World Labs face blur. Both documents say so in the same terms. Since 2026-11-19.1 they name those
+  // versions ("published before November 17, 2026"), so "earlier" cannot be read to take in 2026-11-17.1.
   it("is not licensed for training, and faces are blurred only for an earlier job, only for World Labs", () => {
     expect(termsText).toContain("We do not license your recording to anyone for training without your written agreement.");
-    expect(termsText).toContain("We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under an earlier version of our Privacy Policy, we still blur faces in the frames we send to World Labs to rebuild the work area.");
+    expect(termsText).toContain("We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under a version of our Privacy Policy published before November 17, 2026, we still blur faces in the frames we send to World Labs to rebuild the work area.");
     expect(termsText).not.toContain("we blur faces only in the frames we send to World Labs");
+    expect(`${termsText}\n${privacyText}`).not.toContain("under an earlier version");
     expect(termsText).toContain("Companies see your video as you filmed it, without its sound.");
-    expect(annexRow("People in job footage")).toContain("We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area.");
+    expect(annexRow("People in job footage")).toContain("We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under a version of this policy published before November 17, 2026, we still blur faces in the frames we send to World Labs to rebuild the work area.");
     expect(annexRow("People in job footage")).toContain("Companies see your video as you filmed it, without its sound.");
   });
 

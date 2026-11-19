@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { NO_FACE_BLUR_VERSION } from "@/lib/legalAcceptance";
+import { NO_EARLY_TRIAL_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyJobPage } from "@/types/taskBrowse";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
@@ -118,7 +118,7 @@ describe("the company's page for one job", () => {
     expect(await screen.findByRole("heading", { name: "Carton palletizing opportunity" })).toBeInTheDocument();
     const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(path).toBe("/api/robot-team-access/accept-terms");
-    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: NO_FACE_BLUR_VERSION, privacyVersion: NO_FACE_BLUR_VERSION });
+    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: NO_EARLY_TRIAL_VERSION, privacyVersion: NO_EARLY_TRIAL_VERSION });
   });
 });
 

@@ -14,9 +14,11 @@ test("historical pricing leads to the free beta page with one action", async ({ 
   await expect(page.locator("main")).not.toContainText("$99");
 });
 
-test("terms make the beta free, with Blueprint running the early trial and no Blueprint fee", async ({ page }) => {
+// Terms 2026-11-19.1 (owner: the early trial dropped on 2026-11-14): the Terms no longer say Blueprint runs one.
+test("terms make the beta free, with no early trial and no Blueprint fee", async ({ page }) => {
   await page.goto("/terms");
-  await expect(page.getByText(/building the simulation, our early trial and sharing your job with deployment companies cost the site nothing/)).toBeVisible();
+  await expect(page.getByText(/Submitting a job, building the simulation and sharing your job with deployment companies cost the site nothing/)).toBeVisible();
+  await expect(page.locator("article")).not.toContainText(/early trial|openly available robot software/i);
   await expect(page.getByText(/Deployment companies do not run their own software on a site's job in our simulation/)).toBeVisible();
   await expect(page.getByText(/Blueprint recommends one robot team whose evaluation on your job passed/)).toHaveCount(0);
   await expect(page.getByText(/There is no Blueprint fee, invoice or payment step/)).toBeVisible();
