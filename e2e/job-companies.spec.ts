@@ -128,6 +128,7 @@ test("a signed-in company opens a job from the library, watches the video and an
       video: { state: "ready", url: videoUrl, width: 640, height: 360, durationSeconds: 1 },
       simulation: { state: "not_finished" }, firstLook: null,
       firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 20 kg.", robot: "Universal Robots UR20" }],
+      packetFacts: null, notShown: ["No safety assessment of any robot at this site."],
       myAnswer: null, responseStatement: { version: "company-response-2026-11-12", text: statement } } } });
     if (url.pathname === `/api/company-media/jobs/${JOB}/video.mp4`) {
       videoRequests.push(url.search);

@@ -2901,7 +2901,7 @@ describe("the intent's outcome (C-04)", () => {
     expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
   });
 
-  it("owes a website job one email for a terminal outcome and none for a wait", async () => {
+  it("stops polling a website job on a terminal outcome, keeps polling a wait, and owes no email for either", async () => {
     const sceneRequest = await preparedWebsiteScene();
     let outcome = sceneOutcome("awaiting_site", false, "site_consent_required", { reason_category: "site_action" });
     const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(init.method === "POST"
@@ -2917,10 +2917,10 @@ describe("the intent's outcome (C-04)", () => {
     outcome = sceneOutcome("held", true, "task_family_unsupported");
     await poll();
     const [key, intake] = stored();
+    expect(key).toMatch(/^taskEvaluationSceneIntakes\//);
     expect(intake).toMatchObject({ state: "blocked", next_forward_at_ms: Number.MAX_SAFE_INTEGER,
-      scene_outcome_notification_pending: true, scene_outcome_notification_intent: {
-        schema_version: "scene_outcome_notification.v1", request_id: "req1", intake_id: key.split("/")[1],
-        kind: "held", outcome_digest: outcome.outcome_digest, event_id: `held-${outcome.outcome_digest.slice(7)}` } });
+      pipeline_status: { outcome: { kind: "held", outcome_digest: outcome.outcome_digest } } });
+    expect(intake).not.toHaveProperty("scene_outcome_notification_intent");
     expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
   });
 
@@ -2946,7 +2946,7 @@ describe("the intent's outcome (C-04)", () => {
       expect(stored()[1].scene_outcome_notification_pending).toBeUndefined();
     } finally { noted.mockRestore(); }
   });
-  it("ends a website job on an unknown terminal kind as the general ending, with one email, and stops polling", async () => {
+  it("ends a website job on an unknown terminal kind as the general ending, and stops polling", async () => {
     await preparedWebsiteScene();
     const alerts = await import("../utils/unknownPipelineCode");
     const noted = vi.spyOn(alerts, "noteUnknownPipelineCode").mockResolvedValue(true);
@@ -2958,10 +2958,9 @@ describe("the intent's outcome (C-04)", () => {
       vi.stubGlobal("fetch", fetcher);
       await processSceneIntakeQueue();
       stored()[1].next_forward_at_ms = 0; await processSceneIntakeQueue();
-      const [key, intake] = stored();
-      expect(intake).toMatchObject({ state: "blocked", next_forward_at_ms: Number.MAX_SAFE_INTEGER,
-        scene_outcome_notification_pending: true, scene_outcome_notification_intent: { request_id: "req1", intake_id: key.split("/")[1],
-          kind: "stopped", event_id: `stopped-${outcome.outcome_digest.slice(7)}` } });
+      const [, intake] = stored();
+      expect(intake).toMatchObject({ state: "blocked", next_forward_at_ms: Number.MAX_SAFE_INTEGER });
+      expect(intake).not.toHaveProperty("scene_outcome_notification_intent");
       // Ended: the queue polls it no more.
       stored()[1].next_forward_at_ms = 0; await processSceneIntakeQueue();
       expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET"]);

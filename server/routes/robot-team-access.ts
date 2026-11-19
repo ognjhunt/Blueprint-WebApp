@@ -78,12 +78,11 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
     const { record, created, unchanged, notification } = await recordAccessApplication(application, { fit,
       applicationTermsAcceptance: applicationTermsAcceptance(undefined, shown) });
     // A decided record is left as it is, and the answer is the same as for a new application (G1).
-    if (unchanged) return res.status(202).json({ status: "applied", notificationStatus: "queued" });
+    if (unchanged) return res.status(202).json({ status: "applied", notificationStatus: "not_requested" });
     // Registration records interest; only the existing staff decision/invite routes grant admission.
     const current = record;
     const autoApproved = false;
-    // The receipt (or fresh invitation for an approved email) was committed
-    // with the application. Queued is not provider delivery.
+    // No receipt by email: the page says the application was received (owner, 2026-11-19).
     if (created) {
       void notifySlackRobotTeamAccessApplication({ ...current, fit, autoApproved }).catch(() => undefined);
     }

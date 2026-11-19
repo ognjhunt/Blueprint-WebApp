@@ -14,7 +14,7 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async (_u
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 vi.mock("wouter", () => ({ useParams: () => ({ jobId: "job-1" }) }));
 
-const { default: CompanyJob } = await import("@/pages/CompanyJob");
+const { default: CompanyJob, SITE_ANSWERS_HINT } = await import("@/pages/CompanyJob");
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
@@ -23,6 +23,9 @@ const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   video: { state: "ready", url: "/api/company-media/jobs/job-1/video.mp4?x=1", width: 1280, height: 720, durationSeconds: 4 },
   simulation: { state: "ready", viewerUrl: "/splat-viewer/index.html?content=x" }, simulationDownload: { state: "not_finished" }, firstLook: null,
   firstLookRows: [{ verdict: "fits", text: "Fits.", robot: "Universal Robots UR20" }], myAnswer: null,
+  packetFacts: { object: ["Starts: about 54 cm above the floor."], measured: ["Registration residual: 8 cm."],
+    estimated: ["Weight: about 3.1 kg (0.34 to 28 kg). An estimate, not weighed."] },
+  notShown: ["No safety assessment of any robot at this site."],
   responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT }, ...overrides });
 const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); auth.currentUser = { uid: "u1", email: "team@example.test" }; });
@@ -41,6 +44,13 @@ describe("the company's page for one job", () => {
     expect(video.getAttribute("controlsList")).toContain("nodownload");
     expect(screen.getByRole("link", { name: "View the simulation of the site" })).toHaveAttribute("href", "/splat-viewer/index.html?content=x");
     expect(screen.getByText("Fits.")).toBeInTheDocument();
+    // What the video shows of the object and how sure each figure is, beside the site's own unchecked answers.
+    expect(screen.getByText(SITE_ANSWERS_HINT)).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "The object and where it goes" })).getByText("Starts: about 54 cm above the floor.")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Measured" })).getByText("Registration residual: 8 cm.")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Estimated" })).getByText(/An estimate, not weighed/)).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "What this job packet does not show" }))
+      .getByText("No safety assessment of any robot at this site.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /download/i })).toBeNull();
 
     const form = screen.getByRole("form", { name: "Answer about this job" });

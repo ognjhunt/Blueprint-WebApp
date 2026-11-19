@@ -16,7 +16,7 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 const { teamJobAccess, loadCompanyJobAccess } = await import("../utils/teamJobAccess");
 const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
 const { JOB_SHARED_LISTING_VERSION, recordingConsentWrite } = await import("../utils/jobSharedListing");
-const { introductionMadeSiteCopy, notifySummarySharedIfVisible } = await import("../utils/taskLifecycleNotifications");
+const { introductionMadeSiteCopy } = await import("../utils/taskLifecycleNotifications");
 const { jobSharingOf } = await import("../utils/siteAnswer");
 const { introduceSentence } = await import("../../client/src/lib/siteIntroductions");
 
@@ -29,19 +29,17 @@ const v4Job = () => ({ request: { buyerType: "site_operator", consent_attestatio
   summary_shared_notice: { owed: true },
   capture_privacy_screen: { proceeded: true, eligibility: "eligible" } });
 
-describe("P1 (M1): 'Deployment companies we approve can now see your job' follows the whole rule", () => {
-  it("is not sent, nor owed into the outbox, while the job has no sentence, and the page says preparing", async () => {
+describe("P1 (M1): 'Your job was sent to deployment companies' follows the whole rule", () => {
+  it("is not sent while the job has no sentence, and the page says preparing", async () => {
     sharedFakeFirestoreState.docs.clear();
     sharedFakeFirestoreState.docs.set("inboundRequests/req-p1", v4Job());
     expect(teamJobAccess(v4Job() as never).listed).toBe(true);
     expect((await loadCompanyJobAccess("req-p1")).access).toMatchObject({ listed: false, reason: "no_job_sentence" });
-    expect(await taskLifecycleNotificationIsCurrent({ kind: "listing_live", requestId: "req-p1", idempotencyKey: "req-p1:listing_live:summary-1" })).toBe(false);
-    expect(await notifySummarySharedIfVisible("req-p1")).toMatchObject({ enqueued: false, reason: "not_visible" });
-    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "job_sent", requestId: "req-p1" })).toBe(false);
     expect(jobSharingOf(v4Job(), (await loadCompanyJobAccess("req-p1")).access)).toMatchObject({ state: "preparing" });
     // With its sentence, the same job is visible and the email may go.
     sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-p1", { requestId: "req-p1", summary: "Pack the boxes" });
-    expect(await taskLifecycleNotificationIsCurrent({ kind: "listing_live", requestId: "req-p1", idempotencyKey: "req-p1:listing_live:summary-1" })).toBe(true);
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "job_sent", requestId: "req-p1" })).toBe(true);
   });
 });
 

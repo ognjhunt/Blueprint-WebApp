@@ -34,25 +34,23 @@ vi.mock("../utils/email", () => ({ sendEmail: send }));
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT } from "../utils/taskPreparationOutcome";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
-import { WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_EPOCH, WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_ISO,
-  websiteJobWindowEndedNoticeKey } from "../utils/websiteJobWindowEnding";
 import { startWebsiteJobWindowSweepWorker, sweepWebsiteJobWindow, sweepWebsiteJobWindows } from "../utils/websiteJobWindowSweep";
 import { websiteJobWorkWindow } from "../utils/websiteSceneSponsorship";
 import { recordSceneExecutionWindowExtension, SCENE_EXECUTION_WINDOW_NOTICE_SCHEMA } from "../utils/sceneExecutionWindowExtension";
 import { deliverOutbox } from "../utils/captureOutbox";
 
 const DAY = 86400;
-const CUTOVER = WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_EPOCH;
+/** When ending emails began (2026-11-11); they ended on 2026-11-19, and the dates below keep the fixtures as they were. */
+const CUTOVER = Date.UTC(2026, 10, 11) / 1000;
 /** The sweep runs ten days after the cutover. */
 const NOW = (CUTOVER + 10 * DAY) * 1000;
-/** A window that ended a day after the cutover: the site is owed its one email. */
+/** A window that ended a day after the cutover. */
 const AFTER = CUTOVER + DAY;
 /** A window that ended two days before the sweep: an extension of at most seven days can still reach past it. */
 const RECENT = NOW / 1000 - 2 * DAY;
 const GRANT = screeningSha("9");
 const JOB = "inboundRequests/job-one";
 const INTAKE = "taskEvaluationSceneIntakes/intake-one";
-const NOTICE = `captureOutbox/${websiteJobWindowEndedNoticeKey("job-one")}`;
 const docs = state.docs;
 const job = () => docs.get(JOB) as Record<string, any>;
 const outbox = () => [...docs.entries()].filter(([key]) => key.startsWith("captureOutbox/") && !key.includes("/deliveryReceipts/")) as
@@ -118,64 +116,27 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe("a job past its window with no outcome", () => {
-  it("is ended once, in one write with one email, however often the sweep runs", async () => {
+  it("is ended once, in one write, with no email (the page says it), however often the sweep runs", async () => {
     seedJob();
     const before = structuredClone(job());
-    expect(await sweep()).toEqual({ examined: 1, ended: 1, noticesQueued: 1, failed: 0 });
+    expect(await sweep()).toEqual({ examined: 1, ended: 1, failed: 0 });
 
     const ending = job().website_job_window_ending;
     expect(ending).toMatchObject({ schema_version: "website_job_window_ending.v1", request_id: "job-one", authority_digest: GRANT,
-      window_ended_at_epoch: AFTER, recorded_at_iso: new Date(NOW).toISOString(), notice: "queued" });
+      window_ended_at_epoch: AFTER, recorded_at_iso: new Date(NOW).toISOString(), notice: "none_emails_retired" });
     // Nothing else on the job changed: the grant and its reservations are as they were.
     expect({ ...job(), website_job_window_ending: undefined }).toEqual({ ...before, website_job_window_ending: undefined });
-    expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
-    expect(outbox()[0][1]).toMatchObject({ kind: "scene_outcome", requestId: "job-one", status: "pending", to: "owner@example.com",
-      subject: "The simulation of your site has stopped", idempotencyKey: "job-one:scene_outcome:job_window_ended" });
-
-    // The page and the email say the same, exact sentence.
+    expect(outbox()).toEqual([]);
     expect(JOB_WINDOW_ENDING_MESSAGE).toBe("The simulation of your site has stopped because the time Blueprint was authorized to work on this job ran out. "
       + "Blueprint did not finish the simulation in that time, and no more simulation work will run on this job. Your first look stays on your job page. "
       + "Nothing more is needed from you. Keep your original recording; to have Blueprint work on this site again, you can start a new job.");
-    expect(JOB_WINDOW_ENDING_SUBJECT).toBe("The simulation of your site has stopped");
     expect(await page()).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null, stage: null });
-    const body: string = outbox()[0][1].body;
-    // With no paper check for the job, the email says so plainly after the ending (review, 2026-11-11).
-    expect(body.startsWith(`${JOB_WINDOW_ENDING_MESSAGE} There is no first look for this job.\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
-    expect(body).toMatch(/\/capture-upload\/\S+$/);
-    // It promises nothing a person or a timer would have to do.
-    expect(body).not.toMatch(/we will|we'll|our team|review|follow up|email you/i);
 
-    // Twice more: still one ending and one email.
-    for (let pass = 0; pass < 2; pass++) expect(await sweep()).toEqual({ examined: 1, ended: 0, noticesQueued: 0, failed: 0 });
+    // Twice more: still one ending, and nothing sent.
+    for (let pass = 0; pass < 2; pass++) expect(await sweep()).toEqual({ examined: 1, ended: 0, failed: 0 });
     expect(job().website_job_window_ending).toEqual(ending);
-    expect(outbox()).toHaveLength(1);
-
     await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0]).toMatchObject({ to: "owner@example.com", subject: "The simulation of your site has stopped" });
-    expect(outbox()[0][1].status).toBe("sent");
-    await sweep();
-    await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(outbox()).toHaveLength(1);
-  });
-
-  it("is ended with no email when its window ended before the cutover", async () => {
-    expect(WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_ISO).toBe("2026-11-11T00:00:00Z");
-    expect(CUTOVER).toBe(Date.UTC(2026, 10, 11) / 1000);
-    seedJob(CUTOVER - 1);
-    expect(await sweep()).toEqual({ examined: 1, ended: 1, noticesQueued: 0, failed: 0 });
-    expect(job().website_job_window_ending).toMatchObject({ window_ended_at_epoch: CUTOVER - 1, notice: "none_window_ended_before_cutover" });
-    expect(outbox()).toHaveLength(0);
-    expect((await page()).headline).toBe(JOB_WINDOW_ENDING_MESSAGE);
-    await sweep();
-    await deliverOutbox();
-    expect(outbox()).toHaveLength(0);
     expect(send).not.toHaveBeenCalled();
-    // A window that ended exactly at the cutover is owed the email.
-    seedJob(CUTOVER, {}, "job-two");
-    await sweep();
-    expect(outbox().map(([key]) => key)).toEqual(["captureOutbox/job-two:scene_outcome:job_window_ended"]);
   });
 
   it.each([
@@ -193,8 +154,8 @@ describe("a job past its window with no outcome", () => {
     seedJob();
     strand();
     const intake = structuredClone(docs.get(INTAKE));
-    expect(await sweep()).toMatchObject({ ended: 1, noticesQueued: 1 });
-    expect(job().website_job_window_ending.notice).toBe("queued");
+    expect(await sweep()).toMatchObject({ ended: 1 });
+    expect(job().website_job_window_ending.notice).toBe("none_emails_retired");
     // The scene intake, the Pipeline's intent and its budget are not written by the sweep.
     expect(docs.get(INTAKE)).toEqual(intake);
   });
@@ -226,7 +187,7 @@ describe("a job the sweep must leave alone", () => {
     seedJob();
     await arrange();
     const before = new Map([...docs.entries()].map(([key, value]) => [key, structuredClone(value)]));
-    expect(await sweep()).toEqual({ examined: 1, ended: 0, noticesQueued: 0, failed: 0 });
+    expect(await sweep()).toEqual({ examined: 1, ended: 0, failed: 0 });
     await sweep();
     // Nothing but the sweep's own rotating cursor was written: not the job, not an intake, not the outbox.
     const after = new Map([...docs.entries()].filter(([key]) => !key.startsWith("automationCursors/")));
@@ -255,144 +216,62 @@ describe("a job the sweep must leave alone", () => {
     expect(await websiteJobWorkWindow(job())).toEqual({ untilEpoch: NOW / 1000 + DAY, ended: false });
     expect(await sweep()).toMatchObject({ ended: 0 });
     vi.setSystemTime(NOW + 2 * DAY * 1000);
-    expect(await sweepWebsiteJobWindows()).toMatchObject({ ended: 1, noticesQueued: 1 });
+    expect(await sweepWebsiteJobWindows()).toMatchObject({ ended: 1 });
     expect(job().website_job_window_ending.window_ended_at_epoch).toBe(NOW / 1000 + DAY);
   });
 });
 
 describe("the ending and what comes after it", () => {
-  it("cancels the email when recording permission is withdrawn before it is sent", async () => {
+  it("gives way to a withdrawal on the page", async () => {
     seedJob();
     await sweep();
     Object.assign(job(), { consent_revoked: true, capture_withdrawal: { state: "uploads_stopped_cleanup_pending" } });
-    await deliverOutbox();
-    expect(send).not.toHaveBeenCalled();
-    expect(outbox()[0][1].status).toBe("cancelled");
     expect((await page({ consentRevoked: true })).headline).toMatch(/consent was withdrawn/);
   });
 
-  it("cancels a queued ending email when an old early-trial estimate is stored for the scene", async () => {
-    seedJob();
-    await sweep();
-    seedIntake();
-    storedCampaign("estimate");
-    await deliverOutbox();
-    expect(outbox().find(([key]) => key === NOTICE)![1].status).toBe("cancelled");
-  });
 
-  it("cancels the email when a scene-stage hold arrived first, and the page shows the hold", async () => {
+  it("gives way on the page to a scene-stage hold that arrived first", async () => {
     seedJob();
     await sweep();
     seedIntake();
     sceneHoldRun("held_scene_check");
-    await deliverOutbox();
-    expect(outbox().find(([key]) => key === NOTICE)![1].status).toBe("cancelled");
     expect((await page({ sceneProgression: { state: "held", heldReason: "held_scene_check" } })).headline)
       .toMatch(/^The simulated scene failed the check we run before testing robots/);
   });
 
-  it("is the job's one ending: a Pipeline ending read afterwards sends no second email and does not change the page", async () => {
+  it("is the job's one ending: a Pipeline ending read afterwards does not change the page", async () => {
     seedJob();
     await sweep();
     const outcome = sealedOutcome("setup_repair", true, "authority_expired");
-    const { sceneOutcomeNoticeIntent } = await import("../utils/sceneIntentOutcome");
     seedIntake({ state: "blocked", pipeline_status: { status: "blocked", phase: "authority",
       blockers: ["scene_intake_authority_expired"], outcome } });
-    const intent = sceneOutcomeNoticeIntent("intake-one", docs.get(INTAKE) as never);
-    expect(intent).toMatchObject({ kind: "setup_repair" });
-    Object.assign(docs.get(INTAKE)!, { scene_outcome_notification_pending: true, scene_outcome_notification_intent: intent });
-    await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("The simulation of your site has stopped");
-    expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
-    expect((docs.get(INTAKE) as any).scene_outcome_notification_pending).toBe(false);
     expect((await page({ sceneProgression: { state: "ended", sceneOutcome: { kind: "setup_repair", terminal: true,
       reasonCode: "authority_expired", digest: outcome.outcome_digest } } })).headline).toBe(JOB_WINDOW_ENDING_MESSAGE);
   });
 
-  it("stops speaking for the job when the window is reopened or the grant is re-issued, and never emails a job twice", async () => {
+  it("stops speaking for the job when the window is reopened or the grant is re-issued", async () => {
     seedJob();
     await sweep();
-    await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
     // The owner re-issues the expired grant: a new window, so the old ending no longer shows.
     Object.assign(job().website_scene_sponsorship, { authority_digest: screeningSha("8"), expires_at_epoch: NOW / 1000 + 7 * DAY });
     expect(await websiteJobWorkWindow(job())).toEqual({ untilEpoch: NOW / 1000 + 7 * DAY, ended: false });
     expect((await page()).decision).not.toBe("ended");
     expect(await sweep()).toMatchObject({ ended: 0 });
-    // That window passes too with nothing on record: the ending is recorded for the new grant, with no second email.
+    // That window passes too with nothing on record: the ending is recorded for the new grant.
     vi.setSystemTime(NOW + 8 * DAY * 1000);
-    expect(await sweepWebsiteJobWindows()).toMatchObject({ ended: 1, noticesQueued: 0 });
-    expect(job().website_job_window_ending).toMatchObject({ authority_digest: screeningSha("8"), notice: "queued" });
+    expect(await sweepWebsiteJobWindows()).toMatchObject({ ended: 1 });
+    expect(job().website_job_window_ending).toMatchObject({ authority_digest: screeningSha("8"), notice: "none_emails_retired" });
     expect((await page()).decision).toBe("ended");
-    await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(outbox()).toHaveLength(1);
   });
 
-  it("still tells the site when an extension cancelled the first email unsent and the extended window then ends", async () => {
-    seedJob(RECENT);
-    seedIntake({ state: "accepted" }, RECENT);
-    expect(await sweep()).toMatchObject({ ended: 1, noticesQueued: 1 });
-    // The owner's extension lands before the email is dispatched: the ending no longer stands, so it is cancelled.
-    await extendWindow(false);
-    await deliverOutbox();
-    expect(send).not.toHaveBeenCalled();
-    expect(docs.get(NOTICE)).toMatchObject({ status: "cancelled" });
-    expect(await sweep()).toMatchObject({ ended: 0 });
-    // The extended window passes with still nothing on record: a new ending, and its one email under its own fixed key.
-    const extendedEnd = NOW / 1000 + DAY;
-    vi.setSystemTime(NOW + 2 * DAY * 1000);
-    expect(await sweepWebsiteJobWindows()).toEqual({ examined: 1, ended: 1, noticesQueued: 1, failed: 0 });
-    expect(job().website_job_window_ending).toMatchObject({ authority_digest: GRANT, window_ended_at_epoch: extendedEnd, notice: "queued" });
-    const second = `captureOutbox/job-one:scene_outcome:job_window_ended-${Math.round(extendedEnd)}`;
-    expect(websiteJobWindowEndedNoticeKey("job-one", extendedEnd)).toBe(second.slice("captureOutbox/".length));
-    expect(outbox().map(([key]) => key).sort()).toEqual([NOTICE, second].sort());
-    expect(docs.get(second)).toMatchObject({ kind: "scene_outcome", status: "pending", subject: "The simulation of your site has stopped" });
-    for (let pass = 0; pass < 2; pass++) {
-      expect(await sweepWebsiteJobWindows()).toMatchObject({ ended: 0, noticesQueued: 0 });
-      await deliverOutbox();
-    }
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(docs.get(second)).toMatchObject({ status: "sent" });
-    expect(docs.get(NOTICE)).toMatchObject({ status: "cancelled" });
-    expect(outbox()).toHaveLength(2);
-  });
 
-  it("never sends a second email when the first was sent before the window was extended", async () => {
-    seedJob(RECENT);
-    seedIntake({ state: "accepted" }, RECENT);
-    await sweep();
-    await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
-    await extendWindow(false);
-    vi.setSystemTime(NOW + 2 * DAY * 1000);
-    // The later ending is recorded for the page, and the email that already went out stays the only one.
-    expect(await sweepWebsiteJobWindows()).toEqual({ examined: 1, ended: 1, noticesQueued: 0, failed: 0 });
-    expect(job().website_job_window_ending).toMatchObject({ window_ended_at_epoch: NOW / 1000 + DAY, notice: "queued" });
-    expect((await page()).decision).toBe("ended");
-    await sweepWebsiteJobWindows();
-    await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
-  });
 
-  it("ends a job nobody can be emailed about, and waits a day for an address that will not decrypt", async () => {
-    seedJob(AFTER, { contact: {} });
-    expect(await sweepWebsiteJobWindow("job-one", NOW)).toBe("ended_no_notice");
-    expect(job().website_job_window_ending.notice).toBe("none_no_contact_on_file");
-    seedJob(AFTER, { contact: { email: "encrypted:unreadable" } }, "job-two");
-    expect(await sweepWebsiteJobWindow("job-two", (AFTER + 3600) * 1000)).toBe("contact_unreadable");
-    expect(docs.get("inboundRequests/job-two")).not.toHaveProperty("website_job_window_ending");
-    expect(await sweepWebsiteJobWindow("job-two", (AFTER + DAY) * 1000)).toBe("ended_no_notice");
-    expect(outbox()).toHaveLength(0);
-  });
 
   it("keeps turning through the jobs when one cannot be read", async () => {
     seedJob(AFTER, { website_run_closures: "damaged" }, "job-a");
     seedJob(AFTER, {}, "job-b");
-    expect(await sweepWebsiteJobWindows({ now: () => NOW, limit: 1 })).toEqual({ examined: 1, ended: 0, noticesQueued: 0, failed: 1 });
-    expect(await sweepWebsiteJobWindows({ now: () => NOW, limit: 1 })).toEqual({ examined: 1, ended: 1, noticesQueued: 1, failed: 0 });
+    expect(await sweepWebsiteJobWindows({ now: () => NOW, limit: 1 })).toEqual({ examined: 1, ended: 0, failed: 1 });
+    expect(await sweepWebsiteJobWindows({ now: () => NOW, limit: 1 })).toEqual({ examined: 1, ended: 1, failed: 0 });
     expect(docs.get("inboundRequests/job-a")).not.toHaveProperty("website_job_window_ending");
   });
 });
@@ -412,7 +291,7 @@ describe("the sweep worker", () => {
       expect(job()).not.toHaveProperty("website_job_window_ending");
       leader.value = true;
       await vi.advanceTimersByTimeAsync(2_000);
-      expect(job().website_job_window_ending).toMatchObject({ notice: "queued" });
+      expect(job().website_job_window_ending).toMatchObject({ notice: "none_emails_retired" });
       stop();
       expect(lease.stop).toHaveBeenCalledTimes(1);
     } finally { vi.useRealTimers(); }

@@ -5,9 +5,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { betaPolicyScreeningHoldSchema, isKnownHoldReason, screeningHoldOutcome } from "../utils/betaPolicyScreeningHold";
-import { adoptedSceneOutcome, sceneIntentOutcomeSchema, sceneOutcomeMessage, sceneOutcomeNoticeIntent } from "../utils/sceneIntentOutcome";
+import { adoptedSceneOutcome, sceneIntentOutcomeSchema, sceneOutcomeMessage } from "../utils/sceneIntentOutcome";
 import { projectWebsiteSceneProgression } from "../utils/websiteSceneProgression";
-import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { parseWebsitePreparationWatch } from "../utils/websitePreparationWatch";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { jobOutlook, type JobOutlookInput } from "../utils/jobOutlook";
@@ -35,26 +34,18 @@ describe("scene outcome kinds", () => {
     expect(sceneIntentOutcomeSchema.safeParse(sealed("brand_new_kind", false)).success).toBe(true);
     const record = { state: "accepted", website_request_id: "job-1", pipeline_status: { status: "running", outcome: sealed("brand_new_kind", false) } };
     expect(adoptedSceneOutcome(record)).toBeNull();
-    expect(sceneOutcomeNoticeIntent("intake-1", record)).toBeNull();
     expect(projectWebsiteSceneProgression(record)).toEqual({ state: "in_progress" });
     expect(adoptedSceneOutcome({ state: "accepted", pipeline_status: { status: "blocked", outcome: sealed("held") } })?.kind).toBe("held");
   });
-  it("adopts an ending whose kind it does not know as the general ending: one email, and never 'time ran out'", () => {
+  it("adopts an ending whose kind it does not know as the general ending, and never 'time ran out'", () => {
     const record = { state: "blocked", website_request_id: "job-1", pipeline_status: { status: "blocked", outcome: sealed("brand_new_kind") } };
     expect(adoptedSceneOutcome(record)?.kind).toBe("stopped");
     const progression = projectWebsiteSceneProgression(record)!;
     expect(progression.state).toBe("ended");
-    const notice = sceneOutcomeNoticeIntent("intake-1", record)!;
-    expect(notice).toMatchObject({ kind: "stopped", request_id: "job-1" });
-    expect(sceneOutcomeNoticeIntent("intake-1", record)).toEqual(notice);
     const sentence = "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens. "
       + "Your first look stays on your job page. Nothing is needed from you.";
     expect(sceneOutcomeMessage("stopped")).toBe(sentence);
-    const email = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "scene_outcome", eventId: notice.event_id,
-      sceneOutcomeKind: "stopped", to: "owner@example.test" });
-    expect(email.subject).toBe("The simulation of your job stopped");
-    expect(email.body).toContain(sentence);
-    expect(`${email.subject} ${email.body}`).not.toMatch(/time .*ran out|expired|window/i);
+    expect(sentence).not.toMatch(/time .*ran out|expired|window/i);
     const outlook = jobOutlook({ consentRevoked: false, closedByOwner: false, answer: { state: "ready", unsized: false, reason: null }, windowEnded: false, noGrantEnded: false,
       preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "ended", endingKind: "stopped" }, proof: null });
     expect(outlook).toMatchObject({ phase: "no_test", reason: "simulation_stopped",
@@ -109,10 +100,9 @@ describe("the cold-storage hold", () => {
   const holdRun = (detail: string | null) => ({ id: "hold-1", run: { run_kind: "beta_policy_screening_hold", team_namespace: "team",
     state: "blocked", screening_outcome: "held_setup", hold_reason_code: "team_scene_packet_blocked", hold_detail_code: detail } });
   const COLD = "Held on our side while the saved simulation of your job is restored. Nothing is needed from you.";
-  it("is said by its detail on the page and in its one email; any other detail keeps the reason's sentence", async () => {
+  it("is said by its detail on the page; any other detail keeps the reason's sentence", async () => {
     const { sceneHold } = await import("../utils/websiteSceneProgression");
     const { projectTaskStatus } = await import("../utils/taskStatusProjection");
-    const { heldOutcomeNoticeIntent } = await import("../utils/screeningOutcomeNotifications");
     const { simulationHoldSentence } = await import("../utils/betaPolicyScreeningContract");
     const page = (detail: string | null) => {
       const progression = projectWebsiteSceneProgression({ state: "completed", pipeline_status: { status: "completed" } },
@@ -123,13 +113,6 @@ describe("the cold-storage hold", () => {
     expect(page("scene_run_in_cold_storage")).toContain(COLD);
     expect(page("something_new")).toContain(simulationHoldSentence("held_setup"));
     expect(page("something_new")).not.toContain("restored");
-    const intent = heldOutcomeNoticeIntent("held_setup", "job-1", "hold-1", "scene-1", "scene_run_in_cold_storage")!;
-    expect(intent.hold_detail).toBe("scene_run_in_cold_storage");
-    const email = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "evaluation_outcome", eventId: intent.event_id,
-      screeningOutcome: "held_setup", screeningHoldDetail: "scene_run_in_cold_storage", to: "owner@example.test" });
-    expect(email.body).toContain(COLD);
-    expect(email.body).not.toMatch(/early trial|openly available/i);
-    expect(heldOutcomeNoticeIntent("held_setup", "job-1", "hold-1", "scene-1")?.hold_detail).toBeUndefined();
   });
 });
 
@@ -179,18 +162,6 @@ describe("the part-6 preparation endings", () => {
         expect(card.outcome?.reason).toBe(outcome.reason);
         expect(`${card.headline} ${card.outcome?.reason} ${card.outcome?.nextStep}`).not.toMatch(/Automatic preparation retries|review/i);
       }
-  });
-  it("the needs-attention email says the page's own words for them, with no review promise", () => {
-    for (const [ending, outcome] of [[{ reason: "website_preparation_not_possible", cause: "support_surface_not_found_under_subject" },
-      "We could not find the surface the object rests on in your video. We cannot prepare the simulation of your job, so it has stopped."],
-      [{ reason: "website_preparation_retries_spent" }, "We could not finish preparing your job after several tries, for a reason on our side."]] as const) {
-      const email = buildTaskLifecycleNotification({ requestId: "r1", milestone: "preparation_needs_attention",
-        eventId: `sha256:${"e".repeat(64)}`, preparationEnding: ending as never, to: "owner@example.test" });
-      expect(email.body).toContain(outcome);
-      expect(email.body).toContain("Nothing is needed from you now. Your recording is saved.");
-      expect(email.subject).not.toMatch(/review/i);
-      expect(email.body).not.toMatch(/review/i);
-    }
   });
 });
 

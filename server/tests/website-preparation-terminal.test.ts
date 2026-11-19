@@ -94,12 +94,12 @@ beforeEach(() => { vi.useRealTimers(); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("v2 receipt contract", () => {
-  it("TERM-001 asks the Pipeline for v8 on every signed read and accepts a v1 answer", async () => {
+  it("TERM-001 asks the Pipeline for v9 on every signed read and accepts a v1 answer", async () => {
     const f = production();
     f.ledger(receipt(f.selected, "failed_retryable", 1, 3, "v1"));
     expect((await status.syncWebsitePreparationStatus(f.selected)).schema_version).toBe("website_preparation_status.v1");
     for (const sent of runtime.requests)
-      expect((sent.headers as Record<string, string>)[status.WEBSITE_PREPARATION_STATUS_VERSION_HEADER]).toBe("8");
+      expect((sent.headers as Record<string, string>)[status.WEBSITE_PREPARATION_STATUS_VERSION_HEADER]).toBe("9");
     expect(f.session().website_preparation.status.state).toBe("failed_retryable");
   });
   it.each(["permanent_invalid", "retry_exhausted", "budget_exhausted", "capacity_blocked", "out_of_scope"])(
@@ -134,75 +134,6 @@ describe("an ending reason the website does not know", () => {
   });
 });
 
-describe("one durable intent per notice", () => {
-  it("TERM-010 an ending supersedes an unsent needs-attention intent and stays one notice on replay", async () => {
-    const f = production(); f.ledger(receipt(f.selected, "failed_retryable", 4, 7));
-    await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session().website_preparation.notification).toEqual({ eventId: status.websitePreparationEventId(f.selected), state: "pending" });
-    f.ledger(receipt(f.selected, "failed_terminal", 4, 8, "v2", "budget_exhausted"));
-    await status.syncWebsitePreparationStatus(f.selected);
-    const ended = status.websitePreparationEndedEventId(f.selected, 4);
-    expect(f.session().website_preparation.notification).toEqual({ eventId: ended, state: "pending" });
-    const intents: any[] = [];
-    expect(await status.drainPendingWebsitePreparationNotifications(async intent => { intents.push(intent); return "enqueued"; }))
-      .toEqual({ enqueued: 1, pending: 0 });
-    expect(intents[0]).toMatchObject({ milestone: "preparation_ended", terminalReason: "budget_exhausted", eventId: ended });
-    expect(await status.canNotifyCurrentWebsitePreparationIssue("r1", ended)).toBe(true);
-    // A later revision of the same ending (or the same ledger read as v1) is no new notice.
-    f.ledger(receipt(f.selected, "failed_terminal", 4, 9, "v2", "budget_exhausted"));
-    await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session().website_preparation.notification).toEqual({ eventId: ended, state: "enqueued" });
-    expect(f.session().website_preparation_notification_pending).toBe(false);
-  });
-  it("TERM-011 a re-drive cancels the old ending and a second ending is a second notice", async () => {
-    const f = production(); f.ledger(receipt(f.selected, "failed_terminal", 5, 9));
-    await status.syncWebsitePreparationStatus(f.selected);
-    const first = status.websitePreparationEndedEventId(f.selected, 5);
-    f.ledger(receipt(f.selected, "preparing", 6, 10));
-    await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session().website_preparation.notification).toBeNull();
-    expect(await status.canNotifyCurrentWebsitePreparationIssue("r1", first)).toBe(false);
-    f.ledger(receipt(f.selected, "failed_terminal", 6, 11));
-    await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session().website_preparation.notification)
-      .toEqual({ eventId: status.websitePreparationEndedEventId(f.selected, 6), state: "pending" });
-  });
-  it("TERM-013 keeps when a notice was first owed beside the row, readable by the strict parser on main", async () => {
-    const f = production(); f.ledger(receipt(f.selected, "awaiting_inputs", 2, 5));
-    const before = Date.now();
-    await status.syncWebsitePreparationStatus(f.selected);
-    const eventId = status.websitePreparationEventId(f.selected);
-    const owed = f.session()[status.WEBSITE_PREPARATION_NOTICE_OWED_FIELD];
-    expect(owed).toEqual({ event_id: eventId, since_ms: expect.any(Number) });
-    expect(owed.since_ms).toBeGreaterThanOrEqual(before);
-    // The parser of `website_preparation` as it is on main (strict, notification {eventId, state}).
-    const { z } = await import("zod");
-    const mainStored = z.object({ selector: status.websitePreparationSelectorSchema, status: status.websitePreparationReceiptSchema,
-      notification: z.object({ eventId: z.string().regex(/^sha256:[a-f0-9]{64}$/), state: z.enum(["pending", "enqueued"]) })
-        .strict().nullable() }).strict();
-    expect(mainStored.safeParse(f.session().website_preparation).success).toBe(true);
-    // A replay of the same event keeps the first owed time; the drain hands it to the needs-attention notice.
-    f.ledger(receipt(f.selected, "awaiting_inputs", 2, 6));
-    await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session()[status.WEBSITE_PREPARATION_NOTICE_OWED_FIELD]).toEqual(owed);
-    const intents: any[] = [];
-    await status.drainPendingWebsitePreparationNotifications(async intent => { intents.push(intent); return "unavailable"; });
-    expect(intents[0]).toMatchObject({ milestone: "preparation_needs_attention",
-      awaitEarlyHoldUntilMs: owed.since_ms + status.EARLY_HOLD_PREVIEW_WAIT_MS });
-    // A newer event is owed afresh, bound to its own event id.
-    f.ledger(receipt(f.selected, "failed_terminal", 2, 7, "v2", "budget_exhausted"));
-    await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session()[status.WEBSITE_PREPARATION_NOTICE_OWED_FIELD])
-      .toEqual({ event_id: status.websitePreparationEndedEventId(f.selected, 2), since_ms: expect.any(Number) });
-  });
-  it("TERM-012 waiting for capacity asks nothing of the site", async () => {
-    const f = production(); f.ledger(receipt(f.selected, "capacity_delayed", 2, 4));
-    await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session().website_preparation.notification).toBeNull();
-    expect(f.session().website_preparation_notification_pending).toBe(false);
-    expect((await status.loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1")).state).toBe("capacity_delayed");
-  });
-});
 
 describe("cross-version revisions and Firestore merge semantics", () => {
   it("TERM-020 the same revision may move between versions, never change within one", async () => {

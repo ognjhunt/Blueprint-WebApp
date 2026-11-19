@@ -2,8 +2,8 @@
  * The company's page for one job (package E, E3): what a signed-in, approved deployment company sees at `/jobs/:jobId`.
  *
  * Built field by field. It reads the site's own sentence (the brief's summary), the site's quick answers (`job_facts`),
- * the country (decrypted from the place's country alone, else the capture region), the job packet's media identities
- * and the first look. It never reads the site's name, typed address, email, phone or the submitter's name, so none can
+ * the country (decrypted from the place's country alone, else the capture region), the job packet's media identities,
+ * the first look and the Pipeline's facts about the job's object (`packetFactsForCompany`). It never reads the site's name, typed address, email, phone or the submitter's name, so none can
  * reach the payload; plant-and-prove tests keep it so. Media are tickets bound to this viewer, re-checked on every
  * request (`companyMediaAllowed`).
  */
@@ -25,6 +25,9 @@ import { loadJobCardAnswerWithRobots } from "./jobCardAnswer";
 import { logger } from "../logger";
 import { decryptFieldValue } from "./field-encryption";
 import { companyMaySeeJobs } from "./companyTerms";
+import { storedPacketFacts, type PacketFacts, type PACKET_FACT_QUESTIONS } from "./websitePreparationStatus";
+import type { JobFactKey, JobFacts } from "../../client/src/lib/jobFacts";
+import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 
 /**
  * The company still stands approved as a deployment company (never a technology partner: the site agreed to share its
@@ -94,6 +97,44 @@ export async function countryOf(record: Record<string, any>): Promise<string | n
 /** Everything the job record holds that names or reaches the site (`siteIdentity.ts`). */
 export { knownSiteIdentity };
 
+/** What nothing in a job packet measures or asks: a company judges these itself. True of every packet. */
+export const PACKET_NOT_SHOWN = [
+  "No test at the site: everything here comes from what the site sent and what Blueprint built from it.",
+  "No safety assessment of any robot at this site.",
+  "The way in: the route from the site's entrance to the job, its doorways, aisle widths, steps, ramps and floor "
+    + "surface were not measured. A simulation holds only what the video filmed.",
+  "The surroundings: lighting, how busy the area is and whether people work near the job were not assessed.",
+  "The site's safety rules (guarding, speed limits, distances to keep from people, hours people are present) were not asked.",
+] as const;
+/** The site's quick question each Pipeline estimate answers (`PACKET_FACT_QUESTIONS`), as the job page keys it. */
+const SITE_QUESTION: Readonly<Record<(typeof PACKET_FACT_QUESTIONS)[number], JobFactKey>> = {
+  item_weight: "weight", item_size_longest_side: "size", items_per_hour: "perHour", hours_per_day: "hours" };
+/** Said for a rate question neither the site nor Blueprint's estimate answers. */
+export const UNSTATED_RATE: Readonly<Record<"items_per_hour" | "hours_per_day", string>> = {
+  items_per_hour: "How many an hour: not stated by the site, and not estimated.",
+  hours_per_day: "How many hours a day the job runs: not stated by the site, and not estimated." };
+
+/**
+ * The Pipeline's packet facts as a company reads them. Blueprint's estimate of a question the site answered on its job
+ * page is left out (the site's own answer is shown; "Not sure" answers nothing). Every line goes through
+ * `removeIdentifyingDetails` with the site's known identity, as the site's sentence does: the object's name and the
+ * place's label are the video analysis's words, which may echo the site's.
+ */
+export function packetFactsForCompany(facts: PacketFacts | null, answers: Partial<JobFacts> | null,
+  known: KnownSiteIdentity): { packetFacts: CompanyJobPage["packetFacts"]; notShown: string[] } {
+  const answered = (question: keyof typeof SITE_QUESTION) => {
+    const code = answers?.[SITE_QUESTION[question]];
+    return typeof code === "string" && code !== "unsure";
+  };
+  const words = (rows: PacketFacts["object"]) => rows.filter(row => !(row.answers && answered(row.answers)))
+    .map(row => removeIdentifyingDetails(row.text, known)).filter(text => text.trim().length > 0);
+  const estimatedQuestions = new Set((facts?.estimated ?? []).map(row => row.answers));
+  const unstated = (["items_per_hour", "hours_per_day"] as const)
+    .filter(question => !answered(question) && !estimatedQuestions.has(question)).map(question => UNSTATED_RATE[question]);
+  return { packetFacts: facts ? { object: words(facts.object), measured: words(facts.measured), estimated: words(facts.estimated) } : null,
+    notShown: [...PACKET_NOT_SHOWN, ...unstated] };
+}
+
 /** The page payload for one viewer, or null when the job is not listed (refused alike with a job that does not exist). */
 export async function loadCompanyJobPage(requestId: string, viewer: { companyId: string }): Promise<CompanyJobPage | null> {
   if (!db) throw new Error("company_job_store_unavailable");
@@ -109,6 +150,10 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     countryOf(record),
   ]);
   const facts = readJobFacts(record);
+  // Identity that cannot be read right now: no sentence and no packet facts this time, never one that might name the site.
+  const known = await knownSiteIdentity(record).catch(() => null);
+  const packet = known ? packetFactsForCompany(storedPacketFacts(session?.website_preparation), facts, known)
+    : packetFactsForCompany(null, facts, { names: [], addresses: [], contacts: [] });
   const clip = storedCompanyClip(session, captureId);
   const clipUrl = clip ? companyClipUrl(requestId, captureId, viewer.companyId) : null;
   const preview = viewableWebsiteScenePreview(record, session, captureId);
@@ -127,14 +172,10 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     title: access.details.title,
     taskFamily: access.details.taskFamily,
     publishedAtIso: String(record.public_task_listing?.approvedAtIso ?? ""),
-    // The site's own words, with any email, phone number or link it typed removed: a company gets those only through an
-    // introduction the site asks for.
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
     // text and any other contact detail removed (`removeIdentifyingDetails`): a company gets those only through an
     // introduction the site asks for.
-    // Identity that cannot be read right now: no sentence this time, never one that might still name the site.
-    sentence: await knownSiteIdentity(record).then(known => removeIdentifyingDetails(
-      String(brief?.summary ?? "").trim().slice(0, 2000), known)).catch(() => ""),
+    sentence: known ? removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known) : "",
     jobFacts: jobFactsInWords(facts),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
@@ -144,6 +185,8 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     firstLook: firstLook.summary,
     firstLookRows: rows,
     firstLookMore: table?.more ?? null,
+    packetFacts: packet.packetFacts,
+    notShown: packet.notShown,
     myAnswer: answerRow && isCompanyResponseState(answerRow.state) ? { state: answerRow.state,
       inputs: typeof answerRow.inputs === "string" ? answerRow.inputs : "", updatedAtIso: String(answerRow.updatedAtIso ?? ""),
       statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null } : null,

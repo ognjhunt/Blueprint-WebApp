@@ -253,18 +253,13 @@ describe("a site that sends its footage before confirming its brief", () => {
     expect(status.operatorAction).toBeNull();
   });
 
-  it("gets one receipt email that leaves reconstruction and evaluation with Blueprint", async () => {
+  it("gets no second email for its footage: the job page says it arrived (owner, 2026-11-19)", async () => {
     const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     await claim(jobId);
     await sendFootage(token);
-    const notice = outbox(`${jobId}:video_received`);
-    expect(notice?.kind).toBe("video_received");
-    expect(notice?.subject).toBe("We have your video");
-    expect(notice?.body).toMatch(/^Your video arrived safely\./);
-    expect(notice?.body).not.toMatch(/confirm your job brief|needs your confirmed brief/i);
-    expect(notice?.body).toContain(`/capture-upload/`);
-    // One email for the event: the intake receipt, then the footage notice.
-    expect(queuedKinds(jobId)).toEqual(["task_received", "video_received"]);
+    expect(outbox(`${jobId}:video_received`)).toBeUndefined();
+    // One email for the job: the intake receipt with its link.
+    expect(queuedKinds(jobId)).toEqual(["task_received"]);
     const original = structuredClone(doc(`captureUploadSessions/walkthrough-${jobId}`).browser_pending_delivery);
     const [originalBytes] = await sharedUploadBucket.bucket.file(original.video.object_name,
       { generation: original.video.generation }).download();
@@ -280,7 +275,7 @@ describe("a site that sends its footage before confirming its brief", () => {
     expect((await originalFile.getMetadata())[0].generation).toBe(original.video.generation);
     expect((await originalFile.download())[0]).toEqual(originalBytes);
     expect((await jobStatus(token)).captureReceived).toBe(true);
-    expect(queuedKinds(jobId)).toEqual(["task_received", "video_received"]);
+    expect(queuedKinds(jobId)).toEqual(["task_received"]);
   });
 
   it("is never asked to film again once it confirms", async () => {
@@ -306,24 +301,17 @@ describe("a site that sends its footage before confirming its brief", () => {
 });
 
 describe("a site that confirms before it films", () => {
-  it("still hears the footage email it always did", async () => {
+  it("hears nothing more when its footage arrives", async () => {
     const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     expect((await confirmBrief(token)).disposition).toBe("qualified");
-    // Confirming sends no email (owner decision 2026-11-11); the footage email still comes.
+    // Confirming sends no email (owner decision 2026-11-11), and neither does the footage (2026-11-19).
     expect(outbox(`${jobId}:brief-screening:qualified`)).toBeUndefined();
     await claim(jobId);
     await sendFootage(token);
-    const notice = outbox(`${jobId}:video_received`);
-    expect(notice?.subject).toBe("We have your video");
-    expect(notice?.body).not.toMatch(/confirm your job brief/i);
+    expect(outbox(`${jobId}:video_received`)).toBeUndefined();
   });
 });
 
-/** A claimed site's emails link to its account's one list of jobs, which opens the job page with a fresh link. */
-it("links a claimed site's emails to its jobs in its account", async () => {
-  const { workspaceTaskUrl } = await import("../utils/taskLifecycleNotifications");
-  expect(workspaceTaskUrl("job-1")).toMatch(/^https:\/\/[^/]+\/app$/);
-});
 
 /**
  * Audit N3: a site may start with footage and no description. Its brief's
@@ -345,7 +333,7 @@ describe("a site that sends footage with no description", () => {
     // Nothing was recorded: no attestation, no screen, no reply.
     expect(doc(`inboundRequests/${jobId}`).site_task_brief_confirmed_at).toBeUndefined();
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toBeUndefined();
-    expect(queuedKinds(jobId)).toEqual(["task_received", "video_received"]);
+    expect(queuedKinds(jobId)).toEqual(["task_received"]);
 
     const summary = "Pick up each carton and place it at the end of the table";
     expect((await confirmBrief(token, { summary })).disposition).toBe("qualified");

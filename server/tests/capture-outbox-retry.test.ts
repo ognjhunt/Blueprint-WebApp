@@ -55,6 +55,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../utils/email", () => ({ sendEmail: provider.send }));
 vi.mock("../utils/robotTeamAccessNotificationAuthority", () => ({ robotTeamAccessNotificationAuthority: authority }));
+// The site's job emails that a withdrawal stops (`job_sent`, `company_answered`) read the whole sharing rule; here the
+// rule is the withdrawal alone, so what the outbox does with a notice that is no longer current is what is tested.
+vi.mock("../utils/taskLifecycleNotificationAuthority", async () => {
+  const { sharedFakeFirestoreState } = await import("./helpers/fake-firestore");
+  return { taskLifecycleNotificationIsCurrent: async (entry: { requestId: string }) =>
+    sharedFakeFirestoreState.docs.get(`inboundRequests/${entry.requestId}`)?.consent_revoked !== true };
+});
 
 const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
 const { MAX_UNDELIVERED_AGE_MS, RESEND_WINDOW_MS, providerIdempotencyKey, retryDelayMs } = await import("../utils/captureOutboxRetry");
@@ -64,12 +71,12 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const START = Date.parse("2026-11-10T09:00:00Z");
 
-const key = (name: string) => `req-${name}:scene_ready`;
+const key = (name: string) => `req-${name}:fresh_link`;
 const row = (name = "a") => store.docs.get(`captureOutbox/${key(name)}`) as Record<string, any>;
 const callsTo = (name = "a") => provider.state.calls.filter(call => call.to === `${name}@site.example`);
 const deliveredTo = (name = "a") => provider.state.delivered.filter(email => email.to === `${name}@site.example`);
 
-async function enqueue(name = "a", kind: "scene_ready" | "task_received" = "scene_ready") {
+async function enqueue(name = "a", kind: "fresh_link" | "task_received" = "fresh_link") {
   store.docs.set(`inboundRequests/req-${name}`, { request: { consent_attestation: {
     granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" } } });
   await enqueueOutbox({ idempotencyKey: key(name), requestId: `req-${name}`, kind,
@@ -305,7 +312,7 @@ describe("outside the provider's window an unknown outcome is not sent again", (
 });
 
 describe("the alert scan pages past rows it has already reported", () => {
-  const needsPerson = (id: string) => ({ idempotencyKey: id, requestId: id.split(":")[0], kind: "scene_ready",
+  const needsPerson = (id: string) => ({ idempotencyKey: id, requestId: id.split(":")[0], kind: "fresh_link",
     to: "old@site.example", subject: "s", body: "b", status: "unknown", attempts: 1,
     createdAtIso: new Date(START - HOUR).toISOString(), sentAtIso: null, lastError: "delivery_outcome_unknown" });
   const failed = (id: string) => ({ ...needsPerson(id), status: "failed", lastError: "Resend rejected email: Invalid `to` field" });
@@ -317,17 +324,17 @@ describe("the alert scan pages past rows it has already reported", () => {
     const alert = vi.fn(async (_key: string, _text: string) => undefined);
     const deps = { store: db as never, alert, email: vi.fn(async () => ({ sent: true })) as never, now: () => Date.now(), limit: 3 };
     // More retained rows than one page, all reported over a few passes.
-    for (let index = 1; index <= 7; index += 1) store.docs.set(`captureOutbox/a-${index}:scene_ready`, seed(`a-${index}:scene_ready`));
+    for (let index = 1; index <= 7; index += 1) store.docs.set(`captureOutbox/a-${index}:fresh_link`, seed(`a-${index}:fresh_link`));
     for (let pass = 0; pass < 6; pass += 1) await scan(deps);
     expect([...store.docs.keys()].filter(path => path.startsWith("opsOutboxFailureAlerts/"))).toHaveLength(7);
     alert.mockClear();
     // A newer row that sorts after every retained one.
-    store.docs.set("captureOutbox/z-new:scene_ready", seed("z-new:scene_ready"));
+    store.docs.set("captureOutbox/z-new:fresh_link", seed("z-new:fresh_link"));
     let reported = 0;
     for (let pass = 0; pass < 6; pass += 1) reported += (await scan(deps)).newlyAlerted;
     expect(reported).toBe(1);
     expect(alert).toHaveBeenCalledOnce();
-    expect(String(alert.mock.calls[0][1])).toContain("scene_ready for z-new");
+    expect(String(alert.mock.calls[0][1])).toContain("fresh_link for z-new");
     // And never twice.
     for (let pass = 0; pass < 6; pass += 1) reported += (await scan(deps)).newlyAlerted;
     expect(reported).toBe(1);
@@ -336,7 +343,7 @@ describe("the alert scan pages past rows it has already reported", () => {
 
 describe("rows that were unknown before provider keys existed", () => {
   const legacy = (overrides: Record<string, unknown> = {}) => ({
-    idempotencyKey: key("a"), requestId: "req-a", kind: "scene_ready", to: "a@site.example", subject: "Your result",
+    idempotencyKey: key("a"), requestId: "req-a", kind: "fresh_link", to: "a@site.example", subject: "Your result",
     body: "The run finished.", replyTo: null, status: "unknown", attempts: 1, createdAtIso: new Date(START - HOUR).toISOString(),
     sentAtIso: null, lastError: "delivery_outcome_unknown", deliveryToken: "old-token", deliveryDigest: "old-digest",
     deliveryLeaseUntilMs: START - 50 * MINUTE, ...overrides });

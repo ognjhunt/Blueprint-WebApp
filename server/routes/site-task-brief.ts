@@ -84,7 +84,6 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { loadIsInternalTestJob } from "../utils/internalTestJob";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
-import { buildBriefUnclearEmail } from "../utils/qualificationEmails";
 import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
@@ -1046,30 +1045,10 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
       screenGateEnded = request?.screenGateEnded === true;
-      // The brief can be a no-op while its notification intent is missing.
-      // Reuse the durable outbox key to recover failed enqueues without
-      // creating another message or changing the confirmed work.
-      if (request?.contactEmail && briefUnclear) {
-        const email = buildBriefUnclearEmail({
-          firstName: request.contactFirstName || "there",
-          jobUrl: captureUploadUrlFor(payload.requestId),
-        });
-        await enqueueOutbox({
-          idempotencyKey: `${payload.requestId}:brief-screening:task-not-yet-supported`,
-          requestId: payload.requestId,
-          to: request.contactEmail,
-          kind: "screening_not_now",
-          subject: email.subject,
-          body: email.body,
-        });
-        void deliverOutbox({ limit: 5 }).catch((error) =>
-          logger.warn({ error, requestId: payload.requestId }, "Brief sentence email delivery deferred to outbox"));
-      }
-      // The four-conditions screen sends no email of its own, and no fallback
-      // "brief confirmed" one (owner decision 2026-11-11). Its verdict still
-      // gates the work, and a call it needs still reaches ops below.
+      // No email about the brief: the job page asks for the one sentence a brief that gives none needs (owner,
+      // 2026-11-19). The four-conditions screen's verdict still gates the work, and a call it needs still reaches ops.
     } catch (error) {
-      logger.error({ error, requestId: payload.requestId }, "Could not queue brief screening email");
+      logger.error({ error, requestId: payload.requestId }, "Could not read the job for its screening reply");
     }
 
     // A job from before the owner's decision of 2026-11-11 that needs a call

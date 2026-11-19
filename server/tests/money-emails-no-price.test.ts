@@ -15,18 +15,15 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 vi.mock("../utils/accountInvitations", () => ({ robotTeamAccountInvitation: () => "invitation-fixture" }));
 
 const { priceFindings } = await import("../../scripts/qa/price-statements");
-const { accessApprovedEmail, accessNotYetEmail, accessReceivedEmail, introductionCompanyEmail, newJobEmail } =
+const { accessApprovedEmail, introductionCompanyEmail, newJobEmail } =
   await import("../utils/robotTeamAccessEmails");
 const { introductionMadeSiteEmail } = await import("../utils/introductionSiteEmail");
 const { buildIntroductionMadeSiteNotification, buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
 const { buildOutcomeQuestionEmail } = await import("../utils/jobOutcomes");
 const { WITHDRAWAL_COMPANY_SUBJECT, withdrawalCompanyBody } = await import("../utils/withdrawalCompanyNotice");
 const { passwordResetEmail } = await import("../utils/passwordResetEmail");
-const { buildBriefUnclearEmail } = await import("../utils/qualificationEmails");
 const { brandedEmail } = await import("../utils/emailLayout");
 const { appendCommercialEmailFooter } = await import("../utils/email-suppression");
-const { TERMINAL_SCENE_OUTCOME_KINDS, sceneOutcomeNoticeEventId } = await import("../utils/sceneIntentOutcome");
-const { SCREENING_OUTCOMES, isSceneHoldOutcome } = await import("../utils/betaPolicyScreeningContract");
 const { COMPANY_RESPONSE_LABELS } = await import("../../client/src/lib/companyResponses");
 
 type Email = { label: string; to: "site" | "company"; subject: string; body: string };
@@ -37,28 +34,15 @@ const SITE = { name: "Riverside Depot", contactName: "Sam Rivers", email: "sam@r
   location: "Columbus, Ohio" };
 const COMPANY_RECORD = { name: "Avery North", email: COMPANY.email, company: COMPANY.name, testSite: "a dish room",
   partnerRole: "deployment", status: "approved" } as never;
-const DIGEST = `sha256:${"a".repeat(64)}`;
 
 /** Every lifecycle milestone a site can be sent, with the parameters its builder needs. */
 function lifecycleNotices(): Email[] {
   const base = { requestId: "req-1", to: "owner@site.example", captureUrl: JOB_URL };
   const notices: Array<[string, Parameters<typeof buildTaskLifecycleNotification>[0]]> = [];
-  for (const milestone of ["task_received", "video_received", "scene_ready", "scene_tests_started",
-    "listing_live", "job_sent", "screening_not_now", "pilot_request", "footage_before_account", "video_too_large"] as const)
-    notices.push([milestone, { ...base, milestone }]);
-  for (const milestone of ["preparation_needs_attention", "preparation_ended", "preparation_resumed"] as const)
-    notices.push([milestone, { ...base, milestone, eventId: DIGEST,
-      ...(milestone === "preparation_ended" ? { terminalReason: "budget_exhausted" } : {}) }]);
+  notices.push(["task_received", { ...base, milestone: "task_received" }]);
+  notices.push(["job_sent", { ...base, milestone: "job_sent", eventId: "companies", companyCount: 3 }]);
   for (const state of ["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"] as const)
-    notices.push([`company_answered ${state}`, { ...base, milestone: "company_answered", companyAnswerState: state } as never]);
-  for (const kind of TERMINAL_SCENE_OUTCOME_KINDS)
-    notices.push([`scene_outcome ${kind}`, { ...base, milestone: "scene_outcome", sceneOutcomeKind: kind,
-      eventId: sceneOutcomeNoticeEventId(kind, DIGEST) }]);
-  notices.push(["scene_outcome job window", { ...base, milestone: "scene_outcome", eventId: "job_window_ended", jobWindowEnded: true } as never]);
-  // Only a hold is emailed to the site; an estimate is read on its job page.
-  for (const outcome of SCREENING_OUTCOMES.filter(isSceneHoldOutcome))
-    notices.push([`evaluation_outcome ${outcome}`, { ...base, milestone: "evaluation_outcome", screeningOutcome: outcome,
-      eventId: `${outcome}-${"a".repeat(24)}` } as never]);
+    notices.push([`company_answered ${state}`, { ...base, milestone: "company_answered", companyAnswerState: state }]);
   return notices.map(([label, params]) => {
     const notice = buildTaskLifecycleNotification(params);
     return { label: `lifecycle ${label}`, to: "site" as const, subject: notice.subject, body: notice.body };
@@ -69,8 +53,6 @@ function everyEmail(): Email[] {
   const emails: Email[] = [];
   const add = (label: string, to: Email["to"], email: { subject: string; body: string }) => emails.push({ label, to, ...email });
   // The site's emails.
-  for (const jobUrl of [JOB_URL, null]) add(`brief unclear (${jobUrl ? "link" : "no link"})`, "site",
-    buildBriefUnclearEmail({ firstName: "Sam", jobUrl }));
   emails.push(...lifecycleNotices());
   for (const [state, label] of Object.entries(COMPANY_RESPONSE_LABELS)) {
     add(`introduction made, site (${state})`, "site", introductionMadeSiteEmail({ jobUrl: JOB_URL, company: COMPANY, answerLabel: label }));
@@ -83,10 +65,8 @@ function everyEmail(): Email[] {
   }
   for (const side of ["site", "company"] as const) add(`outcome question to the ${side}`, side,
     buildOutcomeQuestionEmail({ requestId: "req-1", companyId: "north", side, otherSideName: side === "site" ? COMPANY.name : SITE.name }));
-  add("access received", "company", accessReceivedEmail(COMPANY_RECORD));
   add("access approved", "company", accessApprovedEmail(COMPANY_RECORD));
   add("access approved by invitation", "company", accessApprovedEmail({ ...(COMPANY_RECORD as object), source: "invite" } as never));
-  add("access not yet", "company", accessNotYetEmail(COMPANY_RECORD));
   add("new job", "company", newJobEmail({ to: COMPANY.email, jobUrl: "https://tryblueprint.io/jobs/req-1" }));
   add("job withdrawn", "company", { subject: WITHDRAWAL_COMPANY_SUBJECT, body: withdrawalCompanyBody("12 November 2026", "Move cartons to a pallet") });
   const reset = passwordResetEmail("https://tryblueprint.io/auth/action?mode=resetPassword&oobCode=abc123");
@@ -102,7 +82,7 @@ describe("no price in any email to a site or a deployment company", () => {
   const emails = everyEmail();
 
   it("builds every kind of email both sides receive", () => {
-    expect(emails.filter(email => email.to === "site").length).toBeGreaterThanOrEqual(30);
+    expect(emails.filter(email => email.to === "site").length).toBeGreaterThanOrEqual(15);
     expect(emails.filter(email => email.to === "company").length).toBeGreaterThanOrEqual(10);
     for (const label of ["introduction made, site (interested)", "introduction made, company (interested)",
       "outcome question to the site", "outcome question to the company", "new job", "job withdrawn", "lifecycle job_sent"])

@@ -583,7 +583,6 @@ function customerMessageTargets(rootDir: string): Array<readonly [string, string
     notifications = [];
   }
   return [
-    ["server/utils/qualificationEmails.ts", "customer_messages"],
     ...notifications.map((file) => [file, "customer_messages"] as const),
     ["client/public/llms.txt", "agent_public_text"],
     ["client/public/llms-full.txt", "agent_public_text"],
@@ -941,7 +940,7 @@ Without --target, scans the default cross-source surfaces:
 - GTM scripts and playbooks
 - generated reports under output/
 - Notion-ready markdown under knowledge/
-- site and robot-team message builders (server/utils/*notification*.ts, qualificationEmails.ts)
+- site and robot-team message builders (server/utils/*notification*.ts)
 - llms.txt and llms-full.txt
 
 The command exits nonzero when operational proof drift findings are present.`);

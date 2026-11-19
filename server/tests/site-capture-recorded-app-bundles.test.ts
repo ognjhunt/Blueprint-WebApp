@@ -241,7 +241,7 @@ describe.each(PROFILES)("the recorder's $name bundle completes through the captu
     const complete = await api("POST", `${token}/bundle/complete`, { plan_digest: plan.body.plan_digest });
     expect(complete.status, JSON.stringify(complete.body)).toBe(201);
     expect(complete.body.state).toBe("complete");
-    expect(state.notices).toEqual([`${requestId}:video_received`]);
+    expect(state.notices).toEqual([]);
     expect(state.bucket.writeLog.slice(-1)[0]).toBe(`${raw}/capture_upload_complete.json`);
 
     // Every device byte is stored as recorded; the server's files sit beside

@@ -41,7 +41,7 @@ vi.mock("../utils/jobIntroductions", async importOriginal => {
 const { default: briefRouter } = await import("../routes/site-task-brief");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { buildJobSharedListing } = await import("../utils/jobSharedListing");
-const { buildTaskLifecycleNotification, buildIntroductionMadeSiteNotification, LISTING_LIVE_SENTENCES, HOW_TO_WITHDRAW } =
+const { buildTaskLifecycleNotification, buildIntroductionMadeSiteNotification, HOW_TO_WITHDRAW } =
   await import("../utils/taskLifecycleNotifications");
 const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
 const { requestIntroduction } = await import("../utils/jobIntroductions");
@@ -236,25 +236,22 @@ describe("the introductions route", () => {
 
 describe("the emails to the site", () => {
   const url = "https://tryblueprint.io/capture-upload/owner-token";
-  const build = (milestone: "listing_live" | "job_sent" | "company_answered", extra: Record<string, unknown> = {}) =>
+  const build = (milestone: "job_sent" | "company_answered", extra: Record<string, unknown> = {}) =>
     buildTaskLifecycleNotification({ requestId: ID, to: "owner@site.example", captureUrl: url, milestone, ...extra });
 
   it("say only fixed sentences before an introduction: no company's name, contact or words, and no summary", () => {
-    const live = build("listing_live", { eventId: "summary-1" });
-    expect(live.subject).toBe("Your job is with deployment companies");
-    expect(live.body).toBe(`${LISTING_LIVE_SENTENCES}\n\n${HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`);
-    expect(LISTING_LIVE_SENTENCES).toBe("Deployment companies we approve can now see your job. We don't share your name, address or contact "
-      + "details with a deployment company unless you ask for an introduction to it. Your job page shows any answer.");
+    // The one email when the job goes to the companies (the "your job is with companies" one went with it, 2026-11-19).
     const sent = build("job_sent", { eventId: "companies", companyCount: 4 });
     expect(sent.idempotencyKey).toBe(`${ID}:job_sent:companies`);
-    expect(sent.body).toBe(`Your job is with 4 deployment companies. Your job page shows any answer.\n\nOpen your job:\n${url}`);
+    expect(sent.body).toBe("Your job is with 4 deployment companies. We don't share your name, address or contact details with a "
+      + `deployment company unless you ask for an introduction to it. Your job page shows any answer.\n\n${HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`);
     expect(build("job_sent", { eventId: "companies", companyCount: 1 }).body).toMatch(/^Your job is with 1 deployment company\./);
     const answered = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested" });
     expect(answered.body).toBe(`A deployment company answered about your job: Interested. Your job page has the details.\n\nOpen your job:\n${url}`);
     const needs = build("company_answered", { eventId: "B-needs_something", companyAnswerState: "needs_something" });
     expect(needs.body).toBe("A deployment company answered about your job: Would need something. Your job page has the details. "
       + `A few quick answers on your job page may be all they need.\n\nOpen your job:\n${url}`);
-    for (const row of [live, sent, answered, needs]) {
+    for (const row of [sent, answered, needs]) {
       expectNone(row.kind, JSON.stringify(row), [...NORTH_PLANTED, ...SOUTH_PLANTED]);
       expect(`${row.subject} ${row.body}`).not.toMatch(/summary/i);
     }
@@ -287,7 +284,7 @@ describe("the emails to the site", () => {
   it("are checked again at dispatch: never after a withdrawal, never while the job is not visible; Meet waits for the company's email", async () => {
     const companyId = sha(NORTH.email);
     const entry = (kind: string, idempotencyKey?: string) => ({ requestId: ID, kind: kind as never, ...(idempotencyKey ? { idempotencyKey } : {}) });
-    expect(await taskLifecycleNotificationIsCurrent(entry("listing_live"))).toBe(true);
+    expect(await taskLifecycleNotificationIsCurrent(entry("job_sent"))).toBe(true);
     // "Meet {company}" (planner, 20:35Z, H2 and H4): one commit point. It may go only once the company's introduction
     // email is definitely sent; from then on it goes whatever has changed since. Weakening this gate fails here.
     const site = () => taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`));
@@ -314,7 +311,7 @@ describe("the emails to the site", () => {
     state.docs.set(`robotTeamAccess/${companyId}`, NORTH);
     state.docs.set(`inboundRequests/${ID}`, sharedJob({ website_run_closures: { [`walkthrough-${ID}`]: { closed_at_iso: AT } } }));
     expect(await site()).toBe(true);
-    expect(await taskLifecycleNotificationIsCurrent(entry("listing_live"))).toBe(false);
+    expect(await taskLifecycleNotificationIsCurrent(entry("job_sent"))).toBe(false);
     // Before the company's email is sent, the one predicate decides: the same stops cancel it.
     companyRow("pending");
     expect(await site()).toBe(false);
@@ -325,7 +322,7 @@ describe("the emails to the site", () => {
       ["under a rights hold", { evaluation_readiness: { rights_review_status: "blocked" } }],
     ] as const) {
       state.docs.set(`inboundRequests/${ID}`, sharedJob(patch));
-      for (const kind of ["listing_live", "job_sent", "company_answered"]) {
+      for (const kind of ["job_sent", "company_answered"]) {
         const key = kind === "job_sent" ? `${ID}:job_sent:companies` : undefined;
         expect(await taskLifecycleNotificationIsCurrent(entry(kind, key)), `${kind} when ${label}`).toBe(false);
       }

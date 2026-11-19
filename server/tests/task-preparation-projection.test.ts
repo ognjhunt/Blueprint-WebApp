@@ -269,7 +269,7 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
     // The next attempt succeeds: still never an ending.
     const built = projectWebsiteSceneProgression({ state: "accepted", pipeline_status: { status: "running", phase: "configuration" } });
     expect(outlookOf(built).phase).toBe("building");
-    // The Pipeline's own final outcome after failed attempts: the ending, with its one email (the C-04 scene outcome).
+    // The Pipeline's own final outcome after failed attempts: the ending (the C-04 scene outcome).
     const final = projectWebsiteSceneProgression({ state: "blocked", pipeline_status: { status: "blocked", phase: "scene_configuration_failed",
       blockers: ["scene_configuration_failed"], outcome: sealed("setup_repair", true, "retry_cap_exhausted") } });
     expect(final?.state).toBe("ended");
@@ -281,23 +281,15 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
     ["withdrawn", "consent_expired", "Permission to use this video for your job was withdrawn or has expired. You don't need to do anything; this job has stopped."],
     ["setup_repair", "retry_cap_exhausted", "We could not finish building the simulation of your site, and we have stopped trying. Your first look stays on your job page. Nothing is needed from you."],
     ["setup_repair", "authority_expired", "We could not finish building the simulation of your site, and we have stopped trying. Your first look stays on your job page. Nothing is needed from you."],
-  ] as const)("a terminal %s outcome (%s) says on the page exactly what its one email says", async (kind, reasonCode, sentence) => {
-    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
-    const outcome = sealed(kind, true, reasonCode);
-    const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
-      eventId: `${kind}-${outcome.outcome_digest.slice(7)}`, sceneOutcomeKind: kind,
-      captureUrl: "https://example.invalid/capture-upload/private-owner-link" });
+  ] as const)("a terminal %s outcome (%s) says on the page what the job's ending is", async (kind, reasonCode, sentence) => {
     for (const scenePreviewReady of [false, true]) {
       const status = project(progression(kind, true, reasonCode), { scenePreviewReady });
       expect(status.headline).toBe(sentence);
-      // The email adds one line the page does not: with no paper check read for it, it says so plainly (review, 2026-11-11).
-      // A withdrawal is the site's own ending and says nothing about an answer.
-      expect(notice.body.startsWith(kind === "withdrawn" ? `${status.headline}\n\n` : `${status.headline} There is no first look for this job.\n\n`)).toBe(true);
       expect(status.decision).toBe(kind === "held" ? "assessing" : "footage_received");
       expect(status.operatorAction).toBeNull();
       // No processing-failure card under a withdrawal or a stop it does not describe.
       expect(status.outcome).toBeUndefined();
-      expect(`${status.headline} ${notice.subject}`).not.toMatch(/[a-z]+_[a-z]+|budget|retry|expired_/);
+      expect(status.headline).not.toMatch(/[a-z]+_[a-z]+|budget|retry|expired_/);
     }
     // An ending is said ahead of the optional card; a hold keeps its sentence first, like any evaluation hold.
     const unlisted = project(progression(kind, true, reasonCode), { listed: false, scenePreviewReady: true });

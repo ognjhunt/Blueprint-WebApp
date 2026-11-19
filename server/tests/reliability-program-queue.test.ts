@@ -15,7 +15,6 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../utils/email", () => ({ sendEmail: mocks.send }));
 vi.mock("../utils/robotTeamAccessNotificationAuthority",()=>({robotTeamAccessNotificationAuthority:mocks.authority }));
-vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotifications: vi.fn() }));
 vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: async (v: unknown) => v }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async (id: string) => state.docs.get(`siteTaskBriefs/${id}`) || null,
   draftBrief: (v: unknown) => v, saveBrief: mocks.save }));
@@ -27,9 +26,9 @@ vi.mock("../utils/captureCoverageQueue", () => ({ enqueueCoverageReview: vi.fn()
 import { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries } from "../utils/captureOutbox";
 import { recoverCaptureReviews } from "../utils/captureReviewRecovery";
 
-const key = "rq:video_received", path = `captureOutbox/${key}`;
+const key = "rq:task_received", path = `captureOutbox/${key}`;
 const row = () => state.docs.get(path)!;
-const baseEntry = () => ({ idempotencyKey: key, requestId: "rq", kind: "video_received" as const,
+const baseEntry = () => ({ idempotencyKey: key, requestId: "rq", kind: "task_received" as const,
   to: "fixture@example.invalid", subject: "Fixture event", body: "Fixture body" });
 const accepted = { sent: true, provider: "resend", messageId: "fake-accepted-id" };
 const rejected = { sent: false, provider: "resend", messageId: null, outcome: "not_sent" };

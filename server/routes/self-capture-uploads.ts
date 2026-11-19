@@ -33,7 +33,6 @@ import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import {
   selfCaptureObjectPath,
   verifyCaptureUploadToken,
@@ -354,9 +353,6 @@ export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
     async loadBrief(requestId) {
       const brief = await getBrief(requestId);
       return brief ? { summary: brief.summary ?? "", confirmedAtIso: brief.confirmedAtIso ?? null } : null;
-    },
-    async notifyVideoReceived(requestId) {
-      await enqueueTaskLifecycleNotification({ requestId, milestone: "video_received" });
     },
     screenForPrivacy: (params) => screenCaptureForPrivacy(params),
     claimPrivacyScreen: (params) => claimCapturePrivacyScreen(params),

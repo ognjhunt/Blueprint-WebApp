@@ -215,14 +215,14 @@ describe("who sees the job library", () => {
 
 
 describe("applying", () => {
-  it("requires CSRF, records one application per email, and sends one receipt", async () => {
+  it("requires CSRF, records one application per email, and sends no receipt (the page says it was received)", async () => {
     const post = (headers: Record<string, string>) => fetch(`${base}/api/robot-team-access/apply`, {
       method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(form),
     });
     expect((await post({})).status).toBe(403);
     const first = await post(CSRF);
     expect(first.status).toBe(202);
-    expect(await first.json()).toMatchObject({ status: "applied", notificationStatus: "queued" });
+    expect(await first.json()).toMatchObject({ status: "applied", notificationStatus: "not_requested" });
     expect((await post(CSRF)).status).toBe(202);
 
     const records = [...state.docs.entries()].filter(([key]) => key.startsWith("robotTeamAccess/"));
@@ -237,9 +237,7 @@ describe("applying", () => {
     // The tick on the unsigned form is never an acceptance that lets a company see a job.
     expect(records[0][1]).not.toHaveProperty("termsAcceptance");
     expect(records[0][1]).not.toHaveProperty("termsAcceptedByUid");
-    const receipts = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_received"));
-    expect(receipts).toHaveLength(1);
-    expect(receipts[0][1]).toMatchObject({ to: "ada@arm.example" });
+    expect([...state.docs.keys()].some(key => key.startsWith("captureOutbox/"))).toBe(false);
     expect(slack).toHaveBeenCalledTimes(1);
   });
 
@@ -351,25 +349,13 @@ describe("the review queue", () => {
     expect(state.docs.get("users/u1")).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" });
   });
 
-  it("says a polite \"not yet\" by default, and nothing when the reviewer will reply", async () => {
+  it("declines without an email: only an approval is emailed", async () => {
     tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
     await early.recordAccessApplication({ ...application, website: null, region: null });
     const response = await decide("ops", early.accessRecordId("ada@arm.example"), "declined");
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ emailed: false, notificationStatus: "queued" });
-    expect([...state.docs.keys()].some((key) => key.startsWith("captureOutbox/robot_team_access_approved"))).toBe(false);
-    const notYet = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_not_yet"));
-    expect(notYet).toHaveLength(1);
-    expect(String((notYet[0][1] as { body: string }).body)).toMatch(/can't offer your team access yet/);
-
-    await early.recordAccessApplication({ ...application, email: "grace@arm.example", website: null, region: null });
-    const quiet = await fetch(`${base}/api/admin/robot-team-access/${early.accessRecordId("grace@arm.example")}/decision`, {
-      method: "POST",
-      headers: { "content-type": "application/json", Authorization: "Bearer ops", ...CSRF },
-      body: JSON.stringify({ status: "declined", notify: false }),
-    });
-    expect(await quiet.json()).toMatchObject({ emailed: false, notificationStatus: "not_requested", application: { status: "declined" } });
-    expect([...state.docs.keys()].filter((key) => key.startsWith("captureOutbox/robot_team_access_not_yet"))).toHaveLength(1);
+    expect(await response.json()).toMatchObject({ emailed: false, notificationStatus: "not_requested", application: { status: "declined" } });
+    expect([...state.docs.keys()].some((key) => key.startsWith("captureOutbox/"))).toBe(false);
   });
 
   it("reports how many site tasks are listed and when auto-approval starts", async () => {
@@ -397,9 +383,7 @@ describe("the fit checklist", () => {
     expect(record.fit.checks.map((check: { id: string; passed: boolean }) => [check.id, check.passed])).toEqual([
       ["work_email", true], ["website_matches_email", true], ["open_tasks_in_region", false],
     ]);
-    const receipt = outbox("robot_team_access_received");
-    expect(receipt).toHaveLength(1);
-    expect(String((receipt[0][1] as { body: string }).body)).toMatch(/A person will review[\s\S]*Our pilot warehouse in Ohio/);
+    expect(outbox("")).toHaveLength(0);
     expect(slack).toHaveBeenCalledWith(expect.objectContaining({ testSite: "Our pilot warehouse in Ohio", autoApproved: false }));
   });
 
@@ -410,9 +394,6 @@ describe("the fit checklist", () => {
     const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
     expect(record).toMatchObject({ status: "applied", decidedBy: null });
     expect(outbox("robot_team_access_approved")).toHaveLength(0);
-    const receipt = outbox("robot_team_access_received");
-    expect(receipt).toHaveLength(1);
-    expect(String((receipt[0][1] as { body: string }).body)).toContain("approval is pending");
     // A shared job's card carries no free-text region since 2026-11-12 (the company page shows the country only), so
     // the region check cannot match a card; it never decided an approval.
     expect(record.fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: false });
@@ -522,15 +503,6 @@ describe("access decisions and their durable email intent", () => {
     tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
   });
 
-  it("does not acknowledge an application whose receipt could not commit; retry saves both", async () => {
-    failOutboxWriteOnce();
-    expect((await post("/api/robot-team-access/apply", form)).status).toBe(503);
-    expect(state.docs.has(recordKey())).toBe(false);
-    expect(notices("robot_team_access_received")).toHaveLength(0);
-    expect(await (await post("/api/robot-team-access/apply", form)).json())
-      .toMatchObject({ status: "applied", notificationStatus: "queued" });
-    expect(notices("robot_team_access_received")).toHaveLength(1);
-  });
 
   it("preserves the pending application when invitation storage fails, then commits approval and notice together", async () => {
     await early.recordAccessApplication({ ...application, website: null, region: null });

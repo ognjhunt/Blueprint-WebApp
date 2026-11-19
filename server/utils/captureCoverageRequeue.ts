@@ -10,7 +10,6 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { CAPTURE_MODE_NOT_CONVERTED, CAPTURE_MODE_NOT_CONVERTED_DETAIL, authorizeCaptureUpload } from "./captureUploadAuthorization";
-import { ANSWER_NOTICES_WAITING_FIELD, waitingMap } from "./answerNoticeOwed";
 import { COVERAGE_REVIEW_MAX_ATTEMPTS, coverageClearanceRefusal, type CoverageClearanceRefusal } from "./captureCoverageQueue";
 
 /** A reading can be requeued at most this many times in its life: each attempt can buy a paid model call. */
@@ -130,14 +129,12 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
     }
 
     const nowIso = new Date(now).toISOString();
-    const waiting = waitingMap(request);
     const prior = { state: plain(job!.state), attempts, ...Object.fromEntries(WAIT_FIELDS.map(field => [field, plain(job![field])])),
       claim_token_set: Boolean(job!.claim_token) };
     const auditPayload = { schema_version: "capture_coverage_requeue.v1", request_id: requestId, review_id: reviewId,
       capture_id: job!.captureId, requeue_number: history.length + 1, approved_by: approval?.approvedBy.trim() ?? null,
       approval_evidence: approval?.approvalEvidence.trim() ?? null, requeued_at_iso: nowIso, prior_job: prior,
-      prior_review: { state: review.state, reason: review.reason }, checks,
-      answer_notices_since_before: Object.fromEntries(Object.entries(waiting).map(([slot, entry]) => [slot, plain(entry?.since_iso)])) };
+      prior_review: { state: review.state, reason: review.reason }, checks };
     const auditDigest = humanDecisionDigest(auditPayload);
     const historyEntry = { requeued_at_iso: nowIso, approved_by: auditPayload.approved_by,
       approval_evidence: auditPayload.approval_evidence, prior_attempts: attempts, prior_state: prior.state, audit_digest: auditDigest };
@@ -156,10 +153,6 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
       ...(params ? [] : [{ document: requestDoc, field: "capture_coverage_request", from: null, to: coverageRequest }]),
       { document: requestDoc, field: "capture_coverage_review", from: { review_id: reviewId, state: review.state, reason: review.reason },
         to: requeuedReview },
-      // An ending's email that waits for this reading gets the reading's own 24 hours again, from the requeue, so it does
-      // not go out saying there is no paper check while the reading it waited for is about to run.
-      ...Object.entries(waiting).map(([slot, entry]) => ({ document: requestDoc,
-        field: `${ANSWER_NOTICES_WAITING_FIELD}.${slot}.since_iso`, from: plain(entry?.since_iso), to: nowIso })),
       { document: `${COVERAGE_REQUEUE_AUDIT_COLLECTION}/${auditDigest}`, field: "(new audit record)", from: null,
         to: `requeue ${history.length + 1} of at most ${COVERAGE_REVIEW_MAX_REQUEUES}` },
     ];
@@ -169,9 +162,7 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
     tx.set(jobRef, { attempts: 0, state: REQUEUED_STATE, claim_token: null, requeue_history: [...history, historyEntry],
       ...Object.fromEntries(WAIT_FIELDS.map(field => [field, del()])) }, { merge: true });
     tx.set(requestRef, { capture_coverage_pending: true, capture_coverage_request: coverageRequest,
-      capture_coverage_review: requeuedReview,
-      ...(Object.keys(waiting).length ? { [ANSWER_NOTICES_WAITING_FIELD]:
-        Object.fromEntries(Object.keys(waiting).map(slot => [slot, { since_iso: nowIso }])) } : {}) }, { merge: true });
+      capture_coverage_review: requeuedReview }, { merge: true });
     tx.create(store.collection(COVERAGE_REQUEUE_AUDIT_COLLECTION).doc(auditDigest), { ...auditPayload, audit_digest: auditDigest });
     return { outcome: "requeued", checks, changes, flags, audit };
   });

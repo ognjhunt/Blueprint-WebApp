@@ -113,9 +113,8 @@ export interface TaskStatus {
   missingViews: string[];
   /**
    * Always null. Blueprint runs no timed review of a waiting job (the timed
-   * check-in is retired, `taskStatusUpdates.ts`), so there is no next-update
-   * time it could keep. Updates follow events by email, and the headline says
-   * what the job is waiting on. Kept so existing readers keep their shape.
+   * check-in is retired), so there is no next-update time it could keep. The
+   * headline says what the job is waiting on. Kept so existing readers keep their shape.
    */
   nextUpdateIso: null;
 }

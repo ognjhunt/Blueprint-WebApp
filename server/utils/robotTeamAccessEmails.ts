@@ -18,34 +18,8 @@ function firstName(name: string): string | null {
   return name.trim().split(/\s+/)[0] || null;
 }
 
-export type AccessEmailKind =
-  | "robot_team_access_received"
-  | "robot_team_access_approved"
-  | "robot_team_access_not_yet";
-
-/**
- * The receipt. While only a few site tasks are listed, every team is matched
- * to a site by a person, so the receipt says so and asks for the one thing
- * that speeds a match: the site they would most want to test at.
- */
-export function accessReceivedEmail(
-  record: Pick<RobotTeamAccessRecord, "name" | "testSite">,
-  _options: { thinLibrary?: boolean } = {},
-) {
-  const body = [
-    "Thanks for registering interest in Blueprint's invited beta. Your interest is saved and approval is pending. A person will review it and invite your team when a real site task fits.",
-    "",
-    record.testSite
-      ? `We have noted the site you named (${record.testSite}). Reply here if you want to clarify the task.`
-      : "If there is a real site task you would like to explore, you can reply here with the details.",
-    "",
-    "No account, policy upload, or integration is needed now. Registering interest alone does not approve access or subscribe you to a newsletter.",
-  ];
-  return {
-    subject: "We have your Blueprint beta interest",
-    body: [emailGreeting(firstName(record.name)), "", ...body, "", EMAIL_SIGN_OFF].join("\n"),
-  };
-}
+/** A company hears once about its application: when it is approved (owner, 2026-11-19). The page says the rest. */
+export type AccessEmailKind = "robot_team_access_approved";
 
 export function accessApprovedEmail(record: RobotTeamAccessRecord) {
   const base = APP_URL();
@@ -81,21 +55,6 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
 }
 
 /** A polite "not yet": the application stays on file and nothing is closed. */
-export function accessNotYetEmail(record: Pick<RobotTeamAccessRecord, "name">) {
-  return {
-    subject: "Your Blueprint beta interest",
-    body: [
-      emailGreeting(firstName(record.name)),
-      "",
-      "Thanks for registering interest. We invite teams manually when a real site task fits, and we can't offer your team access yet.",
-      "",
-      "We have kept your application on file. If something changes on your side, reply here and a person will read it.",
-      "",
-      EMAIL_SIGN_OFF,
-    ].join("\n"),
-  };
-}
-
 export type AccessEmailNotification = {
   status: "queued" | "sent" | "needs_attention" | "not_requested";
   outboxStatus: OutboxStatus | null;
@@ -115,22 +74,15 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
   kind: AccessEmailKind;
   recordId: string;
   record: RobotTeamAccessRecord;
-  thinLibrary?: boolean;
   /** An approved team asked for a fresh link: at most one per approval an hour. */
   resend?: boolean;
 }): Promise<{ notification: AccessEmailNotification; write: () => void }> {
   if (!db) throw new Error("firestore_unavailable");
-  // One of each per application: a re-application does not send a second
-  // receipt, and a decision is announced once.
+  // An approval is announced once.
   const resendHour = params.resend && params.kind === "robot_team_access_approved"
     ? new Date().toISOString().slice(0, 13) : null;
-  const revision = params.kind === "robot_team_access_received" ? params.record.appliedAtIso
-    : params.record.decidedAtIso ?? params.record.updatedAtIso;
-  const stamp = resendHour
-    ? `resend-${revision}-${resendHour}`
-    : params.kind === "robot_team_access_received"
-      ? params.record.appliedAtIso
-      : params.record.decidedAtIso ?? params.record.updatedAtIso;
+  const revision = params.record.decidedAtIso ?? params.record.updatedAtIso;
+  const stamp = resendHour ? `resend-${revision}-${resendHour}` : revision;
   const outboxId = `${params.kind}:${params.recordId}:${stamp}`;
   const ref = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(outboxId);
   let current = await transaction.get(ref);
@@ -168,11 +120,7 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
       write: () => undefined,
     };
   }
-  const message = params.kind === "robot_team_access_received"
-    ? accessReceivedEmail(params.record, { thinLibrary: params.thinLibrary })
-    : params.kind === "robot_team_access_approved"
-      ? accessApprovedEmail(params.record)
-      : accessNotYetEmail(params.record);
+  const message = accessApprovedEmail(params.record);
   const entry = buildOutboxEntry({
     idempotencyKey: outboxId,
     requestId: `robot-team-access:${params.recordId}`,
@@ -183,10 +131,7 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
     replyTo: "hello@tryblueprint.io",
     robotTeamAccessNotice: {
       schemaVersion: "robot_team_access_notice.v1", recordId: params.recordId,
-      status: params.kind === "robot_team_access_approved" ? "approved"
-        : params.kind === "robot_team_access_not_yet" ? "declined" : "applied",
-      revision: params.kind === "robot_team_access_received" ? params.record.appliedAtIso
-        : params.record.decidedAtIso!,
+      status: "approved", revision: params.record.decidedAtIso!,
     },
   });
   return { notification: { status: "queued", outboxStatus: "pending", outboxId },
@@ -195,7 +140,8 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
 
 /** The new-job email's fixed words (package E, E4). Nothing about the site: no name, place, contact or sentence. */
 export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
-export const NEW_JOB_EMAIL_BODY = "A site has filmed a job and is looking for a deployment company. Watch the video and answer in a minute: "
+// True of a job sent with its description only as of a filmed one (statement v5 lists both).
+export const NEW_JOB_EMAIL_BODY = "A site is looking for a deployment company for one of its jobs. See the job and answer in a minute: "
   + "interested, not a fit, or would need something.";
 const NEW_JOB_ALERTS_LINE = "You chose relevant new-job alerts. Change your preferences in Settings or unsubscribe below.";
 

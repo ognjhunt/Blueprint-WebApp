@@ -508,13 +508,6 @@ export async function completeBundle(
     return { status: 409, body: { error: "This capture is already bound to a different upload.", code: "capture_upload_identity_conflict" } };
   }
 
-  // The durable proof the upload is complete now exists. Notify before privacy
-  // review; the outbox key keeps a retry from sending twice.
-  try {
-    await deps.notifyVideoReceived(payload.requestId);
-  } catch (error) {
-    logger.warn({ error, requestId: payload.requestId }, "Could not enqueue video-received notice");
-  }
 
   const screenForThisCompletion = async () => {
     const claim = await deps.claimPrivacyScreen({ requestId: payload.requestId,

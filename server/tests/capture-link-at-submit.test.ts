@@ -1676,8 +1676,8 @@ describe("the privacy question is asked before anything is derived", () => {
     expect(result.status).toBe(200);
     expect(result.body.ok).toBe(true);
     expect(result.body.state).toBe("held");
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-privacy:video_received"))
-      .toMatchObject({ kind: "video_received", to: "owner@example.com" });
+    // No "we have your video" email (owner, 2026-11-19): the job page says it.
+    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.startsWith("captureOutbox/req-privacy:"))).toBe(false);
   });
 
   it("keeps an uncertain static privacy reading separate and writes no completion marker", async () => {
@@ -1702,15 +1702,6 @@ describe("the privacy question is asked before anything is derived", () => {
     expect(notifySlackCapturePrivacyEscalation).toHaveBeenCalledWith(expect.objectContaining({ requestId: "req-uncertain" }));
   });
 
-  it("a retried upload repairs the same durable notice without duplicating it", async () => {
-    seedRequest("req-retry", { disposition: "qualified" });
-    await withRoutes(async (baseUrl) => {
-      await uploadFor(baseUrl, "req-retry");
-      await uploadFor(baseUrl, "req-retry");
-    });
-    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key === "captureOutbox/req-retry:video_received"))
-      .toHaveLength(1);
-  });
 
   it("writes the marker once the footage clears", async () => {
     seedRequest("req-clear", { disposition: "qualified" });
