@@ -1,68 +1,42 @@
 /**
- * One dollar ceiling per website job (owner decision 2026-10-30).
+ * One cap per website job (owner decision 2026-11-19, "One cap at $40").
  *
- * Before this, a job's ledgers had separate caps: the Atlas allowance, the
- * preparation-only sponsorship (upstream rows and native scene construction)
- * and the beta-screening site ledger, so a job could spend past the owner's
- * total. Every WebApp admission of new spend for a job now counts every one of
- * those ledgers against a single ceiling, each at its settled cost where known
- * and otherwise at its held maximum, and refuses with the existing
- * `website_scene_preparation_budget_exhausted` code, which the Pipeline already
- * holds as `budget_exhausted`. Money is the only stop added: the existing
- * per-ledger caps still apply inside the ceiling, and no stored reservation,
- * grant or settlement is read differently, reset or rewritten.
+ * A job may spend at most `WEBSITE_JOB_SPEND_CAP_USD` in total, across every paid provider (Gemini, Meta
+ * SAM, World Labs, OpenAI including ARTISAN, Vast) and every retry. The figure has one source, the
+ * Pipeline's `config/website_job_spend_cap.v1.json`, mirrored here byte for byte
+ * (`contracts/pipeline/website-job-spend-cap.v1.json`, checked by `npm run pipeline:website-job-spend-cap:verify`).
+ * The account's monthly limit (Pipeline `account_monthly_spend`) still applies on top.
  *
- * Owner decision 2026-11-11: each job has one safety limit (`websiteJobSafetyLimitUsd`: its stored
- * ceiling, or the owner's fixed $100 if higher), a fuse against a bug burning the account's month in
- * one job, never a judgment that a job costs too much. A flagged grant's build passes the ceiling with
- * a note, as before, and never the safety limit. Everything is counted as before.
+ * Every WebApp admission of new spend for a job (a preparation reservation, a scene intake) counts what the
+ * job's ledgers already hold, each row at its settled cost where known and otherwise at its held quote, adds
+ * the new quote, and refuses past the cap with `website_scene_preparation_budget_exhausted`, which the
+ * Pipeline reads as `spending_cap_reached`: no further paid call starts, and the job ships what it has,
+ * flagged. Nothing raises the cap: owner grants, Atlas authorization figures, grant policies, the old $100
+ * safety limit and the automatic budget extension are gone.
+ *
+ * A job in flight across the switch is counted the same way: every row it holds or settled before counts
+ * against the cap, read exactly as before. A job already past it admits nothing more.
  */
-import { websiteAtlasAuthorizationCeiling, websiteAtlasGrantPolicy } from "./websiteAtlasAuthorization";
+import capContract from "../../contracts/pipeline/website-job-spend-cap.v1.json";
 import { parseBetaPolicyScreeningPublication, screeningMoneyMicros, SCREENING_LEGACY_SITE_LIMIT_USD } from "./betaPolicyScreeningContract";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { isNavigationStrategy } from "./navigationSceneIntake";
 
-/** The owner's per-job safety limit for website jobs (2026-11-11: $100, was $40). It
- * applies only when neither the job's Atlas authorization nor the configured
- * Atlas grant policy (`BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON`) names one. */
-export const WEBSITE_JOB_CEILING_DEFAULT_USD = 100;
-
-export type WebsiteJobCeilingSource = "atlas_authorization" | "job_authorization_row" | "retained_atlas_grant"
-  | "atlas_grant_policy" | "owner_default";
+/** The most one website job may spend, in dollars: the committed figure, never a hosting setting. */
+export const WEBSITE_JOB_SPEND_CAP_USD = (() => {
+  const figure = (capContract as { per_job_cap_usd?: unknown }).per_job_cap_usd;
+  const value = typeof figure === "string" && /^[1-9][0-9]{0,3}(\.[0-9]{1,2})?$/.test(figure) ? Number(figure) : NaN;
+  if (!Number.isFinite(value)) throw new Error("website_job_spend_cap_unavailable");
+  return value;
+})();
 
 const micros = (usd: number) => Math.ceil(usd * 1_000_000);
 const dollars = (value: number) => value / 1_000_000;
 const amount = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
 
-/**
- * Where the ceiling comes from, in order: the Atlas authorization this
- * admission is made under (an explicit owner row or the job's stored automatic
- * grant, which pinned the configured policy's figure when it was made); else
- * the owner's explicit authorization row for this job and capture
- * (`BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON`) when it is higher than what
- * follows, so a scene intake counts against the figure the owner raised the job
- * to; else the job's stored grant for this capture; else the configured Atlas
- * grant policy; else the owner default. A stored grant keeps the figure it was made with.
- */
-export function websiteJobCeiling(input: { record: Record<string, any>; captureId: string; requestId?: string;
-  atlas?: { maximum_cost_usd: number } | null }): { maximum_cost_usd: number; source: WebsiteJobCeilingSource } {
-  if (input.atlas) return { maximum_cost_usd: input.atlas.maximum_cost_usd, source: "atlas_authorization" };
-  const fallback = storedOrDefaultCeiling(input);
-  // capture-447ae4f4 (2026-11-02): its owner row was never read by the scene intake, which
-  // fell back to the $40 default whatever figure the owner set for the job. The row only
-  // raises the job's ceiling: a lower row still caps the Atlas allowance it authorizes,
-  // and other ledgers keep the figure they had before rows were read here.
-  const row = input.requestId ? websiteAtlasAuthorizationCeiling(input.requestId, input.captureId) : null;
-  return row !== null && row > fallback.maximum_cost_usd ? { maximum_cost_usd: row, source: "job_authorization_row" } : fallback;
-}
-
-function storedOrDefaultCeiling(input: { record: Record<string, any>; captureId: string })
-  : { maximum_cost_usd: number; source: WebsiteJobCeilingSource } {
-  const retained = input.record.website_atlas_grants?.[input.captureId]?.maximum_cost_usd;
-  if (amount(retained) && retained > 0 && retained <= 1000) return { maximum_cost_usd: retained, source: "retained_atlas_grant" };
-  const policy = websiteAtlasGrantPolicy();
-  if (policy) return { maximum_cost_usd: policy.maximum_cost_usd, source: "atlas_grant_policy" };
-  return { maximum_cost_usd: WEBSITE_JOB_CEILING_DEFAULT_USD, source: "owner_default" };
+/** The job's cap. One number for every job; nothing raises it. */
+export function websiteJobCeiling(): { maximum_cost_usd: number; source: "job_spending_cap" } {
+  return { maximum_cost_usd: WEBSITE_JOB_SPEND_CAP_USD, source: "job_spending_cap" };
 }
 
 /** Reads the job's other ledgers; the caller supplies the transaction. */
@@ -103,9 +77,12 @@ function readablePreparationRowMicros(row: any) {
   return Number.isFinite(value) ? value : amount(held) ? micros(held) : 0;
 }
 
-/** The Pipeline's own status shows the intent can start no further attempt. */
+/** The Pipeline's own status shows the intent can start no further attempt. A terminal outcome (the job's
+ * spending cap reached among them) ends it: the Pipeline starts nothing after one, so the intent's allowance is
+ * released down to what its attempts still hold. */
 function pipelineEnded(status: Record<string, any> | undefined) {
   return ["completed", "expired", "revoked"].includes(status?.status)
+    || status?.outcome?.terminal === true
     || status?.status === "blocked" && status.phase === "policy_canary_blocked"
     || Array.isArray(status?.blockers) && status!.blockers.some((blocker: unknown) =>
       blocker === "scene_intake_authority_expired" || blocker === "scene_intake_authority_revoked");
@@ -193,19 +170,18 @@ function screeningMicros(rows: Array<{ run: Record<string, any>; result: Record<
   if (valid.length < publications.length) {
     rows.forEach((row, index) => { if (publications[index] === null)
       unreadable.push(`screening result ${String(row.run?.result_record_id ?? row.run?.run_id ?? "with no record id")}`); });
-    // Counted as before; what the valid ones say is still what the safety limit refuses on.
-    return { counted: micros(SCREENING_LEGACY_SITE_LIMIT_USD), readable };
+    // Counted at the site limit as before, and never below what the latest valid publication commits: the cap
+    // is the only stop, so an unreadable sibling must never lower the count (review of #1274: $120 committed).
+    return { counted: Math.max(micros(SCREENING_LEGACY_SITE_LIMIT_USD), readable), readable };
   }
   return { counted: readable, readable };
 }
 
 /**
- * What the job holds or spent on each ledger, counted exactly as before (an unbounded hold is
- * unbounded; an unreadable screening result counts the $30 site limit). Owner decision 2026-11-11:
- * beside it, `readable_total_micros` is what the records that can be read add up to (an unreadable
- * figure counts nothing there, but the readable figures beside it in the same record or ledger still
- * count; screening counts the latest valid publication), which is what the job's safety limit refuses
- * on, and `unreadable` names each record whose figure cannot be read, so a person is told (`spend_unreadable`).
+ * What the job holds or spent on each ledger (an unbounded hold is unbounded, so the cap refuses; an
+ * unreadable screening result counts the $30 site limit). Beside it, `readable_total_micros` is what the
+ * records that can be read add up to (the admin job page's figure), and `unreadable` names each record
+ * whose figure cannot be read, so a person is told (`spend_unreadable`).
  */
 export async function websiteJobSpend(input: { record: Record<string, any>; reader: WebsiteJobLedgerReader }) {
   const unreadable: string[] = [];
@@ -242,36 +218,17 @@ export function websiteJobCeilingSummary(ceiling: ReturnType<typeof websiteJobCe
     remaining_cost_usd: Number.isFinite(spend.total_micros) ? dollars(Math.max(0, limit - spend.total_micros)) : 0 };
 }
 
-type WebsiteJobCeilingInput = { record: Record<string, any>; captureId: string;
-  requestId?: string; atlas?: { maximum_cost_usd: number } | null; reader: WebsiteJobLedgerReader;
-  additionalCostUsd: number };
+type WebsiteJobCeilingInput = { record: Record<string, any>; reader: WebsiteJobLedgerReader; additionalCostUsd: number };
 
-/** The owner's safety limit per job, decided 2026-11-11 ("$100 fuse"): a fixed figure, never the hosting setting. */
-export const WEBSITE_JOB_SAFETY_LIMIT_USD = 100;
-
-/**
- * The job's safety limit: its stored ceiling, or the owner's $100 safety limit if that is higher. The
- * hosting setting only decides the figure a new grant is stored with. On a grant naming the automatic
- * budget extension the build may pass the stored ceiling with a note, as before, but never this.
- */
-export function websiteJobSafetyLimitUsd(ceiling: { maximum_cost_usd: number }) {
-  return Math.max(ceiling.maximum_cost_usd, WEBSITE_JOB_SAFETY_LIMIT_USD);
-}
-
-/**
- * Whether new spend would take the job past its ceiling (counted as before), and past its safety limit
- * (on what can be read). Reads only; the caller decides and writes.
- */
+/** Whether new spend would take the job past its cap, counted as above. Reads only; the caller decides and writes. */
 export async function checkWebsiteJobCeiling(input: WebsiteJobCeilingInput) {
-  const ceiling = websiteJobCeiling(input);
-  const safetyLimitUsd = websiteJobSafetyLimitUsd(ceiling);
+  const ceiling = websiteJobCeiling();
   const spend = await websiteJobSpend(input);
   const exceeded = spend.total_micros + micros(input.additionalCostUsd) > Math.floor(ceiling.maximum_cost_usd * 1_000_000);
-  const pastSafetyLimit = spend.readable_total_micros + micros(input.additionalCostUsd) > Math.floor(safetyLimitUsd * 1_000_000);
-  return { ceiling, spend, exceeded, safetyLimitUsd, pastSafetyLimit };
+  return { ceiling, spend, exceeded };
 }
 
-/** Refuses new spend that would take the job past its ceiling. Reads only; the caller writes. */
+/** Refuses new spend that would take the job past its cap. Reads only; the caller writes. */
 export async function assertWithinWebsiteJobCeiling(input: WebsiteJobCeilingInput) {
   const { ceiling, spend, exceeded } = await checkWebsiteJobCeiling(input);
   if (exceeded) throw new Error("website_scene_preparation_budget_exhausted");

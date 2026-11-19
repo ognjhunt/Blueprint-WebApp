@@ -4,7 +4,7 @@ import { NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, amendWebsitePreparationSpendLimit, settleWebsitePreparationSpend, loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, settleWebsitePreparationSpend, loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS } from "../utils/websiteJobWindow";
@@ -325,6 +325,17 @@ afterEach(async () => {
   delete process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS;
   delete process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS;
 });
+
+/**
+ * The job already spent `usd` on a finished scene, leaving the rest of its $40 cap (owner, 2026-11-19). Tests that
+ * showed a refusal at the grant's old $5 upstream figure keep their arithmetic with `spentElsewhere(35)`: the job's
+ * cap is now the only dollar stop.
+ */
+function spentElsewhere(usd: number) {
+  store.rows.set("taskEvaluationSceneIntakes/spent-elsewhere", { website_request_id: "req1", state: "completed", receipt: {},
+    request: { task: { strategy: "pick_and_place" }, execution: { max_total_spend_usd: usd } },
+    pipeline_status: { status: "completed", attempts: [{ maximum_spend_usd: usd }] } });
+}
 
 function sponsoredCapture() {
   process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({
@@ -761,14 +772,12 @@ function navigationRequest(grant: Record<string, any>) {
 const intakeRows = () => [...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"));
 
 it("queues a navigation intake with the job's own consent and rights, reserving $0 and granting no construction allowance", async () => {
-  // An unflagged grant (automatic budget extension off) refuses at the ceiling exactly as before.
-  vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION", "false");
   sponsoredCapture();
   const post = await sponsoredRoute();
   const grant = await (await post("scene-sponsorship")).json();
   expect(grant.consent.task_confirmed).toBe(true);
   const request = navigationRequest(grant);
-  // The job's ledgers already hold its whole $100 owner-default ceiling.
+  // The job's ledgers already hold more than its whole $40 cap.
   const record = store.rows.get("inboundRequests/req1");
   record.website_preparation_reservations = { ["b".repeat(64)]: { admission: { provider: "world_labs_atlas",
     resource_class: "provider_reconstruction_api", maximum_cost_usd: 100, request_count: 1 } } };
@@ -812,45 +821,28 @@ it("queues a navigation intake with the job's own consent and rights, reserving 
   expect((await ledger()).native_construction_micros).toBe(0);
 });
 
-// Owner decision 2026-11-11: on a flagged grant nothing passes the job's safety limit, a navigation intake included.
-// It adds $0, so it is refused only once the job is already past the limit; everything else about it is unchanged.
-it.each([["flagged", true], ["unflagged", false]])("a navigation intake on a %s grant and the job's safety limit", async (_label, flagged) => {
-  if (!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION", "false");
+// Owner decision 2026-11-19: a navigation intake reserves $0, so the job's cap never refuses it, however much the job holds.
+it("a navigation intake is admitted past the job's cap, with no note and no alert", async () => {
   sponsoredCapture();
   const post = await sponsoredRoute();
   const grant = await (await post("scene-sponsorship")).json();
-  expect(Boolean(grant.automatic_budget_extension)).toBe(flagged);
-  const request = navigationRequest(grant);
-  const held = (usd: number) => { store.rows.get("inboundRequests/req1").website_preparation_reservations = { ["b".repeat(64)]: {
-    admission: { provider: "world_labs_atlas", resource_class: "provider_reconstruction_api", maximum_cost_usd: usd, request_count: 1 } } }; };
-  // Already past the $100 default safety limit: refused on a flagged grant with the job's one alert, admitted as before otherwise.
-  held(100.000001);
-  const past = await post("prepared-scene", { request });
-  expect(past.status).toBe(flagged ? 409 : 202);
-  expect(store.rows.has("opsWebsiteJobOverBudgetAlerts/req1-safety-limit")).toBe(flagged);
-  if (!flagged) return;
-  expect(await past.json()).toEqual({ code: "website_scene_preparation_budget_exhausted" });
-  expect(intakeRows()).toHaveLength(0);
-  expect(store.rows.get("opsWebsiteJobOverBudgetAlerts/req1-safety-limit").safety_limit).toMatchObject({
-    stage: "scene_intake", safety_limit_usd: 100, additional_cost_usd: 0 });
-  // At the limit exactly it adds nothing, so it is admitted, with no note.
-  held(100);
-  const admitted = await post("prepared-scene", { request });
+  expect(grant).not.toHaveProperty("automatic_budget_extension");
+  store.rows.get("inboundRequests/req1").website_preparation_reservations = { ["b".repeat(64)]: {
+    admission: { provider: "world_labs_atlas", resource_class: "provider_reconstruction_api", maximum_cost_usd: 40.000001, request_count: 1 } } };
+  const admitted = await post("prepared-scene", { request: navigationRequest(grant) });
   expect(admitted.status).toBe(202);
   expect(stored()[1]).not.toHaveProperty("over_budget");
+  expect([...store.rows.keys()].some(key => key.startsWith("opsWebsiteJobOverBudgetAlerts/"))).toBe(false);
 });
 
-// Owner decision 2026-11-11: a hold that cannot be read never stops a navigation intake main admits; it is reported once.
-it("admits a flagged navigation intake beside an unreadable hold, as main does, and reports the hold once", async () => {
+// A hold that cannot be read never stops a navigation intake; the next paid admission reports it.
+it("admits a navigation intake beside an unreadable hold", async () => {
   sponsoredCapture();
   const post = await sponsoredRoute();
   const grant = await (await post("scene-sponsorship")).json();
-  expect(grant.automatic_budget_extension).toBe(true);
   store.rows.get("inboundRequests/req1").website_preparation_reservations = { broken: { admission: { provider: "world_labs_atlas" } } };
   expect((await post("prepared-scene", { request: navigationRequest(grant) })).status).toBe(202);
   expect(store.rows.has("opsWebsiteJobOverBudgetAlerts/req1-safety-limit")).toBe(false);
-  expect(store.rows.get("opsWebsiteJobOverBudgetAlerts/req1-spend-unreadable")?.spend_unreadable)
-    .toMatchObject({ stage: "scene_intake", records: ["preparation reservation broken"] });
 });
 
 it("refuses an unconfirmed brief's navigation intake by name and stores nothing", async () => {
@@ -964,9 +956,7 @@ it("still refuses an unconfirmed brief's re-issued navigation intake by name", a
   expect(intakeRows()).toHaveLength(0);
 });
 
-it("grants a new prepared scene its native allowance only while the job's one ceiling has room", async () => {
-  // An unflagged grant (automatic budget extension off) refuses at the ceiling exactly as before.
-  vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION", "false");
+it("grants a new prepared scene its native allowance only while the job's cap has room", async () => {
   sponsoredCapture();
   const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
   const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
@@ -984,19 +974,18 @@ it("grants a new prepared scene its native allowance only while the job's one ce
       max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
       allowed_providers: ["vast", "openai"], purpose: "scene_preparation", policy_candidates: [] },
   };
-  // No Atlas grant or policy names a ceiling here, so the owner default ($100) applies:
-  // $80.50 already held plus this intake's $20 native allowance does not fit.
+  // The job's cap is $40 (owner, 2026-11-19): $20.50 already held plus this intake's $20 native allowance does not fit.
   const record = store.rows.get("inboundRequests/req1");
   record.website_preparation_reservations = { ["b".repeat(64)]: { admission: { provider: "world_labs_atlas",
-    resource_class: "provider_reconstruction_api", maximum_cost_usd: 80.5, request_count: 1 } } };
+    resource_class: "provider_reconstruction_api", maximum_cost_usd: 20.5, request_count: 1 } } };
   const refused = await post("prepared-scene", { request });
   expect(refused.status).toBe(409);
   expect(await refused.json()).toEqual({ code: "website_scene_preparation_budget_exhausted" });
   expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(0);
-  // An unflagged refusal at the ceiling is exactly as before: no safety-limit alert (owner decision 2026-11-11).
-  expect(store.rows.has("opsWebsiteJobOverBudgetAlerts/req1-safety-limit")).toBe(false);
-  // Settling the hold below its maximum makes room; nothing was reset or rewritten.
-  record.website_preparation_reservations["b".repeat(64)].settlement = { actual_cost_usd: 80, status: "settled" };
+  // A refusal at the cap writes no alert: nothing needs a person, the job goes on without the scene.
+  expect([...store.rows.keys()].some(key => key.startsWith("opsWebsiteJobOverBudgetAlerts/"))).toBe(false);
+  // Settling the hold below its maximum releases the rest: $20 + $20 fits exactly. Nothing was reset or rewritten.
+  record.website_preparation_reservations["b".repeat(64)].settlement = { actual_cost_usd: 20, status: "settled" };
   expect((await post("prepared-scene", { request })).status).toBe(202);
   // The existing intake is never re-admitted, so a replay is unaffected by later holds.
   record.website_preparation_reservations["c".repeat(64)] = { admission: { maximum_cost_usd: 5 } };
@@ -1024,7 +1013,7 @@ it("keeps a prepared scene's native allowance held while every delivery's respon
   };
   expect((await post("prepared-scene", { request })).status).toBe(202);
   const ceiling = (additionalCostUsd: number) => assertWithinWebsiteJobCeiling({
-    record: store.rows.get("inboundRequests/req1"), captureId: grant.capture_id, additionalCostUsd,
+    record: store.rows.get("inboundRequests/req1"), additionalCostUsd,
     reader: transactionJobLedgerReader(dbAdmin as any, { get: (ref: any) => ref.get() }, "req1") });
   // The Pipeline receives (and may accept) every delivery, but its response never arrives.
   const fetcher = vi.fn(async () => { throw new TypeError("fetch failed"); });
@@ -1048,9 +1037,9 @@ it("keeps a prepared scene's native allowance held while every delivery's respon
   expect(stored()[1]).not.toHaveProperty("pipeline_status");
   expect(fetcher).toHaveBeenCalledTimes(25);
   // A local "blocked" does not prove the Pipeline stopped: the whole $20 stays held
-  // against the owner default $100 ceiling, so only $80 of new spend fits.
-  expect((await ceiling(80)).spend.native_construction_micros).toBe(20_000_000);
-  await expect(ceiling(80.000001)).rejects.toThrow("website_scene_preparation_budget_exhausted");
+  // against the job's $40 cap, so only $20 of new spend fits.
+  expect((await ceiling(20)).spend.native_construction_micros).toBe(20_000_000);
+  await expect(ceiling(20.000001)).rejects.toThrow("website_scene_preparation_budget_exhausted");
 });
 
 it.each(["scope", "success_digest", "native_digest", "runtime_digest", "context", "revoked", "expired"])("rejects changed family %s before forwarding without granting spend", async corruption => {
@@ -1878,6 +1867,7 @@ describe("registered public scene intake", () => {
 it("requires source-bound Atlas consent and preserves separate budgets across retries", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(35);
   const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
     resource_class: "provider_reconstruction_api" as const, provider: "world_labs_atlas" as const,
     source_video_digest: sha("a"), maximum_cost_usd: 3, request_count: 1 };
@@ -1929,8 +1919,11 @@ it("requires source-bound Atlas consent and preserves separate budgets across re
     await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2") }))
       .rejects.toThrow("budget_exhausted");
     store.rows.get("inboundRequests/req1").website_scene_sponsorship = original;
+    // One cap for the job (owner, 2026-11-19): $35 elsewhere + $3.51 of Atlas leaves $1.49 for anything else.
+    await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("3"),
+      provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: 1.490001 })).rejects.toThrow("budget_exhausted");
     await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("3"),
-      provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: 5 });
+      provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: 1.49 });
     await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("4"),
       source_video_digest: sha("c"), maximum_cost_usd: 1 })).rejects.toThrow("source_consent_required");
   } finally { delete process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON;
@@ -1993,6 +1986,7 @@ it("an intent window extends a native reservation but never an Atlas one or Atla
 it("reserves hosted SAM from the Blueprint cap once and rejects overspend, changed requests and revoked consent", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(35);
   const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
     resource_class: "evaluator_api" as const, provider: "meta" as const, maximum_cost_usd: 3, request_count: 1 };
   const first = await reserveWebsitePreparationSpend("req1", spend);
@@ -2010,6 +2004,7 @@ it("reserves hosted SAM from the Blueprint cap once and rejects overspend, chang
 it("reserves image edits and SAM against the same sponsor cap and checks the selected provider terms", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(35);
   const image = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("4"),
     resource_class: "openai_api_candidate" as const, provider: "openai" as const, maximum_cost_usd: 4, request_count: 1 };
   const receipt = await reserveWebsitePreparationSpend("req1", image);
@@ -2068,6 +2063,7 @@ it("bounds Gemini analysis and review by the shared preparation cap and Google t
 it("amends only preparation request count while retaining money, native authority, expiry and reservations", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(35);
   const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
     resource_class: "evaluator_api" as const, provider: "meta" as const,
     maximum_cost_usd: 1, request_count: grant.max_paid_attempts };
@@ -2111,51 +2107,11 @@ it("amends only preparation request count while retaining money, native authorit
     maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
 });
 
-it("raises only the upstream preparation dollar cap by the owner, retaining prior approvals and usage", async () => {
-  sponsoredCapture();
-  const grant = await loadWebsiteSceneSponsorship("req1", true);
-  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
-    resource_class: "evaluator_api" as const, provider: "meta" as const, maximum_cost_usd: 4, request_count: 1 };
-  const first = await reserveWebsitePreparationSpend("req1", spend);
-  const next = { ...spend, allocation_binding_digest: sha("2"), maximum_cost_usd: 2.48 };
-  await expect(reserveWebsitePreparationSpend("req1", next)).rejects.toThrow("budget_exhausted");
-  const input = { authority_digest: grant.authority_digest, upstream_max_spend_usd: 10,
-    approved_by: grant.owner.user_id, approval_reference: "owner-reply:raise-upstream-10" };
-  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, approved_by: "stranger" }, true))
-    .rejects.toThrow("binding_invalid");
-  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 16 }, true))
-    .rejects.toThrow("out_of_bounds");
-  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 5 }, true))
-    .rejects.toThrow("out_of_bounds");
-  await amendWebsitePreparationSpendLimit("req1", input);
-  expect(store.rows.get("inboundRequests/req1").website_preparation_spend_amendment).toBeUndefined();
-  const receipt = await amendWebsitePreparationSpendLimit("req1", input, true);
-  expect(await amendWebsitePreparationSpendLimit("req1", input, true)).toEqual(receipt);
-  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 9 }, true))
-    .rejects.toThrow("amendment_conflict");
-  const increase = { ...input, upstream_max_spend_usd: 12, approval_reference: "owner-reply:raise-upstream-12" };
-  const before = structuredClone(store.rows.get("inboundRequests/req1"));
-  await amendWebsitePreparationSpendLimit("req1", increase);
-  expect(store.rows.get("inboundRequests/req1")).toEqual(before);
-  const increased = await amendWebsitePreparationSpendLimit("req1", increase, true);
-  expect(await amendWebsitePreparationSpendLimit("req1", increase, true)).toEqual(increased);
-  const after = store.rows.get("inboundRequests/req1");
-  expect(after.website_preparation_amendment_history).toEqual([receipt]);
-  expect(after.website_preparation_reservations).toEqual(before.website_preparation_reservations);
-  await expect(amendWebsitePreparationSpendLimit("req1", { ...increase, upstream_max_spend_usd: 16 }, true))
-    .rejects.toThrow("out_of_bounds");
-  // The grant itself, its native cap and existing reservations are unchanged.
-  expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
-  expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
-  expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
-  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
-    maximum_cost_usd: 6 })).rejects.toThrow("budget_exhausted");
-  // A tampered amendment fails closed rather than widening the cap.
-  store.rows.get("inboundRequests/req1").website_preparation_spend_amendment.upstream_max_spend_usd = 15;
-  await expect(amendWebsitePreparationSpendLimit("req1", { ...increase, upstream_max_spend_usd: 15 }, true))
-    .rejects.toThrow("spend_amendment_invalid");
-  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("4"),
-    maximum_cost_usd: 0.1 })).rejects.toThrow("spend_amendment_invalid");
+it("the owner can no longer raise a job's dollar figure: only the request count is amendable", async () => {
+  const sponsorship = await import("../utils/websiteSceneSponsorship");
+  expect(sponsorship).not.toHaveProperty("amendWebsitePreparationSpendLimit");
+  expect(sponsorship).not.toHaveProperty("amendWebsiteAtlasGrantFigure");
+  expect(sponsorship).toHaveProperty("amendWebsitePreparationRequestLimit");
 });
 
 it("rejects stale, unauthorized, revoked and tampered preparation amendments", async () => {
@@ -2184,6 +2140,7 @@ it("settles final Marble billing without resetting request count or granting ano
   const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
   process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, world_labs: terms.openai });
   const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(35);
   const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
     resource_class: "provider_reconstruction_api" as const, provider: "world_labs" as const,
     maximum_cost_usd: 2.48, request_count: 1 };
@@ -2214,6 +2171,7 @@ it("releases only the quote after a signed pre-generation credit rejection", asy
   const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
   process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, world_labs: terms.openai });
   const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(35);
   const first = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
     resource_class: "provider_reconstruction_api" as const, provider: "world_labs" as const,
     maximum_cost_usd: 2.48, request_count: 1 };
@@ -2239,6 +2197,7 @@ it("releases only the quote after a signed pre-generation credit rejection", asy
 it("releases the unused image-edit quote only after every covered request completed", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(35);
   const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
     resource_class: "openai_api_candidate" as const, provider: "openai" as const,
     maximum_cost_usd: 2.4, request_count: 1 };
@@ -2307,13 +2266,14 @@ it("releases only provider charged Vast capacity after a bound terminal rental",
     provider_charge_amount_usd: .51 })).rejects.toThrow("settlement_invalid");
 });
 
-it("settles torn-down Vast probe holds at their labelled ledger estimates so the upstream cap counts what ran", async () => {
+it("settles torn-down Vast probe holds at their labelled ledger estimates so the job's cap counts what ran", async () => {
   // capture-447ae4f4: four $1 probe holds and $0.32 already used left $4.32 held of $5,
   // so the next $1 hold was refused while the four runs' ledgers estimated $0.62.
   sponsoredCapture();
   const policy = JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!);
   process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, max_paid_attempts: 16 });
   const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(35);
   const probe = (key: string) => ({ task_context_digest: grant.task_context_digest, allocation_binding_digest: sha(key),
     resource_class: "gpu_render" as const, provider: "vast" as const, maximum_cost_usd: 1, request_count: 1 });
   await reserveWebsitePreparationSpend("req1", { task_context_digest: grant.task_context_digest,
@@ -2353,7 +2313,7 @@ it("settles torn-down Vast probe holds at their labelled ledger estimates so the
     expect(retained[key].admission).toEqual(original[key].admission);
     expect(retained[key].command_digest).toEqual(original[key].command_digest);
   }
-  // $0.32 + $0.621481 settled, so the next $1 probe hold fits under the $5 upstream cap.
+  // $0.32 + $0.621481 settled, so the next $1 probe hold fits under the job's cap ($35 spent elsewhere).
   expect(await reserveWebsitePreparationSpend("req1", probe("5"))).toMatchObject({ status: "admitted" });
 });
 

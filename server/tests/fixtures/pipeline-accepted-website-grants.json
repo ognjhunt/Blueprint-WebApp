@@ -21,7 +21,6 @@
   "max_total_spend_usd": 1,
   "max_paid_attempts": 2,
   "scene_configuration_max_retries": 1,
-  "automatic_budget_extension": true,
   "expires_at_epoch": 1794571713.36,
   "consent": {
    "rights_reference": "sha256:b9b347249ab74047f0c505067cc3a65507c8e64ec8f09ea951d5823f3b9121c9",
@@ -63,7 +62,6 @@
   "max_total_spend_usd": 1,
   "max_paid_attempts": 2,
   "scene_configuration_max_retries": 1,
-  "automatic_budget_extension": true,
   "expires_at_epoch": 1794571713.363,
   "consent": {
    "rights_reference": "sha256:b9b347249ab74047f0c505067cc3a65507c8e64ec8f09ea951d5823f3b9121c9",
@@ -98,7 +96,6 @@
   "max_total_spend_usd": 1,
   "max_paid_attempts": 2,
   "scene_configuration_max_retries": 1,
-  "automatic_budget_extension": true,
   "expires_at_epoch": 1794571713.365,
   "consent": {
    "rights_reference": "sha256:b9b347249ab74047f0c505067cc3a65507c8e64ec8f09ea951d5823f3b9121c9",
@@ -132,7 +129,6 @@
   "max_total_spend_usd": 1,
   "max_paid_attempts": 2,
   "scene_configuration_max_retries": 1,
-  "automatic_budget_extension": true,
   "expires_at_epoch": 1794571713.368,
   "consent": {
    "rights_reference": "sha256:b9b347249ab74047f0c505067cc3a65507c8e64ec8f09ea951d5823f3b9121c9",

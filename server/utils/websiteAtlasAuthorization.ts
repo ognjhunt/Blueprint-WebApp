@@ -77,25 +77,6 @@ function matchingAuthorizations(input: EnvRowMatch) {
     && v.task_context_digest === input.taskContextDigest && v.source_video_digest === input.sourceVideoDigest);
 }
 
-/** The owner's explicit per-job figure from this job's authorization rows, for the job's
- * one dollar ceiling. Only the figure is read: no consent, terms or expiry is granted
- * here. An unreadable setting or no row names none; several rows name the smallest. */
-/**
- * The job ceiling an owner row sets, only while that row is in force. An expired
- * row raises nothing: the job falls back to its stored grant, the grant policy or
- * the default, exactly as the Atlas grant itself refuses it (`checkedGrant`).
- * capture-447 (2026-11-06): its $130 row expired at 10:16Z and still counted.
- */
-export function websiteAtlasAuthorizationCeiling(requestId: string, captureId: string,
-  now: number = Date.now() / 1000): number | null {
-  let values: z.infer<typeof authorization>[];
-  try {
-    values = z.array(authorization).parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON || "[]"));
-  } catch { return null; }
-  const rows = values.filter(v => v.request_id === requestId && v.capture_id === captureId && v.expires_at_epoch > now);
-  return rows.length ? Math.min(...rows.map(row => row.maximum_cost_usd)) : null;
-}
-
 export function websiteAtlasAuthorization(input: EnvRowMatch & GrantChecks) {
   const rows = matchingAuthorizations(input);
   if (rows.length !== 1) throw new Error("website_atlas_source_consent_required");

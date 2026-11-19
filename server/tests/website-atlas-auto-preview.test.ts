@@ -47,7 +47,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   } };
 });
 
-import { amendWebsiteAtlasGrantFigure, loadWebsiteAtlasConfiguration, observeWebsitePreparationSpend, reserveWebsitePreparationSpend,
+import { loadWebsiteAtlasConfiguration, observeWebsitePreparationSpend, reserveWebsitePreparationSpend,
   settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 import { websitePreparationAccounting } from "../utils/websitePreparationAccounting";
@@ -104,6 +104,17 @@ const configure = (overrides: { task_context_digest?: string; source_video_diges
 const atlasSpend = (overrides: Record<string, unknown> = {}) => ({ task_context_digest: contextDigest(),
   allocation_binding_digest: sha("1"), resource_class: "provider_reconstruction_api" as const,
   provider: "world_labs_atlas" as const, source_video_digest: sha("5"), maximum_cost_usd: 1.5, request_count: 1, ...overrides });
+
+/**
+ * The job already spent `usd` on a finished scene, leaving the rest of its $40 cap (owner, 2026-11-19). The job's cap is
+ * the only dollar stop now, so a test that showed a refusal at the $2 Atlas allowance keeps its arithmetic with
+ * `spentElsewhere(38)`.
+ */
+function spentElsewhere(usd: number) {
+  store.rows.set("taskEvaluationSceneIntakes/spent-elsewhere", { website_request_id: "req1", state: "completed", receipt: {},
+    request: { task: { strategy: "pick_and_place" }, execution: { max_total_spend_usd: usd } },
+    pipeline_status: { status: "completed", attempts: [{ maximum_spend_usd: usd }] } });
+}
 
 let server: Server | undefined;
 async function app() {
@@ -177,9 +188,9 @@ describe("automatic consented Atlas grant", () => {
     expect(first).toEqual({ schema_version: "website_atlas_configuration.v1",
       authority: { ...stored, authorization_digest: crossRuntimeDigest(stored) }, policy: runtime,
       reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2,
-      job_ceiling: { schema_version: "website_job_ceiling.v1", maximum_cost_usd: 2, source: "atlas_authorization",
+      job_ceiling: { schema_version: "website_job_ceiling.v1", maximum_cost_usd: 40, source: "job_spending_cap",
         preparation_cost_usd: 0, native_construction_cost_usd: 0, screening_cost_usd: 0,
-        reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2 },
+        reserved_or_settled_cost_usd: 0, remaining_cost_usd: 40 },
       task_context_digest: contextDigest(), source_video_digest: sha("5"), dispatch_authorized: false });
     // Byte-stable on resume, created once, and unchanged by a task edit.
     expect(JSON.stringify((await configure()).authority)).toBe(JSON.stringify(first.authority));
@@ -416,10 +427,11 @@ describe("non-authorizing Atlas configuration read", () => {
 
   // Owner decision 2026-11-10: on a job whose scene grant names the automatic budget extension, the Atlas
   // allowance is a warning figure for a reservation the Pipeline asks for, and only for that.
-  it.each([["flagged", true], ["unflagged", false]])("an Atlas reservation past its allowance on a %s job", async (_label, flagged) => {
+  it.each([["a pre-switch flagged", true], ["a new", false]])("an Atlas reservation past the job's cap on %s grant", async (_label, flagged) => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     upload();
     await configure();
+    spentElsewhere(38);
     const payload = { owner: { user_id: "blueprint-preparation" }, expires_at_epoch: Date.now() / 1000 + 3600,
       ...(flagged ? { automatic_budget_extension: true } : {}) };
     store.rows.get(REQUEST).website_scene_sponsorship = { ...payload, authority_digest: crossRuntimeDigest(payload) };
@@ -427,27 +439,15 @@ describe("non-authorizing Atlas configuration read", () => {
     const route = (spend: unknown) => post(base, "/internal/creator-captures/walkthrough-req1/preparation-spend",
       { request_id: "req1", scene_id: "site-req1", spend });
     expect((await route(atlasSpend())).status).toBe(200);
-    // Not requested by the host (a direct caller such as the operator Atlas script): refused either way.
+    // $38 elsewhere + $1.50: a second $1.50 is past $40, for the Pipeline's route and a direct caller alike, flag or not.
     await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2") })))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
     const second = await route(atlasSpend({ allocation_binding_digest: sha("2") }));
-    const ledger = store.rows.get(REQUEST).website_preparation_reservations;
-    const alerts = [...store.rows.keys()].filter(key => key.startsWith("opsWebsiteJobOverBudgetAlerts/"));
-    if (!flagged) {
-      expect(second).toEqual({ status: 409, body: { code: "website_scene_preparation_budget_exhausted" } });
-      expect(ledger).not.toHaveProperty("2".repeat(64));
-      expect(alerts).toHaveLength(0);
-      return;
-    }
-    // As on main: admitted past the $2 allowance and ceiling with a note. The safety limit is the owner's
-    // fixed $100, never the $2 hosting setting (owner decision 2026-11-11), so it does not stop this.
-    expect(second.status).toBe(200);
-    expect(second.body).toMatchObject({ status: "admitted", maximum_cost_usd: 1.5 });
-    expect(ledger["1".repeat(64)]).not.toHaveProperty("over_budget");
-    expect(ledger["2".repeat(64)].over_budget).toMatchObject({ basis: "automatic_budget_extension",
-      allowance: "atlas_allowance", allowance_usd: 2, allowance_exceeded: true, job_ceiling_exceeded: true });
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].endsWith("-safety-limit")).toBe(false);
+    expect(second).toEqual({ status: 409, body: { code: "website_scene_preparation_budget_exhausted" } });
+    expect(store.rows.get(REQUEST).website_preparation_reservations).not.toHaveProperty("2".repeat(64));
+    expect([...store.rows.keys()].filter(key => key.startsWith("opsWebsiteJobOverBudgetAlerts/"))).toHaveLength(0);
+    // What still fits is admitted, past the grant's own $2 figure if the job has room: the figure is only a planning share.
+    expect((await route(atlasSpend({ allocation_binding_digest: sha("3"), maximum_cost_usd: .5 }))).status).toBe(200);
   });
 
   it("accounts each retained hold or settlement once without exposing raw record fields", async () => {
@@ -611,6 +611,7 @@ describe("Atlas reservations under an automatic grant", () => {
     await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_atlas_source_consent_required");
     expect(store.writes).toEqual([]);
     const { authority } = await configure();
+    spentElsewhere(38);
     const pose = await reserveWebsitePreparationSpend("req1", atlasSpend());
     expect(pose).toMatchObject({ status: "admitted", provider: "world_labs_atlas", sponsorship_digest: authority.authorization_digest,
       atlas_authorization_digest: authority.authorization_digest, provider_terms_reference: sha("a"),
@@ -700,134 +701,20 @@ const ready = (revision = 2) => preview({ revision, state: "ready", updated_at_e
   splat_available: true, mesh_available: true });
 
 // Owner decision 2026-11-11: the owner raises one existing job's safety limit by amending its stored grant's own figure.
-describe("owner amendment of a stored Atlas grant's figure", () => {
-  const OWNER = "blueprint-preparation", CAPTURE = "walkthrough-req1";
-  async function grantedJob() {
-    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+describe("a stored Atlas grant's figure (owner decision 2026-11-19)", () => {
+  it("can no longer be raised by the owner, and plans Atlas only inside what the job has left under its cap", async () => {
+    expect(await import("../utils/websiteSceneSponsorship")).not.toHaveProperty("amendWebsiteAtlasGrantFigure");
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 25 }));
     upload();
-    const created = await configure();
-    const payload = { owner: { user_id: OWNER }, expires_at_epoch: Date.now() / 1000 + 3600 };
-    store.rows.get(REQUEST).website_scene_sponsorship = { ...payload, authority_digest: crossRuntimeDigest(payload) };
-    return created.authority;
-  }
-  const amend = (authorization_digest: string, maximum_cost_usd: number, apply: boolean, overrides: Record<string, unknown> = {}) =>
-    amendWebsiteAtlasGrantFigure("req1", { capture_id: CAPTURE, authorization_digest, maximum_cost_usd, approved_by: OWNER,
-      approval_reference: "Owner approval 2026-11-12: raise this job's safety limit to $5", approved_at_iso: "2026-11-12",
-      ...overrides }, apply);
-  // The Pipeline's resume check (website_atlas_pipeline._same_authority): only these may change, and the figures only rise.
-  const pipelineAcceptsResume = (stored: Record<string, any>, current: Record<string, any>) => {
-    const amendable = new Set(["maximum_cost_usd", "maximum_requests", "approval_reference", "expires_at_epoch", "authorization_digest"]);
-    const rest = (value: Record<string, any>) => crossRuntimeDigest(Object.fromEntries(Object.entries(value).filter(([key]) => !amendable.has(key))));
-    return rest(stored) === rest(current) && ["maximum_cost_usd", "maximum_requests"]
-      .every(key => !(key in current) || current[key] >= stored[key]);
-  };
-
-  it("previews exactly what would change and writes nothing", async () => {
-    const authority = await grantedJob();
-    const before = structuredClone(store.rows.get(REQUEST));
-    store.writes.length = 0;
-    const preview = await amend(authority.authorization_digest, 5, false);
-    expect(preview).toMatchObject({ status: "preview",
-      change: { path: `inboundRequests/req1.website_atlas_grants.${CAPTURE}.maximum_cost_usd`, from: 2, to: 5 },
-      receipt: { schema_version: "website_atlas_grant_figure_amendment.v1", from_maximum_cost_usd: 2, to_maximum_cost_usd: 5,
-        prior_authorization_digest: authority.authorization_digest, approved_by: OWNER,
-        approval_reference: "Owner approval 2026-11-12: raise this job's safety limit to $5",
-        approved_at_iso: "2026-11-12", approved_at_epoch: Date.parse("2026-11-12") / 1000, applied_at_epoch: expect.any(Number) } });
-    expect(store.rows.get(REQUEST)).toEqual(before);
-    expect(store.writes).toEqual([]);
-  });
-
-  it("raises the job's ceiling and Atlas allowance, records the approval once, and is read by the Pipeline as the same grant", async () => {
-    const authority = await grantedJob();
-    expect(await reserveWebsitePreparationSpend("req1", atlasSpend())).toMatchObject({ status: "admitted" });
-    // At $2 the job's safety limit refuses the next $1.50.
-    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2") })))
-      .rejects.toThrow("website_scene_preparation_budget_exhausted");
-    const applied = await amend(authority.authorization_digest, 5, true);
-    expect(applied.status).toBe("applied");
-    const record = store.rows.get(REQUEST);
-    expect(record.website_atlas_grants[CAPTURE].maximum_cost_usd).toBe(5);
-    expect(record.website_atlas_grant_amendments).toEqual([applied.receipt]);
-    expect(applied.receipt.amendment_digest).toBe(crossRuntimeDigest(Object.fromEntries(Object.entries(applied.receipt)
-      .filter(([key]) => key !== "amendment_digest"))));
-    // Idempotent: the same amendment again returns the stored receipt and records nothing more.
-    expect(await amend(authority.authorization_digest, 5, true)).toEqual({ status: "already_applied", receipt: applied.receipt });
-    expect(store.rows.get(REQUEST).website_atlas_grant_amendments).toHaveLength(1);
-    const read = await configure({ create: false });
-    expect(read.authority.maximum_cost_usd).toBe(5);
-    expect(read.authority.authorization_digest).toBe(applied.receipt.authorization_digest);
-    expect(read.job_ceiling).toMatchObject({ maximum_cost_usd: 5, source: "atlas_authorization" });
-    // Only the figure and its digest changed: the Pipeline's resume check continues the job.
-    expect(Object.keys(read.authority).filter(key => crossRuntimeDigest({ v: read.authority[key] }) !== crossRuntimeDigest({ v: authority[key] })).sort())
-      .toEqual(["authorization_digest", "maximum_cost_usd"]);
-    expect(pipelineAcceptsResume(authority, read.authority)).toBe(true);
-    expect(await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2") })))
-      .toMatchObject({ status: "admitted" });
-  });
-
-  it("refuses anything but a raise, up to the stored grant schema's $100, for this grant, approved by the job's sponsor", async () => {
-    const authority = await grantedJob();
-    await expect(amend(authority.authorization_digest, 2, true)).rejects.toThrow("website_atlas_grant_amendment_not_increased");
-    await expect(amend(authority.authorization_digest, 1, true)).rejects.toThrow("website_atlas_grant_amendment_not_increased");
-    await expect(amend(authority.authorization_digest, 100.01, true)).rejects.toThrow();
-    await expect(amend(sha("0"), 5, true)).rejects.toThrow("website_atlas_grant_amendment_binding_invalid");
-    await expect(amend(authority.authorization_digest, 5, true, { approved_by: "someone-else" }))
-      .rejects.toThrow("website_atlas_grant_amendment_binding_invalid");
-    await expect(amend(authority.authorization_digest, 5, true, { capture_id: "walkthrough-other" }))
-      .rejects.toThrow("website_atlas_grant_missing");
-    expect(store.rows.get(REQUEST).website_atlas_grants[CAPTURE].maximum_cost_usd).toBe(2);
-    expect(store.rows.get(REQUEST)).not.toHaveProperty("website_atlas_grant_amendments");
-    // The schema's maximum itself is allowed; a later raise binds to the amended grant's digest.
-    const first = await amend(authority.authorization_digest, 40, true);
-    await expect(amend(authority.authorization_digest, 100, true)).rejects.toThrow("website_atlas_grant_amendment_binding_invalid");
-    expect((await amend(first.receipt.authorization_digest, 100, true)).status).toBe("applied");
-    expect(store.rows.get(REQUEST).website_atlas_grant_amendments.map((row: any) => row.to_maximum_cost_usd)).toEqual([40, 100]);
-  });
-
-  it("refuses a run the owner closed, and an approval dated in the future", async () => {
-    const authority = await grantedJob();
-    await expect(amend(authority.authorization_digest, 5, true, { approved_at_iso: "2999-01-01" }))
-      .rejects.toThrow("website_atlas_grant_amendment_approval_in_future");
-    await expect(amend(authority.authorization_digest, 5, true, { approved_at_iso: "12 November" })).rejects.toThrow();
-    store.rows.get(REQUEST).website_run_closures = { [CAPTURE]: ownerClosure("req1", CAPTURE) };
-    await expect(amend(authority.authorization_digest, 5, true)).rejects.toThrow("website_run_closed_by_owner");
-    expect(store.rows.get(REQUEST).website_atlas_grants[CAPTURE].maximum_cost_usd).toBe(2);
-  });
-
-  it("refuses an expired grant and a withdrawn site", async () => {
-    const authority = await grantedJob();
-    const clock = vi.spyOn(Date, "now").mockReturnValue((authority.expires_at_epoch + 1) * 1000);
-    try { await expect(amend(authority.authorization_digest, 5, true)).rejects.toThrow("website_atlas_consent_expired"); }
-    finally { clock.mockRestore(); }
-    store.rows.get(REQUEST).request.consent_attestation.granted = false;
-    await expect(amend(authority.authorization_digest, 5, true)).rejects.toThrow("source_revoked");
-  });
-
-  it("keeps rows reserved before a raise observable, replayable and settleable after it", async () => {
-    const authority = await grantedJob();
-    const held = atlasSpend({ maximum_cost_usd: .6 });
-    const settled = atlasSpend({ allocation_binding_digest: sha("2"), maximum_cost_usd: .6 });
-    await reserveWebsitePreparationSpend("req1", held);
-    await reserveWebsitePreparationSpend("req1", settled);
-    const outcome = { task_context_digest: contextDigest(), allocation_binding_digest: sha("2"),
-      provider: "world_labs_atlas" as const, outcome: "completed" as const, operation_id: "op-2", outcome_receipt_digest: sha("9") };
-    await settleWebsitePreparationSpend("req1", outcome);
-    const rows = store.rows.get(REQUEST).website_preparation_reservations;
-    expect(Object.values(rows).map((row: any) => row.admission.atlas_authorization_digest))
-      .toEqual([authority.authorization_digest, authority.authorization_digest]);
-    await amend(authority.authorization_digest, 5, true);
-    // Rows carry their own observation binding, which names no grant digest.
-    expect(await observeWebsitePreparationSpend("req1", held)).toMatchObject({ status: "reserved" });
-    expect(await observeWebsitePreparationSpend("req1", settled)).toMatchObject({ status: "reserved",
-      settlement: { outcome: "completed", actual_cost_usd: .6 } });
-    expect(await reserveWebsitePreparationSpend("req1", held)).toMatchObject({ status: "already_reserved",
-      atlas_authorization_digest: authority.authorization_digest });
-    expect(await settleWebsitePreparationSpend("req1", outcome)).toMatchObject({ status: "settled" });
-    expect((await configure({ create: false })).reserved_or_settled_cost_usd).toBe(1.2);
+    expect((await configure()).remaining_cost_usd).toBe(25);
+    spentElsewhere(38);
+    const read = await configure();
+    expect(read.remaining_cost_usd).toBe(2);
+    expect(read.job_ceiling).toMatchObject({ maximum_cost_usd: 40, source: "job_spending_cap", remaining_cost_usd: 2 });
   });
 });
 
-describe("one dollar ceiling per job (owner, 2026-10-30)", () => {
+describe("one cap per job (owner, 2026-10-30; one figure, $40, since 2026-11-19)", () => {
   const atlasOutcome = (key: string, outcome: "completed" | "failed" | "refused", overrides: Record<string, unknown> = {}) => ({
     task_context_digest: contextDigest(), allocation_binding_digest: sha(key), provider: "world_labs_atlas" as const,
     outcome, operation_id: outcome === "refused" ? null : `op-${key}`, outcome_receipt_digest: sha("9"), ...overrides });
@@ -835,21 +722,23 @@ describe("one dollar ceiling per job (owner, 2026-10-30)", () => {
     budget: { currency: "USD", limit_usd: "15.00", committed_upper_bound_usd: committed,
       spent_upper_bound_usd: committed, reserved_usd: "0" } }) });
 
-  it("counts every ledger of the job against one ceiling, settled where known and otherwise held in full", async () => {
+  it("counts every ledger of the job against one cap, settled where known and otherwise held in full", async () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     upload();
     await configure();
+    // The job already spent $38 on a finished scene: $2 of its $40 remains.
+    spentElsewhere(38);
     // A held upstream row from the preparation-only sponsorship, outside the Atlas allowance.
     store.rows.get(REQUEST).website_preparation_reservations = { ["e".repeat(64)]: { command_digest: sha("0"),
       admission: { allocation_binding_digest: sha("e"), provider: "meta", resource_class: "evaluator_api",
         task_context_digest: contextDigest(), request_count: 1, maximum_cost_usd: .5 } } };
-    // The Atlas allowance alone has room for 1.6; the job ($2 here) does not.
+    // $38 + $0.50 + $1.60 is past $40.
     await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ maximum_cost_usd: 1.6 })))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
     expect(await reserveWebsitePreparationSpend("req1", atlasSpend())).toMatchObject({ status: "admitted" });
     expect((await configure({ create: false })).job_ceiling).toEqual({ schema_version: "website_job_ceiling.v1",
-      maximum_cost_usd: 2, source: "atlas_authorization", preparation_cost_usd: 2, native_construction_cost_usd: 0,
-      screening_cost_usd: 0, reserved_or_settled_cost_usd: 2, remaining_cost_usd: 0 });
+      maximum_cost_usd: 40, source: "job_spending_cap", preparation_cost_usd: 2, native_construction_cost_usd: 38,
+      screening_cost_usd: 0, reserved_or_settled_cost_usd: 40, remaining_cost_usd: 0 });
     // A failed Atlas operation World Labs never charged releases its hold.
     expect(await settleWebsitePreparationSpend("req1", atlasOutcome("1", "failed")))
       .toMatchObject({ status: "settled", actual_cost_usd: 0 });
@@ -868,12 +757,12 @@ describe("one dollar ceiling per job (owner, 2026-10-30)", () => {
       job_evidence_binding: { job_id: "req1" }, result_record_id: "screening-one" });
     store.rows.set("captureTaskEvaluationRuns/screening-one", screening("0.6"));
     expect((await configure({ create: false })).job_ceiling).toMatchObject({ preparation_cost_usd: 1.1,
-      native_construction_cost_usd: .25, screening_cost_usd: .6, remaining_cost_usd: expect.closeTo(.05) });
+      native_construction_cost_usd: 38.25, screening_cost_usd: .6, remaining_cost_usd: expect.closeTo(.05) });
     await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"), maximum_cost_usd: .1 })))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
     expect(await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"), maximum_cost_usd: .05 })))
       .toMatchObject({ status: "admitted" });
-    // An unreadable screening publication counts all the ceiling the other ledgers leave: the job is full.
+    // An unreadable screening publication counts the whole site limit: the job is full.
     store.rows.set("captureTaskEvaluationRuns/screening-one", { publication: { schema_version: "unknown" } });
     await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"), maximum_cost_usd: .01 })))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
@@ -1033,6 +922,8 @@ it("charges source-bound SAM/review auxiliaries to Atlas while retaining their o
   expect((await configure()).authority).not.toHaveProperty("auxiliary");
   vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ ...terms,
     google: { digest: sha("e"), label: "Accepted auxiliary terms", url: "https://example.com/terms" } }));
+  // $38 already spent on a finished scene: $2 of the job's $40 remains, as much as the Atlas grant's figure.
+  spentElsewhere(38);
   await reserveWebsitePreparationSpend("req1", atlasSpend());
   const auxiliary = await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2"),
     provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .4, atlas_auxiliary: true }));

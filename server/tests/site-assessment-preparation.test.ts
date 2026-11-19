@@ -22,7 +22,7 @@ vi.mock("../utils/taskLifecycleNotifications", () => ({enqueueTaskLifecycleNotif
 vi.mock("../utils/pipelineSyncSecurity", () => ({createPipelineSyncRateLimiter:()=> (_r:unknown,_s:unknown,next:()=>void)=>next(),
   verifyPipelineSyncRequest:()=>({ok:true})}));
 import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, currentWebsitePreparationStatusContext, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit,
-  amendWebsitePreparationSpendLimit, sponsorshipValidUntil } from "../utils/websiteSceneSponsorship";
+  sponsorshipValidUntil } from "../utils/websiteSceneSponsorship";
 import { recordSceneExecutionWindowExtension } from "../utils/sceneExecutionWindowExtension";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { browserPendingDecisionKey } from "../utils/websiteBrowserPending";
@@ -234,9 +234,9 @@ it("sponsor-approved renewal re-issues an expired preparation grant under its id
     expect(stored.website_scene_sponsorship_history).toEqual([first]);
     expect(Object.keys(stored.website_preparation_reservations)).toHaveLength(1);
     expect(await loadWebsiteSceneSponsorship("one",false)).toMatchObject({authority_digest:renewed.authority_digest});
-    // The cap still counts the reservation made under the expired grant.
+    // The job's cap still counts the reservation made under the expired grant: $1 + $39.000001 is past $40.
     await expect(reserveWebsitePreparationSpend("one",{...spend,allocation_binding_digest:`sha256:${"e".repeat(64)}`,
-      task_context_digest:renewed.task_context_digest,maximum_cost_usd:1.5})).rejects.toThrow("website_scene_preparation_budget_exhausted");
+      task_context_digest:renewed.task_context_digest,maximum_cost_usd:39.000001})).rejects.toThrow("website_scene_preparation_budget_exhausted");
     await expect(renew()).rejects.toThrow("website_scene_sponsorship_renewal_not_expired");
   } finally {vi.restoreAllMocks();}
 });
@@ -321,13 +321,15 @@ it("renewal carries the owner's request-limit amendment to the renewed grant and
       maximum_cost_usd:0.1,request_count:first.max_paid_attempts+1})).resolves.toMatchObject({status:"admitted"});
   } finally {vi.restoreAllMocks();}
 });
-it("renewal previews and carries spend and chained request amendments without resetting reservations",async()=>{
+it("renewal carries chained request amendments, leaves a pre-switch spend amendment as it was, and resets no reservation",async()=>{
   seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
   vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:first.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
   const approve={authority_digest:first.authority_digest,approved_by:"blueprint",approval_reference:"owner amendment"};
   const limit=await amendWebsitePreparationRequestLimit("one",{...approve,max_requests:first.max_paid_attempts+1},true);
   const extension=await amendWebsitePreparationRequestLimit("one",{...approve,max_requests:first.max_paid_attempts+2},true);
-  const spend=await amendWebsitePreparationSpendLimit("one",{...approve,upstream_max_spend_usd:first.upstream_max_spend_usd*2},true);
+  // An owner's upstream spend amendment from before 2026-11-19: kept on the record, read by nothing.
+  const spend={...approve,upstream_max_spend_usd:first.upstream_max_spend_usd*2,approved_at_epoch:1,amendment_digest:`sha256:${"9".repeat(64)}`};
+  (state.docs.get("inboundRequests/one") as any).website_preparation_spend_amendment=spend;
   const reservation={task_context_digest:first.task_context_digest,allocation_binding_digest:`sha256:${"d".repeat(64)}`,
     resource_class:"gpu_render" as const,provider:"vast" as const,maximum_cost_usd:1,request_count:1};
   await reserveWebsitePreparationSpend("one",reservation);
@@ -337,16 +339,17 @@ it("renewal previews and carries spend and chained request amendments without re
     const input={approved_by:"blueprint",approval_reference:"owner renewal",ack:SPONSORSHIP_RENEWAL_ACK};
     const preview=await renewExpiredWebsiteSceneSponsorship("one",{...input,apply:false});
     expect(state.docs.get("inboundRequests/one")).toEqual(before);
-    expect(preview.preparation_amendments).toMatchObject({archived:[limit,extension,spend],
-      effective_limits:{max_requests:first.max_paid_attempts+2,upstream_max_spend_usd:first.upstream_max_spend_usd*2},
-      history_length_before:0,history_length_after:3});
+    expect(preview.preparation_amendments).toMatchObject({archived:[limit,extension],
+      effective_limits:{max_requests:first.max_paid_attempts+2},history_length_before:0,history_length_after:2});
+    expect(preview.preparation_amendments.effective_limits).not.toHaveProperty("upstream_max_spend_usd");
     const renewed=await renewExpiredWebsiteSceneSponsorship("one",{...input,apply:true});
     expect(renewed).toEqual(preview);
     const stored=state.docs.get("inboundRequests/one") as any;
     expect(stored.website_preparation_limit_extension.prior_amendment_digest)
       .toBe(stored.website_preparation_limit_amendment.amendment_digest);
     expect(stored.website_preparation_reservations).toEqual(before?.website_preparation_reservations);
-    await expect(reserveWebsitePreparationSpend("one",{...reservation,maximum_cost_usd:3,
+    expect(stored.website_preparation_spend_amendment).toEqual(spend);
+    await expect(reserveWebsitePreparationSpend("one",{...reservation,maximum_cost_usd:39.000001,
       allocation_binding_digest:`sha256:${"e".repeat(64)}`})).rejects.toThrow("website_scene_preparation_budget_exhausted");
   } finally {vi.restoreAllMocks();}
 });
@@ -659,8 +662,9 @@ it("renewing a grant issued before the retry allowance restores it without one",
     expect(renewed.renewal).toMatchObject({parent_authority_digest:legacy.authority_digest});
   } finally {vi.restoreAllMocks();}
 });
-// Owner decision 2026-11-10: one hard money stop, the account's monthly limit. A flagged grant's own
-// dollar figures warn instead of refusing, only for a reservation the Pipeline asks for.
+// Owner decision 2026-11-19, "One cap at $40": the job's cap is the only dollar stop; the grant's own figures
+// (upstream, Atlas allowance), owner rows, grant policies, the automatic extension and the $100 safety limit raise
+// or stop nothing. The account's monthly limit is the host's, checked before the Pipeline asks.
 async function withSignedRoute<T>(run:(send:(operation:string,body:unknown)=>Promise<Response>)=>Promise<T>) {
   const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
   const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
@@ -675,57 +679,46 @@ async function budgetJob() {
     resource_class:"gpu_render" as const,provider:"vast" as const,maximum_cost_usd,request_count:1});
   return {grant,spend};
 }
+/** A grant as the release before 2026-11-19 issued it, naming the automatic budget extension. */
+function legacyFlagged(grant:Record<string,any>) {
+  const {authority_digest:_d,...payload}=grant;const flagged={...payload,automatic_budget_extension:true};
+  const value={...flagged,authority_digest:crossRuntimeDigest(flagged)};
+  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=value;
+  return value;
+}
 const alertRows=()=>[...state.docs.keys()].filter(key=>key.startsWith("opsWebsiteJobOverBudgetAlerts/"));
-it("a flagged grant passes its upstream cap on a Pipeline-requested reservation, with a note and exactly one alert",async()=>{
+it("a new grant names no extension, and a reservation past the grant's upstream figure is admitted inside the job's cap",async()=>{
+  for(const setting of ["true","false",""]){
+    state.docs.clear();vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION",setting);
+    const {grant}=await budgetJob();
+    expect(grant).not.toHaveProperty("automatic_budget_extension");
+  }
   const {grant,spend}=await budgetJob();
-  expect((grant as any).automatic_budget_extension).toBe(true);
   // The grant's own figures are unchanged: upstream $1 of a $2 preparation total, two paid attempts.
   expect(grant).toMatchObject({upstream_max_spend_usd:1,preparation_max_total_spend_usd:2,max_paid_attempts:2});
   await withSignedRoute(async send=>{
-    const first=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d")});
-    expect(first.status).toBe(200);
+    expect((await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d")})).status).toBe(200);
     const second=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("e")});
     expect(second.status).toBe(200);expect(await second.json()).toMatchObject({status:"admitted",maximum_cost_usd:0.6});
     const rows=(state.docs.get("inboundRequests/one") as any).website_preparation_reservations;
-    expect(rows["d".repeat(64)]).not.toHaveProperty("over_budget");
-    expect(rows["e".repeat(64)].over_budget).toMatchObject({basis:"automatic_budget_extension",sponsorship_digest:grant.authority_digest,
-      allowance:"preparation_upstream_cap",allowance_usd:1,allowance_exceeded:true,job_ceiling_exceeded:false,
-      job_reserved_or_settled_before_usd:0.6});
-    // The paid-attempt count still ends the job by itself: a third request is refused, flag or not.
+    expect(rows["e".repeat(64)]).not.toHaveProperty("over_budget");
+    // The request count still bounds how many calls a job makes, whatever the dollars.
     const third=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("f",0.1)});
     expect(third.status).toBe(409);expect(await third.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
     // The per-reservation limit is the schema's, unchanged.
     expect((await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("a",1001)})).status).toBe(400);
   });
-  expect(alertRows()).toHaveLength(1);
-  const alert=vi.fn(async()=>({sent:true})),email=vi.fn();
-  const deps={store:(await import("./helpers/fake-firestore")).sharedFakeFirestore as any,alert,email:email as any};
-  expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:1,alerted:1});
-  expect(String((alert.mock.calls[0] as unknown as [string,string])[1])).toContain("request one passed its preparation allowance of $1.00");
-  expect(email).not.toHaveBeenCalled();
-  expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:0,alerted:0});
+  expect(alertRows()).toHaveLength(0);
 });
-it("a reservation the Pipeline did not request keeps every refusal on a flagged grant",async()=>{
-  const {grant,spend}=await budgetJob();
-  expect((grant as any).automatic_budget_extension).toBe(true);
+it("every caller gets the same answer: the Pipeline's route and a direct call both stop only at the cap",async()=>{
+  const {spend}=await budgetJob();
   await reserveWebsitePreparationSpend("one",spend("d"));
-  // The operator Atlas script and every other direct caller: no host account precheck, so no extension.
-  await expect(reserveWebsitePreparationSpend("one",spend("e"))).rejects.toThrow("website_scene_preparation_budget_exhausted");
-  expect((state.docs.get("inboundRequests/one") as any).website_preparation_reservations).not.toHaveProperty("e".repeat(64));
+  await reserveWebsitePreparationSpend("one",spend("e"));
+  expect(Object.keys((state.docs.get("inboundRequests/one") as any).website_preparation_reservations).sort())
+    .toEqual(["d".repeat(64),"e".repeat(64)]);
   expect(alertRows()).toHaveLength(0);
 });
-it("with the setting off, a new grant is unflagged and refuses at its upstream cap exactly as before",async()=>{
-  vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
-  const {grant,spend}=await budgetJob();
-  expect(grant).not.toHaveProperty("automatic_budget_extension");
-  await withSignedRoute(async send=>{
-    expect((await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d")})).status).toBe(200);
-    const refused=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("e")});
-    expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
-  });
-  expect(alertRows()).toHaveLength(0);
-});
-it("a flagged grant past its expiry admits nothing, even on a Pipeline-requested reservation",async()=>{
+it("a grant past its expiry admits nothing",async()=>{
   const {grant,spend}=await budgetJob();
   vi.spyOn(Date,"now").mockReturnValue((grant.expires_at_epoch+10)*1000);
   try {
@@ -735,44 +728,38 @@ it("a flagged grant past its expiry admits nothing, even on a Pipeline-requested
     });
   } finally {vi.restoreAllMocks();}
 });
-it("a renewal keeps what the expired grant named, whatever the setting says now",async()=>{
+it("a renewal keeps what the expired grant named, so a grant from before the switch renews unchanged",async()=>{
   const {grant}=await budgetJob();
   const renew=()=>renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
     ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
-  vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
-  vi.spyOn(Date,"now").mockReturnValue((grant.expires_at_epoch+10)*1000);
+  const flagged=legacyFlagged(grant);
+  vi.spyOn(Date,"now").mockReturnValue((flagged.expires_at_epoch+10)*1000);
   try { expect((await renew() as any).automatic_budget_extension).toBe(true); } finally {vi.restoreAllMocks();}
-  // A grant issued before the extension names none, and its renewal names none with the setting on.
-  state.docs.clear();vi.unstubAllEnvs();
-  vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON",JSON.stringify({owner:{user_id:"blueprint",organization_id:"blueprint"},
-    upstream_max_spend_usd:1,native_max_spend_usd:1,max_total_spend_usd:2,max_paid_attempts:2,ttl_seconds:3600,provider_terms_reference:`sha256:${"c".repeat(64)}`}));
+  state.docs.clear();
   const {grant:issued}=await budgetJob();
-  const {authority_digest:_d,automatic_budget_extension:_e,...payload}=issued as any;
-  const legacy={...payload,authority_digest:crossRuntimeDigest(payload)};
-  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=legacy;
-  vi.spyOn(Date,"now").mockReturnValue((legacy.expires_at_epoch+10)*1000);
+  vi.spyOn(Date,"now").mockReturnValue((issued.expires_at_epoch+10)*1000);
   try { expect(await renew()).not.toHaveProperty("automatic_budget_extension"); } finally {vi.restoreAllMocks();}
 });
-it("an intake names the automatic budget extension only when its grant does",async()=>{
-  const {grant}=await budgetJob();
+it("an intake names the automatic budget extension only when its grant does, and it changes nothing",async()=>{
+  const {grant:unflagged}=await budgetJob();
+  const grant=legacyFlagged(unflagged);
   const request=syntheticPreparedIntake(grant);
   const named=(value:unknown)=>({...request,execution:{...request.execution,automatic_budget_extension:value}});
   expect(()=>validateWebsiteSponsoredIntake(request,grant)).not.toThrow();
   expect(()=>validateWebsiteSponsoredIntake(named(true),grant)).not.toThrow();
   for(const refused of [false,"true",1])
     expect(()=>validateWebsiteSponsoredIntake(named(refused),grant)).toThrow("website_scene_sponsorship_binding_invalid");
-  const {automatic_budget_extension:_none,...unflagged}=grant as any;
-  expect(()=>validateWebsiteSponsoredIntake(request,unflagged)).not.toThrow();
+  expect(()=>validateWebsiteSponsoredIntake(syntheticPreparedIntake(unflagged),unflagged)).not.toThrow();
   expect(()=>validateWebsiteSponsoredIntake(named(true),unflagged)).toThrow("website_scene_sponsorship_binding_invalid");
   // Only the Website sponsored execution may carry it; every other intake schema refuses the field.
   expect(websiteSceneExecution.safeParse(named(true).execution).success).toBe(true);
   expect(sceneIntakeCommand.shape.execution.safeParse(named(true).execution).success).toBe(false);
 });
 // The scene intake buys nothing itself; every paid launch under it is admitted on the host.
-it.each([["flagged",true],["unflagged",false]])("a scene intake past the job ceiling on a %s grant",async(_label,flagged)=>{
-  if(!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
+it.each([["a new",false],["a pre-switch flagged",true]])("a scene intake past the job's cap on %s grant is refused, recording nothing",async(_label,flagged)=>{
   seed(packet(),false,false);state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[]});
-  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  let grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  if(flagged) grant=legacyFlagged(grant) as typeof grant;
   vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify(Object.fromEntries(["vast","openai"].map(p=>[p,
     {digest:grant.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}]))));
   await withSignedRoute(async send=>{
@@ -781,56 +768,35 @@ it.each([["flagged",true],["unflagged",false]])("a scene intake past the job cei
     expect((await send("visual-scene",{request_id:"one",scene_id:"site-one",task_context_digest:grant.task_context_digest,
       world_id:"SYNTHETIC-world",operation_id:"SYNTHETIC-operation",model:"marble-1.1-plus",thumbnail_url:null,pano_url:null,
       launch_url:"https://marble.worldlabs.ai/world/SYNTHETIC"})).status).toBe(200);
-    // The job already holds $99.50 of its $100 default ceiling; the intake's $1 construction allowance passes it.
+    // The job already spent $39.50 of its $40; the intake's $1 construction allowance does not fit.
     const record=state.docs.get("inboundRequests/one") as any;
-    record.website_preparation_reservations={held:{admission:{maximum_cost_usd:99.5,request_count:1},settlement:{actual_cost_usd:99.5}}};
-    if(flagged){
-      // A Pipeline reservation past the upstream cap but inside the ceiling is admitted with the grant's one over-budget alert.
-      const spent=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:{task_context_digest:grant.task_context_digest,
-        allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",maximum_cost_usd:0.4,request_count:1}});
-      expect(spent.status).toBe(200);expect(alertRows()).toHaveLength(1);
-    }
+    record.website_preparation_reservations={held:{admission:{maximum_cost_usd:39.5,request_count:1},settlement:{actual_cost_usd:39.5}}};
+    // A call that still fits is admitted, flag or not, with no note.
+    const spent=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:{task_context_digest:grant.task_context_digest,
+      allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",maximum_cost_usd:0.4,request_count:1}});
+    expect(spent.status).toBe(200);
     const response=await send("prepared-scene",{request_id:"one",scene_id:"site-one",request:syntheticPreparedIntake(grant)});
-    // The default ceiling is also the job's safety limit here ($100), so the intake is refused on either grant
-    // and nothing is recorded for it. Only the flagged refusal is the safety limit's, with its one alert.
     expect(response.status).toBe(409);expect(await response.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
     expect([...state.docs.keys()].some(key=>key.startsWith("taskEvaluationSceneIntakes/"))).toBe(false);
-    const alerts=alertRows();
-    if(!flagged){expect(alerts).toHaveLength(0);return;}
-    expect(alerts.filter(key=>key.endsWith("-safety-limit"))).toEqual(["opsWebsiteJobOverBudgetAlerts/one-safety-limit"]);
-    expect((state.docs.get("opsWebsiteJobOverBudgetAlerts/one-safety-limit") as any).safety_limit).toMatchObject({
-      stage:"scene_intake",safety_limit_usd:100,job_ceiling_usd:100,job_ceiling_source:"owner_default",additional_cost_usd:1,
-      job_reserved_or_settled_before_usd:99.9});
-    expect(alerts).toHaveLength(2);
+    expect(alertRows()).toHaveLength(0);
   });
 });
-// Owner decision 2026-11-11: the job's ceiling is one safety limit per job, a real stop for the build too.
-// Owner decision 2026-11-11: each job's safety limit = max(its stored ceiling, the owner's fixed $100). A flagged
-// grant builds past its ceiling with a note, as before, and never past its safety limit. An unflagged grant is as before.
+// What used to set or raise a job's figure no longer does: $40 for every job, a grant from before the switch included.
 const grantPolicy=(maximum_cost_usd:number)=>JSON.stringify({schema_version:"website_atlas_grant_policy.v1",maximum_cost_usd,
   maximum_requests:32,validity_seconds:604800,provider_retention:"account_does_not_retain",approval_reference:"owner",approved_by:"owner"});
 it.each([
-  // label, flagged, stored ceiling, policy figure (null: unset), held before, asked, admitted
-  ["old $25 grant, flagged, to $25.00",true,25,100,24.4,0.6,true],
-  ["old $25 grant, flagged, to $60",true,25,100,59.4,0.6,true],
-  ["old $25 grant, flagged, to $100.00",true,25,100,99.4,0.6,true],
-  ["old $25 grant, flagged, to $100.000001",true,25,100,99.4,0.600001,false],
-  ["old $25 grant, unflagged, to $25.00",false,25,100,24.5,0.5,true],
-  ["old $25 grant, unflagged, to $25.000001",false,25,100,24.5,0.500001,false],
-  ["new $100 grant, flagged, to $100.00",true,100,100,99.4,0.6,true],
-  ["new $100 grant, flagged, to $100.000001",true,100,100,99.4,0.600001,false],
-  ["policy unset, old $25 grant, flagged, to $100.00",true,25,null,99.4,0.6,true],
-  ["policy unset, old $25 grant, flagged, to $100.000001",true,25,null,99.4,0.600001,false],
-  // The hosting setting only sets the figure new grants are stored with: lowered, it never lowers a job's limit.
-  ["policy lowered to $2 below a $25 grant, flagged, to $25.000001",true,25,2,24.4,0.600001,true],
-  ["policy lowered to $2 below a $25 grant, flagged, to $100.00",true,25,2,99.4,0.6,true],
-  ["policy lowered to $2 below a $25 grant, flagged, to $100.000001",true,25,2,99.4,0.600001,false],
+  // label, pre-switch flagged grant, stored Atlas grant figure, policy figure (null: unset), held before, asked, admitted
+  ["$25 stored grant, to $40.00",false,25,100,39.4,0.6,true],
+  ["$25 stored grant, to $40.000001",false,25,100,39.4,0.600001,false],
+  ["flagged $25 stored grant, to $40.000001",true,25,100,39.4,0.600001,false],
+  ["$100 stored grant and policy, to $40.000001",false,100,100,39.4,0.600001,false],
+  ["policy unset, to $40.00",false,25,null,39.4,0.6,true],
+  ["policy lowered to $2, past the old $25 figure",false,25,2,24.4,0.600001,true],
 ] as const)("a Pipeline reservation: %s",async(_label,flagged,stored,policy,heldUsd,askedUsd,admitted)=>{
-  if(!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON",policy===null?"":grantPolicy(policy));
   const {grant,spend}=await budgetJob();
-  expect(Boolean((grant as any).automatic_budget_extension)).toBe(flagged);
-  // An earlier settled Atlas-side row (outside the upstream cap and its request count) on a job granted at `stored`.
+  if(flagged) legacyFlagged(grant);
+  // An earlier settled Atlas-side row (outside the request count) on a job granted at `stored`.
   const record=state.docs.get("inboundRequests/one") as any;
   record.website_atlas_grants={"walkthrough-one":{maximum_cost_usd:stored}};
   record.website_preparation_reservations={atlas:{admission:{maximum_cost_usd:heldUsd,request_count:1,provider:"world_labs_atlas",
@@ -842,32 +808,21 @@ it.each([
   });
   const rows=(state.docs.get("inboundRequests/one") as any).website_preparation_reservations;
   expect(Object.keys(rows).sort()).toEqual(admitted?["atlas","d".repeat(64)]:["atlas"]);
-  // Past the stored ceiling a flagged grant's admission carries the over-budget note, exactly as before.
-  const pastCeiling=heldUsd+askedUsd>stored+1e-9;
-  if(admitted) expect(rows["d".repeat(64)].over_budget?.job_ceiling_exceeded??false).toBe(flagged&&pastCeiling);
-  // Only a refusal at the safety limit raises the job's one safety-limit alert; an unflagged refusal is as before.
-  expect(alertRows().filter(key=>key.endsWith("-safety-limit"))).toEqual(!admitted&&flagged?["opsWebsiteJobOverBudgetAlerts/one-safety-limit"]:[]);
+  if(admitted) expect(rows["d".repeat(64)]).not.toHaveProperty("over_budget");
+  expect(alertRows()).toHaveLength(0);
 });
-// Owner decision 2026-11-11: what cannot be read is counted exactly as on main, and reported once per job.
-it.each([["flagged",true],["unflagged",false]])("a malformed hold on a %s grant is counted as before and reported once",async(_label,flagged)=>{
-  if(!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
+it("a malformed hold is counted as unbounded, so nothing more is admitted, and it is reported once",async()=>{
   const {spend}=await budgetJob();
   const record=state.docs.get("inboundRequests/one") as any;
   record.website_preparation_reservations={broken:{admission:{provider:"world_labs_atlas",atlas_authorization_digest:`sha256:${"a".repeat(64)}`}}};
   await withSignedRoute(async send=>{
-    for(const n of ["d","e"]){
-      const response=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend(n,0.4)});
-      // As on main: an unbounded hold passes the ceiling, so a flagged grant admits with a note and an unflagged one refuses.
-      expect(response.status).toBe(flagged?200:409);
-    }
+    for(const n of ["d","e"])
+      expect((await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend(n,0.4)})).status).toBe(409);
   });
-  const rows=(state.docs.get("inboundRequests/one") as any).website_preparation_reservations;
-  if(flagged) expect(rows["d".repeat(64)].over_budget).toMatchObject({job_ceiling_exceeded:true,job_reserved_or_settled_before_usd:null});
-  else expect(Object.keys(rows)).toEqual(["broken"]);
+  expect(Object.keys((state.docs.get("inboundRequests/one") as any).website_preparation_reservations)).toEqual(["broken"]);
   const unreadable=alertRows().filter(key=>key.endsWith("-spend-unreadable"));
   expect(unreadable).toEqual(["opsWebsiteJobOverBudgetAlerts/one-spend-unreadable"]);
   expect((state.docs.get(unreadable[0]) as any).spend_unreadable).toMatchObject({records:["preparation reservation broken"],record_count:1});
-  expect(alertRows().some(key=>key.endsWith("-safety-limit"))).toBe(false);
   const alert=vi.fn(async()=>({sent:true}));
   const deps={store:(await import("./helpers/fake-firestore")).sharedFakeFirestore as any,alert,email:vi.fn() as any};
   await scanOverBudgetWebsiteJobs(deps);
@@ -875,11 +830,8 @@ it.each([["flagged",true],["unflagged",false]])("a malformed hold on a %s grant 
   expect(messages).toContain("A website job's spend cannot be read");
   expect(messages).toContain("request one: this job's spend cannot be read: preparation reservation broken.");
 });
-// Review of #1274: a valid result committing $120 beside an unreadable one is still past the $100 safety limit.
-it("refuses a flagged $1 build when a valid result already commits $120 beside an unreadable one",async()=>{
+it("refuses a $1 build when a valid testing result already commits $120 beside an unreadable one",async()=>{
   const {spend}=await budgetJob();
-  const record=state.docs.get("inboundRequests/one") as any;
-  record.website_atlas_grants={"walkthrough-one":{maximum_cost_usd:25}};
   const {screeningFixture,sealScreening}=await import("./fixtures/beta-policy-screening");
   const valid=sealScreening({...screeningFixture().publication,budget:{currency:"USD",limit_usd:"150",committed_upper_bound_usd:"120",
     spent_upper_bound_usd:"120",reserved_usd:"0"}});
@@ -890,30 +842,21 @@ it("refuses a flagged $1 build when a valid result already commits $120 beside a
     const refused=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d",1)});
     expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
   });
-  expect((state.docs.get("opsWebsiteJobOverBudgetAlerts/one-safety-limit") as any).safety_limit)
-    .toMatchObject({safety_limit_usd:100,job_reserved_or_settled_before_usd:120});
+  expect(state.docs.has("opsWebsiteJobOverBudgetAlerts/one-safety-limit")).toBe(false);
   expect((state.docs.get("opsWebsiteJobOverBudgetAlerts/one-spend-unreadable") as any).spend_unreadable.records)
     .toEqual(["screening result broken-result"]);
 });
-it("reports a job's safety-limit refusal once, as a safety limit",async()=>{
-  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON",grantPolicy(100));
-  const {spend}=await budgetJob();
-  const record=state.docs.get("inboundRequests/one") as any;
-  record.website_atlas_grants={"walkthrough-one":{maximum_cost_usd:25}};
-  record.website_preparation_reservations={atlas:{admission:{maximum_cost_usd:99.75,request_count:1,provider:"world_labs_atlas",
-    atlas_authorization_digest:`sha256:${"a".repeat(64)}`},settlement:{actual_cost_usd:99.75}}};
-  await withSignedRoute(async send=>{
-    for(const n of ["d","e"]) expect((await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend(n,0.5)})).status).toBe(409);
-  });
-  expect(alertRows()).toEqual(["opsWebsiteJobOverBudgetAlerts/one-safety-limit"]);
+it("a safety-limit alert stored before the switch is still reported once; no new one is written",async()=>{
+  state.docs.set("opsWebsiteJobOverBudgetAlerts/one-safety-limit",{request_id:"one",safety_limit:{schema_version:"website_job_safety_limit.v1",
+    safety_limit_usd:100,job_ceiling_usd:25,job_ceiling_source:"retained_atlas_grant",job_reserved_or_settled_before_usd:99.75,
+    stage:"preparation_reservation",reservation_key:"d".repeat(64),additional_cost_usd:0.5,recorded_at_epoch:1},
+    delivery:null,next_attempt_at_ms:0,alerted_at_iso:null});
   const alert=vi.fn(async()=>({sent:true})),email=vi.fn();
   const deps={store:(await import("./helpers/fake-firestore")).sharedFakeFirestore as any,alert,email:email as any};
   expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:1,alerted:1});
   const [key,message]=alert.mock.calls[0] as unknown as [string,string];
   expect(key).toBe("website_job_safety_limit:one-safety-limit");
-  expect(message).toContain("Website jobs reached their safety limit and need a person to look");
-  expect(message).toContain("request one reached its safety limit of $100.00 ($99.75 already held or spent; $0.50 more was asked for). It was refused.");
-  expect(email).not.toHaveBeenCalled();
+  expect(message).toContain("request one reached its safety limit of $100.00 ($99.75 already held or spent; $0.50 more was asked for).");
   expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:0,alerted:0});
 });
 import { scanOverBudgetWebsiteJobs } from "../utils/websitePreparationOpsAlerts";
@@ -1325,11 +1268,10 @@ it("a native paid reservation follows a verified intent window, on a completed i
   try {
     expect(await reserveWebsitePreparationSpend("one",gpu(grant,"d"))).toMatchObject({status:"admitted",
       sponsorship_digest:grant.authority_digest,maximum_cost_usd:.5,expires_at_epoch:grant.expires_at_epoch+86400});
-    // The grant (digest, caps, attempts, raw expiry) is untouched, and its upstream cap ($1) and request limit (2) still bind.
+    // The grant (digest, figures, attempts, raw expiry) is untouched, and its request limit (2) still binds. Its upstream
+    // figure ($1) no longer stops anything: the job's $40 cap is the only dollar stop (owner, 2026-11-19).
     expect(job().website_scene_sponsorship).toEqual(stored);
-    await expect(reserveWebsitePreparationSpend("one",gpu(grant,"e",{maximum_cost_usd:.6})))
-      .rejects.toThrow("website_scene_preparation_budget_exhausted");
-    expect(await reserveWebsitePreparationSpend("one",gpu(grant,"e"))).toMatchObject({status:"admitted"});
+    expect(await reserveWebsitePreparationSpend("one",gpu(grant,"e",{maximum_cost_usd:.6}))).toMatchObject({status:"admitted"});
     await expect(reserveWebsitePreparationSpend("one",gpu(grant,"f",{maximum_cost_usd:.001})))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
     // Provider terms and rights are still checked inside the window.
