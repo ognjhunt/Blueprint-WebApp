@@ -25,6 +25,7 @@
  * `awaiting_site` is a wait. The Pipeline's old `awaiting_spend_approval` wait is
  * no longer a kind: one still stored is not adopted, and the next status replaces it.
  */
+import { OUTLOOK_SENTENCES } from "../../client/src/lib/jobOutlook";
 import { z } from "zod";
 import { simulationHoldSentence } from "./betaPolicyScreeningContract";
 import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
@@ -125,7 +126,7 @@ const ENDINGS: Readonly<Record<TerminalSceneOutcomeKind, { sentence: string; clo
   setup_repair: { sentence: "We could not finish building the simulation of your site, and we have stopped trying.",
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "We stopped building the simulation of your site" },
   // The plain flag "spending cap reached": Blueprint's own cap for one job, never a figure and never a step for the site.
-  spending_cap_reached: { sentence: "We reached our spending cap for this job, so we stopped building the simulation of your site.",
+  spending_cap_reached: { sentence: OUTLOOK_SENTENCES.spending_cap_reached,
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "We stopped building the simulation of your site" },
   stopped: { sentence: "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens.",
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "The simulation of your job stopped" },

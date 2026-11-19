@@ -4,7 +4,8 @@
  */
 import { z } from "zod";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
-import { selectWebsiteAtlasPreview, type WebsiteAtlasPreview } from "./websiteAtlasPreview";
+import { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview, type WebsiteAtlasPreview } from "./websiteAtlasPreview";
+import { OUTLOOK_SENTENCES } from "../../client/src/lib/jobOutlook";
 import { websiteLargeVideoAsk } from "./websiteJobWindowEnding";
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -188,8 +189,10 @@ export function preparationRetriesSpent(evidenceDigest: string): TaskOutcome {
     evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
 }
 /** The part-6 endings say all there is: the page adds nothing beside them. */
+const CAP_OUTCOME_TITLE = "We stopped building the simulation of your site";
 export const isCompletePreparationOutcome = (outcome: Pick<TaskOutcome, "title"> | null | undefined) =>
-  outcome?.title === PREPARATION_NOT_POSSIBLE_SENTENCES.title || outcome?.title === PREPARATION_RETRIES_SPENT_SENTENCES.title;
+  outcome?.title === PREPARATION_NOT_POSSIBLE_SENTENCES.title || outcome?.title === PREPARATION_RETRIES_SPENT_SENTENCES.title
+  || outcome?.title === CAP_OUTCOME_TITLE;
 
 /** The planner held back and the preparation status names no outcome: said with no promise (review, 2026-11-12). */
 export const PLANNER_ABSTAINED_SENTENCES = {
@@ -476,6 +479,10 @@ export function earlyTaskHoldOf(preview: WebsiteAtlasPreview | null): EarlyTaskH
 /** Takes only an already verified, capture-specific receipt. A ready/newer state clears the stop. */
 export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | null): TaskOutcome | null {
   if (!preview || preview.state === "ready" || preview.state === "processing" || preview.state === "withdrawn") return null;
+  if (atlasPreviewReachedSpendingCap(preview)) return { category: "processing_failure", basis: "execution_failure",
+    title: CAP_OUTCOME_TITLE, reason: OUTLOOK_SENTENCES.spending_cap_reached,
+    scope: ANSWER_STAYS_ON_JOB_PAGE, nextStep: "Nothing is needed from you.", actionOwner: "none",
+    evidence: [{ label: "Reconstruction status", digest: preview.preview_digest }] };
   const held = earlyTaskHoldOf(preview);
   if (held) return earlyTaskHoldOutcome(held, preview.preview_digest);
   if (preview.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(preview.preview_digest);

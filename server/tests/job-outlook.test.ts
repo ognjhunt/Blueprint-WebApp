@@ -31,6 +31,8 @@ const ENDINGS: Array<[string, Partial<JobOutlookInput>, string, string]> = [
   ["preparation authority_ended, the window's ending recorded", { preparation: { state: "authority_ended", geometryOnlyEnd: false }, windowEnded: true }, "no_test", "authority_ended"],
   ["preparation authority_ended, no reason known", { preparation: { state: "authority_ended", geometryOnlyEnd: false } }, "no_test", "job_ended"],
   ["a run the window's end stopped (its own record says so)", { runStoppedByWindow: true, proof: proofOf({ state: "blocked", outcome: null, screening: { candidates: [] } }) }, "no_test", "window_ended_during_test"],
+  ["the Atlas preview stopped at the spending cap", { answer: null, preparation: null, atlasSpendingCapReached: true }, "no_test", "spending_cap_reached"],
+  ["the scene build stopped at the spending cap", { scene: { state: "ended", endingKind: "spending_cap_reached" } }, "no_test", "spending_cap_reached"],
   ["scene outcome final: held", { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "held" } }, "no_test", "scene_held"],
   ["scene outcome final: ended", { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "ended" } }, "no_test", "scene_stopped"],
   ...["failed", "blocked", "cancelled", "closed", "forward_terminal_blocked", "control_plane_terminal_blocked"].map(state =>

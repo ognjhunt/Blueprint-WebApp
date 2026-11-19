@@ -22,6 +22,11 @@ function current(value = atlas(), capture = "walkthrough-r1") {
 }
 
 describe("source-bound preparation closeout", () => {
+  it("shows a spending cap closeout with no action required from the site", () => {
+    const outcome = projectAtlasPreparationOutcome(current(atlas("failed", "spending_cap_reached")));
+    expect(outcome).toMatchObject({ reason: "We reached our spending cap for this job, so we stopped building the simulation of your site.",
+      nextStep: "Nothing is needed from you.", actionOwner: "none" });
+  });
   it("verifies and replays the exact saved production receipt without a provider or model call", () => {
     const preview = selectWebsiteAtlasPreview({website_atlas_previews: {[retainedStop.capture_id]: retainedStop}}, retainedStop.capture_id);
     expect(preview?.preview_digest).toBe("sha256:b5dd634e35a7fbd792d5cea5ce0e8134f856bfd4d352aacebb729a9d6789fadc");

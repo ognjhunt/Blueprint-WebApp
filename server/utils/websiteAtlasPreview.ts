@@ -5,6 +5,7 @@
  * owner download a ready bundle. Development-only and unscaled: never a scene,
  * measurement, task or robot claim. Withdrawal ends serving at once.
  */
+import { OUTLOOK_SENTENCES } from "../../client/src/lib/jobOutlook";
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { AtlasPreviewView } from "../../client/src/types/workspace";
@@ -114,6 +115,10 @@ export function downloadableWebsiteAtlasPreview(record: Record<string, any> | un
   return preview?.state === "ready" && preview.bundle ? preview : null;
 }
 
+export function atlasPreviewReachedSpendingCap(preview: WebsiteAtlasPreview | null): boolean {
+  return (preview?.state === "ready" || preview?.state === "failed") && preview.reason === "spending_cap_reached";
+}
+
 const STATUS_COPY = {
   processing: "Your 3D preview is being made from your recording.",
   ready: "Your 3D preview is ready. Blueprint keeps the model for your job.",
@@ -130,7 +135,8 @@ export function projectWebsiteAtlasPreview(record: Record<string, any> | undefin
   const updated = new Date(preview.updated_at_epoch * 1000);
   return {
     captureId: preview.capture_id, label: WEBSITE_ATLAS_PREVIEW_LABEL, state: preview.state,
-    statusText: STATUS_COPY[preview.state], developmentOnly: true,
+    statusText: atlasPreviewReachedSpendingCap(preview) ? OUTLOOK_SENTENCES.spending_cap_reached : STATUS_COPY[preview.state],
+    developmentOnly: true,
     splatAvailable: preview.splat_available, meshAvailable: preview.mesh_available,
     sizeBytes: preview.bundle?.size_bytes ?? null,
     updatedAtIso: Number.isFinite(updated.getTime()) ? updated.toISOString() : null,
