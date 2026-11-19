@@ -103,6 +103,10 @@ describe("the robot page", () => {
       "/contact/site-operator",
     );
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
+    // Sharing is the service (2026-11-12): a company sees the jobs sites send; no site chooses whether to share.
+    expect(screen.getByText("We approve each company by hand and email you. Approved companies see the jobs sites send us, and answer."))
+      .toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/choose to share|chooses to share/i);
   });
 
   it("shows an approved team the job library", async () => {

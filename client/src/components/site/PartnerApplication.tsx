@@ -51,7 +51,7 @@ export function PartnerApplication({ role }: { role: PartnerRole }) {
   if (state === "saved") return (
     <div className="ms-partner-receipt" role="status">
       <h2 ref={savedHeading} tabIndex={-1}>Your application is saved.</h2>
-      <p>{deployment ? "We approve each company by hand before we share any job with it. We will contact you when a job and what you do fit."
+      <p>{deployment ? "We approve each company by hand before we share any job with it. Once approved, you see the jobs sites send us, and if you asked for job emails, we email you when a new one arrives."
         : "We review each partner before sharing site opportunities or arranging an evaluation. We will contact you when a job and your capabilities fit."}</p>
       <p>Applying does not approve access, commit you to a job, or guarantee work. No account or integration is needed now.</p>
       {!deployment && <a className="ms-text-link" href="/partners">Back to partners <ArrowRight size={17} aria-hidden="true" /></a>}

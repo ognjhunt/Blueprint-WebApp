@@ -1,6 +1,7 @@
 /**
  * Two public entry points, bare bones (2026-11-11). Sites start a job (the start form owns its screens); companies
- * apply to see the jobs sites share, and approved, signed-in companies see the job library here. Blueprint runs the
+ * apply to see the jobs sites send (sharing is the service, 2026-11-12: a site does not choose to share), and approved,
+ * signed-in companies see the job library here. Blueprint runs the
  * evaluations itself; everything in the beta is free.
  */
 import { useLocation } from "wouter";
@@ -25,7 +26,7 @@ export default function Contact() {
             <BareGroup>
               <BareLabel>For deployment companies</BareLabel>
               <h1 id="robot-team-title">Apply to see jobs</h1>
-              <p>We approve each company by hand and email you. Approved companies see the jobs sites choose to share.</p>
+              <p>We approve each company by hand and email you. Approved companies see the jobs sites send us, and answer.</p>
             </BareGroup>
             <section className="bare-group ms-beta-access" id="robot-team-access" aria-label="Robot-team access">
               <TaskBrowse />
