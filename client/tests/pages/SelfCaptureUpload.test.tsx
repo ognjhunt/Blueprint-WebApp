@@ -523,7 +523,7 @@ describe("video first owner return", () => {
       }
       if (url === `/api/site-task-brief/${TOKEN}/status`) return json({
         scope: "owner", captureReceived: false, answer: null,
-        status: { decision: "record", headline: "Your job is saved.", operatorAction: null, missingViews: [], nextUpdateIso: null },
+        status: { decision: "record", headline: "A recording is the next step.", operatorAction: "Film the work area.", missingViews: [], nextUpdateIso: null },
         companyStatus: { descriptionOnly: true, sharing: { state: "visible", sharedAtIso: null }, companies: {
           entries: [{ kind: "answered", alias: "Company A", atIso: "2026-11-19T15:00:00Z", state: "interested", canIntroduce: true }],
           sent: null, interested: true, introductions: { used: 0 },
@@ -537,6 +537,7 @@ describe("video first owner return", () => {
     await waitFor(() => expect(fetcher.mock.calls.some(([url, init]) =>
       String(url).endsWith("/introductions") && init?.method === "POST")).toBe(true));
     expect(screen.getByRole("heading", { name: "Add a video (optional)" })).toBeVisible();
+    expect(screen.queryByText("A recording is the next step.")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Withdraw my job"));
     fireEvent.click(screen.getByRole("button", { name: "Withdraw job…" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw job" }));

@@ -666,6 +666,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const answer = saved && scope === "owner" && currentStatusKnown ? status?.answer ?? null : null;
   const companyStatus = scope === "owner" && currentStatusKnown ? status?.companyStatus : null;
   const descriptionShared = companyStatus?.descriptionOnly === true;
+  const jobSentence = answer?.job.sentence ?? (descriptionShared ? brief?.summary : null);
   const answerSettled = answer?.state === "ready" || answer?.state === "cannot_assess";
   // What the simulation of the site showed about the answer's robot (its reach in the scene), for the details screen.
   const robotFit = status?.robotFit ?? null;
@@ -680,7 +681,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     || (SITE_DECISIONS.has(status.decision) && !optionalCorrectionHint) || RIGHTS_NOTICE.test(`${status.headline} ${status.outcome?.reason ?? ""}`)));
   const quietCard = !siteStillHasSomething;
   // Before any video, the "record" status says what this very page is for (its title and its camera button), so it is not said again.
-  const recordOnThisPage = !saved && link.status === "valid" && status?.decision === "record" && !status.outcome;
+  const recordOnThisPage = !saved && (link.status === "valid" || descriptionShared)
+    && status?.decision === "record" && !status.outcome;
   // A withdrawn recording takes no new footage, edits or sharing: those controls are not offered once the withdrawal is known.
   const [withdrawn, setWithdrawn] = useState(false);
   // A withdrawal closes everything at once: no simulation link, and no hold of an earlier status.
@@ -936,7 +938,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       <h1>
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
-      {answer?.job.sentence && <p className="bare-job">{answer.job.drafted ? "We read your job as: " : ""}“{answer.job.sentence.trim().replace(/[.!?]+$/, "")}.”</p>}
+      {jobSentence && <p className="bare-job">{answer?.job.drafted ? "We read your job as: " : ""}“{jobSentence.trim().replace(/[.!?]+$/, "")}.”</p>}
       {/* A few quick questions help companies answer (PACKAGE_E E1; planner, 2026-11-12): right under the job sentence,
           unless the page has an action waiting on the site; then below that action. */}
       {jobFacts && !siteActionWaiting && jobFacts}
@@ -1019,7 +1021,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 <a className="ms-text-link" href={`${status.claimUrl}?mode=signin`}>Sign in to save this job</a>
               </section>}
             </div>
-          ) : (
+          ) : !(descriptionShared && link.holdReason === "recording_consent_required") && (
             <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
           )}
 
@@ -1047,7 +1049,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           )}
 
           {/* A withdrawn recording never takes footage again on this link, so this is not said then. */}
-          {link.holdReason !== "recording_consent_withdrawn" && !withdrawn && <p style={{ color: "var(--ms-muted)" }}>
+          {link.holdReason !== "recording_consent_withdrawn" && !withdrawn && !descriptionShared && <p style={{ color: "var(--ms-muted)" }}>
             Keep this link. It is the same page you will record on — when the above changes,
             open it again and it will let you upload. Nothing needs to be re-submitted and
             nobody needs to email you.
