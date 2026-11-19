@@ -17,18 +17,18 @@ Public copy:
   yet, or the responses given. A plain "not yet" is better than a confident
   sentence that is not true.
 - Use the frame's words: "deployment company" (not vendor, integrator or OEM),
-  "job packet", "first look", "simulation of your site", "early trial",
-  "responses". Say **job** to customers; keep **task** for the technical robot
-  action.
-- The early trial is our own trial of openly available robot software. It is
-  never the site's answer and never predicts a deployment company's robot.
+  "job packet", "first look", "simulation of your site", "responses". Say
+  **job** to customers; keep **task** for the technical robot action.
+- Blueprint no longer runs robot software in the simulation: the owner dropped
+  the early trial on 2026-11-14. Copy never offers one. A scripted run only
+  checks our own simulation.
 - The site pays nothing. Deployment companies will pay; how is not decided,
   and no price is stated anywhere. Each introduction is recorded as a billable event. Nothing is charged and no price is stated until the owner sets one.
 - Sharing is the service. A site that sends a job agrees once, in the statement
   it accepts (recording statement `2026-11-12.v4` or later), that Blueprint
   shares the job with the deployment companies it has approved: the site's
   description, its video without its sound, the simulation built from it, the
-  success rule, the first look and any early trial. There is no share button,
+  success rule and the first look. There is no share button,
   no share setting and no pause. A job under an older statement is not shown to
   any company until its site accepts the current one. A site's name, street
   address and contact details are never shared without asking the site first.

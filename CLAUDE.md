@@ -7,9 +7,9 @@ approved deployment companies can evaluate without a visit and shares it with
 them: sharing is the service, agreed once when the site sends the job, with no
 share button, no share setting and no pause. The site sees their responses: who will
 take the job, who will not, and why. Until responses exist the site sees the
-first look on paper, the simulation of its site and where the job stands. Our
-own early trial of openly available robot software is supporting evidence,
-never the answer. A site's name, street address and contact details are never
+first look on paper, the simulation of its site and where the job stands.
+Blueprint no longer runs robot software in the simulation; the owner dropped
+the early trial on 2026-11-14. A site's name, street address and contact details are never
 shared without asking the site first. The site asks for an introduction with
 one press for each company it wants to meet; Blueprint then gives each side the other's
 name and contact details by email. No person at Blueprint stands between a

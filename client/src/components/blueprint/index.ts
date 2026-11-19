@@ -7,7 +7,6 @@ export * from "./Card";
 export * from "./MetricStat";
 export * from "./DataField";
 export * from "./ProofBoundary";
-export * from "./PolicyRankBar";
 export * from "./Field";
 export * from "./SelectField";
 export * from "./Checkbox";
