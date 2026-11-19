@@ -173,6 +173,20 @@ const scenePreview = () => sealed({ schema_version: "website_scene_preview.v1", 
   coordinate_frame: "right_up_back_y_up", digest: `sha256:${"2".repeat(64)}`, size_bytes: 10, gaussian_count: 2,
   source_gaussian_count: 2, start_view: null, claim_ceiling: "development_only", updated_at_epoch: 1_794_000_000 }, "preview_digest");
 
+/** The Pipeline's facts about the job's object (status v9), with the site's identity planted in the analysis's words. */
+const preparationSelector = { request_id: ID, scene_id: `site-${ID}`, capture_id: CAPTURE,
+  completion_marker_generation: "1", producer_delivery_key: `sha256:${"a".repeat(64)}`, source_payload_sha256: "b".repeat(64),
+  task_context_digest: `sha256:${"c".repeat(64)}` };
+const fact = (text: string, answers: string | null = null) => ({ text, answers });
+const plantedPreparation = () => ({ selector: preparationSelector, notification: null, status: sealed({ ...preparationSelector,
+  schema_version: "website_preparation_status.v9", state: "handed_off", code: "preparation_handed_off", attempt_count: 1,
+  revision: 1, correlation_id: `sha256:${"d".repeat(64)}`, terminal_reason: null, outcome: null, question: null,
+  robot_fit: null, robot_fit_precheck: null, packet_facts: { schema_version: "website_packet_facts.v1", truncated: false,
+    object: [fact(`Object: ${SITE.siteName} carton.`), fact(`Goes to: the dock at ${SITE.address}; about 80 cm above the floor.`)],
+    measured: [fact(`Registration residual: 8 cm; the sign reads ${SITE.phone} and ${SITE.email}.`)],
+    estimated: [fact("Weight: about 9 kg (5 to 14 kg). An estimate, not weighed.", "item_weight"),
+      fact("How many an hour: 40 to 80 (Blueprint's estimate; the site did not say).", "items_per_hour")] } }, "status_digest") });
+
 /* ----------------------------------------------------------------- the scans */
 
 const BLUEPRINT_EMAIL = /@tryblueprint\.io$/i;
@@ -290,7 +304,7 @@ beforeEach(async () => {
     operatorAnswers: { where: `Dock 2 at ${SITE.address}`, contact: SITE.phone },
     successCriteria: { successDefinition: `Pallet wrapped, call ${SITE.first} on ${SITE.phone}`, successRate: 90, cycleTimeSeconds: 30 } });
   state.docs.set(`captureUploadSessions/${CAPTURE}`, { scene_preview: scenePreview(), company_clip: companyClip(),
-    company_simulation: companySimulation(), uploader_email: SITE.email, site_name: SITE.siteName,
+    company_simulation: companySimulation(), website_preparation: plantedPreparation(), uploader_email: SITE.email, site_name: SITE.siteName,
     original_filename: `${SITE.siteName} - ${SITE.street}.MOV`, device_location: `${SITE.lat},${SITE.lng}` });
   for (const record of COMPANIES) state.docs.set(`robotTeamAccess/${sha(record.email)}`, record);
   const app = express();
@@ -333,6 +347,11 @@ describe("before the site asks for an introduction, nothing a company receives n
     expect(item.sentence).toMatch(/^Stack 12 kg cartons onto the pallet at the site/);
     expect(item.sentence).toContain("We stack 12 cartons on 3 pallets in aisle 4, 2 shifts, 24/7.");
     expect(item.title).toBe("Carton palletizing opportunity");
+    // The Pipeline's facts about the object reach the page, each line cleaned; the site answered the weight, so
+    // Blueprint's own weight estimate is left out for the site's answer.
+    expect(item.packetFacts.object).toEqual(["Object: The site carton.", "Goes to: the dock; about 80 cm above the floor."]);
+    expect(item.packetFacts.estimated).toEqual(["How many an hour: 40 to 80 (Blueprint's estimate; the site did not say)."]);
+    expect(item.jobFacts).toContain("Weight: 5 to 15 kg (11 to 33 lb)");
   });
 
   it("the answer route's reply, and the email it queues (to the site, under an alias)", async () => {

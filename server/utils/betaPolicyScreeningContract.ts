@@ -287,8 +287,6 @@ export const isScreeningHeldOutcome = (value: unknown): value is ScreeningHeldOu
 export const storedScreeningOutcome = (value: unknown): ScreeningOutcome | null =>
   (SCREENING_OUTCOMES as readonly unknown[]).includes(value) ? value as ScreeningOutcome : null;
 
-/** A caveat a campaign's estimate once carried; kept so a stored hold notice intent still parses (`screeningOutcomeNotifications`). */
-export const SCREENING_OUTCOME_CAVEATS = ["scene_setup"] as const;
 
 const ATTENTION_NEXT = "It won't restart by itself. Our team has been told, and we'll email you if a later run gives a result.";
 /**

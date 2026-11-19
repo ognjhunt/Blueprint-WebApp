@@ -18,6 +18,7 @@ export const OWNER_WITHDRAWAL_CONFIRMATION = "withdraw_recording_permission";
 
 export type OwnerWithdrawalStatus = {
   state: string;
+  descriptionOnly?: boolean;
   requestedAtIso: string | null;
   pipelineAcknowledged: boolean;
   deletionConfirmed: boolean;
@@ -45,6 +46,10 @@ const RETAINED = (
 
 export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalStatus }) {
   const requested = formatDate(status.requestedAtIso);
+  if (status.descriptionOnly) return <div role="status">
+    <p><strong>Job withdrawn.</strong></p>
+    <p className="ms-field-hint">{requested ? `Withdrawn on ${requested}. ` : ""}Approved deployment companies can no longer see your job.</p>
+  </div>;
   return (
     <div role="status">
       <p><strong>Recording permission withdrawn.</strong></p>
@@ -60,9 +65,10 @@ export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalSta
   );
 }
 
-export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, summaryLabel = "Withdraw recording permission" }: { token: string; onWithdrawn?: () => void;
+export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descriptionOnly = false, summaryLabel = "Withdraw recording permission" }: { token: string; onWithdrawn?: () => void;
   /** The row's words where it sits in a settings list ("Stop using my video"). */
   summaryLabel?: string;
+  descriptionOnly?: boolean;
   /** Told when a recorded withdrawal is read back, so the page stops offering footage, edits and sharing. */
   onStatus?: () => void }) {
   const [status, setStatus] = useState<OwnerWithdrawalStatus | null>(null);
@@ -87,7 +93,7 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, summary
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
-    if (!status || status.pipelineAcknowledged) return;
+    if (!status || status.descriptionOnly || status.pipelineAcknowledged) return;
     const timer = setInterval(() => { void refresh(); }, POLL_MS);
     return () => clearInterval(timer);
   }, [status, refresh]);
@@ -116,33 +122,33 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, summary
   }
 
   return (
-    <section aria-label="Recording permission" className="owner-withdrawal">
+    <section aria-label={descriptionOnly || status?.descriptionOnly ? "Job withdrawal" : "Recording permission"} className="owner-withdrawal">
       {status ? <WithdrawalStatusMessage status={status} /> : (
         <details className="ms-task-interest">
           <summary>{summaryLabel}</summary>
-          <p>
+          {descriptionOnly ? <p>Withdrawing removes your job from the deployment companies' view.</p> : <p>
             Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused, this job
             is paused, queued evaluations are asked to cancel and approved partners can no longer see the job. {RETAINED}
-          </p>
+          </p>}
           {!confirming && (
             <button type="button" className="ms-button" onClick={() => { setError(null); setConfirming(true); }}>
-              Withdraw permission…
+              {descriptionOnly ? "Withdraw job…" : "Withdraw permission…"}
             </button>
           )}
           {confirming && (
             <div role="alertdialog" aria-modal="false" aria-labelledby="withdraw-confirm-title" aria-describedby="withdraw-confirm-body">
-              <h3 id="withdraw-confirm-title">Withdraw recording permission?</h3>
+              <h3 id="withdraw-confirm-title">{descriptionOnly ? "Withdraw your job?" : "Withdraw recording permission?"}</h3>
               <p id="withdraw-confirm-body">
-                This cannot be undone from this page. Uploads stop now and Blueprint stops processing and using this
-                recording. To add footage later, you would need to start a new job.
+                {descriptionOnly ? "Your job comes out of the company library immediately. To share it again later, start a new job."
+                  : "This cannot be undone from this page. Uploads stop now and Blueprint stops processing and using this recording. To add footage later, you would need to start a new job."}
               </p>
               <button ref={confirmButton} type="button" className="ms-button" disabled={submitting} onClick={() => void withdraw()}>
-                {submitting ? "Withdrawing…" : "Yes, withdraw permission"}
+                {submitting ? "Withdrawing…" : descriptionOnly ? "Yes, withdraw job" : "Yes, withdraw permission"}
               </button>{" "}
               <button type="button" disabled={submitting} onClick={() => setConfirming(false)}
                 style={{ minHeight: "44px", padding: "12px 23px", background: "transparent", color: "inherit",
                   border: "1px solid currentColor", borderRadius: "3px", fontSize: "14px" }}>
-                Keep permission
+                {descriptionOnly ? "Keep sharing" : "Keep permission"}
               </button>
             </div>
           )}

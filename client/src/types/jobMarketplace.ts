@@ -1,34 +1,13 @@
-/** Blueprint-owned commercial workflow. It never supplies scientific evaluation verdicts. */
-export type PurchaseReadiness = "exploring" | "planning" | "ready_for_proposals" | "unsure";
-export interface JobBuyingRequirements {
-  jobFrequency: string | null;
-  purchaseReadiness: PurchaseReadiness;
-  requiredOutput: string | null;
-  installationBudget: string | null;
-  ongoingBudget: string | null;
-  currentProcessCost: string | null;
-  targetStartDate: string | null;
-}
-export interface JobOptionsReview {
-  disposition: "options_identified" | "more_information" | "no_suitable_option";
-  summary: string;
-  nextAction: string;
-  reviewedAtIso: string;
-  scopeRevision: string;
-}
-export type MarketplaceJobStage = "job_submitted" | "brief_agreed" | "options_assessed";
+/**
+ * What `/api/job-workflow` returns: Blueprint's evidence records for the job, read-only. The site's page reads only
+ * `managedEvidence` (the early trial); the admin panel also reads the evidence questions. The site's planning details
+ * and Blueprint's options review were removed on 2026-11-19; any stored copy is no longer read or written.
+ */
 export interface JobMarketplaceWorkflow {
   schemaVersion: "job_marketplace.v1";
   jobId?: string;
-  revision: string;
-  requirements: JobBuyingRequirements;
+  /** The site confirmed its job brief, so Blueprint may ask the Pipeline a task-specific question. */
   briefAgreed: boolean;
-  optionsAssessed: boolean;
-  reviewRequired: boolean;
-  stage: MarketplaceJobStage;
-  nextAction: string;
-  actionOwner: "site" | "blueprint" | "none";
-  review: JobOptionsReview | null;
   evidence?: JobEvidenceSummary[];
   managedEvidence?: JobManagedEvidenceSummary[];
   managedEvidenceUnavailable?: boolean;

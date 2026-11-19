@@ -422,8 +422,8 @@ describe("nothing about a test job leaves Blueprint (W5)", () => {
     await uploadSiteVideo(site.token);
     // Fire-and-forget bells settle.
     await new Promise(resolve => setTimeout(resolve, 50));
-    // At creation and upload a site's job queues its receipt and its video notice, and rings ops.
-    expect(kinds(site.jobId)).toEqual(expect.arrayContaining(["task_received", "video_received"]));
+    // At creation a site's job queues its receipt (with its link), and rings ops.
+    expect(kinds(site.jobId)).toEqual(expect.arrayContaining(["task_received"]));
     expect(slackMentioning(site.jobId).length).toBeGreaterThan(0);
     expect(kinds(created.job_id)).toEqual([]);
 
@@ -439,15 +439,14 @@ describe("nothing about a test job leaves Blueprint (W5)", () => {
     const bells = (jobId: string) => slackMentioning(jobId).map(text => text.replace(new RegExp(jobId, "g"), "<job>")
       .replace(/fixture_code_\S+/, "<code>").split("\n")[0].replace(/ · .*$/, ""));
     expect(bells(created.job_id).sort()).toEqual(bells(site.jobId).sort());
-    // The same drive for the site's job queues and sends what it does today: its receipt, the video notice, "your job is
-    // with deployment companies", "the simulation is ready"; the ops email; and three Slack bells (the new request, the
-    // walkthrough to review, the unknown Pipeline code).
-    expect(kinds(site.jobId)).toEqual(expect.arrayContaining(["task_received", "video_received", "listing_live", "scene_ready"]));
+    // The same drive for the site's job queues and sends what it does today: its receipt with its link (the only site
+    // email until companies answer, 2026-11-19); the ops email; and three Slack bells (the new request, the walkthrough
+    // to review, the unknown Pipeline code).
+    expect(kinds(site.jobId)).toEqual(["task_received"]);
     expect(rows(site.jobId).every(row => row.status === "sent")).toBe(true);
     const toSite = seams.sendEmail.mock.calls.filter(([message]) => message.to === `${site.jobId}@example.test`)
       .map(([message]) => String(message.subject));
-    expect(toSite).toEqual(expect.arrayContaining(["Your Blueprint job link", "We have your video",
-      "Your job is with deployment companies", "The simulation of your site is ready to view"]));
+    expect(toSite).toEqual(["Your Blueprint job link"]);
     expect(seams.sendEmail.mock.calls.some(([message]) => message.to === "ops@tryblueprint.io")).toBe(true);
     expect(slackMentioning(site.jobId).map(text => text.slice(0, 80))).toEqual(expect.arrayContaining([
       expect.stringContaining("New request"), expect.stringContaining("Site walkthrough"), expect.stringContaining("Pipeline code")]));

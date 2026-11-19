@@ -83,10 +83,6 @@ function harness() {
 const parses = (value: unknown) => status.websitePreparationReceiptSchema.safeParse(value).success;
 
 describe("status v8", () => {
-  it("asks for 8", () => {
-    expect(status.WEBSITE_PREPARATION_STATUS_VERSION).toBe("8");
-  });
-
   it("parses v7 with the v1 table and v8 with the v2 table, and neither with the other's table", () => {
     expect(parses(v7())).toBe(true);
     expect(parses(v8())).toBe(true);

@@ -20,11 +20,6 @@ vi.mock("../utils/captureUploadAuthorization", () => ({ authorizeCaptureUpload: 
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async (id: string) => (await db.collection("siteTaskBriefs").doc(id).get()).data() || null }));
 vi.mock("../utils/captureFootageReview", () => ({ findPriorFootageReview: async () => ({ state: "none" }) }));
 vi.mock("../utils/siteTaskBriefReading", () => ({ mergeFootageIntoBrief: vi.fn() }));
-vi.mock("../utils/taskLifecycleNotifications", async importOriginal => ({
-  ...await importOriginal<typeof import("../utils/taskLifecycleNotifications")>(),
-  reconcileSceneReadyNotifications: vi.fn(), reconcileWebsitePreparationNotifications: vi.fn(),
-  reconcileFootageBeforeAccountNotices: vi.fn(), reconcileSceneTestsStartedNotices: vi.fn(),
-}));
 import { encryptInboundRequestForStorage, isEncryptedField } from "../utils/field-encryption";
 import { enqueueCoverageReview, reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { deliverOutbox } from "../utils/captureOutbox";
@@ -95,10 +90,10 @@ describe("coverage recovery does not request more footage", () => {
   });
 });
 
-describe("scene-ready recipient encryption boundary", () => {
+describe("job-link recipient encryption boundary", () => {
   it.each(["encrypted", "legacy_plaintext", "withdrawn", "unavailable_decryption"])("NOTIFY-ENCRYPTED-002 %s", async mode => {
     await storeRequest(mode);
-    const params = { requestId: ID, milestone: "scene_ready" as const };
+    const params = { requestId: ID, milestone: "task_received" as const };
     if (mode === "withdrawn") {
       state.docs.get(`inboundRequests/${ID}`)!.request.consent_attestation.granted = false;
       state.docs.get(`inboundRequests/${ID}`)!.consent_revoked = true;
@@ -113,13 +108,13 @@ describe("scene-ready recipient encryption boundary", () => {
     const outbox = [...state.docs.entries()].filter(([path]) => path.startsWith("captureOutbox/") && !path.includes("/deliveryReceipts/"));
     if (["encrypted", "legacy_plaintext"].includes(mode)) {
       expect(outbox).toHaveLength(1);
-      expect(outbox[0][1]).toMatchObject({ to: EMAIL, kind: "scene_ready", status: "sent", attempts: 1 });
-      expect(outbox[0][1].body).toMatch(/look around the work area you filmed/i);
+      expect(outbox[0][1]).toMatchObject({ to: EMAIL, kind: "task_received", status: "sent", attempts: 1 });
+      expect(outbox[0][1].body).toMatch(/We have your job/);
       expect(mocks.send).toHaveBeenCalledTimes(1);
     } else {
       expect(outbox).toHaveLength(0); expect(mocks.send).not.toHaveBeenCalled();
     }
     expect(isEncryptedField(state.docs.get(`inboundRequests/${ID}`)!.contact.email)).toBe(mode !== "legacy_plaintext");
-    traces.push({ milestone: "scene_ready", mode, outboxStates: outbox.map(([, row]) => row.status), strictSinkCalls: mocks.send.mock.calls.length });
+    traces.push({ milestone: "task_received", mode, outboxStates: outbox.map(([, row]) => row.status), strictSinkCalls: mocks.send.mock.calls.length });
   });
 });

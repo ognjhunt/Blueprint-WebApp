@@ -12,10 +12,10 @@ vi.mock('../utils/siteTaskBriefReading',()=>({readBriefFromDescription:m.read}))
 vi.mock('../config/env',async original=>({...await original<object>(),isSiteTaskBriefReadingEnabled:()=>true}));
 import {deliverOutbox,enqueueOutbox} from '../utils/captureOutbox';
 import {recoverCaptureReviews} from '../utils/captureReviewRecovery';
-const row=()=>store.docs.get('captureOutbox/peer-minimal:task_received')!;
+const row=()=>store.docs.get('captureOutbox/peer-minimal:fresh_link')!;
 beforeEach(()=>{store.docs.clear();m.send.mockReset().mockResolvedValue({sent:true,provider:'fake',messageId:'accepted'});m.read.mockReset().mockResolvedValue(true);m.save.mockReset().mockImplementation(async(v:any)=>store.docs.set(`siteTaskBriefs/${v.requestId}`,v));});
 afterEach(()=>vi.restoreAllMocks());
-const enqueue=()=>enqueueOutbox({idempotencyKey:'peer-minimal:task_received',requestId:'peer-minimal',kind:'task_received',to:'sink@example.invalid',subject:'Synthetic',body:'Synthetic'});
+const enqueue=()=>enqueueOutbox({idempotencyKey:'peer-minimal:fresh_link',requestId:'peer-minimal',kind:'fresh_link',to:'sink@example.invalid',subject:'Synthetic',body:'Synthetic'});
 describe('malformed adapter receipts retain provider uncertainty',()=>{
  const outputs=[['null',null],['undefined',undefined],['missing sent',{}],['string sent',{sent:'true',provider:'fake',messageId:'id'}],['accepted missing provider',{sent:true,provider:null,messageId:'id'}],['accepted blank provider',{sent:true,provider:' ',messageId:'id'}],['accepted missing id',{sent:true,provider:'fake',messageId:null}],['accepted numeric id',{sent:true,provider:'fake',messageId:123}]] as const;
  for(const [name,value] of outputs)it(name,async()=>{await enqueue();m.send.mockResolvedValue(value);await deliverOutbox();expect(row()).toMatchObject({status:'unknown',attempts:1,lastError:'delivery_outcome_unknown'});const receipts=[...store.docs.entries()].filter(([key])=>key.includes('/deliveryReceipts/'));expect(receipts).toHaveLength(1);expect(receipts[0][1]).toMatchObject({status:'unknown',provider:null,messageId:null});await deliverOutbox();expect(m.send).toHaveBeenCalledTimes(1);});

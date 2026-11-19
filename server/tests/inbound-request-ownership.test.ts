@@ -431,16 +431,19 @@ describe("saved intake first-email recovery", () => {
   });
 });
 
-// Sharing is the service (2026-11-12, PACKAGE_D D1.1): a submission under recording statement v4 with a video writes
-// the listing record; nothing else does. A share grant sent by a page opened before the change is ignored.
+// Sharing is the service (2026-11-12, PACKAGE_D D1.1): a submission under recording statement v4 with a video, or under
+// description statement v5 without one (owner, 2026-11-19: listed with no video yet), writes the listing record; nothing
+// else does. A share grant sent by a page opened before the change is ignored.
 it.each([
   ["v4 with a video", { consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" },
     descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v4" }, hasExistingFootage: true, descriptionOnly: false }, true],
   ["v3 with a video (a page opened before the change)", { consentAttestation: { granted: true, statementVersion: "2026-11-11.v3" },
     descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v2" }, hasExistingFootage: true, descriptionOnly: false }, false],
   ["v5 without a video", { consentAttestation: null, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" },
-    hasExistingFootage: false, descriptionOnly: true, acceptedTerms: true }, false],
-] as const)("writes the listing record only under v4 with a video (%s), and never from the site's own words", async (label, statements, shared) => {
+    hasExistingFootage: false, descriptionOnly: true, acceptedTerms: true }, "description"],
+  ["v3 without a video (a page opened before the change)", { consentAttestation: null,
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, hasExistingFootage: false, descriptionOnly: true, acceptedTerms: true }, false],
+] as const)("writes the listing record only under v4 with a video or v5 without (%s), and never from the site's own words", async (label, statements, shared) => {
   const { server, baseUrl } = await start();
   try {
     const slug = label.replace(/\W+/g, "-"), requestId = `shared-${slug}`, taskStatement = "Acme Depot at 123 High Street moves cartons onto a pallet";
@@ -451,7 +454,14 @@ it.each([
       "x-forwarded-for": `198.51.100.${label.length + (shared ? 100 : 0)}` }, body: JSON.stringify(input) });
     expect(response.status, await response.clone().text()).toBe(201);
     const record = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!;
-    if (shared) {
+    if (shared === "description") {
+      expect(record.public_task_listing).toEqual({ enabled: true, details: anonymizedOpportunityDraft(taskStatement),
+        consentVersion: "job-shared-2026-11-12", approvedAtIso: record.request.description_authority.recorded_at_iso,
+        wentLiveIso: record.request.description_authority.recorded_at_iso, approvedBy: "description_statement",
+        recordingStatementVersion: null, descriptionStatementVersion: "2026-11-12.v5", thumbnailDigest: null, reviewRequired: false });
+      expect(record.request.consent_attestation).toBeNull();
+      expect(JSON.stringify(record.public_task_listing)).not.toMatch(/Acme|123 High|owner@example/);
+    } else if (shared) {
       expect(record.public_task_listing).toEqual({ enabled: true, details: anonymizedOpportunityDraft(taskStatement),
         consentVersion: "job-shared-2026-11-12", approvedAtIso: record.request.consent_attestation.recorded_at_iso,
         wentLiveIso: record.request.consent_attestation.recorded_at_iso, approvedBy: "recording_statement",

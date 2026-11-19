@@ -40,9 +40,10 @@ describe("where a site's job stands with deployment companies", () => {
     expect(jobSharingOf(record)).toEqual({ state: "visible", sharedAtIso: AT });
   });
 
-  it("is shared and preparing while its video has not passed the privacy check", () => {
-    const record = shared({ capture_privacy_screen: undefined });
-    expect(jobSharingOf(record)).toEqual({ state: "preparing", sharedAtIso: AT });
+  it("is visible without any upload-time privacy record: no screen holds a video", () => {
+    expect(jobSharingOf(shared({ capture_privacy_screen: undefined }))).toEqual({ state: "visible", sharedAtIso: AT });
+    expect(jobSharingOf(shared({ capture_privacy_screen: { proceeded: false, eligibility: "pending" } })))
+      .toEqual({ state: "visible", sharedAtIso: AT });
   });
 
   it.each([
@@ -59,6 +60,34 @@ describe("where a site's job stands with deployment companies", () => {
     const record = shared({ consent_revoked: true });
     expect(jobSharingOf({ ...record, request: { ...record.request, consent_attestation: { ...grant("2026-11-12.v4"), revoked_at_iso: AT } } }))
       .toEqual({ state: "not_shared", sharedAtIso: null });
+  });
+
+  it("a job sent without a video under description v5 is listed with no video yet, and visible", () => {
+    const v5 = { ...grant("2026-11-12.v5") };
+    const record = site({ public_task_listing: buildJobSharedListing({ taskStatement: "Move totes", atIso: AT,
+      descriptionStatementVersion: "2026-11-12.v5" }) }, { description_authority: v5, consent_attestation: null });
+    expect(teamJobAccess(record)).toMatchObject({ listed: true, evaluationAvailable: false, reason: "no_video_yet" });
+    expect(jobSharingOf(record)).toEqual({ state: "visible", sharedAtIso: AT });
+    // Its site has not said what the job is yet: shared, preparing.
+    expect(teamJobAccess(record, { brief: { summary: "Your site task" } })).toMatchObject({ listed: false, reason: "no_job_sentence" });
+    // An older description statement does not share it, nor does v5 once a recording grant under an older statement exists.
+    expect(teamJobAccess(site({ public_task_listing: record.public_task_listing },
+      { description_authority: grant("2026-11-11.v3"), consent_attestation: null }))).toMatchObject({ listed: false, reason: "older_statement" });
+    expect(teamJobAccess(site({ public_task_listing: record.public_task_listing },
+      { description_authority: v5, consent_attestation: grant("2026-11-11.v3") }))).toMatchObject({ listed: false, reason: "older_statement" });
+    // A withdrawal takes it from every company's view at once, and it is no longer shared.
+    const withdrawn = { ...record, consent_revoked: true, capture_withdrawal: { state: "uploads_stopped_cleanup_pending" },
+      request: { ...record.request, consent_attestation: { granted: false, revoked_at_iso: AT } } };
+    expect(teamJobAccess(withdrawn)).toMatchObject({ listed: false, reason: "consent_withdrawn" });
+    expect(jobSharingOf(withdrawn)).toEqual({ state: "not_shared", sharedAtIso: null });
+    // Accepting v4 on its page later lists it with its video like any other: no second listing record.
+    const write = recordingConsentWrite({ record, statementVersion: "2026-11-12.v4", atIso: AT, taskStatement: "Move totes",
+      hasCurrentGrant: false, canGrantInitial: true, revoked: false });
+    expect(write).toMatchObject({ outcome: "granted", listing: null });
+    if (write.outcome === "held") return;
+    const after = { ...record, request: { ...record.request, ...write.request } };
+    expect(teamJobAccess(after).reason).not.toBe("no_video_yet");
+    expect(teamJobAccess(after).listed).toBe(true);
   });
 
   it("accepting v4 on an older job's page makes it shared like any other", () => {

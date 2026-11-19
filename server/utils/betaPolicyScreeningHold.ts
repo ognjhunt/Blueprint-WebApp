@@ -24,9 +24,8 @@ import { scientificBriefDigest } from "./jobEvidenceContract";
 import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, managedJobTask, readManagedJobSourceSession,
   readManagedScreeningCapture, readPreparedRevisionOfferings } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
-import { betaPolicyScreeningSourceSchema, isScreeningAttentionOutcome, storedScreeningOutcome,
-  type ScreeningHeldOutcome , screeningHoldDetail } from "./betaPolicyScreeningContract";
-import { heldOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
+import { betaPolicyScreeningSourceSchema, isScreeningAttentionOutcome,
+  type ScreeningHeldOutcome } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { websiteRunClosure } from "./websiteRunClosure";
 import { taskContextSiteIdentity } from "./websiteTaskContext";
@@ -147,10 +146,6 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
     const ownerClosed = Boolean(websiteRunClosure(job.data(), jobId, hold.source.capture_id));
     const kept = ["cancelled", "closed"].includes(previous?.state) ? previous!.state as string : null;
     const closed = previous?.cancellationRequested === true || kept !== null || ownerClosed;
-    // The site hears once when a hold first names an outcome (F-01); the same outcome again,
-    // a release, or a run the owner closed owes nothing new.
-    const notice = closed || outcome === storedScreeningOutcome(previous?.screening_outcome) ? null
-      : heldOutcomeNoticeIntent(outcome, jobId, hold.hold_id, hold.source.scene_intent_id, screeningHoldDetail(hold.reason_code, hold.detail_code));
     const now = new Date().toISOString();
     transaction.set(runRef, {
       run_id: hold.hold_id, run_kind: SCREENING_HOLD_RUN_KIND,
@@ -161,9 +156,6 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
       hold_reason_code: hold.reason_code, hold_detail_code: hold.detail_code, hold_revision: hold.revision,
       hold_digest: hold.hold_digest, hold_generated_at: hold.generated_at, screening_outcome: outcome,
       ...(outcome && isScreeningAttentionOutcome(outcome) ? { screening_hold_reason: hold.reason_code } : {}),
-      ...(notice ? { outcome_notification_pending: true, outcome_notification_intent: notice }
-        : previous?.outcome_notification_intent !== undefined ? { outcome_notification_pending: previous.outcome_notification_pending === true,
-          outcome_notification_intent: previous.outcome_notification_intent } : {}),
       created_at_iso: previous?.created_at_iso ?? now, updated_at_iso: now });
     return receipt(previous ? "updated" : "created", { hold_revision: hold.revision, hold_digest: hold.hold_digest });
   });

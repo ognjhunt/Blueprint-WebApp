@@ -15,7 +15,7 @@ import { familyNativePreparationReference, familyPreparationMatchesTask, isTaskF
 import { isNavigationStrategy, navigationPreparationMatchesTask, navigationPreparationReference,
   NAVIGATION_PREPARED_PHASE } from "./navigationSceneIntake";
 import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
-import { isKnownSceneIntentOutcomeKind, sceneIntentOutcomeBinds, sceneIntentOutcomeSchema, sceneOutcomeNoticeIntent } from "./sceneIntentOutcome";
+import { isKnownSceneIntentOutcomeKind, sceneIntentOutcomeBinds, sceneIntentOutcomeSchema } from "./sceneIntentOutcome";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { loadWebsiteCaptureRights, taskContextSiteIdentity } from "./websiteTaskContext";
 
@@ -1141,10 +1141,6 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
         };
       }
       if (changedObservation !== undefined) patch[SPONSORSHIP_CHANGED_FIELD] = changedObservation;
-      // A terminal outcome owes the website job one email (C-04). The intent is
-      // written with the status that carried it and queued by the outbox
-      // reconciler; the same outcome read again writes nothing new.
-      const notice = record.website_request_id ? sceneOutcomeNoticeIntent(row.id, { ...record, ...patch }) : null;
       // An outcome kind this release does not know is not adopted; staff hear once per job and code.
       const sentKind = ({ ...record, ...patch } as Record<string, any>).pipeline_status?.outcome?.kind;
       // Only when this outcome is first stored: the 60-second poll that reads it again writes nothing.
@@ -1157,8 +1153,6 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
           if (latest.data()?.lease_id === claim)
             transaction.update(row.ref, {
               ...patch,
-              ...(notice && latest.data()?.scene_outcome_notification_intent?.event_id !== notice.event_id
-                ? { scene_outcome_notification_pending: true, scene_outcome_notification_intent: notice } : {}),
               ...(latest.data()?.revocation_requested &&
               patch.state !== "revoked" &&
               patch.state !== "closeout_pending" &&
@@ -1173,16 +1167,6 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
       // After the status is stored: a failed write has alerted no one.
       if (unknownKind) void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
         noteUnknownPipelineCode(record.website_request_id, "scene_outcome.kind", unknownKind));
-      // A status poll can be when the site's first test on its scene started.
-      // The outbox tick repairs a missed enqueue; this only makes it prompt.
-      if (record.website_request_id && patch.pipeline_status) {
-        try {
-          const { notifyIfSceneTestsStarted } = await import("./taskLifecycleNotifications");
-          await notifyIfSceneTestsStarted(record.website_request_id);
-        } catch (error) {
-          logger.warn({ error, requestId: record.website_request_id }, "Could not queue the scene-tests notice");
-        }
-      }
     }
   }
   } finally {

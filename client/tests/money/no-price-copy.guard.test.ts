@@ -111,7 +111,7 @@ describe("no price anywhere a site or a deployment company reads", () => {
     for (const file of [
       "client/src/pages/Home.tsx", "client/src/pages/Partners.tsx", "client/src/pages/Beta.tsx", "client/src/pages/Terms.tsx",
       "client/src/pages/Refunds.tsx", "client/src/pages/CompanyJob.tsx", "client/src/pages/SelfCaptureUpload.tsx",
-      "client/src/components/site/JobWorkspace.tsx", "client/src/components/site/TaskBrowse.tsx",
+      "client/src/components/site/TaskBrowse.tsx",
       "client/src/lib/siteIntroductions.ts", "client/src/lib/companyResponses.ts", "client/src/lib/evaluationPricing.ts",
       // The emails the hand-kept list of `publicClaims.guard.test.ts` did not read (2026-11-19).
       "server/utils/introductionSiteEmail.ts", "server/utils/jobIntroductions.ts", "server/utils/jobAutoSend.ts",

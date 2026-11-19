@@ -22,7 +22,6 @@ vi.mock("../utils/captureUploadAuthorization", () => ({ authorizeCaptureUpload: 
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async (id: string) => (await db.collection("siteTaskBriefs").doc(id).get()).data() || null }));
 vi.mock("../utils/captureFootageReview", () => ({ findPriorFootageReview: async () => ({ state: "none" }) }));
 vi.mock("../utils/siteTaskBriefReading", () => ({ mergeFootageIntoBrief: vi.fn() }));
-vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotifications: vi.fn() }));
 import { enqueueCoverageReview, reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { deliverOutbox } from "../utils/captureOutbox";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";

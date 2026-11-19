@@ -164,26 +164,6 @@ describe("the confirmation says what our screen decided", () => {
     expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(notified);
   });
 
-  // The one screening-time email left asks a brief that gives no sentence about the job for one.
-  it.each(["outbox_write", "contact_read"].map(failure => ({ failure, unclear: true })))(
-    "an unchanged retry repairs a missing intent after $failure (unclear=$unclear) without replacing the brief", async ({ failure, unclear }) => {
-    if (unclear) await saveBrief(draftBrief({ requestId: "req-1", summary: "your site task", captureMode: "self_capture", proposed: [] }));
-    if (failure === "outbox_write") vi.mocked(enqueueOutbox).mockResolvedValueOnce({ enqueued: false });
-    else notificationRead.unavailable = true;
-    const answers = clearAnswers();
-    const success = unclear ? NO_SUCCESS : CARTON_SUCCESS;
-    expect((await confirm(answers, success)).status).toBe(200);
-    const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
-    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(0);
-    expect((await confirm(answers, success)).status).toBe(200);
-    expect([...sharedFakeFirestoreState.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/"))).toEqual(before);
-    const key = unclear ? "task-not-yet-supported" : "qualified";
-    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/req-1:brief-screening:${key}`)).toMatchObject({ status: "pending", attempts: 0,
-      kind: unclear ? "screening_not_now" : "brief_confirmed", subject: "Your job brief needs one sentence about the job" });
-    const repaired = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
-    expect((await confirm(answers, success)).status).toBe(200);
-    expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(repaired);
-  });
 
   it("offers written clarification or a call without clearing the preparation gate", async () => {
     const response = await confirm();
@@ -280,17 +260,13 @@ describe("the confirmation says what our screen decided", () => {
     });
   });
 
-  it("asks a brief that gives no sentence about the job for one, by reply and email, and names no kind of job", async () => {
+  it("asks a brief that gives no sentence about the job for one, in its reply (no email), and names no kind of job", async () => {
     await saveBrief(draftBrief({ requestId: "req-1", summary: "your site task", captureMode: "self_capture", proposed: [] }));
     const body = (await (await confirm(clearAnswers(), NO_SUCCESS)).json()) as { screening: any };
     expect(body.screening).toEqual({ headline: "Your job brief needs one sentence about the job before we can evaluate it.",
       detail: "From your job brief, we could not tell what the job is. Describe the job in one sentence at the top of your job brief and confirm it again.",
       bookingUrl: null });
-    expect(enqueueOutbox).toHaveBeenCalledTimes(1);
-    const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { kind: string; subject: string; body: string; idempotencyKey: string };
-    expect(sent).toMatchObject({ kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported",
-      subject: "Your job brief needs one sentence about the job" });
-    expect(`${sent.subject}\n${sent.body}`).not.toMatch(/kind of job|can score|on hold|\bmatch|\$|price/i);
+    expect(enqueueOutbox).not.toHaveBeenCalled();
   });
 
   it("says not yet, without a call, when an answer blocks it", async () => {

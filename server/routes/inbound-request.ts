@@ -2,6 +2,7 @@ import { newWebsiteCaptureOwnerBinding } from "../utils/websiteCaptureOwner";
 import { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } from "../utils/sceneScreenGate";
 import { buildJobSharedListing } from "../utils/jobSharedListing";
 import { isSharingRecordingStatementVersion } from "../../client/src/lib/recordingRightsStatement";
+import { isSharingDescriptionAuthorityVersion } from "../../client/src/lib/siteSubmissionAuthority";
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
 import { hasCurrentDescriptionAuthority } from "../utils/descriptionAuthority";
 import { createInboundRequestWithReceipt } from "../utils/inboundRequestCommit";
@@ -1307,11 +1308,16 @@ export async function submitInboundRequest(req: Request, res: Response) {
       } satisfies SubmitInboundRequestResponse);
     }
 
-    // The listing record exists only under a statement that says the job is shared (v4 or later), with a video.
+    // The listing record exists only under a statement that says the job is shared: recording v4 or later with a video,
+    // or description v5 for a job sent without one (listed with no video yet).
     const initialPublicListing = buyerType === "site_operator" && consentAttestation
       && isSharingRecordingStatementVersion(consentAttestation.statement_version)
       ? buildJobSharedListing({ taskStatement, atIso: consentAttestation.recorded_at_iso,
-        recordingStatementVersion: consentAttestation.statement_version ?? undefined }) : null;
+        recordingStatementVersion: consentAttestation.statement_version ?? undefined })
+      : buyerType === "site_operator" && descriptionOnly && consentAttestation == null && descriptionAuthority
+        && isSharingDescriptionAuthorityVersion(descriptionAuthority.statement_version)
+        ? buildJobSharedListing({ taskStatement, atIso: descriptionAuthority.recorded_at_iso,
+          descriptionStatementVersion: descriptionAuthority.statement_version ?? undefined }) : null;
 
     const invalidApprovedRobotTeamEmails = (
       pilotOpportunity?.approvedRobotTeamEmails || []
@@ -2036,7 +2042,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           : { briefReviewPending: true, briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
       }, firstReceipt, confirmedBrief
         ? { ref: db.collection(TASK_BRIEFS_COLLECTION).doc(payload.requestId), data: confirmedBrief } : null);
-      // Shared under v4: send it to the approved companies once it is listed (usually later, after the privacy check;
+      // Shared (v4, or v5 without a video): send it to the approved companies once it is listed (usually later, once the site has said what the job is;
       // the sweep catches that moment). Never fails the submission.
       if (initialPublicListing) await import("../utils/jobAutoSend")
         .then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId)).catch(() => undefined);

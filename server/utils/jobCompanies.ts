@@ -461,7 +461,6 @@ const CLOSED_WORDS: Partial<Record<TeamJobClosedReason, string>> = {
   rights_needs_review: "the rights review has not cleared the capture",
   development_only: "a development capture",
   older_statement: "the job was sent under an older statement",
-  privacy_screen_pending: "the video has not passed the privacy screen yet",
   no_job_sentence: "the site has not said what the job is yet",
   authority_ended: "Blueprint's authority to work on it ended",
   closed_by_site: "the site closed the job",

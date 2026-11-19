@@ -38,3 +38,13 @@ export const DESCRIPTION_AUTHORITY_STATEMENTS: Readonly<Record<DescriptionAuthor
 export function isDescriptionAuthorityVersion(value: unknown): value is DescriptionAuthorityVersion {
   return typeof value === "string" && (DESCRIPTION_AUTHORITY_VERSIONS as readonly string[]).includes(value);
 }
+
+/**
+ * The description authority whose sentence says the job is shared with approved deployment companies when no video is
+ * sent: v5 ("We share your job with robot deployment companies we've approved."). Such a job is listed with no video yet.
+ */
+export const SHARING_DESCRIPTION_AUTHORITY_VERSIONS: readonly DescriptionAuthorityVersion[] = [DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION];
+
+export function isSharingDescriptionAuthorityVersion(value: unknown): boolean {
+  return typeof value === "string" && (SHARING_DESCRIPTION_AUTHORITY_VERSIONS as readonly string[]).includes(value);
+}

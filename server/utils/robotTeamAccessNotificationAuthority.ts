@@ -15,23 +15,20 @@ export async function robotTeamAccessNotificationAuthority(
   entry: Pick<OutboxEntry, "kind" | "requestId" | "idempotencyKey" | "to" | "robotTeamAccessNotice">,
   transaction: FirebaseFirestore.Transaction,
 ): Promise<"current" | "obsolete" | "review_required"> {
-  const expectedStatus = entry.kind === "robot_team_access_approved" ? "approved"
-    : entry.kind === "robot_team_access_not_yet" ? "declined"
-      : entry.kind === "robot_team_access_received" ? "applied" : null;
-  if (!expectedStatus) return "current";
+  if (entry.kind !== "robot_team_access_approved") return "current";
   if (!db) return "review_required";
   const recordId = /^robot-team-access:([a-f0-9]{64})$/.exec(entry.requestId)?.[1];
   if (!recordId) return "review_required";
   const record = (await transaction.get(db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(recordId))).data();
-  if (!record || record.status !== expectedStatus || typeof record.email !== "string"
+  if (!record || record.status !== "approved" || typeof record.email !== "string"
     || normalizeAccessEmail(record.email) !== normalizeAccessEmail(entry.to)) return "obsolete";
-  const revision = expectedStatus === "applied" ? record.appliedAtIso : record.decidedAtIso;
+  const revision = record.decidedAtIso;
   if (typeof revision !== "string" || !Number.isFinite(Date.parse(revision))) return "review_required";
-  if (expectedStatus !== "applied" && !record.decidedBy) return "review_required";
+  if (!record.decidedBy) return "review_required";
   const context = entry.robotTeamAccessNotice;
   if (context) {
     if (context.schemaVersion !== "robot_team_access_notice.v1" || context.recordId !== recordId
-      || context.status !== expectedStatus || typeof context.revision !== "string") return "review_required";
+      || context.status !== "approved" || typeof context.revision !== "string") return "review_required";
     return context.revision === revision ? "current" : "obsolete";
   }
   // Original receipt/decision keys contain their exact revision. Keep those

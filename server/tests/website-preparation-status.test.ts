@@ -11,13 +11,11 @@ import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRu
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
 import oldPipelineRouter from "../routes/internal-capture-worlds";
 import { createWebsitePreparationRouter, websitePreparationRawBody } from "../routes/internal-website-preparation";
-import { canNotifyCurrentWebsitePreparationIssue, drainPendingWebsitePreparationNotifications,
-  loadCurrentWebsitePreparationStatus, mergeWebsitePreparationStatus, syncWebsitePreparationStatus,
-  websitePreparationEventId, websitePreparationReceiptSchema, websitePreparationResumedEventId, websitePreparationSelectorSchema,
+import { loadCurrentWebsitePreparationStatus, mergeWebsitePreparationStatus, syncWebsitePreparationStatus,
+  websitePreparationReceiptSchema, websitePreparationSelectorSchema,
   type WebsitePreparationDeps, type WebsitePreparationReceipt,
   type WebsitePreparationSelector, type StoredWebsitePreparation } from "../utils/websitePreparationStatus";
 
-import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { taskLifecycleNotificationIsCurrent } from "../utils/taskLifecycleNotificationAuthority";
 // Production verifier controls use in-memory Firestore/GCS and a retained observer projection.
 // No real database, credentials, transport, provider or mail is used.
@@ -74,7 +72,7 @@ function harness(expectedSelector = selector) {
   let stored: StoredWebsitePreparation | null = null;
   let canonical: unknown = receipt("failed_retryable",1,3,expectedSelector); let unavailable = false; let authorized = true;
   let fingerprint = "current-source"; let reads = 0; let beforeCommit: (()=>void)|null = null;
-  let changeAtSecondRead: unknown = null; const notices = new Map<string, unknown>();
+  let changeAtSecondRead: unknown = null;
   const deps: WebsitePreparationDeps = {
     async readLedger() {reads++;if(unavailable)throw Error("private raw provider error /unsafe/path");
       return reads%2===0 && changeAtSecondRead ? changeAtSecondRead : canonical;},
@@ -83,15 +81,11 @@ function harness(expectedSelector = selector) {
     async readStored() {return stored;},
     async commit(input,status,authority) {beforeCommit?.();if(!authorized||fingerprint!==authority.fingerprint)throw Error("authority_changed");
       stored=mergeWebsitePreparationStatus(stored,input,status);},
-    async pending() {return stored?.notification?.state==="pending" ? [stored] : [];},
-    async acknowledge(_capture,eventId) {if(stored?.notification?.eventId===eventId) stored={...stored,notification:{eventId,state:"enqueued"}};},
-    async findEvent(requestId,eventId) {return stored?.selector.request_id===requestId&&stored.notification?.eventId===eventId ? stored : null;},
   };
-  return {deps,notices,get stored(){return stored;},get reads(){return reads;},
+  return {deps,get stored(){return stored;},get reads(){return reads;},
     ledger(v:unknown){canonical=v;},unavailable(){unavailable=true;},revoke(){authorized=false;},
     sourceChange(){fingerprint="new-source";},race(f:()=>void){beforeCommit=f;},
-    unstable(v:unknown){changeAtSecondRead=v;},
-    enqueue:vi.fn(async (intent:{eventId:string})=> {notices.set(intent.eventId,intent);return "enqueued" as const;})};
+    unstable(v:unknown){changeAtSecondRead=v;}};
 }
 let server: Server|null=null;
 it("v3 keeps the exact source binding and exposes a bounded conservative verdict", async () => {
@@ -138,12 +132,6 @@ it("v5 shows the robot fit table, and a geometry-only job that ended at its fit 
       {name: "UR5e", manufacturer: "Universal Robots", verdict: "fits_spec", openChecks: ["access"]},
       {name: "G1", manufacturer: "Unitree", verdict: "unknown", openChecks: ["reach", "payload"]}],
     modelsTruncated: false});
-});
-it("v5 keeps the needs-attention notice for a full-route job awaiting inputs", async () => {
-  const h = harness();
-  h.ledger(v5("awaiting_inputs", robotFit("full")));
-  await syncWebsitePreparationStatus(selector, h.deps);
-  expect(h.stored!.notification).toEqual({eventId: websitePreparationEventId(selector), state: "pending"});
 });
 it.each([
   ["a completed table without its digest", robotFit("full", {table_digest: null})],
@@ -205,95 +193,6 @@ it.each(["website_front_normal_undetermined", "website_registration_ambiguous", 
     title: "We need a new video to build the simulation of your site", actionOwner: "site"});
   expect(projected.outcome!.nextStep).toMatch(/^Please film again.*Then send us the new video\.$/);
   expect(JSON.stringify(projected)).not.toMatch(/website_|no repeat upload|do not need to (record|send)/);
-});
-it("the needs-attention notice for a v7 new-video stop carries its reason, so the email says what the page says", async () => {
-  const h = harness();
-  h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_front_normal_undetermined",
-    basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
-  await syncWebsitePreparationStatus(selector, h.deps);
-  expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
-  expect(h.enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention",
-    recaptureReason: "website_front_normal_undetermined", eventId: websitePreparationEventId(selector)}));
-  expect(h.enqueue.mock.calls[0][0]).not.toHaveProperty("awaitEarlyHoldUntilMs");
-});
-// Review, 2026-11-12: the Pipeline re-checks a job it asked to film again because of its own alignment step; when the
-// re-check passes, the job goes on with the video it has. The site had the "film again" email, so it gets ONE more.
-describe("no new video is needed after all", () => {
-  const ask = () => v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_registration_poor_fit",
-    basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`});
-  it("sends one email when a job shown a new-video ask moves on without a new video", async () => {
-    const h = harness();
-    h.ledger(ask());
-    await syncWebsitePreparationStatus(selector, h.deps);
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
-    h.ledger(v7("handed_off", null, 4));
-    await syncWebsitePreparationStatus(selector, h.deps);
-    // Recorded with the status that carries the fact.
-    expect(h.stored?.notification).toEqual({eventId: websitePreparationResumedEventId(selector), state: "pending"});
-    expect(await canNotifyCurrentWebsitePreparationIssue("r1", websitePreparationResumedEventId(selector), h.deps)).toBe(true);
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
-    expect(h.enqueue).toHaveBeenLastCalledWith(expect.objectContaining({milestone: "preparation_resumed",
-      eventId: websitePreparationResumedEventId(selector)}));
-    // Never twice: a replay and later reads owe nothing more.
-    await syncWebsitePreparationStatus(selector, h.deps);
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 0, pending: 0});
-    expect(h.enqueue).toHaveBeenCalledTimes(2);
-  });
-  it("owes nothing when the site sent a new video (a new capture), or when the ask's email never went out", async () => {
-    const h = harness();
-    h.ledger(ask());
-    await syncWebsitePreparationStatus(selector, h.deps);
-    // The ask's email not yet queued: moving on owes no correction of it.
-    h.ledger(v7("handed_off", null, 4));
-    await syncWebsitePreparationStatus(selector, h.deps);
-    expect(h.stored?.notification?.eventId).not.toBe(websitePreparationResumedEventId(selector));
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toMatchObject({enqueued: 0});
-    expect(h.enqueue).not.toHaveBeenCalled();
-    // A new video is a new capture: its hand-off carries no ask behind it.
-    const prior = mergeWebsitePreparationStatus(null, selector, ask());
-    const asked = {...prior, notification: {...prior.notification!, state: "enqueued" as const}};
-    const refilmed = {...selector, completion_marker_generation: "90071992547409932"};
-    expect(mergeWebsitePreparationStatus(asked, refilmed, v7("handed_off", null, 4, refilmed)).notification).toBeNull();
-  });
-  it("owes nothing for an ordinary hand-off with no ask before it", async () => {
-    const h = harness();
-    h.ledger(v7("preparing"));
-    await syncWebsitePreparationStatus(selector, h.deps);
-    h.ledger(v7("handed_off", null, 4));
-    await syncWebsitePreparationStatus(selector, h.deps);
-    expect(h.stored?.notification).toBeNull();
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 0, pending: 0});
-    expect(h.enqueue).not.toHaveBeenCalled();
-  });
-  it("says only that no new video is needed, with the job link", () => {
-    const row = buildTaskLifecycleNotification({requestId: "r1", milestone: "preparation_resumed",
-      eventId: websitePreparationResumedEventId(selector), to: "owner@example.test", detail: "PRIVATE"});
-    expect(row.subject).toBe("No new video is needed");
-    expect(row.body).toMatch(/^No new video is needed; we are preparing your job\.\n\nOpen your job:\n/);
-    expect(row.body).not.toContain("PRIVATE");
-  });
-});
-// Review, 2026-11-12: both part-6 endings publish in failed_retryable; the notice carries the ending, so its email
-// says the page's own words for it.
-it.each([
-  [{category: "insufficient_evidence", reason: "website_preparation_not_possible", cause: "website_assembly_whole_object_coverage_required",
-    basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`},
-    {reason: "website_preparation_not_possible", cause: "website_assembly_whole_object_coverage_required"}],
-  [{category: "processing_failure", reason: "website_preparation_retries_spent", basis: "execution_failure", robot_id: null,
-    evidence_digest: `sha256:${"e".repeat(64)}`}, {reason: "website_preparation_retries_spent"}],
-])("a failed_retryable status with a part-6 ending owes its needs-attention notice with that ending (%#)", async (outcome, ending) => {
-  const h = harness();
-  h.ledger(v7("failed_retryable", outcome));
-  await syncWebsitePreparationStatus(selector, h.deps);
-  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
-  expect(projected.state).toBe("failed_retryable");
-  expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
-  expect(h.enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention", preparationEnding: ending}));
-  const email = buildTaskLifecycleNotification({requestId: "r1", milestone: "preparation_needs_attention",
-    eventId: websitePreparationEventId(selector), preparationEnding: ending as never, to: "owner@example.test"});
-  expect(email.body).toContain(projected.outcome!.reason);
-  expect(email.body).toContain(projected.outcome!.nextStep);
-  expect(email.body).not.toMatch(/review/i);
 });
 // Rewritten (review, 2026-11-12): a reason this release does not know never fails the read; a known reason must keep
 // its own shape, and v6 still refuses a v7 stop.
@@ -482,12 +381,12 @@ describe("source-bound preparation contract v1: local isolated replay",()=>{
     expect(response.status).toBe(404);expect(h.stored).toBeNull();expect(await loadCurrentWebsitePreparationStatus("r1","walkthrough-r1",h.deps))
       .toEqual({state:"unavailable",correlationId:null});
   });
-  it("PREP-002 signed callback rereads ledger and commits sanitized retryable hold plus intent",async()=>{
+  it("PREP-002 signed callback rereads ledger and commits the sanitized retryable hold, with no email intent",async()=>{
     const h=harness();const response=await route(h);expect(response.status).toBe(200);
     expect(await response.json()).toEqual({schema_version:"website_preparation_status_acceptance.v1",
       accepted:true,...selector,status_digest:receipt().status_digest,state:"failed_retryable",native_execution_complete:false,
       correlation_id:`bp-prep-${receipt().status_digest.slice(7,23)}`});
-    expect(h.reads).toBe(2);expect(h.stored?.notification?.state).toBe("pending");
+    expect(h.reads).toBe(2);expect(h.stored?.notification).toBeNull();
     expect(h.stored).not.toHaveProperty("world_reconstruction");expect(h.stored).not.toHaveProperty("assessment");
   });
   it("PREP-003 status truth in callback is rejected rather than trusted",async()=>{
@@ -515,30 +414,13 @@ describe("source-bound preparation contract v1: local isolated replay",()=>{
     const h=harness();h.unstable(receipt("preparing",2,4));await expect(syncWebsitePreparationStatus(selector,h.deps)).rejects.toThrow();
     expect(h.stored).toBeNull();
   });
-  it("PREP-009 callback restart/replay preserves one logical notification",async()=>{
-    const h=harness();await syncWebsitePreparationStatus(selector,h.deps);
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue,h.deps)).toEqual({enqueued:1,pending:0});
-    await syncWebsitePreparationStatus(selector,h.deps);h.ledger(receipt("failed_retryable",2,6));
-    await syncWebsitePreparationStatus(selector,h.deps);
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue,h.deps)).toEqual({enqueued:0,pending:0});
-    expect(h.notices.size).toBe(1);expect(await canNotifyCurrentWebsitePreparationIssue("r1",websitePreparationEventId(selector),h.deps)).toBe(true);
-  });
-  it("PREP-010 enqueue uncertainty survives process replacement and safe retry",async()=>{
-    const h=harness();await syncWebsitePreparationStatus(selector,h.deps);
-    expect(await drainPendingWebsitePreparationNotifications(async()=>"unavailable",h.deps)).toEqual({enqueued:0,pending:1});
-    expect(h.stored?.notification?.state).toBe("pending");
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue,{...h.deps})).toEqual({enqueued:1,pending:0});
-  });
   it("PREP-011 newest claimed attempt replaces old failure in customer poll",async()=>{
     const h=harness();await syncWebsitePreparationStatus(selector,h.deps);h.ledger(receipt("preparing",2,4));
     expect((await loadCurrentWebsitePreparationStatus("r1","walkthrough-r1",h.deps)).state).toBe("preparing");
-    expect(await canNotifyCurrentWebsitePreparationIssue("r1",websitePreparationEventId(selector),h.deps)).toBe(false);
   });
-  it("PREP-012 lost canonical access hides retained failure and denies dispatch",async()=>{
+  it("PREP-012 lost canonical access hides retained failure",async()=>{
     const h=harness();await syncWebsitePreparationStatus(selector,h.deps);h.unavailable();
     expect(await loadCurrentWebsitePreparationStatus("r1","walkthrough-r1",h.deps)).toEqual({state:"unavailable",correlationId:null});
-    await expect(canNotifyCurrentWebsitePreparationIssue("r1",websitePreparationEventId(selector),h.deps)).rejects.toThrow("website_preparation_unavailable");
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue,h.deps)).toEqual({enqueued:0,pending:1});expect(h.enqueue).not.toHaveBeenCalled();
   });
   it("PREP-013 withdrawal before callback prevents persistence",async()=>{
     const h=harness();h.revoke();await expect(syncWebsitePreparationStatus(selector,h.deps)).rejects.toThrow();expect(h.stored).toBeNull();
@@ -574,14 +456,9 @@ describe("source-bound preparation contract v1: local isolated replay",()=>{
   it("PREP-022 malformed canonical receipt cannot publish safe-looking failure",async()=>{
     const h=harness();h.ledger({...receipt(),provider_error:"secret path"});expect((await route(h)).status).toBe(503);expect(h.stored).toBeNull();
   });
-  it("PREP-023 withdrawn intent cannot enqueue despite retained valid failure",async()=>{
-    const h=harness();await syncWebsitePreparationStatus(selector,h.deps);h.revoke();
-    expect(await drainPendingWebsitePreparationNotifications(h.enqueue,h.deps)).toEqual({enqueued:0,pending:1});expect(h.enqueue).not.toHaveBeenCalled();
-  });
   it("PREP-024 wrong-account reader does not disclose persisted failure",async()=>{
     const h=harness();await syncWebsitePreparationStatus(selector,h.deps);
     expect(await loadCurrentWebsitePreparationStatus("other","walkthrough-r1",h.deps)).toEqual({state:"unavailable",correlationId:null});
-    expect(await canNotifyCurrentWebsitePreparationIssue("other",websitePreparationEventId(selector),h.deps)).toBe(false);
   });
   it("PREP-025 failed route returns only safe retry diagnosis",async()=>{
     const h=harness();h.unavailable();const response=await route(h);expect(response.status).toBe(503);
@@ -663,12 +540,6 @@ describe("production source verifier + transaction with isolated Firestore/GCS d
     const f=productionFixture();runtime.beforeTransaction=()=>{runtime.records.get("captureUploadSessions/walkthrough-r1").browser_upload_reservation={id:"new-write"};};
     await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
   });
-  it("PREP-035 dispatch uses supplied transaction for rights/source and performs no nested writes",async()=>{
-    const f=productionFixture();await syncWebsitePreparationStatus(f.selected);
-    let reads=0;const tx={async get(ref:any){reads++; return ref.key ? {data:()=>runtime.records.get(ref.key)} : ref.get();}};
-    expect(await canNotifyCurrentWebsitePreparationIssue("r1",websitePreparationEventId(f.selected),tx as never)).toBe(true);
-    expect(reads).toBeGreaterThanOrEqual(5);expect(runtime.txWrites).toBe(1);
-  });
 });
 
 describe("supplementary boundary controls, frozen before replay",()=>{
@@ -702,120 +573,7 @@ describe("supplementary boundary controls, frozen before replay",()=>{
   });
 });
 
-describe("explicit supplementary rotating-notification scan control",()=>{
-  it("PREP-041 unavailable earlier rows cannot starve a later current durable notification",async()=>{
-    const f=productionFixture();await syncWebsitePreparationStatus(f.selected);
-    // Existing current row sorts after these two unavailable source rows. They are never delivered.
-    runtime.records.set("captureUploadSessions/a-blocked",{website_preparation_notification_pending:true});
-    runtime.records.set("captureUploadSessions/b-blocked",{website_preparation_notification_pending:true});
-    const enqueue=vi.fn(async()=>"enqueued" as const);
-    expect(await drainPendingWebsitePreparationNotifications(enqueue,undefined,2)).toEqual({enqueued:0,pending:0});
-    expect(enqueue).not.toHaveBeenCalled();
-    expect(await drainPendingWebsitePreparationNotifications(enqueue,undefined,2)).toEqual({enqueued:1,pending:0});
-    expect(enqueue).toHaveBeenCalledTimes(1);
-    expect(runtime.records.get("captureUploadSessions/walkthrough-r1").website_preparation_notification_pending).toBe(false);
-  });
-});
 
-// Review, 2026-11-12: the "no new video is needed" notice through the REAL stored-row path: written by the merge in the
-// commit transaction, read back by the parser in the pending load, findEvent and acknowledge.
-describe("no new video is needed, through the stored row", () => {
-  const stop = (selected: WebsitePreparationSelector) => v7("awaiting_inputs", {category: "insufficient_evidence",
-    reason: "website_registration_poor_fit", basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}, 3, selected);
-  const row = () => runtime.records.get("captureUploadSessions/walkthrough-r1");
-  // The pending scan rotates (PREP-041): two passes cover every row whatever cursor an earlier test left.
-  const drain = async (enqueue: Parameters<typeof drainPendingWebsitePreparationNotifications>[0]) => {
-    const first = await drainPendingWebsitePreparationNotifications(enqueue);
-    const second = await drainPendingWebsitePreparationNotifications(enqueue);
-    return {enqueued: first.enqueued + second.enqueued, pending: second.pending};
-  };
-  it("is accepted, owed once, marked sent, and kept by a replay", async () => {
-    const f = productionFixture(); f.ledger(stop(f.selected));
-    await syncWebsitePreparationStatus(f.selected);
-    const enqueue = vi.fn(async () => "enqueued" as const);
-    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
-    expect(row().website_preparation.notification).toEqual({eventId: websitePreparationEventId(f.selected), state: "enqueued"});
-    const resumed = websitePreparationResumedEventId(f.selected);
-    f.ledger(v7("handed_off", null, 4, f.selected));
-    await syncWebsitePreparationStatus(f.selected);
-    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "pending"});
-    expect(row().website_preparation_notification_pending).toBe(true);
-    expect(await canNotifyCurrentWebsitePreparationIssue("r1", resumed)).toBe(true);
-    expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
-    expect(enqueue).toHaveBeenLastCalledWith(expect.objectContaining({milestone: "preparation_resumed", eventId: resumed}));
-    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "enqueued"});
-    expect(row().website_preparation_notification_pending).toBe(false);
-    // The dispatch check: the ask's own email went out, so this one may.
-    const askKey = `captureOutbox/r1:preparation_needs_attention:${websitePreparationEventId(f.selected).replace(":", "_")}`;
-    (f.request as any).contact = {email: "owner@example.test"};
-    const entry = {kind: "preparation_resumed", requestId: "r1", preparationEventId: resumed, to: "owner@example.test"} as never;
-    runtime.records.set(askKey, {status: "sent"});
-    expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(true);
-    // The site re-filmed (a supplement is now the job's video) or closed its run: nothing follows the ask.
-    (f.request as any).active_capture_id = `supplement-${"a".repeat(40)}`;
-    expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(false);
-    delete (f.request as any).active_capture_id;
-    // A replay of the same status keeps it, sent; nothing more is owed.
-    await syncWebsitePreparationStatus(f.selected);
-    expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "enqueued"});
-    expect(await drain(enqueue)).toEqual({enqueued: 0, pending: 0});
-    expect(enqueue).toHaveBeenCalledTimes(2);
-  });
-  it("sends nothing when the ask was queued but never went out", async () => {
-    const f = productionFixture(); f.ledger(stop(f.selected));
-    await syncWebsitePreparationStatus(f.selected);
-    const enqueue = vi.fn(async () => "enqueued" as const);
-    await drain(enqueue);
-    f.ledger(v7("handed_off", null, 4, f.selected));
-    await syncWebsitePreparationStatus(f.selected);
-    const resumed = websitePreparationResumedEventId(f.selected);
-    (f.request as any).contact = {email: "owner@example.test"};
-    const entry = {kind: "preparation_resumed", requestId: "r1", preparationEventId: resumed, to: "owner@example.test"} as never;
-    const askKey = `captureOutbox/r1:preparation_needs_attention:${websitePreparationEventId(f.selected).replace(":", "_")}`;
-    for (const status of [undefined, "pending", "failed"]) {
-      if (status) runtime.records.set(askKey, {status}); else runtime.records.delete(askKey);
-      expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(false);
-    }
-    // And the ask itself is no longer current: the hand-off dropped it.
-    expect(await canNotifyCurrentWebsitePreparationIssue("r1", websitePreparationEventId(f.selected))).toBe(false);
-  });
-  it("a second capture's ask is followed for that capture only", () => {
-    const second = {...selector, completion_marker_generation: "90071992547409932"};
-    const first = mergeWebsitePreparationStatus(null, selector, stop(selector));
-    const askedAgain = mergeWebsitePreparationStatus({...first, notification: {...first.notification!, state: "enqueued"}}, second, stop(second));
-    expect(askedAgain.notification).toEqual({eventId: websitePreparationEventId(second), state: "pending"});
-    const sent = {...askedAgain, notification: {...askedAgain.notification!, state: "enqueued" as const}};
-    const resumed = mergeWebsitePreparationStatus(sent, second, v7("handed_off", null, 4, second));
-    expect(resumed.notification).toEqual({eventId: websitePreparationResumedEventId(second), state: "pending"});
-    expect(websitePreparationResumedEventId(second)).not.toBe(websitePreparationResumedEventId(selector));
-  });
-  it.each([
-    ["the resumed id on a status that is not handed_off", (selected: WebsitePreparationSelector) =>
-      ({status: stop(selected), eventId: websitePreparationResumedEventId(selected)})],
-    ["a foreign id", (selected: WebsitePreparationSelector) =>
-      ({status: v7("handed_off", null, 4, selected), eventId: `sha256:${"9".repeat(64)}`})],
-  ])("refuses %s, and that one row never fails the other jobs' rows", async (_label, make) => {
-    const f = productionFixture(); f.ledger(stop(f.selected));
-    await syncWebsitePreparationStatus(f.selected);
-    const {status, eventId} = make(f.selected);
-    runtime.records.set("captureUploadSessions/a-bad", {website_preparation_notification_pending: true,
-      website_preparation: {selector: f.selected, status, notification: {eventId, state: "pending"}}});
-    const enqueue = vi.fn(async () => "enqueued" as const);
-    const alerts = await import("../utils/unknownPipelineCode");
-    const noted = vi.spyOn(alerts, "noteUnknownPipelineCode").mockResolvedValue(true);
-    try {
-      expect(await drain(enqueue)).toEqual({enqueued: 1, pending: 0});
-      // Staff hear of the unreadable row: one ops alert for its job (the marker keeps later passes quiet).
-      expect(noted).toHaveBeenCalledWith("r1", "preparation.stored_row", "unreadable");
-    } finally { noted.mockRestore(); }
-    expect(enqueue).toHaveBeenCalledTimes(1);
-    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention"}));
-    // The bad row itself is refused wherever it is read.
-    runtime.records.set("captureUploadSessions/walkthrough-r1", {...row(),
-      website_preparation: {selector: f.selected, status, notification: {eventId, state: "pending"}}});
-    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1")).state).toBe("unavailable");
-  });
-});
 
 function purposeStatusFixture() {
   const f=productionFixture();delete (f.request as any).account_owner_uid;(f.brief as any).confirmedAtIso=null;
@@ -845,8 +603,8 @@ it("v2 status preserves source proof and null owner on an expired prep-only gran
 });
 it("v2 status requires a real current prep grant rather than purpose alone, never a finished assessment",async()=>{
   // The fixture's assessment is still queued and its grant carries no proposal.
-  // Two writes: the status, and the answer email the ended authority owes the job, in the same transaction (review, 2026-11-11).
-  await syncWebsitePreparationStatus(purposeStatusFixture().selected);expect(runtime.txWrites).toBe(2);
+  // One write: the status. No email follows a status (owner, 2026-11-19).
+  await syncWebsitePreparationStatus(purposeStatusFixture().selected);expect(runtime.txWrites).toBe(1);
   for(const mutate of [()=>{runtime.records.get("inboundRequests/r1").website_scene_sponsorship.authority_digest=`sha256:${"0".repeat(64)}`;},
     ()=>{runtime.records.get("inboundRequests/r1").request.consent_attestation.revoked_at_iso="2026-10-28T00:00:00Z";}]) {
     const f=purposeStatusFixture();mutate();await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
@@ -858,23 +616,4 @@ it("v2 status transaction refuses concurrent authority/account changes",async()=
     const f=purposeStatusFixture();runtime.beforeTransaction=mutate;
     await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
   }
-});
-
-// Review, 2026-11-11: an ended authority is a recorded ending, and the sync that records it queues its paper-check
-// email in the same step, as the geometry-only end does. Other states queue nothing here.
-it("asks for the answer email where an ended authority, or the geometry-only end, is recorded, and nowhere else", async () => {
-  const notices = await import("../utils/taskLifecycleNotifications");
-  const asked = vi.spyOn(notices, "notifyIfAnswerSettled").mockResolvedValue({ enqueued: true });
-  try {
-    for (const [label, status, expected] of [["authority ended", receipt("authority_ended"), true],
-      ["geometry-only end", v5("awaiting_inputs", robotFit("geometry_only")), true],
-      ["preparing", receipt("preparing"), false]] as const) {
-      asked.mockClear();
-      const h = harness();
-      h.ledger(status);
-      await syncWebsitePreparationStatus(selector, h.deps);
-      await new Promise(resolve => setTimeout(resolve, 10));
-      expect(asked.mock.calls.map(([id]) => id), label).toEqual(expected ? ["r1"] : []);
-    }
-  } finally { asked.mockRestore(); }
 });

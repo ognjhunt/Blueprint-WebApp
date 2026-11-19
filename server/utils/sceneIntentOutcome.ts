@@ -118,23 +118,21 @@ export const ANSWER_STAYS = "Your first look stays on your job page.";
  * in the email. A hold or a stop is said about the simulation, never about the
  * job: the site's answer does not depend on it. Withdrawal is untouched.
  */
-const ENDINGS: Readonly<Record<TerminalSceneOutcomeKind, { sentence: string; closing: string; subject: string }>> = {
+const ENDINGS: Readonly<Record<TerminalSceneOutcomeKind, { sentence: string; closing: string }>> = {
   held: { sentence: simulationHoldSentence("held_capability"),
-    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "The simulation of your job is held for now" },
+    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
   withdrawn: { sentence: "Permission to use this video for your job was withdrawn or has expired.",
-    closing: "You don't need to do anything; this job has stopped.", subject: "Your Blueprint job has stopped" },
+    closing: "You don't need to do anything; this job has stopped." },
   setup_repair: { sentence: "We could not finish building the simulation of your site, and we have stopped trying.",
-    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "We stopped building the simulation of your site" },
-  // The plain flag "spending cap reached": Blueprint's own cap for one job, never a figure and never a step for the site.
+    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
   spending_cap_reached: { sentence: OUTLOOK_SENTENCES.spending_cap_reached,
-    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "We stopped building the simulation of your site" },
+    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
   stopped: { sentence: "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens.",
-    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "The simulation of your job stopped" },
+    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
 };
 export const isTerminalSceneOutcomeKind = isTerminalKind;
-/** The job page's headline for an ending, and the first paragraph of its one email. */
+/** The job page's headline for an ending. */
 export const sceneOutcomeMessage = (kind: TerminalSceneOutcomeKind) => `${ENDINGS[kind].sentence} ${ENDINGS[kind].closing}`;
-export const sceneOutcomeSubject = (kind: TerminalSceneOutcomeKind) => ENDINGS[kind].subject;
 
 /** What the site has to give, by reason; a reason without a plain sentence gets the general one. */
 const SITE_NEEDS: Readonly<Record<string, string>> = {
@@ -151,34 +149,4 @@ export function sceneWaitMessage(reading: Pick<SceneOutcomeReading, "kind" | "re
   if (reading.kind === "awaiting_site") return { operatorAction: SITE_ANSWER,
     headline: Object.hasOwn(SITE_NEEDS, reading.reasonCode) ? SITE_NEEDS[reading.reasonCode] : "Your job is waiting for something from you." };
   return null;
-}
-
-export const SCENE_OUTCOME_NOTICE_SCHEMA = "scene_outcome_notification.v1";
-const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
-/** One email per terminal outcome: its key names the kind and the outcome's own digest. */
-export const sceneOutcomeNoticeEventId = (kind: TerminalSceneOutcomeKind, outcomeDigest: string) =>
-  `${kind}-${outcomeDigest.slice("sha256:".length)}`;
-const noticeIntentSchema = z.object({
-  schema_version: z.literal(SCENE_OUTCOME_NOTICE_SCHEMA), request_id: identifier, intake_id: identifier,
-  kind: z.enum(TERMINAL_SCENE_OUTCOME_KINDS), outcome_digest: digest,
-  event_id: z.string().regex(/^(held|withdrawn|setup_repair|spending_cap_reached|stopped)-[a-f0-9]{64}$/),
-}).strict().refine(value => value.event_id === sceneOutcomeNoticeEventId(value.kind, value.outcome_digest));
-export type SceneOutcomeNoticeIntent = z.infer<typeof noticeIntentSchema>;
-
-export function parseSceneOutcomeNoticeIntent(value: unknown): SceneOutcomeNoticeIntent | null {
-  const parsed = noticeIntentSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
-}
-
-/**
- * The email a website intake owes its site, or null: only a terminal outcome
- * that speaks for the site. Pure: the worker writes it beside the status that
- * carried the outcome, and the outbox reconciler queues it.
- */
-export function sceneOutcomeNoticeIntent(intakeId: string, record: Record<string, any> | null | undefined): SceneOutcomeNoticeIntent | null {
-  const outcome = adoptedSceneOutcome(record);
-  if (!outcome?.terminal || !isTerminalKind(outcome.kind)) return null;
-  return parseSceneOutcomeNoticeIntent({ schema_version: SCENE_OUTCOME_NOTICE_SCHEMA, request_id: record?.website_request_id,
-    intake_id: intakeId, kind: outcome.kind, outcome_digest: outcome.outcome_digest,
-    event_id: sceneOutcomeNoticeEventId(outcome.kind, outcome.outcome_digest) });
 }

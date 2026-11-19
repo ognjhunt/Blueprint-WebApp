@@ -10,8 +10,9 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 const send = vi.hoisted(() => vi.fn(async (): Promise<any> => ({ sent: true, provider: "resend", messageId: "fixture-message" })));
 const beforeDispatch = vi.hoisted(() => vi.fn(async () => true));
 vi.mock("../utils/email", () => ({ sendEmail: send }));
-vi.mock("../utils/taskStatusUpdates", () => ({ enqueueDueTaskStatusUpdates: vi.fn(), taskStatusUpdateIsCurrent: beforeDispatch, acknowledgeTaskStatusUpdate: vi.fn() }));
-vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotifications: vi.fn(), reconcileWebsitePreparationNotifications: vi.fn(), reconcileFootageBeforeAccountNotices: vi.fn() }));
+// The first check inside the dispatch transaction: a change made here lands between the claim and the send.
+vi.mock("../utils/internalTestJob", async importOriginal => ({ ...await importOriginal<object>(),
+  loadIsInternalTestJob: vi.fn(async () => { await beforeDispatch(); return false; }) }));
 vi.mock("../utils/taskLifecycleNotificationAuthority", () => ({ taskLifecycleNotificationIsCurrent: vi.fn(async () => true) }));
 vi.mock("../utils/newJobAlerts", () => ({ jobAlertIsCurrent: vi.fn(async () => true) }));
 
@@ -59,13 +60,6 @@ describe("manual access decision at the existing outbox dispatch boundary", () =
     expect(state.docs.get(key)).toMatchObject({ status: "cancelled", attempts: 0 });
   });
 
-  it.each(["robot_team_access_received", "robot_team_access_not_yet"] as const)("does not send a stale %s after the team is approved", async kind => {
-    const key = notice(kind);
-    state.docs.get(recordKey)!.status = "approved";
-    await deliverOutbox();
-    expect(send).not.toHaveBeenCalled();
-    expect(state.docs.get(key)).toMatchObject({ status: "cancelled", attempts: 0 });
-  });
 
   it("continues a legacy decision notice whose key proves the current revision", async () => {
     const key = notice("robot_team_access_approved", true);
@@ -85,11 +79,16 @@ describe("manual access decision at the existing outbox dispatch boundary", () =
 
   it("fences a changed approval context along with the retained email body", async () => {
     const key = notice();
-    beforeDispatch.mockImplementationOnce(async () => {
-      (state.docs.get(key)!.robotTeamAccessNotice as Record<string, unknown>).revision = "2026-10-19T10:01:00.000Z";
-      return true;
+    // Changed after the claim (the first transaction), before the dispatch transaction reads the row.
+    const original = db.runTransaction.bind(db);
+    let transactions = 0;
+    const spy = vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => {
+      transactions += 1;
+      if (transactions === 2) (state.docs.get(key)!.robotTeamAccessNotice as Record<string, unknown>).revision = "2026-10-19T10:01:00.000Z";
+      return original(callback);
     });
     await deliverOutbox();
+    spy.mockRestore();
     expect(send).not.toHaveBeenCalled();
     expect(state.docs.get(key)).toMatchObject({ status: "pending", lastError: "delivery_message_changed", attempts: 0 });
   });

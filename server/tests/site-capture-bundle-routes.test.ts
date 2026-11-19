@@ -786,7 +786,7 @@ describe("completion keeps the web path's order and authority", () => {
       .capture_privacy_screen.producer_source.kind).toBe("app_bundle_completion");
   });
 
-  it("writes server files, notifies, screens, then hashes.json and the marker last", async () => {
+  it("writes server files, screens, then hashes.json and the marker last", async () => {
     const { device, bindingDigest } = await bundleFor({ lidar: true });
     const planDigest = await uploadEverything(device, bindingDigest);
     state.privacy.push(APPROVED);
@@ -799,7 +799,8 @@ describe("completion keeps the web path's order and authority", () => {
     expect(writes[0]).toBe("bundle_completion.json");
     expect(writes[1]).toBe("manifest.json");
     expect(writes.slice(-2)).toEqual(["hashes.json", "capture_upload_complete.json"]);
-    expect(state.notices).toEqual([`${REQUEST_ID}:video_received`]);
+    // No email: the job page says the video arrived (owner, 2026-11-19).
+    expect(state.notices).toEqual([]);
     expect(state.coverage).toEqual([CAPTURE_ID]);
 
     const manifest = JSON.parse(state.bucket.text(`${RAW}/manifest.json`)!);
@@ -1013,7 +1014,7 @@ describe("completion keeps the web path's order and authority", () => {
     expect(JSON.parse(state.bucket.text(completionName)!)).not.toHaveProperty("device_objects");
   });
 
-  it("is idempotent: repeating complete changes nothing and notifies once", async () => {
+  it("is idempotent: repeating complete changes nothing and emails no one", async () => {
     const { device, bindingDigest } = await bundleFor();
     const planDigest = await uploadEverything(device, bindingDigest);
     state.privacy.push(APPROVED);
@@ -1023,7 +1024,7 @@ describe("completion keeps the web path's order and authority", () => {
     expect(second.status).toBe(201);
     expect(second.body.state).toBe("complete");
     expect(new Map([...state.bucket.objects].map(([name, object]) => [name, object.generation]))).toEqual(snapshot);
-    expect(state.notices).toHaveLength(1);
+    expect(state.notices).toHaveLength(0);
   });
 
   it("a crash after the completion record finishes with the same bytes on retry", async () => {

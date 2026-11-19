@@ -47,9 +47,9 @@ const { providerIdempotencyKey } = await import("../utils/captureOutboxRetry");
 
 function entry(overrides: Record<string, unknown> = {}) {
   return {
-    idempotencyKey: "req-1:video_received",
+    idempotencyKey: "req-1:task_received",
     requestId: "req-1",
-    kind: "video_received" as const,
+    kind: "task_received" as const,
     to: "ops@acme.example",
     subject: "s",
     body: "b",
@@ -148,7 +148,7 @@ describe("enqueuing is idempotent", () => {
   });
 
   it("keeps different events for one request as separate rows", async () => {
-    await enqueueOutbox(entry({ idempotencyKey: "req-1:video_received", kind: "video_received" }));
+    await enqueueOutbox(entry({ idempotencyKey: "req-1:task_received", kind: "task_received" }));
     await enqueueOutbox(entry({ idempotencyKey: "req-1:coverage_shortfall", kind: "coverage_shortfall" }));
 
     const rows = [...sharedFakeFirestoreState.docs.keys()].filter((key) =>
@@ -180,7 +180,7 @@ describe("delivery sends what is pending, once", () => {
     await deliverOutbox();
     const runtime = { revision: "a".repeat(40), serviceId: "srv-production", instanceId: "srv-production-instance" };
     const requestedSender = { fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io" };
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received")).toMatchObject({ deliveryRuntime: runtime, requestedSender });
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received")).toMatchObject({ deliveryRuntime: runtime, requestedSender });
     const receipts = [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.includes("/deliveryReceipts/"));
     expect(receipts).toHaveLength(1);
     expect(receipts[0][1]).toMatchObject({ runtime, requestedSender, messageId: "accepted" });
@@ -238,32 +238,25 @@ describe("the claim digest of existing notices", () => {
   it("binds every existing kind to the same seven fields it always has, so retained claims still match", async () => {
     sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
     await enqueueOutbox(entry({ replyTo: "hello@tryblueprint.io" }));
-    await enqueueOutbox(entry({ idempotencyKey: "req-1:scene_ready:run_a", kind: "scene_ready", body: "result" }));
+    await enqueueOutbox(entry({ idempotencyKey: "req-1:fresh_link:run_a", kind: "fresh_link", body: "result" }));
     await deliverOutbox();
     const digest = (fields: unknown[]) => createHash("sha256").update(JSON.stringify(fields)).digest("hex");
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received")).toMatchObject({ status: "sent",
-      deliveryDigest: digest(["req-1:video_received", "req-1", "video_received", "ops@acme.example", "s", "b", "hello@tryblueprint.io"]) });
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_ready:run_a")).toMatchObject({ status: "sent",
-      deliveryDigest: digest(["req-1:scene_ready:run_a", "req-1", "scene_ready", "ops@acme.example", "s", "result", null]) });
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received")).toMatchObject({ status: "sent",
+      deliveryDigest: digest(["req-1:task_received", "req-1", "task_received", "ops@acme.example", "s", "b", "hello@tryblueprint.io"]) });
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:fresh_link:run_a")).toMatchObject({ status: "sent",
+      deliveryDigest: digest(["req-1:fresh_link:run_a", "req-1", "fresh_link", "ops@acme.example", "s", "result", null]) });
   });
 
-  it("binds a scene outcome notice to the same seven fields, so adding the kind changes no claim (C-04)", async () => {
-    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
-    const outcomeHex = "f".repeat(64);
-    // The job page shows this terminal outcome, so dispatch sends it.
-    sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
-      source_session_id: "walkthrough-req-1", created_at_iso: "2026-10-22T00:00:00Z", state: "blocked",
-      pipeline_status: { status: "blocked", phase: "preparation", blockers: ["x"], outcome: {
-        schema_version: "task_evaluation_scene_intent_outcome.v1", intent_id: "scene-one", intent_digest: `sha256:${"d".repeat(64)}`,
-        kind: "held", terminal: true, reason_category: "capability_limit", reason_code: "task_family_unsupported",
-        decided_at_epoch: 1793000000, outcome_digest: `sha256:${outcomeHex}` } } });
-    const key = `req-1:scene_outcome:held-${outcomeHex}`;
-    await enqueueOutbox(entry({ idempotencyKey: key, kind: "scene_outcome", body: "held" }));
-    await deliverOutbox();
-    const digest = (fields: unknown[]) => createHash("sha256").update(JSON.stringify(fields)).digest("hex");
-    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({ status: "sent",
-      deliveryDigest: digest([key, "req-1", "scene_outcome", "ops@acme.example", "s", "held", null]) });
-  });
+  // Owner, 2026-11-19: only the emails the one job needs stay. A row of a retired kind queued before then is cancelled,
+  // never sent, and consumes no attempt.
+  it.each(["video_received", "scene_ready", "answer_ready", "preparation_needs_attention", "listing_live", "robot_team_access_received"])(
+    "cancels a queued %s row at dispatch without sending it", async kind => {
+      sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
+      await enqueueOutbox(entry({ idempotencyKey: `req-1:${kind}`, kind: kind as never }));
+      await deliverOutbox();
+      expect(sharedFakeFirestoreState.docs.get(`captureOutbox/req-1:${kind}`)).toMatchObject({ status: "cancelled", attempts: 0 });
+      expect(sendEmailMock).not.toHaveBeenCalled();
+    });
 });
 
 describe("a failed send retries, then gives up", () => {
@@ -274,7 +267,7 @@ describe("a failed send retries, then gives up", () => {
     const summary = await deliverOutbox();
 
     expect(summary.failed).toBe(1);
-    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
+    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, unknown>;
     expect(doc.status).toBe("pending");
     expect(doc.attempts).toBe(1);
     expect(doc.lastError).toMatch(/smtp down/);
@@ -291,7 +284,7 @@ describe("a failed send retries, then gives up", () => {
 
     expect(await deliverOutbox()).toMatchObject({ exhausted: 1 });
 
-    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
+    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, unknown>;
     expect(doc).toMatchObject({ status: "failed", attempts: 1, lastError: "bad address" });
     // And a further pass does not keep trying a failed message.
     later(2 * 60 * 60 * 1000);
@@ -311,12 +304,12 @@ describe("a failed send retries, then gives up", () => {
     const second = await deliverOutbox();
 
     expect(second.sent).toBe(1);
-    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
+    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, unknown>;
     expect(doc.status).toBe("sent");
   });
 });
 
-const row = () => sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as any;
+const row = () => sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as any;
 const microtasks = async (count: number) => { for (let i = 0; i < count; i++) await Promise.resolve(); };
 
 describe("delivery recovery replays an ambiguous effect only with the same provider key", () => {
@@ -334,7 +327,7 @@ describe("delivery recovery replays an ambiguous effect only with the same provi
     later(61_000);
     await deliverOutbox();
     expect(row()).toMatchObject({ status: "unknown", attempts: 2 });
-    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:video_received")));
+    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:task_received")));
   });
 
   it("preserves dispatch uncertainty when the acceptance write fails, and re-sends only with the same key", async () => {
@@ -359,7 +352,7 @@ describe("delivery recovery replays an ambiguous effect only with the same provi
     later(61_000);
     await deliverOutbox();
     expect(row()).toMatchObject({ status: "sent", attempts: 2, deliveryMessageId: "accepted" });
-    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:video_received")));
+    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:task_received")));
   });
 
   it("defers a row whose dispatch marker cannot be written, without spending an attempt", async () => {

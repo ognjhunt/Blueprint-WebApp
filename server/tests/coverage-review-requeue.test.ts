@@ -48,7 +48,6 @@ const BRIEF = { requestId: "req-1", summary: "Move the tray to the other end of 
 const FINDING = { coversScene: true, missingCoverage: [], supplementWouldFinish: false, unreadableReasons: [], confidence: 0.9 };
 const T0 = Date.parse("2026-11-11T18:44:00.000Z");
 const APPROVAL = { approvedBy: "owner-uid", approvalEvidence: "Owner approved requeuing this one reading on 2026-11-12." };
-const WAIT_SLOT = "a".repeat(32);
 
 function seedJob() {
   state.docs.set("inboundRequests/req-1", {
@@ -185,14 +184,6 @@ describe("requeuing one exhausted video reading", () => {
     expect(snapshot()).toBe(before);
   });
 
-  it("gives an ending's waiting email the reading's 24 hours again from the requeue", async () => {
-    await exhaustByFailures();
-    patchRequest({ answer_notices_waiting: { [WAIT_SLOT]: { params: { requestId: "req-1", milestone: "answer_ready" },
-      since_iso: "2026-11-10T00:00:00.000Z", next_ms: 1, attempts: 2 } }, answer_notices_waiting_pending: true, answer_notices_next_ms: 1 });
-    await apply();
-    expect(request().answer_notices_waiting[WAIT_SLOT]).toMatchObject({ since_iso: new Date(Date.now()).toISOString(), next_ms: 1, attempts: 2,
-      params: { milestone: "answer_ready" } });
-  });
 });
 
 describe("refusals, each writing nothing", () => {

@@ -18,13 +18,6 @@ import { crossRuntimeArtifactDigest, crossRuntimeDigest, matchesCrossRuntimeArti
 export const WEBSITE_JOB_WINDOW_ENDING_FIELD = "website_job_window_ending";
 export const WEBSITE_JOB_WINDOW_ENDING_SCHEMA = "website_job_window_ending.v1";
 
-/**
- * No backfill: a job whose window ended before this instant gets the stored
- * ending and no email. The one place the cutover is written.
- */
-export const WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_ISO = "2026-11-11T00:00:00Z";
-export const WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_EPOCH = Date.parse(WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_ISO) / 1000;
-
 /** What became of the ending's one email when the ending was recorded. */
 export const WEBSITE_JOB_WINDOW_ENDING_NOTICES = [
   /** The email is in the outbox (this write queued it, or an earlier ending of the same job did). */
@@ -35,6 +28,8 @@ export const WEBSITE_JOB_WINDOW_ENDING_NOTICES = [
   "none_no_contact_on_file",
   /** The email for this exact window end was cancelled before it was sent; nothing more can be queued for it. */
   "none_cancelled_before_sending",
+  /** Ending emails were retired (owner, 2026-11-19): the job page states the ending. */
+  "none_emails_retired",
 ] as const;
 export type WebsiteJobWindowEndingNotice = typeof WEBSITE_JOB_WINDOW_ENDING_NOTICES[number];
 
@@ -71,28 +66,6 @@ export function recordedWebsiteJobWindowEnding(record: Record<string, any> | und
   return parsed.data;
 }
 
-/**
- * The ending's one email is a job outcome notice (`scene_outcome`, C-04: every job
- * ends in one terminal state and is told once). The key is the outbox document id.
- * A job's first ending uses the key fixed by the job alone. A later key exists only
- * for an ending whose every earlier email was cancelled before it was sent (the
- * window was reopened first): it names the window end it is for, so it is as
- * deterministic as the first, and the sweep queues it only while no earlier one
- * went out or still can.
- */
-export const WEBSITE_JOB_WINDOW_ENDED_EVENT_ID = "job_window_ended";
-const WINDOW_ENDED_EVENT = /^job_window_ended(?:-[0-9]{1,12})?$/;
-export const isWebsiteJobWindowEndedEventId = (eventId: unknown): eventId is string =>
-  typeof eventId === "string" && WINDOW_ENDED_EVENT.test(eventId);
-export const websiteJobWindowEndedEventId = (windowEndedAtEpoch?: number) => windowEndedAtEpoch === undefined
-  ? WEBSITE_JOB_WINDOW_ENDED_EVENT_ID : `${WEBSITE_JOB_WINDOW_ENDED_EVENT_ID}-${Math.round(windowEndedAtEpoch)}`;
-export const websiteJobWindowEndedNoticeKey = (requestId: string, windowEndedAtEpoch?: number) =>
-  `${requestId.trim()}:scene_outcome:${websiteJobWindowEndedEventId(windowEndedAtEpoch)}`;
-/** Whether an outbox key is one of this job's window-ended emails. */
-export function isWebsiteJobWindowEndedNoticeKey(requestId: string, idempotencyKey: string): boolean {
-  const prefix = `${requestId.trim()}:scene_outcome:`;
-  return idempotencyKey.startsWith(prefix) && WINDOW_ENDED_EVENT.test(idempotencyKey.slice(prefix.length));
-}
 
 /**
  * A job that never received a grant has no window of its own. The same sweep keeps a clock for it
@@ -145,6 +118,8 @@ export const WEBSITE_JOB_NO_GRANT_ENDING_NOTICES = [
   "none_waited_before_this_change",
   /** No backfill: the job's own stored times could not be read when the sweep first saw it, so it is taken as old. */
   "none_age_unknown",
+  /** Ending emails were retired (owner, 2026-11-19): the job page states the ending. */
+  "none_emails_retired",
 ] as const;
 export type WebsiteJobNoGrantEndingNotice = typeof WEBSITE_JOB_NO_GRANT_ENDING_NOTICES[number];
 
@@ -189,13 +164,6 @@ export function recordedWebsiteJobNoGrantEnding(record: Record<string, any> | un
     && matchesCrossRuntimeArtifactDigest(parsed.data, "ending_digest") ? parsed.data : null;
 }
 
-/** The no-grant ending's one email: a job outcome notice under a key fixed by the job alone. */
-export const WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID = "job_no_grant_ended";
-export const isWebsiteJobNoGrantEndedEventId = (eventId: unknown): eventId is string => eventId === WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID;
-export const websiteJobNoGrantEndedNoticeKey = (requestId: string) =>
-  `${requestId.trim()}:scene_outcome:${WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID}`;
-export const isWebsiteJobNoGrantEndedNoticeKey = (requestId: string, idempotencyKey: string) =>
-  idempotencyKey === websiteJobNoGrantEndedNoticeKey(requestId);
 
 /**
  * The new-video ask for a job whose active capture's video was too large for frame extraction
@@ -227,8 +195,3 @@ export function websiteLargeVideoAsk(record: Record<string, any> | undefined, re
   const parsed = largeVideoAskSchema.safeParse(record?.[WEBSITE_LARGE_VIDEO_ASK_FIELD]);
   return parsed.success && parsed.data.request_id === requestId && parsed.data.capture_id === captureId ? parsed.data : null;
 }
-/** The ask's one email, once per capture and blocked video: the key names both through the ask digest. */
-export const websiteLargeVideoAskEventId = (ask: Pick<WebsiteLargeVideoAsk, "capture_id" | "ask_digest">) =>
-  `${ask.capture_id}.${ask.ask_digest.slice(7, 23)}`;
-export const websiteLargeVideoAskNoticeKey = (requestId: string, ask: Pick<WebsiteLargeVideoAsk, "capture_id" | "ask_digest">) =>
-  `${requestId.trim()}:video_too_large:${websiteLargeVideoAskEventId(ask)}`;

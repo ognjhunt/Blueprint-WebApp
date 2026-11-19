@@ -64,9 +64,9 @@ try{for(const c of cases){if(process.env.RELIABILITY_AUTH_CASE_FILTER&&!new RegE
  if(scenario!=='withdrawn_workspace'){const signed=createCaptureUploadToken({requestId,sceneId:`site-${requestId}`,captureId:`walkthrough-${requestId}`,scope:scenario==='withdrawn_signed_film'?'film':'owner'});const endpoint=scenario==='withdrawn_derived_brief'?'':scenario==='withdrawn_derived_items'?'/items':scenario==='withdrawn_derived_followup'?'/follow-up':'/status';route=`/api/site-task-brief/${signed}${endpoint}`;token=null;}}
  if(scenario==='withdrawn_notice_enqueue'){
    const lifecycle=await load('server/utils/taskLifecycleNotifications.ts');
-   const intent=await lifecycle.enqueueTaskLifecycleNotification({requestId,milestone:'scene_ready'});
+   const intent=await lifecycle.enqueueTaskLifecycleNotification({requestId,milestone:'task_received'});
    const queued=await db.collection('captureOutbox').where('requestId','==',requestId).get();
-   trace.steps.push({kind:'actual capture scene-notice producer after durable withdrawal',enqueued:intent.enqueued,durableIntentCount:queued.size});
+   trace.steps.push({kind:'actual job-link notice producer after durable withdrawal',enqueued:intent.enqueued,durableIntentCount:queued.size});
    assert.equal(intent.enqueued,false);assert.equal(queued.size,0);
  }
  const result=await request(route,token,method);trace.steps.push({kind:'actual HTTP through scoped production handlers',status:result.status});assert.equal(result.status,c.parameters.expectedStatus);

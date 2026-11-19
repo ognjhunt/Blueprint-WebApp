@@ -23,7 +23,7 @@ import type { WorldReconstructionRecord } from "../utils/worldReconstruction";
 import { getBrief, TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import { TASK_ITEM_INVENTORY_COLLECTION, type TaskItemInventoryRecord } from "../utils/taskItemInventory";
 import { countsTowardTask, loadWebsiteCaptureRights, loadWebsiteTaskInventory, preparationGrantContextDigest, projectWebsiteTaskContext,
-  siteJobFactsForPipeline, taskContextSiteIdentity } from "../utils/websiteTaskContext";
+  taskContextSiteIdentity } from "../utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "../utils/websiteCaptureBinding";
 import { assertWebsiteRunOpen } from "../utils/websiteRunClosure";
@@ -43,10 +43,6 @@ import {
 } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
 import { isNavigationStrategy, navigationIntakeTask } from "../utils/navigationSceneIntake";
-import {
-  enqueueTaskLifecycleNotification,
-  reconstructionIsViewable,
-} from "../utils/taskLifecycleNotifications";
 
 import { isCaptureOwnerPath, type CaptureOwnerBody } from "../utils/captureOwnerRawBody";
 import { isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PROFILE } from "../utils/policyIntegration";
@@ -92,7 +88,6 @@ async function persistReconstruction(
           updated_at_iso: record.updatedAtIso,
         },
         ...(requestId ? { notification_request_id: requestId } : {}),
-        ...(reconstructionIsViewable(record) ? { scene_notification_pending: true } : {}),
         updated_at_iso: record.updatedAtIso,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
@@ -109,20 +104,6 @@ async function persistReconstruction(
       tx.set(ref, value, { merge: true });
     });
   } else await ref.set(value, { merge: true });
-}
-
-async function notifySceneReady(captureId: string, record: WorldReconstructionRecord) {
-  if (!db || !reconstructionIsViewable(record)) return;
-  try {
-    const snapshot = await db.collection("captureUploadSessions").doc(captureId).get();
-    const requestId = String(snapshot.data()?.notification_request_id ?? "").trim();
-    if (!requestId) return;
-    await enqueueTaskLifecycleNotification({ requestId, milestone: "scene_ready" });
-  } catch (error) {
-    // The ready record is authoritative and already persisted. A repeated
-    // advance call retries this deterministic enqueue without rebuilding it.
-    logger.warn({ error, captureId }, "Could not enqueue scene-ready notice");
-  }
 }
 
 function guard(req: Request, res: Response, next: () => void) {
@@ -205,7 +186,6 @@ router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateL
           colliderMeshUrl: null, splatPlyUrl: null, meshGlbUrl: null, meshExportOperationId: null },
       };
       await persistReconstruction(captureId, record, body.request_id, { digest: body.task_context_digest, captureBinding });
-      await notifySceneReady(captureId, record);
       res.setHeader("Cache-Control", "no-store");
       return res.json({ state: "ready", world_id: body.world_id, task_context_digest: body.task_context_digest });
     } catch (error) {
@@ -592,9 +572,7 @@ router.post(
   guard,
   async (req: Request, res: Response) => {
     const parsed = z.object({ request_id: z.string().trim().min(1).max(200),
-      scene_id: z.string().trim().min(1).max(220), purpose: z.literal("scene_preparation").optional(),
-      // The site's quick answers, for a read that binds nothing (`SITE_JOB_FACTS_FIELD`): never a preparation read.
-      include_site_job_facts: z.literal(true).optional() }).strict().safeParse(req.body);
+      scene_id: z.string().trim().min(1).max(220), purpose: z.literal("scene_preparation").optional() }).strict().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ code: "task_context_request_invalid" });
     const { request_id: requestId, scene_id: sceneId } = parsed.data;
     if (sceneId !== `site-${requestId}`) {
@@ -613,7 +591,7 @@ router.post(
       // The site's identity is removed from its own words for a job created with that rule (`websiteTaskContext.ts`).
       return res.json(projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(requestId), {
         siteIdentity: await taskContextSiteIdentity(record), inventory, captureId: req.params.captureId, captureBinding,
-        purpose: parsed.data.purpose, ...(parsed.data.include_site_job_facts ? { siteJobFacts: siteJobFactsForPipeline(record) } : {}),
+        purpose: parsed.data.purpose,
         preparationGrantContextDigest: preparationGrantContextDigest(record) }));
     } catch (error) {
       const code = error instanceof Error ? error.message : "";

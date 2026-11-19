@@ -44,7 +44,6 @@ const CLAIM_FILES = [
   "server/utils/jobCardAnswer.ts",
   "server/utils/taskLifecycleNotifications.ts",
   "server/utils/captureOutbox.ts",
-  "server/utils/qualificationEmails.ts",
   "client/src/lib/evaluationPricing.ts",
   // Package C1: what a site and a company read about sends and answers.
   "client/src/lib/companyResponses.ts",
@@ -68,7 +67,6 @@ const FRAME_FILES = [
   "client/src/components/site/CaptureRecorder.tsx",
   "client/src/components/site/FilmLinkHandoff.tsx",
   "client/src/components/site/Header.tsx",
-  "client/src/components/site/JobWorkspace.tsx",
   "client/src/components/site/LegalVersionNotes.tsx",
   "client/src/components/site/LoadingScreen.tsx",
   "client/src/components/site/LocationAutocomplete.tsx",

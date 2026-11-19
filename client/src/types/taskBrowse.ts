@@ -125,8 +125,11 @@ export interface CompanyJobPage {
   jobFacts: string[];
   /** The country only, or null when the site gave none we can read. */
   country: string | null;
-  /** The sound-free company clip behind a short ticket, or "The video is being prepared." */
-  video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" };
+  /**
+   * The sound-free company clip behind a short ticket, "The video is being prepared.", or `none`: the site sent the job
+   * with its description only, so there is no video yet.
+   */
+  video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" } | { state: "none" };
   /** "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet". */
   simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */
@@ -137,6 +140,14 @@ export interface CompanyJobPage {
   firstLookRows: CompanyFirstLookRow[];
   /** "And 27 more." when the first look rated more robots than it lists; null otherwise. */
   firstLookMore?: string | null;
+  /**
+   * What the video shows of the job's object, and how sure each figure is (the Pipeline's packet facts, preparation
+   * status v9), each line without contact details or a street address; null until the Pipeline has them. Blueprint's
+   * estimate of something the site answered on its job page is left out: the site's answer is in `jobFacts`.
+   */
+  packetFacts: { object: string[]; measured: string[]; estimated: string[] } | null;
+  /** What nothing in the job packet measured or asked: a company judges these itself. */
+  notShown: string[];
   /** This company's own answer on this job, if any. */
   myAnswer: { state: "interested" | "declined" | "needs_something" | "tested_can_do" | "tested_cannot_yet"; inputs: string; updatedAtIso: string;
     statementVersion: string | null } | null;

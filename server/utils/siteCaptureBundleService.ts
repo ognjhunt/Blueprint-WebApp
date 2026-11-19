@@ -69,7 +69,6 @@ export interface BundleServiceDeps {
     consentAttestation: { granted?: unknown; statement_version?: unknown; recorded_at_iso?: unknown } | null;
   }>;
   loadBrief(requestId: string): Promise<SiteTaskBriefSnapshot | null>;
-  notifyVideoReceived(requestId: string): Promise<void>;
   screenForPrivacy(params: { requestId: string; sceneId: string; captureId: string }): Promise<PrivacyScreenResult>;
   claimPrivacyScreen(params: { requestId: string; captureId: string;
     producerSource: CapturePrivacyProducerSource }): Promise<CapturePrivacyScreenClaim | null>;

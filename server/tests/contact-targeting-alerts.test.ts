@@ -10,8 +10,6 @@ vi.mock('../logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 const send = vi.hoisted(() => vi.fn(async (): Promise<any> => ({ sent: true, provider: 'resend', messageId: 'test' })));
 const fence = vi.hoisted(() => vi.fn(async () => true));
 vi.mock('../utils/email', () => ({ sendEmail: send }));
-vi.mock('../utils/taskStatusUpdates', () => ({ enqueueDueTaskStatusUpdates: vi.fn(), taskStatusUpdateIsCurrent: vi.fn(async () => true), acknowledgeTaskStatusUpdate: vi.fn() }));
-vi.mock('../utils/taskLifecycleNotifications', () => ({ reconcileSceneReadyNotifications: vi.fn(), reconcileWebsitePreparationNotifications: vi.fn() }));
 vi.mock('../utils/taskLifecycleNotificationAuthority', () => ({ taskLifecycleNotificationIsCurrent: fence }));
 import { buildUpdatePreferences } from '../utils/updatePreferences';
 import { accessRecordId, recordAccessApplication, inviteRobotTeam } from '../utils/robotTeamEarlyAccess';

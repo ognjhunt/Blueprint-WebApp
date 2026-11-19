@@ -22,15 +22,12 @@ vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: async (value: s
 vi.mock("../utils/websitePreparationStatus", () => ({
   loadCurrentWebsitePreparationStatus: async (_requestId: string, captureId: string) => seam.notNamed.has(captureId)
     ? { state: "awaiting_inputs", correlationId: null, taskNotNamed: true } : { state: "preparing", correlationId: null },
-  canNotifyCurrentWebsitePreparationIssue: async () => true,
-  drainPendingWebsitePreparationNotifications: async () => ({ enqueued: 0, pending: 0 }),
 }));
 const { jobWaitsForItsSentence: decide, loadJobWaitsForItsSentence } = await import("../utils/jobSentenceWait");
 const { isPlaceholderSummary } = await import("../utils/siteTaskBrief");
 const jobWaitsForItsSentence = (input: { requestId: string; record: Record<string, any>; preparationTaskNotNamed?: boolean;
   brief?: { summary?: string | null; confirmedAtIso?: string | null } | null }) =>
   decide({ brief: null, ...input, isPlaceholder: isPlaceholderSummary });
-const { enqueueTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
 const { jobOutlook } = await import("../utils/jobOutlook");
 
 const REFILMED = `supplement-${"a".repeat(40)}`;
@@ -40,18 +37,15 @@ function atlas(captureId: string, reason = "website_task_not_named") {
     claim_ceiling: "development_only", scale_status: "unscaled_provider_world_units" };
   return { ...value, preview_digest: crossRuntimeArtifactDigest(value, "preview_digest") };
 }
-const EVENT = `sha256:${"e".repeat(64)}`;
 const job = (extra: Record<string, unknown> = {}) => ({ contact: { email: "encrypted:owner@example.com" }, ...extra });
 const outlookFor = (awaitsSiteSentence: boolean) => jobOutlook({ consentRevoked: false, closedByOwner: false,
   answer: { state: "ready", unsized: false, reason: null }, windowEnded: false, noGrantEnded: false,
   preparation: { state: "awaiting_inputs", geometryOnlyEnd: false }, scene: null, proof: null, awaitsSiteSentence });
-const needsAttention = () => enqueueTaskLifecycleNotification({ requestId: "req-1", captureId: "walkthrough-req-1", eventId: EVENT,
-  milestone: "preparation_needs_attention" });
 
 describe("a job waiting for its sentence: one decision", () => {
   beforeEach(() => { sharedFakeFirestoreState.docs.clear(); seam.notNamed.clear(); seam.send.mockReset(); });
 
-  it("a v7 status with the reason and no preview: the outlook, the form and the email all say the site's step", async () => {
+  it("a v7 status with the reason and no preview: the outlook and the form say the site's step", async () => {
     const record = job();
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", record);
     sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", { website_preparation: { status: {} } });
@@ -60,14 +54,12 @@ describe("a job waiting for its sentence: one decision", () => {
     // The form flag reads it the same way.
     expect(await loadJobWaitsForItsSentence("req-1", record)).toBe(true);
     expect(outlookFor(true)).toMatchObject({ phase: "waiting_on_site", reason: "task_not_named" });
-    expect(await needsAttention()).toEqual({ enqueued: false, reason: "awaiting_site_sentence" });
-    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
     // Once the site confirms its sentence, nothing waits on it.
     expect(await loadJobWaitsForItsSentence("req-1", { ...record, site_task_brief_confirmed_at: "2026-11-12T00:00:00Z" })).toBe(false);
   });
 
   // Review, 2026-11-12: the wait ends when the site has answered, even before it confirms its brief.
-  it("a job the site has named (not confirmed) no longer waits: no ask, no form, no email", async () => {
+  it("a job the site has named (not confirmed) no longer waits: no ask, no form", async () => {
     const record = job({ website_atlas_previews: { "walkthrough-req-1": atlas("walkthrough-req-1") } });
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", record);
     expect(await loadJobWaitsForItsSentence("req-1", record)).toBe(true);
@@ -75,8 +67,6 @@ describe("a job waiting for its sentence: one decision", () => {
     expect(await loadJobWaitsForItsSentence("req-1", record)).toBe(false);
     expect(jobWaitsForItsSentence({ requestId: "req-1", record, brief: { summary: "Move the boxes onto the shelf." } })).toBe(false);
     expect(jobWaitsForItsSentence({ requestId: "req-1", record, brief: { summary: "" } })).toBe(true);
-    // Still no "needs attention" email: the Pipeline holds the job for a sentence the site has now given.
-    expect(await needsAttention()).toEqual({ enqueued: false, reason: "awaiting_site_sentence" });
   });
   it("a re-filmed job reads its current capture, never the first one", async () => {
     // The first capture's preview said the job was not named; the site filmed again, and the new one has no such wait.
