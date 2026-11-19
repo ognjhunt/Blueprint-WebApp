@@ -20,7 +20,7 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
-import { companyAnswered, isSiteCompanyActivity, NO_ANSWERS_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
+import { companyAnswered, isSiteCompanyActivity, NO_ANSWERS_YET, NOT_SENT_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
  * The site's job page below its title, bare bones (frame of 2026-11-12). Three sections, in order: where the job
@@ -164,7 +164,9 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
   if (!isSiteCompanyActivity(activity)) return null;
   const sent = activity.sent && Number.isInteger(activity.sent.count) && activity.sent.count > 0 && typeof activity.sent.firstAtIso === "string"
     ? activity.sent : null;
-  if (!sent && activity.entries.length === 0) return null;
+  // Where the job stands, said plainly (not yet sent, sent and waiting, or the answers): the read came back with no send
+  // and no answer, so the job has not gone to any company yet.
+  if (!sent && activity.entries.length === 0) return <p className="bare-helper">{NOT_SENT_YET}</p>;
   async function introduce(alias: string) {
     if (busy) return;
     setBusy(alias); setErrors(current => ({ ...current, [alias]: "" }));

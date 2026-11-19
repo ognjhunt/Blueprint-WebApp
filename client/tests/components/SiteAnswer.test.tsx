@@ -1,4 +1,4 @@
-import { NO_ANSWERS_YET } from "@/lib/companyResponses";
+import { NO_ANSWERS_YET, NOT_SENT_YET } from "@/lib/companyResponses";
 import { INTRODUCTION_CANCELLED } from "@/lib/siteIntroductions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -529,6 +529,44 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(screen.queryByText(NO_ANSWERS_YET)).toBeNull();
   });
 
+  // Where the job stands, said plainly (frame of 2026-11-12): not yet sent, sent and waiting, or the answers.
+  it.each([["visible", VISIBLE], ["preparing", { sharing: { state: "preparing" as const, sharedAtIso: "2026-11-10T09:00:00.000Z" } }],
+    ["not visible", HIDDEN]])("says a shared job (%s) has not been sent to any company yet when the read holds no send", (_, sharing) => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...sharing, companies: { interested: false, sent: null, entries: [] } }} />);
+    expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
+    expect(within(companies()).getByText(NOT_SENT_YET)).toBeVisible();
+    expect(NOT_SENT_YET).toBe("Not sent to any deployment company yet.");
+    expect(within(companies()).queryByText(NO_ANSWERS_YET)).toBeNull();
+    expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("never says Not sent once the job has gone to a company or a company answered", () => {
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
+      companies: { interested: false, sent: { count: 2, firstAtIso: "2026-11-11T10:00:00.000Z" }, entries: [] } }} />);
+    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
+    expect(within(companies()).getByText(NO_ANSWERS_YET)).toBeVisible();
+    unmount();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { ...activity, sent: null } }} />);
+    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
+  });
+
+  it("says nothing about sends without a company read, or for a withdrawn or older job", () => {
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE }} />);
+    expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
+    expect(companies().textContent).not.toMatch(/Not sent|Sent to/);
+    unmount();
+    const unsent = { interested: false, sent: null, entries: [] };
+    const second = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: unsent }} proof={null}
+      outlook={{ phase: "ended_by_site", reason: "permission_withdrawn", sentence: "Permission to use your video was withdrawn, so this job has stopped." }} />);
+    expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible();
+    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
+    second.unmount();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, sharing: { state: "not_shared", sharedAtIso: null, olderStatement: true },
+      companies: unsent }} />);
+    expect(within(companies()).getByText(OLDER_JOB_LINES)).toBeVisible();
+    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
+  });
+
   it("asks for the introduction by alias, then shows what the server reads back", async () => {
     fetchMock.mockResolvedValue(response({ ok: true, introducedAtIso: "2026-11-14T09:00:00.000Z" }));
     const changed = vi.fn();
@@ -610,6 +648,8 @@ describe("the deployment companies section, with sends, answers and introduction
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
       companies: { interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "x", state: "maybe" }] } as never }} />);
     expect(within(companies()).queryByRole("list")).toBeNull();
+    // A read of the wrong shape holds no fact about sends, so nothing is said about them.
+    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
   });
 });
 

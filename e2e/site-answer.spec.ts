@@ -22,6 +22,8 @@ const OLDER = "Not shared yet.";
 const AGREE = "Agree and send my job";
 const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
 const SHARED = "We share your job with the deployment companies we approve.";
+/** A shared job the read shows has gone to no company yet. */
+const NOT_SENT = "Not sent to any deployment company yet.";
 /** The recorded statement, word for word: only the words around it changed. */
 
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
@@ -144,10 +146,12 @@ test("the job page leads with deployment companies and the first look, and shows
 test("while the simulation of the site is being built, the page says so, with the first look and nothing to share", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page, { evaluation: { ...preparingEvaluation, screening: { candidates: [] } },
-    sharing: { state: "preparing", sharedAtIso: "2026-11-11T15:00:00.000Z" } });
+    sharing: { state: "preparing", sharedAtIso: "2026-11-11T15:00:00.000Z" }, companies: { interested: false, sent: null, entries: [] } });
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
   await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(SHARED, { exact: true })).toBeVisible();
+  // Where the job stands, said plainly: shared, and not sent to any company yet.
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(NOT_SENT, { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Simulation of your site" }).getByText("We're building the simulation of your site.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();
   await expect(job.getByRole("navigation", { name: "More" })).toHaveText("See details ›Job settings ›");

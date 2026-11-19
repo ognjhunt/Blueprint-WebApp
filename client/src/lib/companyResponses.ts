@@ -92,6 +92,13 @@ export const sentToCompanies = (count: number, date: string) =>
  */
 export const NO_ANSWERS_YET = "No answers yet.";
 
+/**
+ * Under the sharing sentence while the job is shared and the site's company read came back with no send and no answer
+ * (the job waits for its video check, or for the automatic send). Said only from a read that holds that fact: with no
+ * read at all the page says nothing about sends.
+ */
+export const NOT_SENT_YET = "Not sent to any deployment company yet.";
+
 /** The site's sentences. */
 export const sentToCompany = (alias: string, date: string) => `Sent to ${alias} on ${date}.`;
 export const companyAnswered = (alias: string, date: string, state: CompanyResponseState) =>

@@ -172,6 +172,8 @@ test.describe("desktop", () => {
     await page.reload();
     await expectFirstLook(page);
     expect((await jobRecord(request, requestId)).access).toMatchObject({ listed: true });
+    // Where the job stands, said plainly: shared, and not sent to any company yet (no company is approved yet).
+    await expect(companies(page)).toContainText("Not sent to any deployment company yet.");
 
     // 3. A deployment company applies, staff approve it, and it accepts the current Terms (signed in, in the browser).
     const applyHeaders = await csrf(request);
@@ -267,6 +269,7 @@ test.describe("desktop", () => {
     await page.reload();
     const entries = companies(page);
     await expect(entries).toContainText(/Sent to 1 deployment company on .+\./, { timeout: 30_000 });
+    await expect(entries).not.toContainText("Not sent to any deployment company yet.");
     await expect(entries).toContainText(/Company A answered on .+: Interested\./);
     await expect(page.locator("body")).not.toContainText(company.name);
     await expect(page.locator("body")).not.toContainText(company.email);
