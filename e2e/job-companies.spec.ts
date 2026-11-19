@@ -119,7 +119,7 @@ test("a signed-in company opens a job from the library, watches the video and an
     if (url.pathname === "/api/site-worlds/tasks") return route.fulfill({ json: {
       access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false },
       items: [{ id: JOB, title: "Carton palletizing opportunity", taskFamily: "Pallet handling", siteType: "", region: "", objects: "Cartons",
-        cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open", stage: "preparing", evaluationAvailable: false, costUsd: null,
+        cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open", stage: "preparing", evaluationAvailable: false,
         publishedAtIso: "2026-11-12T10:00:00.000Z", thumbnailUrl: null, jobUrl: `/jobs/${JOB}` }] } });
     if (url.pathname === `/api/site-worlds/jobs/${JOB}`) return route.fulfill({ json: { item: {
       schemaVersion: "company_job_page.v1", id: JOB, title: "Carton palletizing opportunity", taskFamily: "Pallet handling",

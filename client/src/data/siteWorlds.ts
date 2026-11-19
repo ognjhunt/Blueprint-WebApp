@@ -44,21 +44,10 @@ export type SiteWorldPackageName = "Site Package" | "Policy Evaluation Set";
 export type SiteWorldPackage = {
   name: SiteWorldPackageName;
   summary: string;
-  priceLabel: string;
-  payerLabel: string;
   actionLabel: string;
   actionHref: string;
   deliverables: string[];
   emphasis?: "default" | "recommended";
-};
-
-export type SiteWorldAgentCommerce = {
-  packageSku: string;
-  hostedSessionSku: string;
-  quoteHref: string;
-  dryRunCheckoutHref: string;
-  entitlementReadinessHref: string;
-  truthLabels: Array<"dry_run_order" | "request_gated" | "protected_robot_team">;
 };
 
 export type ConfiguredScenePublicOfferingCard = {
@@ -138,7 +127,6 @@ export type SiteWorldCard = {
   robotProfiles: RobotProfile[];
   exportModes: string[];
   packages: [SiteWorldPackage, SiteWorldPackage];
-  agentCommerce?: SiteWorldAgentCommerce;
   dataSource?: "pipeline";
   evaluationReadiness?: EvaluationReadinessSummary;
   presentationDemoReadiness?: {

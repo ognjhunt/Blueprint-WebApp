@@ -825,8 +825,6 @@ export interface PublicSiteWorldRecord {
   packages: Array<{
     name: string;
     summary: string;
-    priceLabel: string;
-    payerLabel: string;
     actionLabel: string;
     actionHref: string;
     deliverables: string[];

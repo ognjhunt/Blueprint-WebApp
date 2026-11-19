@@ -28,7 +28,7 @@ const ANSWER: JobCardAnswerSummary = {
 };
 const card = (overrides: Partial<TaskBrowseCard> = {}): TaskBrowseCard => ({
   id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling", siteType: "", region: "", objects: "Cartons",
-  cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open", stage: "capture", evaluationAvailable: false, costUsd: null,
+  cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open", stage: "capture", evaluationAvailable: false,
   publishedAtIso: "2026-11-11T10:00:00.000Z", thumbnailUrl: null, ...overrides });
 const access = { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false };
 

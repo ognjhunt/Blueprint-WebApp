@@ -23,7 +23,7 @@ import { logger } from "../logger";
 import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
   type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
-import { buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
+import { billableEventRef, buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
 import { COMPANY_RESPONSES_COLLECTION, INTRODUCTIONS_COLLECTION, answerConsentsToIntroduction, companyJobUrl,
   storedAliases } from "./jobCompanies";
 import { companyMaySeeJobs } from "./companyTerms";
@@ -106,13 +106,16 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     if (!record || !access.listed) return { ok: false, reason: "not_listed" };
     const companyId = letter ? Object.entries(storedAliases(record)).find(([, value]) => value === letter)?.[0] : undefined;
     if (!companyId) return { ok: false, reason: "not_interested" };
-    const [companySnap, answerSnap, introSnap, introductions] = [
+    const [companySnap, answerSnap, introSnap, introductions, eventSnap] = [
       await tx.get(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId)),
       await tx.get(jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(companyId)),
       await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId)),
-      await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(INTRODUCTION_READ_LIMIT))];
+      await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(INTRODUCTION_READ_LIMIT)),
+      await tx.get(billableEventRef(input.requestId, companyId))];
     // One introduction per company per job. One cancelled at dispatch (G3) is not made again: its emails' keys are spent.
-    if (introSnap.exists) return { ok: false, reason: "already_introduced" };
+    // The billable event is the money record of the pair: one on record (even void, even without its introduction
+    // record) refuses too, so a pair is never recorded twice and an event is never rewritten.
+    if (introSnap.exists || eventSnap.exists) return { ok: false, reason: "already_introduced" };
     const company = companySnap.data() as RobotTeamAccessRecord | undefined;
     if (!company || !companyMaySeeJobs(company)) return { ok: false, reason: "company_not_approved" };
     const answer = answerSnap.data();

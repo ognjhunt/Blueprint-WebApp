@@ -26,7 +26,6 @@ export interface TaskBrowseCard extends TaskListingDetails {
    */
   simulationStage?: LibraryJobStage | null;
   evaluationAvailable: boolean;
-  costUsd: number | null;
   publishedAtIso: string;
   thumbnailUrl: string | null;
   /** The company's page for this job (`/jobs/:jobId`). */
