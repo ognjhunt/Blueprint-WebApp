@@ -109,7 +109,8 @@ describe("JobFacts", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(first);
     await waitFor(() => expect(screen.getByText("How big is it, on its longest side?")).toBeTruthy());
-    expect(document.activeElement).toBe(screen.getByText("How big is it, on its longest side?"));
+    // Focus moves in an effect after the next question renders, so wait for it rather than read it in the same tick.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText("How big is it, on its longest side?")));
   });
 
   it("stays on the question when a save fails while changing an answer, and says so", async () => {
