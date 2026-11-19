@@ -34,6 +34,9 @@ describe("partner applications", () => {
     })));
     expect(screen.getByRole("heading", { name: "Your application is saved." })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Applying does not approve access");
+    // Approval is once; after it every job sites send is shown, with no person matching jobs to companies (2026-11-12).
+    expect(screen.getByRole("status")).toHaveTextContent("Once approved, you see the jobs sites send us, and if you asked for job emails, we email you when a new one arrives.");
+    expect(screen.getByRole("status").textContent).not.toMatch(/contact you when|when a job and what you do fit/i);
   });
 
   it("retains a technology application when saving fails, and permits a retry", async () => {

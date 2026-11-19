@@ -147,6 +147,10 @@ const RULES: Rule[] = [
   { name: "deployment companies judging the job", test: sentence => /deployment compan\w*[^.]{0,60}\bjudg|\bjudg\w*[^.]{0,60}deployment compan/i.test(sentence) },
   // No price anywhere a site or a company reads (the legal pages are not scanned here).
   { name: "a price", test: sentence => /[$€£]\s?\d/.test(sentence) },
+  // Sharing is the service (owner, 2026-11-12): agreed once when the site sends the job, with no share button, no share
+  // setting and no pause. No sentence offers a site the choice, the button or a way to pause or keep a sent job private.
+  { name: "a share step, share setting or pause", test: sentence =>
+    /\bshare my job\b|\b(choose|chooses|choosing)\s+(whether\s+)?to\s+share\b|\byou can share\b|\bthen you can share\b|\b(pause|resume|stop)\s+sharing\b|\bkeep\s+(it|your job|this job)\s+private\b/i.test(sentence) },
 ];
 
 /** A rule a file may break because the file holds a recorded statement that must stay word for word. */
@@ -266,6 +270,9 @@ describe("public words claim only what the code does", () => {
       "export const K = \"Your answer is ready: the paper check.\";",
       "export const L = \"A job packet robot deployment companies can judge.\";",
       "export const M = \"Each job costs $1,000 to evaluate.\";",
+      "export const N = \"Approved companies see the jobs sites choose to share.\";",
+      "export const O = <button>Share my job</button>;",
+      "export const P = \"You can pause sharing from Job settings.\";",
       "const swap: Array<[RegExp, string]> = [[/your (video)/g, \"the site's $1\"]];",
     ].join("\n");
     const findings = publicClaimFindings(file => (file === FILES[0] ? sample : ""));
@@ -275,6 +282,7 @@ describe("public words claim only what the code does", () => {
       "a promise of which one did best",
       "the old frame's \"top AI robots\"", "the old frame's \"AI robot\"",
       "the old frame's \"paper check\"", "the old frame's \"your answer\"",
-      "deployment companies judging the job", "a price"]);
+      "deployment companies judging the job", "a price",
+      "a share step, share setting or pause", "a share step, share setting or pause", "a share step, share setting or pause"]);
   });
 });
