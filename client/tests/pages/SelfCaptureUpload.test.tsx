@@ -510,6 +510,41 @@ describe("video first owner return", () => {
     expect(screen.getByText(/^Walk slowly in a half circle around where the job happens, keeping it in view\. Move slowly and overlap your passes/))
       .not.toBeVisible();
   });
+  it("offers introductions and withdrawal on a shared description before recording consent", async () => {
+    const fallback = ownerFetch(true);
+    let withdrawn = false;
+    const json = (body: unknown) => Promise.resolve({ ok: true, json: async () => body });
+    const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/introductions")) return json({ ok: true });
+      if (url.endsWith("/withdrawal")) {
+        if (init?.method === "POST") withdrawn = true;
+        return json({ withdrawn, withdrawal: withdrawn ? { descriptionOnly: true, requestedAtIso: null } : null });
+      }
+      if (url === `/api/site-task-brief/${TOKEN}/status`) return json({
+        scope: "owner", captureReceived: false, answer: null,
+        status: { decision: "record", headline: "Your job is saved.", operatorAction: null, missingViews: [], nextUpdateIso: null },
+        companyStatus: { descriptionOnly: true, sharing: { state: "visible", sharedAtIso: null }, companies: {
+          entries: [{ kind: "answered", alias: "Company A", atIso: "2026-11-19T15:00:00Z", state: "interested", canIntroduce: true }],
+          sent: null, interested: true, introductions: { used: 0 },
+        } },
+      });
+      return fallback(input, init);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByRole("button", { name: "Introduce us" }));
+    await waitFor(() => expect(fetcher.mock.calls.some(([url, init]) =>
+      String(url).endsWith("/introductions") && init?.method === "POST")).toBe(true));
+    expect(screen.getByRole("heading", { name: "Add a video (optional)" })).toBeVisible();
+    fireEvent.click(screen.getByText("Withdraw my job"));
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw job…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw job" }));
+    expect(await screen.findByText("Job withdrawn.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Introduce us" })).not.toBeInTheDocument();
+    expect(fetcher.mock.calls.some(([url]) => String(url).endsWith("/recording-consent"))).toBe(false);
+  });
+
   it("lets the owner link withdraw recording permission after an explicit confirmation", async () => {
     const fetcher = ownerFetch(false);
     // Once withdrawn, a read of the withdrawal returns it, as the server does.

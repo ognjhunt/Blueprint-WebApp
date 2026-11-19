@@ -11,10 +11,11 @@ import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/Robot
 import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/components/site/RobotFitHold";
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
-import { SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type DetailScreen } from "@/components/site/SiteAnswer";
+import { JobCompanyResponses, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type DetailScreen } from "@/components/site/SiteAnswer";
 import { type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
-import { REASON_UNSIZED, isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
+import { REASON_UNSIZED, isSiteAnswer, type JobSharing, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
+import { isSiteCompanyActivity, type SiteCompanyActivity } from "@/lib/companyResponses";
 import { projectSimulationProof } from "@/lib/simulationProof";
 import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
 /**
@@ -84,6 +85,7 @@ type TaskStatus = {
   successThresholds?: SuccessThresholdsView | null;
   /** The site's answer: which robot most likely fits, for the owner only. A fit check, never a physical test. */
   answer?: SiteAnswerView | null;
+  companyStatus?: { sharing: JobSharing; companies?: SiteCompanyActivity; descriptionOnly: boolean } | null;
 };
 
 /** Decisions that ask something of the site, or end the job: the status card stays for them under any answer. */
@@ -594,6 +596,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             robotFitHold: data.scope === "owner" && isRobotFitHold(data.robotFitHold) ? data.robotFitHold : null,
             successThresholds: data.scope === "owner" && isSuccessThresholds(data.successThresholds) ? data.successThresholds : null,
             answer: data.scope === "owner" && isSiteAnswer(data.answer) ? data.answer : null,
+            companyStatus: data.scope === "owner" && data.companyStatus?.sharing ? {
+              sharing: data.companyStatus.sharing,
+              companies: isSiteCompanyActivity(data.companyStatus.companies) ? data.companyStatus.companies : undefined,
+              descriptionOnly: data.companyStatus.descriptionOnly === true,
+            } : null,
           });
         } else if (alive) readFailed(false);
       } catch { if (alive) readFailed(false); }
@@ -657,6 +664,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // The answer leads the page once there is one. It never waits on the brief, so the brief's
   // forms below become an optional correction of the job we read from the video.
   const answer = saved && scope === "owner" && currentStatusKnown ? status?.answer ?? null : null;
+  const companyStatus = scope === "owner" && currentStatusKnown ? status?.companyStatus : null;
+  const descriptionShared = companyStatus?.descriptionOnly === true;
   const answerSettled = answer?.state === "ready" || answer?.state === "cannot_assess";
   // What the simulation of the site showed about the answer's robot (its reach in the scene), for the details screen.
   const robotFit = status?.robotFit ?? null;
@@ -813,11 +822,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </button>}
     </details>
   ) : null;
-  // The way to stop exists once there is something to stop: a video, or a recording permission given (a valid link),
-  // or a withdrawal already recorded. A held link still asking for recording permission has nothing to withdraw yet.
+  const stopLabel = descriptionShared ? "Withdraw my job" : "Stop using my video";
   const withdrawal = scope === "owner" && (link.status === "valid" || link.status === "held")
-    && (saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
-    <OwnerRecordingWithdrawal token={token} onStatus={closeForWithdrawal} summaryLabel={answer || !saved ? "Stop using my video" : undefined} onWithdrawn={() => { closeForWithdrawal(); setLink({ status: "held",
+    && (descriptionShared || saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
+    <OwnerRecordingWithdrawal token={token} onStatus={closeForWithdrawal} descriptionOnly={descriptionShared}
+      summaryLabel={answer || !saved ? stopLabel : undefined} onWithdrawn={() => { closeForWithdrawal(); setLink({ status: "held",
       detail: "Recording permission was withdrawn. This link no longer accepts footage.",
       blockers: [], openQuestions: [], holdReason: "recording_consent_withdrawn" }); }} />
   ) : null;
@@ -890,7 +899,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       ...(processingSection ? [{ key: "processing", label: "Processing", body: processingSection }] : []),
       ...(advisory ? [{ key: "advisory", label: "Processing details", body: advisory }] : []),
       { key: "contact", label: "Contact Blueprint about this job", href: "mailto:hello@tryblueprint.io" },
-      ...(withdrawal ? [{ key: "stop", label: "Stop using my video", body: withdrawal }] : []),
+      ...(withdrawal ? [{ key: "stop", label: stopLabel, body: withdrawal }] : []),
     ]} />
     {videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
   </>;
@@ -943,6 +952,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         outlook={status?.outlook ?? null} sceneViewUrl={sceneViewUrl}
         successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null}
         firstLookTable={status?.firstLookTable ?? null} />}
+      {!answer && companyStatus && companyStatus.sharing.state !== "not_shared" && (
+        <JobCompanyResponses token={token} sharing={companyStatus.sharing} activity={companyStatus.companies}
+          onChanged={() => setStatusRefresh(value => value + 1)}
+          ended={status?.outlook?.phase === "ended_by_site" ? "closed" : null} />
+      )}
       {/* The answer asks for the job's sentence: the form to give it sits right under it, not in the settings. */}
       {answer && taskStatementForm}
       {jobFacts && siteActionWaiting && jobFacts}
@@ -976,8 +990,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         <>
           {scope === "owner" && link.recordingConsentAvailable && (
             <section aria-label="Confirm recording permission" style={{ marginBottom: "24px" }}>
-              <h2>Record your job</h2>
-              <p className="ms-field-hint">We need your video to build the simulation of your site and the job packet deployment companies answer from. Agree to continue. Blueprint drafts the job description from it.</p>
+              <h2>{descriptionShared ? "Add a video (optional)" : "Record your job"}</h2>
+              <p className="ms-field-hint">{descriptionShared
+                ? "You can add a video to help companies evaluate your job and let us build a simulation of your site."
+                : "We need your video to build the simulation of your site and the job packet deployment companies answer from. Agree to continue. Blueprint drafts the job description from it."}</p>
               <p className="ms-field-hint">{FILMING_NOTICE}</p>
               {/* Recording statement v4, the one sentence a site agrees to with its video; pressing the button is the act. */}
               <p data-consent-line>{RECORDING_RIGHTS_STATEMENT_V4}</p>

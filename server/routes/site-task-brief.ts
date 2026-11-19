@@ -1142,29 +1142,22 @@ function bareSiteAnswerForStatus(params: StatusAnswerParams | null) {
   return import("../utils/siteAnswer").then(({ loadSiteAnswer }) => loadSiteAnswer(params.requestId, { request: params.request,
     brief: (params.brief ?? null) as never, videoReceived: params.videoReceived, robotFit: (params.robotFit ?? null) as never }));
 }
-async function siteAnswerForStatus(params: StatusAnswerParams | null,
-  bare: Promise<Awaited<ReturnType<typeof bareSiteAnswerForStatus>>> = bareSiteAnswerForStatus(params)) {
+/** Company replies belong to the job, even before there is evidence for a first look. */
+async function siteCompanyStatus(params: StatusAnswerParams | null) {
   if (!params) return null;
   try {
-    const answer = await bare;
-    if (!answer) return null;
-    // Where the job stands with companies, by the whole rule a company's own reads use (review M1).
-    const whole = await import("../utils/teamJobAccess").then(({ loadCompanyJobAccess }) =>
-      loadCompanyJobAccess(params.requestId, params.request as Record<string, any>)).catch(() => null);
-    if (whole) {
-      const { jobSharingOf } = await import("../utils/siteAnswer");
-      Object.assign(answer, { sharing: jobSharingOf(params.request as Record<string, any>, whole.access) });
-    }
-    // Which approved companies the job was sent to and what each answered, by alias until the site asks for an
-    // introduction (`jobCompanies.ts`): a company's name and contact details only for a company it was introduced to,
-    // never a company's words. Only for a job shared under the current statement: an older job shows none. A read that
-    // fails shows none, never a broken page.
-    if (answer.sharing.state === "not_shared") return answer;
-    const companies = await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
-      .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return null; });
-    return companies ? { ...answer, companies } : answer;
+    const [{ loadCompanyJobAccess }, { jobSharingOf }, { descriptionStatementShares }] = await Promise.all([
+      import("../utils/teamJobAccess"), import("../utils/siteAnswer"), import("../utils/jobSharedListing"),
+    ]);
+    const { access } = await loadCompanyJobAccess(params.requestId, params.request);
+    const sharing = jobSharingOf(params.request, access);
+    const descriptionOnly = descriptionStatementShares(params.request) && sharing.state !== "not_shared";
+    const companies = sharing.state === "not_shared" ? undefined
+      : await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
+        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; });
+    return { sharing, companies, descriptionOnly };
   } catch (error) {
-    logger.warn({ error, requestId: params.requestId }, "Could not compose the site's answer");
+    logger.warn({ error, requestId: params.requestId }, "Could not read the job's company status");
     return null;
   }
 }
@@ -1290,9 +1283,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
         robotFit: preparationStatus?.robotFit ?? null } : null;
     // The outlook needs only the answer's state and reason: it gets the bare answer, not the company reads after it.
-    const bareAnswerWork = bareSiteAnswerForStatus(answerParams);
-    bareAnswerWork.catch(() => undefined);
-    const ownerAnswerWork = siteAnswerForStatus(answerParams, bareAnswerWork);
+    const bareAnswerWork = optional("first-look assessment", () => bareSiteAnswerForStatus(answerParams));
+    const companyStatusWork = siteCompanyStatus(answerParams);
     // The job's outlook, from the one shared loader every caller uses (review, 2026-11-11), given what this read
     // already holds so it reads the Pipeline no second time. Where this read did not read the preparation status
     // (a video before the account, withdrawn permission) or the capture session, the loader reads them itself. A
@@ -1305,12 +1297,12 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           session: captureSession.data(), preparationStatus, sceneProgression: sceneProgressionWork, answer: bareAnswerWork,
           brief } : undefined)))
       : Promise.resolve(null);
-    const [sceneProgression, successThresholds, ownerAnswer] = await Promise.all([
+    const [sceneProgression, successThresholds, ownerAnswer, companyStatus] = await Promise.all([
       sceneProgressionWork,
       // The job's proposed success thresholds, for the owner to confirm: they exist only once the scene is handed off.
       payload.scope === "owner" && preparationStatus?.state === "handed_off"
         ? loadOwnerSuccessView(payload.requestId, payload.captureId) : null,
-      ownerAnswerWork,
+      bareAnswerWork, companyStatusWork,
     ]);
     // The site's answer to the optional question about the guessed object to move, bound to this exact source.
     const targetChoiceAnswer = payload.scope === "owner" && preparationStatus
@@ -1435,7 +1427,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // How the robots are scored, for the owner only: confirm, or say it is wrong. Never a number to edit.
       successThresholds: payload.scope === "owner" && !request?.captureRights.consent_revoked ? successThresholds : null,
       // Which robot most likely fits the job, for the owner only: a fit check against published specifications.
-      answer: ownerAnswer,
+      answer: ownerAnswer && companyStatus ? { ...ownerAnswer, sharing: companyStatus.sharing, companies: companyStatus.companies } : ownerAnswer,
+      companyStatus,
       // The site's tap answers to the few quick questions (PACKAGE_E E1), for the owner only.
       jobFacts: payload.scope === "owner" && request && !request.captureRights.consent_revoked ? readJobFacts(request.answerSource) : null,
       // The first look as the Pipeline's published table words it (conditional rows said plainly), for the owner only.
