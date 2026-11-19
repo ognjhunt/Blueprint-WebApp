@@ -137,7 +137,7 @@ export async function recordAccessApplication(
   options: { fit?: AccessFit | null; applicationTermsAcceptance?: unknown } = {},
 ): Promise<{ record: RobotTeamAccessRecord; created: boolean; unchanged?: true; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
-  const { prepareAccessEmail } = await import("./robotTeamAccessEmails");
+  const { NO_ACCESS_EMAIL } = await import("./robotTeamAccessEmails");
   const email = normalizeAccessEmail(application.email);
   const ref = db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(accessRecordId(email));
   const now = new Date().toISOString();
@@ -148,8 +148,7 @@ export async function recordAccessApplication(
     // technology partner, anything but pending) changes NOTHING on it, and sends nothing. The route answers exactly as
     // for a new application, so it does not reveal that the email is known (planner, 19:50Z, G1).
     if (prior && prior.status !== "applied") {
-      return { record: prior, created: false, unchanged: true as const,
-        notification: { status: "queued", outboxStatus: "pending", outboxId: null } };
+      return { record: prior, created: false, unchanged: true as const, notification: NO_ACCESS_EMAIL };
     }
     const record: RobotTeamAccessRecord = {
       ...application,
@@ -174,10 +173,9 @@ export async function recordAccessApplication(
       // company see a job; only the signed-in "I agree" does (`companyTerms.ts`).
       ...(options.applicationTermsAcceptance ? { applicationTermsAcceptance: options.applicationTermsAcceptance } : {}),
     };
-    const notice = await prepareAccessEmail(tx, { recordId: ref.id, record, kind: "robot_team_access_received", resend: false });
+    // No receipt by email: the form says it was received (owner, 2026-11-19).
     tx.set(ref, record);
-    notice.write();
-    return { record, created: !prior, notification: notice.notification };
+    return { record, created: !prior, notification: NO_ACCESS_EMAIL };
   });
 }
 
@@ -186,8 +184,6 @@ export async function decideAccessApplication(params: {
   status: Exclude<RobotTeamAccessStatus, "applied">;
   note: string | null;
   decidedBy: string;
-  /** A reviewer may handle a decline personally. Approval always queues its invitation. */
-  notify?: boolean;
 }): Promise<{ record: RobotTeamAccessRecord; notification: AccessEmailNotification } | null> {
   if (!db) throw new Error("firestore_unavailable");
   const { prepareAccessEmail, NO_ACCESS_EMAIL } = await import("./robotTeamAccessEmails");
@@ -208,9 +204,9 @@ export async function decideAccessApplication(params: {
       updatedAtIso: now,
     };
     const record = { ...prior, ...update };
-    const kind = record.status === "approved" ? "robot_team_access_approved"
-      : params.notify === false ? null : "robot_team_access_not_yet";
-    const notice = kind ? await prepareAccessEmail(tx, { kind, recordId: params.id, record }) : null;
+    // Only an approval is emailed (owner, 2026-11-19).
+    const notice = record.status === "approved"
+      ? await prepareAccessEmail(tx, { kind: "robot_team_access_approved", recordId: params.id, record }) : null;
     tx.set(ref, update, { merge: true });
     notice?.write();
     return { record, notification: notice?.notification ?? NO_ACCESS_EMAIL };

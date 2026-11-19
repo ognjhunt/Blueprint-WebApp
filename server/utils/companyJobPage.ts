@@ -99,12 +99,11 @@ export { knownSiteIdentity };
 
 /** What nothing in a job packet measures or asks: a company judges these itself. True of every packet. */
 export const PACKET_NOT_SHOWN = [
-  "No test at the site: everything here comes from one video and the simulation built from it.",
+  "No test at the site: everything here comes from what the site sent and what Blueprint built from it.",
   "No safety assessment of any robot at this site.",
   "The way in: the route from the site's entrance to the job, its doorways, aisle widths, steps, ramps and floor "
-    + "surface were not measured. The simulation holds only what the video filmed.",
-  "The surroundings: lighting, how busy the area is and whether people work near the job were not assessed; the "
-    + "video shows what it filmed.",
+    + "surface were not measured. A simulation holds only what the video filmed.",
+  "The surroundings: lighting, how busy the area is and whether people work near the job were not assessed.",
   "The site's safety rules (guarding, speed limits, distances to keep from people, hours people are present) were not asked.",
 ] as const;
 /** The site's quick question each Pipeline estimate answers (`PACKET_FACT_QUESTIONS`), as the job page keys it. */

@@ -1,12 +1,9 @@
-import { waitingAnswerNoticeFields } from "./answerNoticeOwed";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
-import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { KNOWN_PREPARATION_OUTCOME_CATEGORIES, KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS,
   PREPARATION_NOT_POSSIBLE_REASON, PREPARATION_NOT_POSSIBLE_CAUSES, PREPARATION_OUTCOME_KEYS, PREPARATION_RETRIES_SPENT_REASON, TASK_NOT_NAMED_REASON, pipelineAsksForSentence } from "./taskPreparationOutcome";
-import { noteUnknownPipelineCode, noteUnknownPipelineCodes } from "./unknownPipelineCode";
-import { logger } from "../logger";
+import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
 import { isKnownTaskChoiceQuestion, TASK_CHOICE_CANDIDATE_KEYS, TASK_CHOICE_PICTURE_KEYS, TASK_CHOICE_QUESTION_KEYS,
@@ -15,7 +12,6 @@ import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { automationBatch } from "./automationBatch";
 import { strictBoundedProofJson } from "./strictBoundedProofJson";
 import { observeWebsiteCaptureOwner } from "./websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "./websiteCaptureOwnerTransport";
@@ -345,28 +341,6 @@ export type PublicWebsitePreparationStatus = {
   /** Only from a v6 receipt: the robot fit precheck made before any spend, and its hold when none fits. */
   robotFitPrecheck?: PublicRobotFitPrecheck | null;
 };
-export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended" | "preparation_resumed";
-export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string;
-  milestone: WebsitePreparationNoticeMilestone; terminalReason: WebsitePreparationTerminalReason | null;
-  /** Set when this needs-attention notice may be the Pipeline's early task hold, whose reason only the separately
-   * delivered Atlas preview carries: the notice waits for that preview until this time, then goes out generic. */
-  awaitEarlyHoldUntilMs?: number;
-  /** Set when the status's outcome is a stop only a new video clears: the notice is then the page's new-video ask. */
-  recaptureReason?: RecaptureReason;
-  /** Set when the status's outcome is a part-6 ending: the notice then says the page's own words for it. */
-  preparationEnding?: {reason: "website_preparation_not_possible" | "website_preparation_retries_spent"; cause?: string}};
-/**
- * How long a needs-attention notice that may be an early task hold waits for the Atlas preview naming its reason.
- * The Pipeline retries a failed preview delivery after min(3600, 30 * 2^attempts) seconds
- * (`website_atlas_preview._deliver`), so retries land about 1, 3, 7, 15, 31 and 63 minutes after the first
- * failure, then about 123 minutes (the first capped, one-hour wait). This covers that retry with a 12-minute margin.
- */
-export const EARLY_HOLD_PREVIEW_WAIT_MS = 135 * 60 * 1000;
-/** Beside `website_preparation`, never inside it, so a release whose strict parser predates it still reads the row. */
-export const WEBSITE_PREPARATION_NOTICE_OWED_FIELD = "website_preparation_notice_owed";
-/** A status that is an early task hold looks like this: waiting on inputs with no finding of its own. */
-const mayBeEarlyTaskHold = (status: WebsitePreparationReceipt) =>
-  status.state === "awaiting_inputs" && (!("outcome" in status) || status.outcome === null);
 export interface StoredWebsitePreparation {
   selector: WebsitePreparationSelector; status: WebsitePreparationReceipt;
   notification: { eventId: string; state: "pending" | "enqueued" } | null;
@@ -391,16 +365,6 @@ export function nextWebsitePreparationWatch(previous: WebsitePreparationWatch | 
     attempt_count: status.attempt_count, due_at_ms: nowMs + stuckAlertMs()};
 }
 
-/** A pending row, with when its notice was first owed when that was recorded (rows from older releases lack it). */
-export type PendingWebsitePreparation = StoredWebsitePreparation & { owedSinceMs?: number };
-const owedSchema = z.object({event_id: digest, since_ms: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)}).strict();
-/** When the pending notice was first owed, kept across replays of the same event; null when nothing is pending. */
-function noticeOwed(preparation: StoredWebsitePreparation, prior: unknown, nowMs: number) {
-  const notice = preparation.notification;
-  if (notice?.state !== "pending") return null;
-  const kept = owedSchema.safeParse(prior);
-  return kept.success && kept.data.event_id === notice.eventId ? kept.data : {event_id: notice.eventId, since_ms: nowMs};
-}
 export interface PreparationAuthority { fingerprint: string; binding?: Record<string, any>; owner: string | null;
   sponsorshipDigest?: string }
 export interface WebsitePreparationDeps {
@@ -408,49 +372,8 @@ export interface WebsitePreparationDeps {
   verifyCurrent(selector: WebsitePreparationSelector, transaction?: FirebaseFirestore.Transaction, signal?: AbortSignal): Promise<PreparationAuthority>;
   readStored(captureId: string): Promise<StoredWebsitePreparation | null>;
   commit(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt, authority: PreparationAuthority): Promise<void>;
-  pending(limit: number): Promise<PendingWebsitePreparation[]>;
-  acknowledge(captureId: string, eventId: string): Promise<void>;
-  findEvent(requestId: string, eventId: string, transaction?: FirebaseFirestore.Transaction): Promise<StoredWebsitePreparation | null>;
 }
 const unavailable = () => new Error("website_preparation_unavailable");
-const needsAttention = (state: string) => state === "failed_retryable" || state === "awaiting_inputs";
-export function websitePreparationEventId(selector: WebsitePreparationSelector): string {
-  return crossRuntimeDigest({ ...selector, milestone: "preparation_needs_attention" });
-}
-/** One per terminal transition: a re-driven attempt that ends again is a new event. */
-export function websitePreparationEndedEventId(selector: WebsitePreparationSelector, attemptCount: number): string {
-  return crossRuntimeDigest({ ...selector, milestone: "preparation_ended", attempt_count: attemptCount });
-}
-/** One per capture: the job it asked to film again moved on with that same video. */
-export function websitePreparationResumedEventId(selector: WebsitePreparationSelector): string {
-  return crossRuntimeDigest({ ...selector, milestone: "preparation_resumed" });
-}
-const isRecaptureAsk = (status: WebsitePreparationReceipt) => "outcome" in status && isRecaptureReason(status.outcome?.reason);
-/**
- * The notice the stored row owes now: the status's own (`noticeFor`), or "no new video is needed" (review,
- * 2026-11-12). That one is recorded by the merge only, at the transition: the same capture (a new video is a new
- * capture, so it never qualifies) was asking to be filmed again, that ask's email was queued, and the status is now
- * `handed_off`. It stays owed only while the status is still `handed_off`.
- */
-function currentNotice(stored: Pick<StoredWebsitePreparation, "selector" | "notification">, status: WebsitePreparationReceipt):
-  {eventId: string; milestone: WebsitePreparationNoticeMilestone} | null {
-  const resumed = websitePreparationResumedEventId(stored.selector);
-  if (stored.notification?.eventId === resumed && status.state === "handed_off") return {eventId: resumed, milestone: "preparation_resumed"};
-  return noticeFor(stored.selector, status);
-}
-/** The single notice a current status calls for, if any. */
-function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt):
-  {eventId: string; milestone: WebsitePreparationNoticeMilestone} | null {
-  if (status.state === "failed_terminal")
-    return {eventId: websitePreparationEndedEventId(selector, status.attempt_count), milestone: "preparation_ended"};
-  // A geometry-only job ends at its robot fit check by design: that end is its result, not a problem.
-  if (status.state === "awaiting_inputs" && "robot_fit" in status && status.robot_fit?.route === "geometry_only")
-    return null;
-  // A job waiting for its sentence needs the site to name it, not our team: no "needs attention" email (the page asks).
-  if (pipelineAsksForSentence(status as never)) return null;
-  return needsAttention(status.state)
-    ? {eventId: websitePreparationEventId(selector), milestone: "preparation_needs_attention"} : null;
-}
 const knownTerminalReason = (reason: string | null | undefined): WebsitePreparationTerminalReason | null =>
   known(WEBSITE_PREPARATION_TERMINAL_REASONS, reason) ? reason : null;
 /** The terminal reason as sent; `knownTerminalReason` is the one the site's sentences name. */
@@ -500,17 +423,7 @@ function parseStored(value: unknown): StoredWebsitePreparation | null {
     notification: z.object({eventId: digest, state: z.enum(["pending", "enqueued"])}).strict().nullable(),
   }).strict().parse(value);
   parseReceipt(parsed.status, parsed.selector);
-  if (parsed.notification && !storedNoticeAllowed(parsed.selector, parsed.status, parsed.notification.eventId)) throw unavailable();
   return parsed;
-}
-/**
- * The one rule for which notice id a stored row may hold (review, 2026-11-12): the attention id, or the id
- * `currentNotice` gives for this status (the status's own notice, or "no new video is needed" on a `handed_off`
- * status). The parser and the drain read the same rule, so a row the merge writes is always one they accept.
- */
-function storedNoticeAllowed(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt, eventId: string): boolean {
-  return eventId === websitePreparationEventId(selector)
-    || currentNotice({selector, notification: {eventId, state: "pending"}}, status)?.eventId === eventId;
 }
 /** An exact lower/reused revision cannot downgrade newer persisted authority. The same
  * revision read in the other receipt version is the same ledger state, not a replay. */
@@ -521,21 +434,8 @@ export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | 
   if (same && (status.attempt_count < prior.status.attempt_count || status.revision < prior.status.revision
     || status.revision === prior.status.revision && status.schema_version === prior.status.schema_version
       && status.status_digest !== prior.status.status_digest)) throw unavailable();
-  const attentionId = websitePreparationEventId(selector);
-  const resumedId = websitePreparationResumedEventId(selector);
-  // The new-video ask was emailed for this same capture, and the job moved on without a new video.
-  const resumed = same && status.state === "handed_off" && isRecaptureAsk(prior.status)
-    && prior.notification?.eventId === attentionId && prior.notification.state === "enqueued";
-  if (resumed) return {selector, status, notification: {eventId: resumedId, state: "pending"}};
-  if (same && status.state === "handed_off" && prior.notification?.eventId === resumedId)
-    return {selector, status, notification: prior.notification};
-  const notice = noticeFor(selector, status);
-  // One durable intent per event: a replay keeps it; a newer event replaces an
-  // unsent one; a state that calls for no notice keeps only the attention intent.
-  const notification = notice
-    ? same && prior.notification?.eventId === notice.eventId ? prior.notification : {eventId: notice.eventId, state: "pending" as const}
-    : same && prior.notification?.eventId === attentionId ? prior.notification : null;
-  return {selector, status, notification};
+  // No email follows a preparation status (owner, 2026-11-19): the job page says where the job stands.
+  return {selector, status, notification: null};
 }
 /** Existing signed client admission, bounded response, no redirect or arbitrary caller destination. */
 async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?: AbortSignal): Promise<unknown> {
@@ -640,63 +540,9 @@ const defaultDeps: WebsitePreparationDeps = {
         preparation, Date.now());
       // mergeFields replaces each named field whole: Firestore's merge would keep
       // a v2-only key such as terminal_reason under a later v1 receipt.
-      // An ended authority, or a geometry-only job's end at its fit check, is an ending: its answer email is owed from
-      // this same write, so nothing after the commit can lose it.
-      if (status.state === "authority_ended" || (status.state === "awaiting_inputs" && "robot_fit" in status
-        && status.robot_fit?.route === "geometry_only")) {
-        tx.set(store.collection("inboundRequests").doc(selector.request_id),
-          waitingAnswerNoticeFields({ requestId: selector.request_id, milestone: "answer_ready" }, new Date().toISOString(), request) as never,
-          {merge: true});
-      }
       tx.set(ref, {website_preparation: preparation,
-        website_preparation_notification_pending: preparation.notification?.state === "pending",
-        [WEBSITE_PREPARATION_NOTICE_OWED_FIELD]: noticeOwed(preparation, session[WEBSITE_PREPARATION_NOTICE_OWED_FIELD], Date.now()),
         [WEBSITE_PREPARATION_WATCH_FIELD]: watch, [WEBSITE_PREPARATION_WATCH_DUE_FIELD]: watch?.due_at_ms ?? null},
-      {mergeFields: ["website_preparation", "website_preparation_notification_pending", WEBSITE_PREPARATION_NOTICE_OWED_FIELD,
-        WEBSITE_PREPARATION_WATCH_FIELD, WEBSITE_PREPARATION_WATCH_DUE_FIELD]});
-    });
-  },
-  async pending(limit) {
-    if (!db) throw unavailable();
-    const rows = await automationBatch(db, db.collection("captureUploadSessions")
-      .where("website_preparation_notification_pending", "==", true), "website_preparation_notifications", limit);
-    return rows.docs.flatMap(row => {
-      // One row that does not parse is skipped and logged; it never fails the other jobs' rows (review, 2026-11-12).
-      let stored: StoredWebsitePreparation | null;
-      try { stored = parseStored(row.data().website_preparation); }
-      catch {
-        logger.error({captureId: row.id, alert: "website_preparation_row_unreadable"},
-          "A stored website preparation row could not be read; it was skipped.");
-        // ONE ops alert per job for it (the marker makes later passes silent), so staff know (review, 2026-11-12).
-        const raw = row.data().website_preparation?.selector?.request_id;
-        const job = typeof raw === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(raw) ? raw : `capture:${row.id}`;
-        void noteUnknownPipelineCode(job, "preparation.stored_row", "unreadable");
-        return [];
-      }
-      if (!stored) return [];
-      const owed = owedSchema.safeParse(row.data()[WEBSITE_PREPARATION_NOTICE_OWED_FIELD]);
-      return [owed.success && owed.data.event_id === stored.notification?.eventId
-        ? {...stored, owedSinceMs: owed.data.since_ms} : stored];
-    });
-  },
-  async findEvent(requestId, eventId, transaction) {
-    if (!db) throw unavailable();
-    const query = db.collection("captureUploadSessions")
-      .where("website_preparation.notification.eventId", "==", eventId).limit(2);
-    const rows = transaction ? await transaction.get(query) : await query.get();
-    if (rows.docs.length !== 1) return null;
-    const row = parseStored(rows.docs[0].data().website_preparation);
-    return row?.selector.request_id === requestId ? row : null;
-  },
-  async acknowledge(captureId, eventId) {
-    if (!db) throw unavailable(); const store = db;
-    await store.runTransaction(async tx => {
-      const ref = store.collection("captureUploadSessions").doc(captureId);
-      const stored = parseStored((await tx.get(ref)).data()?.website_preparation);
-      if (stored?.notification?.eventId !== eventId) return;
-      tx.set(ref, {website_preparation: {...stored, notification: {eventId, state: "enqueued"}},
-        website_preparation_notification_pending: false},
-      {mergeFields: ["website_preparation", "website_preparation_notification_pending"]});
+      {mergeFields: ["website_preparation", WEBSITE_PREPARATION_WATCH_FIELD, WEBSITE_PREPARATION_WATCH_DUE_FIELD]});
     });
   },
 };
@@ -728,13 +574,6 @@ export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultD
   await deps.commit(selector, latest, authority);
   // After the commit: a failed commit has alerted no one.
   if (newReceipt) void noteUnknownPipelineCodes(selector.request_id, unknownPreparationCodes(latest));
-  // A geometry-only job ends at its robot fit check, and an ended authority ends the job before a test ran: either
-  // ending gives the site its paper-check answer now, queued here where it is recorded.
-  if ((latest.state === "awaiting_inputs" && "robot_fit" in latest && latest.robot_fit?.route === "geometry_only")
-    || latest.state === "authority_ended") {
-    void import("./taskLifecycleNotifications").then(({ notifyIfAnswerSettled }) => notifyIfAnswerSettled(selector.request_id))
-      .catch(() => undefined);
-  }
   return latest;
 }
 async function fresh(captureId: string, requestId: string, deps: WebsitePreparationDeps) {
@@ -783,62 +622,4 @@ export async function loadCurrentTaskTargetChoiceQuestion(requestId: string, cap
 export async function verifyCurrentWebsitePreparationSelector(raw: unknown, deps = defaultDeps): Promise<void> {
   const selector = websitePreparationSelectorSchema.parse(raw);
   await boundedRead(signal => deps.verifyCurrent(selector, undefined, signal));
-}
-export async function canNotifyCurrentWebsitePreparationIssue(requestId: string, eventId: string,
-  transactionOrDeps?: FirebaseFirestore.Transaction | WebsitePreparationDeps,
-  injectedDeps = defaultDeps): Promise<boolean> {
-  const deps = transactionOrDeps && "readLedger" in transactionOrDeps ? transactionOrDeps : injectedDeps;
-  const transaction = transactionOrDeps && !("readLedger" in transactionOrDeps) ? transactionOrDeps : undefined;
-  id.parse(requestId); digest.parse(eventId);
-  try {
-    return await boundedRead(async signal => {
-      const match = await deps.findEvent(requestId, eventId, transaction);
-      if (!match) return false;
-      // Read-only admission: all tx reads precede caller's dispatch marker; no nested status commit.
-      const {latest} = await latestVerified(match.selector, deps, signal, transaction);
-      mergeWebsitePreparationStatus(match, match.selector, latest);
-      // Still the same event: a needs-attention state, or the same terminal transition.
-      return currentNotice(match, latest)?.eventId === eventId;
-    });
-  } catch (error) {
-    if ((error as Error).message === "website_preparation_authority_ended") return false;
-    throw unavailable();
-  }
-}
-/**
- * For a "no new video is needed" notice: the capture whose ask it follows, and that ask's event id, read from the
- * stored row that owes it. Null when no single current row owes it (review, 2026-11-12).
- */
-export async function resumedNoticeAsk(requestId: string, eventId: string, transaction?: FirebaseFirestore.Transaction,
-  deps = defaultDeps): Promise<{captureId: string; askEventId: string} | null> {
-  const match = await deps.findEvent(requestId, eventId, transaction).catch(() => null);
-  if (!match || websitePreparationResumedEventId(match.selector) !== eventId) return null;
-  return {captureId: match.selector.capture_id, askEventId: websitePreparationEventId(match.selector)};
-}
-/** Enqueue only into the existing outbox. Unknown enqueue outcome keeps recoverable durable intent. */
-export async function drainPendingWebsitePreparationNotifications(
-  enqueue: (intent: WebsitePreparationIntent) => Promise<"enqueued" | "duplicate" | "unavailable">,
-  deps = defaultDeps, limit = 20): Promise<{enqueued: number; pending: number}> {
-  let enqueued = 0, pending = 0;
-  for (const row of await deps.pending(limit)) {
-    try {
-      const current = await fresh(row.selector.capture_id, row.selector.request_id, deps);
-      const notice = currentNotice(row, current.status);
-      if (!notice || !row.notification || row.notification.eventId !== notice.eventId) { pending++; continue; }
-      const result = await enqueue({requestId: row.selector.request_id, captureId: row.selector.capture_id,
-        eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`,
-        milestone: notice.milestone, terminalReason: knownTerminalReason(terminalReasonOf(current.status)),
-        ...(notice.milestone === "preparation_needs_attention" && "outcome" in current.status
-          && isRecaptureReason(current.status.outcome?.reason) ? {recaptureReason: current.status.outcome!.reason as RecaptureReason} : {}),
-        ...(notice.milestone === "preparation_needs_attention" && "outcome" in current.status && current.status.outcome
-          && (current.status.outcome.reason === PREPARATION_NOT_POSSIBLE_REASON || current.status.outcome.reason === PREPARATION_RETRIES_SPENT_REASON)
-          ? {preparationEnding: {reason: current.status.outcome.reason,
-            ...(typeof (current.status.outcome as {cause?: unknown}).cause === "string" ? {cause: (current.status.outcome as {cause: string}).cause} : {})}} : {}),
-        ...(notice.milestone === "preparation_needs_attention" && mayBeEarlyTaskHold(current.status)
-          && row.owedSinceMs !== undefined ? {awaitEarlyHoldUntilMs: row.owedSinceMs + EARLY_HOLD_PREVIEW_WAIT_MS} : {})});
-      if (result === "unavailable") {pending++; continue;}
-      await deps.acknowledge(row.selector.capture_id, row.notification.eventId); enqueued++;
-    } catch { pending++; }
-  }
-  return {enqueued, pending};
 }

@@ -8,7 +8,6 @@ import { probeCaptureVideo, probeStoredCaptureVideo, VideoProbeError } from "./s
 import { authorizeCaptureUpload } from "./captureUploadAuthorization";
 import { getBrief } from "./siteTaskBrief";
 import { loadWebsiteCaptureRights, manifestTaskDescription } from "./websiteTaskContext";
-import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
 import { notifySlackFootageNeedsReview } from "./slack";
 import { screenCaptureForPrivacy } from "./capturePrivacyScreen";
 import { claimCapturePrivacyScreen, recordCapturePrivacyScreen, releaseCapturePrivacyScreenClaim } from "./capturePrivacyRecord";
@@ -234,18 +233,6 @@ export async function finishStoredCapture(params: {
       message: "Your video is saved. Processing is on hold until its existing consent can be verified." } };
   }
 
-  // The manifest is the durable proof that the upload is complete. Notify
-  // before privacy review, while saying exactly that review is still pending.
-  // A retried completion reaches this call again and repairs a missed enqueue;
-  // the outbox key keeps that retry from creating a second message.
-  try {
-    await enqueueTaskLifecycleNotification({
-      requestId: payload.requestId,
-      milestone: "video_received",
-    });
-  } catch (error) {
-    logger.warn({ error, requestId: payload.requestId }, "Could not enqueue video-received notice");
-  }
   if (!isSiteVideoEvidenceEnabled()) {
     void notifySlackFootageNeedsReview({ requestId: payload.requestId }).catch(() => undefined);
   }

@@ -47,10 +47,6 @@ import {
 } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
 import { isNavigationStrategy, navigationIntakeTask } from "../utils/navigationSceneIntake";
-import {
-  enqueueTaskLifecycleNotification,
-  reconstructionIsViewable,
-} from "../utils/taskLifecycleNotifications";
 
 import { isCaptureOwnerPath, type CaptureOwnerBody } from "../utils/captureOwnerRawBody";
 import { isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PROFILE } from "../utils/policyIntegration";
@@ -96,7 +92,6 @@ async function persistReconstruction(
           updated_at_iso: record.updatedAtIso,
         },
         ...(requestId ? { notification_request_id: requestId } : {}),
-        ...(reconstructionIsViewable(record) ? { scene_notification_pending: true } : {}),
         updated_at_iso: record.updatedAtIso,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
@@ -113,20 +108,6 @@ async function persistReconstruction(
       tx.set(ref, value, { merge: true });
     });
   } else await ref.set(value, { merge: true });
-}
-
-async function notifySceneReady(captureId: string, record: WorldReconstructionRecord) {
-  if (!db || !reconstructionIsViewable(record)) return;
-  try {
-    const snapshot = await db.collection("captureUploadSessions").doc(captureId).get();
-    const requestId = String(snapshot.data()?.notification_request_id ?? "").trim();
-    if (!requestId) return;
-    await enqueueTaskLifecycleNotification({ requestId, milestone: "scene_ready" });
-  } catch (error) {
-    // The ready record is authoritative and already persisted. A repeated
-    // advance call retries this deterministic enqueue without rebuilding it.
-    logger.warn({ error, captureId }, "Could not enqueue scene-ready notice");
-  }
 }
 
 function guard(req: Request, res: Response, next: () => void) {
@@ -209,7 +190,6 @@ router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateL
           colliderMeshUrl: null, splatPlyUrl: null, meshGlbUrl: null, meshExportOperationId: null },
       };
       await persistReconstruction(captureId, record, body.request_id, { digest: body.task_context_digest, captureBinding });
-      await notifySceneReady(captureId, record);
       res.setHeader("Cache-Control", "no-store");
       return res.json({ state: "ready", world_id: body.world_id, task_context_digest: body.task_context_digest });
     } catch (error) {

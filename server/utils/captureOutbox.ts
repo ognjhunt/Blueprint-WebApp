@@ -2,7 +2,6 @@ import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
 import { companyIntroductionEmailEnd, HELD_STATUS, introductionEmailCheck, settleHeldSiteIntroductions } from "./jobIntroductionGate";
 import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
 import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
-import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
  *
@@ -54,73 +53,32 @@ import { attemptIsDue, MAX_UNDELIVERED_AGE_MS, providerIdempotencyKey, RESEND_WI
 
 export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
-/** What the message is about. Drives nothing here; for the record and metrics. */
+/**
+ * What the message is about (owner, 2026-11-19: 43 kinds down to the ones the one job needs). Drives nothing here;
+ * for the record and metrics.
+ */
 export type OutboxKind =
-  /** Reviewed account/service notices, including Terms and policy updates. */
+  /** Reviewed account notices: Terms and Privacy Policy updates, which the law asks us to tell account holders. */
   | "account_notice"
-  /** Retired: the timed check-in. Kept so stored rows still type-check. */
-  | "progress_update"
+  /** Site: we have its job, with the private link to its job page. */
   | "task_received"
-  | "video_received"
-  | "scene_ready"
-  /** The simulation of the site is ready: the Pipeline published the job's company simulation package. */
-  | "scene_tests_started"
-  | "preparation_needs_attention"
-  /** Website scene preparation ended for good (website_preparation_status.v2 failed_terminal). */
-  | "preparation_ended"
-  /** A job shown a new-video ask moved on with no new video (the Pipeline's re-check passed): "no new video is needed". */
-  | "preparation_resumed"
-  | "listing_live"
-  /** Blueprint recorded that it sent the site's job summary to an approved deployment company: once per send. */
-  | "job_sent"
-  /** A deployment company answered about the site's job: once per company and answer. */
-  | "company_answered"
-  | "screening_cleared"
-  | "screening_not_now"
-  | "screening_started"
-  /** The job's evaluation reached a result outcome: once per outcome and scene (F-01). */
-  | "evaluation_outcome"
-  /** The job's scene intent reached a terminal outcome: once per outcome digest (C-04). */
-  | "scene_outcome"
-  /** The owner's job page asks whether to move chairs out of the robot's way in the simulation: once per proposal digest. */
-  | "robot_access_question"
-  /** The job's video arrived before it was saved to an account (owner decision 2026-10-18). */
-  | "footage_before_account"
-  /** The site's answer first settled after the video was read: once per job. */
-  | "answer_ready"
-  /** The job's video was too large to process: the new-video ask, once per capture and blocked video. */
-  | "video_too_large"
-  | "pilot_request"
-  /** Retired with the pilot recommendation and booking flow. Kept so stored rows still type-check; never sent. */
-  | "pilot_recommended"
-  | "pilot_booked"
-  | "pilot_scheduled"
-  | "brief_confirmed"
-  | "coverage_shortfall"
-  | "assessment_ready"
-  | "input_needed"
-  /** A fresh private task link, asked for from an expired one. */
+  /** Site: a fresh private link to its job page, asked for from an expired one (its way back in, like a password reset). */
   | "fresh_link"
-  /** To the robot team that bought a run, when it reports. */
-  | "team_run_result"
-  | "team_run_no_result"
-  /** Retired with the pilot recommendation and booking flow. Kept so stored rows still type-check; never sent. */
-  | "team_pilot_recommended"
-  | "team_pilot_booked"
-  | "team_pilot_scheduled"
-  /** A robot team's early-access application, received and decided. */
-  | "robot_team_access_received"
-  | "robot_team_access_approved"
-  | "robot_team_access_not_yet"
-  /** To an approved deployment company that asked for job emails, when a job is shared (package E, E4): once per job. */
-  | "robot_team_new_task"
-  /** To the company the site chose, with the site's details (E6): once per introduction. */
-  | "introduction_made_company"
-  /** To the site, with the company's details (E6; words by the site side): once per introduction. */
+  /** Site: its job went to the approved deployment companies (package E, E4): once per job, with the count. */
+  | "job_sent"
+  /** Site: a deployment company answered about its job: once per company and answer. */
+  | "company_answered"
+  /** Site: it asked to meet a company; the company's details (E6): once per introduction. */
   | "introduction_made_site"
-  /** The timed one-click outcome question after an introduction (E8). */
+  /** Company: its application to see jobs was approved. */
+  | "robot_team_access_approved"
+  /** Company: a new job, to an approved deployment company that asked for job emails (E4): once per job. */
+  | "robot_team_new_task"
+  /** Company: the site asked to meet it; the site's details (E6): once per introduction. */
+  | "introduction_made_company"
+  /** Both sides, at 14, 45 and 90 days after an introduction: what happened (E8). */
   | "job_outcome_question"
-  /** To each approved company a withdrawn job was sent to: delete any copy (review M4, `withdrawalCompanyNotice.ts`). */
+  /** Company: a job it was sent was withdrawn; delete any copy (the site's recording statement asks it; `withdrawalCompanyNotice.ts`). */
   | "job_withdrawn_company";
 
 /** `held`: the site's "Meet {company}" email, waiting for the company's introduction email to be sent (H2). */
@@ -134,13 +92,9 @@ export interface OutboxEntry {
   subject: string;
   body: string;
   replyTo?: string | null;
-  /** Exact source/context event identity for preparation dispatch authority. */
-  preparationEventId?: string;
   jobAlert?: JobAlertContext;
   accountNotice?: AccountNoticeContext;
   robotTeamAccessNotice?: RobotTeamAccessNoticeContext;
-  /** An answer email's slot when its content, not its key, decides it (a finished test that scored no AI robot is a paper answer). */
-  answerSlot?: "paper" | "result";
   status: OutboxStatus;
   attempts: number;
   createdAtIso: string;
@@ -160,16 +114,16 @@ export interface OutboxEntry {
   deliveryRetryEnded?: string;
 }
 
-/** Kinds whose feature is gone. A stored row of one is cancelled at dispatch, never sent. The team-run notices to a
- * site (results_ready, run_no_result, awaiting_evaluations, no_team_passed, no_qualified_evaluation) went with robot
- * teams running their own software (frame of 2026-11-12); the question about moving chairs (robot_access_question)
- * went with Blueprint's own early trial (2026-11-14). Rows queued before then are cancelled here. A queued
- * evaluation_outcome is not retired: a hold's still goes, and one naming a trial outcome is cancelled by
- * `evaluationOutcomeShown`. */
-const RETIRED_KINDS: ReadonlySet<string> = new Set(["pilot_recommended", "pilot_booked", "pilot_scheduled",
+/** Kinds whose email is gone. A stored row of one is cancelled at dispatch, never sent. Owner, 2026-11-19: only the
+ * emails the one job needs stay (`OutboxKind`); everything else a site or company could be told is on its page. */
+export const RETIRED_KINDS: ReadonlySet<string> = new Set(["pilot_recommended", "pilot_booked", "pilot_scheduled",
   "team_pilot_recommended", "team_pilot_booked", "team_pilot_scheduled",
   "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation",
-  "robot_access_question"]);
+  "robot_access_question", "progress_update", "video_received", "scene_ready", "scene_tests_started",
+  "preparation_needs_attention", "preparation_ended", "preparation_resumed", "listing_live", "screening_cleared",
+  "screening_not_now", "screening_started", "evaluation_outcome", "scene_outcome", "footage_before_account", "answer_ready",
+  "video_too_large", "pilot_request", "brief_confirmed", "coverage_shortfall", "assessment_ready", "input_needed",
+  "team_run_result", "team_run_no_result", "robot_team_access_received", "robot_team_access_not_yet"]);
 
 const DELIVERY_LEASE_MS = 5 * 60 * 1000;
 
@@ -209,8 +163,6 @@ function messageDigest(entry: OutboxEntry): string {
     entry.idempotencyKey, entry.requestId, entry.kind, entry.to,
     entry.subject, entry.body, entry.replyTo ?? null,
   ];
-  // Preserve the exact historical tuple for every existing retained lease.
-  if (entry.preparationEventId !== undefined) fields.push(entry.preparationEventId);
   if (entry.jobAlert !== undefined) fields.push(JSON.stringify(entry.jobAlert));
   if (entry.accountNotice !== undefined) fields.push(accountNoticeDigest(entry.accountNotice));
   if (entry.robotTeamAccessNotice !== undefined) fields.push(JSON.stringify(entry.robotTeamAccessNotice));
@@ -282,7 +234,7 @@ function nowIso() {
  * asking. Delivery retries use the same durable intent.
  */
 export type OutboxInput = Pick<OutboxEntry,
-  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert" | "accountNotice" | "robotTeamAccessNotice" | "answerSlot">;
+  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "jobAlert" | "accountNotice" | "robotTeamAccessNotice">;
 
 /** Build a durable intent for an owning business transaction. This function
  * performs no I/O; callers create the row atomically with their state change. */
@@ -349,40 +301,6 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
   const runtime = deliveryRuntime();
 
   const limit = Math.max(1, Math.min(params?.limit ?? 20, 100));
-  try { await enqueueDueTaskStatusUpdates(limit); }
-  catch (error) { logger.warn({ error }, "Could not enqueue due task updates"); }
-  try {
-    const { reconcileSceneReadyNotifications } = await import("./taskLifecycleNotifications");
-    await reconcileSceneReadyNotifications(limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile scene-ready notices"); }
-  try {
-    const { reconcileSummarySharedNotices } = await import("./taskLifecycleNotifications");
-    await reconcileSummarySharedNotices(limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile summary-shared notices"); }
-  try {
-    const { reconcileWebsitePreparationNotifications } = await import("./taskLifecycleNotifications");
-    await reconcileWebsitePreparationNotifications(Math.min(limit, 1));
-  } catch { logger.warn({ code: "website_preparation_reconcile_unavailable" }, "Could not reconcile preparation notices"); }
-  try {
-    const { reconcileFootageBeforeAccountNotices } = await import("./taskLifecycleNotifications");
-    await reconcileFootageBeforeAccountNotices(Math.min(limit, 5));
-  } catch (error) { logger.warn({ error }, "Could not reconcile footage-before-account notices"); }
-  try {
-    const { reconcileSceneTestsStartedNotices } = await import("./taskLifecycleNotifications");
-    await reconcileSceneTestsStartedNotices(Math.min(limit, 5));
-  } catch (error) { logger.warn({ error }, "Could not reconcile scene-tests notices"); }
-  try {
-    const { reconcileWaitingAnswerNotices } = await import("./taskLifecycleNotifications");
-    await reconcileWaitingAnswerNotices(Math.min(limit, 5));
-  } catch (error) { logger.warn({ error }, "Could not release endings' emails that waited for the reading"); }
-  try {
-    const { reconcileScreeningOutcomeNotifications } = await import("./screeningOutcomeNotifications");
-    await reconcileScreeningOutcomeNotifications(limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile scene-stage hold notices"); }
-  try {
-    const { reconcileSceneOutcomeNotifications } = await import("./sceneOutcomeNotifications");
-    await reconcileSceneOutcomeNotifications(limit);
-  } catch (error) { logger.warn({ error }, "Could not reconcile scene-outcome notices"); }
   await reconcileOutboxDeliveries(limit);
   // Held "Meet {company}" rows are decided from the facts every pass (J1), before the due rows are read, so a row
   // released here goes in this same pass.
@@ -484,7 +402,6 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
   const message = brandedEmail({ subject: entry.subject, text: entry.body });
   let dispatched: boolean;
   try {
-    const currentNotice = await taskStatusUpdateIsCurrent(entry);
     dispatched = await store.runTransaction(async tx => {
       const current = (await tx.get(doc.ref)).data();
       if (current?.status !== claimedStatus || current.deliveryToken !== token
@@ -508,8 +425,8 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       const accessNotice = await robotTeamAccessNotificationAuthority(entry, tx);
       if (accessNotice === "review_required") return stop({ status: "review_required",
         lastError: "robot_team_access_notice_revision_unverified" }, "robot_team_access_notice_revision_unverified");
-      // A retired notice is cancelled without consuming a send attempt.
-      const retired = RETIRED_KINDS.has(entry.kind);
+      // A retired notice is cancelled without consuming a send attempt, before anything about it is read.
+      if (RETIRED_KINDS.has(entry.kind)) return stop({ status: "cancelled" }, "notice_retired");
       // Withdrawal can race a retained producer or a claim. Read its current
       // authority before the durable dispatch marker; in-flight receipts below
       // still describe the provider effect and are never recast as cancelled.
@@ -524,7 +441,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       }
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
       const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
-      if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert
+      if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert
         || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice) {
         // An introduction that may no longer go ahead is cancelled as a whole (G3): the other email, the record and its
         // billable event, in this transaction. Not from a row whose earlier dispatch may already have reached someone.
@@ -627,8 +544,6 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
     }
   }
   if (applied.status === "sent") {
-    try { await acknowledgeTaskStatusUpdate(entry); }
-    catch (error) { logger.warn({ error }, "Status deadline will advance on the next reconciliation"); }
     summary.sent += 1;
   } else if (applied.status === "failed" || applied.deliveryRetryEnded) {
     summary.exhausted += 1;

@@ -58,8 +58,6 @@ const decisionSchema = z
   .object({
     status: z.enum(["approved", "declined"]),
     note: z.string().trim().max(2000).optional(),
-    /** Declines only: false to reply personally instead of the standard email. */
-    notify: z.boolean().optional(),
     prerequisitesReviewed: z.boolean().optional(),
   })
   .strict();
@@ -77,7 +75,6 @@ router.post("/:id/decision", async (req: Request, res: Response) => {
       status: parsed.data.status,
       note: parsed.data.note || null,
       decidedBy: operatorName(res),
-      notify: parsed.data.notify,
     });
     if (!result) return res.status(404).json({ error: "Application not found" });
     return res.json({ application: { id, ...result.record }, emailed: result.notification.status === "sent",

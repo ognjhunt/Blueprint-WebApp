@@ -45,11 +45,10 @@ vi.mock("../utils/websiteLargeVideoBlock", async (original) => ({
 
 import { scanWebsiteJobsWaitingOnGrant } from "../utils/betaOpsMonitor";
 import { deliverOutbox } from "../utils/captureOutbox";
-import { JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE, LARGE_VIDEO_RECAPTURE_SENTENCES, largeVideoAskOutcome,
+import { JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE, largeVideoAskOutcome,
   RECAPTURE_TITLE } from "../utils/taskPreparationOutcome";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS } from "../utils/websiteJobWindow";
-import { websiteJobNoGrantEndedNoticeKey } from "../utils/websiteJobWindowEnding";
 import { sweepWebsiteJobNoGrant, sweepWebsiteJobWindows } from "../utils/websiteJobWindowSweep";
 import { websiteJobWorkWindow } from "../utils/websiteSceneSponsorship";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
@@ -100,7 +99,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe("a job whose video was too large to process", () => {
-  it("asks for a new video on the page and in one email, with no ops page, and keeps the job open", async () => {
+  it("asks for a new video on the page, with no email and no ops page, and keeps the job open", async () => {
     seedJob();
     expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
     expect(job().website_job_no_grant_clock.waiting_on).toBe("blueprint");
@@ -114,11 +113,7 @@ describe("a job whose video was too large to process", () => {
 
     expect(await page()).toMatchObject({ outcome: { title: RECAPTURE_TITLE, reason: "Your video is too large for us to process.",
       nextStep: "Please film a shorter clip, or record at 1080p. Then send us the new video.", actionOwner: "site" } });
-    expect(outbox()).toHaveLength(1);
-    const [key, entry] = outbox()[0];
-    expect(key).toMatch(new RegExp(`^captureOutbox/job-one:video_too_large:${FIRST}\\.[a-f0-9]{16}$`));
-    expect(entry).toMatchObject({ kind: "video_too_large", subject: RECAPTURE_TITLE, to: "owner@example.com", status: "pending" });
-    expect(entry.body.startsWith(`${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nSend a new video:\n`)).toBe(true);
+    expect(outbox()).toHaveLength(0);
 
     // A second pass, a sweep of all jobs and the ops scan add nothing.
     expect(await sweepWebsiteJobNoGrant("job-one", at(2 * HOUR))).toBe("waiting");
@@ -126,9 +121,8 @@ describe("a job whose video was too large to process", () => {
     expect(await scanAt(2 * DAY)).toEqual({ due: 0, newlyAlerted: 0 });
     expect(alert).not.toHaveBeenCalled();
     await deliverOutbox();
-    await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(outbox()).toHaveLength(1);
+    expect(send).not.toHaveBeenCalled();
+    expect(outbox()).toHaveLength(0);
   });
 
   it("clears the ask once a replacement is active, and the wait is Blueprint's again from the replacement", async () => {
@@ -143,10 +137,8 @@ describe("a job whose video was too large to process", () => {
     expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "blueprint", since_epoch: NOW / 1000 + 5 * DAY,
       capture_id: REPLACEMENT });
     expect(job().website_job_no_grant_page_due_at_ms).toBe(at(5 * DAY + 24 * HOUR));
-    // The ask's email, if still unsent, no longer speaks for the job.
     await deliverOutbox();
     expect(send).not.toHaveBeenCalled();
-    expect(outbox()[0][1].status).toBe("cancelled");
   });
 
   it("restarts the Blueprint wait from a replacement that arrives late in an ordinary wait", async () => {
@@ -174,12 +166,11 @@ describe("a job whose video was too large to process", () => {
     marker.blockedCapture = FIRST;
     expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
     expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW - 1))).toBe("waiting");
-    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_notice_queued");
-    expect(job().website_job_no_grant_ending).toMatchObject({ waiting_on: "site", reason: "video_over_ingest_limit", notice: "queued" });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_no_notice");
+    expect(job().website_job_no_grant_ending).toMatchObject({ waiting_on: "site", reason: "video_over_ingest_limit",
+      notice: "none_emails_retired" });
     expect(await page()).toMatchObject({ decision: "ended", headline: JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE });
-    const ending = outbox().find(([key]) => key === `captureOutbox/${websiteJobNoGrantEndedNoticeKey("job-one")}`)!;
-    // With no paper check for the job, the email says so plainly after the ending (review, 2026-11-11).
-    expect(ending[1].body.startsWith(`${JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE} There is no first look for this job.\n\n`)).toBe(true);
+    expect(outbox()).toHaveLength(0);
   });
 
   it("keeps the ordinary path when the marker is absent or does not read", async () => {
@@ -188,9 +179,9 @@ describe("a job whose video was too large to process", () => {
     expect(marker.seen).toEqual([{ requestId: "job-one", sceneId: "site-job-one", captureId: FIRST }]);
     expect(job().website_job_no_grant_clock.waiting_on).toBe("blueprint");
     expect(job()).not.toHaveProperty("website_large_video_ask");
-    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_notice_queued");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_no_notice");
     expect(job().website_job_no_grant_ending).not.toHaveProperty("reason");
-    expect(outbox().map(([, entry]) => entry.kind)).toEqual(["scene_outcome"]);
+    expect(outbox()).toHaveLength(0);
   });
 });
 

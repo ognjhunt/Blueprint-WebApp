@@ -263,13 +263,13 @@ describe("what the site receives", () => {
     expectNoCompanyIn("the site's status payload", raw);
 
     // The emails: one per send, one per company and answer, each by the fixed words.
-    const subjects = sent().map(message => message.subject).filter(subject => subject !== "Your job summary is shared");
+    const subjects = sent().map(message => message.subject);
     expect(subjects.sort()).toEqual(["A deployment company answered", "A deployment company answered", "Your job was sent to deployment companies"].sort());
     const rows = outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered");
     expect(rows.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:A-interested`,
       `captureOutbox/${ID}:company_answered:B-needs_something`, `captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`].sort());
     const bodyOf = (key: string) => rows.find(row => row.key === `captureOutbox/${ID}:${key}`)!.body;
-    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is with deployment companies\. Your job page shows any answer\.\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
+    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is with deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any answer\.\n\nTo stop, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
     expect(bodyOf("company_answered:B-needs_something")).toMatch(/^A deployment company answered about your job: Would need something\. Your job page has the details\. A few quick answers on your job page may be all they need\.\n\nOpen your job:\nhttps:\/\/\S+$/);
     expect(bodyOf("company_answered:A-interested")).toMatch(/^A deployment company answered about your job: Interested\. Your job page has the details\./);
     expect(rows.every(row => row.status === "sent")).toBe(true);

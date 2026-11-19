@@ -181,9 +181,6 @@ export default function AdminRobotTeamAccess() {
       application.decisionNote ?? "",
     );
     if (note === null) return;
-    const notify = status === "declined"
-      ? window.confirm("Send the standard \"not yet\" email? Cancel to decline without an email and reply yourself.")
-      : undefined;
     setUpdating(application.id);
     setError(null);
     try {
@@ -191,7 +188,7 @@ export default function AdminRobotTeamAccess() {
         method: "POST",
         credentials: "include",
         headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })),
-        body: JSON.stringify({ status, prerequisitesReviewed: status === "approved", ...(note.trim() ? { note: note.trim() } : {}), ...(notify === undefined ? {} : { notify }) }),
+        body: JSON.stringify({ status, prerequisitesReviewed: status === "approved", ...(note.trim() ? { note: note.trim() } : {}) }),
       });
       if (!response.ok) throw new Error(`The decision was not saved (${response.status})`);
       await queryClient.invalidateQueries({ queryKey: ["admin-robot-team-access"] });

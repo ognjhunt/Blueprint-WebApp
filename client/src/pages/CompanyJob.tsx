@@ -16,7 +16,7 @@ export const JOB_LIBRARY_URL = "/contact/robot-team#robot-team-access";
 export const VIDEO_PREPARING = "The video is being prepared.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
 export const NO_FIRST_LOOK = "Our first look is not ready yet.";
-export const NO_PACKET_FACTS = "What the video shows of the object is not ready yet.";
+export const NO_PACKET_FACTS = "Nothing about the object is measured or estimated yet.";
 /** Under the site's quick answers: they are its own statements. */
 export const SITE_ANSWERS_HINT = "The site's own answers on its job page; not checked.";
 

@@ -44,7 +44,6 @@ const CLAIM_FILES = [
   "server/utils/jobCardAnswer.ts",
   "server/utils/taskLifecycleNotifications.ts",
   "server/utils/captureOutbox.ts",
-  "server/utils/qualificationEmails.ts",
   "client/src/lib/evaluationPricing.ts",
   // Package C1: what a site and a company read about sends and answers.
   "client/src/lib/companyResponses.ts",

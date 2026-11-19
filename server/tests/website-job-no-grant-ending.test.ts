@@ -40,7 +40,6 @@ import { deliverOutbox } from "../utils/captureOutbox";
 import { JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE, JOB_NO_GRANT_SITE_ENDING_MESSAGE } from "../utils/taskPreparationOutcome";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS } from "../utils/websiteJobWindow";
-import { websiteJobNoGrantEndedNoticeKey } from "../utils/websiteJobWindowEnding";
 import { sweepWebsiteJobNoGrant, sweepWebsiteJobWindows } from "../utils/websiteJobWindowSweep";
 import { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } from "../utils/sceneScreenGate";
 import { websiteJobWorkWindow } from "../utils/websiteSceneSponsorship";
@@ -50,7 +49,6 @@ const WINDOW = WEBSITE_JOB_WINDOW_DEFAULT_SECONDS;
 /** The first pass that sees the job after this ships. */
 const NOW = Date.UTC(2026, 10, 12);
 const JOB = "inboundRequests/job-one";
-const NOTICE = `captureOutbox/${websiteJobNoGrantEndedNoticeKey("job-one")}`;
 const docs = state.docs;
 const job = () => docs.get(JOB) as Record<string, any>;
 const outbox = () => [...docs.entries()].filter(([key]) => key.startsWith("captureOutbox/") && !key.includes("/deliveryReceipts/")) as
@@ -93,9 +91,9 @@ describe.each([
 ])("a job with no grant waiting on %s", (_name, waitingOn, received, message) => {
   beforeEach(() => { recording.received = received; });
 
-  it("starts its clock when the sweep first sees it, is quiet until the window has run, then ends once with one email", async () => {
+  it("starts its clock when the sweep first sees it, is quiet until the window has run, then ends once (no email)", async () => {
     seedJob();
-    expect(await sweepAt(0)).toEqual({ examined: 1, ended: 0, noticesQueued: 0, failed: 0 });
+    expect(await sweepAt(0)).toEqual({ examined: 1, ended: 0, failed: 0 });
     // The clock starts now, not at the job's creation months ago.
     expect(job().website_job_no_grant_clock).toEqual({ schema_version: "website_job_no_grant_clock.v1", request_id: "job-one",
       waiting_on: waitingOn, since_epoch: NOW / 1000, window_seconds: WINDOW, capture_id: "walkthrough-job-one" });
@@ -104,60 +102,39 @@ describe.each([
     // Not yet due: quiet.
     for (const seconds of [HOUR, WINDOW - 1]) {
       expect(await sweepWebsiteJobNoGrant("job-one", at(seconds))).toBe("waiting");
-      expect(await sweepAt(seconds)).toEqual({ examined: 1, ended: 0, noticesQueued: 0, failed: 0 });
+      expect(await sweepAt(seconds)).toEqual({ examined: 1, ended: 0, failed: 0 });
     }
     expect(job()).not.toHaveProperty("website_job_no_grant_ending");
     expect(outbox()).toHaveLength(0);
     expect((await page()).decision).not.toBe("ended");
 
-    // Due: ended once, in one write with one email.
-    expect(await sweepAt(WINDOW)).toEqual({ examined: 1, ended: 1, noticesQueued: 1, failed: 0 });
+    // Due: ended once, in one write; the page says it (no email, owner 2026-11-19).
+    expect(await sweepAt(WINDOW)).toEqual({ examined: 1, ended: 1, failed: 0 });
     const ending = job().website_job_no_grant_ending;
     expect(ending).toMatchObject({ schema_version: "website_job_no_grant_ending.v1", request_id: "job-one", waiting_on: waitingOn,
-      waiting_since_epoch: NOW / 1000, ended_at_epoch: NOW / 1000 + WINDOW, notice: "queued" });
+      waiting_since_epoch: NOW / 1000, ended_at_epoch: NOW / 1000 + WINDOW, notice: "none_emails_retired" });
     expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
-    expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
-    expect(outbox()[0][1]).toMatchObject({ kind: "scene_outcome", requestId: "job-one", status: "pending", to: "owner@example.com",
-      subject: waitingOn === "site" ? "Your Blueprint job has ended" : "The simulation of your site has stopped",
-      idempotencyKey: "job-one:scene_outcome:job_no_grant_ended" });
-    const body: string = outbox()[0][1].body;
-    // With no paper check for the job, the email says so plainly after the ending (review, 2026-11-11).
-    expect(body.startsWith(`${message} There is no first look for this job.\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
-    expect(body).not.toMatch(/we will|we'll|our team|review|follow up|email you/i);
+    expect(outbox()).toHaveLength(0);
 
     // The job page says the same sentence, the way a window ending shows.
     expect(await page()).toMatchObject({ decision: "ended", headline: message, operatorAction: null, stage: null });
 
     // Re-running the sweep sends nothing more.
     for (const seconds of [WINDOW + 60, WINDOW + 30 * DAY]) {
-      expect(await sweepAt(seconds)).toEqual({ examined: 1, ended: 0, noticesQueued: 0, failed: 0 });
+      expect(await sweepAt(seconds)).toEqual({ examined: 1, ended: 0, failed: 0 });
     }
     expect(job().website_job_no_grant_ending).toEqual(ending);
     await deliverOutbox();
-    await sweepAt(WINDOW + 31 * DAY);
-    await deliverOutbox();
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0]).toMatchObject({ to: "owner@example.com",
-      subject: waitingOn === "site" ? "Your Blueprint job has ended" : "The simulation of your site has stopped" });
-    expect(outbox()).toHaveLength(1);
-    expect(outbox()[0][1].status).toBe("sent");
+    expect(send).not.toHaveBeenCalled();
   });
 
-  it("sends nothing for a withdrawn job, and cancels the email when consent is withdrawn before it is sent", async () => {
+  it("does not end a withdrawn job", async () => {
     seedJob();
     await sweepAt(0);
     Object.assign(job(), { consent_revoked: true, capture_withdrawal: { state: "uploads_stopped_cleanup_pending" } });
     expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("withdrawn");
     expect(job()).not.toHaveProperty("website_job_no_grant_ending");
     expect(outbox()).toHaveLength(0);
-
-    seedJob({}, "job-two");
-    await sweepWebsiteJobNoGrant("job-two", at(0));
-    expect(await sweepWebsiteJobNoGrant("job-two", at(WINDOW))).toBe("ended_notice_queued");
-    Object.assign(docs.get("inboundRequests/job-two")!, { consent_revoked: true });
-    await deliverOutbox();
-    expect(send).not.toHaveBeenCalled();
-    expect(docs.get(`captureOutbox/${websiteJobNoGrantEndedNoticeKey("job-two")}`)).toMatchObject({ status: "cancelled" });
   });
 });
 
@@ -231,27 +208,12 @@ describe("a job the no-grant clock must leave alone", () => {
     expect(job()).not.toHaveProperty("website_job_no_grant_ending");
     expect(outbox()).toHaveLength(0);
     expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW - 1))).toBe("waiting");
-    expect(await sweepAt(WINDOW)).toEqual({ examined: 1, ended: 1, noticesQueued: 1, failed: 0 });
+    expect(await sweepAt(WINDOW)).toEqual({ examined: 1, ended: 1, failed: 0 });
     expect(job().website_job_no_grant_ending).toMatchObject({ waiting_since_epoch: NOW / 1000, ended_at_epoch: NOW / 1000 + WINDOW,
-      notice: "queued" });
-    expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
+      notice: "none_emails_retired" });
+    expect(outbox()).toHaveLength(0);
   });
 
-  it("tells a job an earlier release kept on file that it ended, even after its kept-on-file email went out", async () => {
-    seedJob({ ...marked, createdAt: new Date(NOW - 8 * DAY * 1000).toISOString(),
-      kept_on_file_answer_owed_at_iso: new Date(NOW - 7 * DAY * 1000).toISOString(),
-      site_task_scope: { supported: false, reason: "mobile", disposition: "accepted_for_analysis" } });
-    docs.set("captureOutbox/job-one:answer_ready:kept_on_file", { requestId: "job-one", kind: "answer_ready",
-      idempotencyKey: "job-one:answer_ready:kept_on_file", status: "sent", to: "owner@example.com",
-      subject: "An update on your Blueprint job", body: "We can't build a simulation for this kind of job yet. We've kept your job on file." });
-    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
-    expect(await sweepAt(WINDOW)).toEqual({ examined: 1, ended: 1, noticesQueued: 1, failed: 0 });
-    send.mockClear();
-    await deliverOutbox();
-    expect(docs.get(NOTICE)).toMatchObject({ status: "sent" });
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0]).toMatchObject({ to: "owner@example.com", subject: "Your Blueprint job has ended" });
-  });
 
   it.each([["marked", marked], ["without the marker", {}]])(
     "starts the clock at the pass for a job of another kind it has never seen, however old (%s)", async (_name, changes) => {
@@ -295,7 +257,7 @@ describe("the wait moving from the site to Blueprint", () => {
     expect(await sweepWebsiteJobNoGrant("job-one", at(5 * DAY))).toBe("clock_started");
     expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "blueprint", since_epoch: NOW / 1000 + 5 * DAY });
     expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("waiting");
-    expect(await sweepWebsiteJobNoGrant("job-one", at(5 * DAY + WINDOW))).toBe("ended_notice_queued");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(5 * DAY + WINDOW))).toBe("ended_no_notice");
     expect(job().website_job_no_grant_ending.waiting_on).toBe("blueprint");
   });
 
@@ -315,7 +277,7 @@ describe("the wait moving from the site to Blueprint", () => {
   it("does not start or end anything when the recording's status cannot be read", async () => {
     recording.received = null;
     seedJob();
-    expect(await sweepAt(0)).toEqual({ examined: 1, ended: 0, noticesQueued: 0, failed: 1 });
+    expect(await sweepAt(0)).toEqual({ examined: 1, ended: 0, failed: 1 });
     expect(job()).not.toHaveProperty("website_job_no_grant_clock");
   });
 });
@@ -342,7 +304,7 @@ describe("the ops page for a job waiting on Blueprint", () => {
     expect(alert).toHaveBeenCalledTimes(1);
     // The page's own write does not reset the clock: the job still ends on time.
     recording.received = true;
-    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_notice_queued");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_no_notice");
   });
 
   it("clears a withdrawn job without a page", async () => {
@@ -387,12 +349,12 @@ describe("no backfill: a job that had already waited a window when the sweep fir
   ])("is ended at first sight with no email and no page: %s", async (_name, changes, notice, received) => {
     recording.received = received;
     seedJob(changes);
-    expect(await sweepAt(0)).toEqual({ examined: 1, ended: 1, noticesQueued: 0, failed: 0 });
+    expect(await sweepAt(0)).toEqual({ examined: 1, ended: 1, failed: 0 });
     expect(job().website_job_no_grant_ending).toMatchObject({ notice, ended_at_epoch: NOW / 1000 });
     expect(job()).not.toHaveProperty("website_job_no_grant_clock");
     expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
     expect(await scanAt(2 * DAY)).toEqual({ due: 0, newlyAlerted: 0 });
-    for (const seconds of [WINDOW, 3 * WINDOW]) expect(await sweepAt(seconds)).toMatchObject({ ended: 0, noticesQueued: 0 });
+    for (const seconds of [WINDOW, 3 * WINDOW]) expect(await sweepAt(seconds)).toMatchObject({ ended: 0 });
     await deliverOutbox();
     expect(outbox()).toHaveLength(0);
     expect(send).not.toHaveBeenCalled();
@@ -415,7 +377,7 @@ describe("no backfill: a job that had already waited a window when the sweep fir
     seedJob({ request: { buyerType: "site_operator", capture_region: "non_us" } }, "job-two");
     const before = snapshot();
     for (const seconds of [0, 2 * DAY, WINDOW, 3 * WINDOW]) {
-      expect(await sweepAt(seconds)).toEqual({ examined: 2, ended: 0, noticesQueued: 0, failed: 0 });
+      expect(await sweepAt(seconds)).toEqual({ examined: 2, ended: 0, failed: 0 });
       expect(await scanAt(seconds)).toEqual({ due: 0, newlyAlerted: 0 });
     }
     await deliverOutbox();

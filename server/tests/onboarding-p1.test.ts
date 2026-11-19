@@ -17,7 +17,6 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 const { projectTaskBrowseCard, listTaskBrowseCards } = await import("../utils/taskBrowse");
 const { approvedTaskDetails, taskListingSchema } = await import("../utils/taskListingDetails");
 const { isRunnableTask } = await import("../utils/teamJobAccess");
-const { ensureTaskStatusUpdate, TASK_STATUS_UPDATES } = await import("../utils/taskStatusUpdates");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 // Sharing follows the job's outlook (review, 2026-11-11). These tests are about cards on jobs that have an answer,
@@ -99,23 +98,6 @@ describe("public task disclosure", () => {
 });
 
 describe("timed check-ins are retired", () => {
-  // Every real event now sends its own email, so nothing is scheduled. What
-  // the timer left behind is cleared without sending anything.
-  it("removes a scheduled check-in, orphaned or not, and sends nothing", async () => {
-    state.docs.set(`${TASK_STATUS_UPDATES}/removed`, { requestId: "removed", dueAtIso: "2020-01-01T00:00:00Z", dueAtMs: 0 });
-    state.docs.set("inboundRequests/req1", record({ site_task_next_update_iso: "2026-09-21T10:00:00.000Z" }) as never);
-    state.docs.set(`${TASK_STATUS_UPDATES}/req1`, { requestId: "req1", dueAtIso: "2026-09-21T10:00:00.000Z", dueAtMs: 1 });
-    await deliverOutbox();
-    expect(state.docs.has(`${TASK_STATUS_UPDATES}/removed`)).toBe(false);
-    expect(state.docs.has(`${TASK_STATUS_UPDATES}/req1`)).toBe(false);
-    expect(state.docs.get("inboundRequests/req1")?.site_task_next_update_iso).toBeNull();
-    expect(sendEmail).not.toHaveBeenCalled();
-  });
-  it("promises no next-update time", async () => {
-    state.docs.set("inboundRequests/req1", record() as never);
-    expect(await ensureTaskStatusUpdate("req1")).toBeNull();
-    expect(state.docs.has(`${TASK_STATUS_UPDATES}/req1`)).toBe(false);
-  });
   it("cancels a check-in that was already queued in the outbox", async () => {
     state.docs.set("inboundRequests/req1", record() as never);
     state.docs.set("captureOutbox/req1:progress_update:1", {

@@ -12,9 +12,6 @@ vi.mock("../../client/src/lib/firebaseAdmin",async()=>{
 vi.mock("../logger",()=>({logger:{info:vi.fn(),warn:vi.fn(),error:vi.fn()}}));
 vi.mock("../utils/email",()=>({sendEmail:send}));
 vi.mock("../utils/robotTeamAccessNotificationAuthority",()=>({robotTeamAccessNotificationAuthority:recommendation}));
-vi.mock("../utils/taskStatusUpdates",()=>({enqueueDueTaskStatusUpdates:async()=>{},taskStatusUpdateIsCurrent:async()=>true,acknowledgeTaskStatusUpdate:async()=>{}}));
-vi.mock("../utils/taskLifecycleNotifications",()=>({reconcileSceneReadyNotifications:async()=>{}}));
-vi.mock("../utils/screeningOutcomeNotifications",()=>({reconcileScreeningOutcomeNotifications:async()=>{}}));
 import {dbAdmin as db} from "../../client/src/lib/firebaseAdmin";
 import {deliverOutbox,buildOutboxEntry} from "../utils/captureOutbox";
 const requestId="b-withdrawal-emulator-001";

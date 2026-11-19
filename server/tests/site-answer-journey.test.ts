@@ -328,21 +328,15 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(await listTaskBrowseCards()).toEqual([]);
     expect(introductionAlerts()).toHaveLength(0);
     expect((await status(token)).answer.sharing).toEqual({ state: "not_shared", sharedAtIso: null, olderStatement: true });
-    // The job's no-grant wait ends: the sweep sees the wait, and a window later records the ending and queues its one
-    // email, which says why no test ran and gives the paper check as the answer for now.
+    // The job's no-grant wait ends: the sweep sees the wait, and a window later records the ending, which the page states
+    // (no email, owner 2026-11-19).
     const { sweepWebsiteJobNoGrant } = await import("../utils/websiteJobWindowSweep");
     const seen = await sweepWebsiteJobNoGrant(jobId, NOW.getTime());
     const later = await sweepWebsiteJobNoGrant(jobId, NOW.getTime() + 60 * 86_400_000);
-    expect([seen, later]).toEqual(["clock_started", "ended_notice_queued"]);
+    expect([seen, later]).toEqual(["clock_started", "ended_no_notice"]);
     expect((await status(token)).outlook).toEqual({ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." });
-    const paperEmails = () => notices(jobId).filter(row => row.kind !== "task_received" && row.kind !== "video_received");
-    expect(paperEmails().map(row => row.idempotencyKey)).toEqual([`${jobId}:scene_outcome:job_no_grant_ended`]);
-    // A final ending: the paper check is the answer, with no promise of a later result.
-    expect(paperEmails()[0].body).toContain("On paper, the robot most likely to fit: ");
-    expect(paperEmails()[0].body).not.toContain("If our early trial gives a result later");
-    // Reading the page again queues no second answer email.
-    await status(token);
-    expect(paperEmails()).toHaveLength(1);
+    const paperEmails = () => notices(jobId).filter(row => row.kind !== "task_received");
+    expect(paperEmails()).toEqual([]);
     // 7. The site withdraws recording permission from its owner link: no answer, and no card for companies.
     const withdrawn = await post(`/api/self-capture/uploads/${token}/withdrawal`, { confirm: "withdraw_recording_permission" });
     expect(withdrawn.status, await withdrawn.clone().text()).toBe(202);
@@ -350,9 +344,9 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(await listTaskBrowseCards()).toEqual([]);
     // Never shared, so no listing record exists to close.
     expect(doc(`inboundRequests/${jobId}`).public_task_listing).toBeUndefined();
-    // Only the one paper-check email from the ending; the withdrawal adds no answer email.
+    // The withdrawal adds no email: the site's only email is its job link.
     expect(answerNotices(jobId)).toHaveLength(0);
-    expect(notices(jobId).filter(row => !["task_received", "video_received"].includes(row.kind)).map(row => row.kind)).toEqual(["scene_outcome"]);
+    expect(notices(jobId).filter(row => row.kind !== "task_received")).toEqual([]);
   }, 60_000);
 
   it("reads a video-only job's video once, even though the reading drafts the job's name; a site's own edit reads it again", async () => {
@@ -385,9 +379,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(answerNotices(jobId)).toHaveLength(0);
   }, 60_000);
 
-  // Rewritten (review, 2026-11-11): an unsized video is an ending with no test, so the site gets its one answer email
-  // saying why, where before it got none.
-  it("sends one answer email when the video did not show the job, saying why, and the page asks for one line", async () => {
+  // An unsized video is an ending with no test: the page says why (no email, owner 2026-11-19).
+  it("says on the page why when the video did not show the job, and the page asks for one line", async () => {
     const { jobId, token } = await startJob();
     await sendVideo(token);
     await readVideo(jobId, NO_JOB);
@@ -395,13 +388,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
       reason: "The video did not show the job clearly enough for us to size it.", pick: null });
     expect(outlook).toEqual({ phase: "no_test", reason: "unsized", sentence: "Your video didn't show the job clearly enough for us to measure it." });
-    await vi.waitFor(() => expect(answerNotices(jobId)).toHaveLength(1));
-    expect(answerNotices(jobId)[0].body).toContain(answer.reason);
-    expect(answerNotices(jobId)[0].body).not.toMatch(/Most likely to fit/);
-    // The reader's "cannot size" is final: no promise of a later result.
-    expect(answerNotices(jobId)[0].body).not.toContain("If our early trial gives a result later");
     await status(token);
-    expect(answerNotices(jobId)).toHaveLength(1);
+    expect(answerNotices(jobId)).toHaveLength(0);
     // The page's one-line question is driven by the brief read, not the answer.
     const brief = await fetch(`${base}/api/site-task-brief/${token}`);
     expect(brief.status).toBe(200);
@@ -418,15 +406,11 @@ describe("a site's answer, from an email and a video to a deployment company", (
     // the reading queues no email, and the page shows the working screen. No job is kept on file for its kind.
     expect(answerNotices(jobId)).toHaveLength(0);
     expect((await status(token)).outlook.phase).toMatch(/^(building|testing)$/);
-    // Its ending is the no-grant wait's, as for any job: that one email gives the reader's reason, and says there is no
-    // paper check.
+    // Its ending is the no-grant wait's, as for any job, stated on the page.
     const { sweepWebsiteJobNoGrant } = await import("../utils/websiteJobWindowSweep");
     const results = [await sweepWebsiteJobNoGrant(jobId, NOW.getTime()), await sweepWebsiteJobNoGrant(jobId, NOW.getTime() + 60 * 86_400_000)];
-    expect(results).toEqual(["clock_started", "ended_notice_queued"]);
-    const endings = notices(jobId).filter(row => row.kind === "scene_outcome");
-    expect(endings).toHaveLength(1);
-    expect(endings[0].body).toContain(`There is no first look for this job. ${answer.reason}`);
-    expect(endings[0].body).not.toMatch(/Most likely to fit|closest is|test result comes later|kind of job yet|kept your job on file/);
+    expect(results).toEqual(["clock_started", "ended_no_notice"]);
+    expect(notices(jobId).filter(row => row.kind === "scene_outcome")).toHaveLength(0);
     expect((await status(token)).outlook).toEqual({ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." });
   }
 

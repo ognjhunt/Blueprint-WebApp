@@ -18,7 +18,6 @@
 import { describe, expect, it } from "vitest";
 
 const { publicBannedCopyPatterns } = await import("../../scripts/qa/brand-polish");
-const { buildBriefUnclearEmail } = await import("../utils/qualificationEmails");
 const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
 
 type Banned = { label: string; pattern: RegExp };
@@ -59,24 +58,11 @@ function expectClean(label: string, text: string, banned: readonly Banned[]) {
 
 /* ------------------------------------------------------------ site emails */
 
-// The four-conditions screening emails ended (owner decision 2026-11-11), and so did every email about a job's kind
-// or shape. The one screening-time email left asks a brief with no sentence about the job for one.
-describe("site screening emails", () => {
-  it("never introduces platform charges or assumes a city in the brief-sentence email", () => {
-    for (const jobUrl of ["https://tryblueprint.io/capture-upload/tok", null]) {
-      const email = buildBriefUnclearEmail({ firstName: "Dana", jobUrl });
-      expectClean(jobUrl ?? "no link", `${email.subject}\n${email.body}`, SITE_EMAIL);
-    }
-  });
-});
-
 /* -------------------------------------------------------- lifecycle notices */
 
 describe("site lifecycle notices", () => {
-  const milestones = [
-    "task_received", "video_received", "scene_ready", "preparation_needs_attention", "preparation_ended", "listing_live",
-    "screening_not_now", "pilot_request", "job_sent", "company_answered",
-  ] as const;
+  // The site's emails about its job (owner, 2026-11-19); the introduction's is built from the company's details.
+  const milestones = ["task_received", "job_sent", "company_answered"] as const;
 
   it("never introduces platform charges or assumes a city in any notice", () => {
     for (const milestone of milestones) {
@@ -86,9 +72,7 @@ describe("site lifecycle notices", () => {
           milestone,
           to: "owner@example.test",
           captureUrl: "https://tryblueprint.io/capture-upload/tok",
-          eventId: milestone === "preparation_needs_attention" || milestone === "preparation_ended" ? `sha256:${"a".repeat(64)}` : undefined,
-          detail,
-          ...(milestone === "preparation_ended" ? { terminalReason: "budget_exhausted" } : {}),
+          ...(milestone === "job_sent" && detail ? { companyCount: 3 } : {}),
           ...(milestone === "company_answered" ? { companyAnswerState: "needs_something" as const } : {}),
         });
         expectClean(`${milestone} (${detail ?? "no detail"})`, `${notice.subject}\n${notice.body}`, SITE_EMAIL);
