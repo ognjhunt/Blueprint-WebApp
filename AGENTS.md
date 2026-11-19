@@ -15,11 +15,10 @@ pay; how is not decided, and no price is stated anywhere. Each introduction is r
 The packet holds the site's own sentence for the job and its constraints, the
 video with the site's rights recorded, the first look on paper (which kinds of
 robot most likely fit, from published specifications and a cited track
-record), the simulation of the site with the job's object in it, the success
-rule, and, where one exists, the result of Blueprint's early trial of openly
-available robot software. The early trial is supporting evidence. It is not
-the site's answer and does not predict what a deployment company's own robot
-would do. A scripted run only checks our own simulation.
+record), the simulation of the site with the job's object in it and the
+success rule. Blueprint no longer runs robot software in the simulation: the
+owner dropped the early trial of openly available robot software on
+2026-11-14. A scripted run only checks our own simulation.
 
 The site's answer is the responses of deployment companies: who will take the
 job, who will not, and why. Until responses exist the site sees the first look
@@ -34,7 +33,7 @@ Sharing is the service. A site that sends a job agrees once, in the statement
 it accepts (recording statement `2026-11-12.v4` or later), that Blueprint
 shares the job with the deployment companies it has approved: the site's
 description, its video without its sound, the simulation built from it, the
-success rule, the first look and any early trial. There is no share button, no
+success rule and the first look. There is no share button, no
 share setting and no pause. A job under an older statement is not shown to any
 company until its site accepts the current one. A site's name, street address
 and contact details are never shared without asking the site first. A
@@ -62,7 +61,7 @@ generated from `BlueprintCapturePipeline/doctrine/`; never edit inside it here.
 
 Words to use with sites and companies: "deployment company" (not vendor,
 integrator or OEM), "job packet", "first look", "simulation of your site",
-"early trial", "responses". Say **job** to customers; keep **task** for the
+"responses". Say **job** to customers; keep **task** for the
 technical robot action and its contract.
 
 ## The Only Hard Stops
