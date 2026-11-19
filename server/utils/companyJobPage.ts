@@ -138,7 +138,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     jobFacts: jobFactsInWords(facts),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
-      : { state: "preparing" },
+      : access.reason === "no_video_yet" ? { state: "none" } : { state: "preparing" },
     simulationDownload: simulationUrl ? { state: "ready", url: simulationUrl } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },
     firstLook: firstLook.summary,

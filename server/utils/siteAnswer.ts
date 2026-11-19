@@ -714,7 +714,8 @@ const PREPARING_REASONS = new Set<string>(["no_job_sentence", "not_listed"]);
 
 /**
  * Where the job stands with deployment companies (2026-11-12, sharing is the service). A job is shared if, and only if,
- * its site accepted recording statement v4 or later and its listing record was written (`jobSharedListing.ts`):
+ * its site accepted recording statement v4 or later (or sent it without a video under description v5) and its listing
+ * record was written (`jobSharedListing.ts`):
  * - `visible`: the one predicate that decides what an approved company can see (`teamJobAccess`) lists it;
  * - `preparing`: shared, and not in front of companies until the site has said what the job is;
  * - `not_visible`: shared, but held (Blueprint's hold, a rights hold, the site closed it);

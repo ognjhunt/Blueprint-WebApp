@@ -66,6 +66,17 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("The simulation of the site is not finished yet.")).toBeInTheDocument();
   });
 
+  it("says a job sent with its description only has no video yet, and how to ask for one with the answers there are", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ video: { state: "none" },
+      simulation: { state: "not_finished" }, firstLookRows: [] }) }) });
+    render(<CompanyJob />);
+    expect(await screen.findByText("No video yet. The site sent this job with its description only.")).toBeInTheDocument();
+    expect(screen.queryByText("The video is being prepared.")).not.toBeInTheDocument();
+    expect(screen.getByText("Need a video to decide? Answer Would need something and say so.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Would need something/ })).toBeInTheDocument();
+    expect(screen.getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
+  });
+
   it("asks a signed-out visitor to sign in and fetches nothing", async () => {
     auth.currentUser = null;
     render(<CompanyJob />);
