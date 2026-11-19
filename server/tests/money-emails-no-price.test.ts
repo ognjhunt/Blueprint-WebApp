@@ -23,6 +23,7 @@ const { buildOutcomeQuestionEmail } = await import("../utils/jobOutcomes");
 const { WITHDRAWAL_COMPANY_SUBJECT, withdrawalCompanyBody } = await import("../utils/withdrawalCompanyNotice");
 const { passwordResetEmail } = await import("../utils/passwordResetEmail");
 const { brandedEmail } = await import("../utils/emailLayout");
+const { buildSiteActionNotification } = await import("../utils/siteActionNeeded");
 const { appendCommercialEmailFooter } = await import("../utils/email-suppression");
 const { COMPANY_RESPONSE_LABELS } = await import("../../client/src/lib/companyResponses");
 
@@ -54,6 +55,12 @@ function everyEmail(): Email[] {
   const add = (label: string, to: Email["to"], email: { subject: string; body: string }) => emails.push({ label, to, ...email });
   // The site's emails.
   emails.push(...lifecycleNotices());
+  for (const ask of [{ key: "c.video_too_large", title: "We need a new video to build the simulation of your site",
+    nextStep: "Please film a shorter clip, or record at 1080p. Then send us the new video." },
+  { key: "c.job_sentence", title: "Tell us the job in one sentence", nextStep: "Write it at the top of your job page." }]) {
+    const notice = buildSiteActionNotification({ requestId: "req-1", to: SITE.email, ask, captureUrl: JOB_URL });
+    add(`site action needed (${ask.key})`, "site", { subject: notice.subject, body: notice.body });
+  }
   for (const [state, label] of Object.entries(COMPANY_RESPONSE_LABELS)) {
     add(`introduction made, site (${state})`, "site", introductionMadeSiteEmail({ jobUrl: JOB_URL, company: COMPANY, answerLabel: label }));
     const notice = buildIntroductionMadeSiteNotification({ requestId: "req-1", to: SITE.email, companyId: "north", company: COMPANY,

@@ -99,7 +99,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe("a job whose video was too large to process", () => {
-  it("asks for a new video on the page, with no email and no ops page, and keeps the job open", async () => {
+  it("asks for a new video on the page and in one \"your job needs something from you\" email, with no ops page, and keeps the job open", async () => {
     seedJob();
     expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
     expect(job().website_job_no_grant_clock.waiting_on).toBe("blueprint");
@@ -115,14 +115,17 @@ describe("a job whose video was too large to process", () => {
       nextStep: "Please film a shorter clip, or record at 1080p. Then send us the new video.", actionOwner: "site" } });
     expect(outbox()).toHaveLength(0);
 
-    // A second pass, a sweep of all jobs and the ops scan add nothing.
+    // The sweep of all jobs brings the one email for this ask; a second pass and the ops scan add nothing.
     expect(await sweepWebsiteJobNoGrant("job-one", at(2 * HOUR))).toBe("waiting");
     await sweepWebsiteJobWindows({ now: () => at(3 * HOUR) });
+    await sweepWebsiteJobWindows({ now: () => at(4 * HOUR) });
     expect(await scanAt(2 * DAY)).toEqual({ due: 0, newlyAlerted: 0 });
     expect(alert).not.toHaveBeenCalled();
     await deliverOutbox();
-    expect(send).not.toHaveBeenCalled();
-    expect(outbox()).toHaveLength(0);
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(outbox().map(([, row]) => row.kind)).toEqual(["site_action_needed"]);
+    expect(send.mock.calls[0][0].subject).toBe("Your job needs something from you");
   });
 
   it("clears the ask once a replacement is active, and the wait is Blueprint's again from the replacement", async () => {
