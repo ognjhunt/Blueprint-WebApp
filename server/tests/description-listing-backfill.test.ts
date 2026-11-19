@@ -14,7 +14,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
 }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../utils/field-encryption", async importOriginal => ({ ...await importOriginal<typeof import("../utils/field-encryption")>(),
-  decryptFieldValue: vi.fn(async (value: string) => String(value).replace(/^encrypted:/, "")) }));
+  // A plain string (older records) or an EncryptedField object (what intake stores): this stand-in reads either.
+  decryptFieldValue: vi.fn(async (value: unknown) => typeof value === "string" ? value.replace(/^encrypted:/, "")
+    : String((value as { ciphertext: string }).ciphertext)) }));
 
 const { backfillDescriptionSharedListings, DESCRIPTION_LISTING_BACKFILL_DOC } = await import("../utils/jobSharedListing");
 const { teamJobAccess } = await import("../utils/teamJobAccess");
@@ -56,6 +58,17 @@ describe("the listing backfill for description-only jobs", () => {
     for (const id of ["withdrawn", "older", "recorded-older", "revoked-authority", "has-card"])
       expect(doc(id), id).toEqual(before.get(`inboundRequests/${id}`));
     expect(logger.info).toHaveBeenCalledWith({ examined: 5, written: 1, finished: true }, expect.any(String));
+  });
+
+  it("reads the sentence intake stores encrypted, so a backfilled job gets its own title and family", async () => {
+    // What encryptInboundRequestForStorage() writes: an EncryptedField object, not a string.
+    const stored = { ciphertext: "Acme Depot moves cartons onto a pallet", iv: "iv", authTag: "tag", dek: "dek",
+      keyVersion: "1", alg: "aes-256-gcm", dekAlg: "kms" };
+    state.docs.set("inboundRequests/due", v5Job({}, { taskStatement: stored }));
+    expect(await backfillDescriptionSharedListings()).toMatchObject({ written: 1 });
+    expect(doc("due").public_task_listing.details).toEqual(anonymizedOpportunityDraft("Acme Depot moves cartons onto a pallet"));
+    expect(doc("due").public_task_listing.details).not.toEqual(anonymizedOpportunityDraft(""));
+    expect(JSON.stringify(doc("due").public_task_listing)).not.toMatch(/Acme/);
   });
 
   it("is a no-op the second time, whether or not the first pass finished", async () => {

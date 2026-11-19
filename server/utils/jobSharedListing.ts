@@ -178,8 +178,10 @@ export async function backfillDescriptionSharedListings(pageSize = 100): Promise
   for (const doc of due) {
     // The category of the site's own sentence, as at submission; a sentence that cannot be read gets the neutral one.
     const stored = doc.data()?.request?.taskStatement;
-    const taskStatement = typeof stored === "string" && stored
-      ? await import("./field-encryption").then(({ decryptFieldValue }) => decryptFieldValue(stored)).then(String).catch(() => "") : "";
+    // Intake stores it encrypted (an EncryptedField object); older records may hold a plain string. Both decrypt here.
+    const taskStatement = await import("./field-encryption").then(({ decryptFieldValue, isEncryptedField }) =>
+      (typeof stored === "string" && stored) || isEncryptedField(stored) ? decryptFieldValue(stored).then(String) : "")
+      .catch(() => "");
     const wrote = await store.runTransaction(async tx => {
       const current = (await tx.get(doc.ref)).data();
       if (!descriptionListingBackfillDue(current)) return false;
