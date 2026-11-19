@@ -14,14 +14,7 @@ import type { JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 
 const fetchMock = vi.fn();
 function workflow(patch: Partial<JobMarketplaceWorkflow> = {}): JobMarketplaceWorkflow {
-  return {
-    schemaVersion: "job_marketplace.v1", revision: "workflow-1", briefAgreed: true,
-    optionsAssessed: false, reviewRequired: false, stage: "brief_agreed",
-    nextAction: "Blueprint assesses suitable options.", actionOwner: "blueprint", review: null,
-    requirements: { jobFrequency: null, purchaseReadiness: "exploring", requiredOutput: null,
-      installationBudget: null, ongoingBudget: null, currentProcessCost: null, targetStartDate: null },
-    ...patch,
-  };
+  return { schemaVersion: "job_marketplace.v1", briefAgreed: true, ...patch };
 }
 
 function json(body: unknown, status = 200) {
@@ -40,7 +33,7 @@ beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 afterEach(() => vi.unstubAllGlobals());
 
 describe("JobWorkflowPanel", () => {
-  it("loads the job's records when mounted and offers no proposal or agreement action", async () => {
+  it("loads the job's records when mounted and offers no proposal, agreement or options review", async () => {
     fetchMock.mockResolvedValueOnce(json(workflow()));
     render(<JobWorkflowPanel requestId="job/1" currentUser={null} />);
     expect(await screen.findByRole("heading", { name: "Evidence for this job" })).toBeInTheDocument();
@@ -48,51 +41,26 @@ describe("JobWorkflowPanel", () => {
     expect(screen.getByText(/These records do not establish a passed evaluation, physical performance or safety/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /proposal/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Record pilot agreement" })).not.toBeInTheDocument();
+    // Blueprint's written options review was removed (2026-11-19).
+    expect(screen.queryByText(/options assessment/i)).not.toBeInTheDocument();
   });
 
-  it("records the options assessment against the loaded job", async () => {
-    await open();
-    fireEvent.click(screen.getByText("Record the options assessment"));
-    fireEvent.change(screen.getByLabelText("Assessment"), { target: { value: "more_information" } });
-    fireEvent.change(screen.getByLabelText("Assessment summary"), { target: { value: "Carton weight is not visible in the video." } });
-    fireEvent.change(screen.getByLabelText("Next action"), { target: { value: "Ask the site for the carton weight." } });
-    fetchMock.mockResolvedValueOnce(json(workflow({ optionsAssessed: true, stage: "options_assessed", review: { disposition: "more_information",
-      summary: "Carton weight is not visible in the video.", nextAction: "Ask the site for the carton weight.", reviewedAtIso: "2026-10-21T12:00:00.000Z", scopeRevision: "a".repeat(64) } })));
-    fireEvent.click(screen.getByRole("button", { name: "Save assessment" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Options assessment saved.");
-    const [url, init] = fetchMock.mock.calls[1];
-    expect(url).toBe("/api/job-workflow/admin/job-1/review");
-    expect(init).toMatchObject({ method: "POST", credentials: "include", headers: {
-      Authorization: "Bearer token", "X-CSRF-Token": "csrf", "Content-Type": "application/json",
-    } });
-    expect(JSON.parse(init.body)).toEqual({ disposition: "more_information", summary: "Carton weight is not visible in the video.", nextAction: "Ask the site for the carton weight." });
-  });
-
-  it("records the options assessment before the site confirms the draft, but asks no evidence question", async () => {
-    await open({ briefAgreed: false, stage: "job_submitted" });
+  it("asks no evidence question before the site confirms its brief", async () => {
+    await open({ briefAgreed: false });
     expect(screen.getByRole("button", { name: "Ask Pipeline" })).toBeDisabled();
-    fireEvent.click(screen.getByText("Record the options assessment"));
-    expect(screen.getByRole("button", { name: "Save assessment" })).toBeEnabled();
   });
 
   it("keeps an uncertain change blocked until records are refreshed", async () => {
     await open();
-    fireEvent.click(screen.getByText("Record the options assessment"));
-    fireEvent.change(screen.getByLabelText("Assessment summary"), { target: { value: "Options identified." } });
-    fireEvent.change(screen.getByLabelText("Next action"), { target: { value: "Blueprint checks delivery." } });
+    fireEvent.change(screen.getByLabelText("Question that changes the decision"), { target: { value: "Can the arm reach the shelf?" } });
     fetchMock.mockRejectedValueOnce(new Error("connection closed after request"));
-    fireEvent.click(screen.getByRole("button", { name: "Save assessment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ask Pipeline" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Refresh the workflow before trying again.");
-    expect(screen.getByRole("button", { name: "Save assessment" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Ask Pipeline" })).toBeDisabled();
     fetchMock.mockResolvedValueOnce(json(workflow()));
     fireEvent.click(screen.getByRole("button", { name: "Refresh job records" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Save assessment" })).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ask Pipeline" })).not.toBeDisabled());
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
-  });
-
-  it("asks for a new assessment when the job scope changed", async () => {
-    await open({ reviewRequired: true });
-    expect(screen.getByText(/changed since the options assessment/)).toBeInTheDocument();
   });
 });
 

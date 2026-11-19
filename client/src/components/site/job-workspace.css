@@ -1,23 +1,4 @@
-.job-workspace { margin: 0 0 32px; padding: 24px 0; border-block: 1px solid var(--ms-rule, #d5d8d0); color: var(--ms-ink, #19241e); overflow-wrap: anywhere; }
-.job-workspace h2 { margin: 0 0 20px; font-size: 23px; letter-spacing: -.5px; }
-.job-workspace h3 { margin: 0 0 10px; font-size: 19px; letter-spacing: -.25px; }
-.job-workspace h4 { margin: 0; font-size: 18px; }
-.job-workspace h5 { margin: 20px 0 8px; font-size: 15px; }
-.job-workspace p { line-height: 1.6; }
-.job-workspace .ms-form { max-width: none; }
-.job-workspace .ms-form button { justify-self: start; }
-.job-next-action { background: #edf2e9; border-left: 3px solid var(--ms-green, #31583f); padding: 14px 16px; margin-bottom: 22px; }
-.job-next-action p { margin: 0; }
-.job-next-action .job-eyebrow { font-size: 12px; font-weight: 650; margin-bottom: 4px; }
-.job-review { margin: 24px 0; }
 .job-planning-details { padding: 16px 0; border-block: 1px solid var(--ms-rule, #d5d8d0); margin: 20px 0; }
-.job-workspace summary { cursor: pointer; font-weight: 600; line-height: 1.5; }
-.job-workspace summary .ms-field-hint { display: block; padding-left: 15px; font-weight: 400; }
-.job-workspace summary:focus-visible, .job-workspace button:focus-visible { outline: 2px solid var(--ms-green, #31583f); outline-offset: 4px; }
-.job-workspace .ms-check-row { display: flex; align-items: flex-start; gap: 10px; }
-.job-workspace .ms-check-row input { flex: 0 0 auto; width: 17px; min-height: 17px; margin-top: 3px; }
-/* A table's cells shrink to their longest word; `anywhere` above would let a word such as "Chosen" break mid-word. */
-.job-workspace table { overflow-wrap: normal; }
 /* The site's answer, at the top of its job page. */
 .site-answer { margin: 0 0 28px; padding-bottom: 8px; color: var(--ms-ink, #19241e); overflow-wrap: break-word; }
 .site-answer h2 { margin: 0 0 2px; font-size: 12px; font-weight: 650; letter-spacing: .6px; text-transform: uppercase; color: var(--ms-muted, #62645d); }

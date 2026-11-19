@@ -3,7 +3,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import type { JobMarketplaceWorkflow, JobOptionsReview } from "@/types/jobMarketplace";
+import type { JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 
 function errorMessage(value: { error?: unknown; fields?: Array<{ path?: unknown; message?: unknown }> }, status: number) {
   const fields = Array.isArray(value.fields)
@@ -12,7 +12,7 @@ function errorMessage(value: { error?: unknown; fields?: Array<{ path?: unknown;
   return [typeof value.error === "string" ? value.error : `Request failed (${status}).`, ...fields].join(" ");
 }
 
-/** Evidence questions and the options assessment. Scientific results stay in their owner systems. */
+/** Evidence questions. Scientific results stay in their owner systems. */
 export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
   requestId: string;
   currentUser: FirebaseUser | null;
@@ -29,9 +29,6 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
   const evidenceKey = useRef("");
   const [question, setQuestion] = useState("");
   const generation = useRef(0);
-  const [review, setReview] = useState<{ disposition: JobOptionsReview["disposition"]; summary: string; nextAction: string }>({
-    disposition: "options_identified", summary: "", nextAction: "",
-  });
   const base = `/api/job-workflow/admin/${encodeURIComponent(requestId)}`;
 
   useEffect(() => {
@@ -40,7 +37,6 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
     busyRef.current = false;
     setWorkflow(null); setLoadState("idle"); setError(""); setNotice(""); setBusy(false); setMustRefresh(false);
     setQuestion(""); evidenceKey.current = "";
-    setReview({ disposition: "options_identified", summary: "", nextAction: "" });
     return () => { generation.current += 1; };
   }, [requestId]);
 
@@ -54,7 +50,6 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
   function accept(value: JobMarketplaceWorkflow) {
     setWorkflow(value); setLoadState("ready"); setMustRefresh(false);
     if (value.evidenceContext?.question) setQuestion(previous => previous || value.evidenceContext!.question!);
-    if (value.review) setReview({ disposition: value.review.disposition, summary: value.review.summary, nextAction: value.review.nextAction });
   }
 
   async function load() {
@@ -65,7 +60,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
       const response = await fetch(base, await authorized());
       const value = await response.json().catch(() => ({}));
       if (epoch !== generation.current) return;
-      if (!response.ok || value.schemaVersion !== "job_marketplace.v1" || !value.requirements) {
+      if (!response.ok || value.schemaVersion !== "job_marketplace.v1") {
         setLoadState("failed"); setError(errorMessage(value, response.status)); return;
       }
       accept(value as JobMarketplaceWorkflow);
@@ -88,7 +83,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
       if (epoch !== generation.current) return false;
       if (!response.ok) { setError(errorMessage(value, response.status)); return false; }
       // Every mutation returns the saved workflow. Do not hide a completed action behind a second GET.
-      if (value.schemaVersion !== "job_marketplace.v1" || !value.requirements) {
+      if (value.schemaVersion !== "job_marketplace.v1") {
         setMustRefresh(true);
         setError("The server response could not be confirmed. Refresh the workflow before making another change.");
         return false;
@@ -112,23 +107,18 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
   const prefix = `job-workflow-${requestId}`;
 
   return (
-    <section aria-label="Job evidence and options assessment" className="admin-job-tool">
+    <section aria-label="Job evidence questions" className="admin-job-tool">
       <div className="admin-job-tool">
-        <p className="bare-helper">Ask Pipeline evidence questions and record the options assessment. These records do not establish a passed evaluation, physical performance or safety.</p>
+        <p className="bare-helper">Ask Pipeline evidence questions. These records do not establish a passed evaluation, physical performance or safety.</p>
         {loadState === "loading" ? <p className="bare-helper" role="status">Loading job records…</p> : null}
         {error ? <p role="alert" className="bare-notice">{error}</p> : null}
         {notice ? <p role="status" className="bare-done">{notice}</p> : null}
         {loadState !== "idle" ? <div><button type="button" className="bare-quiet-button" disabled={busy || loadState === "loading"} onClick={() => void load()}>Refresh job records</button></div> : null}
         {workflow ? (
           <>
-            {workflow.reviewRequired ? <p className="bare-notice">The job scope or buying requirements changed since the options assessment. Record a new assessment against the current job.</p> : null}
-            <div>
-              <p><span className="font-semibold">Next step:</span> {workflow.nextAction}</p>
-              <p className="bare-helper">Responsible: {workflow.actionOwner.replace(/_/g, " ")}.</p>
-            </div>
             <section className="admin-job-tool" aria-label="Job evidence">
               <h3 className="bare-rows-title">Evidence for this job</h3>
-              <p className="bare-helper">Record the options assessment directly when existing evidence is sufficient. Ask Pipeline a specific technical question when an uncertainty affects the decision. Saving a question does not allocate paid resources or invite a team.</p>
+              <p className="bare-helper">Ask Pipeline a specific technical question when an uncertainty affects the decision. Saving a question does not allocate paid resources or invite a team.</p>
               {(workflow.evidence ?? []).map(item => <article className="admin-job-tool" key={item.requestId}>
                 <p><strong>{item.question}</strong></p>
                 <p>{item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}: {item.summary}</p>
@@ -160,22 +150,6 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
                 {!workflow.briefAgreed ? <p className="ms-field-hint">Agree the job brief before requesting task-specific evidence.</p> : null}
               </form>
             </section>
-            <details>
-              <summary className="bare-quiet-button">Record the options assessment</summary>
-              <form className="ms-form" aria-label="Options assessment" onSubmit={(event) => {
-                event.preventDefault(); void mutate("/review", review, "Options assessment saved.");
-              }}>
-                <fieldset disabled={mutationDisabled} className="ms-choice">
-                  <div><label htmlFor={`${prefix}-disposition`}>Assessment</label>
-                    <select id={`${prefix}-disposition`} value={review.disposition} onChange={(event) => setReview({ ...review, disposition: event.target.value as JobOptionsReview["disposition"] })}>
-                      <option value="options_identified">Suitable options identified</option><option value="more_information">More information needed</option><option value="no_suitable_option">No suitable option found</option>
-                    </select></div>
-                  <div><label htmlFor={`${prefix}-review`}>Assessment summary</label><textarea id={`${prefix}-review`} required maxLength={2000} value={review.summary} onChange={(event) => setReview({ ...review, summary: event.target.value })} /></div>
-                  <div><label htmlFor={`${prefix}-next`}>Next action</label><textarea id={`${prefix}-next`} required maxLength={2000} value={review.nextAction} onChange={(event) => setReview({ ...review, nextAction: event.target.value })} /></div>
-                  <div><button type="submit" className="ms-button">Save assessment</button></div>
-                </fieldset>
-              </form>
-            </details>
           </>
         ) : null}
       </div>

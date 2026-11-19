@@ -1,5 +1,8 @@
-/** The site's planning details and Blueprint's options review, separate from Pipeline-owned evaluation. */
-import { randomUUID } from "node:crypto";
+/**
+ * The job's evidence records, separate from Pipeline-owned evaluation: the early trial's results on the site's own
+ * link, and the evidence questions Blueprint asks the Pipeline. The site's planning details and Blueprint's options
+ * review were removed on 2026-11-19; a stored `job_marketplace` field is neither read nor written.
+ */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
@@ -8,19 +11,14 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
-import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { logger } from "../logger";
-import { readWebsiteTargetScope } from '../utils/websiteSceneProgression';
 import { loadManagedJobEvidenceForWorkspace } from "../utils/jobManagedEvaluation";
-import type { ManagedJobEvidenceSummary } from "../utils/managedJobEvidenceSummary";
+import type { JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
 import { assertSiteJob, managedEvidenceForSite } from "../utils/siteManagedEvidence";
 import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
 import { readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
 import { assertJobEvidenceVideo, deliverJobEvidenceRequest, jobEvidenceDeliveryIntent, jobEvidenceQueueMarker, queueJobEvidenceAction } from "../utils/jobEvidenceForwardWorker";
-import {
-  JobMarketplaceError, optionsReviewSchema, projectJobMarketplace, requirementsSchema,
-  storedMarketplace, workflowDigest, reviewScopeRevision, hasReviewScope, type StoredJobMarketplace,
-} from "../utils/jobMarketplaceWorkflow";
+import { JobMarketplaceError } from "../utils/jobMarketplaceWorkflow";
 import { taskContextSiteIdentity } from "../utils/websiteTaskContext";
 
 const router = Router();
@@ -46,63 +44,18 @@ const handle = (work: (req: Request, res: Response) => Promise<unknown>) => asyn
 function assertBrief(brief: Record<string, any> | null) {
   if (!brief?.confirmedAtIso || !Number.isFinite(Date.parse(brief.confirmedAtIso))) throw new JobMarketplaceError("brief_not_agreed", "Agree the job brief before requesting task-specific evidence.");
 }
-function assertReviewScope(brief: Record<string, any> | null) {
-  if (!hasReviewScope(brief)) throw new JobMarketplaceError("job_scope_unavailable", "Blueprint needs to finish drafting this job before reviewing options.");
-}
-async function readWorkflow(requestId: string, admin = false) {
+async function readWorkflow(requestId: string, admin = false): Promise<JobMarketplaceWorkflow> {
   if (!db) throw new JobMarketplaceError("store_unavailable", "Job details are temporarily unavailable.", 503);
-  const [snapshot, brief, walkthrough] = await Promise.all([db.collection("inboundRequests").doc(requestId).get(),
-    db.collection("siteTaskBriefs").doc(requestId).get(), savedWalkthrough(siteWalkthroughIdentity(requestId))]);
+  const [snapshot, brief] = await Promise.all([db.collection("inboundRequests").doc(requestId).get(),
+    db.collection("siteTaskBriefs").doc(requestId).get()]);
   const record = snapshot.data(); assertSiteJob(record);
   const briefValue = brief.exists ? brief.data()! : null;
-  const selectionSession = (await db.collection('captureUploadSessions')
-    .doc(record.active_capture_id || `walkthrough-${requestId}`).get()).data();
-  const targetScope = await readWebsiteTargetScope(requestId, record.active_capture_id || `walkthrough-${requestId}`, selectionSession);
   const managed = briefValue ? await loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : {managedEvidence: []};
-  return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, targetScope.superseded,
-    targetScope.correctionsDigest), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
+  return { schemaVersion: "job_marketplace.v1", jobId: requestId,
+    briefAgreed: Boolean(briefValue?.confirmedAtIso && Number.isFinite(Date.parse(briefValue.confirmedAtIso))),
+    ...await readJobEvidence(requestId, briefValue, admin),
     ...managed, ...(admin ? {} : { managedEvidence: managed.managedEvidence.map(managedEvidenceForSite) }) };
 }
-async function mutateWorkflow(requestId: string, actor: string, event: string,
-  mutate: (state: StoredJobMarketplace, brief: Record<string, any> | null, now: string, objectSelectionDigest: string | null) => StoredJobMarketplace) {
-  if (!db) throw new JobMarketplaceError("store_unavailable", "Job details are temporarily unavailable.", 503);
-  const store = db;
-  const ref = store.collection("inboundRequests").doc(requestId);
-  const briefRef = store.collection("siteTaskBriefs").doc(requestId);
-  const eventRef = ref.collection("jobWorkflowEvents").doc(randomUUID());
-  const walkthrough = await savedWalkthrough(siteWalkthroughIdentity(requestId));
-  const captureReceived = walkthrough?.received ?? null;
-  await store.runTransaction(async transaction => {
-    const snapshot = await transaction.get(ref);
-    const briefSnap = await transaction.get(briefRef);
-    const record = snapshot.data(); assertSiteJob(record);
-    const brief = briefSnap.exists ? briefSnap.data()! : null;
-    const selectionSession = (await transaction.get(store.collection('captureUploadSessions')
-      .doc(record.active_capture_id || `walkthrough-${requestId}`))).data();
-    const targetScope = await readWebsiteTargetScope(requestId, record.active_capture_id || `walkthrough-${requestId}`,
-      selectionSession, query => transaction.get(query));
-    const before = storedMarketplace(record);
-    // Monotone event timestamps also make successive identical edits different revisions.
-    const now = new Date(Math.max(Date.now(), (Date.parse(before.updatedAtIso) || 0) + 1)).toISOString();
-    const changed = mutate(before, brief, now, targetScope.correctionsDigest);
-    if (workflowDigest(changed) === workflowDigest(before)) return projectJobMarketplace(record, brief, captureReceived);
-    if (event === "options_reviewed" && captureReceived !== true) {
-      throw new JobMarketplaceError(captureReceived === null ? "capture_status_unavailable" : "video_required",
-        captureReceived === null ? "We could not read the saved recording. Try again before continuing this assessment."
-          : "Upload or record the work before assessing options.", captureReceived === null ? 503 : 409);
-    }
-    const next = { ...changed, updatedAtIso: now, updatedBy: actor };
-    // Fields from the retired delivery-proposal flow stay exactly as stored.
-    const legacy = record.job_marketplace && typeof record.job_marketplace === "object" ? record.job_marketplace : {};
-    transaction.update(ref, { job_marketplace: { ...legacy, ...next } });
-    transaction.set(eventRef, { schemaVersion: "job_marketplace_event.v1", requestId, kind: event, actor,
-      atIso: now, previousRevision: workflowDigest(before), nextRevision: workflowDigest(next),
-      previousState: before, nextState: next });
-    return projectJobMarketplace({ ...record, job_marketplace: { ...legacy, ...next } }, brief, captureReceived);
-  });
-  return readWorkflow(requestId, actor !== "signed_owner_link");
-}
-
 // Buyer links and admin accounts use separate authorization namespaces.
 ownerRouter.use("/owner/:token", (req, res, next) => {
   const token = verifyCaptureUploadToken(String(req.params.token));
@@ -118,17 +71,11 @@ ownerRouter.get("/owner/:token/evidence/:publicationDigest", handle(async (req, 
   const publication = await readJobEvidencePublication(jobId, digest);
   const brief = await db!.collection("siteTaskBriefs").doc(jobId).get();
   const projection = jobEvidenceSummary(publication, brief.exists ? scientificBriefDigest(brief.data()!) : "");
-  const currentEvidence = currentWorkflow.evidence.find(item => item.requestId === publication.request_id);
+  const currentEvidence = (currentWorkflow.evidence ?? []).find(item => item.requestId === publication.request_id);
   const scopeCurrent = projection.current && currentEvidence?.current === true && currentEvidence.testbedDigest === publication.testbed_digest;
   const applicability = scopeCurrent ? "Current agreed brief and evidence scope." : "Historical evidence: the current brief, task or source configuration differs, or current applicability could not be established. Review applicability before relying on this result.";
   const safe = (value: string) => value.replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
   return res.type("html").send(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Evidence for your job | Blueprint</title><body><main><h1>${safe(projection.question)}</h1><p><strong>${safe(applicability)}</strong></p><p>${safe(projection.state.replace(/_/g, " "))}: ${safe(projection.summary)}</p>${projection.claims.map(claim => `<p>${safe(claim.claimId)}: ${safe(claim.verdict)} — ${safe(claim.rationale)}</p>`).join("")}<h2>Limits</h2>${projection.limitations.map(limit => `<p>${safe(limit)}</p>`).join("")}<h2>Next action</h2><p>${safe(projection.nextAction)}</p><p>Publication: ${safe(publication.publication_digest)}</p><p>Brief: ${safe(publication.brief_digest)}</p>${projection.decisionDigest ? `<p>Decision: ${safe(projection.decisionDigest)}</p>` : ""}<p>This is the exact recorded result for its original scope. It does not authorize physical work.</p></main></body></html>`);
-}));
-ownerRouter.patch("/owner/:token/requirements", handle(async (req, res) => {
-  const input = parse(requirementsSchema, req.body);
-  return res.json(await mutateWorkflow(res.locals.jobWorkflowRequestId, "signed_owner_link", "requirements_updated", state => {
-    return { ...state, requirements: { ...state.requirements, ...input } };
-  }));
 }));
 router.use(ownerRouter);
 router.use("/admin/:requestId", verifyFirebaseToken, requireAdminRole, (req, res, next) => {
@@ -207,14 +154,6 @@ router.post("/admin/:requestId/evidence/:evidenceId/:action", handle(async (req,
   await deliverJobEvidenceRequest(jobId, id);
   if (action === "cancel" && projectWebsiteCaptureRights(job.data()!).consent_revoked) return res.json({ requestId: id, status: "cancellation_requested" });
   return res.json(await readWorkflow(jobId, true));
-}));
-
-router.post("/admin/:requestId/review", handle(async (req, res) => {
-  const input = parse(optionsReviewSchema, req.body);
-  return res.json(await mutateWorkflow(res.locals.jobWorkflowRequestId, res.locals.firebaseUser!.uid, "options_reviewed", (state, brief, now, objectSelectionDigest) => {
-    assertReviewScope(brief);
-    return { ...state, review: { ...input, reviewedAtIso: now, scopeRevision: reviewScopeRevision(brief, state.requirements, objectSelectionDigest) } };
-  }));
 }));
 
 export default router;

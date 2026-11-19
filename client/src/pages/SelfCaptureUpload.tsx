@@ -5,7 +5,6 @@ import type { TaskOutcome } from "@/types/taskOutcome";
 import { isLikelyPhone } from "@/lib/device";
 import { JobFacts } from "@/components/site/JobFacts";
 import type { FirstLookWords } from "@/lib/firstLookWords";
-import { JobWorkspace } from "@/components/site/JobWorkspace";
 import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
 import { TaskDestinationAnswered, TaskDestinationChoice, isDestinationChoice, type TaskDestinationChoiceView } from "@/components/site/TaskDestinationChoice";
 import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/RobotFit";
@@ -17,7 +16,7 @@ import { type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
-import type { JobManagedEvidenceSummary, JobMarketplaceWorkflow } from "@/types/jobMarketplace";
+import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
 /**
  * The page an operator or filmer opens from a private job link.
  *
@@ -246,9 +245,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const operationInFlight = useRef(false);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
   const [statusRefresh, setStatusRefresh] = useState(0);
-  // The job workspace's own workflow read, shared with the page, so the page makes no request of its own.
-  const [evaluations, setEvaluations] = useState<JobManagedEvidenceSummary[] | null>(null);
-  const onWorkflow = useCallback((workflow: JobMarketplaceWorkflow) => setEvaluations(workflow.managedEvidence ?? []), []);
   const [savingConsent, setSavingConsent] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
   const linkGeneration = useRef(0);
@@ -645,6 +641,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // Updates get their own immutable capture under this same job.
   const saved = upload.status === "processing_pending" || upload.status === "held"
     || upload.status === "done" || status?.captureReceived === true;
+  const ownerJob = saved && (link.status === "valid" || link.status === "held") && scope === "owner";
+  const evaluations = useEarlyTrialEvaluations(token, ownerJob);
 
   // The link waits on the account: before a video, or after one that arrived before it.
   const accountHold = link.status === "held"
@@ -784,11 +782,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     </details>
   );
 
-  const workspace = saved && (link.status === "valid" || link.status === "held") && scope === "owner"
-    ? <JobWorkspace token={token} onWorkflow={onWorkflow} preparationOutcome={status?.outcome} resultSuperseded={status?.resultSuperseded} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
-      ? {text: preparationUpdate, owner: "blueprint"}
-      : {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />
-    : null;
+  // While the job's status cannot be read, the page says so rather than nothing.
+  const statusUnknown = ownerJob && !currentStatusKnown
+    ? <p role="status" className="ms-field-hint">Checking the current job status. Your saved job remains available.</p> : null;
   /** Opens the job description editor under "More for this job" and brings it into view. */
   const openBriefEditor = () => {
     setEditingBrief(true);
@@ -956,7 +952,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {!currentStatusKnown && saved && sceneViewUrl && <p>
         <a className="ms-text-link" href={sceneViewUrl} target="_blank" rel="noreferrer">{VIEW_SIMULATION_LABEL}</a>
       </p>}
-      {!answer && workspace}
+      {!answer && statusUnknown}
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
         && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
           onAnswered={() => setStatusRefresh(value => value + 1)} />}
@@ -1274,10 +1270,36 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {!answer && !saved && link.status === "valid" && brief && !briefConfirmed && briefSection}
       {!answer && !saved && link.status === "valid" && settingsOpen && <BareLinks links={[{ key: "settings", label: "Job settings", onClick: () => openView("settings") }]} />}
       </>}
-      {/* Mounted under an answer in every screen, so the computer test reads its one workflow; shown on Job settings. */}
-      {answer && workspace && <div className="job-settings-workspace" hidden={view !== "settings"}>{workspace}</div>}
       </BareScreen>
       </div>
     </div>
   );
+}
+
+/**
+ * The early trial's results for the proof (`GET /api/job-workflow/owner/:token`, its `managedEvidence`), read while the
+ * owner's link is open on a saved job and again every 15 seconds. Null until a read answers.
+ */
+function useEarlyTrialEvaluations(token: string, enabled: boolean): JobManagedEvidenceSummary[] | null {
+  const [evaluations, setEvaluations] = useState<JobManagedEvidenceSummary[] | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const response = await fetch(`/api/job-workflow/owner/${encodeURIComponent(token)}`,
+          { cache: "no-store", signal: controller.signal, referrerPolicy: "no-referrer" });
+        const value = await response.json().catch(() => null) as { schemaVersion?: unknown; managedEvidence?: unknown } | null;
+        if (response.ok && value?.schemaVersion === "job_marketplace.v1" && !controller.signal.aborted)
+          setEvaluations(Array.isArray(value.managedEvidence) ? value.managedEvidence as JobManagedEvidenceSummary[] : []);
+      } catch {
+        // The last read stays; the next try is scheduled below.
+      }
+      if (!controller.signal.aborted) timer = setTimeout(load, 15_000);
+    }
+    void load();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [token, enabled]);
+  return evaluations;
 }
