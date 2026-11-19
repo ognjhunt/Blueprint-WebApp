@@ -13,7 +13,6 @@ export type TeamAccessReason =
   | "restricted_to_named_teams"
   | "operator_paused"
   | "older_statement"
-  | "privacy_screen_pending"
   | "no_job_sentence"
   | "authority_ended"
   | "closed_by_site"

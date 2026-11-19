@@ -2036,7 +2036,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           : { briefReviewPending: true, briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
       }, firstReceipt, confirmedBrief
         ? { ref: db.collection(TASK_BRIEFS_COLLECTION).doc(payload.requestId), data: confirmedBrief } : null);
-      // Shared under v4: send it to the approved companies once it is listed (usually later, after the privacy check;
+      // Shared under v4: send it to the approved companies once it is listed (usually later, once the site has said what the job is;
       // the sweep catches that moment). Never fails the submission.
       if (initialPublicListing) await import("../utils/jobAutoSend")
         .then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId)).catch(() => undefined);

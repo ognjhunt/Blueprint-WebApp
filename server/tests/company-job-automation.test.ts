@@ -349,12 +349,13 @@ describe("the company's page for one job (E3)", () => {
     expectNoSiteIn("the library list", raw);
   });
 
-  it("is not listed without the site's sentence, or before the privacy screen, or under an older statement", async () => {
+  it("is not listed without the site's sentence, or under an older statement", async () => {
     state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Your site task", confirmedAtIso: null });
     expect((await page()).status).toBe(404);
     state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: SENTENCE, confirmedAtIso: null });
+    // A held upload-time privacy record from before 2026-09-24 no longer keeps the job from companies.
     patchJob({ capture_privacy_screen: { ...passedPrivacyScreen(ID), proceeded: false, eligibility: "pending" } });
-    expect((await page()).status).toBe(404);
+    expect((await page()).status).toBe(200);
     patchJob({ capture_privacy_screen: passedPrivacyScreen(ID),
       request: { ...jobDoc().request, consent_attestation: { ...sharedRecordingGrant(), statement_version: "2026-11-11.v3" } } });
     expect((await page()).status).toBe(404);
@@ -412,7 +413,7 @@ describe("an internal test job is closed on every company surface, though everyt
   ];
   it.each(SURFACES)("%s serves the listed job, and refuses it once it is a test job", async (_name, serves) => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
-    // Fully listed: the v4 grant, the listing record, the privacy screen passed, the site's sentence.
+    // Fully listed: the v4 grant, the listing record, the site's sentence.
     const item = (await page()).body.item as Page;
     expect(await serves(item)).toBe(true);
     markTestJob();

@@ -67,9 +67,8 @@ describe("public task disclosure", () => {
     // Where the Pipeline sync actually reports its rights verdict.
     { evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review" } },
     { consent_revoked: true },
-    // A card under an older statement, or a video that has not passed the privacy screen (2026-11-12).
+    // A card under an older statement (2026-11-12).
     { public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-09-19T00:00:00.000Z", details } },
-    { capture_privacy_screen: { eligibility: "rejected", proceeded: false } },
   ])("does not expose unconsented, closed, development or restricted records: %j", patch => {
     expect(projectTaskBrowseCard("req1", record(patch))).toBeNull();
   });
@@ -79,14 +78,21 @@ describe("public task disclosure", () => {
     expect(isRunnableTask(source)).toBe(false);
   });
   it("shows capture progress separately and keeps closed scenes out of paid supply", () => {
-    // A listed job's video has passed the privacy screen (2026-11-12), so it is never still at "capture".
+    // The fixture's video arrived (its admission record is on file), so it is past "capture"; with no video it is not.
     expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "preparing", evaluationAvailable: false });
+    expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null, capture_privacy_screen: undefined })))
+      .toMatchObject({ stage: "capture", evaluationAvailable: false });
     // A pause no longer hides the job from companies (must-fix 3) but still keeps it out of paid runs, as does a close.
     expect(isRunnableTask(record({ workspace_task: { archived: true } }))).toBe(false);
     expect(isRunnableTask(record({ workspace_task: { paused: true } }))).toBe(false);
   });
-  it("lists a job whose video passed the privacy screen", () => {
+  it("lists a ready job", () => {
     expect(projectTaskBrowseCard("req1", record())).toMatchObject({ id: "req1", stage: "ready" });
+  });
+  it("does not wait on an upload-time privacy decision: no screen has held a video since 2026-09-24", () => {
+    expect(projectTaskBrowseCard("req1", record({ capture_privacy_screen: { eligibility: "rejected", proceeded: false } })))
+      .toMatchObject({ id: "req1" });
+    expect(projectTaskBrowseCard("req1", record({ capture_privacy_screen: undefined }))).toMatchObject({ id: "req1" });
   });
   it("listing reads share the same admission and withdrawal checks", async () => {
     state.docs.set("siteTaskBriefs/req1", { requestId: "req1", summary: "Move cartons from the conveyor to a pallet" } as never);

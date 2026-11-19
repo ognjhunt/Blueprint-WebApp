@@ -40,9 +40,10 @@ describe("where a site's job stands with deployment companies", () => {
     expect(jobSharingOf(record)).toEqual({ state: "visible", sharedAtIso: AT });
   });
 
-  it("is shared and preparing while its video has not passed the privacy check", () => {
-    const record = shared({ capture_privacy_screen: undefined });
-    expect(jobSharingOf(record)).toEqual({ state: "preparing", sharedAtIso: AT });
+  it("is visible without any upload-time privacy record: no screen holds a video", () => {
+    expect(jobSharingOf(shared({ capture_privacy_screen: undefined }))).toEqual({ state: "visible", sharedAtIso: AT });
+    expect(jobSharingOf(shared({ capture_privacy_screen: { proceeded: false, eligibility: "pending" } })))
+      .toEqual({ state: "visible", sharedAtIso: AT });
   });
 
   it.each([

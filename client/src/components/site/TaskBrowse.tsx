@@ -103,7 +103,7 @@ export function TaskBrowse() {
     </details>}
     {libraryEmpty && <div className="ms-task-empty">
       <h2>The first site jobs are being prepared.</h2>
-      <p>Each job a site sends is shown here once its video has passed our privacy check and the site has said what the job is.</p>
+      <p>Each job a site sends is shown here once the site has said what the job is.</p>
     </div>}
     {state === "ready" && items.length > 0 && <>
       <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Open a job to watch the site's video and answer.</p>
