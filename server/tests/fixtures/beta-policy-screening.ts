@@ -39,7 +39,8 @@ export function screeningFixture(proposed = false) {
     operatorAnswers: {}, unresolved: [] } as unknown as SiteTaskBriefRecord;
   const job: Record<string, any> = { request: { buyerType: "site_operator", consent_attestation: {
     granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-26T11:00:00Z" } } };
-  const context = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(job), proposed ? { purpose: "scene_preparation" } : undefined);
+  const context = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(job),
+    proposed ? { siteIdentity: null, purpose: "scene_preparation" } : { siteIdentity: null });
   job.website_scene_sponsorship = { task_context_digest: context.context_digest, capture_id: context.capture_id,
     ...(proposed ? { purpose: "scene_preparation" } : {}),
     owner: { user_id: "blueprint", organization_id: "blueprint-operations" } };

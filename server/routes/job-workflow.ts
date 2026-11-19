@@ -21,6 +21,7 @@ import {
   JobMarketplaceError, optionsReviewSchema, projectJobMarketplace, requirementsSchema,
   storedMarketplace, workflowDigest, reviewScopeRevision, hasReviewScope, type StoredJobMarketplace,
 } from "../utils/jobMarketplaceWorkflow";
+import { taskContextSiteIdentity } from "../utils/websiteTaskContext";
 
 const router = Router();
 const ownerRouter = Router();
@@ -153,7 +154,7 @@ router.post("/admin/:requestId/evidence", handle(async (req, res) => {
     const session = await tx.get(db!.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(jobId, job.data()!)));
     await assertJobEvidenceVideo(jobId, job.data()!, brief.data()!, session.exists ? session.data()! : null, inventory.exists ? inventory.data() as any : null);
     const value = buildJobEvidenceRequest({ jobId, idempotencyKey: key, uid: res.locals.firebaseUser!.uid,
-      question, brief: brief.data()!, record: job.data()!, inventory: inventory.exists ? inventory.data() as any : null, session: session.exists ? session.data()! : null });
+      question, brief: brief.data()!, record: job.data()!, siteIdentity: await taskContextSiteIdentity(job.data()!), inventory: inventory.exists ? inventory.data() as any : null, session: session.exists ? session.data()! : null });
     if (Buffer.byteLength(JSON.stringify(value), "utf8") > 750_000) throw new JobMarketplaceError("evidence_too_large", "Retain large scientific artifacts in the existing object store before requesting evidence.", 413);
     const ref = jobRef.collection("jobEvidenceRequests").doc(value.request_id);
     const previous = await tx.get(ref);

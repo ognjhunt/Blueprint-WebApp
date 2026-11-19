@@ -22,7 +22,8 @@ import {
 import type { WorldReconstructionRecord } from "../utils/worldReconstruction";
 import { getBrief, TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import { TASK_ITEM_INVENTORY_COLLECTION, type TaskItemInventoryRecord } from "../utils/taskItemInventory";
-import { countsTowardTask, loadWebsiteCaptureRights, loadWebsiteTaskInventory, preparationGrantContextDigest, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { countsTowardTask, loadWebsiteCaptureRights, loadWebsiteTaskInventory, preparationGrantContextDigest, projectWebsiteTaskContext,
+  taskContextSiteIdentity } from "../utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "../utils/websiteCaptureBinding";
 import { assertWebsiteRunOpen } from "../utils/websiteRunClosure";
@@ -107,7 +108,7 @@ async function persistReconstruction(
       await assertWebsiteCaptureBindingInTransaction(tx, requestId, contextEvidence.captureBinding);
       if (!brief || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
         || currentWebsiteSceneContext({requestId, brief, record: request ?? {}, inventory, captureId,
-          captureBinding: contextEvidence.captureBinding }).context_digest !== contextEvidence.digest)
+          captureBinding: contextEvidence.captureBinding, siteIdentity: await taskContextSiteIdentity(request) }).context_digest !== contextEvidence.digest)
         throw new Error("website_visual_scene_context_changed");
       tx.set(ref, value, { merge: true });
     });
@@ -195,7 +196,8 @@ router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateL
       if (!db) return res.status(503).json({ code: "website_visual_scene_store_unavailable" });
       const current = (await db.collection("inboundRequests").doc(body.request_id).get()).data() ?? {};
       const context = currentWebsiteSceneContext({requestId: body.request_id, brief, record: current,
-        inventory: await loadWebsiteTaskInventory(body.request_id), captureId, captureBinding });
+        inventory: await loadWebsiteTaskInventory(body.request_id), captureId, captureBinding,
+        siteIdentity: await taskContextSiteIdentity(current) });
       if (context.context_digest !== body.task_context_digest
           || !context.capture_rights.derived_scene_generation_allowed)
         return res.status(409).json({ code: "website_visual_scene_context_changed" });
@@ -391,7 +393,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         await assertWebsiteCaptureBindingInTransaction(transaction, requestId, preparedBinding);
         if (!projectWebsiteCaptureRights(current).derived_scene_generation_allowed) throw new Error("source_revoked");
         if (!currentBrief || currentWebsiteSceneContext({requestId, brief: currentBrief, record: current ?? {},
-          inventory: currentInventory, captureId: req.params.captureId, captureBinding: preparedBinding }).context_digest !== authority.task_context_digest)
+          inventory: currentInventory, captureId: req.params.captureId, captureBinding: preparedBinding,
+          siteIdentity: await taskContextSiteIdentity(current) }).context_digest !== authority.task_context_digest)
           throw new Error("website_task_context_changed");
         if (prior.exists) {
           if (prior.data()?.request_digest !== sceneDigest(request)) throw new Error("idempotency_conflict");
@@ -518,7 +521,7 @@ router.post("/creator-captures/:captureId/task-item-evidence", createPipelineSyn
         if (!brief || !inventory || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed)
           throw new Error("source_revoked");
         const context = currentWebsiteSceneContext({requestId: body.request_id, brief, record: request ?? {}, inventory,
-          captureId, captureBinding });
+          captureId, captureBinding, siteIdentity: await taskContextSiteIdentity(request) });
         if (context.context_digest !== body.task_context_digest) throw new Error("website_item_evidence_context_changed");
         // Evidence covers exactly the items the task context carries.
         const counted = inventory.items.filter(countsTowardTask);
@@ -636,8 +639,10 @@ router.post(
       res.setHeader("Cache-Control", "no-store");
       const inventory = await loadWebsiteTaskInventory(requestId);
       // A brief confirmed after its preparation names the parent that preparation sealed, read from its grant.
+      // The site's identity is removed from its own words for a job created with that rule (`websiteTaskContext.ts`).
       return res.json(projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(requestId), {
-        inventory, captureId: req.params.captureId, captureBinding, purpose: parsed.data.purpose,
+        siteIdentity: await taskContextSiteIdentity(record), inventory, captureId: req.params.captureId, captureBinding,
+        purpose: parsed.data.purpose,
         preparationGrantContextDigest: preparationGrantContextDigest(record) }));
     } catch (error) {
       const code = error instanceof Error ? error.message : "";

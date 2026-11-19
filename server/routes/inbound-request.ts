@@ -226,6 +226,7 @@ import type {
   PilotOpportunityInput,
   PilotOpportunityVisibility,
 } from "../types/inbound-request";
+import { TASK_CONTEXT_IDENTITY_FIELD } from "../utils/websiteTaskContext";
 
 const router = Router();
 
@@ -2019,6 +2020,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
     try {
       await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
         ops_notice: initialIntakeOpsNotice(opsNoticeMeta),
+        // From its first projection, this job's task context reaches the Pipeline without the site's identity
+        // (`websiteTaskContext.ts`). Jobs created before this keep theirs as typed, so nothing bound to them changes.
+        [TASK_CONTEXT_IDENTITY_FIELD]: true,
         ...(messageSuppression ? { intake_message_suppression: messageSuppression } : {}),
         // Recording statement v4 says the job is shared with approved deployment companies: the listing record is
         // written with it, and the "your job is with deployment companies" email is owed until the job is first visible.

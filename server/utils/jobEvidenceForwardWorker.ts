@@ -15,6 +15,7 @@ import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEval
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import type { Response } from "express";
 import { resolveExecutionAccessContext } from "./access-control";
+import { taskContextSiteIdentity } from "./websiteTaskContext";
 
 type Action = "submit" | "refresh" | "execute" | "cancel";
 type Forwarder = typeof forwardJobEvidence;
@@ -49,7 +50,7 @@ export async function assertJobEvidenceVideo(jobId: string, record: Record<strin
     && session?.content_addressing?.sha256 === receipt.data.capture_digest
     && session?.content_addressing?.raw_input_content_addressed === true
     && String(session?.request?.original_file?.media_type ?? "").startsWith("video/")
-    && scientificContext(session, { brief, record, inventory }) !== null;
+    && scientificContext(session, { brief, record, inventory, siteIdentity: await taskContextSiteIdentity(record) }) !== null;
   if (retained) return;
   throw new JobMarketplaceError(walkthrough === null ? "capture_status_unavailable" : "video_required",
     walkthrough === null ? "We could not verify the retained recording. Try again before continuing assessment."
@@ -103,7 +104,7 @@ async function currentScope(request: JobEvidenceRequest) {
   const session = await db!.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(request.job_id, record)).get();
   const sessionValue = session.exists ? session.data()! : null;
   await assertJobEvidenceVideo(request.job_id, record, brief.data()!, sessionValue, inventory.exists ? inventory.data() as any : null);
-  if (request.testbed && scientificContext(sessionValue, { brief: brief.data()!, record,
+  if (request.testbed && scientificContext(sessionValue, { brief: brief.data()!, record, siteIdentity: await taskContextSiteIdentity(record),
     inventory: inventory.exists ? inventory.data() as any : null })?.testbed.testbed_digest !== request.testbed.testbed_digest) {
     throw new JobMarketplaceError("evidence_scope_changed", "The task, source or its permission changed. Prepare the current evidence question.");
   }

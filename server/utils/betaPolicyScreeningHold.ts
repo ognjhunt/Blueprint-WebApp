@@ -29,6 +29,7 @@ import { betaPolicyScreeningSourceSchema, isScreeningAttentionOutcome, storedScr
 import { heldOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { websiteRunClosure } from "./websiteRunClosure";
+import { taskContextSiteIdentity } from "./websiteTaskContext";
 
 export const SCREENING_HOLD_SCHEMA = "beta_policy_screening_hold.v1";
 export const SCREENING_HOLD_RUN_KIND = "beta_policy_screening_hold";
@@ -127,6 +128,7 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
     await assertManagedScreeningCaptureCurrent(jobId, screeningCapture, ref => transaction.get(ref));
     const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: scientificBriefDigest(brief.data()!) },
       record: job.data(), brief: brief.data(), allowProposedScreening: true, screeningCapture,
+      siteIdentity: await taskContextSiteIdentity(job.data()),
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       sourceSession: await readManagedJobSourceSession(job.data(), ref => transaction.get(ref)) });
     assertScreeningSceneSource(hold, intake!, scope, revisionOfferings);

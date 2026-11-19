@@ -17,7 +17,7 @@ import { isNavigationStrategy, navigationPreparationMatchesTask, navigationPrepa
 import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
 import { isKnownSceneIntentOutcomeKind, sceneIntentOutcomeBinds, sceneIntentOutcomeSchema, sceneOutcomeNoticeIntent } from "./sceneIntentOutcome";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
-import { loadWebsiteCaptureRights } from "./websiteTaskContext";
+import { loadWebsiteCaptureRights, taskContextSiteIdentity } from "./websiteTaskContext";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -1032,7 +1032,8 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
                     ?? sponsoredAuthority?.continuation_parent_authority_digest ?? sponsoredAuthority?.authority_digest;
                   if (request?.website_scene_sponsorship?.authority_digest !== rootDigest || !brief
                     || currentWebsiteSceneContext({requestId: record.website_request_id, brief, record: request ?? {}, inventory,
-                      captureId: record.source_session_id, captureBinding}).context_digest !== sponsoredAuthority?.task_context_digest)
+                      captureId: record.source_session_id, captureBinding,
+                      siteIdentity: await taskContextSiteIdentity(request)}).context_digest !== sponsoredAuthority?.task_context_digest)
                     throw new Error("website_scene_sponsorship_binding_invalid");
                 }
                 transaction.update(row.ref, {

@@ -6,6 +6,7 @@ import { maintainedSiteTaskTestbedSchema, nativeDecisionEvidenceRequestSchema, p
 import { nativeDecisionEnvelopeSchema, nativeEvidencePlanSchema, sensitivePaths } from "./taskEvaluationRunContract";
 import { verifyProducerArtifact } from "./producerCanonicalArtifact";
 import { preparationGrantContextDigest, projectWebsiteTaskContext } from "./websiteTaskContext";
+import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
@@ -56,7 +57,8 @@ export const scientificBriefDigest = (brief: Record<string, any>) => crossRuntim
 
 /** Only admitted task-item context affects this source binding; quote and confirmation metadata do not. */
 export const jobEvidenceTaskInventoryDigest = (brief: Record<string, any>, inventory?: TaskItemInventoryRecord | null) =>
-  crossRuntimeDigest(projectWebsiteTaskContext(brief as SiteTaskBriefRecord, undefined, { inventory }).task_items ?? []);
+  // Only `task_items` is read, and the site's identity is never removed from them: no identity is needed here.
+  crossRuntimeDigest(projectWebsiteTaskContext(brief as SiteTaskBriefRecord, undefined, { siteIdentity: null, inventory }).task_items ?? []);
 
 export const jobEvidenceSourceBindingSchema = z.object({
   schema_version: z.literal("job_evidence_source_binding.v1"), job_id: jobEvidenceId,
@@ -75,6 +77,8 @@ export function jobEvidenceCaptureSessionId(jobId: string, record: Record<string
 
 export function scientificContext(session: Record<string, any> | null, binding?: {
   brief: Record<string, any>; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
+  /** `taskContextSiteIdentity(record)`. */
+  siteIdentity: KnownSiteIdentity | null;
 }) {
   const source = session?.pipeline_site_task_testbed;
   if (!binding || !source || !projectWebsiteCaptureRights(binding.record).derived_scene_generation_allowed
@@ -93,7 +97,8 @@ export function scientificContext(session: Record<string, any> | null, binding?:
   const explicitBrief = source.job_id === binding.brief.requestId && source.brief_digest === scientificBriefDigest(binding.brief);
   let contextMatches = false;
   if (source.website_task_context_digest) {
-    const context = projectWebsiteTaskContext(binding.brief as SiteTaskBriefRecord, projectWebsiteCaptureRights(binding.record), { inventory: binding.inventory,
+    const context = projectWebsiteTaskContext(binding.brief as SiteTaskBriefRecord, projectWebsiteCaptureRights(binding.record), {
+      siteIdentity: binding.siteIdentity, inventory: binding.inventory,
       ...(binding.record.website_scene_sponsorship?.purpose ? { purpose: binding.record.website_scene_sponsorship.purpose } : {}),
       preparationGrantContextDigest: preparationGrantContextDigest(binding.record) });
     contextMatches = source.website_task_context_digest === context.context_digest;
@@ -111,8 +116,9 @@ export function scientificContext(session: Record<string, any> | null, binding?:
     compiledCardCanonicalJson: source.compiled_card_canonical_json ?? null } : null;
 }
 
-export function buildJobEvidenceRequest(args: { jobId: string; idempotencyKey: string; uid: string; question: string; brief: Record<string, unknown>; session: Record<string, any> | null; record?: Record<string, any>; inventory?: TaskItemInventoryRecord | null }): JobEvidenceRequest {
-  const context = scientificContext(args.session, args.record ? { brief: args.brief, record: args.record, inventory: args.inventory } : undefined);
+export function buildJobEvidenceRequest(args: { jobId: string; idempotencyKey: string; uid: string; question: string; brief: Record<string, unknown>; session: Record<string, any> | null; record?: Record<string, any>; inventory?: TaskItemInventoryRecord | null; siteIdentity: KnownSiteIdentity | null }): JobEvidenceRequest {
+  const context = scientificContext(args.session, args.record ? { brief: args.brief, record: args.record, inventory: args.inventory,
+    siteIdentity: args.siteIdentity } : undefined);
   const usable = context && context.decisionRequest.decision_question === args.question;
   const content = {
     schema_version: "job_evidence_request.v1" as const,

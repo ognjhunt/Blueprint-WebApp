@@ -8,7 +8,7 @@ import admin from "firebase-admin";
 import { dbAdmin as db } from "../client/src/lib/firebaseAdmin";
 import { developmentTestSiteEligible } from "../server/utils/websiteSceneSponsorship";
 import { type SiteTaskBriefRecord } from "../server/utils/siteTaskBrief";
-import { projectWebsiteTaskContext } from "../server/utils/websiteTaskContext";
+import { projectWebsiteTaskContext, taskContextSiteIdentity } from "../server/utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../server/utils/websiteCaptureRights";
 
 const requestId = process.argv[2] ?? "";
@@ -23,7 +23,8 @@ try {
   if (!site.exists || !brief.exists) throw new Error("task_brief_missing");
   const record = site.data()!;
   const rights = projectWebsiteCaptureRights(record);
-  const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights);
+  const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights,
+    { siteIdentity: await taskContextSiteIdentity(record) });
   if (!context.confirmed || !rights.derived_scene_generation_allowed
     || !developmentTestSiteEligible(record))
     throw new Error("website_development_site_test_ineligible");

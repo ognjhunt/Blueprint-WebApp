@@ -3,6 +3,7 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { JobMarketplaceError } from "./jobMarketplaceWorkflow";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { jobEvidenceRequestSchema, jobEvidenceSummary, scientificBriefDigest, scientificContext, jobEvidenceCaptureSessionId, verifyJobEvidencePublication, type JobEvidencePublication } from "./jobEvidenceContract";
+import { taskContextSiteIdentity } from "./websiteTaskContext";
 
 export async function readJobEvidence(jobId: string, brief: Record<string, any> | null, admin = false) {
   if (!db || !brief?.confirmedAtIso) return { evidence: [], evidenceContext: null };
@@ -13,7 +14,8 @@ export async function readJobEvidence(jobId: string, brief: Record<string, any> 
     db.collection("siteTaskItemInventories").doc(jobId).get(),
   ]);
   const session = await db.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(jobId, job.data()!)).get();
-  const context = scientificContext(session.exists ? session.data()! : null, { brief, record: job.data()!, inventory: inventory.exists ? inventory.data() as any : null });
+  const context = scientificContext(session.exists ? session.data()! : null, { brief, record: job.data()!,
+    inventory: inventory.exists ? inventory.data() as any : null, siteIdentity: await taskContextSiteIdentity(job.data()) });
   const evidence = requests.docs.map(row => {
     const value = row.data();
     const cancellationConfirmed = value.cancellationRequested && value.cancellationConfirmedAtIso;

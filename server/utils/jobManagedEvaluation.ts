@@ -3,7 +3,8 @@ import { websitePreparationCaptureId } from "./websitePreparationRevision";
 import { z } from "zod";
 import { jobEvidenceSourceBindingSchema, jobEvidenceTaskInventoryDigest, scientificBriefDigest, scientificContext } from "./jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { preparationGrantContextDigest, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { preparationGrantContextDigest, projectWebsiteTaskContext, taskContextSiteIdentity } from "./websiteTaskContext";
+import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { preparationGrantFollowsBrief } from "./preparationGrantTask";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
@@ -39,6 +40,8 @@ export function managedJobTask(args: {
   record: Record<string, any> | undefined;
   brief: Record<string, any> | undefined;
   inventory?: TaskItemInventoryRecord | null;
+  /** `taskContextSiteIdentity(record)`. */
+  siteIdentity: KnownSiteIdentity | null;
   sourceSession?: Record<string, any> | null;
   /** Only the automatic job evaluation may inspect the exact retained preparation task before the site confirms the brief. */
   allowProposedScreening?: boolean;
@@ -57,12 +60,13 @@ export function managedJobTask(args: {
     throw new Error("job_scene_not_prepared");
   }
   const context = projectWebsiteTaskContext(brief as SiteTaskBriefRecord, rights, {
-    inventory: args.inventory,
+    siteIdentity: args.siteIdentity, inventory: args.inventory,
     ...(sponsorship.purpose ? { purpose: sponsorship.purpose } : {}),
     preparationGrantContextDigest: preparationGrantContextDigest(record),
   });
   if (context.context_digest !== sponsorship.task_context_digest && !preparationGrantFollowsBrief(sponsorship,
-    { brief: brief as SiteTaskBriefRecord, record, inventory: args.inventory })) throw new Error("job_scene_task_changed");
+    { brief: brief as SiteTaskBriefRecord, record, inventory: args.inventory, siteIdentity: args.siteIdentity }))
+    throw new Error("job_scene_task_changed");
   let sourceFingerprint: string;
   let sourceCaptureSessionId: string | null = null;
   let sourceCaptureDigest: string | null = null;
@@ -74,7 +78,7 @@ export function managedJobTask(args: {
       || ["revoked", "revocation_in_progress", "cancelled"].includes(args.sourceSession.status)) {
       throw new Error("job_capture_processing_not_authorized");
     }
-    const native = scientificContext(args.sourceSession, { brief, record, inventory: args.inventory });
+    const native = scientificContext(args.sourceSession, { brief, record, inventory: args.inventory, siteIdentity: args.siteIdentity });
     if (!native || !native.testbed.source_capture_bundles.some(bundle =>
       bundle.bundle_id === source.data.intake_id && bundle.digest === source.data.source_capture_digest)) {
       throw new Error("job_evaluation_source_changed");
@@ -103,7 +107,7 @@ export function managedJobTask(args: {
       if (!captureBinding || captureBinding.capture_id !== captureId
         || captureBinding.original_capture_id !== `walkthrough-${binding.job_id}`) throw new Error("job_evaluation_source_changed");
       selectedContext = projectWebsiteTaskContext(brief as SiteTaskBriefRecord, rights, {
-        inventory: args.inventory, captureId, captureBinding, ...(sponsorship.purpose ? { purpose: sponsorship.purpose } : {}),
+        siteIdentity: args.siteIdentity, inventory: args.inventory, captureId, captureBinding, ...(sponsorship.purpose ? { purpose: sponsorship.purpose } : {}),
         preparationGrantContextDigest: preparationGrantContextDigest(record),
       });
       sourceFingerprint = crossRuntimeDigest({ schema_version: "job_managed_screening_continuation.v1", job_id: binding.job_id,
@@ -313,7 +317,7 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
   try {
     const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest },
       record: job.data(), brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-      sourceSession });
+      siteIdentity: await taskContextSiteIdentity(job.data()), sourceSession });
     taskContextDigest = scope.taskContextDigest; sourceFingerprint = scope.sourceFingerprint;
   }
   catch (error) {
@@ -378,7 +382,8 @@ export async function assertManagedJobEvidenceReference(jobId: string, currentBr
   if (!taskTargetSelectionApplies(selectionSession)) throw new Error('job_managed_evidence_reference_unavailable_or_stale');
   const result = await read(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id));
   const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
-    brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, sourceSession });
+    brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, sourceSession,
+    siteIdentity: await taskContextSiteIdentity(job.data()) });
   if (!scope) throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   const row = projectManagedJobEvidence(snapshot.id, run, result.exists ? result.data()! : null,
     jobId, currentBriefDigest, scope.taskContextDigest, scope.sourceFingerprint);
