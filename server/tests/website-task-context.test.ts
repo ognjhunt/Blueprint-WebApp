@@ -131,9 +131,9 @@ it("reads confirmation after upload and rejects unsigned or mismatched capture r
 
 const grant = { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-19T00:00:00Z" };
 
-// The site's quick answers on its job page reach the Pipeline for its job sheet (`SITE_JOB_FACTS_FIELD`), only on a
-// read that asks for them: they bind nothing, so a tap during preparation never changes a digest a grant holds.
-it("serves the site's quick answers only to a read that asks, as owner-stated, and changes no other read", async () => {
+// The site's quick answers on its job page stay on the website (2026-11-19): the company's job page shows them beside
+// the Pipeline's own estimates, so no read of the task context carries them, and a tap never changes a digest.
+it("never sends the site's quick answers to the Pipeline, whatever the site tapped", async () => {
   const { default: router } = await import("../routes/internal-capture-worlds");
   const app = express(); app.use(express.json()); app.use(router);
   const server = createServer(app);
@@ -146,22 +146,10 @@ it("serves the site's quick answers only to a read that asks, as owner-stated, a
   try {
     state.brief = brief(true); state.consent = grant;
     const before = await (await post()).text();
-    state.jobFacts = { perHour: "60_300", hours: "two_shifts", weight: "unsure", bogus: "free text", updatedAtIso: "2026-11-19T10:00:00.000Z" };
-    // Every read that does not ask is byte for byte what it was, whatever the site tapped.
+    state.jobFacts = { perHour: "60_300", hours: "two_shifts", weight: "unsure", updatedAtIso: "2026-11-19T10:00:00.000Z" };
     expect(await (await post()).text()).toBe(before);
-    const asked = await (await post({ include_site_job_facts: true })).json();
-    expect(asked.site_job_facts).toEqual({ basis: "owner_stated_unverified", updated_at: "2026-11-19T10:00:00.000Z", answers: {
-      item_weight: { code: "unsure", answer: "Not sure", label: "Weight", question: "How heavy is the item?" },
-      items_per_hour: { code: "60_300", answer: "60 to 300", label: "How many an hour", question: "How many an hour?" },
-      hours_per_day: { code: "two_shifts", answer: "Two shifts", label: "Hours a day", question: "How many hours a day does this job run?" },
-    } });
-    const { site_job_facts: _facts, context_digest: _digest, ...rest } = asked;
-    const { context_digest: _plainDigest, ...plain } = JSON.parse(before);
-    expect(rest).toEqual(plain);
-    // No answers: the asked read is the plain read.
-    state.jobFacts = undefined;
-    expect(await (await post({ include_site_job_facts: true })).text()).toBe(before);
-    expect((await post({ include_site_job_facts: false })).status).toBe(400);
+    expect(before).not.toContain("site_job_facts");
+    expect((await post({ include_site_job_facts: true })).status).toBe(400);
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
 });
 it("forwards only the recorded scene-building grant, never data resale or a revoked grant", () => {

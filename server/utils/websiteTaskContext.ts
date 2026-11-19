@@ -6,8 +6,6 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { TaskItem, TaskItemInventoryRecord } from "./taskItemInventory";
 import { REMOVED, identifyingDetailsRemoved, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { knownSiteIdentity } from "./siteIdentity";
-import { JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_QUESTIONS, JOB_FACT_SHORT_LABELS, sanitizeJobFacts, type JobFactKey }
-  from "../../client/src/lib/jobFacts";
 
 /**
  * The Pipeline never receives the site's identity (data minimisation, 2026-11-19). The site's own words in the task
@@ -33,44 +31,6 @@ export const TASK_CONTEXT_IDENTITY_FIELD = "task_context_without_site_identity";
  */
 export async function taskContextSiteIdentity(record: Record<string, any> | null | undefined): Promise<KnownSiteIdentity | null> {
   return record?.[TASK_CONTEXT_IDENTITY_FIELD] === true ? knownSiteIdentity(record) : null;
-}
-
-/**
- * The site's quick answers on its job page (`job_facts`: weight, size, how many an hour, hours a day, when), as the
- * Pipeline's job sheet prints them: the site's own statements, never checked (`basis: "owner_stated_unverified"`).
- * Each is a closed code with its fixed words; there is no free text in them, so nothing to clean.
- *
- * They are NOT part of the task context a grant, a preparation or a status binds to. A site taps these at any time,
- * mostly while its job is being prepared; inside a bound context every tap would change the digest, and the job would
- * be prepared, and paid for, again. So the task-context route adds them only to a read that asks for them
- * (`include_site_job_facts`), which binds nothing: the Pipeline keeps them beside the capture for the job sheet
- * (`website_site_job_facts`). Every other projection, and every digest, is what it was.
- *
- * Shape (`site_job_facts`, stable): `{ basis: "owner_stated_unverified", updated_at: string | null, answers: {
- * <key>: { code, answer, label, question } } }`, with keys `item_weight`, `item_size_longest_side`, `items_per_hour`,
- * `hours_per_day` and `wanted_by`, present only for the questions the site answered ("Not sure" is an answer:
- * code `unsure`).
- */
-export const SITE_JOB_FACTS_FIELD = "site_job_facts";
-const SITE_JOB_FACT_KEYS: Readonly<Record<JobFactKey, string>> = { weight: "item_weight", size: "item_size_longest_side",
-  perHour: "items_per_hour", hours: "hours_per_day", timing: "wanted_by" };
-export interface SiteJobFacts {
-  basis: "owner_stated_unverified";
-  updated_at: string | null;
-  answers: Record<string, { code: string; answer: string; label: string; question: string }>;
-}
-/** The record's quick answers in the Pipeline's shape, or null when the site answered none. */
-export function siteJobFactsForPipeline(record: Record<string, any> | null | undefined): SiteJobFacts | null {
-  const facts = sanitizeJobFacts(record?.job_facts);
-  if (!facts) return null;
-  const answers: SiteJobFacts["answers"] = {};
-  for (const key of JOB_FACT_KEYS) {
-    const code = facts[key];
-    const choice = code ? (JOB_FACT_CHOICES[key] as ReadonlyArray<{ code: string; label: string }>).find(item => item.code === code) : null;
-    if (choice) answers[SITE_JOB_FACT_KEYS[key]] = { code: choice.code, answer: choice.label, label: JOB_FACT_SHORT_LABELS[key],
-      question: JOB_FACT_QUESTIONS[key] };
-  }
-  return { basis: "owner_stated_unverified", updated_at: facts.updatedAtIso || null, answers };
 }
 
 /** One text without the site's identity, or the very same text when there is nothing to remove. A text that was
@@ -141,8 +101,6 @@ type TaskContextEvidence = {
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, unknown>; purpose?: "scene_preparation";
   /** The task context the job's retained preparation grant was issued for (`preparationGrantContextDigest`). */
   preparationGrantContextDigest?: string;
-  /** Only the task-context route's read that asks for them (`SITE_JOB_FACTS_FIELD`); never a projection a digest binds. */
-  siteJobFacts?: SiteJobFacts | null;
 };
 
 /** The task context digest the job's retained preparation grant was issued for: what its preparation sealed. */
@@ -194,7 +152,6 @@ export function projectWebsiteTaskContext(stored: SiteTaskBriefRecord, captureRi
     ...(evidence?.captureBinding ? { capture_binding: evidence.captureBinding } : {}),
     ...(evidence?.inventory?.items.some(countsTowardTask) ? { task_items: evidence.inventory.items.filter(countsTowardTask)
       .map(item => projectTaskItem(item, brief.requestId)) } : {}),
-    ...(evidence?.siteJobFacts ? { [SITE_JOB_FACTS_FIELD]: evidence.siteJobFacts } : {}),
   };
   const sealed = evidence?.preparationGrantContextDigest;
   const parent = brief.confirmedAtIso && sealed && confirmationParents(stored, captureRights, evidence).answered.includes(sealed)

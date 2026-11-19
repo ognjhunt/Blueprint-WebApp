@@ -105,3 +105,37 @@ describe("removeIdentifyingDetails: the site's own known identity, and street ad
     expect(identifyingDetailsRemoved("Stack cartons on 3 pallets.", known)).toBe(false);
   });
 });
+
+// The retired Pipeline job packet export's street and contact rules (2026-11-19), carried here: the website's job page
+// for a company is the one delivery path, so its scan is at least as strict and keeps ordinary job words whole.
+describe("the job packet export's street and contact rules, carried to the website", () => {
+  const nobody = { names: [], addresses: [], contacts: [] };
+  it.each([
+    ["Stack cartons at our dock, 77 Quokka Lane, Springfield IL 62704.", "Stack cartons at our dock."],
+    ["Dock at 77 Quokka Lane, Springfield, IL 62704, every day.", "Dock, every day."],
+    ["We are at 1200 N Main St., Suite 300, by the dock.", "We are, by the dock."],
+    ["Trays come from 12 harbour road 90210 on Mondays.", "Trays come on Mondays."],
+    ["Back door of 4 Rue de Lyon Way.", "Back door of."],
+    ["from 9 service road, 62704 please", "please"],
+  ])("removes a street with its unit, city and postal code: %s", (input, expected) => {
+    const out = removeIdentifyingDetails(input, nobody);
+    expect(out).toBe(expected);
+    expect(out).not.toMatch(/Quokka|Springfield|62704|Suite|Main St|harbour|90210|Lyon/);
+  });
+
+  it.each([
+    "Move 2 trays along conveyor lane.", "Carry 4 trays along service road.", "Push 3 carts down the loading lane to bay 2.",
+    "Stack 6 boxes by the access road gate.", "between 1000-2000 boxes a week", "12 500 000 units a year", "0.4-1.8 kg",
+    "Starts: the middle of its base at (0.277, -0.182, 0.539) m, about 54 cm above the floor.",
+  ])("keeps ordinary job words and figures whole: %s", input => {
+    expect(removeIdentifyingDetails(input, nobody)).toBe(input);
+  });
+
+  it.each(["0049 30 1234567", "06 12 34 56 78", "555-014-2999", "+44 20 7946 0958"])("removes the phone number %s", phone => {
+    expect(removeIdentifyingDetails(`Call or write: ${phone}, thanks.`, nobody)).toBe("Call or write: [removed], thanks.");
+  });
+
+  it("keeps the punctuation after a removed link", () => {
+    expect(removeIdentifyingDetails("Call or write: http://10.0.0.1:8080/x, thanks.", nobody)).toBe("Call or write: [removed], thanks.");
+  });
+});

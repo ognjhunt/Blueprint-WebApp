@@ -15,7 +15,8 @@ export const CONTACT_DETAILS_REMOVED_LINE =
   "We remove contact details from what companies see. They get yours only when you ask for an introduction.";
 
 const EMAIL = /[A-Z0-9._%+-]+\s*(?:@|\(at\)|\[at\])\s*[A-Z0-9-]+(?:\s*(?:\.|\(dot\)|\[dot\])\s*[A-Z0-9-]+)*\s*(?:\.|\(dot\)|\[dot\])\s*[A-Z]{2,}\b/gi;
-const LINK = /\b(?:https?:\/\/|www\.)[^\s<>"')]+/gi;
+/** A web link, without the punctuation that ends the sentence around it ("see https://x.example/a, thanks"). */
+const LINK = /\b(?:https?:\/\/|www\.)[^\s<>"')]*[^\s<>"'.,;:!?)]/gi;
 const BARE_DOMAIN = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org|io|co|us|uk|ca|de|fr|eu|info|biz|ai|app|dev|shop|store|site|online|tech|me|nl|au)\b(?:\/[^\s<>"')]*)?/gi;
 /** A run of digits with phone separators, optionally led by + or "(". Checked further in `isPhone`. */
 const PHONE_CANDIDATE = /(?:\+|\(\s*)?\d[\d\s().\-/]{4,}\d/g;
@@ -28,6 +29,8 @@ function isPhone(candidate: string): boolean {
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return false; // an ISO date
   if (/^\d{1,3}(?:[ ,.]\d{3})+$/.test(text)) return false; // thousands: "1 200 000", "1.200.000"
   if (/^\d+(?:\.\d+)?$/.test(text) && !/^0/.test(text) && digits.length < 10) return false; // one plain number under ten digits
+  const range = /^(\d{1,4})\s*-\s*(\d{1,4})$/.exec(text); // a range, such as "1000-2000 boxes a week"
+  if (range && range[1].length === range[2].length && Number(range[1]) < Number(range[2])) return false;
   return true;
 }
 
@@ -157,30 +160,48 @@ function capitalisedWordPattern(word: string): RegExp | null {
   return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(first.toUpperCase())}${tail}(?![\\p{L}\\p{N}])`, "gu");
 }
 
-/** Street-shaped text even when we do not hold it: a number, one to four words and a street word, an optional unit and
- * postal code. Words like "place", "way" or "court" count only when written as a name ("Mill Place"), so "pick 2 totes
- * and place them" is untouched; the middle words never include little joining words ("and", "the", "on" …). */
-const STREET_WORDS_ANY = "street|avenue|ave|road|rd|lane|boulevard|blvd|highway|hwy|parkway|pkwy";
+/**
+ * Street-shaped text even when we do not hold it: a number, up to four words and a street word, an optional unit,
+ * city, state and postal code ("77 Quokka Lane, Springfield, IL 62704"). Street words that are also ordinary job words
+ * count only where a name makes them a street: lane, road and the like after a capitalised name word ("77 Quokka Lane",
+ * "400 Industrial parkway"), or before a unit, a city or a postal code ("12 harbour road 90210"), so "move 2 trays along
+ * conveyor lane" is untouched; Drive, Place, Court and St likewise ("Mill Place"), so "pick 2 totes and place them" is
+ * untouched. The middle words never include little joining words ("and", "the", "on" …). The rules are the retired
+ * Pipeline job packet export's (`redact_contacts`, 2026-11-19), carried here so the one delivery path keeps them.
+ */
+const anyCase = (word: string) => [...word].map(letter => `[${letter.toLowerCase()}${letter.toUpperCase()}]`).join("");
+const STREET_WORDS_ANY = ["street", "avenue", "ave", "road", "rd", "lane", "boulevard", "blvd", "highway", "hwy", "parkway", "pkwy"]
+  .map(anyCase).join("|");
 const STREET_WORDS_NAMED = "Ln|Dr|Way|Ct|Pl|Square|Sq|Terrace";
 /** Street words that are also ordinary job words ("10 Drive units", "1 Place", "15 Court files", "5 St Bernards"): a
  * street only with a capitalised name word right before them ("Mill Place"), or a unit or postal code after. */
 const STREET_WORDS_WEAK = "Drive|Place|Court|St";
-const MIDDLE = "(?!(?:and|or|the|a|an|to|on|in|of|at|by|for|from|onto|into|then|up|down|per|with|each|every|boxes|cartons|totes|pallets|items|parts|bins|shifts|hours|minutes|kg|lb|cm|mm|m)\\b)[\\p{L}][\\p{L}'.-]*";
+const JOINING = ["and", "or", "the", "a", "an", "to", "on", "in", "of", "at", "by", "for", "from", "onto", "into", "then", "up", "down",
+  "per", "with", "each", "every", "boxes", "cartons", "totes", "pallets", "items", "parts", "bins", "shifts", "hours", "minutes",
+  "kg", "lb", "cm", "mm", "m"];
+const middle = (joining: string) => `(?!(?:${joining})\\b)[\\p{L}][\\p{L}'.-]*`;
+const MIDDLE = middle(JOINING.join("|"));
+/** The same, with the joining words in any case, where the street word may be in any case. */
+const MIDDLE_ANY_CASE = middle(JOINING.map(anyCase).join("|"));
 const LEAD = "(?:\\b(?:[Aa]t|[Oo]n|[Ii]n|[Nn]ear|[Ff]rom)\\s+)?";
+const HOUSE = `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+`;
 /** A unit or suite with its number ("Suite 5", "Unit 4B", "#12"; never "units"), and a postal code. */
 const UNIT = "(?:(?:[Uu]nit|[Ss]uite|[Ss]te|[Aa]pt|[Aa]partment)\\b\\.?\\s*#?\\s*|#\\s*)[\\w-]*\\d[\\w-]*";
 const POSTAL = "\\d{5}(?:-\\d{4})?(?![\\p{L}\\p{N}])";
-const UNIT_AND_POSTAL = `(?:\\s*,?\\s*${UNIT})?(?:\\s*,?\\s*${POSTAL})?`;
-const STREET = new RegExp(
-  `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_NAMED})\\b${UNIT_AND_POSTAL}`, "gu");
-const NAME_WORD = "[\\p{Lu}][\\p{L}'.-]*";
-const STREET_WEAK_NAMED = new RegExp(
-  `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+(?:${MIDDLE}\\s+){0,2}${NAME_WORD}\\s+(?:${STREET_WORDS_WEAK})\\b${UNIT_AND_POSTAL}`, "gu");
-const STREET_WEAK_WITH_UNIT = new RegExp(
-  `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_WEAK})\\b`
-  + `(?:\\s*,?\\s*${UNIT}|\\s*,?\\s*${POSTAL})+`, "gu");
-const STREET_ANY_CASE = new RegExp(
-  `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_ANY})\\b${UNIT_AND_POSTAL}`, "giu");
+/** A city, an optional state and a postal code right after the street (", Springfield, IL 62704"). */
+const CITY_STATE_POSTAL = `\\s*,\\s*\\p{Lu}[\\p{L}\\p{N}_'.-]*(?:\\s+\\p{Lu}[\\p{L}\\p{N}_'.-]*){0,2}(?:\\s*,?\\s*[A-Z]{2})?\\s*,?\\s*${POSTAL}`;
+/** A street word's abbreviation dot goes with it only before a comma ("Main St., Suite 3"), never a sentence's end. */
+const ABBREVIATION_DOT = "(?:\\.(?=\\s*,))?";
+const TAIL = `${ABBREVIATION_DOT}(?:\\s*,?\\s*${UNIT})?(?:${CITY_STATE_POSTAL}|\\s*,?\\s*${POSTAL})?`;
+const NAME_WORD = "\\p{Lu}[\\p{L}'.-]*";
+const STREETS: readonly RegExp[] = [
+  new RegExp(`${HOUSE}(?:${NAME_WORD}\\s+){1,3}(?:${STREET_WORDS_ANY})\\b${TAIL}`, "gu"),
+  new RegExp(`${HOUSE}(?:${MIDDLE_ANY_CASE}\\s+){0,3}(?:${STREET_WORDS_ANY})\\b${ABBREVIATION_DOT}`
+    + `(?:\\s*,?\\s*${UNIT}|${CITY_STATE_POSTAL}|\\s*,?\\s*${POSTAL})+`, "gu"),
+  new RegExp(`${HOUSE}(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_NAMED})\\b${TAIL}`, "gu"),
+  new RegExp(`${HOUSE}(?:${MIDDLE}\\s+){0,2}${NAME_WORD}\\s+(?:${STREET_WORDS_WEAK})\\b${TAIL}`, "gu"),
+  new RegExp(`${HOUSE}(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_WEAK})\\b${ABBREVIATION_DOT}(?:\\s*,?\\s*${UNIT}|\\s*,?\\s*${POSTAL})+`, "gu"),
+];
 
 /** Tidy what removal leaves: doubled spaces and commas, a space before punctuation, a comma at either end. */
 function tidy(text: string): string {
@@ -239,7 +260,7 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity)
     if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) =>
       startsSentence(whole, offset) ? "The site" : "the site");
   }
-  out = out.replace(STREET_ANY_CASE, "").replace(STREET, "").replace(STREET_WEAK_NAMED, "").replace(STREET_WEAK_WITH_UNIT, "");
+  for (const street of STREETS) out = out.replace(street, "");
   out = out.replace(/\bthe site(\s+the site)+\b/gi, "the site");
   return tidy(removeContactDetails(out));
 }

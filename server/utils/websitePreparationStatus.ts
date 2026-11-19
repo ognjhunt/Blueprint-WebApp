@@ -194,17 +194,41 @@ const receiptV8 = receiptV7.extend({
   schema_version: z.literal("website_preparation_status.v8"),
   robot_fit: robotFitV2Schema.nullable(),
 }).strict();
-/** Older Pipelines keep answering v1–v7; v3 adds a retained evidence finding. */
+/**
+ * v9 is v8 with what a deployment company reads about the job's object on its job page (the Pipeline's
+ * `website_packet_facts.v1`): the object and where it goes, with heights above the floor; what was measured; and every
+ * estimate with how sure it is, Blueprint's own estimates of the object's weight and of how often the job runs among
+ * them. Each line is plain words; an estimate of something the site's job page asks names that question (`answers`),
+ * so the company's page shows the site's own answer instead. The company's page removes contact details and street
+ * addresses from every line (`companyJobPage.ts`).
+ */
+export const PACKET_FACT_QUESTIONS = ["item_weight", "item_size_longest_side", "items_per_hour", "hours_per_day"] as const;
+const packetFactLine = z.object({ text: z.string().min(1).max(700), answers: z.enum(PACKET_FACT_QUESTIONS).nullable() }).strict();
+export const packetFactsSchema = z.object({
+  schema_version: z.literal("website_packet_facts.v1"),
+  object: z.array(packetFactLine).max(40),
+  measured: z.array(packetFactLine).max(40),
+  estimated: z.array(packetFactLine).max(60),
+  truncated: z.boolean(),
+}).strict();
+export type PacketFacts = z.infer<typeof packetFactsSchema>;
+const receiptV9 = receiptV8.extend({
+  schema_version: z.literal("website_preparation_status.v9"),
+  packet_facts: packetFactsSchema.nullable(),
+}).strict();
+/** Older Pipelines keep answering v1–v8; v3 adds a retained evidence finding. */
 export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4, receiptV5, receiptV6,
-  receiptV7, receiptV8]);
+  receiptV7, receiptV8, receiptV9]);
 export type WebsitePreparationReceipt = z.infer<typeof websitePreparationReceiptSchema>;
 type PreparationState = typeof statesV2[number];
 /**
- * Asks for v8. The Pipeline answers the newest receipt it has at or below what is asked
- * (`requested_status_version`): one released before v8 answers "8" with v7, which still parses here, so the
+ * Asks for v9. The Pipeline answers the newest receipt it has at or below what is asked
+ * (`requested_status_version`): one released before v9 answers "9" with v8, which still parses here, so the
  * website falls back to the newest version both sides know and never reads as unavailable for it.
  */
-export const WEBSITE_PREPARATION_STATUS_VERSION = "8";
+export const WEBSITE_PREPARATION_STATUS_VERSION = "9";
+/** The most a receipt may be: v9's packet facts are bounded at 8 KiB beside the first look's 4 KiB. */
+export const WEBSITE_PREPARATION_STATUS_MAX_BYTES = 16_384;
 export const WEBSITE_PREPARATION_STATUS_VERSION_HEADER = "x-blueprint-preparation-status-version";
 /** The site's view of the robot fit table; robots that fit come first. */
 export type PublicRobotFit = {
@@ -459,7 +483,15 @@ function receiptSelectors(value: WebsitePreparationReceipt): WebsitePreparationS
 export function storedRobotFitV2(value: unknown): RobotFitV2Receipt | null {
   try {
     const fit = parseStored(value)?.status;
-    return fit && fit.schema_version === "website_preparation_status.v8" ? fit.robot_fit : null;
+    return fit && (fit.schema_version === "website_preparation_status.v8" || fit.schema_version === "website_preparation_status.v9")
+      ? fit.robot_fit : null;
+  } catch { return null; }
+}
+/** The stored row's packet facts (a v9 receipt), or null (no row, an older receipt, none yet, or a row that does not parse). */
+export function storedPacketFacts(value: unknown): PacketFacts | null {
+  try {
+    const status = parseStored(value)?.status;
+    return status && status.schema_version === "website_preparation_status.v9" ? status.packet_facts : null;
   } catch { return null; }
 }
 function parseStored(value: unknown): StoredWebsitePreparation | null {
@@ -512,12 +544,13 @@ async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?
   if (!signed) throw unavailable();
   const response = await fetch(signed.url, {method: "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(5_000),
     body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: WEBSITE_PREPARATION_STATUS_VERSION}});
-  if (!response.ok || !response.body || Number(response.headers.get("content-length")) > 8192) throw unavailable();
+  const max = WEBSITE_PREPARATION_STATUS_MAX_BYTES;
+  if (!response.ok || !response.body || Number(response.headers.get("content-length")) > max) throw unavailable();
   const reader = response.body.getReader(); let length = 0; const chunks: Buffer[] = [];
   try {
     for (;;) { const chunk = await reader.read(); if (chunk.done) break;
-      length += chunk.value.length; if (length > 8192) throw unavailable(); chunks.push(Buffer.from(chunk.value)); }
-    return strictBoundedProofJson(Buffer.concat(chunks), 8192);
+      length += chunk.value.length; if (length > max) throw unavailable(); chunks.push(Buffer.from(chunk.value)); }
+    return strictBoundedProofJson(Buffer.concat(chunks), max);
   } finally { await reader.cancel().catch(() => undefined); }
 }
 function sourceFingerprint(session: Record<string, any>): string {

@@ -16,6 +16,9 @@ export const JOB_LIBRARY_URL = "/contact/robot-team#robot-team-access";
 export const VIDEO_PREPARING = "The video is being prepared.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
 export const NO_FIRST_LOOK = "Our first look is not ready yet.";
+export const NO_PACKET_FACTS = "What the video shows of the object is not ready yet.";
+/** Under the site's quick answers: they are its own statements. */
+export const SITE_ANSWERS_HINT = "The site's own answers on its job page; not checked.";
 
 function dateInWords(value: string): string {
   const date = new Date(value);
@@ -24,8 +27,9 @@ function dateInWords(value: string): string {
 
 /**
  * The company's page for one job (package E, E3). Everything on it comes from the server's closed payload
- * (`server/utils/companyJobPage.ts`): the site's sentence, its quick answers, the country, the video, the first look,
- * and the simulation, each when it exists, and the answer form. The only download offered is the
+ * (`server/utils/companyJobPage.ts`): the site's sentence, its quick answers, the country, the video, what the video
+ * shows of the object and how sure each figure is, the first look, and the simulation, each when it exists, and the
+ * answer form. The only download offered is the
  * simulation package (E9); the video is played, with its download control hidden (which discourages saving; it cannot
  * prevent it).
  */
@@ -78,7 +82,10 @@ function CompanyJobBody() {
     <section aria-label="The job">
       <h2>The job, in the site's words</h2>
       {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site has not described the job in its own words.</p>}
-      {page.jobFacts.length > 0 && <ul aria-label="The site's answers">{page.jobFacts.map(line => <li key={line}>{line}</li>)}</ul>}
+      {page.jobFacts.length > 0 && <>
+        <ul aria-label="The site's answers">{page.jobFacts.map(line => <li key={line}>{line}</li>)}</ul>
+        <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>
+      </>}
     </section>
 
     <section aria-label="The video">
@@ -88,6 +95,20 @@ function CompanyJobBody() {
             playsInline onContextMenu={event => event.preventDefault()} style={{ maxWidth: "100%" }}
             width={page.video.width} height={page.video.height} aria-label="The site's video, without sound" />
         : <p>{VIDEO_PREPARING}</p>}
+    </section>
+
+    <section aria-label="The object and how sure we are">
+      <h2>The object, and how sure we are</h2>
+      {page.packetFacts ? <>
+        {page.packetFacts.object.length > 0 && <ul aria-label="The object and where it goes">
+          {page.packetFacts.object.map(line => <li key={line}>{line}</li>)}</ul>}
+        {page.packetFacts.measured.length > 0 && <><h3>Measured</h3>
+          <ul aria-label="Measured">{page.packetFacts.measured.map(line => <li key={line}>{line}</li>)}</ul></>}
+        {page.packetFacts.estimated.length > 0 && <><h3>Estimated</h3>
+          <ul aria-label="Estimated">{page.packetFacts.estimated.map(line => <li key={line}>{line}</li>)}</ul></>}
+      </> : <p>{NO_PACKET_FACTS}</p>}
+      <h3>What this job packet does not show</h3>
+      <ul aria-label="What this job packet does not show">{page.notShown.map(line => <li key={line}>{line}</li>)}</ul>
     </section>
 
     <section aria-label="First look">
