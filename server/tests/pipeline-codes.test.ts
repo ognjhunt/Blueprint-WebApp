@@ -30,6 +30,20 @@ describe("scene outcome kinds", () => {
       decided_at_epoch: 1793000000.25 };
     return { ...value, outcome_digest: crossRuntimeArtifactDigest(value, "outcome_digest") };
   };
+  // Owner decision 2026-11-19: the job's spending cap is an ending with its own sentence and one email; the old wait for
+  // an owner's money approval, still stored on a job in flight, is not adopted until the Pipeline's next status replaces it.
+  it("adopts the spending cap as an ending and leaves an old money wait unadopted", () => {
+    const capped = { state: "blocked", website_request_id: "job-1", pipeline_status: { status: "blocked",
+      outcome: sealed("spending_cap_reached") } };
+    expect(adoptedSceneOutcome(capped)?.kind).toBe("spending_cap_reached");
+    expect(sceneOutcomeNoticeIntent("intake-1", capped)?.kind).toBe("spending_cap_reached");
+    expect(sceneOutcomeMessage("spending_cap_reached")).toBe("We reached our spending cap for this job, so we stopped "
+      + "building the simulation of your site. Your first look stays on your job page. Nothing is needed from you.");
+    const waiting = { state: "accepted", website_request_id: "job-1", pipeline_status: { status: "blocked",
+      outcome: sealed("awaiting_spend_approval", false) } };
+    expect(adoptedSceneOutcome(waiting)).toBeNull();
+    expect(sceneOutcomeNoticeIntent("intake-1", waiting)).toBeNull();
+  });
   // Rewritten (review, 2026-11-12): an unknown TERMINAL kind is the general ending; an unknown wait is not adopted.
   it("does not adopt a wait whose kind it does not know: the job keeps the state its status shows", () => {
     expect(sceneIntentOutcomeSchema.safeParse(sealed("brand_new_kind", false)).success).toBe(true);
