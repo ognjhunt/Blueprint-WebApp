@@ -84,6 +84,8 @@ describe("removeIdentifyingDetails: the site's own known identity, and street ad
     ["Move totes from 12 Mill Road, Unit 4, 60601 to the dock.", "Move totes to the dock."],
     ["Cartons come from 400 Industrial parkway daily.", "Cartons come daily."],
     ["We work at 5 Mill Place.", "We work."],
+    ["Move boxes at 77 quokka street.", "Move boxes."],
+    ["Ship from 41 willow avenue, Springfield IL 62704, every day.", "Ship, every day."],
     ["Deliver from 1200 N Main St, Suite 300 every morning.", "Deliver every morning."],
   ])("removes a street address we do not hold: %s", (input, expected) => {
     expect(removeIdentifyingDetails(input, { names: [], addresses: [], contacts: [] })).toBe(expected);

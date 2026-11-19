@@ -170,8 +170,9 @@ function capitalisedWordPattern(word: string): RegExp | null {
  * Pipeline job packet export's (`redact_contacts`, 2026-11-19), carried here so the one delivery path keeps them.
  */
 const anyCase = (word: string) => [...word].map(letter => `[${letter.toLowerCase()}${letter.toUpperCase()}]`).join("");
-const STREET_WORDS_ANY = ["street", "avenue", "ave", "road", "rd", "lane", "boulevard", "blvd", "highway", "hwy", "parkway", "pkwy"]
+const STREET_WORDS_CLEAR = ["street", "avenue", "ave", "boulevard", "blvd", "highway", "hwy", "parkway", "pkwy"]
   .map(anyCase).join("|");
+const STREET_WORDS_ANY = [STREET_WORDS_CLEAR, ...["road", "rd", "lane"].map(anyCase)].join("|");
 const STREET_WORDS_NAMED = "Ln|Dr|Way|Ct|Pl|Square|Sq|Terrace";
 /** Street words that are also ordinary job words ("10 Drive units", "1 Place", "15 Court files", "5 St Bernards"): a
  * street only with a capitalised name word right before them ("Mill Place"), or a unit or postal code after. */
@@ -195,6 +196,7 @@ const ABBREVIATION_DOT = "(?:\\.(?=\\s*,))?";
 const TAIL = `${ABBREVIATION_DOT}(?:\\s*,?\\s*${UNIT})?(?:${CITY_STATE_POSTAL}|\\s*,?\\s*${POSTAL})?`;
 const NAME_WORD = "\\p{Lu}[\\p{L}'.-]*";
 const STREETS: readonly RegExp[] = [
+  new RegExp(`${HOUSE}(?:${MIDDLE_ANY_CASE}\\s+){1,3}(?:${STREET_WORDS_CLEAR})\\b${TAIL}`, "gu"),
   new RegExp(`${HOUSE}(?:${NAME_WORD}\\s+){1,3}(?:${STREET_WORDS_ANY})\\b${TAIL}`, "gu"),
   new RegExp(`${HOUSE}(?:${MIDDLE_ANY_CASE}\\s+){0,3}(?:${STREET_WORDS_ANY})\\b${ABBREVIATION_DOT}`
     + `(?:\\s*,?\\s*${UNIT}|${CITY_STATE_POSTAL}|\\s*,?\\s*${POSTAL})+`, "gu"),
