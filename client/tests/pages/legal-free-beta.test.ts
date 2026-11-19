@@ -4,7 +4,7 @@
  * passed, and the physical pilot is agreed between the site and the team.
  */
 import { describe, expect, it, vi } from "vitest";
-import { NO_FACE_BLUR_VERSION } from "@/lib/legalAcceptance";
+import { NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "@/lib/legalAcceptance";
 
 import {
   betaRetentionSchedule,
@@ -16,6 +16,8 @@ import {
 } from "@/pages/Privacy";
 import { termsSections } from "@/pages/Terms";
 import {
+  FORMER_PRIVACY_VERSION,
+  FORMER_TERMS_VERSION,
   OLDER_PRIVACY_VERSION,
   OLDER_TERMS_VERSION,
   PREVIOUS_PRIVACY_VERSION,
@@ -36,11 +38,12 @@ describe("terms for the free beta", () => {
   it("describes footage processing as it happens: no person removal, no blurring for a new job, Meta listed", () => {
     // Owner decision D-16 (2026-11-02): footage is not screened or blurred for providers beyond the World Labs face blur.
     // Owner, 2026-11-17 ("idc about face blurring"): no face blur either for a job started under 2026-11-17.1; a job
-    // started under an earlier version keeps it, which the Pipeline decides by the job's recorded Privacy version.
+    // started under an earlier version keeps it, which the Pipeline decides by the job's recorded Privacy version. Since
+    // 2026-11-19.1 the page names those versions: published before November 17, 2026.
     expect(privacy).not.toMatch(/We remove people from the frames/);
     expect(privacy).toMatch(/We do not remove people from job footage or blur them\./);
     expect(privacy).toMatch(/World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people/);
-    expect(privacy).toMatch(/For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area\./);
+    expect(privacy).toMatch(/For a job started under a version of this policy published before November 17, 2026, we still blur faces in the frames we send to World Labs to rebuild the work area\./);
     expect(privacy.match(/blur faces/g)).toHaveLength(1);
     expect(privacy).not.toMatch(/We blur faces in the frames we send to World Labs/);
     const retention = JSON.stringify(betaRetentionSchedule);
@@ -56,42 +59,46 @@ describe("terms for the free beta", () => {
   it("counts only the 2026-11-12 sharing version once it is in force: every older acceptance is asked again", () => {
     const after = legalEffectiveAtMs(TERMS_VERSION);
     expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, after)).toBe(true);
-    for (const [termsVersion, privacyVersion] of [["2026-11-15.4", "2026-11-15.5"], [OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION],
+    for (const [termsVersion, privacyVersion] of [["2026-11-15.4", "2026-11-15.5"], [FORMER_TERMS_VERSION, FORMER_PRIVACY_VERSION],
       [ANNOUNCED_SUPERSEDED_VERSION, ANNOUNCED_SUPERSEDED_VERSION], ["2026-11-15.3", "2026-11-15.4"]]) {
       expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, after)).toBe(false);
       expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, Date.parse("2026-11-20T00:00:00Z"))).toBe(false);
     }
   });
 
-  it("puts the no-blur Terms and Privacy in force at once; nobody who had accepted is asked again", () => {
+  it("puts the no-early-trial Terms and Privacy in force at once; nobody who had accepted is asked again", () => {
     // Owner, 2026-11-12: sharing is the service (2026-11-12.1), then no limit on introductions (Terms 2026-11-12.2, the
     // same day). Owner decision 1 of 2026-11-13: Anthropic may process a new job like OpenAI (Privacy 2026-11-13.1). Owner,
     // 2026-11-17: no face blurring for a new job (Terms and Privacy 2026-11-17.1), effective at once, and earlier
-    // acceptances keep counting. The version published ahead for November 25 never took effect.
-    expect(TERMS_VERSION).toBe(NO_FACE_BLUR_VERSION);
-    expect(PRIVACY_VERSION).toBe(NO_FACE_BLUR_VERSION);
+    // acceptances keep counting. Owner: the early trial dropped on 2026-11-14, permission to update both documents given
+    // on 2026-11-19 (Terms and Privacy 2026-11-19.1), effective at once; it only narrows, so earlier acceptances keep
+    // counting. The version published ahead for November 25 never took effect.
+    expect(TERMS_VERSION).toBe(NO_EARLY_TRIAL_VERSION);
+    expect(PRIVACY_VERSION).toBe(NO_EARLY_TRIAL_VERSION);
     expect(ANNOUNCED_SUPERSEDED_VERSION).toBe("2026-11-25.1");
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-12.2", "2026-11-13.1"]);
-    expect([OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-12.2"]);
-    const now = legalEffectiveAtMs(NO_FACE_BLUR_VERSION) + 10 * 3_600_000;
+    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION]);
+    expect([OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual(["2026-11-12.2", "2026-11-13.1"]);
+    expect([FORMER_TERMS_VERSION, FORMER_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-12.2"]);
+    const now = legalEffectiveAtMs(NO_EARLY_TRIAL_VERSION) + 10 * 3_600_000;
     // Accepted before this release: still current, nothing is asked again.
     for (const [termsVersion, privacyVersion] of [["2026-11-12.2", "2026-11-12.2"], ["2026-11-12.2", "2026-11-13.1"],
-      ["2026-11-12.2", NO_FACE_BLUR_VERSION], [NO_FACE_BLUR_VERSION, "2026-11-13.1"], [NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION]])
+      ["2026-11-12.2", NO_FACE_BLUR_VERSION], [NO_FACE_BLUR_VERSION, "2026-11-13.1"], [NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION],
+      [NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION]])
       expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, now), `${termsVersion} ${privacyVersion}`).toBe(true);
     // What was already asked again stays asked: Terms 2026-11-12.1 and older, with any Privacy version.
     expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-12.1", now)).toBe(false);
-    expect(acceptedVersionsAreCurrent("2026-11-12.1", NO_FACE_BLUR_VERSION, now)).toBe(false);
-    expect(acceptedVersionsAreCurrent("2026-11-02.1", NO_FACE_BLUR_VERSION, now)).toBe(false);
+    expect(acceptedVersionsAreCurrent("2026-11-12.1", NO_EARLY_TRIAL_VERSION, now)).toBe(false);
+    expect(acceptedVersionsAreCurrent("2026-11-02.1", NO_EARLY_TRIAL_VERSION, now)).toBe(false);
     // A Privacy version that did not count before this release still does not.
     expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-02.1", now)).toBe(false);
-    expect(acceptedVersionsAreCurrent(NO_FACE_BLUR_VERSION, "2026-11-12.1", now)).toBe(false);
-    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 17, 2026");
-    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 17, 2026");
-    expect(legalUpdatePending(legalEffectiveAtMs(NO_FACE_BLUR_VERSION))).toBe(false);
+    expect(acceptedVersionsAreCurrent(NO_EARLY_TRIAL_VERSION, "2026-11-12.1", now)).toBe(false);
+    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 19, 2026");
+    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 19, 2026");
+    expect(legalUpdatePending(legalEffectiveAtMs(NO_EARLY_TRIAL_VERSION))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {
-    expect(terms).toMatch(/our early trial and sharing your job with deployment companies cost the site nothing/);
+    expect(terms).toMatch(/Submitting a job, building the simulation and sharing your job with deployment companies cost the site nothing/);
     expect(terms).toMatch(/no Blueprint fee, invoice or payment step/);
     // The money sentence stays word for word (owner, 2026-11-12).
     expect(terms).toContain("Blueprint charges no fee for and takes no percentage of any pilot or deployment. If the site goes ahead, the site and the deployment company agree the physical pilot's dates, scope and any price directly, and the deployment company or its integrator contracts for the physical work.");
@@ -99,8 +106,10 @@ describe("terms for the free beta", () => {
     expect(terms).not.toMatch(/refund your fee/i);
   });
 
-  it("has Blueprint run the early trial and keeps the pilot between the site and the deployment company", () => {
-    expect(terms).toMatch(/run openly available robot software in that simulation ourselves as an early trial/);
+  // Owner: the early trial dropped on 2026-11-14 (Terms 2026-11-19.1): the Terms no longer say Blueprint runs one.
+  it("says nothing of an early trial and keeps the pilot between the site and the deployment company", () => {
+    expect(`${terms}${privacy}`).not.toMatch(/early trial|openly available robot software/i);
+    expect(terms).toMatch(/We rebuild the work area as a simulated scene\. Deployment companies do not run their own software/);
     expect(terms).toMatch(/Deployment companies do not run their own software on a site's job in our simulation/);
     expect(terms).toMatch(/site and the deployment company agree the physical pilot/);
     expect(terms).not.toMatch(/recommended pilot|invite robot teams|book the recommended/i);
@@ -217,7 +226,7 @@ describe("acceptance while a reissue is announced", () => {
     expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, effective - 1)).toBe(true);
     for (const now of [effective, effective + 1, effective + 86400000]) {
       expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, now)).toBe(true);
-      expect(legal.acceptedVersionsAreCurrent(legal.OLDER_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, now)).toBe(false);
+      expect(legal.acceptedVersionsAreCurrent(legal.FORMER_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, now)).toBe(false);
       expect(legal.acceptedVersionsAreCurrent(legal.TERMS_VERSION, legal.PRIVACY_VERSION, now)).toBe(true);
     }
     for (const [terms, privacy] of [
@@ -250,7 +259,7 @@ describe("acceptance while a reissue is announced", () => {
     const after = legal.legalEffectiveAtMs(legal.TERMS_VERSION) + 1;
     expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, before)).toBe(true);
     expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, after)).toBe(true);
-    expect(legal.acceptedVersionsAreCurrent(legal.OLDER_TERMS_VERSION, legal.OLDER_PRIVACY_VERSION, after)).toBe(false);
+    expect(legal.acceptedVersionsAreCurrent(legal.FORMER_TERMS_VERSION, legal.FORMER_PRIVACY_VERSION, after)).toBe(false);
     expect(legal.acceptedVersionsAreCurrent(legal.TERMS_VERSION, legal.PRIVACY_VERSION, before)).toBe(true);
     expect(legal.acceptedVersionsAreCurrent("2026-10-09.1", legal.PREVIOUS_PRIVACY_VERSION, before)).toBe(false);
   });
