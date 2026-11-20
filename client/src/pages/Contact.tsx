@@ -33,7 +33,7 @@ export default function Contact() {
             <section className="bare-group ms-beta-access" id="robot-team-access" aria-label="Robot-team access">
               <TaskBrowse onLibrary={setLibrary} />
             </section>
-            <p className="bare-fine">Have a job to automate? <a href="/contact/site-operator">Start a job</a>.</p>
+            <p className="bare-fine">Nothing is charged today. Have a job to automate? <a href="/contact/site-operator">Start a job</a>.</p>
           </BareScreen>
         </div>
       </>
