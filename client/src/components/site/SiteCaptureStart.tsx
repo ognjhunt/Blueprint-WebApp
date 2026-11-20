@@ -323,7 +323,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
       || recovery.current.pending?.body !== other.pending?.body;
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
-    setMethod(other.draft.method === "visit" ? "phone" : other.draft.method); setRegion(restoredRegion(other.draft));
+    setMethod(other.draft.method === "upload" ? "upload" : "phone"); setRegion(restoredRegion(other.draft));
     setRegionManuallySet(other.draft.regionManuallySet); setRegionPlace(restoredPlace(other.draft));
     setCountryAsked(restoredCountryAsked(other.draft));
     setPending(other.pending);
