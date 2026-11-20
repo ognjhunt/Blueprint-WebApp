@@ -1023,6 +1023,9 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       });
     }
 
+    if (!result.reusedConfirmation) void import("../utils/jobAutoSend")
+      .then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId)).catch(() => undefined);
+
     // Every accepted job hears the same thing, whatever its kind or shape. Only a brief with no sentence about
     // the job is asked for one, by email too; the outbox can retry delivery without a timed check-in.
     const briefUnclear = taskBriefUnclear(result.scope);
@@ -1115,15 +1118,16 @@ function bareSiteAnswerForStatus(params: StatusAnswerParams | null) {
 async function siteCompanyStatus(params: StatusAnswerParams | null) {
   if (!params) return null;
   try {
-    const [{ loadCompanyJobAccess }, { jobSharingOf }, { descriptionStatementShares }] = await Promise.all([
+    const [{ loadCompanyJobAccess }, { jobSharingOf }, { descriptionStatementShares, isJobSharedListing }] = await Promise.all([
       import("../utils/teamJobAccess"), import("../utils/siteAnswer"), import("../utils/jobSharedListing"),
     ]);
     const { access } = await loadCompanyJobAccess(params.requestId, params.request);
     const sharing = jobSharingOf(params.request, access);
-    const descriptionOnly = descriptionStatementShares(params.request) && sharing.state !== "not_shared";
     const companies = sharing.state === "not_shared" ? undefined
       : await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
         .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; });
+    // Keep withdrawal available for old description-only listings, even though companies no longer see them.
+    const descriptionOnly = isJobSharedListing(params.request) && descriptionStatementShares(params.request);
     return { sharing, companies, descriptionOnly };
   } catch (error) {
     logger.warn({ error, requestId: params.requestId }, "Could not read the job's company status");

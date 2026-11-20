@@ -157,7 +157,13 @@ test("a signed-in company opens a job from the library, watches the video and an
   await expect(video).toHaveAttribute("controlsList", /nodownload/);
   await expect.poll(() => videoRequests.length).toBeGreaterThan(0);
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  const answerLink = page.getByRole("link", { name: "Answer this job" });
+  await expect(answerLink).toBeInViewport();
+  await answerLink.click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const form = page.getByRole("form", { name: "Answer about this job" });
+  await expect(form).toBeInViewport();
   await expect(form.getByText(statement, { exact: true })).toBeVisible();
   await form.getByLabel("Interested").check();
   await form.getByRole("textbox").fill("We palletize cartons like these today.");

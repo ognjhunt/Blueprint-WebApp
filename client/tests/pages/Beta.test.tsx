@@ -20,11 +20,10 @@ describe("the questions page", () => {
   it("says what is in the job packet and what it is not", () => {
     render(<Beta />);
     const packet = screen.getByRole("region", { name: "Your job packet" });
-    expect(packet).toHaveTextContent("What the job is and what counts as done when known. If you send a video, we add it without sound and build a simulation when we can.");
-    expect(packet).toHaveTextContent("We add a first look at which robots could fit when we have enough detail.");
+    expect(packet).toHaveTextContent(/Your video and job description, a first look, and a simulation of your site when ready\./);
     expect(packet).not.toHaveTextContent(/early trial|openly available/i);
     expect(packet).toHaveTextContent(/It does not certify performance or safety\./);
-    expect(screen.getByRole("region", { name: "For sites" })).toHaveTextContent(/other jobs still go to companies, and their simulation waits until we can build one\./);
+    expect(screen.getByRole("region", { name: "For sites" })).toHaveTextContent(/You can post other jobs, too\./);
     expect(packet).not.toHaveTextContent(/proof|guarantee|which did best|AI robot/i);
   });
 
@@ -33,7 +32,7 @@ describe("the questions page", () => {
     expect(screen.getByRole("region", { name: "Deployment companies" }))
       .toHaveTextContent("A company can answer Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet. We can't promise any will say yes.");
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("Beside each company that answered Interested or Tested it: can do, press Introduce us. We give each of you the other's details.");
+      .toHaveTextContent("Press Introduce us beside a company that answered Interested or Tested it: can do. We send both sides each other's contact details.");
   });
 
   it("says who sees the video, what stays with us, how to stop, and who we are", () => {

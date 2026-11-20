@@ -13,6 +13,7 @@
  * - the operator hold closes the library card and the response route and flips the site's sentence;
  * - a voided send is not shown and its email is not sent; a withdrawn job shows nothing and sends nothing.
  */
+import { sharedCompanyClip } from "./helpers/sharedJob";
 import express from "express";
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
@@ -148,6 +149,7 @@ beforeEach(async () => {
   vi.stubEnv("SLACK_INBOUND_WEBHOOK_URL", "https://hooks.slack.invalid/test");
   state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Stack cartons onto the pallet", confirmedAtIso: null });
   state.docs.set(`inboundRequests/${ID}`, job());
+  state.docs.set(`captureUploadSessions/walkthrough-${ID}`, { company_clip: sharedCompanyClip(`walkthrough-${ID}`) });
   for (const record of [NORTH, SOUTH, TECH, PENDING]) state.docs.set(`robotTeamAccess/${sha(record.email)}`, record);
   const app = express();
   app.use(express.json());
@@ -254,7 +256,7 @@ describe("what the site receives", () => {
     const { raw, body } = await siteStatus();
     const entries = body.answer.companies.entries as Array<Record<string, unknown>>;
     expect(body.answer.companies.interested).toBe(true);
-    expect(Object.keys(body.answer.companies).sort()).toEqual(["entries", "interested", "introductions", "sent"]);
+    expect(Object.keys(body.answer.companies).sort()).toEqual(["entries", "firstAnswerAtIso", "interested", "introductions", "sent"]);
     expect(body.answer.companies.sent).toMatchObject({ count: 1 });
     expect(body.answer.companies.introductions).toEqual({ used: 0 });
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([["alias", "atIso", "kind"],

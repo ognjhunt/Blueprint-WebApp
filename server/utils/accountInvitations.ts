@@ -20,8 +20,7 @@ export async function resolveAccountInvitation(token: string) {
   const email = payload.email.trim().toLowerCase();
   const record = await getAccessRecordForEmail(email);
   if (!record || record.status !== "approved" || !record.decidedBy || record.decidedAtIso !== payload.revision || accessRecordId(email) !== payload.sourceId) return deny();
-  // An approved team lands in its workspace, where its team is already bound.
-  return { ...payload, email, name: record.name, organization: record.company, returnTo: "/app" };
+  return { ...payload, email, name: record.name, organization: record.company, returnTo: "/contact/robot-team" };
 }
 
 /** Independent of client-writable profiles and library-open switches. */

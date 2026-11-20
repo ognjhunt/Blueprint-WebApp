@@ -96,8 +96,11 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
     return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
   });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. We share your job with robot deployment companies we've approved.").filter({ visible: true })).toHaveCount(1);
-  await page.getByRole("button", { name: "I have a video ›", exact: true }).click();
+  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.").filter({ visible: true })).toHaveCount(1);
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("button", { name: "I have a video ›", exact: true }).click(),
+  ]);
   const start = page.getByRole("button", { name: "Send video", exact: true });
   await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.").filter({ visible: true })).toHaveCount(1);
   await expect(page.locator("#start-rights")).toHaveCount(0);
@@ -109,7 +112,7 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
   await expect(start).toBeVisible();
   await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
-  await page.locator("#start-footage").setInputFiles({ name: "cycle.mov", mimeType: "video/quicktime", buffer: Buffer.from("frames") });
+  await chooser.setFiles({ name: "cycle.mov", mimeType: "video/quicktime", buffer: Buffer.from("frames") });
   await page.locator("#start-email").fill("owner@example.test");
   await describeTask(page);
   await start.click();

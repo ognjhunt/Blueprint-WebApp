@@ -15,7 +15,7 @@ import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES } from "../../client/src/lib/companyResponses";
-import { prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
+import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 const router = Router();
 
@@ -70,10 +70,12 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
         || !now.listed || !companyMaySeeJobs(company.data())) throw new Error("job_changed");
       const interestRef = ref.collection("robotTeamInterest").doc(companyId);
       const prior = (await tx.get(interestRef)).data();
-      if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;
+      const next = { ...row, firstAnsweredAtIso: firstAnswerTimestamp(prior, row.updatedAtIso) };
+      if (prior && humanDecisionDigest({ ...prior, firstAnsweredAtIso: next.firstAnsweredAtIso, updatedAtIso: null })
+        === humanDecisionDigest({ ...next, updatedAtIso: null })) return;
       const prepared = await prepareCompanyAnswerInTransaction(tx, ref, taskId, current, companyId, input.data.state, captureUrl);
       prepared.write();
-      tx.set(interestRef, row);
+      tx.set(interestRef, next);
     });
     return res.json({ ok: true, state: input.data.state,
       nextAction: "Saved. The site is told this answer under an alias. Answering commits nobody." });

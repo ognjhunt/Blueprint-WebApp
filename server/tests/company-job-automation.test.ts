@@ -84,7 +84,7 @@ const { default: worldsRouter } = await import("../routes/site-worlds");
 const { default: mediaRouter } = await import("../routes/company-media");
 const { default: viewsRouter } = await import("../routes/website-atlas-preview-views");
 const { default: accessRouter } = await import("../routes/robot-team-access");
-const { sendJobToApprovedCompanies, sweepAutomaticSends } = await import("../utils/jobAutoSend");
+const { sendJobToApprovedCompanies, sendJobToCompaniesIfListed, sweepAutomaticSends } = await import("../utils/jobAutoSend");
 const { requestIntroduction } = await import("../utils/jobIntroductions");
 const { loadSiteCompanyActivity } = await import("../utils/jobCompanies");
 const { deliverOutbox } = await import("../utils/captureOutbox");
@@ -300,28 +300,29 @@ describe("the company's page for one job (E3)", () => {
     expect(raw).not.toMatch(/Joe|Diner|Acme|Fulfillment|Smith|Bakery/);
   });
 
-  it("says the video is being prepared, and the simulation is not finished, until each exists", async () => {
+  it("makes the job visible with playable video while the simulation is being built", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, {});
+    expect((await page()).status).toBe(404);
+    expect((await list()).body.items).toEqual([]);
+    expect(await sendJobToApprovedCompanies(ID)).toMatchObject({ sent: false });
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { company_clip: companyClip() });
     const { body } = await page();
-    expect(body.item.video).toEqual({ state: "preparing" });
-    expect(body.item.simulation).toEqual({ state: "not_finished" });
+    expect(body.item.video).toMatchObject({ state: "ready" });
+    expect(body.item.simulationDownload).toEqual({ state: "not_finished" });
+    expect(await sendJobToApprovedCompanies(ID)).toMatchObject({ sent: true });
   });
 
-  it("lists a job sent with its description only (v5): no video yet, and the company can answer, asking for one", async () => {
-    state.docs.set(`captureUploadSessions/${CAPTURE}`, {});
-    patchJob({ capture_privacy_screen: undefined, request: { ...jobDoc().request, consent_attestation: null,
+  it("keeps a legacy description-only listing out of the library and closed to responses", async () => {
+    patchJob({ request: { ...jobDoc().request, consent_attestation: null,
       description_authority: { granted: true, statement_version: "2026-11-12.v5", recorded_at_iso: "2026-11-12T10:00:00.000Z" } },
-      public_task_listing: { ...jobDoc().public_task_listing, approvedBy: "description_statement", recordingStatementVersion: null,
+      public_task_listing: { ...jobDoc().public_task_listing, approvedBy: "description_statement",
         descriptionStatementVersion: "2026-11-12.v5" } });
-    const { status, body, raw } = await page();
-    expect(status).toBe(200);
-    expect(body.item).toMatchObject({ video: { state: "none" }, simulation: { state: "not_finished" }, country: "United States" });
-    expect(body.item.sentence).toContain("Stack 12 kg cartons onto the pallet");
-    expect(body.item.jobFacts.length).toBeGreaterThan(0);
-    expectNoSiteIn("the no-video page", raw);
-    expect((await list()).body.items).toMatchObject([{ id: ID, stage: "capture" }]);
-    expect((await answer(NORTH, { state: "needs_something", inputs: "A video of the job, please." })).status).toBe(200);
-    expect(state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toMatchObject({ state: "needs_something" });
+    state.docs.delete(`captureUploadSessions/${CAPTURE}`);
+    expect((await page()).status).toBe(404);
+    expect((await list()).body.items).toEqual([]);
+    expect((await answer(NORTH)).status).toBe(409);
+    expect(await sendJobToApprovedCompanies(ID)).toMatchObject({ sent: false });
+    expect(outbox()).toEqual([]);
   });
 
   it("is for a signed-in, approved account only", async () => {
@@ -362,20 +363,25 @@ describe("the company's page for one job (E3)", () => {
   it("records the answer with the line the company saw, and refuses one without it", async () => {
     expect((await answer(NORTH, { statementVersion: undefined })).status).toBe(400);
     expect((await answer(NORTH)).status).toBe(200);
-    expect(state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`))
+    const responsePath = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    const firstResponse = state.docs.get(responsePath);
+    expect(firstResponse)
       .toMatchObject({ state: "interested", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION, recordedBy: "company" });
+    expect(firstResponse?.firstAnsweredAtIso).toBe(firstResponse?.updatedAtIso);
     expect((await page()).body.item.myAnswer).toMatchObject({ state: "interested", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION });
     // The site is queued one email by alias and fixed label only; no person at Blueprint is rung.
     const queued = outbox();
     expect(queued.map(row => row.key)).toEqual([`${ID}:company_answered:A-interested`]);
     expect(queued[0]).toMatchObject({ to: SITE.email, subject: "A deployment company answered" });
     expect(JSON.stringify(queued)).not.toMatch(/North|contact@north|We do this every day/);
+    expect((await answer(NORTH, { state: "needs_something" })).status).toBe(200);
+    expect(state.docs.get(responsePath)).toMatchObject({ state: "needs_something", firstAnsweredAtIso: firstResponse?.firstAnsweredAtIso });
   });
 
   it("lists the job in the library with its page link and nothing that names the site", async () => {
     const { body, raw } = await list();
     expect(body.items).toHaveLength(1);
-    expect(body.items[0]).toMatchObject({ id: ID, jobUrl: `/jobs/${ID}`, region: "" });
+    expect(body.items[0]).toMatchObject({ id: ID, jobUrl: `/jobs/${ID}`, region: "United States" });
     expectNoSiteIn("the library list", raw);
   });
 
@@ -505,6 +511,12 @@ describe("an internal test job is closed on every company surface, though everyt
 /* ----------------------------------------------------------------- the automatic send */
 
 describe("the automatic send (E4)", () => {
+  it("does not queue messages from a pull request preview", async () => {
+    vi.stubEnv("IS_PULL_REQUEST", "true");
+    expect(await sendJobToCompaniesIfListed(ID)).toBeNull();
+    expect(outbox()).toHaveLength(0);
+  });
+
   it("records one system send per approved deployment company and emails only those that asked and are not suppressed", async () => {
     const result = await sendJobToApprovedCompanies(ID);
     const deployment = [NORTH, SOUTH, EAST, WEST, QUIET, MUTED];
@@ -525,7 +537,7 @@ describe("the automatic send (E4)", () => {
     expect((await loadSiteCompanyActivity(ID)).sent).toEqual({ count: 6, firstAtIso: result.sent ? result.sentAtIso : "" });
   });
 
-  it("tells the site how to stop in its job page's own words: a filmed job stops its video, a description-only job is withdrawn", async () => {
+  it("tells sites with shared video how to withdraw and sends no notice for a legacy description draft", async () => {
     await sendJobToApprovedCompanies(ID);
     const filmed = outbox().find(row => row.kind === "job_sent")!;
     expect(filmed.body).toContain("choose Job settings, then Stop using my video.");
@@ -537,10 +549,8 @@ describe("the automatic send (E4)", () => {
       public_task_listing: { ...sharedJobListing("Stack cartons onto the pallet"), approvedBy: "description_statement",
         recordingStatementVersion: null, descriptionStatementVersion: "2026-11-12.v5" } }));
     state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, NORTH);
-    expect(await sendJobToApprovedCompanies(ID)).toMatchObject({ sent: true, count: 1 });
-    const described = outbox().find(row => row.kind === "job_sent")!;
-    expect(described.body).toContain("To stop, open your job page and choose Withdraw my job. Your job then leaves every company's view at once.");
-    expect(described.body).not.toContain("Stop using my video");
+    expect(await sendJobToApprovedCompanies(ID)).toEqual({ sent: false, reason: "not_listed" });
+    expect(outbox()).toHaveLength(0);
   });
 
   it("is idempotent: a second call and the sweep add nothing", async () => {

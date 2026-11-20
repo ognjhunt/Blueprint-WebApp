@@ -32,6 +32,8 @@ export type AutoSendResult =
   | { sent: true; count: number; emailed: number; sentAtIso: string }
   | { sent: false; reason: "not_listed" | "already_sent" | "no_companies" | "store_unavailable" };
 
+const isPullRequestPreview = () => process.env.IS_PULL_REQUEST?.trim().toLowerCase() === "true";
+
 /** The company asked for job emails: its saved preference, or the opt-in mirrored onto its record. */
 export function companyOptedIn(record: Partial<RobotTeamAccessRecord>, userPreferences?: unknown): boolean {
   const saved = savedUpdatePreferences(record.preferencesAccountUid ? userPreferences : record.updatePreferences);
@@ -91,6 +93,7 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
 
 /** Best effort, for a caller at the moment a job may have become listed: never throws. */
 export async function sendJobToCompaniesIfListed(requestId: string): Promise<AutoSendResult | null> {
+  if (isPullRequestPreview()) return null;
   try { return await sendJobToApprovedCompanies(requestId); }
   catch (error) {
     logger.warn({ error, requestId }, "Automatic send did not run; the sweep will try again");
@@ -128,7 +131,7 @@ export async function sweepAutomaticSends(pageSize = 100): Promise<{ examined: n
 /** The worker's sweep, on the automation leader lease, once a minute. */
 export function startAutomaticSendWorker(options: { intervalMs?: number; lease?: AutomationLeaderLease } = {}) {
   // A pull request preview shares the production store and must never send anything.
-  if (process.env.IS_PULL_REQUEST?.trim().toLowerCase() === "true") return () => undefined;
+  if (isPullRequestPreview()) return () => undefined;
   const lease = options.lease ?? createAutomationLeaderLease({ leaseName: "company-automatic-send-leader" });
   lease.start();
   let stopped = false, running = false, timer: ReturnType<typeof setTimeout> | undefined;
@@ -136,9 +139,6 @@ export function startAutomaticSendWorker(options: { intervalMs?: number; lease?:
     if (stopped) return;
     if (!running && lease.isLeader()) {
       running = true;
-      // Jobs sent with their description only before their listing record was written get it first (owner, 2026-11-19).
-      try { await import("./jobSharedListing").then(({ backfillDescriptionSharedListings }) => backfillDescriptionSharedListings()); }
-      catch (error) { logger.error({ err: error }, "Listing backfill for description-only jobs failed; it will retry"); }
       try { await sweepAutomaticSends(); }
       catch (error) { logger.error({ err: error }, "Automatic send sweep failed; it will retry"); }
       finally { running = false; }

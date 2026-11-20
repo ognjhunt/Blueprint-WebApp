@@ -36,6 +36,7 @@
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { recordingStatementShares } from "./jobSharedListing";
 import {
   COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
   type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
@@ -204,19 +205,24 @@ now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: stri
     if (!jobSnap.exists || !record) throw new JobCompaniesError("job_not_found", "Site job not found.");
     if (projectWebsiteCaptureRights(record).consent_revoked)
       throw new JobCompaniesError("consent_withdrawn", "The site withdrew its permission, so nothing new is recorded for it.");
+    if (!recordingStatementShares(record))
+      throw new JobCompaniesError("not_visible", "This job needs a video before company answers can be recorded.");
     const company = companySnap.data() as RobotTeamAccessRecord | undefined;
     if (!company || !isApprovedDeploymentCompany(company))
       throw new JobCompaniesError("company_not_approved", "Only an approved deployment company's answer can be recorded.");
     if (!sendRows.docs.some(doc => !text(doc.data()?.voidedAtIso)))
       throw new JobCompaniesError("not_sent", "This job was not sent to that company (or the send was voided), so its answer cannot be recorded here.");
+    const responseRef = jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(input.companyId);
+    const prior = (await tx.get(responseRef)).data();
     const plan = planAlias(record, input.companyId);
     const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "company_answered",
       eventId: answerEventId(plan.alias, input.state), companyAnswerState: input.state }, captureUrl);
     const updatedAtIso = now().toISOString();
     writeAlias(tx, jobRef, input.companyId, plan);
-    tx.set(jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(input.companyId), {
+    tx.set(responseRef, {
       state: input.state, inputs: input.inputs, email: company.email ?? null, company: company.company ?? null,
       recordedBy: "operator", recordedByUid: actor.uid, recordedByEmail: actor.email, updatedAtIso, wordsShownToSite: true,
+      firstAnsweredAtIso: firstAnswerTimestamp(prior, updatedAtIso),
     });
     notice?.();
     return { alias: plan.alias, updatedAtIso };
@@ -357,6 +363,23 @@ async function readAll(query: FirebaseFirestore.Query): Promise<Array<{ id: stri
 const instant = (value: unknown): string | null =>
   typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(value) ? value : null;
 
+/** The latest edit on a legacy answer cannot supply its original answer time. */
+export function firstAnswerTimestamp(prior: Data | undefined, answeredAtIso: string): string | null {
+  return prior ? instant(prior.firstAnsweredAtIso) : answeredAtIso;
+}
+
+function firstRecordedAnswer(responses: readonly { data: Data }[]): string | null {
+  const dates = responses.filter(({ data }) => isCompanyResponseState(data.state)
+    && (data.recordedBy === "company" || data.recordedBy === "operator")).map(({ data }) => instant(data.firstAnsweredAtIso));
+  if (dates.some(date => date === null)) return null;
+  return dates.sort()[0] ?? null;
+}
+
+function jobStartTime(value: unknown): string | null {
+  const date = value instanceof Date ? value : (value as { toDate?: () => Date } | null)?.toDate?.();
+  return date instanceof Date && Number.isFinite(date.getTime()) ? date.toISOString() : instant(value);
+}
+
 /** What the site's view needs to know about each company beyond its answer: introductions and whether one may be asked. */
 export interface SiteCompanyIntroductionFacts {
   /** `introductions/{companyId}` documents: when asked, and what the site was given. */
@@ -464,6 +487,7 @@ export function answerConsentsToIntroduction(answer: Data | null | undefined): b
  */
 export function projectSiteCompanyActivity(input: { aliases: Record<string, string>;
   sends: ReadonlyArray<Data>; responses: ReadonlyArray<{ id: string; data: Data }>;
+  startedAtIso?: string | null;
   /** Company records by id (`robotTeamAccess`), only to take each company's identity out of its words. */
   companies?: ReadonlyMap<string, Data> } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
   const entries: SiteCompanyEntry[] = [];
@@ -502,8 +526,11 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
       ...(cancelled.has(response.id) ? { introductionCancelled: true } : {}) });
   }
   entries.sort((a, b) => a.atIso.localeCompare(b.atIso) || (a.kind === b.kind ? 0 : a.kind === "sent" ? -1 : 1));
+  const firstAnswerAtIso = firstRecordedAnswer(input.responses);
   return { entries, interested: entries.some(entry => entry.kind === "answered" && INTRODUCIBLE_RESPONSE_STATES.includes(entry.state)),
     sent: sentTo.size && firstAtIso ? { count: sentTo.size, firstAtIso } : null,
+    ...(input.startedAtIso ? { startedAtIso: input.startedAtIso } : {}),
+    ...(firstAnswerAtIso ? { firstAnswerAtIso } : {}),
     introductions: { used } };
 }
 
@@ -531,7 +558,8 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   const companies = new Map(answered.filter(snap => snap.exists).map(snap => [snap.id, (snap.data() ?? {}) as Data]));
   return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses,
     introductions: opened, listed: access.listed, companies,
-    approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)) });
+    approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)),
+    startedAtIso: jobStartTime(record.createdAt) });
 }
 
 /* ------------------------------------------------------------- the operator's panel */
@@ -546,15 +574,15 @@ const CLOSED_WORDS: Partial<Record<TeamJobClosedReason, string>> = {
   development_only: "a development capture",
   older_statement: "the job was sent under an older statement",
   no_job_sentence: "the site has not said what the job is yet",
+  video_required: "the job's video is not available to companies yet",
   authority_ended: "Blueprint's authority to work on it ended",
   closed_by_site: "the site closed the job",
   job_ended: "the job ended because what was needed from the site never came",
 };
 
 /** The job's sharing state in words, as `teamJobAccess` decides it. */
-export function sharingInWords(record: Data): AdminJobCompanies["sharing"] {
+export function sharingInWords(record: Data, access = teamJobAccess(record)): AdminJobCompanies["sharing"] {
   const shared = isRecord(record.public_task_listing) && record.public_task_listing.enabled === true;
-  const access = teamJobAccess(record);
   if (access.listed) return { state: "shared_visible", words: "Shared and visible to approved companies.", reason: null };
   if (!shared) return { state: "not_shared", words: "Not shared: the site has not accepted the current statement.", reason: access.reason };
   const why = CLOSED_WORDS[access.reason] ?? "it is not under the current sharing record";
@@ -605,7 +633,10 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
     company: text(names.get(event.companyId)?.company), atIso: event.atIso, priceUsd: null, status: event.status }));
   const auto = isRecord(record.company_auto_send) && text(record.company_auto_send.sentAtIso)
     ? { sentAtIso: String(record.company_auto_send.sentAtIso), count: Number(record.company_auto_send.count) || 0 } : null;
-  return { sharing: sharingInWords(record), hold: operatorListingHold(record),
+  const { loadCompanyJobAccess } = await import("./teamJobAccess");
+  const { access } = await loadCompanyJobAccess(requestId, record);
+  return { sharing: sharingInWords(record, access), hold: operatorListingHold(record),
     consentRevoked: projectWebsiteCaptureRights(record).consent_revoked === true, libraryUrl: libraryJobUrl(requestId),
-    companies, sends, responses, autoSend: auto, introductions, billableEvents };
+    companies, sends, responses, autoSend: auto, introductions, billableEvents,
+    startedAtIso: jobStartTime(record.createdAt), firstAnswerAtIso: firstRecordedAnswer(responseRows) };
 }

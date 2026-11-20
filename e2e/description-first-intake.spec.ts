@@ -8,7 +8,7 @@ for (const device of ["desktop", "mobile"] as const) {
       test.use(mobile);
     } else test.use({ viewport: { width: 1440, height: 1000 } });
 
-    test("saves a description-only job and returns to its private page", async ({ page, context, baseURL }) => {
+    test("recovers a private filming draft after a lost response", async ({ page, context, baseURL }) => {
       const token = "synthetic-description-only";
       const bodies: string[] = [];
       await context.route("**/*", async route => {
@@ -27,31 +27,27 @@ for (const device of ["desktop", "mobile"] as const) {
       });
 
       await page.goto("/contact/site-operator");
-      await page.getByRole("button", { name: "Describe the job without video ›" }).click();
-      const save = page.getByRole("button", { name: "Save my job" });
-      await expect(page.getByLabel("The job in one sentence")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Next: film the job" })).toHaveCount(0);
+      const save = page.getByRole("button", { name: "Next: film the job" });
+      await expect(page.getByText("Film or upload a video to post your job.")).toBeVisible();
+      await page.getByText("Add details (optional)", { exact: true }).click();
       await page.locator("#start-location").fill("Austin");
       await page.locator("#start-region").selectOption("us");
       await page.getByRole("textbox", { name: "Your email" }).fill("qa@example.invalid");
-      await save.click();
-      await expect(page.getByText("Describe the job in one sentence.", { exact: true })).toBeVisible();
-      expect(bodies).toHaveLength(0);
       await page.getByLabel("The job in one sentence").fill("Move cartons from a conveyor onto a pallet.");
       await save.click();
       await expect(page.getByText("The response was lost.", { exact: true })).toBeVisible();
       await page.reload();
       await page.getByRole("button", { name: "Recover saved job" }).click();
 
-      await expect(page.getByRole("heading", { name: "Your job is saved.", exact: true })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveAttribute("href", `/capture-upload/${token}`);
-      await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
+      const capture = page.getByRole("link", { name: device === "mobile" ? "Open the camera" : "Open my job page ›", exact: true });
+      await expect(capture).toHaveAttribute("href", `/capture-upload/${token}`);
       expect(bodies).toHaveLength(2);
       expect(bodies[1]).toBe(bodies[0]);
       expect(JSON.parse(bodies[0])).toMatchObject({
         taskStatement: "Move cartons from a conveyor onto a pallet.", taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" },
         siteLocation: "Austin", captureRegion: "us", descriptionOnly: true,
-        descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null, hasExistingFootage: false,
+        descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false,
       });
     });
 
@@ -106,7 +102,8 @@ for (const device of ["desktop", "mobile"] as const) {
       // Nothing is sent without the country and the email.
       await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
       expect(mutations).toHaveLength(0);
-      if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
+      if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click();
+      await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
       await expect(page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true })).toHaveCount(0);
       await page.locator("#start-location").fill("Austin, TX");
       await page.locator("#start-email").fill("qa@example.invalid");
@@ -114,15 +111,21 @@ for (const device of ["desktop", "mobile"] as const) {
       // Typed text is never read for a country (the privacy gate): the site chooses it.
       await page.locator("#start-region").selectOption("us");
       await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
-      const captureLink = page.getByRole("link", { name: device === "mobile" ? "Open the camera" : "Open my job page ›", exact: true });
-      await expect(captureLink).toBeVisible();
-      await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
+      if (device === "mobile") {
+        await expect(page).toHaveURL(`/capture-upload/${token}`);
+      } else {
+        const captureLink = page.getByRole("link", { name: "Open my job page ›", exact: true });
+        await expect(captureLink).toBeVisible();
+        await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
+        await shot("saved");
+        await captureLink.click();
+      }
       expect(mutations).toHaveLength(1);
       expect(mutations[0].body).toMatchObject({ taskStatement: "Move sealed cartons from a conveyor onto a pallet.",
-        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null, hasExistingFootage: false });
+        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false });
       expect(mutations[0].body.matchFee).toBeUndefined();
-      await shot("saved");
-      await captureLink.click();
+      await expect(page.getByText("A video is required to post your job and build its simulation.")).toBeVisible();
+      await expect(page.getByText("Check your job brief.", { exact: true })).toHaveCount(0);
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
       await expect(page.getByRole("button", { name: /Open the camera|Choose or record|Upload a video file/ })).toHaveCount(0);
       await shot("capture-before-permission");

@@ -79,6 +79,12 @@ describe("Minimal sign in", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     expect(sessionStorage.getItem("redirectAfterAuth")).toBe("/jobs/capture-run-123");
   });
+  it.each(["/contact/robot-team", "/contact/robot-team#job-job-1"])("returns to %s after sign-in", async (path) => {
+    window.history.replaceState({}, "", `/sign-in?next=${encodeURIComponent(path)}`);
+    render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
+    expect(sessionStorage.getItem("redirectAfterAuth")).toBe(path);
+  });
   it("rejects a company job path with a trailing newline", async () => {
     window.history.replaceState({}, "", "/sign-in?next=%2Fjobs%2Fcapture-run-123%0A");
     render(<Login />);

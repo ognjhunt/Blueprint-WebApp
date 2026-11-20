@@ -24,9 +24,10 @@ The site's answer is the responses of deployment companies: who will take the
 job, who will not, and why. Until responses exist the site sees the first look
 and the simulation of its site, and is told plainly where the job stands: not
 yet sent, sent and waiting, or no response yet. Nothing promises a response
-that has not been given. A packet is not held for the simulation: it goes
-when the video and the first look exist, and says plainly what is not
-finished. No deployment company is required to test in the simulation. When
+that has not been given. A job starts as a private draft if the site has yet
+to film or upload. The job reaches companies once its description and playable,
+sound-free video are available, with the first look and simulation added as
+they are ready. No deployment company is required to test in the simulation. When
 several are interested the site decides which of them to meet. After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job.
 
 Sharing is the service. A site that sends a job agrees once, in the statement

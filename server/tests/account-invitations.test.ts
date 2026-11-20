@@ -93,7 +93,7 @@ describe("public invitation endpoints", () => {
   it("returns only the invited setup details, without the approval revision or a session", async () => {
     const response = await post("inspect", { invitation: robotTeamAccountInvitation(approved) });
     expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/app" });
+    expect(await response.json()).toEqual({ email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/contact/robot-team" });
     expect(auth.createUser).not.toHaveBeenCalled();
   });
 });

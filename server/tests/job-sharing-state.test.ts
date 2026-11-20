@@ -62,14 +62,12 @@ describe("where a site's job stands with deployment companies", () => {
       .toEqual({ state: "not_shared", sharedAtIso: null });
   });
 
-  it("a job sent without a video under description v5 is listed with no video yet, and visible", () => {
+  it("a legacy v5 description-only listing stays private until a video is available", () => {
     const v5 = { ...grant("2026-11-12.v5") };
     const record = site({ public_task_listing: buildJobSharedListing({ taskStatement: "Move totes", atIso: AT,
       descriptionStatementVersion: "2026-11-12.v5" }) }, { description_authority: v5, consent_attestation: null });
-    expect(teamJobAccess(record)).toMatchObject({ listed: true, evaluationAvailable: false, reason: "no_video_yet" });
-    expect(jobSharingOf(record)).toEqual({ state: "visible", sharedAtIso: AT });
-    // Its site has not said what the job is yet: shared, preparing.
-    expect(teamJobAccess(record, { brief: { summary: "Your site task" } })).toMatchObject({ listed: false, reason: "no_job_sentence" });
+    expect(teamJobAccess(record)).toMatchObject({ listed: false });
+    expect(jobSharingOf(record)).toEqual({ state: "not_shared", sharedAtIso: null });
     // An older description statement does not share it, nor does v5 once a recording grant under an older statement exists.
     expect(teamJobAccess(site({ public_task_listing: record.public_task_listing },
       { description_authority: grant("2026-11-11.v3"), consent_attestation: null }))).toMatchObject({ listed: false, reason: "older_statement" });
@@ -86,7 +84,8 @@ describe("where a site's job stands with deployment companies", () => {
     expect(write).toMatchObject({ outcome: "granted", listing: null });
     if (write.outcome === "held") return;
     const after = { ...record, request: { ...record.request, ...write.request } };
-    expect(teamJobAccess(after).reason).not.toBe("no_video_yet");
+    expect(teamJobAccess(after, { companyVideoReady: false })).toMatchObject({ listed: false, reason: "video_required" });
+    expect(teamJobAccess(after, { companyVideoReady: true })).toMatchObject({ listed: true });
     expect(teamJobAccess(after).listed).toBe(true);
   });
 

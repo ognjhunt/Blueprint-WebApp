@@ -14,5 +14,6 @@ Object.assign(env, {
   GEMINI_API_KEY: 'harness-synthetic-not-a-key',
   // Company and staff accounts are real ID tokens from the local Auth emulator, verified by the product's middleware.
   FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099',
+  TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET: 'harness-only-company-media-tickets',
 });
 launchReliabilityHarness('scripts/qa/answer-journey-local-app.ts', env);

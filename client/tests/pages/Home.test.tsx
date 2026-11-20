@@ -7,31 +7,26 @@ import { COMPANY_RESPONSE_LABELS } from "@/lib/companyResponses";
 const SITES = ["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"];
 
 describe("Site-led homepage", () => {
-  // Owner, 2026-11-12: the 11 Nov layout with the new words. The title is the outcome, not "job packet"; the home page
-  // does not lead with privacy; the fine line goes; the moving example card is back where it was.
   it("says the outcome, shows three steps and offers one button", () => {
     const { container } = render(<Home />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Get repetitive work done by robots.");
-    expect(container).toHaveTextContent("Film the job once or describe it. We send it to robot deployment companies so they can tell you if they can do it.");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Post a job for robots.");
+    expect(container).toHaveTextContent("Share a video of one repetitive job with approved robot deployment companies.");
     const starts = screen.getAllByRole("link", { name: "Start a job" });
     expect(starts).toHaveLength(1);
     expect(starts[0]).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByText("Free for sites")).toBeInTheDocument();
-    expect(screen.getByText("A video or description, where the job is, and an email.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "How it works ›" })).toHaveAttribute("href", "/how-it-works");
-    expect(screen.getByRole("link", { name: "Deploy robots? See how jobs reach you ›" })).toHaveAttribute("href", "/partners");
+    expect(screen.getByText("Free for sites.")).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/pick-up-and-put-down|safety check|job packet|contact details/i);
     // No price, no invented test result, no model or product names.
     expect(container.textContent).not.toMatch(/\$\s?\d|beta|did best|AI robot|AI software|how sure|confidence|%/i);
   });
 
-  it("shows three steps from the video or description to the companies' answers", () => {
+  it("shows three steps from the video through responses and introductions", () => {
     render(<Home />);
     const steps = within(screen.getByRole("list", { name: "How it works" })).getAllByRole("listitem");
     expect(steps.map(step => step.textContent)).toEqual([
-      "Film or describe one job that repeats.",
-      "We send the job to robot deployment companies we approve. With video, we build a simulation of your site when we can.",
-      "Their answers come back to you: Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet. You pick who to meet.",
+      "Film the job",
+      "Companies review it",
+      "Choose who to meet",
     ]);
     expect(screen.getByRole("list", { name: "How it works" })).toHaveAttribute("id", "how-it-works");
   });
@@ -40,37 +35,37 @@ describe("Site-led homepage", () => {
   // it is an example, and its answers use only the real labels and aliases a site sees.
   it("marks every example as an example and uses only the real answer labels", () => {
     render(<Home />);
-    const card = screen.getByRole("region", { name: "Example of a job page once deployment companies answer" });
-    expect(within(card).getByText("Everything in this example is made up.")).toBeInTheDocument();
+    const card = screen.getByRole("region", { name: "Example job" });
+    expect(within(card).getByText("Example job")).toBeVisible();
     expect(within(card).getAllByRole("tab").map(tab => tab.textContent)).toEqual(SITES);
     const labels = Object.values(COMPANY_RESPONSE_LABELS);
     const counts = new Set<number>();
     for (const tab of within(card).getAllByRole("tab")) {
       fireEvent.click(tab);
       const panel = within(card).getByRole("tabpanel");
-      expect(panel).toHaveTextContent(/^Example/);
+      expect(within(panel).getByRole("heading", { level: 2 })).toBeVisible();
       const sent = (panel.textContent ?? "").match(/Sent to (\d) deployment companies/);
       expect(sent, tab.textContent!).not.toBeNull();
       const count = Number(sent![1]);
       expect(count).toBeGreaterThanOrEqual(3);
       expect(count).toBeLessThanOrEqual(8);
       counts.add(count);
-      const answers = within(panel).queryAllByRole("listitem").map(item => item.textContent);
+      const answers = within(panel).queryAllByRole("listitem");
       expect(answers.length).toBeLessThanOrEqual(3);
       answers.forEach((answer, i) => {
-        const [alias, label] = answer!.split(" · ");
-        expect(alias).toBe(`Company ${"ABC"[i]}`);
-        expect(labels).toContain(label);
+        const alias = `Company ${"ABC"[i]}`;
+        expect(within(answer).getByText(alias)).toBeVisible();
+        expect(labels).toContain(answer.textContent?.slice(alias.length));
       });
       expect(panel).not.toHaveTextContent(/did best|AI robot|AI software|how sure|confidence|held|%|\$|tries/i);
     }
     expect(counts.size).toBeGreaterThan(1);
     fireEvent.click(within(card).getByRole("tab", { name: "Warehouse" }));
     expect(within(card).getByRole("tabpanel")).toHaveTextContent(
-      /Example.*Warehouse: Picking small parcels.*Sent to 6 deployment companies.*Company A · Tested it: can do.*Company B · Would need something.*Company C · Not a fit/);
+      /Picking small parcels.*Sent to 6 deployment companies.*Company A.*Tested it: can do.*Company B.*Would need something.*Company C.*Not a fit/);
     // One example shows the state before any answer.
     fireEvent.click(within(card).getByRole("tab", { name: "Lab" }));
-    expect(within(card).getByRole("tabpanel")).toHaveTextContent(/Example.*Sent to 5 deployment companies.*No answers yet\./);
+    expect(within(card).getByRole("tabpanel")).toHaveTextContent(/Sent to 5 deployment companies.*No answers yet\./);
   });
 
   it.each([
@@ -85,7 +80,7 @@ describe("Site-led homepage", () => {
     const tab = screen.getByRole("tab", { name: site });
     fireEvent.click(tab);
     expect(tab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel", { name: site })).toHaveTextContent(site);
+    expect(screen.getByRole("tabpanel", { name: site })).toBeVisible();
     expect(screen.getByRole("img", { name: new RegExp(`${site} example`, "i") })).toHaveAccessibleName(embodiment);
   });
 

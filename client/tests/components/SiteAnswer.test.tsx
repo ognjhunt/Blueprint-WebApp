@@ -2,7 +2,7 @@ import { NO_ANSWERS_YET, NOT_SENT_YET } from "@/lib/companyResponses";
 import { INTRODUCTION_CANCELLED } from "@/lib/siteIntroductions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NOTHING_IS_SHARED, NOT_SHARED_YET, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
+import { NOTHING_IS_SHARED, NOT_SHARED_YET, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, PREPARING_TO_SHARE_LINE, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
 import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
@@ -449,14 +449,14 @@ describe("the first look and the simulation of the site never disagree", () => {
 
 describe("an older job takes the current statement on its page", () => {
   const older = { ...readyAnswer, sharing: { state: "not_shared" as const, sharedAtIso: null, olderStatement: true } };
-  it("records recording statement v4, the sentence shown above the button, and then says the job is shared", async () => {
+  it("records recording statement v4 and tells the site what needs to be ready before sharing", async () => {
     fetchMock.mockResolvedValue(response({ ok: true }));
     const changed = vi.fn();
     render(<SiteAnswer token="owner token" answer={older} onIntroductionRequested={changed} />);
     const button = within(companies()).getByRole("button", { name: OLDER_JOB_AGREE });
     expect(within(companies()).getByText(V4)).toHaveAttribute("id", button.getAttribute("aria-describedby"));
     fireEvent.click(button);
-    expect(await within(companies()).findByText(SHARED_LINE)).toBeVisible();
+    expect(await within(companies()).findByText(PREPARING_TO_SHARE_LINE)).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/self-capture/uploads/owner%20token/recording-consent", expect.objectContaining({ method: "POST",
       body: JSON.stringify({ granted: true, statementVersion: "2026-11-12.v4" }) }));
     expect(changed).toHaveBeenCalledTimes(1);
@@ -565,7 +565,7 @@ describe("the deployment companies section, with sends, answers and introduction
   it.each([["visible", VISIBLE], ["preparing", { sharing: { state: "preparing" as const, sharedAtIso: "2026-11-10T09:00:00.000Z" } }],
     ["not visible", HIDDEN]])("says a shared job (%s) has not been sent to any company yet when the read holds no send", (_, sharing) => {
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...sharing, companies: { interested: false, sent: null, entries: [] } }} />);
-    expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
+    expect(within(companies()).getByText(sharing.sharing.state === "preparing" ? PREPARING_TO_SHARE_LINE : SHARED_LINE)).toBeVisible();
     expect(within(companies()).getByText(NOT_SENT_YET)).toBeVisible();
     expect(NOT_SENT_YET).toBe("Not sent to any deployment company yet.");
     expect(within(companies()).queryByText(NO_ANSWERS_YET)).toBeNull();

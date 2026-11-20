@@ -36,7 +36,7 @@ export const JOB_SENT_EVENT_ID = "companies";
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, descriptionOnly: boolean) => string }> = {
   task_received: {
     subject: "Your Blueprint job link",
-    body: (url) => `We have your job.\n\nIf you haven't sent the video yet, send it from your job page. This link opens your job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your job link is ready.\n\nA video is required to post your job. Use the link to send one or check your upload. This link opens your job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
   },
   // Once per job (PACKAGE_E E4): when the job is first sent to the approved deployment companies. The detail is only
   // the count, a whole number; read again at dispatch: sent only while the job is visible. It says how to stop, in the

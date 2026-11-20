@@ -10,9 +10,7 @@ import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
 import { CompanyTermsPrompt } from "./CompanyTermsPrompt";
 import { libraryStageLabels, opportunityLabels, type TaskBrowseCard } from "@/types/taskBrowse";
 
-/** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
-
-/** `onLibrary` hears whether the library itself is shown, so the page's heading says what the viewer is looking at. */
+/** Report whether the library is visible so the page can show the right heading. */
 export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void }) {
   const [items, setItems] = useState<TaskBrowseCard[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error" | "terms">("loading");
@@ -20,6 +18,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
   const [family, setFamily] = useState("");
   const [region, setRegion] = useState("");
   const [availability, setAvailability] = useState("");
+  const [readyToTest, setReadyToTest] = useState(false);
   const [access, setAccess] = useState<LibraryAccess | null>(null);
   const auth = useOptionalAuth();
   const currentUser = auth?.currentUser ?? null;
@@ -60,8 +59,9 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
   const libraryShown = state === "ready" && (access === null || access.allowed);
   useEffect(() => { onLibrary?.(libraryShown); }, [libraryShown, onLibrary]);
   const filtered = items.filter(item => (!family || item.taskFamily === family)
-    && (!region || item.region.toLowerCase().includes(region.toLowerCase()))
-    && (!availability || (availability === "ready" ? item.evaluationAvailable : item.opportunity === availability)));
+    && (!region || item.region === region)
+    && (!availability || item.opportunity === availability)
+    && (!readyToTest || item.simulationDownloadAvailable === true));
   // Nothing library-shaped renders until the server has said who may see it,
   // so a visitor outside early access never sees the library flash by.
   // The way to apply is useful without that lookup. Render the same component
@@ -85,14 +85,21 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
     Signed in as {currentUser.email ?? "your account"} · staff view: you see what approved teams see. <a className="ms-text-link" href="/partners#partner-application">See the application form</a>
   </p> : null;
   const libraryEmpty = state === "ready" && items.length === 0;
+  const regions = [...new Set(items.map(item => item.region).filter(Boolean))].sort();
   return <section aria-label="Job library">
     {viewer}
+    {!libraryEmpty && <label className="ms-library-test-filter">
+      <input type="checkbox" checked={readyToTest} onChange={event => setReadyToTest(event.currentTarget.checked)} />
+      Ready to test
+    </label>}
     {!libraryEmpty && <details className="ms-browse-filters" open={!isLikelyPhone()}><summary>Filter jobs</summary>
     <div className="ms-task-filters">
       <label>Job<select aria-label="Filter by job" value={family} onChange={e => setFamily(e.target.value)}>
         <option value="">All jobs</option>{[...new Set(items.map(item => item.taskFamily))].sort().map(value => <option key={value}>{value}</option>)}
       </select></label>
-      <label>Region<input aria-label="Filter by region" placeholder="Any region" value={region} maxLength={80} onChange={e => setRegion(e.target.value)} /></label>
+      {regions.length > 0 && <label>Region<select aria-label="Filter by region" value={region} onChange={e => setRegion(e.target.value)}>
+        <option value="">All regions</option>{regions.map(value => <option key={value}>{value}</option>)}
+      </select></label>}
       <label>Availability<select aria-label="Filter by availability" value={availability} onChange={e => setAvailability(e.target.value)}>
         <option value="">Live and past</option><option value="open">Open</option>
         <option value="past">Past</option>
@@ -101,17 +108,19 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
     </details>}
     {libraryEmpty && <div className="ms-task-empty">
       <h2>The first site jobs are being prepared.</h2>
-      <p>Each job a site sends is shown here once the site has said what the job is.</p>
+      <p>Jobs appear here when the video and job details are ready to review.</p>
     </div>}
     {state === "ready" && items.length > 0 && <>
-      <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Open a job to watch the site's video and answer.</p>
+      <p className="ms-field-hint" aria-live="polite">{filtered.length} {filtered.length === 1 ? "job" : "jobs"}</p>
       {filtered.length === 0 && <div className="ms-task-empty">
         <h2>No jobs fit these filters.</h2>
         <p>Try a different job or region, or <a href="mailto:hello@tryblueprint.io">tell us what you need</a>.</p>
-        <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>
+        <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); setReadyToTest(false); }}>Clear filters</button>
       </div>}
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id} id={`job-${item.id}`}>
-        <div className="ms-task-heading"><div><div className="ms-task-meta">{item.simulationStage && <span>{libraryStageLabels[item.simulationStage]}</span>}<span>{opportunityLabels[item.opportunity]}</span></div>
+        <div className="ms-task-heading"><div><div className="ms-task-meta">{item.simulationDownloadAvailable
+          ? <span>Simulation download ready</span>
+          : item.simulationStage && <span>{libraryStageLabels[item.simulationStage]}</span>}<span>{opportunityLabels[item.opportunity]}</span></div>
         <h2><a href={item.jobUrl ?? `/jobs/${encodeURIComponent(item.id)}`}>{item.title}</a></h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
         {item.answerHeadline && <JobCardAnswerLine jobId={item.id} headline={item.answerHeadline} user={currentUser} />}
         {/* The row's one action: open the job's own page, where the company watches the video and answers (E3, E5). */}

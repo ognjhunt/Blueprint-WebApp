@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { COMPANY_RESPONSE_LABELS, companyAliasName, NO_ANSWERS_YET, type CompanyResponseState } from "@/lib/companyResponses";
-import { EXAMPLE_CARD_NAME, EXAMPLE_FOOT, EXAMPLE_TAG, exampleSentTo } from "@/lib/publicCopy";
+import { EXAMPLE_TAG, exampleSentTo } from "@/lib/publicCopy";
 import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/site/RobotScene";
 
 /**
@@ -57,14 +57,22 @@ export function PilotPreview() {
   const t = useSceneClock(!paused && inView, example.site);
   const { Art } = example;
   return (
-    <section className="bare-example" aria-label={EXAMPLE_CARD_NAME}>
-      <svg ref={artRef} className="bare-example-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
-        <g key={example.site} className="ms-pilot-art-scene">
-          <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-          <Art t={t} />
-        </g>
-      </svg>
-      <div className="bare-example-head">
+    <section className="bare-example" aria-labelledby="pilot-example-label">
+      <div className="bare-example-stage">
+        <div className="bare-example-head">
+          <p className="bare-example-tag" id="pilot-example-label">{EXAMPLE_TAG}</p>
+          <button type="button" className="bare-example-pause" onClick={() => { setPaused(p => !p); setPinned(false); }} aria-label={paused ? "Play examples" : "Pause examples"}>
+            {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
+          </button>
+        </div>
+        <svg ref={artRef} className="bare-example-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
+          <g key={example.site} className="ms-pilot-art-scene">
+            <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+            <Art t={t} />
+          </g>
+        </svg>
+      </div>
+      <div className="bare-example-content">
         <div role="tablist" aria-label="Example sites" className="bare-example-tabs"
           onFocus={() => setHeld(true)}
           onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false); }}
@@ -82,23 +90,21 @@ export function PilotPreview() {
               onClick={() => { setActive(i); setPinned(true); }}>{item.site}</button>
           ))}
         </div>
-        <button type="button" className="bare-example-pause" onClick={() => { setPaused(p => !p); setPinned(false); }} aria-label={paused ? "Play examples" : "Pause examples"}>
-          {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
-        </button>
+        <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel" tabIndex={0}>
+          <h2 className="bare-example-name">{example.job}</h2>
+          <p className="bare-example-by">{exampleSentTo(example.sent)}</p>
+          {example.answers.length > 0
+            ? <ul className="bare-example-answers" aria-label="Example answers">
+              {example.answers.map((state, i) => (
+                <li key={ALIASES[i]}>
+                  <span>{companyAliasName(ALIASES[i])}</span>
+                  <span className="bare-example-status" data-state={state}>{COMPANY_RESPONSE_LABELS[state]}</span>
+                </li>
+              ))}
+            </ul>
+            : <p className="bare-example-by">{NO_ANSWERS_YET}</p>}
+        </div>
       </div>
-      <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel">
-        <p className="bare-example-tag">{EXAMPLE_TAG}</p>
-        <p className="bare-example-job">{example.site}: {example.job}</p>
-        <p className="bare-example-name">{exampleSentTo(example.sent)}</p>
-        {example.answers.length > 0
-          ? <ul className="bare-example-answers" aria-label="Example answers">
-            {example.answers.map((state, i) => (
-              <li key={ALIASES[i]}>{companyAliasName(ALIASES[i])} · {COMPANY_RESPONSE_LABELS[state]}</li>
-            ))}
-          </ul>
-          : <p className="bare-example-by">{NO_ANSWERS_YET}</p>}
-      </div>
-      <p className="bare-example-foot">{EXAMPLE_FOOT}</p>
     </section>
   );
 }

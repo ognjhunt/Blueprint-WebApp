@@ -18,7 +18,7 @@
  * admin robot-team-access and job-outcomes routers with their production middleware (CSRF, Firebase token
  * verification, the admin role check), the coverage review, the automatic send, the introduction transaction, the
  * outcome-question sweep, Firestore, Storage and Auth (emulators), the normal Vite app. Synthetic: the video model's
- * reply (a scripted reading of one carton), the unsigned storage read URL and the empty location suggestions for a
+ * reply (a scripted reading of one carton), the Pipeline clip reference, the unsigned storage read URL and the empty location suggestions for a
  * manually chosen country. The local Auth emulator answers Firebase Auth requests. The test reads the email outbox.
  */
 import { test, expect, devices, type BrowserContext, type Page, type APIRequestContext } from "@playwright/test";
@@ -123,6 +123,12 @@ async function tick(request: APIRequestContext, requestId: string) {
   return response.json() as Promise<{ finished: boolean; passes: number; videoModelCalls: number }>;
 }
 
+async function publishCompanyClip(request: APIRequestContext, requestId: string) {
+  const response = await request.post(`${ORIGIN}/api/reliability/publish-company-clip?requestId=${encodeURIComponent(requestId)}`);
+  expect(response.ok(), await response.text()).toBe(true);
+  expect(await response.json()).toMatchObject({ accepted: true });
+}
+
 type OutboxRow = { kind: string; status: string; subject: string; body: string; to: string; idempotencyKey: string };
 async function outbox(request: APIRequestContext, requestId: string): Promise<OutboxRow[]> {
   const response = await request.get(`${ORIGIN}/api/reliability/outbox?requestId=${encodeURIComponent(requestId)}`);
@@ -173,6 +179,8 @@ test.describe("desktop", () => {
     // 2. The video is read (scripted model): the page shows where the job stands and the first look, and no answer.
     const ticked = await tick(request, requestId);
     expect(ticked).toMatchObject({ finished: true, videoModelCalls: 1 });
+    expect((await jobRecord(request, requestId)).access).toEqual({ listed: false, reason: "video_required" });
+    await publishCompanyClip(request, requestId);
     await page.reload();
     await expectFirstLook(page);
     expect((await jobRecord(request, requestId)).access).toMatchObject({ listed: true });
@@ -269,10 +277,9 @@ test.describe("desktop", () => {
     await row.getByRole("link", { name: "Open the job and answer" }).click();
     await expect(companyPage).toHaveURL(new RegExp(`/jobs/${requestId}$`));
     await expect(companyPage.getByText("Pick up the sealed carton from the end of the conveyor and place it on the cart.")).toBeVisible({ timeout: 30_000 });
-    // The packet's video is the Pipeline's sound-free, privacy-processed clip. No Pipeline runs here, so it is still being
-    // prepared, and the site's own upload is never served in its place.
-    await expect(companyPage.getByRole("region", { name: "The video" })).toContainText("The video is being prepared.");
-    await expect(companyPage.getByLabel("The site's video, without sound")).toHaveCount(0);
+    // The approved browser receives a ticket for the published clip. A request without a ticket is refused.
+    await expect(companyPage.getByLabel("The site's video, without sound")).toHaveAttribute("src",
+      new RegExp(`/api/company-media/jobs/${requestId}/video\\.mp4\\?`));
     expect((await companyPage.request.get(`${ORIGIN}/api/company-media/jobs/${requestId}/video.mp4`)).status()).toBeGreaterThanOrEqual(400);
 
     // The company answers Interested on the job's page.
@@ -397,6 +404,7 @@ test.describe("phone", () => {
     const { link, requestId } = await startWithVideo(page, `core-journey-phone-${stamp}@example.invalid`, `12 Phone Street ${stamp}`);
     await link.click();
     expect((await tick(request, requestId)).finished).toBe(true);
+    await publishCompanyClip(request, requestId);
     await page.reload();
     await expectFirstLook(page);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

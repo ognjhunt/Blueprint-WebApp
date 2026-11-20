@@ -192,6 +192,16 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
     }
     res.json({ finished: !queue.isCoverageReviewActive() && !pending, passes, videoModelCalls: harness.videoModel.generateCalls - before });
   });
+  // Stand in for Pipeline publication. The product stores and checks the synthetic clip reference as it does a real one.
+  app.post('/api/reliability/publish-company-clip', loopbackOnly, async (req, res) => {
+    const requestId = String(req.query.requestId || '');
+    if (!/^[A-Za-z0-9_-]{1,120}$/.test(requestId)) return res.status(400).json({ error: 'requestId required' });
+    const [{ recordWebsiteCompanyClip, websiteCompanyClipSchema }, { sharedCompanyClip }] = await Promise.all([
+      import('../../server/utils/websiteCompanyClip'), import('../../server/tests/helpers/sharedJob')]);
+    const captureId = `walkthrough-${requestId}`;
+    const clip = websiteCompanyClipSchema.parse(sharedCompanyClip(captureId));
+    res.json(await recordWebsiteCompanyClip(requestId, `site-${requestId}`, captureId, clip));
+  });
   // Runs the job-window sweep's production entry point for one job at a given time, as its scheduler would.
   app.post('/api/reliability/job-window-sweep', loopbackOnly, async (req, res) => {
     const requestId = String(req.query.requestId || '');

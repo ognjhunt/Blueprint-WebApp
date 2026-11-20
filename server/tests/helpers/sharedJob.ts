@@ -4,9 +4,19 @@
  * sentence) is a separate document: `siteTaskBriefs/{id}` with a real `summary`.
  */
 import { anonymizedOpportunityDraft } from "../../../client/src/types/taskBrowse";
+import { crossRuntimeArtifactDigest } from "../../utils/crossRuntimeCanonical";
 
 export const SHARED_AT_ISO = "2026-11-12T10:00:00.000Z";
 export const SHARING_RECORDING_VERSION = "2026-11-12.v4";
+
+export function sharedCompanyClip(captureId: string) {
+  const clip = { schema_version: "website_company_clip.v1", capture_id: captureId,
+    clip_revision: `sha256:${"1".repeat(64)}`, state: "ready", format: "mp4_h264_faststart_video_only",
+    content_type: "video/mp4", digest: `sha256:${"2".repeat(64)}`, size_bytes: 1000, width: 640, height: 360,
+    fps: 30, duration_seconds: 5, has_audio: false, permission_basis: "site_sharing_statement",
+    statement_version: SHARING_RECORDING_VERSION, updated_at_epoch: 1794000000 };
+  return { ...clip, clip_digest: crossRuntimeArtifactDigest(clip, "clip_digest") };
+}
 
 export function sharedRecordingGrant(atIso = SHARED_AT_ISO) {
   return { granted: true, statement_version: SHARING_RECORDING_VERSION, recorded_at_iso: atIso };

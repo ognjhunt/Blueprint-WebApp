@@ -47,7 +47,7 @@ export default function Login() {
   const { signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn } = useAuth();
   const browserLocation = typeof window === "undefined" ? null : window.location;
   const returnPath = authReturnPath(new URLSearchParams(browserLocation?.search || "").get("next"));
-  const isCompanyJob = returnPath?.startsWith("/jobs/");
+  const isCompanyJob = returnPath?.startsWith("/jobs/") || returnPath?.startsWith("/contact/robot-team");
   const returnLink = returnPath && browserLocation
     ? new URL(returnPath, browserLocation.origin).href
     : browserLocation?.href || "";

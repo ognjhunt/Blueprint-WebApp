@@ -560,6 +560,23 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
 /** Brief reviews per pump pass. Each claim may call a model, so it stays small. */
 export const PUMP_BRIEF_REVIEW_BATCH = 2;
 
+async function deliverPendingNotifications(): Promise<OutboxDeliverySummary> {
+  return deliverOutbox({ limit: 25 }).catch(error => {
+    logger.warn({ error }, "Outbox pump pass failed");
+    return { examined: 0, sent: 0, failed: 0, exhausted: 0 };
+  });
+}
+
+async function recoverPendingBriefs(): Promise<void> {
+  if (isPullRequestPreview()) return;
+  try {
+    const { recoverCaptureReviews } = await import("./captureReviewRecovery");
+    await recoverCaptureReviews({ limit: PUMP_BRIEF_REVIEW_BATCH });
+  } catch (error) {
+    logger.warn({ error }, "Capture reviews will retry on the next pump pass");
+  }
+}
+
 /**
  * One pump pass: deliver waiting notices, then drain pending brief reviews.
  *
@@ -572,17 +589,8 @@ export const PUMP_BRIEF_REVIEW_BATCH = 2;
  * the recovery itself, exactly as on the scheduler lane.
  */
 export async function runOutboxPumpPass(): Promise<OutboxDeliverySummary> {
-  const summary = await deliverOutbox({ limit: 25 }).catch((error) => {
-    logger.warn({ error }, "Outbox pump pass failed");
-    return { examined: 0, sent: 0, failed: 0, exhausted: 0 };
-  });
-  if (isPullRequestPreview()) return summary;
-  try {
-    const { recoverCaptureReviews } = await import("./captureReviewRecovery");
-    await recoverCaptureReviews({ limit: PUMP_BRIEF_REVIEW_BATCH });
-  } catch (error) {
-    logger.warn({ error }, "Capture reviews will retry on the next pump pass");
-  }
+  const summary = await deliverPendingNotifications();
+  await recoverPendingBriefs();
   return summary;
 }
 
@@ -604,14 +612,20 @@ export function startOutboxPump(intervalMs = 60_000): () => void {
   }
   const lease = getOpsAutomationLeaderLease();
   lease.start();
-  let running = false;
+  let delivering = false;
+  let reviewing = false;
   const timer = setInterval(() => {
-    if (running || !lease.isLeader()) return;
-    void import("./captureCoverageQueue").then(module => module.tickCoverageReviews());
-    running = true;
-    void runOutboxPumpPass()
-      .catch((error) => logger.warn({ error }, "Outbox pump pass failed"))
-      .finally(() => { running = false; });
+    if (!lease.isLeader()) return;
+    // A slow model review must not hold the next pass of invitation and response emails.
+    if (!delivering) {
+      delivering = true;
+      void deliverPendingNotifications().finally(() => { delivering = false; });
+    }
+    if (!reviewing) {
+      void import("./captureCoverageQueue").then(module => module.tickCoverageReviews());
+      reviewing = true;
+      void recoverPendingBriefs().finally(() => { reviewing = false; });
+    }
   }, Math.max(10_000, intervalMs));
   timer.unref?.();
   return () => clearInterval(timer);

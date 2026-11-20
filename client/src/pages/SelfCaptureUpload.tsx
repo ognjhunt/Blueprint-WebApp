@@ -663,8 +663,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // forms below become an optional correction of the job we read from the video.
   const answer = saved && scope === "owner" && currentStatusKnown ? status?.answer ?? null : null;
   const companyStatus = scope === "owner" && currentStatusKnown ? status?.companyStatus : null;
-  const descriptionShared = companyStatus?.descriptionOnly === true;
-  const jobSentence = answer?.job.sentence ?? (descriptionShared ? brief?.summary : null);
+  const canWithdrawDescription = companyStatus?.descriptionOnly === true;
+  const jobSentence = answer?.job.sentence;
   const answerSettled = answer?.state === "ready" || answer?.state === "cannot_assess";
   // What the simulation of the site showed about the answer's robot (its reach in the scene), for the details screen.
   const robotFit = status?.robotFit ?? null;
@@ -680,8 +680,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     || (SITE_DECISIONS.has(status.decision) && !optionalCorrectionHint) || RIGHTS_NOTICE.test(`${status.headline} ${status.outcome?.reason ?? ""}`)));
   const quietCard = !siteStillHasSomething;
   // Before any video, the "record" status says what this very page is for (its title and its camera button), so it is not said again.
-  const recordOnThisPage = !saved && (link.status === "valid" || descriptionShared)
+  const recordOnThisPage = !saved && link.status === "valid"
     && status?.decision === "record" && !status.outcome;
+  const needsRecordingPermission = link.status === "held" && scope === "owner" && link.recordingConsentAvailable;
+  const permissionComesFirst = needsRecordingPermission && !saved
+    && (status?.decision === "record" || status?.decision === "confirm_brief");
   // A withdrawn recording takes no new footage, edits or sharing: those controls are not offered once the withdrawal is known.
   const [withdrawn, setWithdrawn] = useState(false);
   // A withdrawal closes everything at once: no simulation link, and no hold of an earlier status.
@@ -724,7 +727,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const staleStatusNotice = currentStatusKnown && statusStale && statusReadAt !== null ? <p role="status" className="ms-field-hint">
     {`This is your job as of ${new Date(statusReadAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. We could not check for anything newer just now and are trying again.`}
   </p> : null;
-  const statusCard = status && currentStatusKnown && !recordOnThisPage
+  const statusCard = status && currentStatusKnown && !recordOnThisPage && !permissionComesFirst
     && (!quietCard || (cardExtras && !answer)) ? (
     <div
       style={{
@@ -823,10 +826,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </button>}
     </details>
   ) : null;
-  const stopLabel = descriptionShared ? WITHDRAW_JOB_LABEL : STOP_USING_VIDEO_LABEL;
+  const stopLabel = canWithdrawDescription ? WITHDRAW_JOB_LABEL : STOP_USING_VIDEO_LABEL;
   const withdrawal = scope === "owner" && (link.status === "valid" || link.status === "held")
-    && (descriptionShared || saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
-    <OwnerRecordingWithdrawal token={token} onStatus={closeForWithdrawal} descriptionOnly={descriptionShared}
+    && (canWithdrawDescription || saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
+    <OwnerRecordingWithdrawal token={token} onStatus={closeForWithdrawal} descriptionOnly={canWithdrawDescription}
       summaryLabel={answer || !saved ? stopLabel : undefined} onWithdrawn={() => { closeForWithdrawal(); setLink({ status: "held",
       detail: "Recording permission was withdrawn. This link no longer accepts footage.",
       blockers: [], openQuestions: [], holdReason: "recording_consent_withdrawn" }); }} />
@@ -989,12 +992,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
       {link.status === "held" && (
         <>
-          {scope === "owner" && link.recordingConsentAvailable && (
+          {needsRecordingPermission && (
             <section aria-label="Confirm recording permission" style={{ marginBottom: "24px" }}>
-              <h2>{descriptionShared ? "Add a video (optional)" : "Record your job"}</h2>
-              <p className="ms-field-hint">{descriptionShared
-                ? "You can add a video to help companies evaluate your job and let us build a simulation of your site."
-                : "We need your video to build the simulation of your site and the job packet deployment companies answer from. Agree to continue. Blueprint drafts the job description from it."}</p>
+              <h2>Record your job</h2>
+              <p className="ms-field-hint">A video is required to post your job and build its simulation.</p>
               <p className="ms-field-hint">{FILMING_NOTICE}</p>
               {/* Recording statement v4, the one sentence a site agrees to with its video; pressing the button is the act. */}
               <p data-consent-line>{RECORDING_RIGHTS_STATEMENT_V4}</p>
@@ -1020,7 +1021,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 <a className="ms-text-link" href={`${status.claimUrl}?mode=signin`}>Sign in to save this job</a>
               </section>}
             </div>
-          ) : !(descriptionShared && link.holdReason === "recording_consent_required") && (
+          ) : !link.recordingConsentAvailable && (
             <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
           )}
 
@@ -1048,10 +1049,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           )}
 
           {/* A withdrawn recording never takes footage again on this link, so this is not said then. */}
-          {link.holdReason !== "recording_consent_withdrawn" && !withdrawn && !descriptionShared && <p style={{ color: "var(--ms-muted)" }}>
-            Keep this link. It is the same page you will record on — when the above changes,
-            open it again and it will let you upload. Nothing needs to be re-submitted and
-            nobody needs to email you.
+          {link.holdReason !== "recording_consent_withdrawn" && !withdrawn && <p style={{ color: "var(--ms-muted)" }}>
+            Keep this link to return to your job.
           </p>}
         </>
       )}
