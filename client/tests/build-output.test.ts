@@ -180,10 +180,12 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/beta", "/jobs", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds"].forEach((route) => {
+    ["/", "/how-it-works", "/beta", "/jobs", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(9);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(8);
+    // Refunds left the product copy (launch copy, 2026-11-20): the page stays routed for earlier purchases, unlisted.
+    expect(sitemap).not.toContain("<loc>https://tryblueprint.io/refunds</loc>");
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/jobs-we-support</loc>");
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/about</loc>");
 
@@ -226,8 +228,10 @@ describe("build output", () => {
     expect(robots).toContain("Disallow: /world-models/*/workspace");
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
-    expect(llms).toContain("https://tryblueprint.io/partners");
-    expect(llms).toContain("Applications stay pending until Blueprint approves the company by hand");
+    expect(llms).toContain("- [Find jobs (deployment companies): apply to see jobs](https://tryblueprint.io/jobs)");
+    expect(llms).toContain("Deployment companies apply at https://tryblueprint.io/jobs. Blueprint approves each company before it sees jobs.");
+    // Internal style notes and the retired run name are not published (launch copy, 2026-11-20).
+    for (const text of [llms, llmsFull]) expect(text).not.toMatch(/Evidence boundary|Task Evaluation Run|Pipeline|abstention/);
     // The agent API and its section went on 2026-11-12: nothing in the published text points an agent at it.
     for (const text of [llms, llmsFull]) expect(text).not.toMatch(/agent-access|agent-team|Agent interfaces|paid_evaluations_disabled/);
     expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
@@ -336,7 +340,9 @@ describe("build output", () => {
     });
     expect(browserJavaScript).not.toMatch(/pplx-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
-    expect(browserJavaScript).toContain("Task Evaluation Run");
+    // The retired product name left the last page that shipped it (the old header's "Request another Task Evaluation
+    // Run", launch copy 2026-11-20); the positive sentinels below prove the scan reads the real bundle.
+    expect(browserJavaScript).not.toContain("Task Evaluation Run");
     // Sentinels that the current public message actually shipped to the browser.
     // Replaced rather than dropped: the point of these is to prove the scan
     // above is reading the real public bundle, so removing one because the copy
