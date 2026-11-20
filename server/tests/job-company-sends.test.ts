@@ -282,9 +282,11 @@ describe("what the site receives", () => {
     expect(rows.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:A-interested`,
       `captureOutbox/${ID}:${questionEvent}`, `captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`].sort());
     const bodyOf = (key: string) => rows.find(row => row.key === `captureOutbox/${ID}:${key}`)!.body;
-    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any answer\.\n\nTo stop, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
-    expect(bodyOf(questionEvent)).toMatch(/^A deployment company answered about your job: Need more details\. Your job page has the details\. You can answer a company’s question on your job page\.\n\nOpen your job:\nhttps:\/\/\S+$/);
-    expect(bodyOf("company_answered:A-interested")).toMatch(/^A deployment company answered about your job: Interested\. Your job page has the details\./);
+    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any responses\.\n\nTo withdraw your job, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
+    // The company's own "Need more details" carries the question the site answers on its page; the Interested answer
+    // Blueprint recorded from North's email is one the site can ask to be introduced after, so the email says how.
+    expect(bodyOf(questionEvent)).toMatch(/^A deployment company needs more details about your job\. Read their question and answer it on your job page\.\n\nOpen your job:\nhttps:\/\/\S+$/);
+    expect(bodyOf("company_answered:A-interested")).toMatch(/^A deployment company answered "Interested" about your job\. To meet them, press Introduce us on your job page\.\n\nOpen your job:\n/);
     expect(rows.every(row => row.status === "sent")).toBe(true);
     expectNoCompanyIn("the site's emails", siteEmailText());
 

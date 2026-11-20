@@ -45,6 +45,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
 import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
+import { commercialUnsubscribeUrl } from "./email-suppression";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 import { accountNoticeDigest, accountNoticeDispatchBlocker, type AccountNoticeContext } from "./accountNotice";
 import { robotTeamAccessNotificationAuthority, type RobotTeamAccessNoticeContext } from "./robotTeamAccessNotificationAuthority";
@@ -405,7 +406,8 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
   const { uncertain } = claim;
   const claimedStatus = uncertain ? "unknown" : "claimed";
   const idempotencyKey = providerIdempotencyKey(doc.id);
-  const message = brandedEmail({ subject: entry.subject, text: entry.body });
+  // A commercial footer (the new-job email's) stays in the text part; the HTML part shows its link as "Unsubscribe".
+  const message = brandedEmail({ subject: entry.subject, text: entry.body, unsubscribeUrl: commercialUnsubscribeUrl(entry.body) });
   let dispatched: boolean;
   try {
     dispatched = await store.runTransaction(async tx => {

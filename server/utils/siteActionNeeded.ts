@@ -1,17 +1,18 @@
 /**
- * "Your job needs something from you" (owner, 2026-11-19): the one site email for a job that cannot continue without
- * the site, sent exactly when its job page shows a blocking ask (an outcome whose step is the site's, or the naming
- * form), and only then: a new video (too large to process, or one the Pipeline cannot build from), or the job's one
- * sentence. Never a status or progress email, never after a withdrawal or the site closing the job, and never for an
- * ending (a window or no-grant ending, a terminal scene outcome, the $40 cap's `spending_cap_reached`).
+ * The one site email for a job that cannot continue without the site (owner, 2026-11-19), titled by the ask itself
+ * ("Tell us the job in one sentence"), sent exactly when its job page shows a blocking ask (an outcome whose step is
+ * the site's, or the naming form), and only then: a new video (too large to process, or one the Pipeline cannot build
+ * from), or the job's one sentence. Never a status or progress email, never after a withdrawal or the site closing the
+ * job, and never for an ending (a window or no-grant ending, a terminal scene outcome, the $40 cap's
+ * `spending_cap_reached`).
  *
  * The first video is the one ask the job link email already carries, so it is asked again once, a day into the site's
  * week (owner, 2026-11-20): the reminder, with the date the job stays open until.
  *
- * One short line saying what is needed, and the private link. Once per distinct ask: the outbox document id names the
- * job, the capture and the ask's own words, so the same ask is never sent twice, whatever the trigger. Read again at
- * dispatch by the same rule: an ask that no longer stands is cancelled, never sent. The sweep of every site job and
- * each new preparation status bring it; nothing else does.
+ * The ask's title as the subject, its reason and next step as the body, and the private link. Once per distinct ask:
+ * the outbox document id names the job, the capture and the ask's own words, so the same ask is never sent twice,
+ * whatever the trigger. Read again at dispatch by the same rule: an ask that no longer stands is cancelled, never
+ * sent. The sweep of every site job and each new preparation status bring it; nothing else does.
  */
 import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -29,9 +30,11 @@ import { largeVideoAskOutcome, projectAtlasPreparationOutcome, TASK_NOT_NAMED_SE
 import { pageAskedOutcome, safeSceneViewUrl } from "./taskStatusProjection";
 
 export const SITE_ACTION_KIND = "site_action_needed" as const;
-export const SITE_ACTION_SUBJECT = "Your job needs something from you";
-/** One ask the job page makes of the site: its key names the capture and the ask; its words are the page's own. */
-export type SiteAsk = { key: string; title: string; nextStep: string };
+/**
+ * One ask the job page makes of the site: its key names the capture and the ask; its words are the page's own. The
+ * reason says what was wrong (the first-video reminder has none).
+ */
+export type SiteAsk = { key: string; title: string; reason?: string; nextStep: string };
 type Tx = FirebaseFirestore.Transaction;
 
 const keyPart = (value: string) => value.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 160);
@@ -46,9 +49,13 @@ export const firstVideoReminderNextStep = (endsAtEpoch: number) => "Film or uplo
   + `this link. Your job stays open until ${new Date(endsAtEpoch * 1000).toLocaleDateString("en-US",
     { month: "long", day: "numeric", timeZone: "UTC" })}.`;
 
-/** One ask, keyed by the capture and the ask's own words: the same ask is the same key, another ask another. */
-function askOf(captureId: string, title: string, nextStep: string): SiteAsk {
-  return { key: `${captureId}.${createHash("sha256").update(`${title}\n${nextStep}`).digest("hex").slice(0, 16)}`, title, nextStep };
+/**
+ * One ask, keyed by the capture and the ask's own words: the same ask is the same key, another ask another. The key
+ * reads the title and the next step only, as it always has, so an ask already emailed is not emailed again.
+ */
+function askOf(captureId: string, title: string, nextStep: string, reason?: string): SiteAsk {
+  return { key: `${captureId}.${createHash("sha256").update(`${title}\n${nextStep}`).digest("hex").slice(0, 16)}`, title,
+    ...(reason ? { reason } : {}), nextStep };
 }
 
 /**
@@ -77,7 +84,7 @@ export async function currentSiteAsk(requestId: string, record: Record<string, a
   const brief = await getBrief(requestId);
   const { taskStatementNeeded } = await import("./jobSentenceWait");
   if (await taskStatementNeeded(requestId, record, brief)) {
-    return askOf(captureId, TASK_NOT_NAMED_SENTENCES.title, TASK_NOT_NAMED_SENTENCES.nextStep);
+    return askOf(captureId, TASK_NOT_NAMED_SENTENCES.title, TASK_NOT_NAMED_SENTENCES.nextStep, TASK_NOT_NAMED_SENTENCES.reason);
   }
   const sessionRef = db.collection("captureUploadSessions").doc(captureId);
   const session = (tx ? await tx.get(sessionRef) : await sessionRef.get()).data();
@@ -90,7 +97,7 @@ export async function currentSiteAsk(requestId: string, record: Record<string, a
       && Boolean(safeSceneViewUrl(reconstruction.assets?.launchUrl) || safeSceneViewUrl(reconstruction.assets?.panoUrl)),
     sceneProgression: preparationStatus?.state === "handed_off" ? sceneProgression : null,
     siteNamedTask: Boolean(brief) && !isPlaceholderSummary(brief!.summary) });
-  if (outcome?.actionOwner === "site") return askOf(captureId, outcome.title, outcome.nextStep);
+  if (outcome?.actionOwner === "site") return askOf(captureId, outcome.title, outcome.nextStep, outcome.reason);
   if (outcome) return null;
   return firstVideoReminder(requestId, record, captureId, nowMs);
 }
@@ -112,12 +119,16 @@ async function firstVideoReminder(requestId: string, record: Record<string, any>
   return askOf(captureId, FIRST_VIDEO_REMINDER_TITLE, firstVideoReminderNextStep(endsAt));
 }
 
-/** The email for one ask: one short line saying what is needed, and the private link. */
+/**
+ * The email for one ask: the ask's title as the subject (the HTML part's heading), then what was wrong and what to do,
+ * and the private link.
+ */
 export function buildSiteActionNotification(params: { requestId: string; to: string; ask: SiteAsk; captureUrl?: string }): OutboxInput {
   const url = params.captureUrl ?? captureUploadUrlFor(params.requestId.trim(), "owner");
+  const said = [params.ask.reason?.trim(), params.ask.nextStep].filter(Boolean).join(" ");
   return { idempotencyKey: siteActionNoticeKey(params.requestId, params.ask), requestId: params.requestId.trim(), kind: SITE_ACTION_KIND,
-    to: params.to, subject: SITE_ACTION_SUBJECT, replyTo: "hello@tryblueprint.io",
-    body: finePrintLast(`${params.ask.title}. ${params.ask.nextStep}\n\nOpen your job:\n${url}`) };
+    to: params.to, subject: params.ask.title, replyTo: "hello@tryblueprint.io",
+    body: finePrintLast(`${said}\n\nOpen your job:\n${url}`) };
 }
 
 /** Queue the job's current ask once. Never throws for a job with nothing asked; a repeat of the same ask queues nothing. */

@@ -60,7 +60,8 @@ describe("the withdrawal's deletion notice to companies", () => {
       .map(companyId => `captureOutbox/${ID}:job_withdrawn_company:${companyId}`));
     const north = notices.find(row => row.to === "north@co.example")!;
     expect(north).toMatchObject({ status: "pending", subject: WITHDRAWAL_COMPANY_SUBJECT,
-      body: "A site has withdrawn a job you were sent on November 12, 2026: Pallet handling opportunity. It has left your job library. "
+      // The job is named as Find jobs names it ("Handle pallets"), never by its stored "… opportunity" title.
+      body: "A site has withdrawn a job you were sent on November 12, 2026: Handle pallets. It is no longer listed in Find jobs. "
         + "If you saved its video or its simulation, delete your copy now." });
     // Plant and prove: nothing of the site reaches any notice.
     const text = JSON.stringify(notices);
@@ -79,7 +80,7 @@ describe("the withdrawal's deletion notice to companies", () => {
     record.public_task_listing.details.title = "Acme at 123 PLANT STREET";
     await recordWebsiteCaptureWithdrawal({ requestId: ID, requestedBy: "signed_owner_link", authorize: () => undefined });
     for (const row of rows().filter(item => item.kind === "job_withdrawn_company")) {
-      expect(row.body).toContain(": Job opportunity.");
+      expect(row.body).toContain(": Automation job.");
       expect(row.body).not.toContain("PLANT");
     }
   });
@@ -95,7 +96,7 @@ describe("the withdrawal's deletion notice to companies", () => {
     const notices = rows().filter(item => item.kind === "job_withdrawn_company");
     expect(notices.length).toBeGreaterThan(0);
     for (const row of notices) {
-      expect(row.body).toContain(": Material handling opportunity.");
+      expect(row.body).toContain(": Move materials.");
       expect(row.body).not.toMatch(/PLANT|crate|Work assessment|To be determined/);
     }
   });

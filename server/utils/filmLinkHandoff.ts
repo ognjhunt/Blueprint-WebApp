@@ -16,7 +16,7 @@
 import { isApprovedCaptureRegion, type CaptureRegion } from "../../client/src/data/captureResidency";
 import { FILM_AROUND_THE_JOB } from "../../client/src/lib/footageNotice";
 import { captureUploadUrlFor } from "./captureUploadToken";
-import { CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
+import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
 import { sendEmail } from "./email";
 import { looksLikePhoneNumber, sendSms } from "./sms";
 
@@ -67,6 +67,22 @@ function taskClause(summary: string | null | undefined): string {
   return ` for "${trimmed}"`;
 }
 
+/** The film-link email: what the link is for, how to film, and the link as its one button. */
+export function filmLinkHandoffEmail(params: { filmUrl: string; taskSummary?: string | null }): { subject: string; text: string } {
+  return {
+    subject: "You've been asked to film a job for Blueprint",
+    text:
+      `Someone has asked you to film a job${taskClause(params.taskSummary)}. Blueprint turns the video into a job packet. We share it, ` +
+      `without sound, with robot deployment companies we've approved, so they can decide if they can do the job.\n\n` +
+      // No capture app is in use (owner, 2026-11-11): the link opens the browser recorder on every phone. The length is
+      // the start form's own words ("One full round of the job, about 30 seconds").
+      `Open this link on your phone. The recorder opens in your browser, and no account is needed. One full round of the job, about 30 seconds, is enough.\n\n` +
+      `Film the job:\n${params.filmUrl}\n\n` +
+      `${FILM_AROUND_THE_JOB}\n\n` +
+      `You can record and upload from this link.`,
+  };
+}
+
 export async function sendFilmLinkHandoff(params: {
   requestId: string;
   channel: HandoffChannel;
@@ -94,18 +110,13 @@ export async function sendFilmLinkHandoff(params: {
   }
 
   if (!EMAIL_RE.test(to)) return { sent: false, code: "invalid_email", filmUrl };
+  const { subject, text } = filmLinkHandoffEmail({ filmUrl, taskSummary: params.taskSummary });
   const result = await sendEmail({
     to,
-    subject: "You've been asked to film a job for Blueprint",
-    text:
-      `Someone has asked you to film a job${clause}. Blueprint turns the video into a job packet and shares it, without ` +
-      `sound, with the robot deployment companies it approves, so they can decide whether they can do the job.\n\n` +
-      // No capture app is in use (owner, 2026-11-11): the link opens the browser recorder on every phone.
-      `Open this link on your phone. The recorder opens in your browser. No account is needed, and about thirty seconds of the actual cycle is enough:\n${filmUrl}\n\n` +
-      `${FILM_AROUND_THE_JOB}\n\n` +
-      `You can record and upload from this link. Confirming the job details stays with the person who sent it to you.`,
-    // The same reply address as every other email to a site (hello@), not the operators' inbox.
-    replyTo: CUSTOMER_JOB_EMAIL_IDENTITY.replyTo,
+    subject,
+    // In the layout of every other email to a site, from and replying to the same address (hello@), not the operators'.
+    ...brandedEmail({ subject, text }),
+    ...CUSTOMER_JOB_EMAIL_IDENTITY,
   });
   if (result.sent) return { sent: true, filmUrl };
   return { sent: false, code: "email_unavailable", filmUrl };

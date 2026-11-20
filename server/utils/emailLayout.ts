@@ -15,7 +15,9 @@
  * - any other URL is linked in place;
  * - a paragraph that starts with FINE_PRINT_MARK is fine print: smaller, muted, and moved after the button
  *   (bare bones, 2026-11-11: the standing note a site must read stays, set as fine print). The text part
- *   drops the mark.
+ *   drops the mark;
+ * - a text footer the template already carries ("--" and what follows, `TEXT_FOOTER_MARKER`) stays in the
+ *   text part only: the HTML part has its own footer.
  * Everything else is escaped, so template text can never inject markup.
  */
 import { COMPANY, COMPANY_POSTAL_LINE } from "../../client/src/data/company";
@@ -100,8 +102,9 @@ function buttonHtml(label: string, url: string): string {
   return `<table class="email-button" role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 12px;"><tr><td align="center" bgcolor="${GREEN}" style="background:${GREEN};border-radius:3px;mso-padding-alt:14px 24px;">`
     + `<a class="email-button-link" href="${safeUrl}" style="display:block;border:1px solid ${GREEN};border-radius:3px;padding:14px 24px;font-family:${FONT};font-size:16px;line-height:22px;font-weight:500;color:${PAPER};text-align:center;text-decoration:none;mso-padding-alt:0;">${escapeHtml(label)}</a>`
     + "</td></tr></table>"
-    + `<p class="email-muted" style="margin:0 0 24px;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};">If the button doesn't open, use this link: `
-    + `<a class="email-link" href="${safeUrl}" style="color:${GREEN};text-decoration:underline;">${escapeHtml(label)}</a>.</p>`;
+    // The address itself, which can be copied when the button does not work (the text part carries it too).
+    + `<p class="email-muted" style="margin:0 0 24px;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};overflow-wrap:anywhere;word-break:break-word;">If the button doesn't work, copy this link: `
+    + `<a class="email-link" href="${safeUrl}" style="color:${GREEN};text-decoration:underline;overflow-wrap:anywhere;word-break:break-word;">${safeUrl}</a></p>`;
 }
 
 function paragraphHtml(paragraph: string): string {
@@ -145,6 +148,12 @@ export function textToEmailHtml(text: string): string {
     blocks.push(paragraphHtml(paragraph));
   }
   return blocks.join("\n");
+}
+
+/** The text before a footer the template carries itself (a commercial footer, for one): the HTML part draws its own. */
+function withoutTextFooter(text: string): string {
+  const at = text.replace(/\r\n/g, "\n").indexOf(TEXT_FOOTER_MARKER);
+  return at === -1 ? text : text.replace(/\r\n/g, "\n").slice(0, at);
 }
 
 /** The same identity footer the HTML part carries, for the text part. */
@@ -214,7 +223,7 @@ export function renderBrandedEmailHtml(params: {
                   <tr>
                     <td class="email-content" style="padding:28px 32px 12px;">
                       <h1 class="email-heading" style="margin:0 0 24px;font-family:${FONT};font-size:26px;line-height:1.3;font-weight:500;letter-spacing:-0.6px;color:${INK};overflow-wrap:anywhere;">${escapeHtml(params.subject)}</h1>
-                      ${textToEmailHtml(params.text)}
+                      ${textToEmailHtml(withoutTextFooter(params.text))}
                     </td>
                   </tr>
                 </table>

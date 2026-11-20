@@ -217,8 +217,11 @@ now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: stri
     const responseRef = jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(input.companyId);
     const prior = (await tx.get(responseRef)).data();
     const plan = planAlias(record, input.companyId);
+    // An answer Blueprint records consents to an introduction (`answerConsentsToIntroduction`) but carries no question
+    // the site can answer (`questionOnReply`): the email names only what the job page offers.
     const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "company_answered",
-      eventId: answerEventId(plan.alias, input.state), companyAnswerState: input.state }, captureUrl);
+      eventId: answerEventId(plan.alias, input.state), companyAnswerState: input.state,
+      introductionOffered: !(await introductionOnRecord(tx, jobRef, input.companyId)), questionOnPage: false }, captureUrl);
     const updatedAtIso = now().toISOString();
     writeAlias(tx, jobRef, input.companyId, plan);
     tx.set(responseRef, {
@@ -234,6 +237,11 @@ now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: stri
 /** One notice per company and response state, including when the company edits its question. */
 const answerEventId = (alias: string, state: CompanyResponseState) => `${alias}-${state}`;
 
+/** An introduction to this company is on record for the job (made or cancelled): "Introduce us" is not offered again. */
+async function introductionOnRecord(tx: Tx, jobRef: FirebaseFirestore.DocumentReference, companyId: string): Promise<boolean> {
+  return (await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId))).exists;
+}
+
 /**
  * The company's own answer from the job library, inside the route's transaction (call after the route's own reads,
  * before its writes): the company's alias (assigned with its first answer if it was never sent the job) and the site's
@@ -242,8 +250,11 @@ const answerEventId = (alias: string, state: CompanyResponseState) => `${alias}-
 export async function prepareCompanyAnswerInTransaction(tx: Tx, jobRef: FirebaseFirestore.DocumentReference, requestId: string,
   record: Data, companyId: string, state: CompanyResponseState, captureUrl: string): Promise<{ alias: string; write: () => void }> {
   const plan = planAlias(record, companyId);
+  // The company's own answer is given under the current line (the route accepts no other), so it consents to an
+  // introduction; its "Need more details" note is the question the site answers on its job page.
   const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "company_answered",
-    eventId: answerEventId(plan.alias, state), companyAnswerState: state }, captureUrl);
+    eventId: answerEventId(plan.alias, state), companyAnswerState: state,
+    introductionOffered: !(await introductionOnRecord(tx, jobRef, companyId)), questionOnPage: true }, captureUrl);
   return { alias: plan.alias, write: () => { writeAlias(tx, jobRef, companyId, plan); notice?.(); } };
 }
 
@@ -275,7 +286,8 @@ export async function setOperatorListingHold(requestId: string, held: boolean, r
  * (`taskLifecycleNotificationIsCurrent`): held, hidden or withdrawn by then, it is cancelled, never sent.
  */
 export async function prepareSiteNotice(tx: Tx, requestId: string, record: Data, params: { milestone: "job_sent" | "company_answered";
-  eventId: string; companyAnswerState?: CompanyResponseState; companyCount?: number }, captureUrl: string): Promise<(() => void) | null> {
+  eventId: string; companyAnswerState?: CompanyResponseState; companyCount?: number; introductionOffered?: boolean;
+  questionOnPage?: boolean }, captureUrl: string): Promise<(() => void) | null> {
   const store = requireDb();
   const { buildTaskLifecycleNotification } = await import("./taskLifecycleNotifications");
   const { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } = await import("./captureOutbox");

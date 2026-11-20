@@ -44,6 +44,16 @@ export function buildUnsubscribeUrl(params: {
   return url.toString();
 }
 
+/** What an unsubscribe stops, in the reader's words. Only `optional_updates` is linked from an email today. */
+export const OPTIONAL_UPDATES_EMAILS = "new-job emails and Blueprint updates";
+
+/** The emails a scope's unsubscribe stops, as a reader would name them; a scope no email links to is "these emails". */
+function unsubscribeScopeWords(scope: unknown): string {
+  return normalizeScope(scope) === "optional_updates" ? OPTIONAL_UPDATES_EMAILS : "these emails";
+}
+
+const UNSUBSCRIBE_LINE = /\nUnsubscribe from [^\n:]+: (https:\/\/\S+)\s*$/;
+
 export function appendCommercialEmailFooter(params: {
   text: string;
   email: string;
@@ -62,8 +72,16 @@ export function appendCommercialEmailFooter(params: {
     "--",
     BLUEPRINT_MAILING_ADDRESS,
     `Privacy: ${publicAppOrigin()}/privacy`,
-    `Unsubscribe from ${normalizeScope(params.scope).replace("_", " ")} emails: ${unsubscribeUrl}`,
+    `Unsubscribe from ${unsubscribeScopeWords(params.scope)}: ${unsubscribeUrl}`,
   ].join("\n");
+}
+
+/**
+ * The unsubscribe link a commercial footer ends with (`appendCommercialEmailFooter`), or null: the HTML part shows it as
+ * the layout's own "Unsubscribe" link, and the footer stays in the text part.
+ */
+export function commercialUnsubscribeUrl(text: string): string | null {
+  return UNSUBSCRIBE_LINE.exec(text)?.[1] ?? null;
 }
 
 export async function recordEmailSuppression(params: {
