@@ -1,19 +1,16 @@
 /**
  * "Your job needs something from you" (owner, 2026-11-19): the one site email for a job that cannot continue without
- * the site. Never a status or progress email: only an ask the job page itself makes of the site (an outcome whose step
- * is the site's), today
- * - a new video, because the first was too large to process (`website_large_video_ask`), or because the Pipeline could
- *   not build from it (a new-video ask on its Atlas preview or its preparation status);
- * - the job's one sentence, because the Pipeline holds the job for it or the brief gives none.
- *
- * Never for an ending: a job whose window or no-grant clock ran out, whose scene ended (the $40 cap's
- * `spending_cap_reached` included) asks nothing of the site.
+ * the site, sent exactly when its job page shows a blocking ask (an outcome whose step is the site's, or the naming
+ * form), and only then: a new video (too large to process, or one the Pipeline cannot build from), or the job's one
+ * sentence. Never a status or progress email, never after a withdrawal or the site closing the job, and never for an
+ * ending (a window or no-grant ending, a terminal scene outcome, the $40 cap's `spending_cap_reached`).
  *
  * One short line saying what is needed, and the private link. Once per distinct ask: the outbox document id names the
- * job, the capture and the ask, so the same ask is never sent twice, whatever the trigger. Read again at dispatch: an
- * ask that no longer stands (a new video arrived, the sentence was given, the site withdrew or closed the job) is
- * cancelled, never sent. The sweeps of every site job and each preparation status bring it; nothing else does.
+ * job, the capture and the ask's own words, so the same ask is never sent twice, whatever the trigger. Read again at
+ * dispatch by the same rule: an ask that no longer stands is cancelled, never sent. The sweep of every site job and
+ * each new preparation status bring it; nothing else does.
  */
+import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { enqueueOutbox, type OutboxInput } from "./captureOutbox";
@@ -24,9 +21,8 @@ import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { websiteRunClosure } from "./websiteRunClosure";
 import { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { recordedWebsiteJobNoGrantEnding, recordedWebsiteJobWindowEnding } from "./websiteJobWindowEnding";
-import { taskBriefUnclear } from "./siteTaskScope";
-import { isRecaptureReason, largeVideoAskOutcome, RECAPTURE_TITLE, recaptureReasonOf, recaptureSentences, TASK_NOT_NAMED_REASON,
-  TASK_NOT_NAMED_SENTENCES } from "./taskPreparationOutcome";
+import { largeVideoAskOutcome, projectAtlasPreparationOutcome, TASK_NOT_NAMED_SENTENCES } from "./taskPreparationOutcome";
+import { pageAskedOutcome, safeSceneViewUrl } from "./taskStatusProjection";
 
 export const SITE_ACTION_KIND = "site_action_needed" as const;
 export const SITE_ACTION_SUBJECT = "Your job needs something from you";
@@ -38,39 +34,50 @@ const keyPart = (value: string) => value.replace(/[^A-Za-z0-9._-]/g, "_").slice(
 export const siteActionNoticeKey = (requestId: string, ask: Pick<SiteAsk, "key">) =>
   `${requestId.trim()}:${SITE_ACTION_KIND}:${keyPart(ask.key)}`;
 
-/** What the job cannot continue without, from the site, now; null when nothing (or the site withdrew or closed it). */
+/** One ask, keyed by the capture and the ask's own words: the same ask is the same key, another ask another. */
+function askOf(captureId: string, title: string, nextStep: string): SiteAsk {
+  return { key: `${captureId}.${createHash("sha256").update(`${title}\n${nextStep}`).digest("hex").slice(0, 16)}`, title, nextStep };
+}
+
+/**
+ * What the job cannot continue without, from the site, now: exactly what its job page asks (one source of truth), or
+ * null. The naming form by the page's own predicate (`taskStatementNeeded`); else the outcome the page states
+ * (`pageAskedOutcome`) from the Pipeline's preparation status, verified current for this source and task context
+ * (`loadCurrentWebsitePreparationStatus`, so a failure retained for an earlier context asks nothing), and from the job's
+ * own record, when that outcome's step is the site's. Null after a withdrawal, the site closing the job, or an ending.
+ */
 export async function currentSiteAsk(requestId: string, record: Record<string, any> | null | undefined, tx?: Tx): Promise<SiteAsk | null> {
-  if (!db || !record || record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return null;
+  if (!db || !record || record.capture_withdrawal) return null;
+  const rights = projectWebsiteCaptureRights(record);
+  if (rights.consent_revoked) return null;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
   try { if (websiteRunClosure(record, requestId, captureId)) return null; } catch { return null; }
   // A job that has ended (its window or no-grant clock, a terminal scene outcome, the $40 spending cap) asks nothing:
   // its page states the ending, and nothing the site sends would start it again.
+  const preview = rights.derived_scene_generation_allowed ? selectWebsiteAtlasPreview(record, captureId) : null;
   if (recordedWebsiteJobWindowEnding(record) || recordedWebsiteJobNoGrantEnding(record, requestId)
-    || atlasPreviewReachedSpendingCap(selectWebsiteAtlasPreview(record, captureId))) return null;
+    || atlasPreviewReachedSpendingCap(preview)) return null;
   const { readWebsiteSceneProgression } = await import("./websiteSceneProgression");
-  if ((await readWebsiteSceneProgression(requestId, captureId))?.sceneOutcome?.terminal) return null;
-  const large = largeVideoAskOutcome(record, requestId, captureId);
-  if (large) return { key: `${captureId}.video_too_large.${large.evidence[0]?.digest.slice(7, 23) ?? ""}`, title: large.title, nextStep: large.nextStep };
-  const newVideo = (reason: string) => isRecaptureReason(reason)
-    ? { key: `${captureId}.${reason}`, title: RECAPTURE_TITLE, nextStep: recaptureSentences(reason).nextStep } : null;
-  const previewReason = recaptureReasonOf(selectWebsiteAtlasPreview(record, captureId));
-  if (previewReason) return newVideo(previewReason);
-  const sessionRef = db.collection("captureUploadSessions").doc(captureId);
-  const stored = (tx ? await tx.get(sessionRef) : await sessionRef.get()).data()?.website_preparation;
-  const statusReason = stored?.selector?.capture_id === captureId ? stored?.status?.outcome?.reason : undefined;
-  const fromStatus = typeof statusReason === "string" ? newVideo(statusReason) : null;
-  if (fromStatus) return fromStatus;
-  const sentence = { key: `${captureId}.job_sentence`, title: TASK_NOT_NAMED_SENTENCES.title, nextStep: TASK_NOT_NAMED_SENTENCES.nextStep };
-  if (taskBriefUnclear(record.site_task_scope)) return sentence;
-  if (statusReason === TASK_NOT_NAMED_REASON || selectWebsiteAtlasPreview(record, captureId)?.reason === TASK_NOT_NAMED_REASON) {
-    const { jobWaitsForItsSentence } = await import("./jobSentenceWait");
-    const { isPlaceholderSummary, TASK_BRIEFS_COLLECTION } = await import("./siteTaskBrief");
-    const briefRef = db.collection(TASK_BRIEFS_COLLECTION).doc(requestId);
-    const brief = (tx ? await tx.get(briefRef) : await briefRef.get()).data() as { summary?: string | null; confirmedAtIso?: string | null } | undefined;
-    if (jobWaitsForItsSentence({ requestId, record, brief: brief ?? null, isPlaceholder: isPlaceholderSummary,
-      preparationTaskNotNamed: statusReason === TASK_NOT_NAMED_REASON })) return sentence;
+  const sceneProgression = await readWebsiteSceneProgression(requestId, captureId);
+  if (sceneProgression?.sceneOutcome?.terminal) return null;
+  const { getBrief, isPlaceholderSummary } = await import("./siteTaskBrief");
+  const brief = await getBrief(requestId);
+  const { taskStatementNeeded } = await import("./jobSentenceWait");
+  if (await taskStatementNeeded(requestId, record, brief)) {
+    return askOf(captureId, TASK_NOT_NAMED_SENTENCES.title, TASK_NOT_NAMED_SENTENCES.nextStep);
   }
-  return null;
+  const sessionRef = db.collection("captureUploadSessions").doc(captureId);
+  const session = (tx ? await tx.get(sessionRef) : await sessionRef.get()).data();
+  const { loadCurrentWebsitePreparationStatus } = await import("./websitePreparationStatus");
+  const preparationStatus = session?.website_preparation ? await loadCurrentWebsitePreparationStatus(requestId, captureId) : null;
+  const reconstruction = session?.world_reconstruction as { state?: string; assets?: { launchUrl?: unknown; panoUrl?: unknown } } | undefined;
+  const outcome = pageAskedOutcome({ preparationStatus,
+    preparationOutcome: largeVideoAskOutcome(record, requestId, captureId) ?? projectAtlasPreparationOutcome(preview),
+    scenePreviewReady: reconstruction?.state === "ready"
+      && Boolean(safeSceneViewUrl(reconstruction.assets?.launchUrl) || safeSceneViewUrl(reconstruction.assets?.panoUrl)),
+    sceneProgression: preparationStatus?.state === "handed_off" ? sceneProgression : null,
+    siteNamedTask: Boolean(brief) && !isPlaceholderSummary(brief!.summary) });
+  return outcome?.actionOwner === "site" ? askOf(captureId, outcome.title, outcome.nextStep) : null;
 }
 
 /** The email for one ask: one short line saying what is needed, and the private link. */
