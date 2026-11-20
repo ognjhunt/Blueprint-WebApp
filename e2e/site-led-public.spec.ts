@@ -56,6 +56,18 @@ test("the site page is the start form alone, on a phone too", async ({ page }) =
   }
 });
 
+test("the public pages explain how a job starts without a video", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("list", { name: "How it works" })).toContainText("Film or describe one job that repeats.");
+
+  await page.goto("/how-it-works");
+  await expect(page.getByRole("list", { name: "Steps" })).toContainText("Film one recurring job or send a description.");
+
+  await page.goto("/partners");
+  await expect(page.locator("main")).toContainText("When the site sends video, you get it without sound.");
+  await expect(page.locator("main")).not.toContainText("You answer in a minute.");
+});
+
 test("old pricing reaches the free beta page with one CTA", async ({ page }) => {
   await page.goto("/pricing?source=legacy-review#scope");
   await expect(page).toHaveURL(/\/beta\?source=legacy-review#scope$/);
