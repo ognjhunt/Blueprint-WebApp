@@ -18,7 +18,7 @@ describe("Settings email choices", () => {
     const save = vi.fn();
     render(<UpdatePreferencesForm preferences={stored} pending={false} save={save} jobEmails />);
     expect(screen.getByRole("heading", { name: "Emails" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Relevant new-job alerts" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Email me about each new job" }));
     fireEvent.click(screen.getByRole("button", { name: "Save email choices" }));
     expect(save).toHaveBeenCalledWith({ newsletter: false, newJobAlerts: true, interests: { regions: ["Texas"] },
       declaredCategories: { taskFamilies: ["Palletizing"] }, requirements: { noTraining: true } });
@@ -27,7 +27,7 @@ describe("Settings email choices", () => {
   it("does not show a site the job-email box, and leaves its stored value alone", () => {
     const save = vi.fn();
     render(<UpdatePreferencesForm preferences={stored} pending={false} save={save} jobEmails={false} />);
-    expect(screen.queryByRole("checkbox", { name: "Relevant new-job alerts" })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "Email me about each new job" })).toBeNull();
     fireEvent.click(screen.getByRole("checkbox", { name: "Blueprint news and updates" }));
     fireEvent.click(screen.getByRole("button", { name: "Save email choices" }));
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ newsletter: true, newJobAlerts: false }));

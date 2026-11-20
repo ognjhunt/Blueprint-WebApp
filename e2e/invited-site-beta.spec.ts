@@ -53,7 +53,7 @@ for (const width of [390, 1440]) {
       if (path === "/api/inbound-request" && post) {
         expect(body).toMatchObject({ descriptionOnly: true, consentAttestation: null, accountSignup: false,
           taskDescription: "Cartons reach the pallet without damage", taskStatement: "Cartons reach the pallet without damage",
-          taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } });
+          taskConfirmation: { granted: true, statementVersion: "2026-11-21.v2" } });
         return route.fulfill({ json: { ok: true, captureUrl: "/capture-upload/synthetic-owner" } });
       }
       // The owner page reads whether recording permission was withdrawn.

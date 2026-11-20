@@ -86,7 +86,7 @@ export function PartnerApplication() {
         {/* Job emails are the service and start on once approved (owner, 2026-11-20); this box is Blueprint updates only. */}
         <label className="ms-check-row"><input name="optionalUpdates" type="checkbox" />Also email me Blueprint updates. Optional; unsubscribe anytime.</label>
       </fieldset>
-      <p className="ms-form-note">By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>. Application notices are separate from optional updates.</p>
+      <p className="ms-form-note">By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.</p>
       {error && <p role="alert">{error} Your entries are still here. You can also <a href="mailto:hello@tryblueprint.io">contact us</a>.</p>}
       <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Saving…" : "Apply"}<ArrowRight size={18} aria-hidden="true" /></button>
       <noscript><p>Enable JavaScript to apply, or email your company, the robots you deploy and the jobs you deliver to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>

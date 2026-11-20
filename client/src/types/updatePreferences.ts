@@ -24,9 +24,11 @@ export type UpdatePreferencesInput = z.infer<typeof updatePreferencesInputSchema
 /**
  * v1: one box bundled job emails with Blueprint updates, off unless ticked. v2 (owner, 2026-11-20): job emails are on
  * for every approved deployment company and the one box is Blueprint updates only; Settings holds both switches.
+ * v3 (launch copy, owner approval in the consent pull request): the sign-up box says the same words as the application's,
+ * the new-job fact sits on its own line above it, and the Settings switch reads "Email me about each new job".
  */
-export const UPDATE_PREFERENCES_VERSIONS = ["optional-updates-v1", "optional-updates-v2"] as const;
-export const CURRENT_UPDATE_PREFERENCES_VERSION = "optional-updates-v2" as const;
+export const UPDATE_PREFERENCES_VERSIONS = ["optional-updates-v1", "optional-updates-v2", "optional-updates-v3"] as const;
+export const CURRENT_UPDATE_PREFERENCES_VERSION = "optional-updates-v3" as const;
 export type UpdatePreferences = UpdatePreferencesInput & {
   source: "signup" | "application" | "settings";
   updatedAtIso: string;

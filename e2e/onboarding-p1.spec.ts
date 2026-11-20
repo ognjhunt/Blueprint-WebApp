@@ -248,7 +248,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   expect(mutations.find(mutation => mutation.path === "/api/inbound-request")?.body).toMatchObject({
     taskStatement: "Pick up each packed carton and place it at the end of the table",
     taskDescription: "Pick up each packed carton and place it at the end of the table",
-    taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, captureMode: "self_capture", hasExistingFootage: false,
+    taskConfirmation: { granted: true, statementVersion: "2026-11-21.v2" }, captureMode: "self_capture", hasExistingFootage: false,
   });
   await screenshot(page, `${mobile ? "phone" : "desktop"}-intake-handoff`); await context.close();
 });

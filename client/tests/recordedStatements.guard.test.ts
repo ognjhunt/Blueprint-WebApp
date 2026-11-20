@@ -17,7 +17,8 @@ import {
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
 import { INTRODUCTION_REQUEST_STATEMENT, INTRODUCTION_REQUEST_STATEMENT_VERSION, introduceSentence } from "@/lib/siteIntroductions";
 import { DESCRIPTION_AUTHORITY_STATEMENTS, DESCRIPTION_AUTHORITY_VERSIONS } from "@/lib/siteSubmissionAuthority";
-import { TASK_CONFIRMATION_STATEMENT } from "@/lib/taskConfirmationStatement";
+import { TASK_CONFIRMATION_STATEMENTS, TASK_CONFIRMATION_VERSIONS } from "@/lib/taskConfirmationStatement";
+import { CURRENT_UPDATE_PREFERENCES_VERSION } from "@/types/updatePreferences";
 import { JOB_CARD_ANSWER_STATEMENTS, JOB_CARD_ANSWER_STATEMENT_VERSIONS } from "@/lib/jobCardAnswerConsent";
 import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 } from "@/lib/siteStartConsent";
 
@@ -30,7 +31,9 @@ const CONSTANT_STATEMENTS = [
   { name: "recording rights, short", version: "2026-11-11.v3", actual: RECORDING_RIGHTS_STATEMENT_SHORT, text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site." },
   { name: "start form, with video", version: "2026-11-11.v3", actual: SITE_START_CONSENT_WITH_VIDEO, text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site." },
   { name: "start form, no video", version: "2026-11-11.v3", actual: SITE_START_CONSENT_NO_VIDEO, text: "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site." },
-  { name: "task confirmation", version: "2026-11-07.v1", actual: TASK_CONFIRMATION_STATEMENT, text: "This is the task I want Blueprint to evaluate." },
+  { name: "task confirmation", version: "2026-11-07.v1", actual: TASK_CONFIRMATION_STATEMENTS["2026-11-07.v1"], text: "This is the task I want Blueprint to evaluate." },
+  // Launch copy (owner approval in the consent pull request): says job, and what happens to it.
+  { name: "task confirmation", version: "2026-11-21.v2", actual: TASK_CONFIRMATION_STATEMENTS["2026-11-21.v2"], text: "This is the job I want deployment companies to look at." },
   { name: "description authority", version: "2026-10-06.v1", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-10-06.v1"], text: "I am authorized to share this job description with Blueprint on behalf of the site." },
   { name: "description authority", version: "2026-11-11.v2", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-11.v2"], text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site." },
   { name: "description authority", version: "2026-11-11.v3", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-11.v3"], text: "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site." },
@@ -62,20 +65,26 @@ const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; tex
   // v2 (owner, 2026-11-20): job emails are on for every approved company; the one box is Blueprint updates only.
   { version: "optional-updates-v2", file: "client/src/components/site/PartnerApplication.tsx", tag: "label",
     text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
-  { version: "optional-updates-v2", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
-    text: "Also email me Blueprint updates (optional). You get an email for each new job either way; unsubscribe anytime." },
+  // v3 (launch copy, owner approval in the consent pull request): the sign-up box says the application's words; the
+  // new-job fact sits on its own line above it; the Settings switch says what it sends.
+  { version: "optional-updates-v3", file: "client/src/components/site/PartnerApplication.tsx", tag: "label",
+    text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
+  { version: "optional-updates-v3", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
+    text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
   { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
-  { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Relevant new-job alerts" },
   { version: "optional-updates-v2", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
-  { version: "optional-updates-v2", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Relevant new-job alerts" },
+  { version: "optional-updates-v3", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
+  { version: "optional-updates-v3", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Email me about each new job" },
   { version: "2026-09-24.v1", file: "client/src/components/site/SiteCaptureStart.tsx", tag: "BareCheck",
     text: "For this development test, I authorize Blueprint to send selected frames and task evidence from this recording to Anthropic for Claude Opus 5.5 3D authoring. Blueprint pays the bounded provider cost; this does not train a model on my recording. See Anthropic’s commercial API terms." },
   { version: "2026-09-24.v1", file: "client/src/components/site/SiteCaptureStart.tsx", tag: "BareCheck",
     text: "For this development test, I authorize Blueprint to send selected frames and task evidence to OpenAI for GPT-6.1 Sol managed-agent 3D authoring. The agent session can retain that evidence until it is deleted under the configured provider policy. Blueprint pays the bounded provider cost." },
-  { version: "terms and privacy acceptance", file: "client/src/components/site/PartnerApplication.tsx", tag: "p",
-    text: "By applying, you agree to our Terms of Service and Privacy Policy. Application notices are separate from optional updates." },
-  { version: "terms and privacy acceptance", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
-    text: "I agree to the Terms and Privacy Policy and am authorized to create this organization’s account." },
+  // v2 (launch copy, owner approval in the consent pull request): the application drops "Application notices are
+  // separate from optional updates."; sign-up says "company" for "organization". The v1 texts are SUPERSEDED_IN_PLACE.
+  { version: "terms and privacy acceptance v2", file: "client/src/components/site/PartnerApplication.tsx", tag: "p",
+    text: "By applying, you agree to our Terms of Service and Privacy Policy." },
+  { version: "terms and privacy acceptance v2", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
+    text: "I agree to the Terms and Privacy Policy and am authorized to create this company’s account." },
 ];
 
 /**
@@ -84,6 +93,11 @@ const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; tex
  * on any page under its old version.
  */
 const RETIRED_INLINE_STATEMENTS = [
+  // Replaced by v3 on the launch-copy consent change (owner approval in its pull request).
+  { version: "optional-updates-v2", was: "client/src/pages/RobotTeamSignUpFlow.tsx",
+    text: "Also email me Blueprint updates (optional). You get an email for each new job either way; unsubscribe anytime." },
+  { version: "optional-updates-v1 and optional-updates-v2", was: "client/src/components/workspace/UpdatePreferencesForm.tsx",
+    text: "Relevant new-job alerts" },
   // The bundled box (job emails and Blueprint updates together, off unless ticked), replaced by v2 on 2026-11-20.
   { version: "optional-updates-v1", was: "client/src/components/site/PartnerApplication.tsx",
     text: "Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime." },
@@ -93,6 +107,18 @@ const RETIRED_INLINE_STATEMENTS = [
     text: "Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)" },
   { version: "public-task-card-v1", was: "client/src/components/site/PublicTaskListing.tsx",
     text: "I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time." },
+];
+
+/**
+ * Statements whose element now carries a newer version that begins with the same words, so the six-word anchor of the
+ * retired check cannot tell them apart. Their texts stay here as the record of what was agreed under each version; the
+ * element that carried each one must no longer say it, and the newer version is pinned in INLINE_STATEMENTS.
+ */
+const SUPERSEDED_IN_PLACE = [
+  { version: "terms and privacy acceptance", file: "client/src/components/site/PartnerApplication.tsx", tag: "p",
+    text: "By applying, you agree to our Terms of Service and Privacy Policy. Application notices are separate from optional updates." },
+  { version: "terms and privacy acceptance", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
+    text: "I agree to the Terms and Privacy Policy and am authorized to create this organization’s account." },
 ];
 
 /** JSX text as React renders it: lines trimmed where they meet a newline, whitespace-only lines dropped. */
@@ -188,6 +214,18 @@ describe("recorded statements keep their exact text under their version", () => 
       expect(fs.readFileSync(path.join(ROOT, "client/src", file), "utf8").replace(/\s+/g, " "), file).not.toContain(anchor);
   });
 
+  it.each(SUPERSEDED_IN_PLACE)("superseded: $version is no longer said in $file", ({ file, tag, text }) => {
+    const source = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(carrierTexts(source, tag, text)).not.toContain(text);
+    expect(INLINE_STATEMENTS.some(row => row.file === file && row.tag === tag && row.text !== text && anchorOf(row.text) === anchorOf(text)), file).toBe(true);
+  });
+
+  it("covers every task confirmation version the intake accepts", () => {
+    for (const version of TASK_CONFIRMATION_VERSIONS)
+      expect(CONSTANT_STATEMENTS.some(row => row.name === "task confirmation" && row.version === version), version).toBe(true);
+    expect([...TASK_CONFIRMATION_VERSIONS]).toEqual(["2026-11-07.v1", "2026-11-21.v2"]);
+  });
+
   it.each(INLINE_STATEMENTS)("$version in $file", ({ file, tag, text }) => {
     const source = fs.readFileSync(path.join(ROOT, file), "utf8");
     const carriers = carrierTexts(source, tag, text);
@@ -218,7 +256,7 @@ describe("recorded statements keep their exact text under their version", () => 
     // RobotTeamEarlyAccess.tsx carried its own application until 2026-11-20; it now points to the one on /partners.
     const surfaces = ["client/src/components/site/PartnerApplication.tsx", "client/src/pages/RobotTeamSignUpFlow.tsx"];
     for (const file of surfaces) expect(sourceText(file)).toMatch(/optionalUpdates/);
-    const pinned = new Set(INLINE_STATEMENTS.filter(row => row.version === "optional-updates-v2").map(row => row.file));
+    const pinned = new Set(INLINE_STATEMENTS.filter(row => row.version === CURRENT_UPDATE_PREFERENCES_VERSION).map(row => row.file));
     for (const file of surfaces) expect(pinned.has(file), file).toBe(true);
   });
 });

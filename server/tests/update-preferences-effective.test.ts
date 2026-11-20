@@ -36,7 +36,7 @@ describe("the job-email switch Settings shows", () => {
 
   it("writes new choices as v2 and still reads v1 records", () => {
     expect(buildUpdatePreferences({ newsletter: false, newJobAlerts: true, interests: {}, declaredCategories: {}, requirements: {} },
-      "settings").version).toBe("optional-updates-v2");
+      "settings").version).toBe("optional-updates-v3");
     expect(savedUpdatePreferences(saved("settings", false, "optional-updates-v1"))).not.toBeNull();
     expect(savedUpdatePreferences({ ...saved("settings", false), version: "optional-updates-v0" })).toBeNull();
   });

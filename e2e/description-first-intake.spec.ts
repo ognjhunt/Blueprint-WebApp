@@ -45,7 +45,7 @@ for (const device of ["desktop", "mobile"] as const) {
       expect(bodies).toHaveLength(2);
       expect(bodies[1]).toBe(bodies[0]);
       expect(JSON.parse(bodies[0])).toMatchObject({
-        taskStatement: "Move cartons from a conveyor onto a pallet.", taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" },
+        taskStatement: "Move cartons from a conveyor onto a pallet.", taskConfirmation: { granted: true, statementVersion: "2026-11-21.v2" },
         siteLocation: "Austin", captureRegion: "us", descriptionOnly: true,
         descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false,
       });
@@ -104,7 +104,7 @@ for (const device of ["desktop", "mobile"] as const) {
       expect(mutations).toHaveLength(0);
       if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click();
       await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
-      await expect(page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("checkbox", { name: "This is the job I want deployment companies to look at.", exact: true })).toHaveCount(0);
       await page.locator("#start-location").fill("Austin, TX");
       await page.locator("#start-email").fill("qa@example.invalid");
       await expect(page.locator("#start-rights")).toHaveCount(0);
@@ -122,7 +122,7 @@ for (const device of ["desktop", "mobile"] as const) {
       }
       expect(mutations).toHaveLength(1);
       expect(mutations[0].body).toMatchObject({ taskStatement: "Move sealed cartons from a conveyor onto a pallet.",
-        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false });
+        taskConfirmation: { granted: true, statementVersion: "2026-11-21.v2" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false });
       expect(mutations[0].body.matchFee).toBeUndefined();
       await expect(page.getByText("A video is required to post your job and build its simulation.")).toBeVisible();
       await expect(page.getByText("Check your job brief.", { exact: true })).toHaveCount(0);

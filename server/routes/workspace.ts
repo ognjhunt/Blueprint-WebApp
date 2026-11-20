@@ -10,7 +10,7 @@ import {
 } from "express";
 import { z } from "zod";
 import { RECORDING_RIGHTS_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
-import { TASK_CONFIRMATION_VERSION } from "../../client/src/lib/taskConfirmationStatement";
+import { TASK_CONFIRMATION_VERSIONS } from "../../client/src/lib/taskConfirmationStatement";
 import { DESCRIPTION_AUTHORITY_VERSIONS } from "../../client/src/lib/siteSubmissionAuthority";
 import {
   buildLegalAcceptanceRecord,
@@ -581,7 +581,7 @@ router.post(
       privacyVersion: z.string().max(40).optional(),
       descriptionAuthority: z.object({ granted: z.literal(true), statementVersion: z.enum(DESCRIPTION_AUTHORITY_VERSIONS) }).optional(),
       // The start form's one box (2026-11-07); the intake records it as the brief's confirmation.
-      taskConfirmation: z.object({ granted: z.literal(true), statementVersion: z.literal(TASK_CONFIRMATION_VERSION) }).optional(),
+      taskConfirmation: z.object({ granted: z.literal(true), statementVersion: z.enum(TASK_CONFIRMATION_VERSIONS) }).optional(),
       successCriteria: z.object({ successDefinition: z.string().trim().max(1000) }).strict().optional(),
       claudeAuthoringConsent: z.object({ granted: z.literal(true),
         statementVersion: z.literal("2026-09-24.v1") }).optional(),
