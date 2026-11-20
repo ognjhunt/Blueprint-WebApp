@@ -6,11 +6,14 @@
  * tick reads the month (`POST /api/internal/pipeline/account-spend-overhead`) and its meter keys it as
  * `overhead:<name>`, beside the jobs, in the reconciliation of each provider's bill.
  *
- * The month is read from the runs' own records (`agentRuns`), the one place a run's cost is written, so a run can
- * never be missing from it: each run's cost is the one the runtime computed and stored with the run
- * (`metadata.cost_telemetry`), its priced usage, else its conservative reservation. A finished run with neither is
- * counted as a run with no recorded cost, never as zero; a record whose accounting is incomplete makes the month
- * incomplete. No price is stated to anyone; these are Blueprint's own costs.
+ * The month is read from the runs' own records (`agentRuns`), the one place a run's cost is written: each run's cost
+ * is the one the runtime computed and stored with the run (`metadata.cost_telemetry`), its priced usage, else its
+ * conservative reservation. A run is in the month by its cost record's start time
+ * (`metadata.cost_telemetry.created_at_ms`, a number on every run with a cost record), or by its own `created_at`
+ * where that is a timestamp or an ISO string. Most stored runs lost their `created_at` (an empty map, 2026-11-20),
+ * so it alone found none of November's 47 priced runs. A finished run with no recorded cost is counted as such,
+ * never as zero; a record whose accounting is incomplete makes the month incomplete. No price is stated to anyone;
+ * these are Blueprint's own costs.
  */
 
 export const ACCOUNT_SPEND_OVERHEAD_SCHEMA = "blueprint.account_spend_overhead.v1";
@@ -51,9 +54,18 @@ export async function accountSpendOverheadMonth(store: Store, month: string, now
   if (!MONTH.test(month)) throw new Error("account_spend_overhead_month_invalid");
   const [year, index] = month.split("-").map(Number);
   const start = new Date(Date.UTC(year, index - 1, 1)), end = new Date(Date.UTC(year, index, 1));
-  const snapshot = await store.collection("agentRuns").where("created_at", ">=", start).where("created_at", "<", end)
-    .limit(ACCOUNT_SPEND_OVERHEAD_MAX_ROWS + 1).get();
-  const docs = snapshot.docs.slice(0, ACCOUNT_SPEND_OVERHEAD_MAX_ROWS);
+  const runs = store.collection("agentRuns");
+  const reads = await Promise.all([
+    runs.where("metadata.cost_telemetry.created_at_ms", ">=", start.getTime())
+      .where("metadata.cost_telemetry.created_at_ms", "<", end.getTime()),
+    runs.where("created_at", ">=", start).where("created_at", "<", end),
+    runs.where("created_at", ">=", start.toISOString()).where("created_at", "<", end.toISOString()),
+  ].map((query) => query.limit(ACCOUNT_SPEND_OVERHEAD_MAX_ROWS + 1).get()));
+  const byId = new Map<string, { id: string; data(): unknown }>();
+  for (const snapshot of reads) for (const doc of snapshot.docs) byId.set(doc.id, doc);
+  const truncated = reads.some((snapshot) => snapshot.docs.length > ACCOUNT_SPEND_OVERHEAD_MAX_ROWS)
+    || byId.size > ACCOUNT_SPEND_OVERHEAD_MAX_ROWS;
+  const docs = [...byId.values()].slice(0, ACCOUNT_SPEND_OVERHEAD_MAX_ROWS);
   const groups = new Map<string, { name: string; provider: string; micros: number; runs: number; unpriced_runs: number }>();
   let unreadable = 0;
   for (const doc of docs) {
@@ -75,6 +87,6 @@ export async function accountSpendOverheadMonth(store: Store, month: string, now
     .map(({ micros, ...group }) => ({ ...group, usd: micros / 1_000_000 }));
   return { schema_version: ACCOUNT_SPEND_OVERHEAD_SCHEMA, month, generated_at: new Date(nowMs).toISOString(), rows,
     // Every run record of the month was read and understood.
-    complete: snapshot.docs.length <= ACCOUNT_SPEND_OVERHEAD_MAX_ROWS && unreadable === 0,
+    complete: !truncated && unreadable === 0,
     unreadable_rows: unreadable };
 }
