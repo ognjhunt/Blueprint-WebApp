@@ -6,7 +6,8 @@
  *
  * What this pins:
  * - before an introduction, nothing the site receives (its status payload, its emails) carries any company's name,
- *   contact name, email, website or words: distinctive strings are planted in every field;
+ *   contact name, email, website, phone or note: distinctive strings are planted in every field, and in the company's
+ *   own words, which reach the site's page only with all of them taken out (2026-11-20) and never its emails;
  * - after an introduction, the site receives exactly that company's name and contact details, and still nothing of
  *   the other company;
  * - a job under an older statement shows no company section at all, whatever company records it has;
@@ -58,7 +59,11 @@ function company(tag: string) {
 }
 const NORTH = company("NORTHX");
 const SOUTH = company("SOUTHX");
-const WORDS = { north: "NORTHX-WORDS: we would need a second gripper", south: "SOUTHX-WORDS: our arm palletizes this today" };
+/** The companies' words, each naming the company, its person, its email, its website and a phone number. */
+const WORDS = {
+  north: "NORTHXPLANT Robotics palletizes cartons like these every day. Ask Person NORTHXplant at contact-northx@northx-plant.example.",
+  south: "SOUTHXPLANT Robotics would need a second gripper for the far end; see https://www.southx-plant.example/about or call +1 415 555 0199.",
+};
 const planted = (record: typeof NORTH) => [record.company, record.email, record.website, record.name, record.robot, record.region,
   record.decisionNote, sha(record.email)];
 const NORTH_PLANTED = [...planted(NORTH), WORDS.north, "NORTHX"];
@@ -85,7 +90,7 @@ function sharedJob(extra: Record<string, unknown> = {}) {
   };
 }
 function answer(record: typeof NORTH, words: string, state = "interested") {
-  return { state, inputs: { words }, words, email: record.email, company: record.company, submittedBy: record.email,
+  return { state, inputs: words, email: record.email, company: record.company, submittedBy: record.email,
     recordedBy: "company", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION, updatedAtIso: "2026-11-12T11:00:00.000Z" };
 }
 function seed(job = sharedJob()) {
@@ -139,6 +144,23 @@ describe("the site's status payload, before and after an introduction", () => {
     expect(body.answer.companies.entries.map((entry: Record<string, unknown>) => [entry.alias, entry.state]))
       .toEqual(expect.arrayContaining([["Company A", "interested"], ["Company B", "needs_something"]]));
     expectNone("status before the introduction", raw, [...NORTH_PLANTED, ...SOUTH_PLANTED]);
+    // Why each answered as it did: the words, with every name, email, website and phone number taken out.
+    const reasons = Object.fromEntries(body.answer.companies.entries.map((entry: Record<string, unknown>) => [entry.alias, entry.reason]));
+    expect(reasons).toEqual({
+      "Company A": "The company palletizes cartons like these every day. Ask the company at [removed].",
+      "Company B": "The company would need a second gripper for the far end; see [removed] or call [removed].",
+    });
+  });
+
+  it("shows no words given under the older line, or with no line", async () => {
+    state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`, { ...answer(NORTH, WORDS.north), statementVersion: "company-response-2026-11-01" });
+    const { statementVersion: _dropped, ...noLine } = answer(SOUTH, WORDS.south, "needs_something");
+    state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(SOUTH.email)}`, noLine);
+    const { raw, body } = await siteStatus();
+    expect(body.answer.companies.entries.filter((entry: Record<string, unknown>) => entry.kind === "answered")
+      .map((entry: Record<string, unknown>) => entry.reason)).toEqual([undefined, undefined]);
+    expect(raw).not.toContain("palletizes");
+    expect(raw).not.toContain("second gripper");
   });
 
   it("after the site asked, carries exactly the introduced company's name and contact details, and nothing of the other", async () => {
@@ -150,7 +172,7 @@ describe("the site's status payload, before and after an introduction", () => {
     expect(north.company).toEqual({ name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website });
     expect(north.introducedAtIso).toBe("2026-11-12T12:00:00.000Z");
     expect(body.answer.companies.introductions).toEqual({ used: 1 });
-    // The company's words, its robot, region and the operator's note never reach the site, even after.
+    // The company's words as written, its robot, region and the operator's note never reach the site, even after.
     expectNone("status after the introduction", raw, [WORDS.north, NORTH.robot, NORTH.region, NORTH.decisionNote, ...SOUTH_PLANTED]);
   });
 

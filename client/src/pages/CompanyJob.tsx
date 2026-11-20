@@ -18,6 +18,8 @@ export const VIDEO_PREPARING = "The video is being prepared.";
 export const NO_VIDEO_YET = "No video yet. The site sent this job with its description only.";
 /** Under the answer form when there is no video: how to ask for one with the answers that exist. */
 export const ASK_FOR_VIDEO = "Need a video to decide? Answer Would need something and say so.";
+/** Under the words box: the site reads them, with the company's identity taken out first (`jobCompanies.siteReasonOf`). */
+export const WORDS_REACH_SITE = "The site reads these words, with your company's name and contact details taken out.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
 export const NO_FIRST_LOOK = "Our first look is not ready yet.";
 export const NO_PACKET_FACTS = "Nothing about the object is measured or estimated yet.";
@@ -172,7 +174,9 @@ function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; p
       </fieldset>
       {page.video.state === "none" && <p className="ms-field-hint">{ASK_FOR_VIDEO}</p>}
       <label>A few words about your answer (what you would need, timing, or a question)
-        <textarea name="inputs" required minLength={4} maxLength={2000} value={inputs} onChange={event => setInputs(event.target.value)} /></label>
+        <textarea name="inputs" required minLength={4} maxLength={2000} value={inputs} onChange={event => setInputs(event.target.value)}
+          aria-describedby="company-answer-words-hint" /></label>
+      <p className="ms-field-hint" id="company-answer-words-hint">{WORDS_REACH_SITE}</p>
       <button className="ms-button" disabled={saving}>{saving ? "Saving…" : "Send answer"}</button>
       {message && <p role="status">{message}</p>}
       <p className="ms-field-hint">{page.responseStatement.text}</p>

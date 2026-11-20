@@ -207,8 +207,9 @@ const STREETS: readonly RegExp[] = [
   new RegExp(`${HOUSE}(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_WEAK})\\b${ABBREVIATION_DOT}(?:\\s*,?\\s*${UNIT}|\\s*,?\\s*${POSTAL})+`, "gu"),
 ];
 
-/** Tidy what removal leaves: doubled spaces and commas, a space before punctuation, a comma at either end. */
-function tidy(text: string): string {
+/** Tidy what removal leaves: doubled spaces and commas, a space before punctuation, a comma at either end. `noun` is
+ * what a held name became ("site" in "the site", or "company"). */
+function tidy(text: string, noun: NameNoun = "site"): string {
   return text
     // A place word left with nothing after it ("in ," once "in Springfield" is gone).
     .replace(/\b(at|in|near|on)\s*(?=[,.;]|$)/gi, "")
@@ -217,9 +218,12 @@ function tidy(text: string): string {
     .replace(/\s+([,.;:!?])/g, "$1").replace(/([,;:])(\s*[,;:])+/g, "$1").replace(/\(\s*\)/g, "")
     .replace(/[,;:]\s*\./g, ".").replace(/\s{2,}/g, " ").replace(/^[\s,;:]+|[\s,;:]+$/g, "")
     // An article left before "the site" ("the the site", "a the site", "at the the site"); a capital is kept.
-    .replace(/\b(?:(?:the|a|an)\s+)+(?=the site\b)/gi, (articles: string) => /^[A-Z]/.test(articles) ? "\u0000" : "")
-    .replace(/\u0000the site/g, "The site");
+    .replace(new RegExp(`\\b(?:(?:the|a|an)\\s+)+(?=the ${noun}\\b)`, "gi"), (articles: string) => /^[A-Z]/.test(articles) ? "\u0000" : "")
+    .replace(new RegExp(`\u0000the ${noun}`, "g"), `The ${noun}`);
 }
+
+/** What a held name becomes: "the site" in a site's words (the default), "the company" in a company's. */
+export type NameNoun = "site" | "company";
 
 /**
  * The site's sentence as a company may read it. In order: the site's own known identity (every name the record holds
@@ -239,8 +243,13 @@ function tidy(text: string): string {
  * The remaining limit, exactly: nicknames, abbreviations, landmarks, a reordered address, a street with no street word
  * and a state or region spelled differently from the record can still get through. Ordinary numbers and quantities are
  * kept.
+ *
+ * The same rules take a deployment company out of its own words before a site reads them (`jobCompanies.ts`), with
+ * `nameAs: "company"`: each held name then becomes "the company".
  */
-export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity): string {
+export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity, options: { nameAs?: NameNoun } = {}): string {
+  const noun = options.nameAs ?? "site";
+  const nameAs = (whole: string, offset: number) => `${startsSentence(whole, offset) ? "The" : "the"} ${noun}`;
   let out = fold(text);
   const values = (list: Array<string | null | undefined>) => list.filter((value): value is string => typeof value === "string" && value.trim().length > 0);
   // Longest first, so a whole address or a full name goes before its parts.
@@ -255,18 +264,16 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity)
   }
   for (const value of byLength(values(known.names))) {
     const pattern = knownValuePattern(value);
-    if (pattern) out = out.replace(pattern, (...args: unknown[]) =>
-      startsSentence(String(args[args.length - 1]), Number(args[args.length - 2])) ? "The site" : "the site");
+    if (pattern) out = out.replace(pattern, (...args: unknown[]) => nameAs(String(args[args.length - 1]), Number(args[args.length - 2])));
   }
   for (const word of new Set(values(known.organisations ?? []).flatMap(name => name.split(/[^\p{L}\p{N}]+/u)))) {
     const pattern = capitalisedWordPattern(word);
     // Wherever it is capitalised, the first word of a sentence included (privacy over a mangled sentence).
-    if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) =>
-      startsSentence(whole, offset) ? "The site" : "the site");
+    if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) => nameAs(whole, offset));
   }
   for (const street of STREETS) out = out.replace(street, "");
-  out = out.replace(/\bthe site(\s+the site)+\b/gi, "the site");
-  return tidy(removeContactDetails(out));
+  out = out.replace(new RegExp(`\\bthe ${noun}(\\s+the ${noun})+\\b`, "gi"), `the ${noun}`);
+  return tidy(removeContactDetails(out), noun);
 }
 
 /** Whether `removeIdentifyingDetails` would change the text: the site's page may then say `CONTACT_DETAILS_REMOVED_LINE`. */

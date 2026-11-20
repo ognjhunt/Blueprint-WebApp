@@ -1,4 +1,11 @@
-/** Google Places (New), using a browser Maps key or a private server credential. */
+/**
+ * Google Places (New), using a browser Maps key or a private server credential.
+ *
+ * The start form asks where the job is as a city or region and its country, never a street address (owner,
+ * 2026-11-20): suggestions are cities and regions only (Places `(regions)`, Photon's city, district, county and state
+ * layers), and "Use my location" fills the city or region it is in, never the street. The country is what recording
+ * permission needs; companies are shown the country only.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 import { NEARBY_RADIUS_METERS, US_LOCATION_BIAS, rankLocations, type LocationOrigin } from "@/lib/location-preferences";
@@ -30,8 +37,14 @@ function photonLabel(props: Record<string, unknown>): string {
   return parts.filter((part, index) => part !== parts[index - 1]).join(", ");
 }
 
+/** Photon's layers for a city or region: never a house or a street. */
+const PHOTON_PLACE_LAYERS = ["city", "district", "locality", "county", "state"] as const;
+/** A city or region's line from Photon's parts: no house number, no street and no point of interest's name. */
+const placeLabel = (props: Record<string, unknown>) => photonLabel({ ...props, housenumber: "", street: "" });
+
 async function photonSuggestions(query: string, signal: AbortSignal, origin: LocationOrigin | null): Promise<Suggestion[]> {
   const params = new URLSearchParams({ q: query, limit: "5" });
+  for (const layer of PHOTON_PLACE_LAYERS) params.append("layer", layer);
   if (origin) { params.set("lat", String(origin.lat)); params.set("lon", String(origin.lng)); }
   const url = `https://photon.komoot.io/api/?${params}`;
   const response = await fetch(url, { signal });
@@ -41,7 +54,7 @@ async function photonSuggestions(query: string, signal: AbortSignal, origin: Loc
   const out: Suggestion[] = [];
   for (const feature of data.features ?? []) {
     const properties = feature.properties ?? {};
-    const label = photonLabel(properties);
+    const label = placeLabel(properties);
     if (label && !seen.has(label)) {
       seen.add(label);
       const code = typeof properties.countrycode === "string" ? properties.countrycode.trim().toUpperCase() : "";
@@ -71,7 +84,7 @@ async function browserSuggestions(input: string, sessionToken: google.maps.place
   const places = googlePlaces();
   if (!places?.AutocompleteSuggestion) return null;
   const result = await within(places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-    input, sessionToken, region: "us",
+    input, sessionToken, region: "us", includedPrimaryTypes: ["(regions)"],
     locationBias: origin ? { center: origin, radius: NEARBY_RADIUS_METERS } : US_LOCATION_BIAS,
     ...(origin ? { origin } : {}),
   }), 1200, null);
@@ -94,8 +107,12 @@ async function browserCountryCode(prediction: google.maps.places.PlacePrediction
   } catch { return null; }
 }
 
-/** Resolve the clicked position once, keeping structured country data. */
-async function currentAddress(origin: LocationOrigin, browserKey: string | null, signal: AbortSignal): Promise<(ChosenPlace & { source: "google" | "photon" }) | null> {
+/** Google's result types for a city or region, the most local first: the one "Use my location" fills. */
+const GOOGLE_PLACE_TYPES = ["locality", "postal_town", "sublocality", "administrative_area_level_3", "administrative_area_level_2",
+  "administrative_area_level_1"];
+
+/** Resolve the clicked position once to the city or region it is in, keeping structured country data. */
+async function currentPlace(origin: LocationOrigin, browserKey: string | null, signal: AbortSignal): Promise<(ChosenPlace & { source: "google" | "photon" }) | null> {
   if (browserKey) {
     const place = await within((async () => {
       try {
@@ -103,7 +120,7 @@ async function currentAddress(origin: LocationOrigin, browserKey: string | null,
         if (signal.aborted || !window.google?.maps?.importLibrary) return null;
         const { Geocoder } = await google.maps.importLibrary("geocoding") as google.maps.GeocodingLibrary;
         const response = await new Geocoder().geocode({ location: origin });
-        const result = response.results.find((item) => !item.types.includes("plus_code"));
+        const result = GOOGLE_PLACE_TYPES.map((type) => response.results.find((item) => item.types.includes(type))).find(Boolean);
         if (!result?.formatted_address) return null;
         const code = result.address_components.find((part) => part.types.includes("country"))?.short_name?.toUpperCase() ?? "";
         return { label: result.formatted_address, countryCode: /^[A-Z]{2}$/.test(code) ? code : null, source: "google" as const };
@@ -125,13 +142,11 @@ async function currentAddress(origin: LocationOrigin, browserKey: string | null,
         city: properties.city || (properties.type === "city" ? properties.name : undefined),
       }));
       const hasText = (properties: Record<string, unknown>, key: string) => typeof properties[key] === "string" && Boolean((properties[key] as string).trim());
-      const properties = candidates.find((item) => hasText(item, "housenumber") && hasText(item, "street"))
-        ?? candidates.find((item) => hasText(item, "street"))
-        ?? candidates.find((item) => hasText(item, "city"));
+      const properties = candidates.find((item) => hasText(item, "city")) ?? candidates.find((item) => hasText(item, "state"));
       if (!properties) return null;
-      // A nearby bus stop or business can be the first result. Fill address
-      // parts, without importing that point of interest's display name.
-      const label = photonLabel({ ...properties, name: "" });
+      // A nearby bus stop, business or street can be the first result: fill the city or region only, without that
+      // point of interest's name or the street.
+      const label = placeLabel({ ...properties, name: "" });
       const code = typeof properties.countrycode === "string" ? properties.countrycode.trim().toUpperCase() : "";
       return label ? { label, countryCode: /^[A-Z]{2}$/.test(code) ? code : null, source: "photon" as const } : null;
     } catch { return null; }
@@ -314,7 +329,7 @@ export function LocationAutocomplete(props: {
           setLocationStatus("resolving");
           const controller = new AbortController();
           addressAbort.current = controller;
-          const place = await currentAddress({ lat: latitude, lng: longitude }, browserKey, controller.signal);
+          const place = await currentPlace({ lat: latitude, lng: longitude }, browserKey, controller.signal);
           controller.abort();
           if (generation !== locationGeneration.current) return;
           if (fillGeneration === locationFillGeneration.current && place) {
@@ -550,14 +565,14 @@ export function LocationAutocomplete(props: {
           onPointerDown={(event) => event.preventDefault()}
           onClick={locationStatus === "nearby" ? clearMyLocation : useMyLocation}
           style={{ background: "none", border: 0, padding: "4px 0", cursor: locationStatus === "loading" || locationStatus === "resolving" ? "wait" : "pointer", font: "inherit" }}>
-          {locationStatus === "nearby" ? "Clear location preference" : locationStatus === "loading" ? "Finding your location…" : locationStatus === "resolving" ? "Finding your address…" : "Use my location"}
+          {locationStatus === "nearby" ? "Clear location preference" : locationStatus === "loading" ? "Finding your location…" : locationStatus === "resolving" ? "Finding your city…" : "Use my location"}
         </button>
         <span id={`${props.id}-location-hint`} role="status" aria-label="Location preference" style={{ color: "var(--ms-muted, #667085)" }}>
-          {locationStatus === "nearby" ? locationFeedback === "filled" ? "Current address filled. Check it before continuing." :
-            locationFeedback === "not-found" ? "Couldn’t fill your address. Type an address; nearby matches come first." : "Nearby matches first. You can still choose any address." :
+          {locationStatus === "nearby" ? locationFeedback === "filled" ? "Filled in your city or region. Check it before continuing." :
+            locationFeedback === "not-found" ? "Couldn’t fill your city or region. Type it; nearby matches come first." : "Nearby matches first. You can still choose any city or region." :
             locationStatus === "loading" || locationStatus === "resolving" ? "You can keep typing while we look it up." :
-            locationStatus === "denied" ? "Location permission is off. You can still type any address." :
-            locationStatus === "unavailable" ? "Couldn’t find your location. You can still type any address." :
+            locationStatus === "denied" ? "Location permission is off. You can still type any city or region." :
+            locationStatus === "unavailable" ? "Couldn’t find your location. You can still type any city or region." :
             ""}
         </span>
         {addressSource === "google" && <img src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png" alt="Powered by Google" width={120} height={14} />}

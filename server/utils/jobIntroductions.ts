@@ -3,8 +3,9 @@
  * sides are emailed each other's details. No person at Blueprint is in the loop.
  *
  * `requestIntroduction` is one transaction that re-checks everything (the whole sharing rule, the company's approval as
- * a deployment company, a standing Interested answer the company itself gave under the current line
- * `company-response-2026-11-12`), and writes, all or nothing (one introduction per company; no limit per job: owner,
+ * a deployment company under the current Terms, a standing Interested answer the company itself gave under the current
+ * line `company-response-2026-11-12` or Blueprint recorded from its email: `answerConsentsToIntroduction`), and
+ * writes, all or nothing (one introduction per company; no limit per job: owner,
  * 2026-11-12, "if they want to talk to 1 that should be fine if they want to go through the steps with 8 that should be
  * fine"):
  * - `inboundRequests/{id}/introductions/{companyId}` = `{ schemaVersion: 1, alias, requestedAtIso, by: "site",

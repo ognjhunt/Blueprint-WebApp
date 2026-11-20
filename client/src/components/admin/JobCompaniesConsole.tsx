@@ -4,9 +4,11 @@
  * mistaken one, record an answer a company sent by email, and stop showing the job to every company, or show it again.
  * Where the job stands with companies, and every send, answer and introduction with its time, are on the page itself.
  *
- * The site is told each send and answer under an alias ("Company A") and a fixed label, never a company's name or its
- * words. "Stop showing this job to companies" holds the job back from every company (the library card and the response
- * form close, and the site's page says it is not visible right now) until "Show again". Every write records who and when.
+ * The site is told each send and answer under an alias ("Company A") and a fixed label, with the company's words with
+ * its name and contact details taken out, never its name. An answer recorded here is shown to the site like any other,
+ * with "Introduce us" beside Interested. "Stop showing this job to companies" holds the job back from every company
+ * (the library card and the response form close, and the site's page says it is not visible right now) until "Show
+ * again". Every write records who and when.
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -198,7 +200,7 @@ export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
                 <option key={state} value={state}>{COMPANY_RESPONSE_LABELS[state]}</option>)}
             </select>
           </label>
-          <label>Their words (staff only, never shown to the site)
+          <label>Their words (the site reads them, with the company's name and contact details taken out)
             <textarea name="inputs" maxLength={2000} disabled={panel.consentRevoked} />
           </label>
           <button type="submit" className="ms-button" disabled={busy || panel.consentRevoked}>Record the answer</button>

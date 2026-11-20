@@ -43,6 +43,10 @@ import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS } from "../utils/websiteJobWindow";
 import { sweepWebsiteJobNoGrant, sweepWebsiteJobWindows } from "../utils/websiteJobWindowSweep";
 import { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } from "../utils/sceneScreenGate";
 import { websiteJobWorkWindow } from "../utils/websiteSceneSponsorship";
+import { recordedWebsiteJobNoGrantEnding, sealWebsiteJobNoGrantEnding } from "../utils/websiteJobWindowEnding";
+import { buildJobSharedListing } from "../utils/jobSharedListing";
+import { teamJobAccess } from "../utils/teamJobAccess";
+import { sharedJobFields } from "./helpers/sharedJob";
 
 const HOUR = 3600, DAY = 86400;
 const WINDOW = WEBSITE_JOB_WINDOW_DEFAULT_SECONDS;
@@ -246,6 +250,59 @@ describe("a job the no-grant clock must leave alone", () => {
     expect(await websiteJobWorkWindow(job())).toEqual({ untilEpoch: NOW / 1000 + 2 * WINDOW, ended: false });
     expect((await page()).decision).not.toBe("ended");
     expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW + 60))).toBe("has_grant");
+  });
+});
+
+// 2026-11-20: a job sent with its description only is complete without a video. The clock used to take the missing
+// video for the site's step and end the job ("start a new job") while companies still saw it.
+describe("a job the site sent with its description only", () => {
+  const AUTH_AT = new Date(NOW - DAY * 1000).toISOString();
+  const wrongEnding = () => sealWebsiteJobNoGrantEnding({ request_id: "job-one", waiting_on: "site", waiting_since_epoch: NOW / 1000 - WINDOW,
+    ended_at_epoch: NOW / 1000, recorded_at_iso: new Date(NOW).toISOString(), notice: "none_emails_retired" });
+  function seedDescriptionOnly(changes: Record<string, unknown> = {}) {
+    const { job: record } = screeningFixture();
+    seedJob({ request: { ...record.request, capture_region: "us", consent_attestation: null,
+      description_authority: { granted: true, statement_version: "2026-11-12.v5", recorded_at_iso: AUTH_AT } },
+    public_task_listing: buildJobSharedListing({ taskStatement: "Move the rigid part to its tray", atIso: AUTH_AT,
+      descriptionStatementVersion: "2026-11-12.v5" }), ...changes });
+  }
+
+  it("waits on nobody: no clock and no ending, however long it is listed, and the page and the listing agree it is open", async () => {
+    seedDescriptionOnly();
+    expect(teamJobAccess(job())).toMatchObject({ listed: true, reason: "no_video_yet" });
+    const before = snapshot();
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("description_only");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW * 3))).toBe("description_only");
+    await sweepAt(WINDOW * 4);
+    expect(snapshot()).toEqual(before);
+    expect((await page()).decision).not.toBe("ended");
+    expect(teamJobAccess(job())).toMatchObject({ listed: true, reason: "no_video_yet" });
+  });
+
+  it("reads an ending the clock recorded for it before as no ending, and leaves the stored record as it is", async () => {
+    seedDescriptionOnly({ website_job_no_grant_ending: wrongEnding() });
+    expect(recordedWebsiteJobNoGrantEnding(job(), "job-one")).toBeNull();
+    expect((await page()).decision).not.toBe("ended");
+    expect(teamJobAccess(job())).toMatchObject({ listed: true, reason: "no_video_yet" });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("description_only");
+    expect(job().website_job_no_grant_ending).toEqual(wrongEnding());
+  });
+
+  it("still waits on the site's sentence while its brief says nothing about the job", async () => {
+    seedDescriptionOnly({ site_task_scope: { supported: false, reason: "unclear" } });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "site" });
+  });
+});
+
+describe("a job ended for want of the site's step", () => {
+  const ending = (waitingOn: "site" | "blueprint") => sealWebsiteJobNoGrantEnding({ request_id: "job-one", waiting_on: waitingOn,
+    waiting_since_epoch: NOW / 1000 - WINDOW, ended_at_epoch: NOW / 1000, recorded_at_iso: new Date(NOW).toISOString(), notice: "none_emails_retired" });
+  it("is not shown to companies, as its page says it ended; a wait on Blueprint holds only the simulation and stays listed", () => {
+    const listed = { requestId: "job-one", ...sharedJobFields("job-one") };
+    expect(teamJobAccess(listed)).toMatchObject({ listed: true });
+    expect(teamJobAccess({ ...listed, website_job_no_grant_ending: ending("site") })).toMatchObject({ listed: false, reason: "job_ended" });
+    expect(teamJobAccess({ ...listed, website_job_no_grant_ending: ending("blueprint") })).toMatchObject({ listed: true });
   });
 });
 

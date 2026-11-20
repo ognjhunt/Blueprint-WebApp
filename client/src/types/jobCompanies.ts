@@ -16,6 +16,7 @@ export type TeamAccessReason =
   | "no_job_sentence"
   | "authority_ended"
   | "closed_by_site"
+  | "job_ended"
   | "consent_withdrawn"
   | "blueprint_hold"
   | "development_only"
