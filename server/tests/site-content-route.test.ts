@@ -63,7 +63,7 @@ describe("site-content route", () => {
       expect(JSON.stringify(payload)).toContain("Free for sites. Nothing is charged today.");
       expect(payload.summary).toContain("Blueprint turns a site's video or description of one recurring job into a job packet.");
       expect(payload.summary).not.toMatch(/judge|evaluate the packet|receive the packet/i);
-      expect(payload.summary).toContain("a first look on paper (the robot most likely to fit, from published specifications and a cited track record)");
+      expect(payload.summary).toContain("We add a first look at which robots could fit when we have enough detail. We use published specifications and a cited track record.");
       expect(payload.summary).not.toMatch(/early trial|openly available/i);
       // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
       expect(payload.summary).toContain("If the site sends video, the packet includes it without sound and the simulation when it is ready. Blueprint sends each job automatically to the deployment companies it has approved.");

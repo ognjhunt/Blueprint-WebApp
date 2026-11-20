@@ -18,8 +18,8 @@
  * admin robot-team-access and job-outcomes routers with their production middleware (CSRF, Firebase token
  * verification, the admin role check), the coverage review, the automatic send, the introduction transaction, the
  * outcome-question sweep, Firestore, Storage and Auth (emulators), the normal Vite app. Synthetic: the video model's
- * reply (a scripted reading of one carton) and the unsigned storage read URL. The browser's Firebase Auth requests are
- * answered by the local Auth emulator. Email is read from the outbox, never delivered.
+ * reply (a scripted reading of one carton), the unsigned storage read URL and the empty location suggestions for a
+ * manually chosen country. The local Auth emulator answers Firebase Auth requests. The test reads the email outbox.
  */
 import { test, expect, devices, type BrowserContext, type Page, type APIRequestContext } from "@playwright/test";
 import path from "node:path";
@@ -42,6 +42,10 @@ function jobOf(href: string) {
  */
 async function localOnly(context: BrowserContext, missing: string[]) {
   await context.route(/^https?:\/\/(?!127\.0\.0\.1(?::|\/)|localhost(?::|\/))/, route => route.abort("blockedbyclient"));
+  // These jobs use typed locations and an explicitly chosen country. An empty geocoder response
+  // lets the form exercise that path without contacting a geocoding provider.
+  await context.route(url => url.origin === ORIGIN && url.pathname === "/api/location-autocomplete",
+    route => route.fulfill({ json: { suggestions: [] } }));
   await context.route(/^https:\/\/(identitytoolkit|securetoken)\.googleapis\.com\//, async route => {
     const url = new URL(route.request().url());
     const response = await route.fetch({ url: `${AUTH_EMULATOR}/${url.host}${url.pathname}${url.search}` });
@@ -176,13 +180,26 @@ test.describe("desktop", () => {
     await expect(companies(page)).toContainText("Not sent to any deployment company yet.");
 
     // 3. A deployment company applies, staff approve it, and it accepts the current Terms (signed in, in the browser).
+    const applicationContext = await browser.newContext();
+    await localOnly(applicationContext, missing);
+    const applicationPage = await applicationContext.newPage();
+    await applicationPage.goto("/partners");
+    const application = applicationPage.getByRole("form", { name: "Deployment company application" });
+    await application.getByLabel("Your name").fill(company.contact);
+    await application.getByLabel("Work email").fill(company.email);
+    await application.locator('input[name="company"]').fill(company.name);
+    await application.getByLabel("What jobs can you deliver?").fill("Moving cartons from conveyors to carts.");
+    await application.getByLabel("Which robots do you deploy?").fill("A mobile arm that picks cartons up to 15 kg.");
+    await application.getByLabel("Where can you deploy?").fill("United States");
+    await application.getByLabel("Email me relevant job opportunities").check();
+    const applied = applicationPage.waitForResponse(response => response.url().endsWith("/api/robot-team-access/apply")
+      && response.request().method() === "POST");
+    await application.getByRole("button", { name: "Apply", exact: true }).click();
+    const applicationResponse = await applied;
+    expect(applicationResponse.status(), await applicationResponse.text()).toBe(202);
+    await expect(applicationPage.getByRole("heading", { name: "Your application is saved." })).toBeVisible();
+    await applicationContext.close();
     const applyHeaders = await csrf(request);
-    const legal = await import("../client/src/lib/legalAcceptance");
-    const applied = await request.post(`${ORIGIN}/api/robot-team-access/apply`, { headers: applyHeaders, data: {
-      name: company.contact, email: company.email, company: company.name, robot: "A mobile arm that picks cartons up to 15 kg.",
-      workWanted: "Moving cartons from conveyors to carts.", partnerRole: "deployment", acceptedTerms: true,
-      termsVersion: legal.TERMS_VERSION, privacyVersion: legal.PRIVACY_VERSION, optionalUpdates: true } });
-    expect(applied.status(), await applied.text()).toBe(202);
     const companyId = (await import("node:crypto")).createHash("sha256").update(company.email).digest("hex");
     const staffToken = await account(request, `core-journey-staff-${stamp}@example.invalid`, "core-journey-staff-pass", { admin: true });
     const decided = await request.post(`${ORIGIN}/api/admin/robot-team-access/${companyId}/decision`, {
@@ -197,28 +214,37 @@ test.describe("desktop", () => {
     const companyContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const companySaw: string[] = [];
     await localOnly(companyContext, missing);
+    // The Firebase browser SDK uses this default for its own profile reads and writes during sign-in.
+    await companyContext.addInitScript(() => {
+      Object.assign(globalThis, { __FIREBASE_DEFAULTS__: { emulatorHosts: { firestore: "127.0.0.1:8080" } } });
+    });
     companyContext.on("response", async response => {
       if (new URL(response.url()).origin !== ORIGIN || !new URL(response.url()).pathname.startsWith("/api/")) return;
       if (/^(video|image)\//.test(response.headers()["content-type"] ?? "")) return;
       companySaw.push(await response.text().catch(() => ""));
     });
     const companyPage = await companyContext.newPage();
-    await companyPage.goto("/login", { waitUntil: "networkidle" });
+    const companyJobPath = `/jobs/${requestId}`;
+    const companyJobLink = new URL(companyJobPath, ORIGIN).href;
+    await companyPage.goto(companyJobPath);
+    await expect(companyPage.getByRole("heading", { name: "Sign in to see this job" })).toBeVisible();
+    await expect(companyPage.locator("body")).not.toContainText("Pick up the sealed carton");
+    const signInLink = companyPage.getByRole("link", { name: "Sign in to this job" });
+    const signInPath = `/sign-in?next=${encodeURIComponent(companyJobPath)}`;
+    await expect(signInLink).toHaveAttribute("href", signInPath);
+    await expect(companyPage.getByRole("navigation", { name: "Account" }).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInPath);
+    await signInLink.click();
+    await expect(companyPage).toHaveURL(new URL(signInPath, ORIGIN).href);
     await companyPage.locator("#email").fill(company.email);
     await companyPage.locator("#password").fill(company.password);
-    // The sign-in is answered by the Auth emulator; the page's own profile reads after it are not part of this journey.
     const signedIn = companyPage.waitForResponse(response => response.url().includes("accounts:signInWithPassword"));
-    const lookedUp = companyPage.waitForResponse(response => response.url().includes("accounts:lookup"));
-    await companyPage.getByRole("button", { name: /^Sign in/ }).click();
+    await companyPage.getByRole("button", { name: "Sign in", exact: true }).click();
     expect((await signedIn).status()).toBe(200);
-    expect((await lookedUp).status()).toBe(200);
 
-    // The job page asks for the current Terms first, and shows nothing of the job until they are accepted.
-    // (The session is persisted by the Firebase client a moment after its sign-in response.)
-    await expect(async () => {
-      await companyPage.goto(`/jobs/${requestId}`);
-      await expect(companyPage.getByText("Before you see jobs, read and agree to our Terms and Privacy Policy.")).toBeVisible({ timeout: 5_000 });
-    }).toPass({ timeout: 60_000 });
+    // Sign-in returns to the original job, where the current Terms still have to be accepted.
+    await expect(companyPage).toHaveURL(companyJobLink, { timeout: 30_000 });
+    await expect(companyPage.getByText("Before you see jobs, read and agree to our Terms and Privacy Policy.")).toBeVisible();
+    await expect(companyPage.getByRole("link", { name: "Sign in", exact: true })).toHaveCount(0);
     await expect(companyPage.locator("body")).not.toContainText("Pick up the sealed carton");
     // The acceptance must be recorded before the sweep below: the automatic send goes only to a company that has accepted.
     const accepted = companyPage.waitForResponse(response =>
@@ -234,6 +260,7 @@ test.describe("desktop", () => {
     const afterSend = await outbox(request, requestId);
     const newJob = afterSend.filter(row => row.kind === "robot_team_new_task");
     expect(newJob.map(row => row.to)).toEqual([company.email]);
+    expect(newJob[0].body).toContain(companyJobLink);
 
     // The company sees the job in its library and on the job's page, under no site name, address or contact.
     await companyPage.goto("/contact/robot-team");
