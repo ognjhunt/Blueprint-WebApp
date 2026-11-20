@@ -76,13 +76,16 @@ async function defaultSiteEmail(): Promise<SiteIntroductionEmail> {
   return introductionMadeSiteEmail;
 }
 
+/** The intake stores "there" and "—" for a name the start form left blank (`inbound-request.ts`); they name nobody. */
+const typedName = (value: string) => value && value.toLowerCase() !== "there" && value !== "—" ? value : "";
+
 /** The site's details as the one chosen company is given them. */
 async function siteDetailsOf(record: Record<string, any>, decrypt: (value: unknown) => Promise<string>): Promise<IntroductionSiteDetails> {
   const [siteName, company, first, last, email, location] = [await decrypt(record.request?.siteName),
     await decrypt(record.contact?.company), await decrypt(record.contact?.firstName), await decrypt(record.contact?.lastName),
     await decrypt(record.contact?.email), await decrypt(record.request?.siteLocation)];
   const name = siteName && siteName !== "Untitled site" ? siteName : company || "The site";
-  return { name, contactName: [first, last].filter(Boolean).join(" ") || null, email,
+  return { name, contactName: [typedName(first), typedName(last)].filter(Boolean).join(" ") || null, email,
     phone: null, location: location && location !== "Location pending" ? location : null };
 }
 
