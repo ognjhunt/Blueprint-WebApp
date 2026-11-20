@@ -592,7 +592,7 @@ describe("the automatic send (E4)", () => {
     expect(alerts.map(row => row.to).sort()).toEqual([NORTH, SOUTH, EAST, WEST].map(record => record.email).sort());
     expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint" });
     // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
-    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get this email for each new job\. /);
+    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
     // The unsubscribe line names the emails it stops, never the scope's internal name.
     expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+scope=optional_updates$/);
     expect(alerts[0].body).not.toMatch(/optional updates/i);

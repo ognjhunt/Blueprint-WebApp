@@ -2009,7 +2009,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
     }
     // A test job gets no first email: it has no address, and nothing about it is sent to anyone.
     const firstReceipt = !internalTest && receiptUrl && messageAdmission.send ? buildTaskLifecycleNotification({ requestId: payload.requestId,
-      milestone: "task_received", to: emailLower, captureUrl: receiptUrl }) : null;
+      // The region, so a site outside the US is not asked for a video its saved screen told it not to send (v-B-005).
+      milestone: "task_received", to: emailLower, captureUrl: receiptUrl, captureRegion }) : null;
     // Non-PII routing facts for the ops notice; committed with the request so
     // "ops has not been told yet" is durable from the first instant.
     const opsNoticeMeta = {
