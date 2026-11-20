@@ -812,10 +812,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   };
   const updateVideoSection = scope === "owner" && link.status === "valid" && !withdrawn
     ? <details aria-label="Update job video" style={answer ? undefined : { margin: "16px 0" }}>
-      <summary>Update walkthrough (optional)</summary>
-      <p className="ms-field-hint">If your job or recording has changed, you can send a complete updated walkthrough. Your job and original video stay saved.</p>
+      <summary>Update video (optional)</summary>
+      <p className="ms-field-hint">If your job or recording has changed, you can send a complete new video. Your job and original video stay saved.</p>
       <button type="button" className="ms-text-link" disabled={startingVideoUpdate} onClick={() => void updateVideo()}>
-        {startingVideoUpdate ? "Opening video update…" : "Update walkthrough"}
+        {startingVideoUpdate ? "Opening video update…" : "Update video"}
       </button>
       {videoUpdateError && <p role="alert">{videoUpdateError}</p>}
     </details> : null;
@@ -983,7 +983,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         && <SuccessThresholds key={status.successThresholds.proposalDigest} token={token} view={status.successThresholds}
           onDecided={() => setStatusRefresh(value => value + 1)} />}
 
-      {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough. This updates the same job and keeps your original video.</p>}
+      {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete new video. This updates the same job and keeps your original video.</p>}
       {/* A filming link opens the recorder; a held link explains its hold. */}
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>

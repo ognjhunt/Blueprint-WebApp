@@ -468,13 +468,15 @@ describe("video first owner return", () => {
     }));
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("Video received.")).toBeVisible();
-    expect(screen.getByText("Update walkthrough (optional)").closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).not.toBeVisible();
-    fireEvent.click(screen.getByText("Update walkthrough (optional)"));
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).toBeEnabled();
+    expect(screen.getByText("Update video (optional)").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "Update video" })).not.toBeVisible();
+    fireEvent.click(screen.getByText("Update video (optional)"));
+    expect(screen.getByRole("button", { name: "Update video" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Upload a video file" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Upload a new recording" })).not.toBeInTheDocument();
     expect(screen.getByText(/your job and original video stay saved/i)).toBeInTheDocument();
+    // Plain words: the site sent a video, never a "walkthrough" (journey audit, 2026-11-20).
+    expect(screen.getByText("Update video (optional)").closest("details")).not.toHaveTextContent(/walkthrough/i);
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
   });
@@ -492,8 +494,8 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     await screen.findByText("Video received.");
     expect(screen.queryByRole("button", { name: "Upload a replacement walkthrough" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Update walkthrough (optional)"));
-    fireEvent.click(screen.getByRole("button", { name: "Update walkthrough" }));
+    fireEvent.click(screen.getByText("Update video (optional)"));
+    fireEvent.click(screen.getByRole("button", { name: "Update video" }));
     await waitFor(() => expect(route.navigate).toHaveBeenCalledWith("/capture-upload/signed-same-job-update"));
     const call = fetcher.mock.calls.find(([input]) => String(input).endsWith("/supplement"))!;
     expect(JSON.parse(String(call[1]?.body))).toMatchObject({ mode: "replacement", requestId: expect.any(String) });
@@ -816,7 +818,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     expect(screen.queryByText("Add photos of the job items")).not.toBeInTheDocument();
     expect(screen.queryByText(/Add measurements/)).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => /\/(clarification|items|measurements|follow-up)\b/.test(url))).toEqual([]);
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).not.toBeVisible();
+    expect(screen.getByRole("button", { name: "Update video" })).not.toBeVisible();
   });
 
   it("shows a held video's status on a return visit, and asks nothing", async () => {
@@ -1570,7 +1572,7 @@ describe("the site's answer leads its job page", () => {
       : base(input)));
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("Recording permission withdrawn.")).toBeVisible();
-    await waitFor(() => expect(screen.queryByText("Update walkthrough (optional)")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Update video (optional)")).toBeNull());
     expect(screen.queryByText("Manage opportunity sharing (optional)")).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit your answers" })).toBeNull();
     expect(screen.getByText(/Withdrawal is not deletion/)).toBeVisible();
