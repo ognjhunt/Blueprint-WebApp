@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence } from "./private-evidence";
+import { persistAgentEvidence } from "./private-evidence";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -76,29 +76,4 @@ export async function recordRuntimeEvent(params: {
   }
 
   return record;
-}
-
-export async function listRuntimeEvents(params: {
-  sessionId?: string | null;
-  runId?: string | null;
-  limit?: number;
-}) {
-  if (!db) {
-    return [];
-  }
-
-  let query: FirebaseFirestore.Query = db.collection(RUNTIME_EVENT_COLLECTION);
-  if (params.sessionId) {
-    query = query.where("session_id", "==", params.sessionId);
-  }
-  if (params.runId) {
-    query = query.where("run_id", "==", params.runId);
-  }
-
-  const snapshot = await query
-    .orderBy("created_at", "desc")
-    .limit(Math.max(1, Math.min(params.limit ?? 200, 400)))
-    .get();
-
-  return Promise.all(snapshot.docs.map((doc) => inspectAgentEvidence(doc.data() as RuntimeEventRecord, { collection: "agentRuntimeEvents", id: doc.id })));
 }

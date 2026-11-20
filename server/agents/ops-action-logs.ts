@@ -74,30 +74,3 @@ export async function recordOpsActionLog(
 
   return record;
 }
-
-export async function listOpsActionLogs(params?: {
-  sessionId?: string | null;
-  runId?: string | null;
-  limit?: number;
-}) {
-  if (!db) {
-    return [];
-  }
-
-  let query: FirebaseFirestore.Query = db.collection(ACTION_LOG_COLLECTION);
-
-  if (params?.sessionId) {
-    query = query.where("session_id", "==", params.sessionId);
-  }
-
-  if (params?.runId) {
-    query = query.where("run_id", "==", params.runId);
-  }
-
-  const snapshot = await query
-    .orderBy("created_at", "desc")
-    .limit(Math.max(1, Math.min(params?.limit ?? 100, 200)))
-    .get();
-
-  return snapshot.docs.map((doc) => doc.data() as PersistedOpsActionLog);
-}
