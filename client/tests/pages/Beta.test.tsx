@@ -20,7 +20,8 @@ describe("the questions page", () => {
   it("says what is in the job packet and what it is not", () => {
     render(<Beta />);
     const packet = screen.getByRole("region", { name: "Your job packet" });
-    expect(packet).toHaveTextContent("What the job is, what counts as done when known, and a first look on paper. If you send a video, we add it without sound and build a simulation when we can.");
+    expect(packet).toHaveTextContent("What the job is and what counts as done when known. If you send a video, we add it without sound and build a simulation when we can.");
+    expect(packet).toHaveTextContent("We add a first look at which robots could fit when we have enough detail.");
     expect(packet).not.toHaveTextContent(/early trial|openly available/i);
     expect(packet).toHaveTextContent(/It does not certify performance or safety\./);
     expect(screen.getByRole("region", { name: "For sites" })).toHaveTextContent(/other jobs still go to companies, and their simulation waits until we can build one\./);

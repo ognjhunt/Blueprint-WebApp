@@ -2,7 +2,7 @@ import { BareBack, BareButton, BareGroup, BareRows, BareScreen } from "@/compone
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
 import { REPLY_TIMELINE } from "@/data/betaTimelines";
-import { COMPANY_ANSWERS, INTRODUCIBLE_ANSWERS, QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
+import { COMPANY_ANSWERS, FIRST_LOOK_WHEN_READY, INTRODUCIBLE_ANSWERS, QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 /**
@@ -26,8 +26,8 @@ export default function Beta() {
             { key: "jobs", label: "Jobs", value: "One job that repeats, with known objects. Pick-up-and-put-down jobs fit best; other jobs still go to companies, and their simulation waits until we can build one." },
           ]} />
           <BareRows title="Your job packet" rows={[
-            { key: "packet", label: "What's in it", value: "What the job is, what counts as done when known, and a first look on paper. If you send a video, we add it without sound and build a simulation when we can." },
-            { key: "first-look", label: "First look", value: "The robot most likely to fit, from published specifications and where it has been used." },
+            { key: "packet", label: "What's in it", value: "What the job is and what counts as done when known. If you send a video, we add it without sound and build a simulation when we can." },
+            { key: "first-look", label: "First look", value: `${FIRST_LOOK_WHEN_READY} We use published specifications and where the robots have been used.` },
             { key: "isnt", label: "It isn't", value: "A test at your site. It does not certify performance or safety." },
           ]} />
           <BareRows title="Deployment companies" rows={[

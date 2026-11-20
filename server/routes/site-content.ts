@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { HOW_SEO_DESCRIPTION, PARTNERS_SEO_DESCRIPTION, QUESTIONS_SEO_DESCRIPTION, ROBOT_TEAM_SEO_DESCRIPTION, START_SEO_DESCRIPTION } from "../../client/src/lib/publicCopy";
+import { FIRST_LOOK_WHEN_READY, HOW_SEO_DESCRIPTION, PARTNERS_SEO_DESCRIPTION, QUESTIONS_SEO_DESCRIPTION, ROBOT_TEAM_SEO_DESCRIPTION, START_SEO_DESCRIPTION } from "../../client/src/lib/publicCopy";
 import { captureGroundedPublicCopy } from "../../client/src/lib/captureGroundedLanguage";
 
 const router = Router();
@@ -42,7 +42,7 @@ const definitions = [
   {
     term: "Job packet",
     definition:
-      "Blueprint's one service for a site. The job packet gives the site's description of one recurring job and a first look on paper. It includes what counts as done when known, and the sound-free video and simulation when available. Blueprint sends it automatically to the deployment companies it has approved.",
+      `Blueprint's one service for a site. The job packet gives the site's description of one recurring job and what counts as done when known. ${FIRST_LOOK_WHEN_READY} It includes the sound-free video and simulation when available. Blueprint sends it automatically to the deployment companies it has approved.`,
   },
   {
     term: "Evidence routing",
