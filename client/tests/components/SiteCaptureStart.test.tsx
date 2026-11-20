@@ -870,6 +870,10 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(JSON.parse(init.body).consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
     expect(screen.getByRole("link", { name: "Open my job" })).toHaveAttribute("href", captureUrl);
+    // What comes next, without an email nobody may send: the site is emailed only when its job goes to companies, a
+    // company answers, or the job needs something from it.
+    expect(screen.getByText("Next, we watch your video. Your job page shows what we find.")).toBeInTheDocument();
+    expect(screen.queryByText(/and email you/)).not.toBeInTheDocument();
   });
 
   // Owner direction 2026-11-11: a video, the country and the account are enough. Nothing is

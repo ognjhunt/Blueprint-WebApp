@@ -5,8 +5,9 @@
  * be reachable here, not only from the account workspace. The server performs
  * the same withdrawal either way (recordWebsiteCaptureWithdrawal). This panel
  * says only what that does: Blueprint stops further processing and use of the
- * recording, uploads are refused, the job pauses, queued evaluations are asked
- * to cancel, and approved partners can no longer see the job. Withdrawal is not
+ * recording, uploads are refused, the job leaves every deployment company's view
+ * at once, and each company it was sent to is asked to delete any copy it saved
+ * (`withdrawalCompanyNotice.ts`). Withdrawal is not
  * deletion: the raw capture is retained under the Pipeline's retention policy,
  * as the Privacy Policy describes, so the panel never says it was deleted.
  */
@@ -39,6 +40,9 @@ function formatDate(iso: string | null) {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
+/** A copy a company already saved cannot be taken back: each company the job was sent to is asked to delete it. */
+export const WITHDRAWN_COMPANY_COPIES = "Each company it was sent to is asked to delete any copy it saved.";
+
 const RETAINED = (
   <>Withdrawal is not deletion: a copy of the recording and any results already produced are retained, and handled
     as our <a href="/privacy">Privacy Policy</a> describes.</>
@@ -54,8 +58,8 @@ export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalSta
     <div role="status">
       <p><strong>Recording permission withdrawn.</strong></p>
       <p className="ms-field-hint">
-        {requested ? `Withdrawn on ${requested}. ` : ""}Blueprint stops further processing and use of this recording: new uploads are refused,
-        this job is paused, queued evaluations were asked to cancel and approved partners can no longer see the job.{" "}
+        {requested ? `Withdrawn on ${requested}. ` : ""}Blueprint stops further processing and use of this recording: new uploads are refused
+        and your job has left every deployment company's view. {WITHDRAWN_COMPANY_COPIES}{" "}
         {status.pipelineAcknowledged
           ? "Our processing system has confirmed it will no longer process or serve the recording."
           : "Our processing system is being told to stop; this page updates when it confirms."}
@@ -127,8 +131,8 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descrip
         <details className="ms-task-interest">
           <summary>{summaryLabel}</summary>
           {descriptionOnly ? <p>Withdrawing removes your job from the deployment companies' view.</p> : <p>
-            Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused, this job
-            is paused, queued evaluations are asked to cancel and approved partners can no longer see the job. {RETAINED}
+            Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused and your job
+            leaves every deployment company's view at once. {WITHDRAWN_COMPANY_COPIES} {RETAINED}
           </p>}
           {!confirming && (
             <button type="button" className="ms-button" onClick={() => { setError(null); setConfirming(true); }}>

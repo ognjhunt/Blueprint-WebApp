@@ -73,6 +73,32 @@ describe("the company's page for one job", () => {
       statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION });
   });
 
+  it("names the answer just saved, never the one it replaced", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ myAnswer: { state: "needs_something",
+      inputs: "A second gripper.", updatedAtIso: "2026-11-12T10:00:00.000Z", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION } }) }) });
+    render(<CompanyJob />);
+    expect(await screen.findByText(/You answered Would need something on November 12, 2026\./)).toBeInTheDocument();
+    const form = screen.getByRole("form", { name: "Answer about this job" });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved." }) });
+    fireEvent.click(within(form).getByLabelText("Interested"));
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
+    expect(screen.getByText(/^You answered Interested on /)).toBeInTheDocument();
+    expect(screen.queryByText(/You answered Would need something/)).toBeNull();
+  });
+
+  it("keeps the answer on record when a new one is refused", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ myAnswer: { state: "needs_something",
+      inputs: "A second gripper.", updatedAtIso: "2026-11-12T10:00:00.000Z", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION } }) }) });
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Answer about this job" });
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Your answer was not saved." }) });
+    fireEvent.click(within(form).getByLabelText("Interested"));
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Your answer was not saved."));
+    expect(screen.getByText(/You answered Would need something on November 12, 2026\./)).toBeInTheDocument();
+  });
+
   it("says the video is being prepared and the simulation is not finished until each exists", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ video: { state: "preparing" },
       simulation: { state: "not_finished" } }) }) });

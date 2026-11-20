@@ -337,8 +337,8 @@ describe("the details screens", () => {
     { ...readyAnswer.pick!.checks[0], need: "about 0.9–1.2 m", has: "1.3 m", text: `${readyAnswer.pick!.checks[0].text} This is a tight fit.` },
     { ...readyAnswer.pick!.checks[1], need: "about 9–12 kg", has: "12.5 kg" }] } };
   const words = (text: string | null) => (text?.match(/[^\s]+/g) ?? []).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
-  const detail = (screen: DetailScreen, answer = withFigures, proof: Parameters<typeof SiteAnswerDetail>[0]["proof"] = winnerProof) =>
-    render(<SiteAnswerDetail answer={answer} proof={proof} screen={screen} onBack={vi.fn()} />);
+  const detail = (screen: DetailScreen, answer = withFigures, robotCheck: Parameters<typeof SiteAnswerDetail>[0]["robotCheck"] = winnerProof.robotCheck) =>
+    render(<SiteAnswerDetail answer={answer} robotCheck={robotCheck} screen={screen} onBack={vi.fn()} />);
 
   it("is a short menu of small screens, each only when it has something to say", () => {
     const onOpen = vi.fn(), onBack = vi.fn();
@@ -500,7 +500,7 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
     expect(within(companies()).getByText("Sent to 4 deployment companies on November 11, 2026.")).toBeVisible();
     expect(lines()[0]).toBe("Company B answered on November 12, 2026: Would need something."
-      + "No reason we can show.You can ask for an introduction if Company B changes its answer to Interested.");
+      + "No reason we can show.You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.");
     expect(lines()[1]).toContain("Company A answered on November 13, 2026: Interested.");
     expect(lines()[1]).not.toContain("No reason we can show.");
     const buttons = within(companies()).getAllByRole("button", { name: "Introduce us" });
@@ -526,7 +526,19 @@ describe("the deployment companies section, with sends, answers and introduction
     // Would need something: no Introduce us (the company agreed to be introduced only after Interested or Tested it: can
     // do), and the site is told what would make one possible.
     expect(within(companies()).getAllByRole("button", { name: "Introduce us" })).toHaveLength(1);
-    expect(within(companies()).getByText("You can ask for an introduction if Company B changes its answer to Interested.")).toBeVisible();
+    expect(within(companies()).getByText("You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.")).toBeVisible();
+  });
+
+  // A company that tested the simulation and cannot yet may change its answer to "Tested it: can do", not only to
+  // "Interested": the line names both answers an introduction may follow.
+  it("tells the site both answers an introduction may follow, for a company that tested it and cannot yet", () => {
+    const tested = { ...activity, entries: [{ kind: "answered" as const, alias: "Company D", atIso: "2026-11-14T09:00:00.000Z",
+      state: "tested_cannot_yet" as const, canIntroduce: false }] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: tested }} />);
+    expect(within(companies()).getByText("Company D answered on November 14, 2026: Tested it: cannot yet.")).toBeVisible();
+    expect(within(companies()).getByText("You can ask for an introduction if Company D changes its answer to Interested or Tested it: can do."))
+      .toBeVisible();
+    expect(within(companies()).queryByRole("button", { name: "Introduce us" })).toBeNull();
   });
 
   // "No answers yet." is said only when it is true: sent to at least one company, and no company has answered. The home

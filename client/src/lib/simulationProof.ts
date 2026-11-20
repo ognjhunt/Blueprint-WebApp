@@ -412,7 +412,11 @@ function stateOf(evaluation: JobManagedEvidenceSummary | null): SimulationProofS
 /** The checks the measured scene decides: where the arm can stand and what it can reach (as `server/utils/siteAnswer.ts` reads them). */
 export const SCENE_GEOMETRY_CHECKS: ReadonlySet<string> = new Set(["reach", "stance", "access"]);
 
-function robotCheckOf(robotFit: SimulationProofInput["robotFit"], pick: AnswerRobot | null): SimulationProof["robotCheck"] {
+/**
+ * What the scene rebuilt from the site's video showed about the first look's robot: the one line of this projection the
+ * site's job page shows (its details, "In the simulation"). It reads the robot fit and the pick only, never a run.
+ */
+export function robotCheckOf(robotFit: SimulationProofInput["robotFit"], pick: AnswerRobot | null): SimulationProof["robotCheck"] {
   const models = Array.isArray(robotFit?.models) ? robotFit!.models.filter(isRecord) : [];
   if (!models.length) return null;
   if (!pick) return { line: `The scene rebuilt from your video was checked against ${models.length} robot${models.length === 1 ? "" : "s"}.`, pickChecked: null, doesNotFit: false };

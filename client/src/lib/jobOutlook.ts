@@ -22,6 +22,12 @@ export interface JobOutlook {
 export const READING_LINE = "We're watching your video.";
 export const SIMULATION_BUILDING = "We're building the simulation of your site.";
 export const SIMULATION_READY = "The simulation of your site is ready.";
+/**
+ * The job page's way to stop sharing, by the job's kind (`SelfCaptureUpload.tsx`); the email that says the job was sent
+ * names it the same way (`taskLifecycleNotifications.ts`). A job sent with its description only has no video to stop.
+ */
+export const STOP_USING_VIDEO_LABEL = "Stop using my video";
+export const WITHDRAW_JOB_LABEL = "Withdraw my job";
 
 /** The reason sentences, said the same on the page and in the email. */
 export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_held" | "run_ended">, string>> = {

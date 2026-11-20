@@ -154,6 +154,8 @@ function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; p
   const [saving, setSaving] = useState(false);
   const [answer, setAnswer] = useState<CompanyResponseState | null>(page.myAnswer?.state ?? null);
   const [inputs, setInputs] = useState(page.myAnswer?.inputs ?? "");
+  // The answer on record: the page's, then the one just saved, so "You answered" never names an answer it replaced.
+  const [mine, setMine] = useState(page.myAnswer);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving || !answer) return;
     setSaving(true); setMessage("");
@@ -163,13 +165,14 @@ function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; p
         body: JSON.stringify({ state: answer, inputs, statementVersion: page.responseStatement.version }) });
       const body = await response.json();
       setMessage(response.ok ? body.nextAction : body.error || "Your answer was not saved.");
+      if (response.ok) setMine({ state: answer, inputs, updatedAtIso: new Date().toISOString(), statementVersion: page.responseStatement.version });
     } catch { setMessage("Your answer was not confirmed. Try again."); }
     finally { setSaving(false); }
   }
   return <section aria-label="Your answer">
     <h2>Your answer</h2>
-    {page.myAnswer && <p className="ms-field-hint">You answered {COMPANY_RESPONSE_LABELS[page.myAnswer.state]}{page.myAnswer.updatedAtIso ? ` on ${dateInWords(page.myAnswer.updatedAtIso)}` : ""}.
-      {(page.myAnswer.state === "interested" || page.myAnswer.state === "tested_can_do") && page.myAnswer.statementVersion !== page.responseStatement.version
+    {mine && <p className="ms-field-hint">You answered {COMPANY_RESPONSE_LABELS[mine.state]}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
+      {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
         ? " Answer again below so the site can ask for an introduction." : ""}</p>}
     <form onSubmit={submit} className="ms-form" aria-label="Answer about this job">
       <fieldset><legend>Can you take this job?</legend>
