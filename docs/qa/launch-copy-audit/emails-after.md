@@ -118,7 +118,7 @@ https://tryblueprint.io
 - **Subject:** Your Blueprint job link
 - **Buttons (HTML):** Open your job
 - **HTML footer:** Questions? Reply to this email or write to hello@tryblueprint.io. / Blueprint Robotics, Inc. · 6801 Burnet Rd, Austin, TX 78757
-- **Note:** Reached from the job-link repair path today (`enqueueTaskLifecycleNotification` reads the saved region). The start form's own first email (`inbound-request.ts`, the site area's file) must pass `captureRegion` too: see the cross-area request.
+- **Note:** Reached from the job-link repair path (`enqueueTaskLifecycleNotification` reads the saved region) and, since the final read-through, from the start form's own first email too (`inbound-request.ts` passes `captureRegion`; test in `server/tests/site-task-received-email.test.ts`).
 - **Findings:** v-B-005
 
 ```text
@@ -787,7 +787,7 @@ A site has posted a new job. Open it to see the job packet and respond.
 Open the job:
 https://tryblueprint.io/jobs/req_demo_0001
 
-You get this email for each new job. Turn these off in Settings or unsubscribe below.
+You get an email like this for each new job. Turn them off in Settings or unsubscribe below.
 
 --
 Blueprint Robotics, Inc. · 6801 Burnet Rd, Austin, TX 78757
