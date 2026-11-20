@@ -20,7 +20,7 @@ async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, 
     else if (path === "/api/robot-team-access/apply") data = { status: "applied" };
     else if (path === "/api/csrf") data = { csrfToken: "local-only" };
     else if (path.startsWith("/api/task-listings/owner/")) data = { listing: null, ok: true };
-    else if (path === "/api/inbound-request") data = { ok: true, requestId: "task-1", captureUrl: "http://127.0.0.1:42931/capture-upload/owner-fixture" };
+    else if (path === "/api/inbound-request") data = { ok: true, requestId: "task-1", captureUrl: new URL("/capture-upload/owner-fixture", req.url()).href };
     else if (path.startsWith("/api/self-capture/uploads/") && path.endsWith("/status")) data = { ok: true, state: "ready", uploadState: "not_received", captureReceived: false, accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
     else if (/^\/api\/self-capture\/uploads\/[^/]+$/.test(path) && req.method() === "GET") throw new Error("Receipt checks must use the pure upload status endpoint.");
     else if (path.startsWith("/api/site-task-brief/") && path.endsWith("/status")) data = { ok: true, outlook: statusOutlook, status: { decision: "received", headline: "We have your task and are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: "2099-09-21T12:00:00Z" } };
@@ -240,10 +240,15 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   // Typed text is never read for a country (the privacy gate): the site chooses it.
   await form.locator("#start-region").selectOption("us");
   await form.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
-  await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: mobile ? "Open the camera" : "Open my job page ›", exact: true })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Point your phone's camera at this code to film" })).toHaveCount(mobile ? 0 : 1);
+  if (mobile) {
+    await expect(page).toHaveURL(/\/capture-upload\/owner-fixture$/);
+    await expect(page.getByRole("heading", { name: "Film the work area" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ }).first()).toBeVisible();
+  } else {
+    await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open my job page ›", exact: true })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Point your phone's camera at this code to film" })).toBeVisible();
+  }
   expect(mutations.find(mutation => mutation.path === "/api/inbound-request")?.body).toMatchObject({
     taskStatement: "Pick up each packed carton and place it at the end of the table",
     taskDescription: "Pick up each packed carton and place it at the end of the table",

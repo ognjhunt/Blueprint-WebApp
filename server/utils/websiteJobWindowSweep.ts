@@ -26,8 +26,8 @@
  * website jobs count (`isWebsiteJobRecord` and a task brief); nothing is written for any other request. The clock
  * runs as long as a grant's window would (`websiteJobWindowSeconds`). A job waiting on the site
  * (no finished recording, or a held job's one step) then ends with the truth: we did not receive
- * what was needed. A job the site sent with its description only, saying what the job is, waits on
- * nobody: it is complete without a video and gets no clock (`descriptionOnlyJobComplete`). A job waiting on Blueprint (the site did its part, no grant came) ends held, and
+ * what was needed. A legacy v5 description draft with a usable brief is exempt (`descriptionOnlyJobComplete`).
+ * A job waiting on Blueprint (the site did its part, no grant came) ends held, and
  * the ops monitor pages before that (`scanWebsiteJobsWaitingOnGrant`). A job whose grant arrives later is the
  * window sweep's again.
  */
@@ -200,10 +200,7 @@ export type JobNoGrantSweepResult =
   | "not_a_job"
   /** The no-grant ending is already recorded. */
   | "ending_recorded"
-  /**
-   * The site sent the job with its description only and said what the job is: the job is complete without a video,
-   * listed for companies, and waits on nobody (`descriptionOnlyJobComplete`). No clock, no ending.
-   */
+  /** A legacy v5 description draft is exempt from the no-grant clock. */
   | "description_only"
   | "withdrawn"
   | "owner_closed"

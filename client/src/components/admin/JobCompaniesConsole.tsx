@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
-import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, elapsedSince, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { AdminJobCompanies } from "@/types/jobCompanies";
@@ -87,6 +87,7 @@ export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
   }
 
   const panel = loaded.status === "ready" ? loaded.panel : null;
+  const firstResponseElapsed = elapsedSince(panel?.startedAtIso, panel?.firstAnswerAtIso);
   const visible = panel?.sharing.state === "shared_visible";
   // An emailed answer is recorded only for a company with a standing (not voided) send; the route refuses any other.
   const sentTo = panel ? panel.companies.filter(company => panel.sends.some(send => send.companyId === company.id && !send.voidedAtIso)) : [];
@@ -123,6 +124,9 @@ export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
       </> : null}
       {panel ? <>
         <p>{panel.sharing.words}</p>
+        {panel.startedAtIso && <p className="bare-helper">Draft started {dateLabel(panel.startedAtIso)}.</p>}
+        {panel.firstAnswerAtIso && <p className="bare-helper">First response recorded {dateLabel(panel.firstAnswerAtIso)}
+          {firstResponseElapsed ? ` · ${firstResponseElapsed} after starting` : ""}.</p>}
         {panel.consentRevoked ? <p className="bare-notice">The site withdrew its permission. Nothing is sent or recorded for this job.</p> : null}
 
         {panel.hold ? <div>

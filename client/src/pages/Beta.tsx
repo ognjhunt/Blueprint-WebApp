@@ -2,7 +2,7 @@ import { BareBack, BareButton, BareGroup, BareRows, BareScreen } from "@/compone
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
 import { REPLY_TIMELINE } from "@/data/betaTimelines";
-import { COMPANY_ANSWERS, FIRST_LOOK_WHEN_READY, INTRODUCIBLE_ANSWERS, QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
+import { COMPANY_ANSWERS, FREE_FOR_SITES, INTRODUCIBLE_ANSWERS, JOBS_THAT_FIT, QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 /**
@@ -21,18 +21,18 @@ export default function Beta() {
           <BareBack href="/how-it-works" />
           <h1>Questions</h1>
           <BareRows id="scope" title="For sites" rows={[
-            { key: "cost", label: "Cost", value: <>Free for sites. <a href="/refunds">Refunds and cancellations</a></> },
-            { key: "reply", label: "Reply", value: REPLY_TIMELINE },
-            { key: "jobs", label: "Jobs", value: "One job that repeats, with known objects. Pick-up-and-put-down jobs fit best; other jobs still go to companies, and their simulation waits until we can build one." },
+            { key: "cost", label: "Cost", value: <>{FREE_FOR_SITES} <a href="/refunds">Refunds and cancellations</a></> },
+            { key: "reply", label: "Blueprint reply", value: REPLY_TIMELINE },
+            { key: "jobs", label: "Jobs", value: JOBS_THAT_FIT },
           ]} />
           <BareRows title="Your job packet" rows={[
-            { key: "packet", label: "What's in it", value: "What the job is and what counts as done when known. If you send a video, we add it without sound and build a simulation when we can." },
-            { key: "first-look", label: "First look", value: `${FIRST_LOOK_WHEN_READY} We use published specifications and where the robots have been used.` },
-            { key: "isnt", label: "It isn't", value: "A test at your site. It does not certify performance or safety." },
+            { key: "packet", label: "What's in it", value: "Your video and job description, a first look, and a simulation of your site when ready." },
+            { key: "first-look", label: "First look", value: "An estimate of which robots could fit, based on published specs and prior use." },
+            { key: "limits", label: "Simulation", value: "A simulation helps companies review your job. It does not certify performance or safety." },
           ]} />
           <BareRows title="Deployment companies" rows={[
             { key: "responses", label: "Responses", value: `A company can answer ${COMPANY_ANSWERS}. We can't promise any will say yes.` },
-            { key: "meet", label: "Meeting a company", value: `Beside each company that answered ${INTRODUCIBLE_ANSWERS}, press Introduce us. We give each of you the other's details.` },
+            { key: "meet", label: "Introductions", value: `Press Introduce us beside a company that answered ${INTRODUCIBLE_ANSWERS}. We send both sides each other's contact details.` },
             { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
           ]} />
           <BareRows title="Your video" rows={[

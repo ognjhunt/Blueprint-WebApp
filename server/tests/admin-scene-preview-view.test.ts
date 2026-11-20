@@ -17,6 +17,7 @@
  * - logs name the job, the capture, the admin's uid and the status: never the ticket or the site; the request log's
  *   path for every ticket on the view route carries no query.
  */
+import { sharedCompanyClip } from "./helpers/sharedJob";
 import express from "express";
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
@@ -99,7 +100,7 @@ function scenePreview(patch: Record<string, unknown> = {}) {
 }
 const jobDoc = () => state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
 const patchJob = (patch: Record<string, unknown>) => state.docs.set(`inboundRequests/${ID}`, { ...jobDoc(), ...patch });
-const storePreview = (value: unknown = scenePreview()) => state.docs.set(`captureUploadSessions/${CAPTURE}`, { scene_preview: value });
+const storePreview = (value: unknown = scenePreview()) => state.docs.set(`captureUploadSessions/${CAPTURE}`, { scene_preview: value, company_clip: sharedCompanyClip(CAPTURE) });
 const markTestJob = () => patchJob({ internal_test: INTERNAL_TEST, request: { ...jobDoc().request, consent_attestation: INTERNAL_GRANT } });
 const WITHDRAWN = () => patchJob({ capture_withdrawal: { requested_at_iso: "2026-11-17T12:00:00.000Z" } });
 const REVOKED = () => patchJob({ consent_revoked: true, request: { ...jobDoc().request,

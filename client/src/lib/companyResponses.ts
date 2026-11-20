@@ -94,8 +94,21 @@ export interface SiteCompanyActivity {
   interested: boolean;
   /** The automatic send: how many approved deployment companies the job went to, and when it first went. */
   sent?: { count: number; firstAtIso: string } | null;
+  startedAtIso?: string;
+  /** Absent if an earlier answer may have lost its original timestamp. */
+  firstAnswerAtIso?: string;
   /** Introductions made on this job (not cancelled). There is no limit per job (owner, 2026-11-12). */
   introductions?: { used: number };
+}
+
+export function elapsedSince(start: string | null | undefined, end: string | null | undefined): string | null {
+  if (!start || !end) return null;
+  const minutes = (Date.parse(end) - Date.parse(start)) / 60_000;
+  if (!Number.isFinite(minutes) || minutes < 0) return null;
+  if (minutes < 1) return "under a minute";
+  const [value, unit]: [number, string] = minutes < 60 ? [Math.floor(minutes), "minute"]
+    : minutes < 1440 ? [minutes / 60, "hour"] : [minutes / 1440, "day"];
+  return new Intl.NumberFormat("en", { style: "unit", unit, unitDisplay: "long", maximumFractionDigits: 1 }).format(value);
 }
 
 /** The site's sentence for the automatic send (E4). */

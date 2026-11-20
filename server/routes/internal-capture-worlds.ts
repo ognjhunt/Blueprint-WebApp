@@ -231,6 +231,9 @@ router.post("/creator-captures/:captureId/company-clip", createPipelineSyncRateL
     const { request_id: requestId, scene_id: sceneId, clip } = parsed.data;
     try {
       const accepted = await recordWebsiteCompanyClip(requestId, sceneId, String(req.params.captureId), clip);
+      const sharedClip = clip.permission_basis !== "internal_test";
+      if (sharedClip) void import("../utils/jobAutoSend")
+        .then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(requestId)).catch(() => undefined);
       res.setHeader("Cache-Control", "no-store");
       return res.json(accepted);
     } catch (error) {

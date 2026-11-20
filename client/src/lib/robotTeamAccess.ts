@@ -1,6 +1,12 @@
 import { withCsrfHeader } from "@/lib/csrf";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legalAcceptance";
 
+export function jobLibrarySignInHref(): string {
+  const hash = typeof window === "undefined" ? "" : window.location.hash;
+  const path = /^#job-[A-Za-z0-9_-]+$/.test(hash) ? `/contact/robot-team${hash}` : "/contact/robot-team";
+  return `/sign-in?next=${encodeURIComponent(path)}`;
+}
+
 /** Mirrors `LibraryAccess` on the server. */
 export interface LibraryAccess {
   gated: boolean;

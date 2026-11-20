@@ -139,19 +139,17 @@ export function packetFactsForCompany(facts: PacketFacts | null, answers: Partia
 export async function loadCompanyJobPage(requestId: string, viewer: { companyId: string }): Promise<CompanyJobPage | null> {
   if (!db) throw new Error("company_job_store_unavailable");
   // The viewer must still be an approved deployment company, whatever the library gate decided.
-  const [{ record, access }, approved] = await Promise.all([loadCompanyJobAccess(requestId), companyStillApproved(viewer.companyId)]);
+  const [{ record, access, brief, session }, approved] = await Promise.all([loadCompanyJobAccess(requestId), companyStillApproved(viewer.companyId)]);
   if (!record || !access.listed || !approved) return null;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
-  const [brief, session, answerRow, firstLook, country] = await Promise.all([
-    db.collection("siteTaskBriefs").doc(requestId).get().then(doc => doc.data()),
-    db.collection("captureUploadSessions").doc(captureId).get().then(doc => doc.data()),
+  const [answerRow, firstLook, country, known] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").doc(viewer.companyId).get().then(doc => doc.data()),
     loadJobCardAnswerWithRobots(requestId, record),
     countryOf(record),
+    knownSiteIdentity(record).catch(() => null),
   ]);
   const facts = readJobFacts(record);
   // Identity that cannot be read right now: no sentence and no packet facts this time, never one that might name the site.
-  const known = await knownSiteIdentity(record).catch(() => null);
   const packet = known ? packetFactsForCompany(storedPacketFacts(session?.website_preparation), facts, known)
     : packetFactsForCompany(null, facts, { names: [], addresses: [], contacts: [] });
   const clip = storedCompanyClip(session, captureId);
@@ -179,7 +177,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     jobFacts: jobFactsInWords(facts),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
-      : access.reason === "no_video_yet" ? { state: "none" } : { state: "preparing" },
+      : { state: "preparing" },
     simulationDownload: simulationUrl ? { state: "ready", url: simulationUrl } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },
     firstLook: firstLook.summary,

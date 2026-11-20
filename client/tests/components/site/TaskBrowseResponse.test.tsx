@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TaskBrowseCard } from "@/types/taskBrowse";
 
@@ -21,6 +21,17 @@ const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
 describe("a job in the library", () => {
+  it("filters on a downloadable simulation rather than the legacy evaluation flag", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
+      card({ simulationDownloadAvailable: true }),
+      card({ id: "job-2", title: "Scene without a package", evaluationAvailable: true, simulationStage: "simulation_built" }),
+    ] }) });
+    render(<TaskBrowse />);
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Ready to test" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Simulation download ready")).toBeVisible();
+    expect(screen.queryByText("Scene without a package")).toBeNull();
+  });
   it("links the row to the job's own page and carries no answer form of its own", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [card({ jobUrl: "/jobs/job-1" })] }) });
     render(<TaskBrowse />);

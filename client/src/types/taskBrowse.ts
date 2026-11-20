@@ -25,6 +25,8 @@ export interface TaskBrowseCard extends TaskListingDetails {
    * no label, when that state cannot be read for certain.
    */
   simulationStage?: LibraryJobStage | null;
+  /** A verified simulation package for the job's current capture is stored. */
+  simulationDownloadAvailable?: boolean;
   evaluationAvailable: boolean;
   publishedAtIso: string;
   thumbnailUrl: string | null;

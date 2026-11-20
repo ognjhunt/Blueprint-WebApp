@@ -16,6 +16,7 @@
  *   neither side's API payload carries a price, a fee or the billable event;
  * - only the site's route reaches the event (source check).
  */
+import { sharedCompanyClip } from "./helpers/sharedJob";
 import express from "express";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -133,6 +134,7 @@ beforeEach(async () => {
   seams.tokens.clear();
   vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY", Buffer.alloc(32, 7).toString("base64"));
   vi.stubEnv("FIELD_ENCRYPTION_KMS_KEY_NAME", "");
+  state.docs.set(`captureUploadSessions/walkthrough-${ID}`, { company_clip: sharedCompanyClip(`walkthrough-${ID}`) });
   state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Stack cartons onto the pallet", confirmedAtIso: null });
   state.docs.set(`inboundRequests/${ID}`, {
     requestId: ID,

@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 
 import { currentAuthUser, sendAccountVerification } from "@/lib/accountAuth";
-import { requestInvitationLink, type LibraryAccess } from "@/lib/robotTeamAccess";
+import { jobLibrarySignInHref, requestInvitationLink, type LibraryAccess } from "@/lib/robotTeamAccess";
 
 /**
  * An approved team creates its account only from its emailed invitation link;
@@ -35,7 +35,7 @@ function ApprovedTeamAccess() {
   return (
     <div className="ms-field-hint ms-early-access-account" id="approved-team">
       <p>
-        Already approved? Create your account from the invitation link we emailed you, or <a href="/sign-in">sign in</a>.
+        Already approved? <a href={jobLibrarySignInHref()}>Sign in</a> or use your emailed invitation to set up your account.
       </p>
       <details>
         <summary>Lost or expired link? Email me a new one</summary>
@@ -54,8 +54,8 @@ function ApprovedTeamAccess() {
 function ApplyLink() {
   return (
     <div className="ms-task-empty">
+      <p>Approved deployment companies can browse jobs and respond.</p>
       <p><a className="ms-button" href="/partners#partner-application">Apply</a></p>
-      <p className="ms-field-hint">The application is on the page for deployment companies.</p>
     </div>
   );
 }
@@ -94,7 +94,7 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
     return (
       <div className="ms-task-empty">
         <h2>Your application is in review.</h2>
-        <p>Approval is pending. We approve each company by hand and email{email ? ` ${email}` : " you"} if you are approved. Creating an account does not approve access.</p>
+        <p>We'll email {email ?? "you"} if your company is approved.</p>
       </div>
     );
   }

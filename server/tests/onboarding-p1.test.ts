@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { sharedCompanyClip } from "./helpers/sharedJob";
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import express from "express";
 import { createRequire } from "node:module";
@@ -96,6 +97,8 @@ describe("public task disclosure", () => {
   it("listing reads share the same admission and withdrawal checks", async () => {
     state.docs.set("siteTaskBriefs/req1", { requestId: "req1", summary: "Move cartons from the conveyor to a pallet" } as never);
     state.docs.set("inboundRequests/req1", record() as never);
+    expect(await listTaskBrowseCards()).toEqual([]);
+    state.docs.set("captureUploadSessions/walkthrough-req1", { company_clip: sharedCompanyClip("walkthrough-req1") });
     expect(await listTaskBrowseCards()).toHaveLength(1);
     state.docs.set("inboundRequests/req1", record({ public_task_listing: { enabled: false } }) as never);
     expect(await listTaskBrowseCards()).toEqual([]);

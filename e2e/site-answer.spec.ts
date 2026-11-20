@@ -149,8 +149,8 @@ test("while the simulation of the site is being built, the page says so, with th
     sharing: { state: "preparing", sharedAtIso: "2026-11-11T15:00:00.000Z" }, companies: { interested: false, sent: null, entries: [] } });
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(SHARED, { exact: true })).toBeVisible();
-  // Where the job stands, said plainly: shared, and not sent to any company yet.
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText("Your job will appear when the video and job details are ready.", { exact: true })).toBeVisible();
+  // The job is preparing and has not been sent to any company yet.
   await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(NOT_SENT, { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Simulation of your site" }).getByText("We're building the simulation of your site.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();

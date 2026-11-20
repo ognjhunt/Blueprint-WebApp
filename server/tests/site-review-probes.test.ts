@@ -5,6 +5,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { sharedCompanyClip } from "./helpers/sharedJob";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -37,8 +38,11 @@ describe("P1 (M1): 'Your job was sent to deployment companies' follows the whole
     expect((await loadCompanyJobAccess("req-p1")).access).toMatchObject({ listed: false, reason: "no_job_sentence" });
     expect(await taskLifecycleNotificationIsCurrent({ kind: "job_sent", requestId: "req-p1" })).toBe(false);
     expect(jobSharingOf(v4Job(), (await loadCompanyJobAccess("req-p1")).access)).toMatchObject({ state: "preparing" });
-    // With its sentence, the same job is visible and the email may go.
+    // The job needs both its sentence and a playable video before the email can go.
     sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-p1", { requestId: "req-p1", summary: "Pack the boxes" });
+    expect((await loadCompanyJobAccess("req-p1")).access).toMatchObject({ listed: false, reason: "video_required" });
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "job_sent", requestId: "req-p1" })).toBe(false);
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-p1", { company_clip: sharedCompanyClip("walkthrough-req-p1") });
     expect(await taskLifecycleNotificationIsCurrent({ kind: "job_sent", requestId: "req-p1" })).toBe(true);
   });
 });

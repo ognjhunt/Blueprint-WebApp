@@ -267,23 +267,23 @@ describe("a job the site sent with its description only", () => {
       descriptionStatementVersion: "2026-11-12.v5" }), ...changes });
   }
 
-  it("waits on nobody: no clock and no ending, however long it is listed, and the page and the listing agree it is open", async () => {
+  it("keeps an earlier description-only job private without automatically deleting its draft", async () => {
     seedDescriptionOnly();
-    expect(teamJobAccess(job())).toMatchObject({ listed: true, reason: "no_video_yet" });
+    expect(teamJobAccess(job())).toMatchObject({ listed: false });
     const before = snapshot();
     expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("description_only");
     expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW * 3))).toBe("description_only");
     await sweepAt(WINDOW * 4);
     expect(snapshot()).toEqual(before);
     expect((await page()).decision).not.toBe("ended");
-    expect(teamJobAccess(job())).toMatchObject({ listed: true, reason: "no_video_yet" });
+    expect(teamJobAccess(job())).toMatchObject({ listed: false });
   });
 
   it("reads an ending the clock recorded for it before as no ending, and leaves the stored record as it is", async () => {
     seedDescriptionOnly({ website_job_no_grant_ending: wrongEnding() });
     expect(recordedWebsiteJobNoGrantEnding(job(), "job-one")).toBeNull();
     expect((await page()).decision).not.toBe("ended");
-    expect(teamJobAccess(job())).toMatchObject({ listed: true, reason: "no_video_yet" });
+    expect(teamJobAccess(job())).toMatchObject({ listed: false });
     expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("description_only");
     expect(job().website_job_no_grant_ending).toEqual(wrongEnding());
   });

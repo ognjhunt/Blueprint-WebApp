@@ -12,7 +12,7 @@ import { resetClientEnvCacheForTests } from "@/lib/client-env";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
-import { SITE_START_CONSENT_NO_VIDEO_V5 as SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 as SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
+import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 as SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
 import { FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 /** The share box the start form had until 2026-11-12: sharing is now the service, said in the line under the button. */
@@ -497,42 +497,22 @@ it("prepares the phone capture with explicit description authority and no record
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Now film the job." });
   const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
-  expect(payload).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null });
+  expect(payload).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null });
   expect(payload.matchFee).toBeUndefined();
   expect(upload.send).not.toHaveBeenCalled();
   expect(screen.getByRole("link", { name: "Open my job page ›" })).toHaveAttribute("href", "/capture-upload/tok.signed");
   expect(screen.queryByRole("link", { name: "Open my job" })).not.toBeInTheDocument();
 });
 
-it("keeps the job sentence when changing methods and saves a description without a recording grant", async () => {
-  signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/description.signed" } }]);
+it("keeps optional details when switching between upload and recording", async () => {
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace/);
   openDetails();
   describeTask("Pack cartons");
-  fireEvent.click(screen.getByRole("button", { name: "Describe the job without video ›" }));
-  const task = screen.getByRole("textbox", { name: "The job in one sentence" });
-  expect(task).toHaveValue("Pack cartons");
-  expect(task).toBeRequired();
   fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
   expect(screen.getByLabelText("The job in one sentence")).toHaveValue("Pack cartons");
-  expect(screen.getByLabelText("The job in one sentence")).not.toBeRequired();
-  fireEvent.click(screen.getByRole("button", { name: "Describe the job without video ›" }));
-  expect(screen.getByRole("textbox", { name: "The job in one sentence" })).toHaveValue("Pack cartons");
-
-  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Toronto" } });
-  chooseCountry("non_us");
-  fireEvent.click(screen.getByRole("button", { name: "Save my job" }));
-  await screen.findByRole("heading", { name: "Your job is saved." });
-  expect(screen.getByRole("link", { name: "Open my job", exact: true })).toHaveAttribute("href", "/capture-upload/description.signed");
-  expect(screen.queryByText(/We are not sending a camera link/)).not.toBeInTheDocument();
-  expect(JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body)).toMatchObject({
-    taskStatement: "Pack cartons", siteLocation: "Toronto", captureRegion: "non_us",
-    taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION },
-    descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" },
-    consentAttestation: null, hasExistingFootage: false,
-  });
-  expect(upload.send).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "No video yet? Film it next ›" }));
+  expect(screen.getByLabelText("The job in one sentence")).toHaveValue("Pack cartons");
+  expect(screen.queryByRole("button", { name: /Describe the job without video/ })).toBeNull();
 });
 
 // Owner direction 2026-11-11: a site sends an email and a video; Blueprint drafts the job
@@ -579,7 +559,7 @@ it("starts the film-on-a-phone path with only a country and an email", async () 
   await screen.findByRole("heading", { name: "Now film the job." });
   const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
   expect(sent).toMatchObject({ taskStatement: "", captureMode: "self_capture", captureRegion: "us", descriptionOnly: true,
-    descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null, acceptedTerms: true });
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, acceptedTerms: true });
   expect(sent).not.toHaveProperty("taskConfirmation");
   expect(sent).not.toHaveProperty("publicTaskListing");
 });
@@ -607,7 +587,7 @@ it("asks one question about the video and sets the consent in one line under the
   // The sentence is optional: it waits, closed, under "Add details (optional)".
   expect(document.querySelector("#start-task")!.closest("details")).not.toHaveAttribute("open");
   // Filming later is the default; the video is one quiet link away.
-  expect(screen.getByText("You film it on your phone, right after this.")).toBeInTheDocument();
+  expect(screen.getByText("Film or upload a video to post your job.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Next: film the job" })).toBeInTheDocument();
   expect(document.querySelector("#start-filmer")).toBeNull();
   expect(document.querySelector("#start-name")).toBeNull();
@@ -1265,8 +1245,8 @@ it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before subm
 });
 
 // Sharing is the service (owner, 2026-11-12): no share box. With a video the form records recording and description
-// authority v4, which share the job; without one, description authority v5; never a card grant of its own.
-it("submits under v4 with a video and v5 without one, with no share box and no card grant", async () => {
+// authority v4, which share the job; without one, description authority v3; never a card grant of its own.
+it("submits under v4 with a video and v3 without one, with no share box and no card grant", async () => {
   fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => init?.method === "POST"
     ? { ok: true, status: 201, json: async () => ({ captureUrl: "/capture-upload/tok.signed" }) }
     : String(url).includes("/status") ? { ok: true, json: async () => ({ captureReceived: false, uploadState: "not_received" }) } : photon([]));
@@ -1283,7 +1263,7 @@ it("submits under v4 with a video and v5 without one, with no share box and no c
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Now film the job." });
   const noVideo = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
-  expect(noVideo).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null });
+  expect(noVideo).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null });
   expect(noVideo).not.toHaveProperty("publicTaskListing");
   first.unmount();
   localStorage.clear(); durability.rows.clear();

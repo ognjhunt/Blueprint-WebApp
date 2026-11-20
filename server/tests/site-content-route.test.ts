@@ -61,12 +61,12 @@ describe("site-content route", () => {
       // The frame of 2026-11-12: free for sites, no price stated, a job packet whose summary deployment companies
       // see only with the site's permission, the video private; Blueprint's own early trial is no longer described (2026-11-14).
       expect(JSON.stringify(payload)).toContain("Free for sites. Nothing is charged today.");
-      expect(payload.summary).toContain("Blueprint turns a site's video or description of one recurring job into a job packet.");
+      expect(payload.summary).toContain("Blueprint turns a site's video of one recurring job into a job packet.");
       expect(payload.summary).not.toMatch(/judge|evaluate the packet|receive the packet/i);
       expect(payload.summary).toContain("We add a first look at which robots could fit when we have enough detail. We use published specifications and a cited track record.");
       expect(payload.summary).not.toMatch(/early trial|openly available/i);
       // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
-      expect(payload.summary).toContain("If the site sends video, the packet includes it without sound and the simulation when it is ready. Blueprint sends each job automatically to the deployment companies it has approved.");
+      expect(payload.summary).toContain("The packet includes the video without sound and adds the simulation when it is ready. Blueprint sends each job automatically to the deployment companies it has approved.");
       expect(payload.summary).toContain("A site's name, address and contact details go to a company only when the site asks for an introduction.");
       expect(payload.summary).not.toMatch(/stays private|only the summary/);
       expect(payload.summary).not.toMatch(/never sees? the site's own sentence/);

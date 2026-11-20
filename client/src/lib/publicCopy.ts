@@ -14,11 +14,8 @@
 
 import { COMPANY_RESPONSE_LABELS as ANSWER } from "./companyResponses";
 
-export const HOME_LABEL = "Free for sites";
-/** The outcome a site wants (owner, 2026-11-12 ~19:15Z: "the goal is ... having repetitive work/jobs done by robots"). */
-export const HOME_TITLE = "Get repetitive work done by robots.";
-/** The line under the title. The home page does not lead with privacy (owner, same message); the rule is said where the site agrees. */
-export const HOME_SUB_LINE = "Film the job once or describe it. We send it to robot deployment companies so they can tell you if they can do it.";
+export const HOME_TITLE = "Post a job for robots.";
+export const HOME_SUB_LINE = "Share a video of one repetitive job with approved robot deployment companies.";
 
 /**
  * The answers the company form offers (`CompanyJob.tsx`), said the same way on every public page: three always, and the
@@ -30,40 +27,32 @@ export const COMPANY_ANSWERS = `${ANSWER.interested}, ${ANSWER.declined} or ${AN
 /** The answers beside which a site may ask for an introduction (`INTRODUCIBLE_RESPONSE_STATES`). */
 export const INTRODUCIBLE_ANSWERS = `${ANSWER.interested} or ${ANSWER.tested_can_do}`;
 
-export const STEP_SEND = "Film or describe one job that repeats.";
-export const STEP_SIMULATE = "We send the job to robot deployment companies we approve. With video, we build a simulation of your site when we can.";
-export const STEP_ANSWER = `Their answers come back to you: ${COMPANY_ANSWERS}. You pick who to meet.`;
-
 export const START_JOB = "Start a job";
-export const HOME_START_HELPER = "A video or description, where the job is, and an email.";
-/** The home page's link to the page for deployment companies. */
-export const FOR_DEPLOYMENT_COMPANIES_LINK = "Deploy robots? See how jobs reach you";
-/** The page's own name, in the navigation and its label. */
-export const FOR_DEPLOYMENT_COMPANIES = "For deployment companies";
 export const FIRST_LOOK_WHEN_READY = "We add a first look at which robots could fit when we have enough detail.";
+export const FREE_FOR_SITES = "Free for sites.";
+export const FOR_DEPLOYMENT_COMPANIES = "For deployment companies";
+export const PARTNERS_TITLE = "Find jobs for the robots you deploy.";
 
 export const HOW_STEPS = [
-  { key: "video", title: "Your job", line: "Film one recurring job or send a description." },
-  { key: "packet", title: "Your job packet", line: `What the job is and what counts as done when known. ${FIRST_LOOK_WHEN_READY} If you send video, we add it without sound and build a simulation when we can.` },
-  { key: "companies", title: "Deployment companies", line: "We share your job with deployment companies we approve by hand. When they answer, you choose which to meet." },
+  { key: "video", title: "Film the job", line: "Use your phone to show one full round of a job that repeats." },
+  { key: "packet", title: "Companies review it", line: "We share your video and job description with approved companies, with a first look and a simulation when ready." },
+  { key: "companies", title: "Choose who to meet", line: "Responses appear on your job page. If a company is interested, you can ask for an introduction." },
 ] as const;
 
 /** What used to be the "Jobs we support" page, in one line. */
-export const JOBS_THAT_FIT = "Best for one job that repeats, with known objects, where something is picked up and put down. Other jobs still go to companies; their simulation waits until we can build one.";
+export const JOBS_THAT_FIT = "Jobs that involve picking something up and putting it down are a good fit. You can post other jobs, too.";
 
-export const HOME_SEO_TITLE = "Blueprint | Get repetitive work done by robots.";
-export const HOME_SEO_DESCRIPTION = "Film or describe one job that repeats. We send it to robot deployment companies we approve so they can tell you if they can do it. Free for sites.";
+export const HOME_SEO_TITLE = `Blueprint | ${HOME_TITLE}`;
+export const HOME_SEO_DESCRIPTION = `${HOME_SUB_LINE} See responses and choose who to meet. ${FREE_FOR_SITES}`;
 
 /**
  * The home page's moving example card: what a site sees on its job page once companies answer. Everything on it is
  * invented and marked "Example"; the answer labels and aliases come from `companyResponses.ts`, as the site sees them.
  */
-export const EXAMPLE_TAG = "Example";
-export const EXAMPLE_CARD_NAME = "Example of a job page once deployment companies answer";
+export const EXAMPLE_TAG = "Example job";
 export const exampleSentTo = (count: number) => `Sent to ${count} deployment ${count === 1 ? "company" : "companies"}`;
-export const EXAMPLE_FOOT = "Everything in this example is made up.";
-export const HOW_SEO_DESCRIPTION = `A video or description of a recurring job becomes a job packet. ${FIRST_LOOK_WHEN_READY} Free for sites.`;
+export const HOW_SEO_DESCRIPTION = HOME_SEO_DESCRIPTION;
 export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, how fast we reply, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
-export const START_SEO_DESCRIPTION = "Start a job with a video or description of the work, where the job is, and an email. Blueprint sends it to approved deployment companies. Free for sites.";
-export const PARTNERS_SEO_DESCRIPTION = "Robot deployment companies can apply to receive job packets with the site's description and a first look when available. Nothing is charged today.";
-export const ROBOT_TEAM_SEO_DESCRIPTION = "Approved deployment companies see the jobs sites send and answer. Blueprint approves each company by hand. Nothing is charged today.";
+export const START_SEO_DESCRIPTION = "Upload a video of a repetitive job, or start now and film it on your phone. Free for sites.";
+export const PARTNERS_SEO_DESCRIPTION = "Apply to review real robotics jobs with site videos and details. When a site asks to meet, Blueprint introduces you.";
+export const ROBOT_TEAM_SEO_DESCRIPTION = "Approved robot deployment companies can browse site jobs, watch videos and respond.";

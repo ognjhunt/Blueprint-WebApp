@@ -435,7 +435,7 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     const permission = await screen.findByRole("region", { name: "Confirm recording permission" });
     expect(permission.closest("details")).toBeNull();
-    expect(permission).toHaveTextContent(/need your video to build the simulation of your site and the job packet deployment companies answer from/);
+    expect(permission).toHaveTextContent("A video is required to post your job and build its simulation.");
     expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
     // Said before the grant: people in the work area are told, and sound is not analysed.
     expect(screen.getByText(/Tell people nearby that the video goes to Blueprint and to deployment companies we approve\. Avoid conversations: we remove the sound\./)).toBeInTheDocument();
@@ -510,13 +510,12 @@ describe("video first owner return", () => {
     expect(screen.getByText(/^Walk slowly in a half circle around where the job happens, keeping it in view\. Move slowly and overlap your passes/))
       .not.toBeVisible();
   });
-  it("offers introductions and withdrawal on a shared description before recording consent", async () => {
+  it("requires video on a legacy description listing and still lets the owner withdraw it", async () => {
     const fallback = ownerFetch(true);
     let withdrawn = false;
     const json = (body: unknown) => Promise.resolve({ ok: true, json: async () => body });
     const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.endsWith("/introductions")) return json({ ok: true });
       if (url.endsWith("/withdrawal")) {
         if (init?.method === "POST") withdrawn = true;
         return json({ withdrawn, withdrawal: withdrawn ? { descriptionOnly: true, requestedAtIso: null } : null });
@@ -524,21 +523,15 @@ describe("video first owner return", () => {
       if (url === `/api/site-task-brief/${TOKEN}/status`) return json({
         scope: "owner", captureReceived: false, answer: null,
         status: { decision: "record", headline: "A recording is the next step.", operatorAction: "Film the work area.", missingViews: [], nextUpdateIso: null },
-        companyStatus: { descriptionOnly: true, sharing: { state: "visible", sharedAtIso: null }, companies: {
-          entries: [{ kind: "answered", alias: "Company A", atIso: "2026-11-19T15:00:00Z", state: "interested", canIntroduce: true }],
-          sent: null, interested: true, introductions: { used: 0 },
-        } },
+        companyStatus: { descriptionOnly: true, sharing: { state: "not_shared", sharedAtIso: null } },
       });
       return fallback(input, init);
     });
     vi.stubGlobal("fetch", fetcher);
     render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByRole("button", { name: "Introduce us" }));
-    await waitFor(() => expect(fetcher.mock.calls.some(([url, init]) =>
-      String(url).endsWith("/introductions") && init?.method === "POST")).toBe(true));
-    expect(screen.getByRole("heading", { name: "Add a video (optional)" })).toBeVisible();
-    expect(screen.queryByText("A recording is the next step.")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Withdraw my job"));
+    expect(await screen.findByText("A video is required to post your job and build its simulation.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Introduce us" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByText("Withdraw my job"));
     fireEvent.click(screen.getByRole("button", { name: "Withdraw job…" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw job" }));
     expect(await screen.findByText("Job withdrawn.")).toBeVisible();

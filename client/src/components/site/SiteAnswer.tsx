@@ -20,7 +20,7 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
-import { companyAnswered, companyReason, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+import { companyAnswered, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_ANSWERS_YET, NO_REASON_SHOWN, NOT_SENT_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
@@ -30,6 +30,7 @@ import { companyAnswered, companyReason, INTRODUCIBLE_RESPONSE_STATES, introduct
  */
 /** Sharing is the service (2026-11-12): a shared job's section opens with this. */
 export const SHARED_LINE = "We share your job with the deployment companies we approve.";
+export const PREPARING_TO_SHARE_LINE = "Your job will appear when the video and job details are ready.";
 /** Shared, but not in front of companies right now: Blueprint's hold, a rights hold, or the site closed it. */
 export const NOT_VISIBLE_LINE = "Your job is not visible to companies right now.";
 /** An older job (agreed to a statement before 2026-11-12): one line, then the v4 sentence and its button (PACKAGE_D D1.3, 17:15Z). */
@@ -175,6 +176,7 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
   onIntroduced?: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [requested, setRequested] = useState<string[]>([]);
   if (!isSiteCompanyActivity(activity)) return null;
   const sent = activity.sent && Number.isInteger(activity.sent.count) && activity.sent.count > 0 && typeof activity.sent.firstAtIso === "string"
     ? activity.sent : null;
@@ -198,14 +200,17 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
         return;
       }
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
+      setRequested(current => [...current, alias]);
       onIntroduced?.();
     } catch { setErrors(current => ({ ...current, [alias]: INTRODUCTION_FAILED })); }
     finally { setBusy(null); }
   }
   // "Introduce us" is offered beside each answer the server says can be introduced (`interested`, or `tested_can_do`,
   // E9), with no limit per job (owner, 2026-11-12).
+  const timeToAnswer = elapsedSince(activity.startedAtIso, activity.firstAnswerAtIso);
   return <>
     {sent && <BareLead>{sentToCompanies(sent.count, dateInWords(sent.firstAtIso))}</BareLead>}
+    {timeToAnswer && <p className="bare-helper">Time to first response: {timeToAnswer}.</p>}
     {sent && !activity.entries.some(entry => entry.kind === "answered") && <p className="bare-helper">{NO_ANSWERS_YET}</p>}
     {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Sent and answered" style={{ listStyle: "none", padding: 0, margin: 0 }}>
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
@@ -217,8 +222,11 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
-          <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
-            {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}</BareButton>
+          {requested.includes(entry.alias)
+            ? <p className="bare-helper" role="status">Introduction requested.</p>
+            : <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
+              {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
+            </BareButton>}
           {errors[entry.alias] && <p role="alert">{errors[entry.alias]}</p>}
         </>}
       </li>)}
@@ -271,13 +279,13 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
   const ends = ended === "withdrawn" || (ended === "closed" && sharing.state !== "visible");
   if (ends) body = <BareGroup><BareLead>{NOTHING_IS_SHARED}</BareLead></BareGroup>;
   else if (sharing.state === "visible" || sharing.state === "preparing" || agreed) body = <BareGroup>
-    <BareLead>{SHARED_LINE}</BareLead>
-    <CompanyEntries token={token} activity={activity} onIntroduced={onChanged} />
+    <BareLead>{sharing.state === "visible" ? SHARED_LINE : PREPARING_TO_SHARE_LINE}</BareLead>
+    <CompanyEntries key={token} token={token} activity={activity} onIntroduced={onChanged} />
   </BareGroup>;
   else if (sharing.state === "not_visible") body = <BareGroup>
     <BareLead>{SHARED_LINE}</BareLead>
     <BareNotice role="status">{NOT_VISIBLE_LINE}</BareNotice>
-    <CompanyEntries token={token} activity={activity} onIntroduced={onChanged} />
+    <CompanyEntries key={token} token={token} activity={activity} onIntroduced={onChanged} />
   </BareGroup>;
   else if (sharing.olderStatement) body = <BareGroup>
     <BareLead>{OLDER_JOB_LINES}</BareLead>

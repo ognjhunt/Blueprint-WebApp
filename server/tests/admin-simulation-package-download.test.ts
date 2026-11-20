@@ -13,6 +13,7 @@
  *   answers) gets the company route's answer;
  * - nothing that names or reaches the site reaches a log line or a response of this route.
  */
+import { sharedCompanyClip } from "./helpers/sharedJob";
 import express from "express";
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
@@ -88,7 +89,7 @@ function simulationPackage(patch: Record<string, unknown> = {}) {
 }
 const jobDoc = () => state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
 const patchJob = (patch: Record<string, unknown>) => state.docs.set(`inboundRequests/${ID}`, { ...jobDoc(), ...patch });
-const storePackage = (value: unknown = simulationPackage()) => state.docs.set(`captureUploadSessions/${CAPTURE}`, { company_simulation: value });
+const storePackage = (value: unknown = simulationPackage()) => state.docs.set(`captureUploadSessions/${CAPTURE}`, { company_simulation: value, company_clip: sharedCompanyClip(CAPTURE) });
 const markTestJob = () => patchJob({ internal_test: INTERNAL_TEST, request: { ...jobDoc().request, consent_attestation: INTERNAL_GRANT } });
 
 /* ----------------------------------------------------------------- calls */

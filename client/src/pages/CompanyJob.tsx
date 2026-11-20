@@ -7,6 +7,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { companyJobSignInHref } from "@/lib/authReturnPath";
 import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
 import { JobCardAnswer } from "@/components/site/JobCardAnswer";
+import { BareBack } from "@/components/bare/Bare";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import type { CompanyJobPage } from "@/types/taskBrowse";
@@ -43,8 +44,9 @@ function dateInWords(value: string): string {
 export default function CompanyJob() {
   const { jobId = "" } = useParams();
   const signInHref = companyJobSignInHref(jobId);
-  // The bare route shell with the minimal public frame (paper), as the job library's own page has.
-  return <MinimalSiteLayout signInHref={signInHref}><CompanyJobBody jobId={jobId} signInHref={signInHref} /></MinimalSiteLayout>;
+  return <MinimalSiteLayout signInHref={signInHref}>
+    <div className="bare-page"><CompanyJobBody jobId={jobId} signInHref={signInHref} /></div>
+  </MinimalSiteLayout>;
 }
 
 function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: string }) {
@@ -73,21 +75,24 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     return () => { cancelled = true; };
   }, [jobId, user?.uid, retry, auth?.loading]);
 
-  if (state === "loading") return <div className="ms-page"><p role="status">Loading…</p></div>;
-  if (state === "terms" && user) return <div className="ms-page"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
-  if (state === "signed_out") return <div className="ms-page"><h1>Sign in to see this job</h1>
-    <p>Blueprint shares jobs with deployment companies it has approved.</p>
+  if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
+  if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
+  if (state === "signed_out") return <div className="bare-screen company-job"><h1>Sign in to see this job</h1>
     <p><a className="ms-button" href={signInHref}>Sign in to this job</a></p>
     <p><a href="/partners#partner-application">Apply as a deployment company</a></p></div>;
-  if (state === "missing") return <div className="ms-page"><h1>This job is not available</h1>
+  if (state === "missing") return <div className="bare-screen company-job"><h1>This job is not available</h1>
     <p>It may no longer be shared, or your account may not be approved. <a href={JOB_LIBRARY_URL}>Back to the job library</a></p></div>;
-  if (state === "error" || !page) return <div className="ms-page"><div role="alert"><p>This job could not be loaded.</p>
+  if (state === "error" || !page) return <div className="bare-screen company-job"><div role="alert"><p>This job could not be loaded.</p>
     <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></div>;
 
-  return <div className="ms-page company-job" role="region" aria-label="Job">
-    <p><a href={JOB_LIBRARY_URL}>‹ Job library</a></p>
+  return <div className="bare-screen company-job" role="region" aria-label="Job">
+    <BareBack href={JOB_LIBRARY_URL}>‹ Job library</BareBack>
     <h1>{page.title}</h1>
     <p className="ms-field-hint">{[page.country, page.publishedAtIso && `Shared on ${dateInWords(page.publishedAtIso)}`].filter(Boolean).join(" · ")}</p>
+    <div className="company-job-actions">
+      {page.simulationDownload?.state === "ready" && <a className="ms-button" href={page.simulationDownload.url} download>Download the simulation</a>}
+      {user && <a className="bare-inline-link" href="#answer-this-job">{page.myAnswer ? "Update your answer" : "Answer this job"}</a>}
+    </div>
 
     <section aria-label="The job">
       <h2>The job, in the site's words</h2>
@@ -102,10 +107,12 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       <h2>The video</h2>
       {page.video.state === "ready"
         ? <video src={page.video.url} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
-            playsInline onContextMenu={event => event.preventDefault()} style={{ maxWidth: "100%" }}
+            playsInline onContextMenu={event => event.preventDefault()}
             width={page.video.width} height={page.video.height} aria-label="The site's video, without sound" />
         : <p>{page.video.state === "none" ? NO_VIDEO_YET : VIDEO_PREPARING}</p>}
     </section>
+
+    {user && <CompanyAnswerForm jobId={page.id} user={user} page={page} />}
 
     <section aria-label="The object and how sure we are">
       <h2>The object, and how sure we are</h2>
@@ -132,7 +139,6 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     <section aria-label="Simulation of the site">
       <h2>Simulation of the site</h2>
       {page.simulationDownload?.state === "ready" ? <>
-        <p><a className="ms-button" href={page.simulationDownload.url} download>Download the simulation</a></p>
         <p className="ms-field-hint">The site's scene for this job. The README inside says what it holds. Test in your own tools.</p>
         <p className="ms-field-hint">Open scene.usda. The room's look is a Gaussian splat that some tools cannot show; the collision mesh is in the file too.</p>
       </> : null}
@@ -141,7 +147,6 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         : page.simulationDownload?.state !== "ready" ? <p>{SIMULATION_NOT_FINISHED}</p> : null}
     </section>
 
-    {user && <CompanyAnswerForm jobId={page.id} user={user} page={page} />}
   </div>;
 }
 
@@ -169,24 +174,25 @@ function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; p
     } catch { setMessage("Your answer was not confirmed. Try again."); }
     finally { setSaving(false); }
   }
-  return <section aria-label="Your answer">
+  return <section id="answer-this-job" aria-label="Your answer" tabIndex={-1}>
     <h2>Your answer</h2>
     {mine && <p className="ms-field-hint">You answered {COMPANY_RESPONSE_LABELS[mine.state]}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
         ? " Answer again below so the site can ask for an introduction." : ""}</p>}
     <form onSubmit={submit} className="ms-form" aria-label="Answer about this job">
-      <fieldset><legend>Can you take this job?</legend>
+      <fieldset className="company-answer-options"><legend>Can you take this job?</legend>
         {COMPANY_RESPONSE_STATES.filter(state => page.simulationDownload?.state === "ready" || !TESTED_RESPONSE_STATES.includes(state)).map(state => <label key={state}><input type="radio" name="state" value={state} required
           checked={answer === state} onChange={() => setAnswer(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
       {page.video.state === "none" && <p className="ms-field-hint">{ASK_FOR_VIDEO}</p>}
-      <label>A few words about your answer (what you would need, timing, or a question)
+      <label>What should the site know?
         <textarea name="inputs" required minLength={4} maxLength={2000} value={inputs} onChange={event => setInputs(event.target.value)}
+          placeholder="For example, what you would need or when you could start"
           aria-describedby="company-answer-words-hint" /></label>
       <p className="ms-field-hint" id="company-answer-words-hint">{WORDS_REACH_SITE}</p>
-      <button className="ms-button" disabled={saving}>{saving ? "Saving…" : "Send answer"}</button>
+      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send answer"}</button>
       {message && <p role="status">{message}</p>}
-      <p className="ms-field-hint">{page.responseStatement.text}</p>
+      <p className="ms-field-hint" id="company-answer-statement">{page.responseStatement.text}</p>
     </form>
   </section>;
 }

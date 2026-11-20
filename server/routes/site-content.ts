@@ -17,7 +17,7 @@ const definitions = [
   {
     term: "Site sign-up",
     definition:
-      "Sign-up is open for sites: anyone can start a job with an email, where the job is, and a video or description. Partner applications are reviewed before access. Starting a job is not a signed order or a commitment to run a pilot; the site confirms the brief and agrees any pilot terms with the deployment company before physical work.",
+      "Sign-up is open for sites: anyone can start a job with an email, where the job is, and a video of the job. Partner applications are reviewed before access. Starting a job is not a signed order or a commitment to run a pilot; the site confirms the brief and agrees any pilot terms with the deployment company before physical work.",
   },
   {
     term: "Exact-site world model",

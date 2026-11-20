@@ -38,7 +38,7 @@ vi.mock("../utils/automationLeaderLease", () => ({
   getOpsAutomationLeaderLease: () => ({ start: vi.fn(), stop: vi.fn(), isLeader: mocks.isLeader }),
 }));
 
-const { runOutboxPumpPass, startOutboxPump, PUMP_BRIEF_REVIEW_BATCH } = await import("../utils/captureOutbox");
+const { enqueueOutbox, runOutboxPumpPass, startOutboxPump, PUMP_BRIEF_REVIEW_BATCH } = await import("../utils/captureOutbox");
 const { recoverCaptureReviews } = await import("../utils/captureReviewRecovery");
 
 function pendingBrief(id: string, work: Record<string, unknown> = {}) {
@@ -127,5 +127,28 @@ describe("outbox pump drains brief reviews", () => {
     for (let i = 0; i < 20 && !mocks.brief.mock.calls.length; i++) await new Promise((r) => setTimeout(r, 5));
     stop();
     expect(mocks.brief).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends a new site link during a still-running brief review", async () => {
+    vi.useFakeTimers();
+    pendingBrief("slow-review");
+    let releaseReview!: (saved: boolean) => void;
+    mocks.brief.mockReturnValue(new Promise<boolean>(resolve => { releaseReview = resolve; }));
+    mocks.send.mockResolvedValue({ sent: true, provider: "resend", messageId: "site-link" });
+    const stop = startOutboxPump(10_000);
+    try {
+      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.waitFor(() => expect(mocks.brief).toHaveBeenCalledTimes(1));
+      const idempotencyKey = "slow-review:task_received";
+      expect(await enqueueOutbox({ idempotencyKey, requestId: "slow-review", kind: "task_received",
+        to: "site@example.invalid", subject: "Your private job link", body: "Open your job." })).toEqual({ enqueued: true });
+      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.waitFor(() => expect(state.docs.get(`captureOutbox/${idempotencyKey}`)).toMatchObject({ status: "sent" }));
+      expect(row("slow-review").briefReviewWork.state).toBe("processing");
+    } finally {
+      stop();
+      releaseReview(true);
+      await vi.waitFor(() => expect(row("slow-review").briefReviewWork.state).toBe("completed"));
+    }
   });
 });

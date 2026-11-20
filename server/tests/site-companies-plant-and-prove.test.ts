@@ -14,6 +14,7 @@
  * - the introductions route says each refusal in one plain sentence, and answers only the owner's link;
  * - each site email is checked again at dispatch: never after a withdrawal, never while the job is not visible.
  */
+import { sharedCompanyClip } from "./helpers/sharedJob";
 import { currentTermsAcceptance } from "./helpers/sharedJob";
 import express from "express";
 import { createHash } from "node:crypto";
@@ -95,6 +96,7 @@ function answer(record: typeof NORTH, words: string, state = "interested") {
 }
 function seed(job = sharedJob()) {
   state.docs.set(`inboundRequests/${ID}`, job);
+  state.docs.set(`captureUploadSessions/walkthrough-${ID}`, { company_clip: sharedCompanyClip(`walkthrough-${ID}`) });
   state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Stack cartons onto the pallet", confirmedAtIso: null });
   for (const record of [NORTH, SOUTH]) state.docs.set(`robotTeamAccess/${sha(record.email)}`, record);
   state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`, answer(NORTH, WORDS.north));
