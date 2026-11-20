@@ -33,6 +33,8 @@ export default function Beta() {
             { key: "responses", label: "Responses", value: `A company can answer ${EVERYDAY_ANSWERS}. Once the simulation can be downloaded, it can also answer ${TESTED_ANSWERS}. We can't promise any will say yes.` },
             { key: "meet", label: "Introductions", value: `Press Introduce us beside a company that answered ${INTRODUCIBLE_ANSWERS}. We email the company your name, address and contact details, and email you theirs.` },
             { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
+            // DEMO: invented response time for the internal showing; nothing measures or promises it. Never merge.
+            { key: "speed", label: "First response", value: "Most jobs get their first response within 5 business days." },
           ]} />
           <BareRows title="Your video" rows={[
             { key: "private", label: "Who sees it", value: "We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job. Your name, address and contact details go to a company only if you ask for an introduction." },

@@ -15,6 +15,8 @@ export default function Partners() {
       <div className="bare-company">
         <BareScreen className="bare-company-intro">
           <BareBig as="h1" sub="Review real jobs, each with the site's video and description. When a site asks to meet, we introduce you.">{PARTNERS_TITLE}</BareBig>
+          {/* DEMO: invented counts for the internal showing; not read from any data. Never merge. */}
+          <p className="bare-company-access">42 open jobs · 18 approved deployment companies</p>
           <p className="bare-company-access"><a href="#sample-job">See a sample job</a></p>
           <p className="bare-company-access">Already approved? <a href="/contact/robot-team">See jobs</a>.</p>
         </BareScreen>
