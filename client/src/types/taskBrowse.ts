@@ -92,7 +92,11 @@ export const libraryStageLabels: Readonly<Record<LibraryJobStage, string>> = {
 };
 export const opportunityLabels = { open: "Open", past: "Past", not_seeking: "Not looking for a company yet" };
 
-/** Conservative, non-identifying text only. Never publish arbitrary intake prose. */
+/**
+ * Conservative, non-identifying text only. Never publish arbitrary intake prose. A description that names none of the
+ * categories gets plain neutral words: "Job opportunity", kind "Other" (journey audit, 2026-11-20: it was "Work
+ * assessment opportunity", kind "To be determined", which nothing ever determined).
+ */
 export function anonymizedOpportunityDraft(description: string): TaskListingDetails {
   const text = description.toLowerCase();
   const category = /dish|dishwasher/.test(text) ? ["Dish handling opportunity", "Dish handling", "Dishes"]
@@ -100,7 +104,7 @@ export function anonymizedOpportunityDraft(description: string): TaskListingDeta
       : /pack/.test(text) ? ["Packing opportunity", "Packing", ""]
         : /inspect/.test(text) ? ["Inspection opportunity", "Inspection", ""]
           : /pick|place|transfer|move/.test(text) ? ["Material handling opportunity", "Material handling", ""]
-            : ["Work assessment opportunity", "To be determined", ""];
+            : ["Job opportunity", "Other", ""];
   return { title: category[0], taskFamily: category[1], objects: category[2], siteType: "", region: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "open" };
 }
 
