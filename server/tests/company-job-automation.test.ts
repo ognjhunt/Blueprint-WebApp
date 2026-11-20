@@ -921,6 +921,20 @@ describe("review findings (must-fix and should-fix)", () => {
     await expect(recordCompanySend(ID, sha(NORTH.email), { uid: "ops", email: "ops@example.com" })).rejects.toMatchObject({ code: "not_visible" });
   });
 
+  it("the introduction email names no contact when the site typed no name: never the intake's placeholders", async () => {
+    // The start form asks for no name; the intake stores "there" and "—" in their place (`inbound-request.ts`).
+    patchJob({ contact: { ...jobDoc().contact, firstName: "encrypted:there", lastName: "encrypted:—" } });
+    await interested(NORTH);
+    await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail });
+    const body = outbox().find(row => row.kind === "introduction_made_company")!.body as string;
+    expect(body).toMatch(/^Hi Person,\n/);
+    expect(body).not.toMatch(/Contact:|\bthere\b/);
+    expect(body).toContain(`Email: ${SITE.email}`);
+    const stored = state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`) as Record<string, any>;
+    const { openShared } = await import("../utils/introductionShared");
+    expect((await openShared(stored.siteShared)).contactName).toBeUndefined();
+  });
+
   it("should-fix: the introduction email says a typed location once when it is also the site's name", async () => {
     patchJob({ request: { ...jobDoc().request, siteName: `encrypted:${SITE.address}` } });
     await interested(NORTH);
