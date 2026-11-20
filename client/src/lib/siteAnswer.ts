@@ -139,10 +139,11 @@ export const sceneOutrankedNote = (name: string) =>
 /** The standing note under every answer: what the check covers, and what it is not. The email and the job card say it in full. */
 export const SITE_ANSWER_NOTE =
   "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
-/** The limits in one line, at the foot of the emails that give the first look. */
-export const LIMITS_PAPER = "A first look on paper, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
-/** The job page's one limits line, true in every state it has: whatever the page shows, none of it is a test at the site. */
-export const LIMITS_JOB_PAGE = "Nothing here is a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/**
+ * The job page's one limits line, true in every state it has: whatever the page shows, none of it is a test at the site.
+ * It says what the first look checks, not which jobs are taken: no job is refused by its kind.
+ */
+export const LIMITS_JOB_PAGE = "Nothing here is a test at your site. The first look checks only picking up and putting down. It does not certify performance or safety.";
 
 /** The first look in one sentence, on the job page and in the email that says it is ready (frame of 2026-11-12). */
 export function firstLookSentence(pick: Pick<AnswerRobot, "manufacturer" | "name" | "verdict">): string {
@@ -153,7 +154,7 @@ export function firstLookSentence(pick: Pick<AnswerRobot, "manufacturer" | "name
 /** What the first look rests on, said under it. */
 export const FIRST_LOOK_SOURCE = "From published specifications and where it has been used.";
 /** The same lines as an approved deployment company reads them on the card, with the full note in the card's details. */
-export const JOB_CARD_LIMITS = "A first look on paper, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const JOB_CARD_LIMITS = "A first look on paper, not a test at the site. It checks only picking up and putting down. It does not certify performance or safety.";
 
 /** How sure, in words: the one map the job page, the job card and the emails all read. */
 export const SURENESS_WORDS: Readonly<Record<AnswerConfidenceLevel, string>> = { low: "Not sure yet", fair: "Fairly sure", good: "Sure" };
@@ -254,6 +255,8 @@ export interface SiteAnswer {
 export type JobSharingState = "not_shared" | "preparing" | "visible" | "not_visible";
 export interface JobSharing {
   state: JobSharingState;
+  /** The current video reached Blueprint, whether or not the company copy is ready. */
+  videoReceived?: boolean;
   /** When the site accepted the statement that shares the job. */
   sharedAtIso: string | null;
   /** Not shared, and the site agreed to an older statement: its page offers the current one (recording v4) once. */

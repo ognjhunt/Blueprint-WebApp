@@ -20,8 +20,8 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
-import { companyAnswered, companyReason, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
-  NO_ANSWERS_YET, NO_REASON_SHOWN, NOT_SENT_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+  NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
  * The site's job page below its title, bare bones (frame of 2026-11-12). Three sections, in order: where the job
@@ -29,7 +29,8 @@ import { companyAnswered, companyReason, INTRODUCIBLE_RESPONSE_STATES, introduct
  * constant, or a short line chosen by the data that makes it true; each says why beside it.
  */
 /** Sharing is the service (2026-11-12): a shared job's section opens with this. */
-export const SHARED_LINE = "We share your job with the deployment companies we approve.";
+export const SHARED_LINE = "Posted for approved deployment companies";
+export const PREPARING_TO_SHARE_LINE = "Your job will appear when the video and job details are ready.";
 /** Shared, but not in front of companies right now: Blueprint's hold, a rights hold, or the site closed it. */
 export const NOT_VISIBLE_LINE = "Your job is not visible to companies right now.";
 /** An older job (agreed to a statement before 2026-11-12): one line, then the v4 sentence and its button (PACKAGE_D D1.3, 17:15Z). */
@@ -162,25 +163,72 @@ function IntroducedDetails({ entry }: { entry: AnsweredEntry }) {
  */
 function AnswerReason({ entry }: { entry: AnsweredEntry }) {
   const reason = typeof entry.reason === "string" && entry.reason.trim() ? entry.reason.trim() : null;
+  const verified = entry.details?.verified ?? (entry.state.startsWith("tested_") ? reason : null);
+  const start = entry.details?.startWindow && COMPANY_START_LABELS[entry.details.startWindow];
   return <>
-    {reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
-      : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>}
-    {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.company && !entry.introducedAtIso
+    {(verified || start) && <dl className="company-response-facts">
+      {verified && <div><dt>What they checked</dt><dd>{verified}</dd></div>}
+      {start && <div><dt>Earliest start</dt><dd>{start}</dd></div>}
+    </dl>}
+    {!(entry.state.startsWith("tested_") && verified) && !(entry.state === "needs_something" && entry.question) &&
+      (reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
+        : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
+    {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.question && !entry.company && !entry.introducedAtIso
       && <p className="bare-helper">{introductionIfChanged(entry.alias)}</p>}
   </>;
 }
 
+function ReplyQuestion({ token, alias, question, onChanged }: { token: string; alias: string;
+  question: NonNullable<AnsweredEntry["question"]>; onChanged?: () => void }) {
+  const [answer, setAnswer] = useState("");
+  const [saved, setSaved] = useState(question.answer);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const shownAnswer = question.answer ?? saved;
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || answer.trim().length < 2) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/clarifications`, {
+        method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
+        body: JSON.stringify({ alias: alias.replace(/^Company /, ""), questionId: question.id, answer: answer.trim() }),
+      });
+      const result = await response.json();
+      if (!response.ok || typeof result.answer !== "string") throw new Error(result.error || "Your answer could not be saved. Try again.");
+      setSaved(result.answer);
+      onChanged?.();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Your answer could not be saved. Try again.");
+    } finally { setBusy(false); }
+  }
+  return <div className="company-question">
+    <dl className="company-response-facts">
+      <div><dt>What they need to know</dt><dd>{question.text}</dd></div>
+      {shownAnswer && <div><dt>Site reply</dt><dd>{shownAnswer}</dd></div>}
+    </dl>
+    {!shownAnswer && <details>
+      <summary className="bare-inline-link">Answer question</summary>
+      <form className="ms-form" onSubmit={submit}>
+        <label>Reply to the question<textarea rows={2} minLength={2} maxLength={SITE_CLARIFICATION_LIMIT} required value={answer}
+          onChange={event => setAnswer(event.target.value)} /></label>
+        <p className="bare-helper">Blueprint shares this reply with {alias} and keeps your contact details private.</p>
+        <button type="submit" className="ms-button" disabled={busy}>{busy ? "Saving…" : "Send answer"}</button>
+        {error && <p role="alert">{error}</p>}
+      </form>
+    </details>}
+    {saved && !question.answer && <p className="bare-helper" role="status">Answer shared.</p>}
+  </div>;
+}
+
 /** The section's lines (see `AnswerReason` for each answer's why). */
-function CompanyEntries({ token, activity, onIntroduced }: { token: string; activity: SiteCompanyActivity | undefined;
+function CompanyEntries({ token, activity, onIntroduced, posted }: { token: string; activity: SiteCompanyActivity | undefined;
+  posted: boolean;
   onIntroduced?: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [requested, setRequested] = useState<string[]>([]);
   if (!isSiteCompanyActivity(activity)) return null;
-  const sent = activity.sent && Number.isInteger(activity.sent.count) && activity.sent.count > 0 && typeof activity.sent.firstAtIso === "string"
-    ? activity.sent : null;
-  // Where the job stands, said plainly (not yet sent, sent and waiting, or the answers): the read came back with no send
-  // and no answer, so the job has not gone to any company yet.
-  if (!sent && activity.entries.length === 0) return <p className="bare-helper">{NOT_SENT_YET}</p>;
   async function introduce(alias: string) {
     if (busy) return;
     setBusy(alias); setErrors(current => ({ ...current, [alias]: "" }));
@@ -198,27 +246,48 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
         return;
       }
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
+      setRequested(current => [...current, alias]);
       onIntroduced?.();
     } catch { setErrors(current => ({ ...current, [alias]: INTRODUCTION_FAILED })); }
     finally { setBusy(null); }
   }
   // "Introduce us" is offered beside each answer the server says can be introduced (`interested`, or `tested_can_do`,
   // E9), with no limit per job (owner, 2026-11-12).
+  const timeToAnswer = elapsedSince(activity.startedAtIso, activity.firstAnswerAtIso);
+  const replies = activity.entries.filter(entry => entry.kind === "answered").length;
+  const views = activity.views ?? 0;
   return <>
-    {sent && <BareLead>{sentToCompanies(sent.count, dateInWords(sent.firstAtIso))}</BareLead>}
-    {sent && !activity.entries.some(entry => entry.kind === "answered") && <p className="bare-helper">{NO_ANSWERS_YET}</p>}
-    {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Sent and answered" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+    {(posted || timeToAnswer || replies > 0) && <div className="site-company-summary">
+      <p className="site-company-metrics">
+        {activity.views !== null && <span>{views} recorded {views === 1 ? "view" : "views"}</span>}
+        <span>{replies} {replies === 1 ? "reply" : "replies"}</span>
+      </p>
+      {timeToAnswer && <p className="bare-helper">Time to first response: {timeToAnswer}.</p>}
+    </div>}
+    {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Company responses">
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
-        <BareLead>{entry.kind === "sent" ? sentToCompany(entry.alias, dateInWords(entry.atIso))
-          : companyAnswered(entry.alias, dateInWords(entry.atIso), entry.state)}</BareLead>
+        {entry.kind === "sent" ? <p className="bare-helper">{sentToCompany(entry.alias, dateInWords(entry.atIso))}</p> : <>
+          <div className="site-company-response-title">
+            <h3>{entry.alias}</h3>
+            <span className={INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) ? "opportunity-label-ready" : undefined}>
+              {COMPANY_RESPONSE_LABELS[entry.state]}
+            </span>
+          </div>
+          <p className="site-company-reply-date">Answered <time dateTime={entry.atIso}>{dateInWords(entry.atIso)}</time></p>
+        </>}
         {entry.kind === "answered" && <AnswerReason entry={entry} />}
+        {entry.kind === "answered" && entry.question && <ReplyQuestion key={entry.question.id} token={token}
+          alias={entry.alias} question={entry.question} onChanged={onIntroduced} />}
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
           && <IntroducedDetails entry={entry} />}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
-          <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
-            {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}</BareButton>
+          {requested.includes(entry.alias)
+            ? <p className="bare-helper" role="status">Introduction requested.</p>
+            : <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
+              {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
+            </BareButton>}
           {errors[entry.alias] && <p role="alert">{errors[entry.alias]}</p>}
         </>}
       </li>)}
@@ -271,21 +340,25 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
   const ends = ended === "withdrawn" || (ended === "closed" && sharing.state !== "visible");
   if (ends) body = <BareGroup><BareLead>{NOTHING_IS_SHARED}</BareLead></BareGroup>;
   else if (sharing.state === "visible" || sharing.state === "preparing" || agreed) body = <BareGroup>
-    <BareLead>{SHARED_LINE}</BareLead>
-    <CompanyEntries token={token} activity={activity} onIntroduced={onChanged} />
+    <BareLead>{sharing.state === "visible" ? SHARED_LINE : sharing.videoReceived
+      ? "Video received. We’re preparing your job for posting."
+      : sharing.videoReceived === false ? "Send a video to post your job." : PREPARING_TO_SHARE_LINE}</BareLead>
+    <CompanyEntries key={token} token={token} activity={activity} onIntroduced={onChanged} posted={sharing.state === "visible"} />
   </BareGroup>;
   else if (sharing.state === "not_visible") body = <BareGroup>
-    <BareLead>{SHARED_LINE}</BareLead>
     <BareNotice role="status">{NOT_VISIBLE_LINE}</BareNotice>
-    <CompanyEntries token={token} activity={activity} onIntroduced={onChanged} />
+    <CompanyEntries key={token} token={token} activity={activity} onIntroduced={onChanged} posted={false} />
   </BareGroup>;
   else if (sharing.olderStatement) body = <BareGroup>
     <BareLead>{OLDER_JOB_LINES}</BareLead>
     <BareButton onClick={() => void agree()} disabled={busy} helper={RECORDING_RIGHTS_STATEMENT_V4}>{busy ? "Saving…" : OLDER_JOB_AGREE}</BareButton>
     {error && <p role="alert">{error}</p>}
   </BareGroup>;
-  else body = <BareGroup><BareLead>{NOT_SHARED_YET}</BareLead></BareGroup>;
-  return <Section id="site-job-companies" title={SECTION_COMPANIES}>{body}</Section>;
+  else body = <BareGroup><BareLead>{sharing.videoReceived === false ? "Send a video to post your job." : NOT_SHARED_YET}</BareLead></BareGroup>;
+  return <section className="site-answer-section site-company-panel" aria-labelledby="site-job-companies">
+    <h2 id="site-job-companies">{SECTION_COMPANIES}</h2>
+    {body}
+  </section>;
 }
 
 export interface SiteAnswerProps {
@@ -306,6 +379,8 @@ export interface SiteAnswerProps {
   successRule?: string | null;
   /** The first look as the Pipeline's published table words it; when present it replaces the robot rows. */
   firstLookTable?: FirstLookWords | null;
+  /** Optional job questions below company activity, when a required action is not waiting. */
+  jobFacts?: ReactNode;
 }
 
 /**
@@ -313,7 +388,7 @@ export interface SiteAnswerProps {
  * where it stands. There is no share step: a job is shared because its site accepted recording statement v4.
  */
 export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, firstLookTable = null }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, firstLookTable = null, jobFacts }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
   // worked on (review, 2026-11-11): with no outlook the page says the packet is being built and offers no button.
@@ -406,6 +481,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
 
   return <section className="site-answer-bare" aria-label="Your job">
     {companies}
+    {jobFacts}
     <Section id="site-job-first-look" title={SECTION_FIRST_LOOK}>{firstLook}</Section>
     {simulation}
     <BareLinks links={links} />

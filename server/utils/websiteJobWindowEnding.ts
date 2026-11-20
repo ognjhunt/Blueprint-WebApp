@@ -153,10 +153,8 @@ export function sealWebsiteJobNoGrantEnding(value: Omit<WebsiteJobNoGrantEnding,
 }
 
 /**
- * A job the site sent with its description only (description statement v5, no recording grant) whose brief says what
- * the job is: complete without a video, and listed for companies as it is (`teamJobAccess`, `no_video_yet`). Nothing
- * waits on the site, and no grant will come for a video that was never asked for, so the no-grant clock never runs
- * for it (2026-11-20). A brief with no sentence about the job still waits on the site's sentence.
+ * A legacy job under description statement v5 with a usable brief keeps the no-grant clock exemption from that
+ * flow. It stays private and its owner can return to add the required video.
  */
 export function descriptionOnlyJobComplete(record: Record<string, any> | undefined): boolean {
   return descriptionStatementShares(record) && !taskBriefUnclear(record?.site_task_scope);
@@ -169,9 +167,7 @@ export function descriptionOnlyJobComplete(record: Record<string, any> | undefin
  * which the window sweep ends; the no-grant ending then stops speaking for the job.
  *
  * An ending recorded for a complete description-only job (`descriptionOnlyJobComplete`) as a wait on the site does
- * not speak for it either: before 2026-11-20 the clock took the missing video for the site's step and ended such jobs
- * while companies still saw them. The record stays as stored; every reader (the job pages, the grant, the ops monitor
- * and the sweep) reads the job as open, as its listing already did.
+ * not speak for it either. Keep the historical record and leave the draft available to its owner.
  */
 export function recordedWebsiteJobNoGrantEnding(record: Record<string, any> | undefined,
   requestId: string | undefined = typeof record?.requestId === "string" ? record.requestId : undefined): WebsiteJobNoGrantEnding | null {

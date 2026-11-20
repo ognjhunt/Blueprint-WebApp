@@ -7,6 +7,7 @@
  * to sites by hand. These tests pin who sees what: the library, a plan, the
  * application, and the review queue.
  */
+import { sharedCompanyClip } from "./helpers/sharedJob";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer, type Server } from "node:http";
@@ -114,6 +115,7 @@ async function withApp() {
 }
 
 function listedSite(id: string) {
+  state.docs.set(`captureUploadSessions/walkthrough-${id}`, { company_clip: sharedCompanyClip(`walkthrough-${id}`) });
   state.docs.set(`siteTaskBriefs/${id}`, { requestId: id, summary: "Move totes between two stations", confirmedAtIso: null } as never);
   state.docs.set(`inboundRequests/${id}`, {
     requestId: id,

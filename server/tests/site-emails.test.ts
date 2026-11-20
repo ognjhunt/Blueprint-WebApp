@@ -34,7 +34,7 @@ describe("the site's emails", () => {
     expect((await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received" })).enqueued).toBe(false);
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, string>;
     expect(row).toMatchObject({ to: "owner@example.com", kind: "task_received", subject: "Your Blueprint job link" });
-    expect(row.body).toMatch(/^We have your job\.\n\nIf you haven't sent the video yet, send it from your job page\./);
+    expect(row.body).toMatch(/^Your job link is ready\.\n\nA video is required to post your job\./);
     expect(row.body).toMatch(/\/capture-upload\//);
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
@@ -57,8 +57,8 @@ describe("the site's emails", () => {
     const message = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "job_sent", to: "owner@example.com",
       eventId: "companies", companyCount: 3 });
     expect(message).toMatchObject({ idempotencyKey: "req-1:job_sent:companies", kind: "job_sent",
-      subject: "Your job was sent to deployment companies" });
-    expect(message.body).toMatch(/^Your job is with 3 deployment companies\. We don't share your name, address or contact details/);
+      subject: "Your job is posted" });
+    expect(message.body).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details/);
     expect(message.body).toContain(HOW_TO_WITHDRAW);
   });
 

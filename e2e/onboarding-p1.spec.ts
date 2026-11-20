@@ -20,7 +20,7 @@ async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, 
     else if (path === "/api/robot-team-access/apply") data = { status: "applied" };
     else if (path === "/api/csrf") data = { csrfToken: "local-only" };
     else if (path.startsWith("/api/task-listings/owner/")) data = { listing: null, ok: true };
-    else if (path === "/api/inbound-request") data = { ok: true, requestId: "task-1", captureUrl: "http://127.0.0.1:42931/capture-upload/owner-fixture" };
+    else if (path === "/api/inbound-request") data = { ok: true, requestId: "task-1", captureUrl: new URL("/capture-upload/owner-fixture", req.url()).href };
     else if (path.startsWith("/api/self-capture/uploads/") && path.endsWith("/status")) data = { ok: true, state: "ready", uploadState: "not_received", captureReceived: false, accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
     else if (/^\/api\/self-capture\/uploads\/[^/]+$/.test(path) && req.method() === "GET") throw new Error("Receipt checks must use the pure upload status endpoint.");
     else if (path.startsWith("/api/site-task-brief/") && path.endsWith("/status")) data = { ok: true, outlook: statusOutlook, status: { decision: "received", headline: "We have your task and are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: "2099-09-21T12:00:00Z" } };
@@ -125,22 +125,23 @@ for (const mobile of [false, true]) {
     const mutations = await fixtures(page);
     await page.goto("/contact/robot-team");
     await expect(page.getByRole("heading", { name: card.title })).toBeVisible();
+    // A company the library is shown to is not asked to apply.
+    await expect(page.getByRole("heading", { level: 1, name: "Deployment opportunities", exact: true })).toBeVisible();
     await expect(page.getByLabel("Work email", { exact: true }).first()).not.toBeVisible();
-    await expect(page.getByText("Job illustration · not a site photo", { exact: true })).toHaveCount(3);
+    await expect(page.getByRole("button", { name: "Open jobs", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toHaveCount(0);
     expect(mutations).toEqual([]);
     await screenshot(page, `${mobile ? "phone" : "desktop"}-browse`);
-    if (mobile) await page.getByText("Filter jobs", { exact: true }).click();
-    await page.getByLabel("Filter by availability").selectOption("past");
+    await page.getByRole("button", { name: "Past jobs" }).click();
     await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toBeVisible();
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
-    await page.getByLabel("Filter by availability").selectOption("open");
+    await page.getByRole("button", { name: "Open jobs" }).click();
     const selected = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: card.title }) });
     // Running a company's own system on a job is "later" (frame of 2026-11-12): no link into the removed run pages.
     await expect(selected.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
     await expect(selected.getByText("Site's proposed pilot price")).toBeVisible();
     await expect(selected.getByText("Four weeks including setup and provider support")).toBeVisible();
     await expect(selected.getByText("$5,000 per month")).toBeVisible();
-    await expect(page.getByText("Nothing is charged today.", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     expect(mutations).toEqual([]);
     expect(errors).toEqual([]); await context.close();
@@ -160,6 +161,7 @@ test("an approved team's empty library says tasks are coming; an outage is not a
 test("a robot team outside early access applies, on the one application form, instead of browsing", async ({ page }) => {
   const mutations = await fixtures(page, { gated: true }); await page.goto("/contact/robot-team");
   await expect(page.getByRole("form", { name: "Early access application" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1, name: "Apply to see jobs", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Apply", exact: true }).click();
   await expect(page).toHaveURL(/\/partners#partner-application$/);
   const form = page.getByRole("form", { name: "Deployment company application" });
@@ -235,10 +237,15 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   // Typed text is never read for a country (the privacy gate): the site chooses it.
   await form.locator("#start-region").selectOption("us");
   await form.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
-  await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: mobile ? "Open the camera" : "Open my job page ›", exact: true })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Point your phone's camera at this code to film" })).toHaveCount(mobile ? 0 : 1);
+  if (mobile) {
+    await expect(page).toHaveURL(/\/capture-upload\/owner-fixture$/);
+    await expect(page.getByRole("heading", { name: "Film the work area" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ }).first()).toBeVisible();
+  } else {
+    await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open my job page ›", exact: true })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Point your phone's camera at this code to film" })).toBeVisible();
+  }
   expect(mutations.find(mutation => mutation.path === "/api/inbound-request")?.body).toMatchObject({
     taskStatement: "Pick up each packed carton and place it at the end of the table",
     taskDescription: "Pick up each packed carton and place it at the end of the table",
@@ -263,7 +270,7 @@ test("free beta does not restore paid checkout controls after a reload", async (
   const mutations = await fixtures(page);
   await page.goto("/contact/robot-team");
   for (let attempt = 0; attempt < 2; attempt++) {
-    await expect(page.getByText("Nothing is charged today.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Deployment opportunities", level: 1 })).toBeVisible();
     await expect(page.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     await expect(page.locator("#plan-hardware")).toHaveCount(0);

@@ -92,16 +92,17 @@ describe("the robot page", () => {
     render(<Contact />);
     expect(await screen.findByRole("link", { name: "Apply" })).toHaveAttribute("href", APPLY);
     expect(screen.getByRole("heading", { level: 1, name: "Apply to see jobs" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Job library" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Browse jobs" })).toBeNull();
     expect(screen.getByRole("link", { name: "Start a job" })).toHaveAttribute(
       "href",
       "/contact/site-operator",
     );
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
     // Sharing is the service (2026-11-12): a company sees the jobs sites send; no site chooses whether to share.
-    expect(screen.getByText("We approve each company by hand and email you. Approved companies see the jobs sites send us, and answer."))
+    expect(screen.getByText("Approved deployment companies can browse jobs and respond."))
       .toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/choose to share|chooses to share/i);
+    expect(screen.getAllByText(/Nothing is charged today\./)).toHaveLength(1);
   });
 
   it("shows an approved team the job library", async () => {
@@ -112,7 +113,12 @@ describe("the robot page", () => {
     }));
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "The first site jobs are being prepared." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Deployment opportunities" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Apply" })).toBeNull();
+    // An approved company is not asked to apply (journey audit, 2026-11-20), and the page says no price once.
+    expect(screen.getByRole("heading", { level: 1, name: "Deployment opportunities" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Apply to see jobs" })).toBeNull();
+    expect(screen.queryByText(/Nothing is charged today\./)).toBeNull();
   });
 });
 

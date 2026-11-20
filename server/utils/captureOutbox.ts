@@ -40,6 +40,7 @@ import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
 import { createHash, randomUUID } from "node:crypto";
 import { automationBatch } from "./automationBatch";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
+import { clarificationNoticeIsCurrent } from "./jobClarifications";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
@@ -77,6 +78,8 @@ export type OutboxKind =
   | "robot_team_access_approved"
   /** Company: a new job, to an approved deployment company that asked for job emails (E4): once per job. */
   | "robot_team_new_task"
+  /** Company: the site answered its question on the job page. */
+  | "job_clarification"
   /** Company: the site asked to meet it; the site's details (E6): once per introduction. */
   | "introduction_made_company"
   /** Both sides, at 14, 45 and 90 days after an introduction: what happened (E8). */
@@ -435,6 +438,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       // still describe the provider effect and are never recast as cancelled.
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
+      const currentClarification = await clarificationNoticeIsCurrent(entry, tx);
       const introduction = await introductionEmailCheck(entry, tx);
       const currentIntroduction = introduction.current;
       // The site's "Meet {company}" waits for the company's email to be sent (H2). Not an attempt, not a cancellation.
@@ -444,7 +448,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       }
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
       const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
-      if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert
+      if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert || !currentClarification
         || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice) {
         // An introduction that may no longer go ahead is cancelled as a whole (G3): the other email, the record and its
         // billable event, in this transaction. Not from a row whose earlier dispatch may already have reached someone.
@@ -560,6 +564,23 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
 /** Brief reviews per pump pass. Each claim may call a model, so it stays small. */
 export const PUMP_BRIEF_REVIEW_BATCH = 2;
 
+async function deliverPendingNotifications(): Promise<OutboxDeliverySummary> {
+  return deliverOutbox({ limit: 25 }).catch(error => {
+    logger.warn({ error }, "Outbox pump pass failed");
+    return { examined: 0, sent: 0, failed: 0, exhausted: 0 };
+  });
+}
+
+async function recoverPendingBriefs(): Promise<void> {
+  if (isPullRequestPreview()) return;
+  try {
+    const { recoverCaptureReviews } = await import("./captureReviewRecovery");
+    await recoverCaptureReviews({ limit: PUMP_BRIEF_REVIEW_BATCH });
+  } catch (error) {
+    logger.warn({ error }, "Capture reviews will retry on the next pump pass");
+  }
+}
+
 /**
  * One pump pass: deliver waiting notices, then drain pending brief reviews.
  *
@@ -572,17 +593,8 @@ export const PUMP_BRIEF_REVIEW_BATCH = 2;
  * the recovery itself, exactly as on the scheduler lane.
  */
 export async function runOutboxPumpPass(): Promise<OutboxDeliverySummary> {
-  const summary = await deliverOutbox({ limit: 25 }).catch((error) => {
-    logger.warn({ error }, "Outbox pump pass failed");
-    return { examined: 0, sent: 0, failed: 0, exhausted: 0 };
-  });
-  if (isPullRequestPreview()) return summary;
-  try {
-    const { recoverCaptureReviews } = await import("./captureReviewRecovery");
-    await recoverCaptureReviews({ limit: PUMP_BRIEF_REVIEW_BATCH });
-  } catch (error) {
-    logger.warn({ error }, "Capture reviews will retry on the next pump pass");
-  }
+  const summary = await deliverPendingNotifications();
+  await recoverPendingBriefs();
   return summary;
 }
 
@@ -604,14 +616,20 @@ export function startOutboxPump(intervalMs = 60_000): () => void {
   }
   const lease = getOpsAutomationLeaderLease();
   lease.start();
-  let running = false;
+  let delivering = false;
+  let reviewing = false;
   const timer = setInterval(() => {
-    if (running || !lease.isLeader()) return;
-    void import("./captureCoverageQueue").then(module => module.tickCoverageReviews());
-    running = true;
-    void runOutboxPumpPass()
-      .catch((error) => logger.warn({ error }, "Outbox pump pass failed"))
-      .finally(() => { running = false; });
+    if (!lease.isLeader()) return;
+    // A slow model review must not hold the next pass of invitation and response emails.
+    if (!delivering) {
+      delivering = true;
+      void deliverPendingNotifications().finally(() => { delivering = false; });
+    }
+    if (!reviewing) {
+      void import("./captureCoverageQueue").then(module => module.tickCoverageReviews());
+      reviewing = true;
+      void recoverPendingBriefs().finally(() => { reviewing = false; });
+    }
   }, Math.max(10_000, intervalMs));
   timer.unref?.();
   return () => clearInterval(timer);

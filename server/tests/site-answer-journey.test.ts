@@ -251,33 +251,19 @@ function post(path: string, body: unknown) {
 /* ------------------------------------------------------------ the journey */
 
 describe("a site's answer, from an email and a video to a deployment company", () => {
-  it("lets a description-only owner see a reply, ask to meet the company, and withdraw without recording consent", async () => {
-    const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+  it("keeps a description-only draft private and refuses introductions", async () => {
     const { loadCompanyJobAccess } = await import("../utils/teamJobAccess");
-    const email = "deploy@example.test";
-    const companyId = accessRecordId(email);
-    state.docs.set(`robotTeamAccess/${companyId}`, { status: "approved", partnerRole: "deployment",
-      email, name: "Deployment contact", company: "Deployment company", termsAcceptance: currentTermsAcceptance(),
-      termsAcceptedByUid: "deployment-account" });
     const { jobId, token } = await startJob("Move sealed cartons from a conveyor onto a pallet.", true);
     const ref = `inboundRequests/${jobId}`;
-    state.docs.set(ref, { ...doc(ref), company_aliases: { [companyId]: "A" } });
-    state.docs.set(`${ref}/robotTeamInterest/${companyId}`, { state: "interested", recordedBy: "company",
-      updatedAtIso: NOW.toISOString(), statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION });
-
+    expect(doc(ref).public_task_listing).toBeUndefined();
+    expect(doc(ref).request.consent_attestation).toBeNull();
     expect(await status(token)).toMatchObject({ captureReceived: false, answer: null, companyStatus: {
-      sharing: { state: "visible" }, descriptionOnly: true,
-      companies: { entries: [{ kind: "answered", alias: "Company A", state: "interested", canIntroduce: true }] },
+      sharing: { state: "not_shared" }, descriptionOnly: false,
     } });
     const introduction = await post(`/api/site-task-brief/${token}/introductions`,
       { alias: "A", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
-    expect(introduction.status, await introduction.clone().text()).toBe(200);
-    expect(doc(ref).request.consent_attestation).toBeNull();
-    const withdrawn = await post(`/api/self-capture/uploads/${token}/withdrawal`, { confirm: "withdraw_recording_permission" });
-    expect(withdrawn.status, await withdrawn.clone().text()).toBe(202);
-    expect(await withdrawn.json()).toMatchObject({ withdrawal: { descriptionOnly: true } });
-    expect((await loadCompanyJobAccess(jobId)).access).toMatchObject({ listed: false, reason: "consent_withdrawn" });
-    expect((await status(token)).companyStatus).toBeNull();
+    expect(introduction.status).toBe(409);
+    expect((await loadCompanyJobAccess(jobId)).access).toMatchObject({ listed: false });
   });
 
   it("is null before the video, reads, settles once, follows the site's weight, shares on request and goes on withdrawal", async () => {

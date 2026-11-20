@@ -1,6 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { listTaskBrowseCards, projectTaskBrowseCard, readTaskCardDetail } from "../utils/taskBrowse";
 import { Response, Router } from "express";
 import { companyViewerForRequest, libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
@@ -14,9 +14,11 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
-import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES } from "../../client/src/lib/companyResponses";
-import { prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
+import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, TESTED_RESPONSE_STATES, companyResponseNeedsNote } from "../../client/src/lib/companyResponses";
+import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
+import { questionOnReply } from "../utils/jobClarifications";
+import { recordCompanyJobView } from "../utils/companyJobViews";
 const router = Router();
 
 /**
@@ -29,12 +31,20 @@ function termsRequired(res: Response, access: { gated: boolean; status: string; 
       allowed: false, staff: access.staff, termsRequired: true } });
 }
 const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
-  inputs: z.string().trim().min(4).max(2000),
+  inputs: z.string().trim().max(2000),
+  details: z.object({
+    verified: z.string().trim().min(1).max(COMPANY_QUESTION_LIMIT).optional(),
+    question: z.string().trim().min(4).max(COMPANY_QUESTION_LIMIT).optional(),
+    startWindow: z.enum(COMPANY_START_WINDOWS).optional(),
+  }).strict().optional(),
   // The line the company saw under the form (E5); stored on the answer.
   statementVersion: z.literal(COMPANY_RESPONSE_STATEMENT_VERSION) }).strict();
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const input = interestSchema.safeParse(req.body), user = res.locals.firebaseUser;
-  if (!input.success) return res.status(400).json({ error: "Choose an answer and add a few words about it." });
+  if (!input.success) return res.status(400).json({ error: "Choose a response and keep your note under 2,000 characters." });
+  if (companyResponseNeedsNote(input.data.state) && input.data.inputs.length < 4) {
+    return res.status(400).json({ error: "Add a few words about what you need or what you tested." });
+  }
   if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your approved company's verified account." });
   if (!db) return res.status(503).json({ error: "Job unavailable" });
   try {
@@ -57,6 +67,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
         return res.status(409).json({ error: "This job has no simulation to test yet." });
     }
     const row = { state: input.data.state, inputs: input.data.inputs, statementVersion: input.data.statementVersion,
+      ...(input.data.details && input.data.state !== "declined" ? { details: input.data.details } : {}),
       email: user.email.toLowerCase(), company: access.company, submittedBy: user.uid,
       recordedBy: "company" as const, updatedAtIso: new Date().toISOString() };
     const companyId = accessRecordId(user.email);
@@ -70,10 +81,16 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
         || !now.listed || !companyMaySeeJobs(company.data())) throw new Error("job_changed");
       const interestRef = ref.collection("robotTeamInterest").doc(companyId);
       const prior = (await tx.get(interestRef)).data();
-      if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;
+      const priorQuestion = questionOnReply(prior), question = questionOnReply(row);
+      const sameQuestion = question && priorQuestion?.text === question.text;
+      const next = { ...row, firstAnsweredAtIso: firstAnswerTimestamp(prior, row.updatedAtIso),
+        ...(question ? { questionId: sameQuestion ? priorQuestion.id : randomBytes(32).toString("hex") } : {}),
+        ...(sameQuestion && prior?.siteClarification ? { siteClarification: prior.siteClarification } : {}) };
+      if (prior && humanDecisionDigest({ ...prior, firstAnsweredAtIso: next.firstAnsweredAtIso, updatedAtIso: null })
+        === humanDecisionDigest({ ...next, updatedAtIso: null })) return;
       const prepared = await prepareCompanyAnswerInTransaction(tx, ref, taskId, current, companyId, input.data.state, captureUrl);
       prepared.write();
-      tx.set(interestRef, row);
+      tx.set(interestRef, next);
     });
     return res.json({ ok: true, state: input.data.state,
       nextAction: "Saved. The site is told this answer under an alias. Answering commits nobody." });
@@ -90,6 +107,7 @@ router.get("/jobs/:taskId", async (req, res) => {
     if (!access.allowed || !viewer) return res.status(404).json({ error: "This job is not available.", access });
     const page = await loadCompanyJobPage(String(req.params.taskId), { companyId: viewer.companyId });
     if (!page) return res.status(404).json({ error: "This job is not available.", access });
+    if (!viewer.staff) await recordCompanyJobView(page.id, viewer.companyId);
     return res.json({ item: page, access });
   } catch { return res.status(503).json({ error: "This job could not be loaded." }); }
 });

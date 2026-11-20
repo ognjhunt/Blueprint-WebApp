@@ -1,3 +1,4 @@
+import { BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH } from "@/lib/robotTeamAccess";
 import { useState, type ReactNode, type KeyboardEvent } from "react";
 import { Link } from "wouter";
 import { Menu, X } from "lucide-react";
@@ -92,7 +93,7 @@ export function AppShell({
         ]
       : [
           ["overview", "Overview", "/app"],
-          ["opportunities", "Task library", "/contact/robot-team"],
+          ["opportunities", BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH],
           ["settings", "Settings", "/settings"],
         ];
   const selected = ["captures", "packs"].includes(active)

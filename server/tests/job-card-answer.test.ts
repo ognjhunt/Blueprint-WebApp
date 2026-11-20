@@ -5,6 +5,7 @@
  * at all; never for a viewer the library refuses, and never with the site's identity or words.
  * OFFLINE: the real library routes and composer against the fake Firestore.
  */
+import { sharedCompanyClip } from "./helpers/sharedJob";
 import { createServer, type Server } from "node:http";
 import express from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,6 +75,7 @@ beforeEach(async () => {
   seams.allowed = true; seams.answerFails = false;
   seams.managed.mockReset(); seams.managed.mockImplementation(async () => ({ managedEvidence: [] }));
   sharedFakeFirestoreState.docs.clear();
+  sharedFakeFirestoreState.docs.set(`captureUploadSessions/walkthrough-${ID}`, { company_clip: sharedCompanyClip(`walkthrough-${ID}`) });
   sharedFakeFirestoreState.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID,
     summary: "Dana at Acme Supply Co stacks cartons from the conveyor by the loading dock onto the pallet", confirmedAtIso: null });
   const app = express();

@@ -25,6 +25,9 @@ async function account(page: Page, configured = false) {
       pathname = new URL(request.url()).pathname;
     if (pathname === "/api/csrf")
       return route.fulfill({ json: { csrfToken: "fixture-csrf" } });
+    if (pathname === "/api/site-worlds/tasks")
+      return route.fulfill({ json: { items: [], access: { gated: true, status: "none", signedIn: true,
+        emailVerified: true, allowed: false, staff: false } } });
     if (pathname === "/api/workspace/setup") {
       if (request.method() === "POST") {
         if (state.failSave)
@@ -92,7 +95,7 @@ for (const type of ["site_operator", "robot_team"] as const) {
       page.getByRole("button", { name: "Try again", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("link", { name: "Task library", exact: true }),
+      page.getByRole("link", { name: "Browse jobs", exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByText("Robot-team workspace", { exact: true }),
@@ -218,12 +221,12 @@ for (const role of ["site_operator", "robot_team"] as const) {
     await expect(page.getByRole("heading", { name: role === "site_operator" ? "Your jobs" : "Overview", exact: true })).toBeVisible();
     await page.goto("/settings");
     if (role === "robot_team") {
-      await page.getByRole("link", { name: "Task library →", exact: true }).click();
+      await page.getByRole("link", { name: "Browse jobs →", exact: true }).click();
       // The robot-team library pages under /app are gone (2026-11-12); the job library is the robot-team page.
       await expect(page).toHaveURL(/\/contact\/robot-team$/);
       await expect(page.locator("#robot-team-title")).toBeVisible();
     } else {
-      await expect(page.getByRole("link", { name: "Task library →", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Browse jobs →", exact: true })).toHaveCount(0);
     }
     await page.goto("/settings?setup=1");
     await expect(page.getByRole("heading", { name: "Workspace setup", exact: true })).toBeVisible();

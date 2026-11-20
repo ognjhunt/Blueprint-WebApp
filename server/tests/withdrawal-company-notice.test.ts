@@ -79,8 +79,24 @@ describe("the withdrawal's deletion notice to companies", () => {
     record.public_task_listing.details.title = "Acme at 123 PLANT STREET";
     await recordWebsiteCaptureWithdrawal({ requestId: ID, requestedBy: "signed_owner_link", authorize: () => undefined });
     for (const row of rows().filter(item => item.kind === "job_withdrawn_company")) {
-      expect(row.body).toContain(": Work assessment opportunity.");
+      expect(row.body).toContain(": Job opportunity.");
       expect(row.body).not.toContain("PLANT");
+    }
+  });
+
+  // Journey audit, 2026-11-20: a job started with a video alone was shared under the neutral category, and its
+  // withdrawal notice said "Work assessment opportunity" whatever the job was. It now names the closed category of the
+  // site's sentence on its brief, as the company's library did, and still never the sentence's words.
+  it("names the category of the brief's sentence for a job shared before its sentence existed", async () => {
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    record.public_task_listing.details.title = "Work assessment opportunity";
+    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: `${PLANTED[0]}: pick up each crate and place it on the cart` });
+    await recordWebsiteCaptureWithdrawal({ requestId: ID, requestedBy: "signed_owner_link", authorize: () => undefined });
+    const notices = rows().filter(item => item.kind === "job_withdrawn_company");
+    expect(notices.length).toBeGreaterThan(0);
+    for (const row of notices) {
+      expect(row.body).toContain(": Material handling opportunity.");
+      expect(row.body).not.toMatch(/PLANT|crate|Work assessment|To be determined/);
     }
   });
 

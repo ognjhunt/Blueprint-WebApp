@@ -16,6 +16,7 @@ import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL, type JobOutlook } from "@/l
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type JobSharing, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 import { isSiteCompanyActivity, type SiteCompanyActivity } from "@/lib/companyResponses";
+import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { robotCheckOf } from "@/lib/simulationProof";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -70,8 +71,6 @@ type TaskStatus = {
   firstLookTable?: FirstLookWords | null;
   /** The server holds a recording, whichever device sent it. */
   captureReceived?: boolean;
-  /** Coverage is checked automatically; false means a person reviews it. */
-  footageReviewAutomated?: boolean;
   /** The optional correction of the guessed object to move, for the owner only. */
   targetChoice?: TaskTargetChoiceView | null;
   destinationChoice?: TaskDestinationChoiceView | null;
@@ -84,7 +83,7 @@ type TaskStatus = {
   successThresholds?: SuccessThresholdsView | null;
   /** The site's answer: which robot most likely fits, for the owner only. A fit check, never a physical test. */
   answer?: SiteAnswerView | null;
-  companyStatus?: { sharing: JobSharing; companies?: SiteCompanyActivity; descriptionOnly: boolean } | null;
+  companyStatus?: { sharing: JobSharing; companies?: SiteCompanyActivity; descriptionOnly: boolean; taskFamily?: string } | null;
 };
 
 /** Decisions that ask something of the site, or end the job: the status card stays for them under any answer. */
@@ -587,7 +586,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             jobFacts: data.scope === "owner" ? data.jobFacts ?? null : null,
             firstLookTable: data.scope === "owner" && data.firstLookTable && Array.isArray(data.firstLookTable.rows) ? data.firstLookTable : null,
             captureReceived: data.captureReceived === true,
-            footageReviewAutomated: data.footageReviewAutomated !== false,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
             destinationChoice: data.scope === "owner" && isDestinationChoice(data.destinationChoice) ? data.destinationChoice : null,
             destinationAnswered: data.scope === "owner" && data.destinationAnswered === true,
@@ -599,6 +597,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               sharing: data.companyStatus.sharing,
               companies: isSiteCompanyActivity(data.companyStatus.companies) ? data.companyStatus.companies : undefined,
               descriptionOnly: data.companyStatus.descriptionOnly === true,
+              taskFamily: typeof data.companyStatus.taskFamily === "string" ? data.companyStatus.taskFamily : undefined,
             } : null,
           });
         } else if (alive) readFailed(false);
@@ -663,8 +662,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // forms below become an optional correction of the job we read from the video.
   const answer = saved && scope === "owner" && currentStatusKnown ? status?.answer ?? null : null;
   const companyStatus = scope === "owner" && currentStatusKnown ? status?.companyStatus : null;
-  const descriptionShared = companyStatus?.descriptionOnly === true;
-  const jobSentence = answer?.job.sentence ?? (descriptionShared ? brief?.summary : null);
+  const canWithdrawDescription = companyStatus?.descriptionOnly === true;
+  const jobSentence = answer?.job.sentence;
   const answerSettled = answer?.state === "ready" || answer?.state === "cannot_assess";
   // What the simulation of the site showed about the answer's robot (its reach in the scene), for the details screen.
   const robotFit = status?.robotFit ?? null;
@@ -680,8 +679,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     || (SITE_DECISIONS.has(status.decision) && !optionalCorrectionHint) || RIGHTS_NOTICE.test(`${status.headline} ${status.outcome?.reason ?? ""}`)));
   const quietCard = !siteStillHasSomething;
   // Before any video, the "record" status says what this very page is for (its title and its camera button), so it is not said again.
-  const recordOnThisPage = !saved && (link.status === "valid" || descriptionShared)
+  const recordOnThisPage = !saved && link.status === "valid"
     && status?.decision === "record" && !status.outcome;
+  const needsRecordingPermission = link.status === "held" && scope === "owner" && link.recordingConsentAvailable;
+  const permissionComesFirst = needsRecordingPermission && !saved
+    && (status?.decision === "record" || status?.decision === "confirm_brief");
   // A withdrawn recording takes no new footage, edits or sharing: those controls are not offered once the withdrawal is known.
   const [withdrawn, setWithdrawn] = useState(false);
   // A withdrawal closes everything at once: no simulation link, and no hold of an earlier status.
@@ -724,7 +726,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const staleStatusNotice = currentStatusKnown && statusStale && statusReadAt !== null ? <p role="status" className="ms-field-hint">
     {`This is your job as of ${new Date(statusReadAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. We could not check for anything newer just now and are trying again.`}
   </p> : null;
-  const statusCard = status && currentStatusKnown && !recordOnThisPage
+  const statusCard = status && currentStatusKnown && !recordOnThisPage && !permissionComesFirst
     && (!quietCard || (cardExtras && !answer)) ? (
     <div
       style={{
@@ -807,10 +809,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   };
   const updateVideoSection = scope === "owner" && link.status === "valid" && !withdrawn
     ? <details aria-label="Update job video" style={answer ? undefined : { margin: "16px 0" }}>
-      <summary>Update walkthrough (optional)</summary>
-      <p className="ms-field-hint">If your job or recording has changed, you can send a complete updated walkthrough. Your job and original video stay saved.</p>
+      <summary>Update video (optional)</summary>
+      <p className="ms-field-hint">If your job or recording has changed, you can send a complete new video. Your job and original video stay saved.</p>
       <button type="button" className="ms-text-link" disabled={startingVideoUpdate} onClick={() => void updateVideo()}>
-        {startingVideoUpdate ? "Opening video update…" : "Update walkthrough"}
+        {startingVideoUpdate ? "Opening video update…" : "Update video"}
       </button>
       {videoUpdateError && <p role="alert">{videoUpdateError}</p>}
     </details> : null;
@@ -823,10 +825,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </button>}
     </details>
   ) : null;
-  const stopLabel = descriptionShared ? WITHDRAW_JOB_LABEL : STOP_USING_VIDEO_LABEL;
+  const stopLabel = canWithdrawDescription ? WITHDRAW_JOB_LABEL : STOP_USING_VIDEO_LABEL;
   const withdrawal = scope === "owner" && (link.status === "valid" || link.status === "held")
-    && (descriptionShared || saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
-    <OwnerRecordingWithdrawal token={token} onStatus={closeForWithdrawal} descriptionOnly={descriptionShared}
+    && (canWithdrawDescription || saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
+    <OwnerRecordingWithdrawal token={token} onStatus={closeForWithdrawal} descriptionOnly={canWithdrawDescription}
       summaryLabel={answer || !saved ? stopLabel : undefined} onWithdrawn={() => { closeForWithdrawal(); setLink({ status: "held",
       detail: "Recording permission was withdrawn. This link no longer accepts footage.",
       blockers: [], openQuestions: [], holdReason: "recording_consent_withdrawn" }); }} />
@@ -877,8 +879,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // The site's quick questions, and whether the page has an action waiting on the site first (an older job's agreement,
   // a step the status card names, or the job's sentence): then they sit below that action.
   // Only for a shared job: a job under an older statement has no company to answer yet, and its page asks for v4 first.
+  const taskFamily = status?.companyStatus?.taskFamily ?? anonymizedOpportunityDraft(jobSentence ?? "").taskFamily;
   const jobFacts = answer && scope === "owner" && !withdrawn && answer.sharing?.state !== "not_shared"
-    ? <JobFacts token={token} facts={status?.jobFacts as never} /> : null;
+    ? <JobFacts key={taskFamily} token={token} facts={status?.jobFacts as never} taskFamily={taskFamily} /> : null;
   const siteActionWaiting = answer?.sharing?.olderStatement === true || !quietCard || Boolean(taskStatementForm);
   const settingsOpen = scope === "owner" && (link.status === "valid" || link.status === "held");
   const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || undefined}
@@ -924,7 +927,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         <meta name="robots" content="noindex,nofollow" />
       </Helmet>
 
-      <BareScreen>
+      <BareScreen className={saved && view === "main" ? "site-job-status" : undefined}>
       {view === "details" && answer ? <SiteAnswerDetails answer={answer} onBack={closeView} onOpen={screen => openView(`details/${screen}`)} />
         : view.startsWith("details/") && answer ? <SiteAnswerDetail answer={answer} robotCheck={robotCheck} screen={view.slice(8) as DetailScreen} onBack={closeView} />
         : view === "settings" && settingsOpen ? settingsScreen
@@ -938,10 +941,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
       {jobSentence && <p className="bare-job">{answer?.job.drafted ? "We read your job as: " : ""}“{jobSentence.trim().replace(/[.!?]+$/, "")}.”</p>}
-      {/* A few quick questions help companies answer (PACKAGE_E E1; planner, 2026-11-12): right under the job sentence,
-          unless the page has an action waiting on the site; then below that action. */}
-      {jobFacts && !siteActionWaiting && jobFacts}
-
       {/* The status shown is the last good read's while newer reads fail: said, with its time. */}
       {staleStatusNotice}
       {/* A step the site must take comes first; the answer's own button then stays, quiet. */}
@@ -952,7 +951,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined}
         outlook={status?.outlook ?? null} sceneViewUrl={sceneViewUrl}
         successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null}
-        firstLookTable={status?.firstLookTable ?? null} />}
+        firstLookTable={status?.firstLookTable ?? null} jobFacts={siteActionWaiting ? null : jobFacts} />}
       {!answer && companyStatus && companyStatus.sharing.state !== "not_shared" && (
         <JobCompanyResponses token={token} sharing={companyStatus.sharing} activity={companyStatus.companies}
           onChanged={() => setStatusRefresh(value => value + 1)}
@@ -981,7 +980,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         && <SuccessThresholds key={status.successThresholds.proposalDigest} token={token} view={status.successThresholds}
           onDecided={() => setStatusRefresh(value => value + 1)} />}
 
-      {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough. This updates the same job and keeps your original video.</p>}
+      {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete new video. This updates the same job and keeps your original video.</p>}
       {/* A filming link opens the recorder; a held link explains its hold. */}
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
@@ -989,12 +988,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
       {link.status === "held" && (
         <>
-          {scope === "owner" && link.recordingConsentAvailable && (
+          {needsRecordingPermission && (
             <section aria-label="Confirm recording permission" style={{ marginBottom: "24px" }}>
-              <h2>{descriptionShared ? "Add a video (optional)" : "Record your job"}</h2>
-              <p className="ms-field-hint">{descriptionShared
-                ? "You can add a video to help companies evaluate your job and let us build a simulation of your site."
-                : "We need your video to build the simulation of your site and the job packet deployment companies answer from. Agree to continue. Blueprint drafts the job description from it."}</p>
+              <h2>Record your job</h2>
+              <p className="ms-field-hint">A video is required to post your job and build its simulation.</p>
               <p className="ms-field-hint">{FILMING_NOTICE}</p>
               {/* Recording statement v4, the one sentence a site agrees to with its video; pressing the button is the act. */}
               <p data-consent-line>{RECORDING_RIGHTS_STATEMENT_V4}</p>
@@ -1020,7 +1017,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 <a className="ms-text-link" href={`${status.claimUrl}?mode=signin`}>Sign in to save this job</a>
               </section>}
             </div>
-          ) : !(descriptionShared && link.holdReason === "recording_consent_required") && (
+          ) : !link.recordingConsentAvailable && (
             <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
           )}
 
@@ -1048,10 +1045,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           )}
 
           {/* A withdrawn recording never takes footage again on this link, so this is not said then. */}
-          {link.holdReason !== "recording_consent_withdrawn" && !withdrawn && !descriptionShared && <p style={{ color: "var(--ms-muted)" }}>
-            Keep this link. It is the same page you will record on — when the above changes,
-            open it again and it will let you upload. Nothing needs to be re-submitted and
-            nobody needs to email you.
+          {link.holdReason !== "recording_consent_withdrawn" && !withdrawn && <p style={{ color: "var(--ms-muted)" }}>
+            Keep this link to return to your job.
           </p>}
         </>
       )}

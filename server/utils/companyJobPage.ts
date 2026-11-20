@@ -16,6 +16,7 @@ import { readJobFacts } from "./jobFacts";
 import { firstLookFromStoredPreparation } from "./firstLookTable";
 import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
 import { removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
+import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 import { knownSiteIdentity } from "./siteIdentity";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
@@ -139,19 +140,17 @@ export function packetFactsForCompany(facts: PacketFacts | null, answers: Partia
 export async function loadCompanyJobPage(requestId: string, viewer: { companyId: string }): Promise<CompanyJobPage | null> {
   if (!db) throw new Error("company_job_store_unavailable");
   // The viewer must still be an approved deployment company, whatever the library gate decided.
-  const [{ record, access }, approved] = await Promise.all([loadCompanyJobAccess(requestId), companyStillApproved(viewer.companyId)]);
+  const [{ record, access, brief, session }, approved] = await Promise.all([loadCompanyJobAccess(requestId), companyStillApproved(viewer.companyId)]);
   if (!record || !access.listed || !approved) return null;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
-  const [brief, session, answerRow, firstLook, country] = await Promise.all([
-    db.collection("siteTaskBriefs").doc(requestId).get().then(doc => doc.data()),
-    db.collection("captureUploadSessions").doc(captureId).get().then(doc => doc.data()),
+  const [answerRow, firstLook, country, known] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").doc(viewer.companyId).get().then(doc => doc.data()),
     loadJobCardAnswerWithRobots(requestId, record),
     countryOf(record),
+    knownSiteIdentity(record).catch(() => null),
   ]);
   const facts = readJobFacts(record);
   // Identity that cannot be read right now: no sentence and no packet facts this time, never one that might name the site.
-  const known = await knownSiteIdentity(record).catch(() => null);
   const packet = known ? packetFactsForCompany(storedPacketFacts(session?.website_preparation), facts, known)
     : packetFactsForCompany(null, facts, { names: [], addresses: [], contacts: [] });
   const clip = storedCompanyClip(session, captureId);
@@ -166,6 +165,11 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     const words = firstLookRowInWords(firstLookRowFromAnswerRobot(robot), facts);
     return { verdict: words.verdict, text: words.text, robot: words.robot };
   });
+  const question = questionOnReply(answerRow);
+  const clarification = question ? clarificationOnReply(answerRow, question.id) : undefined;
+  const successRule = known && !brief?.successCriteria?.unknown
+    ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.successCriteria?.successDefinition ?? "").trim().slice(0, 1000), known))
+    : "";
   return {
     schemaVersion: "company_job_page.v1",
     id: requestId,
@@ -176,10 +180,11 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // text and any other contact detail removed (`removeIdentifyingDetails`), then any name-shaped text the record does
     // not hold (`removeNamesNotHeld`): a company gets the site's name only through an introduction the site asks for.
     sentence: known ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known)) : "",
-    jobFacts: jobFactsInWords(facts),
+    ...(successRule ? { successRule } : {}),
+    jobFacts: jobFactsInWords(facts, access.details.taskFamily),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
-      : access.reason === "no_video_yet" ? { state: "none" } : { state: "preparing" },
+      : { state: "preparing" },
     simulationDownload: simulationUrl ? { state: "ready", url: simulationUrl } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },
     firstLook: firstLook.summary,
@@ -189,7 +194,9 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     notShown: packet.notShown,
     myAnswer: answerRow && isCompanyResponseState(answerRow.state) ? { state: answerRow.state,
       inputs: typeof answerRow.inputs === "string" ? answerRow.inputs : "", updatedAtIso: String(answerRow.updatedAtIso ?? ""),
-      statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null } : null,
+      statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null,
+      ...(answerRow.details ? { details: answerRow.details } : {}) } : null,
+    ...(question && clarification ? { clarification: { question: question.text, answer: clarification } } : {}),
     responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT },
   };
 }

@@ -47,7 +47,9 @@ describe("Blueprint's answer on a job card", () => {
     expect(block).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(block).getByText(ANSWER.confidence.reason!)).toBeVisible();
     expect(within(block).getByText(JOB_CARD_LIMITS)).toBeVisible();
-    expect(JOB_CARD_LIMITS).toBe("A first look on paper, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.");
+    // It says what the first look checks, never that only that kind of job is taken: no job is refused by its kind.
+    expect(JOB_CARD_LIMITS).toBe("A first look on paper, not a test at the site. It checks only picking up and putting down. It does not certify performance or safety.");
+    expect(block).not.toHaveTextContent(/jobs only/i);
     expect(container.textContent).not.toMatch(/Yaskawa|1\.75 m|source|The UR20 palletizes here/);
   });
 
@@ -114,29 +116,17 @@ describe("Blueprint's answer on a job card", () => {
     expect(screen.queryByText(/Kind of job/)).toBeNull();
   });
 
-  it("shows one line in the browse list only on a card that carries a headline, and the answer when opened", async () => {
+  it("shows the first-look headline on the card and sends the company to the job for details", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access,
       items: [card({ answerHeadline: ANSWER.headline }), card({ id: "job-2", title: "Packing opportunity" })] }) });
     render(<TaskBrowse />);
     const items = await screen.findAllByRole("listitem");
-    const shared = items.find(item => within(item).queryByText("Carton palletizing opportunity"))!;
-    const plain = items.find(item => within(item).queryByText("Packing opportunity"))!;
-    expect(within(plain).queryByText(new RegExp(JOB_CARD_ANSWER_TITLE))).toBeNull();
-    // A company cannot run anything on a job (frame of 2026-11-12): no evaluation line, and no link to offer a system.
-    expect(within(plain).queryByText(/evaluat/i)).toBeNull();
-    expect(within(shared).queryByRole("link", { name: "Offer your system for this job" })).toBeNull();
-    const summary = within(shared).getByText(`${JOB_CARD_ANSWER_TITLE}: ${ANSWER.headline}`);
-    expect(within(shared).queryByRole("region", { name: JOB_CARD_ANSWER_TITLE })).toBeNull();
-
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ item: { ...card(), answerSummary: ANSWER } }) });
-    const details = summary.closest("details")!;
-    details.open = true;
-    fireEvent(details, new Event("toggle"));
-    expect(await within(shared).findByRole("region", { name: JOB_CARD_ANSWER_TITLE })).toBeInTheDocument();
-    // The title and the headline are said once, in the summary line, not again under it.
-    expect(within(shared).getAllByText(new RegExp(JOB_CARD_ANSWER_TITLE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toHaveLength(1);
-    expect(within(shared).queryByRole("heading", { name: JOB_CARD_ANSWER_TITLE })).toBeNull();
-    expect(within(shared).getAllByText(new RegExp(ANSWER.headline.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toHaveLength(1);
-    expect(fetchMock).toHaveBeenLastCalledWith("/api/site-worlds/tasks/job-1", expect.anything());
+    const shared = items.find(item => within(item).queryByText("Palletize cartons"))!;
+    const plain = items.find(item => within(item).queryByText("Pack items"))!;
+    expect(within(plain).queryByText(ANSWER.headline)).toBeNull();
+    expect(within(shared).getByText(ANSWER.headline)).toBeVisible();
+    expect(within(shared).getByRole("link", { name: "View job" })).toHaveAttribute("href", "/jobs/job-1");
+    expect(within(shared).getAllByRole("link")).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

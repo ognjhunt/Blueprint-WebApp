@@ -24,13 +24,15 @@ export type TeamAccessReason =
   | "rights_needs_review"
   | "recording_consent_missing"
   | "scene_not_runnable"
-  | "no_video_yet";
+  | "video_required";
 
 /**
  * The operator's "Deployment companies" panel on `/admin/jobs` (`GET /api/admin/jobs/:id/companies`). Admin only: it
  * carries company names, emails and their own words, which never reach the site (`server/utils/jobCompanies.ts`).
  */
 export interface AdminJobCompanies {
+  startedAtIso?: string | null;
+  firstAnswerAtIso?: string | null;
   sharing: { state: "shared_visible" | "shared_not_visible" | "not_shared"; words: string; reason: TeamAccessReason | null };
   hold: { atIso: string; by: string | null; reason: string | null } | null;
   consentRevoked: boolean;

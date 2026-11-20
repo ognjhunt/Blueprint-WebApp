@@ -109,7 +109,7 @@ describe("job-link recipient encryption boundary", () => {
     if (["encrypted", "legacy_plaintext"].includes(mode)) {
       expect(outbox).toHaveLength(1);
       expect(outbox[0][1]).toMatchObject({ to: EMAIL, kind: "task_received", status: "sent", attempts: 1 });
-      expect(outbox[0][1].body).toMatch(/We have your job/);
+      expect(outbox[0][1].body).toMatch(/Your job link is ready/);
       expect(mocks.send).toHaveBeenCalledTimes(1);
     } else {
       expect(outbox).toHaveLength(0); expect(mocks.send).not.toHaveBeenCalled();

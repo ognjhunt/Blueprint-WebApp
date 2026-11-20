@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { COMPANY_RESPONSE_LABELS, companyAliasName, NO_ANSWERS_YET, type CompanyResponseState } from "@/lib/companyResponses";
-import { EXAMPLE_CARD_NAME, EXAMPLE_FOOT, EXAMPLE_TAG, exampleSentTo } from "@/lib/publicCopy";
+import { EXAMPLE_TAG } from "@/lib/publicCopy";
 import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/site/RobotScene";
 
 /**
@@ -11,20 +11,20 @@ import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/sit
  * artwork and motion when revising copy.
  *
  * Each example is a small version of what a site sees on its job page once deployment companies answer: the job, how
- * many companies it went to, and up to three answers, each an alias and one of the real answer labels
+ * many companies opened it, and up to three answers, each an alias and one of the real answer labels
  * (`COMPANY_RESPONSE_LABELS`), as the site sees them. Every site, job, count and answer is made up and the card says
  * "Example" in words at all times. No company names, product or robot names, prices, percentages or "how sure".
  */
-type Example = Illustration & { job: string; sent: number; answers: CompanyResponseState[] };
+type Example = Illustration & { job: string; views: number; answers: CompanyResponseState[] };
 
-const job: Record<string, { job: string; sent: number; answers: CompanyResponseState[] }> = {
-  Warehouse: { job: "Picking small parcels off a shelf into a tote", sent: 6, answers: ["tested_can_do", "needs_something", "declined"] },
-  "Café": { job: "Moving clean cups from the dish rack onto a tray", sent: 4, answers: ["interested", "declined"] },
-  Laundromat: { job: "Stacking folded towels onto a shelf", sent: 3, answers: ["needs_something"] },
-  Factory: { job: "Placing small parts from a conveyor into a fixture", sent: 8, answers: ["tested_can_do", "interested", "declined"] },
-  Hotel: { job: "Placing folded napkins onto a tray", sent: 7, answers: ["interested", "needs_something"] },
+const job: Record<string, { job: string; views: number; answers: CompanyResponseState[] }> = {
+  Warehouse: { job: "Picking small parcels off a shelf into a tote", views: 6, answers: ["tested_can_do", "needs_something", "declined"] },
+  "Café": { job: "Moving clean cups from the dish rack onto a tray", views: 4, answers: ["interested", "declined"] },
+  Laundromat: { job: "Stacking folded towels onto a shelf", views: 3, answers: ["needs_something"] },
+  Factory: { job: "Placing small parts from a conveyor into a fixture", views: 8, answers: ["tested_can_do", "interested", "declined"] },
+  Hotel: { job: "Placing folded napkins onto a tray", views: 7, answers: ["interested", "needs_something"] },
   // The state before any company answers.
-  Lab: { job: "Placing sample tubes into a rack", sent: 5, answers: [] },
+  Lab: { job: "Placing sample tubes into a rack", views: 5, answers: [] },
 };
 
 const examples: Example[] = scenes.map(scene => ({ ...scene, ...job[scene.site] }));
@@ -57,14 +57,22 @@ export function PilotPreview() {
   const t = useSceneClock(!paused && inView, example.site);
   const { Art } = example;
   return (
-    <section className="bare-example" aria-label={EXAMPLE_CARD_NAME}>
-      <svg ref={artRef} className="bare-example-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
-        <g key={example.site} className="ms-pilot-art-scene">
-          <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-          <Art t={t} />
-        </g>
-      </svg>
-      <div className="bare-example-head">
+    <section className="bare-example" aria-labelledby="pilot-example-label">
+      <div className="bare-example-stage">
+        <div className="bare-example-head">
+          <p className="bare-example-tag" id="pilot-example-label">{EXAMPLE_TAG}</p>
+          <button type="button" className="bare-example-pause" onClick={() => { setPaused(p => !p); setPinned(false); }} aria-label={paused ? "Play examples" : "Pause examples"}>
+            {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
+          </button>
+        </div>
+        <svg ref={artRef} className="bare-example-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
+          <g key={example.site} className="ms-pilot-art-scene">
+            <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+            <Art t={t} />
+          </g>
+        </svg>
+      </div>
+      <div className="bare-example-content">
         <div role="tablist" aria-label="Example sites" className="bare-example-tabs"
           onFocus={() => setHeld(true)}
           onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false); }}
@@ -82,23 +90,21 @@ export function PilotPreview() {
               onClick={() => { setActive(i); setPinned(true); }}>{item.site}</button>
           ))}
         </div>
-        <button type="button" className="bare-example-pause" onClick={() => { setPaused(p => !p); setPinned(false); }} aria-label={paused ? "Play examples" : "Pause examples"}>
-          {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
-        </button>
+        <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel" tabIndex={0}>
+          <h2 className="bare-example-name">{example.job}</h2>
+          <p className="bare-example-by">{example.views} views · {example.answers.length} {example.answers.length === 1 ? "reply" : "replies"}</p>
+          {example.answers.length > 0
+            ? <ul className="bare-example-answers" aria-label="Example answers">
+              {example.answers.map((state, i) => (
+                <li key={ALIASES[i]}>
+                  <span>{companyAliasName(ALIASES[i])}</span>
+                  <span className="bare-example-status" data-state={state}>{COMPANY_RESPONSE_LABELS[state]}</span>
+                </li>
+              ))}
+            </ul>
+            : <p className="bare-example-by">{NO_ANSWERS_YET}</p>}
+        </div>
       </div>
-      <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel">
-        <p className="bare-example-tag">{EXAMPLE_TAG}</p>
-        <p className="bare-example-job">{example.site}: {example.job}</p>
-        <p className="bare-example-name">{exampleSentTo(example.sent)}</p>
-        {example.answers.length > 0
-          ? <ul className="bare-example-answers" aria-label="Example answers">
-            {example.answers.map((state, i) => (
-              <li key={ALIASES[i]}>{companyAliasName(ALIASES[i])} · {COMPANY_RESPONSE_LABELS[state]}</li>
-            ))}
-          </ul>
-          : <p className="bare-example-by">{NO_ANSWERS_YET}</p>}
-      </div>
-      <p className="bare-example-foot">{EXAMPLE_FOOT}</p>
     </section>
   );
 }

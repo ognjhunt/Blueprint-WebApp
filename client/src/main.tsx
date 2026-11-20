@@ -8,6 +8,7 @@ import "./components/site/partners.css";
 import "./components/site/job-workspace.css";
 import "./components/bare/bare.css";
 import "./components/bare/bare-public.css";
+import "./components/site/marketplace-jobs.css";
 import "./components/auth/auth.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "@/lib/helmet";

@@ -435,7 +435,7 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     const permission = await screen.findByRole("region", { name: "Confirm recording permission" });
     expect(permission.closest("details")).toBeNull();
-    expect(permission).toHaveTextContent(/need your video to build the simulation of your site and the job packet deployment companies answer from/);
+    expect(permission).toHaveTextContent("A video is required to post your job and build its simulation.");
     expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
     // Said before the grant: people in the work area are told, and sound is not analysed.
     expect(screen.getByText(/Tell people nearby that the video goes to Blueprint and to deployment companies we approve\. Avoid conversations: we remove the sound\./)).toBeInTheDocument();
@@ -468,13 +468,15 @@ describe("video first owner return", () => {
     }));
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("Video received.")).toBeVisible();
-    expect(screen.getByText("Update walkthrough (optional)").closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).not.toBeVisible();
-    fireEvent.click(screen.getByText("Update walkthrough (optional)"));
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).toBeEnabled();
+    expect(screen.getByText("Update video (optional)").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "Update video" })).not.toBeVisible();
+    fireEvent.click(screen.getByText("Update video (optional)"));
+    expect(screen.getByRole("button", { name: "Update video" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Upload a video file" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Upload a new recording" })).not.toBeInTheDocument();
     expect(screen.getByText(/your job and original video stay saved/i)).toBeInTheDocument();
+    // Plain words: the site sent a video, never a "walkthrough" (journey audit, 2026-11-20).
+    expect(screen.getByText("Update video (optional)").closest("details")).not.toHaveTextContent(/walkthrough/i);
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
   });
@@ -492,8 +494,8 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     await screen.findByText("Video received.");
     expect(screen.queryByRole("button", { name: "Upload a replacement walkthrough" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Update walkthrough (optional)"));
-    fireEvent.click(screen.getByRole("button", { name: "Update walkthrough" }));
+    fireEvent.click(screen.getByText("Update video (optional)"));
+    fireEvent.click(screen.getByRole("button", { name: "Update video" }));
     await waitFor(() => expect(route.navigate).toHaveBeenCalledWith("/capture-upload/signed-same-job-update"));
     const call = fetcher.mock.calls.find(([input]) => String(input).endsWith("/supplement"))!;
     expect(JSON.parse(String(call[1]?.body))).toMatchObject({ mode: "replacement", requestId: expect.any(String) });
@@ -510,13 +512,12 @@ describe("video first owner return", () => {
     expect(screen.getByText(/^Walk slowly in a half circle around where the job happens, keeping it in view\. Move slowly and overlap your passes/))
       .not.toBeVisible();
   });
-  it("offers introductions and withdrawal on a shared description before recording consent", async () => {
+  it("requires video on a legacy description listing and still lets the owner withdraw it", async () => {
     const fallback = ownerFetch(true);
     let withdrawn = false;
     const json = (body: unknown) => Promise.resolve({ ok: true, json: async () => body });
     const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.endsWith("/introductions")) return json({ ok: true });
       if (url.endsWith("/withdrawal")) {
         if (init?.method === "POST") withdrawn = true;
         return json({ withdrawn, withdrawal: withdrawn ? { descriptionOnly: true, requestedAtIso: null } : null });
@@ -524,21 +525,15 @@ describe("video first owner return", () => {
       if (url === `/api/site-task-brief/${TOKEN}/status`) return json({
         scope: "owner", captureReceived: false, answer: null,
         status: { decision: "record", headline: "A recording is the next step.", operatorAction: "Film the work area.", missingViews: [], nextUpdateIso: null },
-        companyStatus: { descriptionOnly: true, sharing: { state: "visible", sharedAtIso: null }, companies: {
-          entries: [{ kind: "answered", alias: "Company A", atIso: "2026-11-19T15:00:00Z", state: "interested", canIntroduce: true }],
-          sent: null, interested: true, introductions: { used: 0 },
-        } },
+        companyStatus: { descriptionOnly: true, sharing: { state: "not_shared", sharedAtIso: null } },
       });
       return fallback(input, init);
     });
     vi.stubGlobal("fetch", fetcher);
     render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByRole("button", { name: "Introduce us" }));
-    await waitFor(() => expect(fetcher.mock.calls.some(([url, init]) =>
-      String(url).endsWith("/introductions") && init?.method === "POST")).toBe(true));
-    expect(screen.getByRole("heading", { name: "Add a video (optional)" })).toBeVisible();
-    expect(screen.queryByText("A recording is the next step.")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Withdraw my job"));
+    expect(await screen.findByText("A video is required to post your job and build its simulation.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Introduce us" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByText("Withdraw my job"));
     fireEvent.click(screen.getByRole("button", { name: "Withdraw job…" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw job" }));
     expect(await screen.findByText("Job withdrawn.")).toBeVisible();
@@ -823,7 +818,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     expect(screen.queryByText("Add photos of the job items")).not.toBeInTheDocument();
     expect(screen.queryByText(/Add measurements/)).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => /\/(clarification|items|measurements|follow-up)\b/.test(url))).toEqual([]);
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).not.toBeVisible();
+    expect(screen.getByRole("button", { name: "Update video" })).not.toBeVisible();
   });
 
   it("shows a held video's status on a return visit, and asks nothing", async () => {
@@ -1485,7 +1480,7 @@ describe("the site's answer leads its job page", () => {
   it("says the job is shared, or shared but not visible right now, as the server decided, and offers no button either way", async () => {
     setUserAgent(DESKTOP_UA);
     for (const [sharing, line] of [
-      [{ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "We share your job with the deployment companies we approve."],
+      [{ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "Posted for approved deployment companies"],
       [{ state: "not_visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "Your job is not visible to companies right now."],
     ] as const) {
       vi.stubGlobal("fetch", answerFetch({ answer: { ...readyAnswer, jobCardListed: true, sharing } }));
@@ -1496,17 +1491,15 @@ describe("the site's answer leads its job page", () => {
     }
   });
 
-  // PACKAGE_E E1: the few quick questions sit directly under the job sentence, on the owner's page only.
-  it("mounts the few quick questions directly under the job sentence", async () => {
+  it("puts company activity before the optional quick questions", async () => {
     setUserAgent(DESKTOP_UA);
     const drafted = { ...readyAnswer, job: { ...readyAnswer.job, sentence: "Stack cartons onto the pallet", drafted: true },
       sharing: { state: "visible", sharedAtIso: "2026-11-12T10:00:00.000Z" } };
     vi.stubGlobal("fetch", answerFetch({ answer: drafted }));
     render(<SelfCaptureUpload />);
-    const sentence = await screen.findByText(/We read your job as:/);
     const facts = await screen.findByTestId("job-facts");
-    expect(sentence.nextElementSibling).toBe(facts);
-    expect(facts.compareDocumentPosition(screen.getByRole("region", { name: "Your job" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const companies = screen.getByRole("region", { name: "Deployment companies" });
+    expect(companies.nextElementSibling).toBe(facts);
   });
 
   it("asks no quick questions on an older job, whose page asks for the current statement first", async () => {
@@ -1579,7 +1572,7 @@ describe("the site's answer leads its job page", () => {
       : base(input)));
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("Recording permission withdrawn.")).toBeVisible();
-    await waitFor(() => expect(screen.queryByText("Update walkthrough (optional)")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Update video (optional)")).toBeNull());
     expect(screen.queryByText("Manage opportunity sharing (optional)")).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit your answers" })).toBeNull();
     expect(screen.getByText(/Withdrawal is not deletion/)).toBeVisible();

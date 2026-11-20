@@ -42,6 +42,13 @@ describe("approval before account creation", () => {
     await expect(redeemAccountInvitation(token, "google")).rejects.toMatchObject({ status: 403 });
     expect(auth.createUser).not.toHaveBeenCalled();
   });
+  it("uses the intended job and application preferences from the approved record", async () => {
+    const token = robotTeamAccountInvitation(approved);
+    state.docs.set(robotRef, { ...approved, returnToJob: "/jobs/carton-job", optionalUpdates: true });
+    await expect(resolveAccountInvitation(token)).resolves.toMatchObject({ returnTo: "/jobs/carton-job", optionalUpdates: true });
+    state.docs.set(robotRef, { ...approved, returnToJob: "//outside.example/jobs/carton-job" });
+    await expect(resolveAccountInvitation(token)).resolves.toMatchObject({ returnTo: "/contact/robot-team" });
+  });
   it("invalidates a prior decision revision and refuses role escalation", async () => {
     const token = robotTeamAccountInvitation(approved);
     state.docs.set(robotRef, { ...approved, decidedAtIso: "later-review" });
@@ -93,7 +100,7 @@ describe("public invitation endpoints", () => {
   it("returns only the invited setup details, without the approval revision or a session", async () => {
     const response = await post("inspect", { invitation: robotTeamAccountInvitation(approved) });
     expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/app" });
+    expect(await response.json()).toEqual({ email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/contact/robot-team", optionalUpdates: false });
     expect(auth.createUser).not.toHaveBeenCalled();
   });
 });

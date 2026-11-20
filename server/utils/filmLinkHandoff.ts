@@ -16,6 +16,7 @@
 import { isApprovedCaptureRegion, type CaptureRegion } from "../../client/src/data/captureResidency";
 import { FILM_AROUND_THE_JOB } from "../../client/src/lib/footageNotice";
 import { captureUploadUrlFor } from "./captureUploadToken";
+import { CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
 import { sendEmail } from "./email";
 import { looksLikePhoneNumber, sendSms } from "./sms";
 
@@ -103,7 +104,8 @@ export async function sendFilmLinkHandoff(params: {
       `Open this link on your phone. The recorder opens in your browser. No account is needed, and about thirty seconds of the actual cycle is enough:\n${filmUrl}\n\n` +
       `${FILM_AROUND_THE_JOB}\n\n` +
       `You can record and upload from this link. Confirming the job details stays with the person who sent it to you.`,
-    replyTo: "ops@tryblueprint.io",
+    // The same reply address as every other email to a site (hello@), not the operators' inbox.
+    replyTo: CUSTOMER_JOB_EMAIL_IDENTITY.replyTo,
   });
   if (result.sent) return { sent: true, filmUrl };
   return { sent: false, code: "email_unavailable", filmUrl };

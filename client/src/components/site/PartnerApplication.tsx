@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { applyForEarlyAccess, EarlyAccessApplicationError } from "@/lib/robotTeamAccess";
+import { companyJobReturnPath } from "@/lib/authReturnPath";
 
 /**
  * The one application a deployment company sends to see jobs (on `/partners`; `/contact/robot-team` points here). It
@@ -23,6 +24,7 @@ export function PartnerApplication() {
     if (inFlight.current) return;
     inFlight.current = true;
     const data = new FormData(event.currentTarget);
+    const returnToJob = companyJobReturnPath(new URLSearchParams(window.location.search).get("next"));
     const read = (key: string) => String(data.get(key) ?? "").trim();
     setState("sending");
     setError("");
@@ -38,6 +40,7 @@ export function PartnerApplication() {
         region: read("region"),
         acceptedTerms: true,
         optionalUpdates: data.get("optionalUpdates") === "on",
+        ...(returnToJob ? { returnToJob } : {}),
       });
       setState("saved");
     } catch (failure) {
@@ -51,32 +54,35 @@ export function PartnerApplication() {
   if (state === "saved") return (
     <div className="ms-partner-receipt" role="status">
       <h2 ref={savedHeading} tabIndex={-1}>Your application is saved.</h2>
-      <p>We approve each company by hand before we share any job with it. Once approved, you see the jobs sites send us, and if you asked for job emails, we email you when a new one arrives.</p>
-      <p>Applying does not approve access, commit you to a job, or guarantee work. No account or integration is needed now.</p>
+      <p>We'll email you if your company is approved to see jobs.</p>
     </div>
   );
 
   return (
     <form className="ms-form ms-partner-form" onSubmit={submit} method="post" aria-label="Deployment company application">
+      <h2>Apply for access</h2>
+      <p>We review each application by hand. Nothing is charged today.</p>
       <fieldset disabled={!interactive || state === "sending"}>
         <legend className="sr-only">Your company</legend>
         <div className="ms-form-row">
           <label>Your name<input name="name" autoComplete="name" maxLength={120} required /></label>
           <label>Work email<input name="email" type="email" autoComplete="email" maxLength={320} required /></label>
         </div>
-        <div className="ms-form-row">
-          <label>Company<input name="company" autoComplete="organization" maxLength={160} required /></label>
-          <label>Company website <span className="ms-optional">(optional)</span><input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} placeholder="https://example.com" title="Enter a website beginning with https:// or http://" /></label>
-        </div>
+        <label>Company<input name="company" autoComplete="organization" maxLength={160} required /></label>
         <label>What jobs can you deliver?
-          <textarea name="workWanted" rows={3} maxLength={1200} required placeholder="The recurring work you install or operate robots for" />
+          <textarea name="workWanted" rows={2} maxLength={1200} required placeholder="For example, packing boxes" />
         </label>
         <label>Which robots do you deploy?
-          <textarea name="robot" rows={3} maxLength={1200} required placeholder="The robots and software you supply, install and support" />
+          <textarea name="robot" rows={2} maxLength={1200} required placeholder="Robot models and software" />
         </label>
         <label>Where can you deploy?
           <input name="region" maxLength={300} required placeholder="Cities, states or countries you cover" />
         </label>
+        <details>
+          <summary>Add a website (optional)</summary>
+          <label>Company website<input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} placeholder="https://example.com" title="Enter a website beginning with https:// or http://"
+            onInvalid={event => { const details = event.currentTarget.closest("details"); if (details) details.open = true; }} /></label>
+        </details>
         <label className="ms-check-row"><input name="optionalUpdates" type="checkbox" />Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime.</label>
       </fieldset>
       <p className="ms-form-note">By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>. Application notices are separate from optional updates.</p>

@@ -27,7 +27,7 @@ describe("the one company application", () => {
     render(<PartnerApplication />);
     const form = screen.getByRole("form", { name: "Deployment company application" });
     expect([...form.querySelectorAll("input, textarea")].map(field => field.getAttribute("name")))
-      .toEqual(["name", "email", "company", "website", "workWanted", "robot", "region", "optionalUpdates"]);
+      .toEqual(["name", "email", "company", "workWanted", "robot", "region", "website", "optionalUpdates"]);
     completeRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(application.save).toHaveBeenCalledWith({
@@ -36,9 +36,7 @@ describe("the one company application", () => {
       acceptedTerms: true, optionalUpdates: false,
     }));
     expect(screen.getByRole("heading", { name: "Your application is saved." })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Applying does not approve access");
-    // Approval is once; after it every job sites send is shown, with no person matching jobs to companies (2026-11-12).
-    expect(screen.getByRole("status")).toHaveTextContent("Once approved, you see the jobs sites send us, and if you asked for job emails, we email you when a new one arrives.");
+    expect(screen.getByRole("status")).toHaveTextContent("We'll email you if your company is approved to see jobs.");
     expect(screen.getByRole("status").textContent).not.toMatch(/contact you when|when a job and what you do fit/i);
   });
 

@@ -20,8 +20,10 @@
 export const COMPANY_RESPONSE_STATES = ["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"] as const;
 /** Answers that need the job's simulation package. */
 export const TESTED_RESPONSE_STATES: readonly CompanyResponseState[] = ["tested_can_do", "tested_cannot_yet"];
+/** Replies a company can give after reviewing the job and its video. */
+export const FIT_RESPONSE_STATES = COMPANY_RESPONSE_STATES.filter(state => !TESTED_RESPONSE_STATES.includes(state));
 /**
- * Answers beside which a site may ask for an introduction (E6, as E9 reads it). Not "Would need something": the Terms a
+ * Answers beside which a site may ask for an introduction (E6, as E9 reads it). Not "Need more details": the Terms a
  * company accepted, and the line under its answer, say a site gets its name and contact details only after it answered
  * Interested or Tested it: can do. Meeting a company that would need something first takes a new line and new Terms
  * the company accepts (owner); until then the site reads why, and the company can change its answer.
@@ -31,16 +33,36 @@ export const INTRODUCIBLE_RESPONSE_STATES: readonly CompanyResponseState[] = ["i
 export const MAY_CHANGE_RESPONSE_STATES: readonly CompanyResponseState[] = ["needs_something", "tested_cannot_yet"];
 export type CompanyResponseState = (typeof COMPANY_RESPONSE_STATES)[number];
 
+export const COMPANY_START_WINDOWS = ["within_month", "one_to_three_months", "over_three_months"] as const;
+export type CompanyStartWindow = (typeof COMPANY_START_WINDOWS)[number];
+export const COMPANY_START_LABELS: Record<CompanyStartWindow, string> = {
+  within_month: "Within a month",
+  one_to_three_months: "In 1–3 months",
+  over_three_months: "More than 3 months",
+};
+export const COMPANY_QUESTION_LIMIT = 400;
+export const SITE_CLARIFICATION_LIMIT = 600;
+
+export interface CompanyReplyDetails {
+  verified?: string;
+  question?: string;
+  startWindow?: CompanyStartWindow;
+}
+
 export const COMPANY_RESPONSE_LABELS: Readonly<Record<CompanyResponseState, string>> = {
   interested: "Interested",
   declined: "Not a fit",
-  needs_something: "Would need something",
+  needs_something: "Need more details",
   tested_can_do: "Tested it: can do",
   tested_cannot_yet: "Tested it: cannot yet",
 };
 
 export function isCompanyResponseState(value: unknown): value is CompanyResponseState {
   return typeof value === "string" && (COMPANY_RESPONSE_STATES as readonly string[]).includes(value);
+}
+
+export function companyResponseNeedsNote(state: CompanyResponseState): boolean {
+  return state === "needs_something" || TESTED_RESPONSE_STATES.includes(state);
 }
 
 /** Under the company's response form in the job library, until 2026-11-12. Kept as the record of the older wording. */
@@ -78,6 +100,8 @@ export type SiteCompanyEntry =
        * Absent when there are none the site may read (given under the older line, or nothing left once taken out).
        */
       reason?: string;
+      details?: Pick<CompanyReplyDetails, "verified" | "startWindow">;
+      question?: { id: string; text: string; answer?: string };
       /** The site may press "Introduce us" for this company now. */
       canIntroduce?: boolean;
       /** When the site asked for the introduction. */
@@ -94,26 +118,27 @@ export interface SiteCompanyActivity {
   interested: boolean;
   /** The automatic send: how many approved deployment companies the job went to, and when it first went. */
   sent?: { count: number; firstAtIso: string } | null;
+  /** Distinct approved company accounts that opened the job page, or null if the count could not be read. */
+  views?: number | null;
+  startedAtIso?: string;
+  /** Absent if an earlier answer may have lost its original timestamp. */
+  firstAnswerAtIso?: string;
   /** Introductions made on this job (not cancelled). There is no limit per job (owner, 2026-11-12). */
   introductions?: { used: number };
 }
 
-/** The site's sentence for the automatic send (E4). */
-export const sentToCompanies = (count: number, date: string) =>
-  `Sent to ${count} deployment ${count === 1 ? "company" : "companies"} on ${date}.`;
+export function elapsedSince(start: string | null | undefined, end: string | null | undefined): string | null {
+  if (!start || !end) return null;
+  const minutes = (Date.parse(end) - Date.parse(start)) / 60_000;
+  if (!Number.isFinite(minutes) || minutes < 0) return null;
+  if (minutes < 1) return "under a minute";
+  const [value, unit]: [number, string] = minutes < 60 ? [Math.floor(minutes), "minute"]
+    : minutes < 1440 ? [minutes / 60, "hour"] : [minutes / 1440, "day"];
+  return new Intl.NumberFormat("en", { style: "unit", unit, unitDisplay: "long", maximumFractionDigits: 1 }).format(value);
+}
 
-/**
- * Under the send line while the job has gone to at least one company and none has answered. The home page's example
- * card shows the same state with the same constant, so the example says only what a real job page says.
- */
+/** The example's empty state before any company replies. */
 export const NO_ANSWERS_YET = "No answers yet.";
-
-/**
- * Under the sharing sentence while the job is shared and the site's company read came back with no send and no answer
- * (the job waits for its video check, or for the automatic send). Said only from a read that holds that fact: with no
- * read at all the page says nothing about sends.
- */
-export const NOT_SENT_YET = "Not sent to any deployment company yet.";
 
 /** The site's sentences. */
 export const sentToCompany = (alias: string, date: string) => `Sent to ${alias} on ${date}.`;

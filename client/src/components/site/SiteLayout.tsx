@@ -2,13 +2,15 @@ import type { PropsWithChildren } from "react";
 import { useLocation } from "wouter";
 import { MinimalSiteLayout } from "./MinimalSiteLayout";
 import { isMinimalPublicPath } from "@/data/minimalPublicSite";
+import { BROWSE_JOBS_PATH, jobLibrarySignInHref } from "@/lib/robotTeamAccess";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 
 export function SiteLayout({ children }: PropsWithChildren) {
   const [location] = useLocation();
   if (isMinimalPublicPath(location)) {
-    return <MinimalSiteLayout key={location}>{children}</MinimalSiteLayout>;
+    const browseCurrent = location === BROWSE_JOBS_PATH;
+    return <MinimalSiteLayout key={location} browseCurrent={browseCurrent} signInHref={browseCurrent ? jobLibrarySignInHref() : undefined}>{children}</MinimalSiteLayout>;
   }
   return (
     <div className="min-h-screen bg-runway-black text-runway-text">

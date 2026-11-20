@@ -164,13 +164,15 @@ describe("the decision ladder", () => {
     expect(status.operatorAction).toBeNull();
   });
 
-  it("never claims an automated check when a person reviews the footage", () => {
-    const manual = projectTaskStatus(
-      base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, footageReviewAutomated: false }),
-    );
-    expect(manual.decision).toBe("footage_received");
-    expect(manual.headline).toMatch(/our team reviews it and emails you/i);
-    expect(manual.headline).not.toMatch(/checking/i);
+  it("promises no person's review or email when the footage reader is off (journey audit, 2026-11-20)", () => {
+    // The route used to pass whether the footage reader runs; with it off, the site was told "Our team reviews it and
+    // emails you with the next step", which nothing does: the job goes on without the site either way.
+    const offRecord = { briefDrafted: true, site_task_brief_confirmed_at: "2026-11-20T10:00:00.000Z", hasStoredCapture: true,
+      stage: null, footageReviewAutomated: false } as Parameters<typeof taskStatusInputFrom>[0];
+    const off = projectTaskStatus(taskStatusInputFrom(offRecord));
+    expect(off.decision).toBe("footage_received");
+    expect(off.headline).toBe("We have your video. Nothing is needed from you now.");
+    expect(off.headline).not.toMatch(/our team|emails? you|checking/i);
   });
 
   it("keeps a measured shortfall internal while the saved footage is processed", () => {

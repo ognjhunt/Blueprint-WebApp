@@ -30,10 +30,10 @@ describe("robot-team verification from the job library", () => {
     expect(screen.queryByRole("textbox", { name: /Your name/ })).toBeNull();
   });
 
-  it("says approval is by hand and promises no job match while an application is pending", () => {
+  it("shows where approval will be sent while an application is pending", () => {
     render(<RobotTeamEarlyAccess access={{ gated: true, status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false }}
       email="eng@robot.example" />);
-    expect(screen.getByText(/We approve each company by hand and email eng@robot\.example if you are approved\./)).toBeInTheDocument();
+    expect(screen.getByText("We'll email eng@robot.example if your company is approved.")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/task fits/i);
   });
 });

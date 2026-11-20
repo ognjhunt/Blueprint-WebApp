@@ -1,6 +1,6 @@
 import { listingTargetingSchema } from "../../client/src/types/updatePreferences";
 import { z } from "zod";
-import { anonymizedOpportunityDraft, type TaskListingDetails } from "../../client/src/types/taskBrowse";
+import { anonymizedOpportunityDraft, storedAnonymizedOpportunityDraft, type TaskListingDetails } from "../../client/src/types/taskBrowse";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 
 export const listingConsentVersion = "public-task-card-v1";
@@ -48,9 +48,15 @@ export function approvedTaskDetails(record: unknown): TaskListingDetails | null 
  * card recorded under an older version (`LISTING_CONSENT_VERSIONS`) drops out with no data change.
  */
 export const JOB_SHARED_LISTING_VERSION = "job-shared-2026-11-12";
-/** Every category draft `anonymizedOpportunityDraft` can produce: the only details a shared listing is ever shown with. */
-const CATEGORY_DRAFTS: readonly TaskListingDetails[] = ["dish", "pallet carton", "pallet", "pack", "inspect", "pick", ""]
-  .map(phrase => anonymizedOpportunityDraft(phrase));
+/**
+ * Read the current sentence so jobs saved under older categories can use the same job types as new ones.
+ * If the sentence has no clear category, keep the stored one.
+ */
+export function listingDetailsForSentence(details: TaskListingDetails, sentence: string | null | undefined): TaskListingDetails {
+  if (!sentence?.trim()) return details;
+  const category = anonymizedOpportunityDraft(sentence);
+  return category.taskFamily === "Other" ? details : category;
+}
 /** Every listing version a card may be listed under: only the current one. */
 export const LISTING_CONSENT_VERSIONS: readonly string[] = [JOB_SHARED_LISTING_VERSION];
 
@@ -64,6 +70,6 @@ export function sharedJobListing(record: unknown): { details: TaskListingDetails
       || typeof grant.approvedAtIso !== "string" || !Number.isFinite(Date.parse(grant.approvedAtIso))) return null;
   // Never trust stored text: the details are rebuilt from the closed category the stored title names, else the neutral one.
   const title = (grant.details as { title?: unknown } | undefined)?.title;
-  return { details: CATEGORY_DRAFTS.find(draft => draft.title === title) ?? anonymizedOpportunityDraft(""),
+  return { details: storedAnonymizedOpportunityDraft(title),
     approvedAtIso: grant.approvedAtIso };
 }

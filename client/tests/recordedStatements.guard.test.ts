@@ -161,11 +161,11 @@ describe("recorded statements keep their exact text under their version", () => 
   });
 
   it("shows the sharing statement word for word on every surface that records it", () => {
-    // The start form reads the v4/v5 lines and records v4/v5; the job page shows v4 and records v4.
+    // The start form shows the v4 recording or v3 private-draft terms. The job page shows and records v4.
     const start = sourceText("client/src/components/site/SiteCaptureStart.tsx");
-    expect(start).toMatch(/SITE_START_CONSENT_WITH_VIDEO_V4 : SITE_START_CONSENT_NO_VIDEO_V5/);
+    expect(start).toMatch(/SITE_START_CONSENT_WITH_VIDEO_V4 : SITE_START_CONSENT_NO_VIDEO\b/);
     expect(start).toMatch(/RECORDING_RIGHTS_STATEMENT_V4_VERSION/);
-    expect(start).toMatch(/DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION/);
+    expect(start).toMatch(/DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION\b/);
     for (const file of ["client/src/components/site/SiteAnswer.tsx", "client/src/pages/SelfCaptureUpload.tsx"]) {
       const source = sourceText(file);
       expect(source, file).toMatch(/\{RECORDING_RIGHTS_STATEMENT_V4\}|helper=\{RECORDING_RIGHTS_STATEMENT_V4\}/);

@@ -101,12 +101,12 @@ test("returning owner keeps the received recording and gets same-job update guid
   await expect(page.getByText("Next action · You", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
-  const update = page.locator("details").filter({ has: page.getByText("Update walkthrough (optional)", { exact: true }) });
-  await expect(update).toContainText("If your job or recording has changed, you can send a complete updated walkthrough.");
+  const update = page.locator("details").filter({ has: page.getByText("Update video (optional)", { exact: true }) });
+  await expect(update).toContainText("If your job or recording has changed, you can send a complete new video.");
   await expect(update).toContainText("Your job and original video stay saved.");
-  await expect(update.getByRole("button", { name: "Update walkthrough", exact: true })).toBeHidden();
-  await page.getByText("Update walkthrough (optional)", { exact: true }).click();
-  await expect(update.getByRole("button", { name: "Update walkthrough", exact: true })).toBeEnabled();
+  await expect(update.getByRole("button", { name: "Update video", exact: true })).toBeHidden();
+  await page.getByText("Update video (optional)", { exact: true }).click();
+  await expect(update.getByRole("button", { name: "Update video", exact: true })).toBeEnabled();
   await expect(page.getByRole("link", { name: "contact Blueprint", exact: true })).toHaveCount(0);
   await expect(page.getByText(/starting a new job|new job needs its own review/i)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeHidden();

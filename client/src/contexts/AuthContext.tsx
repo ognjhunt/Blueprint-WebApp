@@ -6,6 +6,7 @@ import type { UserData } from "@/lib/firebase";
 import { resolveOperatorQaAuth } from "@/lib/operatorQaAuth";
 import { onFirebaseClientLoaded } from "@/lib/firebaseLoadSignal";
 import { clearSiteCaptureRecoveryForAccount } from "@/lib/siteCaptureDraft";
+import { BROWSE_JOBS_PATH, isApprovedDeploymentCompany } from "@/lib/robotTeamAccess";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -55,6 +56,8 @@ function loadFirebaseClientModule(): Promise<FirebaseClientModule> {
 const authSensitivePathPatterns = [
   /^\/claim(?:\/|$)/,
   /^\/contact\/site-operator(?:\/|$)/,
+  /^\/contact\/robot-team$/,
+  /^\/jobs\//,
   /^\/portal(?:\/|$)/,
   /^\/settings(?:\/|$)/,
   /^\/requests\/[^/]+(?:\/|$)/,
@@ -267,7 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resolveRedirectPath = React.useCallback(
-    (data: UserData | null): string => {
+    async (data: UserData | null, user?: FirebaseUser): Promise<string> => {
       const marketingDestination =
         (viteEnv.VITE_MARKETING_DESTINATION as string | undefined)?.trim() ||
         "/onboarding";
@@ -313,6 +316,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return normalizedRedirect;
       }
 
+      if (user && await isApprovedDeploymentCompany(user)) return BROWSE_JOBS_PATH;
+
       // If user just signed up (has onboardingStep set but not completed)
       if (data?.onboardingStep && data.onboardingStep !== "completed") {
         return "/onboarding";
@@ -329,8 +334,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const navigateAfterAuth = React.useCallback(
-    (data: UserData | null): string => {
-      const destination = resolveRedirectPath(data);
+    async (data: UserData | null, user?: FirebaseUser): Promise<string> => {
+      const destination = await resolveRedirectPath(data, user);
       if (destination.startsWith("http")) {
         if (typeof window !== "undefined") {
           window.location.href = destination;
@@ -477,7 +482,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(operatorQaAuth.currentUser as FirebaseUser);
         setUserData(normalizedUserData);
         setTokenClaims(operatorQaAuth.tokenClaims);
-        return navigateAfterAuth(normalizedUserData);
+        return await navigateAfterAuth(normalizedUserData, operatorQaAuth.currentUser as FirebaseUser);
       }
 
       const firebase = await loadFirebaseClientModule();
@@ -504,7 +509,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const normalizedUserData = normalizeUserData(userDataRecord);
       setUserData(normalizedUserData);
       setTokenClaims((await user.getIdTokenResult().catch(() => null))?.claims || null);
-      return navigateAfterAuth(normalizedUserData);
+      return await navigateAfterAuth(normalizedUserData, user);
     } catch (error: any) {
       console.error("Sign in error:", {
         code: error.code,
@@ -631,7 +636,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setUserData(onboardingReadyUserData);
     setTokenClaims((await user.getIdTokenResult().catch(() => null))?.claims || null);
-    return navigateAfterAuth(onboardingReadyUserData);
+    return navigateAfterAuth(onboardingReadyUserData, user);
   }
 
   async function beginGoogleRedirect(firebase: FirebaseClientModule) {
@@ -651,7 +656,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(operatorQaAuth.currentUser as FirebaseUser);
         setUserData(normalizedUserData);
         setTokenClaims(operatorQaAuth.tokenClaims);
-        return navigateAfterAuth(normalizedUserData);
+        return await navigateAfterAuth(normalizedUserData, operatorQaAuth.currentUser as FirebaseUser);
       }
 
       const firebase = firebaseClientModule;

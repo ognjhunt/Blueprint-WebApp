@@ -18,7 +18,7 @@
  * admin robot-team-access and job-outcomes routers with their production middleware (CSRF, Firebase token
  * verification, the admin role check), the coverage review, the automatic send, the introduction transaction, the
  * outcome-question sweep, Firestore, Storage and Auth (emulators), the normal Vite app. Synthetic: the video model's
- * reply (a scripted reading of one carton), the unsigned storage read URL and the empty location suggestions for a
+ * reply (a scripted reading of one carton), the Pipeline clip reference, the unsigned storage read URL and the empty location suggestions for a
  * manually chosen country. The local Auth emulator answers Firebase Auth requests. The test reads the email outbox.
  */
 import { test, expect, devices, type BrowserContext, type Page, type APIRequestContext } from "@playwright/test";
@@ -26,6 +26,7 @@ import path from "node:path";
 
 const ORIGIN = "http://127.0.0.1:4183";
 const AUTH_EMULATOR = "http://127.0.0.1:9099";
+const FIRESTORE_EMULATOR = process.env.FIRESTORE_EMULATOR_HOST ?? "127.0.0.1:8080";
 const PROJECT = "demo-blueprint-reliability";
 const VIDEO = path.resolve("e2e/fixtures/synthetic-transport.mp4");
 const DAY_MS = 86_400_000;
@@ -123,6 +124,12 @@ async function tick(request: APIRequestContext, requestId: string) {
   return response.json() as Promise<{ finished: boolean; passes: number; videoModelCalls: number }>;
 }
 
+async function publishCompanyClip(request: APIRequestContext, requestId: string) {
+  const response = await request.post(`${ORIGIN}/api/reliability/publish-company-clip?requestId=${encodeURIComponent(requestId)}`);
+  expect(response.ok(), await response.text()).toBe(true);
+  expect(await response.json()).toMatchObject({ accepted: true });
+}
+
 type OutboxRow = { kind: string; status: string; subject: string; body: string; to: string; idempotencyKey: string };
 async function outbox(request: APIRequestContext, requestId: string): Promise<OutboxRow[]> {
   const response = await request.get(`${ORIGIN}/api/reliability/outbox?requestId=${encodeURIComponent(requestId)}`);
@@ -147,7 +154,7 @@ async function expectFirstLook(page: Page) {
   await expect(firstLook.getByText(/^On paper, the robot most likely to fit: .+\.$/)).toBeVisible({ timeout: 45_000 });
   await expect(firstLook.getByText("From published specifications and where it has been used.", { exact: true })).toBeVisible();
   await expect(firstLook).toContainText(/How sure are we\?/);
-  await expect(companies(page)).toContainText("We share your job with the deployment companies we approve.");
+  await expect(companies(page)).toContainText("Posted for approved deployment companies");
   await expect(answer(page)).not.toContainText(/answered on|Introduce us|early trial|Simulation test/i);
   await expect(page.getByRole("button", { name: /share my job/i })).toHaveCount(0);
 }
@@ -173,17 +180,26 @@ test.describe("desktop", () => {
     // 2. The video is read (scripted model): the page shows where the job stands and the first look, and no answer.
     const ticked = await tick(request, requestId);
     expect(ticked).toMatchObject({ finished: true, videoModelCalls: 1 });
+    expect((await jobRecord(request, requestId)).access).toEqual({ listed: false, reason: "video_required" });
+    await publishCompanyClip(request, requestId);
     await page.reload();
     await expectFirstLook(page);
     expect((await jobRecord(request, requestId)).access).toMatchObject({ listed: true });
-    // Where the job stands, said plainly: shared, and not sent to any company yet (no company is approved yet).
-    await expect(companies(page)).toContainText("Not sent to any deployment company yet.");
+    await expect(companies(page)).toContainText("0 recorded views");
+    await expect(companies(page)).toContainText("0 replies");
+    const facts = page.getByRole("region", { name: "A few quick questions help companies answer" });
+    await expect(facts.getByText("Where does the robot pick up the load?")).toBeVisible();
+    await facts.getByRole("button", { name: "Moving conveyor" }).click();
+    await expect(facts.getByText("How heavy is the heaviest loaded item?")).toBeVisible();
+    await facts.getByRole("spinbutton", { name: "Weight" }).fill("20");
+    await facts.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(facts.getByText("How many items arrive per minute at the busiest time?")).toBeVisible();
 
     // 3. A deployment company applies, staff approve it, and it accepts the current Terms (signed in, in the browser).
     const applicationContext = await browser.newContext();
     await localOnly(applicationContext, missing);
     const applicationPage = await applicationContext.newPage();
-    await applicationPage.goto("/partners");
+    await applicationPage.goto(`/partners?next=${encodeURIComponent(`/jobs/${requestId}`)}#partner-application`);
     const application = applicationPage.getByRole("form", { name: "Deployment company application" });
     await application.getByLabel("Your name").fill(company.contact);
     await application.getByLabel("Work email").fill(company.email);
@@ -197,6 +213,7 @@ test.describe("desktop", () => {
     await application.getByRole("button", { name: "Apply", exact: true }).click();
     const applicationResponse = await applied;
     expect(applicationResponse.status(), await applicationResponse.text()).toBe(202);
+    expect(applicationResponse.request().postDataJSON().returnToJob).toBe(`/jobs/${requestId}`);
     await expect(applicationPage.getByRole("heading", { name: "Your application is saved." })).toBeVisible();
     await applicationContext.close();
     const applyHeaders = await csrf(request);
@@ -215,9 +232,9 @@ test.describe("desktop", () => {
     const companySaw: string[] = [];
     await localOnly(companyContext, missing);
     // The Firebase browser SDK uses this default for its own profile reads and writes during sign-in.
-    await companyContext.addInitScript(() => {
-      Object.assign(globalThis, { __FIREBASE_DEFAULTS__: { emulatorHosts: { firestore: "127.0.0.1:8080" } } });
-    });
+    await companyContext.addInitScript(firestore => {
+      Object.assign(globalThis, { __FIREBASE_DEFAULTS__: { emulatorHosts: { firestore } } });
+    }, FIRESTORE_EMULATOR);
     companyContext.on("response", async response => {
       if (new URL(response.url()).origin !== ORIGIN || !new URL(response.url()).pathname.startsWith("/api/")) return;
       if (/^(video|image)\//.test(response.headers()["content-type"] ?? "")) return;
@@ -266,21 +283,31 @@ test.describe("desktop", () => {
     await companyPage.goto("/contact/robot-team");
     const row = companyPage.locator(`li#job-${requestId}`);
     await expect(row).toBeVisible({ timeout: 30_000 });
-    await row.getByRole("link", { name: "Open the job and answer" }).click();
-    await expect(companyPage).toHaveURL(new RegExp(`/jobs/${requestId}$`));
+    const searchTerm = (await row.getByRole("heading").innerText()).trim().split(/\s+/)[0];
+    await companyPage.getByRole("searchbox", { name: "Search jobs" }).fill(searchTerm);
+    await row.getByRole("link", { name: "View job" }).click();
+    await expect(companyPage).toHaveURL(new RegExp(`/jobs/${requestId}\\?from=`));
+    await companyPage.getByRole("link", { name: "Back to jobs" }).click();
+    await expect(companyPage.getByRole("searchbox", { name: "Search jobs" })).toHaveValue(searchTerm);
+    await row.getByRole("link", { name: "View job" }).click();
     await expect(companyPage.getByText("Pick up the sealed carton from the end of the conveyor and place it on the cart.")).toBeVisible({ timeout: 30_000 });
-    // The packet's video is the Pipeline's sound-free, privacy-processed clip. No Pipeline runs here, so it is still being
-    // prepared, and the site's own upload is never served in its place.
-    await expect(companyPage.getByRole("region", { name: "The video" })).toContainText("The video is being prepared.");
-    await expect(companyPage.getByLabel("The site's video, without sound")).toHaveCount(0);
+    await expect(companyPage.getByText("Pickup: Moving conveyor", { exact: true })).toBeVisible();
+    await expect(companyPage.getByText("Heaviest loaded item: 9.072 kg", { exact: true })).toBeVisible();
+    // The approved browser receives a ticket for the published clip. A request without a ticket is refused.
+    await expect(companyPage.getByLabel("The site's video, without sound")).toHaveAttribute("src",
+      new RegExp(`/api/company-media/jobs/${requestId}/video\\.mp4\\?`));
     expect((await companyPage.request.get(`${ORIGIN}/api/company-media/jobs/${requestId}/video.mp4`)).status()).toBeGreaterThanOrEqual(400);
 
     // The company answers Interested on the job's page.
-    const form = companyPage.getByRole("form", { name: "Answer about this job" });
+    const form = companyPage.getByRole("form", { name: "Response to opportunity" });
     await form.getByLabel("Interested").check();
-    await form.getByRole("textbox").fill("We move cartons like these today.");
+    await form.getByRole("textbox", { name: "Note to the site (optional)" }).fill("We move cartons like these today.");
+    await form.getByText("Add details (optional)", { exact: true }).click();
+    await form.getByLabel("What you’ve verified").fill("The carton weight is in our payload range.");
+    await form.getByLabel("Question for the site").fill("How many cartons arrive per minute?");
+    await form.getByLabel("Earliest start").selectOption("within_month");
     const sent = companyPage.waitForResponse(response => response.url().endsWith(`/api/site-worlds/tasks/${requestId}/interest`));
-    await form.getByRole("button", { name: "Send answer" }).click();
+    await form.getByRole("button", { name: "Send response" }).click();
     expect((await sent).status()).toBe(200);
     await expect(form.getByRole("status")).toContainText(/saved/i);
 
@@ -295,9 +322,18 @@ test.describe("desktop", () => {
     // 4. The site sees the answer under the alias, never the company's name, and nothing is introduced yet.
     await page.reload();
     const entries = companies(page);
-    await expect(entries).toContainText(/Sent to 1 deployment company on .+\./, { timeout: 30_000 });
-    await expect(entries).not.toContainText("Not sent to any deployment company yet.");
-    await expect(entries).toContainText(/Company A answered on .+: Interested\./);
+    await expect(entries).toContainText("1 recorded view", { timeout: 30_000 });
+    await expect(entries).toContainText("1 reply");
+    const companyReply = entries.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });
+    await expect(companyReply.getByText("Interested", { exact: true })).toBeVisible();
+    await expect(companyReply.getByText("Within a month", { exact: true })).toBeVisible();
+    await expect(companyReply.getByText("How many cartons arrive per minute?", { exact: true })).toBeVisible();
+    await companyReply.getByText("Answer question", { exact: true }).click();
+    await companyReply.getByLabel("Reply to the question").fill("12 cartons per minute.");
+    await companyReply.getByRole("button", { name: "Send answer" }).click();
+    await expect(companyReply.getByText("12 cartons per minute.", { exact: true })).toBeVisible();
+    await companyPage.reload();
+    await expect(companyPage.getByRole("region", { name: "Answer from the site" })).toContainText("12 cartons per minute.");
     await expect(page.locator("body")).not.toContainText(company.name);
     await expect(page.locator("body")).not.toContainText(company.email);
     await expect(entries).toContainText("We give Company A your name, address and contact details, and give you theirs.");
@@ -397,6 +433,7 @@ test.describe("phone", () => {
     const { link, requestId } = await startWithVideo(page, `core-journey-phone-${stamp}@example.invalid`, `12 Phone Street ${stamp}`);
     await link.click();
     expect((await tick(request, requestId)).finished).toBe(true);
+    await publishCompanyClip(request, requestId);
     await page.reload();
     await expectFirstLook(page);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

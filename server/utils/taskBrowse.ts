@@ -4,6 +4,9 @@ import type { LibraryJobStage, TaskBrowseCard, TaskCardDetail } from "../../clie
 import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
 import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
+import { countryOf } from "./companyJobPage";
+import { siteWalkthroughIdentity } from "./siteWalkthrough";
+import { storedCompanySimulation } from "./websiteCompanySimulation";
 
 /**
  * The job card approved deployment companies see in the library: category title and stage only. Whether it appears is
@@ -49,6 +52,17 @@ export async function libraryJobStage(id: string, record: Record<string, any>): 
   }
 }
 
+async function libraryCard(card: TaskBrowseCard, record: Record<string, any>,
+  session?: FirebaseFirestore.DocumentData): Promise<TaskBrowseCard> {
+  const { captureId } = siteWalkthroughIdentity(card.id, record);
+  const simulationDownloadAvailable = Boolean(storedCompanySimulation(session, captureId));
+  const [country, simulationStage] = await Promise.all([
+    countryOf(record),
+    simulationDownloadAvailable ? "simulation_built" as const : libraryJobStage(card.id, record),
+  ]);
+  return { ...card, region: card.region || country || "", simulationStage, simulationDownloadAvailable };
+}
+
 /**
  * `withAnswerHeadlines` adds the answer's headline to a card whose site chose to share its answer and whose
  * current listing consent still names it (`jobCardAnswerShared`). No answer is composed for any other card.
@@ -59,11 +73,12 @@ export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boole
   const snapshot = await db.collection("inboundRequests")
     .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).limit(200).get();
   const cards = await Promise.all(snapshot.docs.map(async (doc): Promise<TaskBrowseCard | null> => {
-    const { access } = await loadCompanyJobAccess(doc.id, doc.data());
-    const listed = projectTaskBrowseCard(doc.id, doc.data() as InboundRequest, access);
-    const card: TaskBrowseCard | null = listed ? { ...listed, simulationStage: await libraryJobStage(doc.id, doc.data()) } : null;
-    if (!card || !options.withAnswerHeadlines || !jobCardAnswerShared(doc.data())) return card;
-    const headline = await loadJobCardAnswerHeadline(doc.id, doc.data());
+    const record = doc.data() as InboundRequest;
+    const { access, session } = await loadCompanyJobAccess(doc.id, record);
+    const listed = projectTaskBrowseCard(doc.id, record, access);
+    if (!listed) return null;
+    const [card, headline] = await Promise.all([libraryCard(listed, record, session),
+      options.withAnswerHeadlines && jobCardAnswerShared(record) ? loadJobCardAnswerHeadline(doc.id, record) : null]);
     return headline ? { ...card, answerHeadline: headline } : card;
   }));
   return cards.filter((card): card is TaskBrowseCard => card !== null)
@@ -73,10 +88,9 @@ export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boole
 /** One listed card as an approved company opens it, with the answer when the site shared it. Null when not listed. */
 export async function readTaskCardDetail(id: string): Promise<TaskCardDetail | null> {
   if (!db) throw new Error("Task library unavailable");
-  const { record, access } = await loadCompanyJobAccess(id);
+  const { record, access, session } = await loadCompanyJobAccess(id);
   const listed = record ? projectTaskBrowseCard(id, record as InboundRequest, access) : null;
   if (!listed || !record) return null;
-  const card = { ...listed, simulationStage: await libraryJobStage(id, record) };
-  const answerSummary = await loadJobCardAnswer(id, record);
+  const [card, answerSummary] = await Promise.all([libraryCard(listed, record as InboundRequest, session), loadJobCardAnswer(id, record)]);
   return answerSummary ? { ...card, answerHeadline: answerSummary.headline, answerSummary } : card;
 }

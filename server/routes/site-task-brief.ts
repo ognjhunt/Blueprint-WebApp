@@ -87,7 +87,6 @@ import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
-import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
 import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
@@ -100,7 +99,7 @@ import { createSiteClaimToken } from "../utils/request-review-auth";
 import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
-import { emailGreeting } from "../utils/emailLayout";
+import { CUSTOMER_JOB_EMAIL_IDENTITY, emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 import { taskStatementNeeded } from "../utils/jobSentenceWait";
@@ -230,12 +229,28 @@ router.post("/:token/success-thresholds", csrfProtection, async (req, res) => {
   }
 });
 
-/**
- * "Introduce us" (PACKAGE_E E6): the site asks for an introduction to one deployment company that answered Interested.
- * `requestIntroduction` (`server/utils/jobIntroductions.ts`) re-checks everything in one transaction, records the
- * introduction and queues both emails; this route only checks the owner's link and says each refusal in one sentence.
- * The body names the company by its alias on this job, never by anything else. Owner link only.
- */
+/** Answer one company's current question from the site's private owner link. */
+router.post("/:token/clarifications", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified || verified.scope !== "owner")
+    return res.status(403).json({ error: "Open the owner's job link to answer this question." });
+  const { SITE_CLARIFICATION_LIMIT } = await import("../../client/src/lib/companyResponses");
+  const body = z.object({ alias: z.string().regex(/^[A-Z]{1,3}$/), questionId: z.string().regex(/^[a-f0-9]{64}$/),
+    answer: z.string().trim().min(2).max(SITE_CLARIFICATION_LIMIT) }).strict().safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "Enter a short answer about the job." });
+  try {
+    const { answerCompanyQuestion } = await import("../utils/jobClarifications");
+    const result = await answerCompanyQuestion({ jobId: verified.requestId, ...body.data });
+    if (result.status === "saved") return res.json({ ok: true, answer: result.answer });
+    if (result.status === "needs_detail") return res.status(400).json({ error: "Add a detail about the job, such as a size, rate, or requirement." });
+    return res.status(409).json({ error: "This question is no longer open. Refresh the job to see the latest responses." });
+  } catch {
+    return res.status(503).json({ error: "Your answer could not be saved. Please try again." });
+  }
+});
+
+/** Introduce the site to one eligible company by alias. The signed owner link is required. */
 router.post("/:token/introductions", csrfProtection, async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const verified = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -919,7 +934,8 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
         "Here is a fresh private link to your job. It opens your job without a password, so please don't forward it.",
         `Open your job:\n${captureUploadUrlFor(requestId, "owner")}`,
       ].join("\n\n"),
-      replyTo: "ops@tryblueprint.io",
+      // The same reply address as every other email to a site (hello@), not the operators' inbox.
+      replyTo: CUSTOMER_JOB_EMAIL_IDENTITY.replyTo,
     });
     void deliverOutbox({ limit: 5 }).catch(() => undefined);
   } catch (error) {
@@ -1023,6 +1039,9 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       });
     }
 
+    if (!result.reusedConfirmation) void import("../utils/jobAutoSend")
+      .then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId)).catch(() => undefined);
+
     // Every accepted job hears the same thing, whatever its kind or shape. Only a brief with no sentence about
     // the job is asked for one, by email too; the outbox can retry delivery without a timed check-in.
     const briefUnclear = taskBriefUnclear(result.scope);
@@ -1115,16 +1134,19 @@ function bareSiteAnswerForStatus(params: StatusAnswerParams | null) {
 async function siteCompanyStatus(params: StatusAnswerParams | null) {
   if (!params) return null;
   try {
-    const [{ loadCompanyJobAccess }, { jobSharingOf }, { descriptionStatementShares }] = await Promise.all([
+    const [{ loadCompanyJobAccess }, { jobSharingOf }, { descriptionStatementShares, isJobSharedListing }] = await Promise.all([
       import("../utils/teamJobAccess"), import("../utils/siteAnswer"), import("../utils/jobSharedListing"),
     ]);
     const { access } = await loadCompanyJobAccess(params.requestId, params.request);
     const sharing = jobSharingOf(params.request, access);
-    const descriptionOnly = descriptionStatementShares(params.request) && sharing.state !== "not_shared";
+    if (sharing.state === "preparing" || (sharing.state === "not_shared" && !sharing.olderStatement && !params.videoReceived))
+      sharing.videoReceived = params.videoReceived;
     const companies = sharing.state === "not_shared" ? undefined
       : await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
         .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; });
-    return { sharing, companies, descriptionOnly };
+    // Keep withdrawal available for old description-only listings, even though companies no longer see them.
+    const descriptionOnly = isJobSharedListing(params.request) && descriptionStatementShares(params.request);
+    return { sharing, companies, descriptionOnly, ...(access.listed ? { taskFamily: access.details.taskFamily } : {}) };
   } catch (error) {
     logger.warn({ error, requestId: params.requestId }, "Could not read the job's company status");
     return null;
@@ -1297,7 +1319,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         footageBeforeAccount,
         consentRevoked: request?.captureRights.consent_revoked,
         jobWorkWindow: request?.jobWorkWindow ?? null,
-        footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
         visualReconstructionReady: payload.scope === "owner" && request?.visualReconstructionReady === true,
         scenePreparationFailed: reconstruction?.state === "failed",
@@ -1367,9 +1388,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       captureReceived: hasStoredCapture,
       uploadState,
       processingHold: upload.processingHold ?? null,
-      // Whether coverage is checked automatically or by a person, so the page
-      // says which one happens.
-      footageReviewAutomated: isSiteVideoEvidenceEnabled(),
       summary: request?.captureRights.consent_revoked ? null : brief?.summary ?? null,
       claimUrl,
       sceneViewUrl: scenePreviewUrl ?? (status.resultSuperseded ? null : sceneViewUrl),

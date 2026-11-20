@@ -145,11 +145,11 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
   if (!/^demo-blueprint-reliability(?:-a|-b)?\.appspot\.com$/.test(bucketName)) throw new Error('Demo bucket required');
   const [{ csrfProtection }, { default: verifyFirebaseToken }, { requireAdminRole }, { default: jobWorkflow }, { default: siteWorlds },
     { default: companyMedia }, { default: robotTeamAccess }, { default: adminRobotTeamAccess }, { default: jobOutcomes },
-    { default: workspace }, queue, { default: admin }] = await Promise.all([
+    { default: workspace }, { default: jobFacts }, queue, { default: admin }] = await Promise.all([
     import('../../server/middleware/csrf'), import('../../server/middleware/verifyFirebaseToken'), import('../../server/middleware/requireAdminRole'),
     import('../../server/routes/job-workflow'), import('../../server/routes/site-worlds'), import('../../server/routes/company-media'),
     import('../../server/routes/robot-team-access'), import('../../server/routes/admin-robot-team-access'), import('../../server/routes/job-outcomes'),
-    import('../../server/routes/workspace'), import('../../server/utils/captureCoverageQueue'), import('firebase-admin'),
+    import('../../server/routes/workspace'), import('../../server/routes/job-facts'), import('../../server/utils/captureCoverageQueue'), import('firebase-admin'),
   ]);
   // The app the product's firebaseAdmin module initialized against the emulators.
   const firebaseApp = admin.apps[0];
@@ -166,6 +166,7 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
 
   // The private job page's own reads (and the deployment-company step it can turn on).
   app.use('/api/job-workflow', csrfProtection, jobWorkflow);
+  app.use('/api/job-facts', jobFacts);
   // The deployment company's side and the job's follow-ups, mounted as server/routes.ts mounts them. Accounts are
   // real Firebase ID tokens from the Auth emulator, verified by the product's own middleware.
   app.use('/api/workspace', csrfProtection, verifyFirebaseToken, workspace);
@@ -191,6 +192,16 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
       if (!pending) break;
     }
     res.json({ finished: !queue.isCoverageReviewActive() && !pending, passes, videoModelCalls: harness.videoModel.generateCalls - before });
+  });
+  // Stand in for Pipeline publication. The product stores and checks the synthetic clip reference as it does a real one.
+  app.post('/api/reliability/publish-company-clip', loopbackOnly, async (req, res) => {
+    const requestId = String(req.query.requestId || '');
+    if (!/^[A-Za-z0-9_-]{1,120}$/.test(requestId)) return res.status(400).json({ error: 'requestId required' });
+    const [{ recordWebsiteCompanyClip, websiteCompanyClipSchema }, { sharedCompanyClip }] = await Promise.all([
+      import('../../server/utils/websiteCompanyClip'), import('../../server/tests/helpers/sharedJob')]);
+    const captureId = `walkthrough-${requestId}`;
+    const clip = websiteCompanyClipSchema.parse(sharedCompanyClip(captureId));
+    res.json(await recordWebsiteCompanyClip(requestId, `site-${requestId}`, captureId, clip));
   });
   // Runs the job-window sweep's production entry point for one job at a given time, as its scheduler would.
   app.post('/api/reliability/job-window-sweep', loopbackOnly, async (req, res) => {

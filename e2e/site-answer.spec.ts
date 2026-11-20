@@ -21,9 +21,8 @@ const FIND = "Share my job";
 const OLDER = "Not shared yet.";
 const AGREE = "Agree and send my job";
 const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
-const SHARED = "We share your job with the deployment companies we approve.";
+const SHARED = "Posted for approved deployment companies";
 /** A shared job the read shows has gone to no company yet. */
-const NOT_SENT = "Not sent to any deployment company yet.";
 /** The recorded statement, word for word: only the words around it changed. */
 
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
@@ -149,9 +148,8 @@ test("while the simulation of the site is being built, the page says so, with th
     sharing: { state: "preparing", sharedAtIso: "2026-11-11T15:00:00.000Z" }, companies: { interested: false, sent: null, entries: [] } });
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(SHARED, { exact: true })).toBeVisible();
-  // Where the job stands, said plainly: shared, and not sent to any company yet.
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(NOT_SENT, { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText("Your job will appear when the video and job details are ready.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(SHARED, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Simulation of your site" }).getByText("We're building the simulation of your site.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();
   await expect(job.getByRole("navigation", { name: "More" })).toHaveText("See details ›Job settings ›");
@@ -194,7 +192,7 @@ test("a shared job that is held says it is not visible right now", async ({ page
 test("the deployment companies section says the send line, each answer by alias, and offers Introduce us", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { introductions, unexpected } = await mockJob(page, { sharing: { state: "visible", sharedAtIso: "2026-11-11T15:00:00.000Z" },
-    companies: { interested: true, sent: { count: 3, firstAtIso: "2026-11-12T10:00:00.000Z" }, introductions: { used: 0 }, entries: [
+    companies: { interested: true, views: 3, sent: { count: 3, firstAtIso: "2026-11-12T10:00:00.000Z" }, introductions: { used: 0 }, entries: [
       { kind: "answered", alias: "Company B", atIso: "2026-11-12T12:00:00.000Z", state: "needs_something", canIntroduce: false,
         reason: "We would need a video of the far end of the line." },
       { kind: "answered", alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested", canIntroduce: true },
@@ -202,9 +200,13 @@ test("the deployment companies section says the send line, each answer by alias,
   await page.goto(`/capture-upload/${token}?video=existing`);
   const companies = page.getByRole("region", { name: "Deployment companies" });
   await expect(companies.getByText(SHARED, { exact: true })).toBeVisible();
-  await expect(companies.getByText("Sent to 3 deployment companies on November 12, 2026.", { exact: true })).toBeVisible();
-  await expect(companies.getByText("Company B answered on November 12, 2026: Would need something.", { exact: true })).toBeVisible();
-  await expect(companies.getByText("Company A answered on November 13, 2026: Interested.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("3 recorded views", { exact: true })).toBeVisible();
+  await expect(companies.getByText("2 replies", { exact: true })).toBeVisible();
+  const companyB = companies.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company B", exact: true }) });
+  await expect(companyB.getByText("Need more details", { exact: true })).toBeVisible();
+  await expect(companyB.getByText("November 12, 2026", { exact: true })).toBeVisible();
+  const companyA = companies.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });
+  await expect(companyA.getByText("Interested", { exact: true })).toBeVisible();
   // Why (2026-11-20): the company's words as the server gives them, and what would make an introduction possible.
   await expect(companies.getByText("In their words: “We would need a video of the far end of the line.”", { exact: true })).toBeVisible();
   await expect(companies.getByText("You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.", { exact: true })).toBeVisible();

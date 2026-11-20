@@ -86,13 +86,13 @@ describe("the Deployment companies panel", () => {
     const [company, state] = within(form).getAllByRole("combobox");
     fireEvent.change(company, { target: { value: NORTH } });
     fireEvent.change(state, { target: { value: "needs_something" } });
-    expect(within(state).getAllByRole("option").map(option => option.textContent)).toEqual(["Interested", "Not a fit", "Would need something"]);
+    expect(within(state).getAllByRole("option").map(option => option.textContent)).toEqual(["Interested", "Not a fit", "Need more details"]);
     expect(within(form).queryByLabelText(/Note/)).toBeNull();
     fireEvent.change(within(form).getByLabelText(/Their words/), { target: { value: "We would need a second gripper." } });
     fireEvent.submit(form);
     const responses = within(section()).getByRole("region", { name: "Responses" });
     expect(await within(responses).findByText("“We would need a second gripper.”")).toBeInTheDocument();
-    expect(within(responses).getByText("Would need something")).toBeInTheDocument();
+    expect(within(responses).getByText("Need more details")).toBeInTheDocument();
     expect(posts).toEqual([{ path: "/responses", body: { companyId: NORTH, state: "needs_something", inputs: "We would need a second gripper." } }]);
   });
 

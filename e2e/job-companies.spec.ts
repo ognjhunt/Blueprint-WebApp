@@ -86,7 +86,7 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
   await responseForm.getByLabel(/Their words/).fill("We would need a second gripper.");
   await responseForm.getByRole("button", { name: "Record the answer" }).click();
   const responses = section.getByRole("region", { name: "Responses" });
-  await expect(responses).toContainText("Would need something");
+  await expect(responses).toContainText("Need more details");
   await expect(responses).toContainText("“We would need a second gripper.”");
   await expect(responseForm.getByRole("textbox", { name: /Note/ })).toHaveCount(0);
 
@@ -146,9 +146,9 @@ test("a signed-in company opens a job from the library, watches the video and an
   const row = page.locator(`li#job-${JOB}`);
   await expect(row).toBeVisible();
   await expect(row.getByRole("form")).toHaveCount(0);
-  await row.getByRole("link", { name: "Open the job and answer" }).click();
+  await row.getByRole("link", { name: "View job" }).click();
   await expect(page).toHaveURL(new RegExp(`/jobs/${JOB}$`));
-  await expect(page.getByRole("heading", { name: "Carton palletizing opportunity" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Palletize cartons" })).toBeVisible();
   await expect(page.getByText("Stack 12 kg cartons from the conveyor onto the pallet.")).toBeVisible();
   await expect(page.getByText("Weight: 5 to 15 kg (11 to 33 lb)")).toBeVisible();
   await expect(page.getByText("The simulation of the site is not finished yet.")).toBeVisible();
@@ -157,11 +157,17 @@ test("a signed-in company opens a job from the library, watches the video and an
   await expect(video).toHaveAttribute("controlsList", /nodownload/);
   await expect.poll(() => videoRequests.length).toBeGreaterThan(0);
 
-  const form = page.getByRole("form", { name: "Answer about this job" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const answerLink = page.getByRole("link", { name: "Respond to opportunity" });
+  await expect(answerLink).toBeInViewport();
+  await answerLink.click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const form = page.getByRole("form", { name: "Response to opportunity" });
+  await expect(form).toBeInViewport();
   await expect(form.getByText(statement, { exact: true })).toBeVisible();
   await form.getByLabel("Interested").check();
   await form.getByRole("textbox").fill("We palletize cartons like these today.");
-  await form.getByRole("button", { name: "Send answer" }).click();
+  await form.getByRole("button", { name: "Send response" }).click();
   await expect(form.getByRole("status")).toHaveText(/^Your answer is saved\./);
   expect(answers).toEqual([{ state: "interested", inputs: "We palletize cartons like these today.", statementVersion: "company-response-2026-11-12" }]);
   expect(errors).toEqual([]);

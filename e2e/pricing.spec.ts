@@ -35,7 +35,7 @@ test("the beta page reaches the header on mobile without a horizontal scrollbar"
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "Reject all", exact: true }).click();
-  await page.getByRole("link", { name: "How it works ›" }).click();
+  await page.getByRole("link", { name: "How it works" }).click();
   await page.getByRole("link", { name: "Questions ›" }).click();
 
   await expect(page).toHaveURL(/\/beta$/);

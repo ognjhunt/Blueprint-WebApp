@@ -330,8 +330,9 @@ describe("an expired task link asks for a fresh one", () => {
     const genuine = await post(expired);
     expect(genuine.status).toBe(202);
     expect(enqueue).toHaveBeenCalledTimes(1);
-    const message = enqueue.mock.calls[0][0] as { to: string; kind: string; body: string };
-    expect(message).toMatchObject({ to: "ops@acme.example", kind: "fresh_link" });
+    const message = enqueue.mock.calls[0][0] as { to: string; kind: string; body: string; replyTo: string };
+    // Replies go where every other email to a site sends them (journey audit, 2026-11-20), not to ops@.
+    expect(message).toMatchObject({ to: "ops@acme.example", kind: "fresh_link", replyTo: "hello@tryblueprint.io" });
     expect(message.body).toMatch(/^Hi Dana,/);
     expect(message.body).toMatch(/\/capture-upload\//);
 
