@@ -287,6 +287,19 @@ describe("the company's page for one job (E3)", () => {
     expect((await list()).raw).not.toMatch(/ZEBRAPLANT|QUOKKA|Wilhelmina|Springfield|Mill Road/i);
   });
 
+  // Core-journey audit, 2026-11-20: the start form asks for no site or person name, so a name typed into the sentence
+  // is one the record does not hold; it still never reaches a company before an introduction.
+  it.each([
+    ["At Joe's Diner, move the trays from the dish pit to the rack.", "At [removed], move the trays from the dish pit to the rack."],
+    ["Acme Fulfillment needs cartons moved from the conveyor to a pallet.", "[removed] needs cartons moved from the conveyor to a pallet."],
+    ["Joe Smith at Smith Bakery wants bread trays stacked on the cart.", "[removed] at [removed] wants bread trays stacked on the cart."],
+  ])("removes a business or person name the record does not hold from the sentence: %s", async (summary, expected) => {
+    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, confirmedAtIso: null, summary });
+    const { body, raw } = await page();
+    expect(body.item.sentence).toBe(expected);
+    expect(raw).not.toMatch(/Joe|Diner|Acme|Fulfillment|Smith|Bakery/);
+  });
+
   it("says the video is being prepared, and the simulation is not finished, until each exists", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, {});
     const { body } = await page();

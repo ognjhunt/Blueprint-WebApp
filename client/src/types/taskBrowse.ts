@@ -119,7 +119,8 @@ export interface CompanyJobPage {
   title: string;
   taskFamily: string;
   publishedAtIso: string;
-  /** The site's own sentence for the job. */
+  /** The site's own sentence for the job, without its name, address, contact details or any other name-shaped text
+   * (`removeIdentifyingDetails`, then `removeNamesNotHeld`). */
   sentence: string;
   /** The site's quick answers in words, one line each (`jobFactsInWords`). */
   jobFacts: string[];

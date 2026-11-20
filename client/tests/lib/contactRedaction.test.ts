@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { REMOVED, containsContactDetails, identifyingDetailsRemoved, removeContactDetails, removeIdentifyingDetails } from "@/lib/contactRedaction";
+import { REMOVED, containsContactDetails, identifyingDetailsRemoved, removeContactDetails, removeIdentifyingDetails, removeNamesNotHeld }
+  from "@/lib/contactRedaction";
 
 describe("removeContactDetails", () => {
   it.each([
@@ -139,5 +140,51 @@ describe("the job packet export's street and contact rules, carried to the websi
 
   it("keeps the punctuation after a removed link", () => {
     expect(removeIdentifyingDetails("Call or write: http://10.0.0.1:8080/x, thanks.", nobody)).toBe("Call or write: [removed], thanks.");
+  });
+});
+
+// Core-journey audit, 2026-11-20: the start form asks for no site or person name, so a name the site types into its
+// sentence is one the record does not hold. What a company reads is the sentence through both functions.
+describe("removeNamesNotHeld: a name typed into the sentence that the record does not hold (company side)", () => {
+  const nobody = { names: [], addresses: [], contacts: [] };
+  const forCompany = (sentence: string) => removeNamesNotHeld(removeIdentifyingDetails(sentence, nobody));
+  it.each([
+    ["At Joe's Diner, move the trays from the dish pit to the rack.", "At [removed], move the trays from the dish pit to the rack."],
+    ["Acme Fulfillment needs cartons moved from the conveyor to a pallet.", "[removed] needs cartons moved from the conveyor to a pallet."],
+    ["Joe Smith at Smith Bakery wants bread trays stacked on the cart.", "[removed] at [removed] wants bread trays stacked on the cart."],
+    ["Acme Foods needs cartons moved.", "[removed] needs cartons moved."],
+    ["We work for Smith & Sons Bakery.", "We work for [removed]."],
+    ["Ask Mr. Smith or Dr Jones.", "Ask [removed] or [removed]."],
+    ["Our Springfield store moves crates.", "Our [removed] store moves crates."],
+    ["Move Hobart racks to the dish pit.", "Move [removed] racks to the dish pit."],
+  ])("removes: %s", (sentence, expected) => {
+    expect(forCompany(sentence)).toBe(expected);
+  });
+
+  it.each([
+    "Pick up the sealed carton from the end of the conveyor and place it on the cart.",
+    "Every Monday we wrap pallets. In March, the North dock is busy.",
+    "Unload totes from the AMR, scan the SKUs and put them on shelf B.",
+    "Robot picks Boxes at Station 4.", "The Robot arm picks Boxes.", "Carry parts North to the Line.",
+    "Trays need stacking.", "I move totes to Dock 3.", "Put 10 Drive units on the bench.", "Fill 20 bins at 1 Place then 2 Place.",
+    "Stack 12 kg cartons onto the pallet, 2 shifts, 24/7.",
+  ])("keeps an ordinary sentence whole: %s", sentence => {
+    expect(forCompany(sentence)).toBe(sentence);
+  });
+
+  it("keeps the site's own held name as the site, and contact details as removed", () => {
+    const held = { names: ["Zebraplant Foods"], organisations: ["Zebraplant Foods"], addresses: [], contacts: [] };
+    expect(removeNamesNotHeld(removeIdentifyingDetails("Zebraplant Foods asks Joe to call 415-555-0134.", held)))
+      .toBe("The site asks [removed] to call [removed].");
+  });
+
+  // The stated limit, exactly as the function's comment says it: these still get through.
+  it.each([
+    ["a name in lower case", "joe's diner needs dishes racked.", /joe's diner/],
+    ["a lone name first in a sentence, a lower-case word after it", "Acme needs cartons moved.", /Acme/],
+    ["a name of three capital letters", "Stack cartons for IBM.", /IBM/],
+    ["a name made of ordinary words", "Stack cartons at Central Kitchen.", /Central Kitchen/],
+  ])("keeps (stated limit: %s): %s", (_why, sentence, survives) => {
+    expect(forCompany(sentence)).toMatch(survives);
   });
 });
