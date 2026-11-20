@@ -151,7 +151,7 @@ export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
 // True of a job sent with its description only as of a filmed one (statement v5 lists both). The answers themselves
 // are on the job's page.
 export const NEW_JOB_EMAIL_BODY = "A site has posted a new job. Open it to see the job packet and respond.";
-const NEW_JOB_ALERTS_LINE = "You get this email for each new job. Turn these off in Settings or unsubscribe below.";
+const NEW_JOB_ALERTS_LINE = "You get an email like this for each new job. Turn them off in Settings or unsubscribe below.";
 
 /** The email an approved deployment company that asked for job emails gets when a job is shared: the job's link only. */
 export function newJobEmail(params: { to: string; jobUrl: string }) {
