@@ -1,7 +1,7 @@
 // @vitest-environment node
 /**
- * The agent runtime's records keep Firestore's own values whole, and the spend guardrail reads the recent runs
- * whatever a run's stored `created_at` is.
+ * The agent runtime's records keep Firestore's own values whole, and the spend guardrail and a capture's footage
+ * review read the recent runs whatever a run's stored `created_at` is.
  *
  * Each writer's `stripUndefinedDeep` took every object apart by its own fields. A `serverTimestamp()` sentinel has
  * none, so it was written as `{}`: on 2026-11-20, 2375 of 2478 runs in production. The guardrail ordered the runs by
@@ -210,5 +210,34 @@ describe("the spend guardrail's recent runs", () => {
     expect(result.status).toBe("failed");
     expect(result.error).toBe("agent_usage_evidence_unavailable: agentRuns/a-incomplete");
     expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+  });
+});
+
+describe("a capture's newest footage review", () => {
+  const reading = (summary: string) => ({ footage_status: "usable", footage_status_reason: null, summary, observations: [],
+    cycle_measurement: { cycles: [], median_cycle_seconds: null, implied_band: null, note: "unknown" },
+    people_present: { max_visible_at_once: 0, relationship_to_work: "none_visible", note: "" }, not_evidenced: [], privacy_flag: false });
+  /** A finished footage review of capture-1, as the runtime stored one. */
+  const review = (startedAtMs: number, summary: string, stamp: unknown) => ({ task_kind: "site_video_evidence", status: "completed",
+    output: reading(summary), created_at: stamp, started_at: stamp, updated_at: stamp,
+    metadata: { capture_id: "capture-1", cost_telemetry: { created_at_ms: startedAtMs, cost_estimate_usd: 0.1 } } });
+
+  it("is the newest by its cost record's start time when the runs were saved with `{}` times", async () => {
+    const runs = fake.docs.get("agentRuns")!;
+    // Both saved before the fix. The older one comes first in the store's own order.
+    runs.set("a-older", review(Date.now() - 3 * DAY, "the older reading", {}));
+    runs.set("b-newer", review(Date.now() - DAY, "the newer reading", {}));
+    const { findPriorFootageReview } = await import("../utils/captureFootageReview");
+
+    expect(await findPriorFootageReview("capture-1")).toEqual({ state: "completed", output: reading("the newer reading") });
+  });
+
+  it("is a run saved since the fix over one saved before it", async () => {
+    const runs = fake.docs.get("agentRuns")!;
+    runs.set("b-since-fix", review(Date.now() - DAY, "saved since", Timestamp.fromMillis(Date.now() - DAY)));
+    runs.set("a-before-fix", review(Date.now() - 2 * DAY, "saved before", {}));
+    const { findPriorFootageReview } = await import("../utils/captureFootageReview");
+
+    expect(await findPriorFootageReview("capture-1")).toEqual({ state: "completed", output: reading("saved since") });
   });
 });
