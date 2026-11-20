@@ -12,7 +12,7 @@ import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/component
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { JobCompanyResponses, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type DetailScreen } from "@/components/site/SiteAnswer";
-import { type JobOutlook } from "@/lib/jobOutlook";
+import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL, type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type JobSharing, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 import { isSiteCompanyActivity, type SiteCompanyActivity } from "@/lib/companyResponses";
@@ -824,7 +824,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </button>}
     </details>
   ) : null;
-  const stopLabel = descriptionShared ? "Withdraw my job" : "Stop using my video";
+  const stopLabel = descriptionShared ? WITHDRAW_JOB_LABEL : STOP_USING_VIDEO_LABEL;
   const withdrawal = scope === "owner" && (link.status === "valid" || link.status === "held")
     && (descriptionShared || saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
     <OwnerRecordingWithdrawal token={token} onStatus={closeForWithdrawal} descriptionOnly={descriptionShared}

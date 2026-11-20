@@ -512,6 +512,24 @@ describe("the automatic send (E4)", () => {
     expect((await loadSiteCompanyActivity(ID)).sent).toEqual({ count: 6, firstAtIso: result.sent ? result.sentAtIso : "" });
   });
 
+  it("tells the site how to stop in its job page's own words: a filmed job stops its video, a description-only job is withdrawn", async () => {
+    await sendJobToApprovedCompanies(ID);
+    const filmed = outbox().find(row => row.kind === "job_sent")!;
+    expect(filmed.body).toContain("choose Job settings, then Stop using my video.");
+    state.docs.clear();
+    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: SENTENCE, confirmedAtIso: null });
+    // Sent with its description only (v5): the job page offers "Withdraw my job" (`SelfCaptureUpload.tsx`), not a video to stop.
+    state.docs.set(`inboundRequests/${ID}`, job({ capture_privacy_screen: undefined, request: { ...job().request, consent_attestation: null,
+      description_authority: { granted: true, statement_version: "2026-11-12.v5", recorded_at_iso: "2026-11-12T10:00:00.000Z" } },
+      public_task_listing: { ...sharedJobListing("Stack cartons onto the pallet"), approvedBy: "description_statement",
+        recordingStatementVersion: null, descriptionStatementVersion: "2026-11-12.v5" } }));
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, NORTH);
+    expect(await sendJobToApprovedCompanies(ID)).toMatchObject({ sent: true, count: 1 });
+    const described = outbox().find(row => row.kind === "job_sent")!;
+    expect(described.body).toContain("To stop, open your job page and choose Withdraw my job. Your job then leaves every company's view at once.");
+    expect(described.body).not.toContain("Stop using my video");
+  });
+
   it("is idempotent: a second call and the sweep add nothing", async () => {
     await sendJobToApprovedCompanies(ID);
     // Everything but the sweep's own cursor.
