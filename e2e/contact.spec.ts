@@ -4,7 +4,7 @@ import { mockExternalFonts } from "./helpers/static-assets";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function describeTask(page: import("@playwright/test").Page) {
-  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
+  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click(); await page.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
 }
 
 test.beforeEach(async ({ page }) => {
@@ -25,8 +25,8 @@ test("prerendered intake stays inactive while its scripts are unavailable", asyn
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   // Browser-local recovery is unavailable without scripts; preserve inactivity
   // rather than render a fresh, uncontrolled intake identity.
-  await expect(page.getByRole("status")).toHaveText(/Loading your account and saved draft/);
-  await expect(page.getByRole("form", { name: "Start a site capture" })).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText(/^Loading…$/);
+  await expect(page.getByRole("form", { name: "Start a job" })).toHaveCount(0);
   await expect(page.locator("#start-email")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ })).toHaveCount(0);
   expect(intakeRequests).toEqual([]);
@@ -51,12 +51,12 @@ test("phone: the first screen holds the video, the sentence, where the job is, t
   await expect(page.locator("#start-task")).toBeVisible();
   await expect(page.locator("#start-success")).toBeHidden();
   // The optional details open in place, a drop-down on the same screen and address (owner, 2026-11-12).
-  await page.getByText("Add details (optional)", { exact: true }).click();
+  await page.getByText("Add details", { exact: true }).click();
   await expect(page.locator("#start-success")).toBeVisible();
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
   await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Where is the job?" })).toBeVisible();
-  await page.getByText("Add details (optional)", { exact: true }).click();
+  await page.getByText("Add details", { exact: true }).click();
   await expect(page.locator("#start-success")).toBeHidden();
   await expect(page.locator("#start-task")).toBeVisible();
   await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
@@ -86,7 +86,9 @@ test("capture accepts country permission without an address and keeps non-US fil
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ buyerType: "site_operator", siteLocation: "", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: null,
     taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } });
-  await expect(page.getByText(/We are not sending a camera link yet/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your job is saved.", exact: true })).toBeVisible();
+  await expect(page.getByText("We can only take videos from sites in the United States for now. Nothing has been shared.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/We will reply/)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
 
@@ -110,7 +112,7 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
   await expect(page.getByRole("checkbox", { name: /share an anonymised summary/ })).toHaveCount(0);
   // The rest of the statements, word for word, open in place under the line (owner, 2026-11-12); the button stays put.
   await page.getByText("What you're agreeing to", { exact: true }).click();
-  await expect(page.getByText("Only upload footage you may share.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Only upload a video you may share.", { exact: false })).toBeVisible();
   await expect(page.getByText("We don't share your name, address or contact details unless you ask for an introduction.", { exact: false })).toBeVisible();
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
   await expect(start).toBeVisible();

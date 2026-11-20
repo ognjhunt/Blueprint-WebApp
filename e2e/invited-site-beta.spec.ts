@@ -101,7 +101,7 @@ for (const width of [390, 1440]) {
     });
 
     await page.goto("/contact/site-operator");
-    if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Cartons reach the pallet without damage");
+    if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click(); await page.locator("#start-task").fill("Cartons reach the pallet without damage");
     await page.locator("#start-location").fill("Austin, TX");
     // Typed text is never read for a country (the privacy gate): the site chooses it.
     await page.locator("#start-region").selectOption("us");
@@ -111,7 +111,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("region", { name: "Confirm recording permission", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Agree and continue", exact: true })).toBeEnabled();
     await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
-    await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Confirm your job description", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)", exact: true })).toHaveCount(0);
 
     // Simulate an actual retained receipt from this existing fixture job. The
@@ -119,24 +119,24 @@ for (const width of [390, 1440]) {
     received = true;
     await page.reload();
     // Confirmed at submission: no second confirmation is asked for; a correction re-confirms in one click.
-    await expect(page.getByText("You confirmed this task when you submitted it.", { exact: false })).toBeVisible();
-    await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toHaveCount(0);
-    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
+    await expect(page.getByText("You confirmed this job when you sent it.", { exact: false })).toBeVisible();
+    await expect(page.getByText("Confirm your job description", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Change my job description", exact: true }).click();
     await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeVisible();
     await expect(page.locator("#confirm-name")).toHaveValue("");
-    await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
-    await expect(page.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
+    await page.getByText("Your recorded pilot preferences", { exact: true }).click();
+    await expect(page.getByRole("combobox", { name: /would you consider a pilot/ })).toHaveValue("subject_to_review");
     await page.locator("#confirm-name").fill("Synthetic site owner");
     await page.locator("#pilot-consideration").selectOption("evaluation_only");
     await page.getByRole("button", { name: "This is right — confirm it", exact: true }).click();
-    await expect(page.getByText(/Your job brief is confirmed\./)).toBeVisible();
+    await expect(page.getByText(/Your job description is confirmed\./)).toBeVisible();
     await page.reload();
-    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
-    await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
+    await page.getByRole("button", { name: "Change my job description", exact: true }).click();
+    await page.getByText("Your recorded pilot preferences", { exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await page.reload();
-    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
-    await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
+    await page.getByRole("button", { name: "Change my job description", exact: true }).click();
+    await page.getByText("Your recorded pilot preferences", { exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await expect(page.locator("#deployment-path")).toHaveValue("multiple_sites");
     expect(posts.filter(entry => /recording-consent|uploads\/synthetic-owner$/.test(entry.path))).toHaveLength(0);
@@ -144,10 +144,10 @@ for (const width of [390, 1440]) {
     // The retained video is still available through a processing retry.
     await page.reload();
     await expect(page.getByText("Your video is saved.", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeHidden();
-    await page.getByText("Processing details (optional)", { exact: true }).click();
-    await page.getByRole("button", { name: "Retry processing", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Start processing again", exact: true })).toBeHidden();
+    await page.getByText("Processing status", { exact: true }).click();
+    await page.getByRole("button", { name: "Start processing again", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Start processing again", exact: true })).toHaveCount(0);
     expect(posts.filter(entry => entry.path.endsWith("/processing-retry"))).toHaveLength(1);
     await expect(page.getByText("Video received; physical performance remains uncertain", { exact: true })).toBeVisible();
 
@@ -167,7 +167,7 @@ for (const width of [390, 1440]) {
     received = false;
     await page.reload();
     await expect(page.getByText("Recording permission was withdrawn; processing is held.", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Start processing again", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Agree and continue", exact: true })).toHaveCount(0);
     expect(unexpected).toEqual([]);
   });

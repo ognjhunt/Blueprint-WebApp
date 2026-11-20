@@ -200,7 +200,7 @@ describe("the job's outlook, from the rule", () => {
 
   it("says a failed step while building", () => {
     expect(jobOutlook(base({ preparation: { state: "failed_retryable", geometryOnlyEnd: false } }))).toEqual({ phase: "building",
-      reason: "step_failed", sentence: "A step failed and we're working on it. We'll email you the result." });
+      reason: "step_failed", sentence: "A step on our side failed. Nothing is needed from you." });
   });
 });
 

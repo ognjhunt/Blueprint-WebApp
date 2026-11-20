@@ -49,14 +49,14 @@ export function receivedVideoResult(data: Record<string, unknown> | null): Video
   if (data?.captureReceived !== true) return null;
   if (data.code === "capture_replacement_requires_new_job") {
     const message = String(data.message || data.detail || data.error
-      || "Your original recording is saved. No new recording was accepted. Contact Blueprint for help starting a new job.");
+      || "Your original video is saved. No new video was accepted. Email hello@tryblueprint.io for help starting a new job.");
     if (data.uploadState === "processing_pending") return { status: "processing_pending", message,
       processingRetryAvailable: data.processingRetryAvailable === true };
     return { status: data.uploadState === "processing_ready" ? "done" : "held", message };
   }
   if (data.state === "held") {
     return { status: "held", message: String(data.detail || data.message || data.error
-      || "Your video is retained. Processing is on hold while authorization or review is resolved.") };
+      || "Your video is saved, but we can't use it yet. This page shows when that changes.") };
   }
   if (data.state === "processing_pending" || data.uploadState === "processing_pending") {
     return {
@@ -68,10 +68,15 @@ export function receivedVideoResult(data: Record<string, unknown> | null): Video
   if (data.state === "processing_ready" || data.uploadState === "processing_ready") return { status: "done" };
   // Retained bytes with no execution proof must not imply processing started.
   return { status: "held", message: String(data.detail || data.message
-    || "Your video is retained. We are checking its processing status.") };
+    || "Your video is saved. We're checking it.") };
 }
 
-async function reconcileUpload(token: string, message: string): Promise<VideoUploadResult> {
+/**
+ * After an upload or retry whose receipt is unknown. `serverSentence` is the server's own refusal, when it gave one: it
+ * may carry the only step the site can take (reload the page, wait for another upload). The browser's own technical
+ * reasons (a dropped connection, a response with no receipt) are not shown.
+ */
+async function reconcileUpload(token: string, serverSentence?: string): Promise<VideoUploadResult> {
   try {
     // This endpoint is read-only. An uncertain upload never starts processing
     // merely because the browser checks whether its bytes arrived.
@@ -80,7 +85,7 @@ async function reconcileUpload(token: string, message: string): Promise<VideoUpl
     const received = receivedVideoResult(data);
     if (received) return received;
   } catch { /* Keep uncertainty explicit when receipt cannot be checked. */ }
-  return { status: "failed", message: `${message} We could not confirm whether your video was received. Keep the original file and check this job page before sending it again.` };
+  return { status: "failed", message: `${serverSentence ? `${serverSentence} ` : ""}We couldn't confirm your video arrived. Keep the original file and check this page before you send it again.` };
 }
 
 /** Explicit retry of the retained receipt; the server rechecks current authority. */
@@ -94,9 +99,9 @@ export async function retrySelfCaptureProcessing(token: string): Promise<VideoUp
     const data = await response.json().catch(() => null);
     const received = receivedVideoResult(data);
     if (received) return received;
-    return reconcileUpload(token, String(data?.error || "We could not confirm that processing started."));
+    return reconcileUpload(token, typeof data?.error === "string" && data.error.trim() ? data.error.trim() : undefined);
   } catch {
-    return reconcileUpload(token, "The connection interrupted the processing retry.");
+    return reconcileUpload(token);
   }
 }
 
@@ -138,29 +143,24 @@ export async function uploadSelfCaptureVideo(
         if (request.status >= 200 && request.status < 300) {
           // A 2xx is not automatically "done": the privacy screen answers with
           // a held state on a successful upload.
-          void reconcileUpload(token, "The upload response did not confirm receipt.").then(resolve);
+          void reconcileUpload(token).then(resolve);
           return;
         }
-        let message = "The upload did not finish. Try again.";
-        try {
-          message = String(parsed?.error || message);
-        } catch {
-          // Keep the generic message; the server said nothing we can quote.
-        }
-        void reconcileUpload(token, message).then(resolve);
+        const serverSentence = typeof parsed?.error === "string" && parsed.error.trim() ? parsed.error.trim() : undefined;
+        void reconcileUpload(token, serverSentence).then(resolve);
       });
 
       request.addEventListener("error", () => {
-        void reconcileUpload(token, "The upload connection dropped.").then(resolve);
+        void reconcileUpload(token).then(resolve);
       });
 
       for (const event of ["abort", "timeout"]) request.addEventListener(event, () => {
-        void reconcileUpload(token, "The upload was interrupted.").then(resolve);
+        void reconcileUpload(token).then(resolve);
       });
 
       request.send(body);
     } catch {
-      void reconcileUpload(token, "This browser could not send the video.").then(resolve);
+      void reconcileUpload(token).then(resolve);
     }
   });
 }

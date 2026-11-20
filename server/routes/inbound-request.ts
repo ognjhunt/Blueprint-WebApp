@@ -1004,7 +1004,7 @@ function validateEmail(email: string): { valid: true } | { valid: false; reason:
 export function requestConfirmationText(params: { firstName: string; buyerType: string }): string {
   const greeting = params.firstName ? `Hi ${params.firstName},` : "Hi,";
   const body = params.buyerType === "site_operator"
-    ? "Thanks for telling us about your site and the job you want a robot to take on. We have your request and will reply by email with the next step."
+    ? "Thanks for telling us about your site and its job. We have your request."
     : "Thanks for getting in touch. Deployment companies apply to see the jobs sites send:\nhttps://tryblueprint.io/partners";
   return [
     greeting,
@@ -1137,15 +1137,17 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // Test job ids are the internal route's own (`internal-test-jobs.ts`): no form may take one first.
     if (!internalTest && String(payload.requestId ?? "").startsWith("itest-")) {
       return res.status(400).json({ ok: false, requestId: payload.requestId, status: "submitted", code: "request_id_reserved",
-        message: "This request identifier is not available." } satisfies SubmitInboundRequestResponse);
+        message: "Something went wrong starting this job. Reload the page and try again." } satisfies SubmitInboundRequestResponse);
     }
 
     if (missingFields.length > 0) {
+      logger.info({ requestId: payload.requestId, missingFields }, "Inbound request missing required fields");
       return res.status(400).json({
         ok: false,
         requestId: payload.requestId || "",
         status: "submitted",
-        message: `Missing required fields: ${missingFields.join(", ")}`,
+        // The site sees this text as is, so it names no field ids (they are logged above).
+        message: "Some details are missing. Check the form and try again.",
       } satisfies SubmitInboundRequestResponse);
     }
 
@@ -1371,7 +1373,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         if (!mayRecoverSubmission(existingData, requestedOwner, payload.retryToken)) {
           return res.status(409).json({
             ok: false,
-            message: "This request identifier is already in use.",
+            message: "This job was already started from another page. Open the private link we emailed you to continue.",
           });
         }
 
@@ -1394,7 +1396,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           ok: false,
           requestId: payload.requestId,
           status: "submitted",
-          message: "Too many requests. Please try again later.",
+          message: "Too many tries in a short time. Please wait a few minutes and try again.",
         } satisfies SubmitInboundRequestResponse);
       }
 
@@ -1409,7 +1411,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           ok: false,
           requestId: payload.requestId,
           status: "submitted",
-          message: "You have sent several requests in the last few minutes. Please wait a little and try again.",
+          message: "You have started several jobs in the last few minutes. Please wait a little and try again.",
         } satisfies SubmitInboundRequestResponse);
       }
     }
@@ -1580,7 +1582,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           ok: false,
           requestId: payload.requestId,
           status: "submitted",
-          message: "Internal server error",
+          message: "Something went wrong on our side. Please try again.",
         } satisfies SubmitInboundRequestResponse);
       }
 
@@ -2048,7 +2050,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
       if (!mayRecoverSubmission(existingData, requestedOwner, payload.retryToken)) {
         return res.status(409).json({
           ok: false,
-          message: "This request identifier is already in use.",
+          message: "This job was already started from another page. Open the private link we emailed you to continue.",
         });
       }
 
