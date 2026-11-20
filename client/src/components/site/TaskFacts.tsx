@@ -1,7 +1,7 @@
 import type { TaskListingDetails } from "@/types/taskBrowse";
 /** The approved card's facts, the same on the job library and the workspace opening page. */
-export function TaskFacts({ details, className = "ms-task-facts" }: { details: TaskListingDetails; className?: string }) {
-  const facts: [string, string | undefined][] = [["Objects", details.objects], ["Site", details.siteType], ["Region", details.region],
+export function TaskFacts({ details, className = "ms-task-facts", omitRegion = false }: { details: TaskListingDetails; className?: string; omitRegion?: boolean }) {
+  const facts: [string, string | undefined][] = [["Objects", details.objects], ["Site", details.siteType], ["Region", omitRegion ? undefined : details.region],
     ["Cycle target", details.cycleTarget], ["Pilot timing", details.pilotTiming],
     [details.pilotPriceStatus === "site_offer" ? "Site's proposed pilot price" : "Target pilot budget", details.pilotBudget],
     ["Pilot conditions", details.pilotConditions], ["Ongoing price target", details.ongoingTarget]];

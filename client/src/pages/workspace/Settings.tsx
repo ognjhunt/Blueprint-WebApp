@@ -1,3 +1,4 @@
+import { BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH } from "@/lib/robotTeamAccess";
 import { UpdatePreferencesForm } from "@/components/workspace/UpdatePreferencesForm";
 import AccountDeletion from "@/components/AccountDeletion";
 import { Link, useSearch } from "wouter";
@@ -134,8 +135,8 @@ function WorkspaceSettings() {
                 {robot ? "Open overview →" : "Your jobs →"}
               </Link>
               {robot && (
-                <Link className="ws-link" href="/contact/robot-team">
-                  Task library →
+                <Link className="ws-link" href={BROWSE_JOBS_PATH}>
+                  {BROWSE_JOBS_LABEL} →
                 </Link>
               )}
             </div>

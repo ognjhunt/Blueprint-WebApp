@@ -1,25 +1,26 @@
 import { useEffect, useState } from "react";
 import { useParams } from "wouter";
+import { ArrowLeft, ArrowDown, Download, MapPin } from "lucide-react";
 import type { User } from "firebase/auth";
 import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { withCsrfHeader } from "@/lib/csrf";
 import { companyJobSignInHref } from "@/lib/authReturnPath";
-import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, FIT_RESPONSE_STATES, TESTED_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "@/lib/companyResponses";
 import { JobCardAnswer } from "@/components/site/JobCardAnswer";
-import { BareBack } from "@/components/bare/Bare";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
-import type { CompanyJobPage } from "@/types/taskBrowse";
+import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
+import { BROWSE_JOBS_PATH } from "@/lib/robotTeamAccess";
 
 /** Said while the sound-free copy of the site's video is not ready. */
 /** The job library: the signed-in list on the companies' page, at its own section. */
-export const JOB_LIBRARY_URL = "/contact/robot-team#robot-team-access";
+export const JOB_LIBRARY_URL = BROWSE_JOBS_PATH;
 export const VIDEO_PREPARING = "The video is being prepared.";
 /** Said for a job the site sent with its description only. */
 export const NO_VIDEO_YET = "No video yet. The site sent this job with its description only.";
 /** Under the answer form when there is no video: how to ask for one with the answers that exist. */
-export const ASK_FOR_VIDEO = "Need a video to decide? Answer Would need something and say so.";
+export const ASK_FOR_VIDEO = "Need a video to decide? Choose Need more details.";
 /** Under the words box: the site reads them, with the company's identity taken out first (`jobCompanies.siteReasonOf`). */
 export const WORDS_REACH_SITE = "The site reads these words, with your company's name and contact details taken out.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
@@ -55,6 +56,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   const [state, setState] = useState<"loading" | "ready" | "missing" | "signed_out" | "error" | "terms">("loading");
   const [page, setPage] = useState<CompanyJobPage | null>(null);
   const [retry, setRetry] = useState(0);
+  const [responseMode, setResponseMode] = useState<ResponseMode>("fit");
   useEffect(() => {
     if (!user) { setState(auth && !auth.loading ? "signed_out" : "loading"); return; }
     let cancelled = false;
@@ -81,72 +83,82 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     <p><a className="ms-button" href={signInHref}>Sign in to this job</a></p>
     <p><a href="/partners#partner-application">Apply as a deployment company</a></p></div>;
   if (state === "missing") return <div className="bare-screen company-job"><h1>This job is not available</h1>
-    <p>It may no longer be shared, or your account may not be approved. <a href={JOB_LIBRARY_URL}>Back to the job library</a></p></div>;
+    <p>It may no longer be shared, or your account may not be approved. <a href={JOB_LIBRARY_URL}>Back to jobs</a></p></div>;
   if (state === "error" || !page) return <div className="bare-screen company-job"><div role="alert"><p>This job could not be loaded.</p>
     <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></div>;
 
-  return <div className="bare-screen company-job" role="region" aria-label="Job">
-    <BareBack href={JOB_LIBRARY_URL}>‹ Job library</BareBack>
-    <h1>{page.title}</h1>
-    <p className="ms-field-hint">{[page.country, page.publishedAtIso && `Shared on ${dateInWords(page.publishedAtIso)}`].filter(Boolean).join(" · ")}</p>
+  const simulationReady = page.simulationDownload?.state === "ready";
+  return <div className="bare-screen company-job company-job-ready" role="region" aria-label="Job">
+    <a className="company-job-back" href={JOB_LIBRARY_URL}><ArrowLeft size={17} aria-hidden="true" />Back to jobs</a>
+    <h1>{jobTitleForDisplay(page.title)}</h1>
+    <div className="opportunity-meta">
+      {page.country && <span><MapPin size={15} aria-hidden="true" />{page.country}</span>}
+      {dateInWords(page.publishedAtIso) && <span>Shared {dateInWords(page.publishedAtIso)}</span>}
+    </div>
     <div className="company-job-actions">
-      {page.simulationDownload?.state === "ready" && <a className="ms-button" href={page.simulationDownload.url} download>Download the simulation</a>}
-      {user && <a className="bare-inline-link" href="#answer-this-job">{page.myAnswer ? "Update your answer" : "Answer this job"}</a>}
+      {user && <a className="ms-button" href="#answer-this-job" onClick={() => setResponseMode("fit")}>Respond to opportunity<ArrowDown size={16} aria-hidden="true" /></a>}
+      {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url} download><Download size={16} aria-hidden="true" />Download the simulation</a>}
+      {simulationReady && user && <a className="company-job-download" href="#answer-this-job" onClick={() => setResponseMode("simulation")}>Report simulation result<ArrowDown size={16} aria-hidden="true" /></a>}
     </div>
 
-    <section aria-label="The job">
-      <h2>The job, in the site's words</h2>
-      {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site has not described the job in its own words.</p>}
-      {page.jobFacts.length > 0 && <>
-        <ul aria-label="The site's answers">{page.jobFacts.map(line => <li key={line}>{line}</li>)}</ul>
-        <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>
-      </>}
-    </section>
+    <div className="company-job-grid">
+      <div className="company-job-overview">
+        <section aria-label="The job">
+          <h2>The job, in the site's words</h2>
+          {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site has not described the job in its own words.</p>}
+          {page.jobFacts.length > 0 && <>
+            <ul aria-label="The site's answers">{page.jobFacts.map(line => <li key={line}>{line}</li>)}</ul>
+            <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>
+          </>}
+        </section>
 
-    <section aria-label="The video">
-      <h2>The video</h2>
-      {page.video.state === "ready"
-        ? <video src={page.video.url} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
-            playsInline onContextMenu={event => event.preventDefault()}
-            width={page.video.width} height={page.video.height} aria-label="The site's video, without sound" />
-        : <p>{page.video.state === "none" ? NO_VIDEO_YET : VIDEO_PREPARING}</p>}
-    </section>
+        <section aria-label="The video">
+          <h2>The video</h2>
+          {page.video.state === "ready"
+            ? <video src={page.video.url} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
+                playsInline onContextMenu={event => event.preventDefault()}
+                width={page.video.width} height={page.video.height} aria-label="The site's video, without sound" />
+            : <p>{page.video.state === "none" ? NO_VIDEO_YET : VIDEO_PREPARING}</p>}
+        </section>
+      </div>
 
-    {user && <CompanyAnswerForm jobId={page.id} user={user} page={page} />}
+      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} mode={simulationReady ? responseMode : "fit"} />}
 
-    <section aria-label="The object and how sure we are">
-      <h2>The object, and how sure we are</h2>
-      {page.packetFacts ? <>
-        {page.packetFacts.object.length > 0 && <ul aria-label="The object and where it goes">
-          {page.packetFacts.object.map(line => <li key={line}>{line}</li>)}</ul>}
-        {page.packetFacts.measured.length > 0 && <><h3>Measured</h3>
-          <ul aria-label="Measured">{page.packetFacts.measured.map(line => <li key={line}>{line}</li>)}</ul></>}
-        {page.packetFacts.estimated.length > 0 && <><h3>Estimated</h3>
-          <ul aria-label="Estimated">{page.packetFacts.estimated.map(line => <li key={line}>{line}</li>)}</ul></>}
-      </> : <p>{NO_PACKET_FACTS}</p>}
-      <h3>What this job packet does not show</h3>
-      <ul aria-label="What this job packet does not show">{page.notShown.map(line => <li key={line}>{line}</li>)}</ul>
-    </section>
+      <div className="company-job-evidence">
+        <section aria-label="The object and how sure we are">
+          <h2>The object, and how sure we are</h2>
+          {page.packetFacts ? <>
+            {page.packetFacts.object.length > 0 && <ul aria-label="The object and where it goes">
+              {page.packetFacts.object.map(line => <li key={line}>{line}</li>)}</ul>}
+            {page.packetFacts.measured.length > 0 && <><h3>Measured</h3>
+              <ul aria-label="Measured">{page.packetFacts.measured.map(line => <li key={line}>{line}</li>)}</ul></>}
+            {page.packetFacts.estimated.length > 0 && <><h3>Estimated</h3>
+              <ul aria-label="Estimated">{page.packetFacts.estimated.map(line => <li key={line}>{line}</li>)}</ul></>}
+          </> : <p>{NO_PACKET_FACTS}</p>}
+          <h3>What this job packet does not show</h3>
+          <ul aria-label="What this job packet does not show">{page.notShown.map(line => <li key={line}>{line}</li>)}</ul>
+        </section>
 
-    <section aria-label="First look">
-      <h2>First look</h2>
-      {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
-        <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
-      {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
-      {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} /> : <p>{NO_FIRST_LOOK}</p>}
-    </section>
+        <section aria-label="First look">
+          <h2>First look</h2>
+          {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
+            <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
+          {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
+          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} /> : <p>{NO_FIRST_LOOK}</p>}
+        </section>
 
-    <section aria-label="Simulation of the site">
-      <h2>Simulation of the site</h2>
-      {page.simulationDownload?.state === "ready" ? <>
-        <p className="ms-field-hint">The site's scene for this job. The README inside says what it holds. Test in your own tools.</p>
-        <p className="ms-field-hint">Open scene.usda. The room's look is a Gaussian splat that some tools cannot show; the collision mesh is in the file too.</p>
-      </> : null}
-      {page.simulation.state === "ready"
-        ? <p><a className="ms-button" href={page.simulation.viewerUrl} target="_blank" rel="noreferrer">View the simulation of the site</a></p>
-        : page.simulationDownload?.state !== "ready" ? <p>{SIMULATION_NOT_FINISHED}</p> : null}
-    </section>
-
+        <section aria-label="Simulation of the site">
+          <h2>Simulation of the site</h2>
+          {page.simulationDownload?.state === "ready" ? <>
+            <p className="ms-field-hint">The site's scene for this job. The README inside says what it holds. Test in your own tools.</p>
+            <p className="ms-field-hint">Open scene.usda. The room's look is a Gaussian splat that some tools cannot show; the collision mesh is in the file too.</p>
+          </> : null}
+          {page.simulation.state === "ready"
+            ? <p><a className="ms-button" href={page.simulation.viewerUrl} target="_blank" rel="noreferrer">View the simulation of the site</a></p>
+            : page.simulationDownload?.state !== "ready" ? <p>{SIMULATION_NOT_FINISHED}</p> : null}
+        </section>
+      </div>
+    </div>
   </div>;
 }
 
@@ -154,13 +166,31 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
  * The answers and the company's words, with the recorded line under it (E5). Nothing is chosen for the company: a
  * first answer starts empty and the browser asks for one; a later visit shows the answer it gave.
  */
-function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; page: CompanyJobPage }) {
+type ResponseMode = "fit" | "simulation";
+type ResponseDraft = { answer: CompanyResponseState | null; inputs: string };
+
+function CompanyAnswerForm({ jobId, user, page, mode }: { jobId: string; user: User; page: CompanyJobPage; mode: ResponseMode }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const [answer, setAnswer] = useState<CompanyResponseState | null>(page.myAnswer?.state ?? null);
-  const [inputs, setInputs] = useState(page.myAnswer?.inputs ?? "");
+  const [drafts, setDrafts] = useState<Record<ResponseMode, ResponseDraft>>(() => {
+    const empty = { answer: null, inputs: "" };
+    const prior = page.myAnswer;
+    if (!prior) return { fit: empty, simulation: empty };
+    const draft = { answer: prior.state, inputs: prior.inputs };
+    return TESTED_RESPONSE_STATES.includes(prior.state) ? { fit: empty, simulation: draft } : { fit: draft, simulation: empty };
+  });
   // The answer on record: the page's, then the one just saved, so "You answered" never names an answer it replaced.
   const [mine, setMine] = useState(page.myAnswer);
+  const { answer, inputs } = drafts[mode];
+  const simulation = mode === "simulation";
+  const noteRequired = simulation || (answer !== null && companyResponseNeedsNote(answer));
+  const noteLabel = simulation ? "What did you test?" : noteRequired ? "What details would help you decide?" : "Note to the site (optional)";
+  const formLabel = simulation ? "Simulation result" : "Response to opportunity";
+
+  function editDraft(change: Partial<ResponseDraft>) {
+    setDrafts(current => ({ ...current, [mode]: { ...current[mode], ...change } }));
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving || !answer) return;
     setSaving(true); setMessage("");
@@ -174,23 +204,23 @@ function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; p
     } catch { setMessage("Your answer was not confirmed. Try again."); }
     finally { setSaving(false); }
   }
-  return <section id="answer-this-job" aria-label="Your answer" tabIndex={-1}>
-    <h2>Your answer</h2>
+  return <section id="answer-this-job" aria-label={formLabel} tabIndex={-1}>
+    <h2>{simulation ? "Simulation result" : "Your response"}</h2>
     {mine && <p className="ms-field-hint">You answered {COMPANY_RESPONSE_LABELS[mine.state]}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
         ? " Answer again below so the site can ask for an introduction." : ""}</p>}
-    <form onSubmit={submit} className="ms-form" aria-label="Answer about this job">
-      <fieldset className="company-answer-options"><legend>Can you take this job?</legend>
-        {COMPANY_RESPONSE_STATES.filter(state => page.simulationDownload?.state === "ready" || !TESTED_RESPONSE_STATES.includes(state)).map(state => <label key={state}><input type="radio" name="state" value={state} required
-          checked={answer === state} onChange={() => setAnswer(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
+    <form onSubmit={submit} className="ms-form" aria-label={formLabel}>
+      <fieldset className="company-answer-options"><legend>{simulation ? "What was the result in simulation?" : "Is this a fit for your team?"}</legend>
+        {(simulation ? TESTED_RESPONSE_STATES : FIT_RESPONSE_STATES).map(state => <label key={state}><input type="radio" name="state" value={state} required
+          checked={answer === state} onChange={() => editDraft({ answer: state })} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
-      {page.video.state === "none" && <p className="ms-field-hint">{ASK_FOR_VIDEO}</p>}
-      <label>What should the site know?
-        <textarea name="inputs" required minLength={4} maxLength={2000} value={inputs} onChange={event => setInputs(event.target.value)}
-          placeholder="For example, what you would need or when you could start"
+      {!simulation && page.video.state === "none" && <p className="ms-field-hint">{ASK_FOR_VIDEO}</p>}
+      <label>{noteLabel}
+        <textarea name="inputs" required={noteRequired} minLength={noteRequired ? 4 : undefined} maxLength={2000} value={inputs}
+          onChange={event => editDraft({ inputs: event.target.value })}
           aria-describedby="company-answer-words-hint" /></label>
       <p className="ms-field-hint" id="company-answer-words-hint">{WORDS_REACH_SITE}</p>
-      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send answer"}</button>
+      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : simulation ? "Send simulation result" : "Send response"}</button>
       {message && <p role="status">{message}</p>}
       <p className="ms-field-hint" id="company-answer-statement">{page.responseStatement.text}</p>
     </form>

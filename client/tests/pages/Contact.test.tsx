@@ -92,7 +92,7 @@ describe("the robot page", () => {
     render(<Contact />);
     expect(await screen.findByRole("link", { name: "Apply" })).toHaveAttribute("href", APPLY);
     expect(screen.getByRole("heading", { level: 1, name: "Apply to see jobs" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Job library" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Browse jobs" })).toBeNull();
     expect(screen.getByRole("link", { name: "Start a job" })).toHaveAttribute(
       "href",
       "/contact/site-operator",
@@ -113,12 +113,12 @@ describe("the robot page", () => {
     }));
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "The first site jobs are being prepared." })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Job library" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 1, name: "Deployment opportunities" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Apply" })).toBeNull();
     // An approved company is not asked to apply (journey audit, 2026-11-20), and the page says no price once.
-    expect(screen.getByRole("heading", { level: 1, name: "Job library" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Deployment opportunities" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Apply to see jobs" })).toBeNull();
-    expect(screen.getAllByText(/Nothing is charged today\./)).toHaveLength(1);
+    expect(screen.queryByText(/Nothing is charged today\./)).toBeNull();
   });
 });
 

@@ -1489,17 +1489,15 @@ describe("the site's answer leads its job page", () => {
     }
   });
 
-  // PACKAGE_E E1: the few quick questions sit directly under the job sentence, on the owner's page only.
-  it("mounts the few quick questions directly under the job sentence", async () => {
+  it("puts company activity before the optional quick questions", async () => {
     setUserAgent(DESKTOP_UA);
     const drafted = { ...readyAnswer, job: { ...readyAnswer.job, sentence: "Stack cartons onto the pallet", drafted: true },
       sharing: { state: "visible", sharedAtIso: "2026-11-12T10:00:00.000Z" } };
     vi.stubGlobal("fetch", answerFetch({ answer: drafted }));
     render(<SelfCaptureUpload />);
-    const sentence = await screen.findByText(/We read your job as:/);
     const facts = await screen.findByTestId("job-facts");
-    expect(sentence.nextElementSibling).toBe(facts);
-    expect(facts.compareDocumentPosition(screen.getByRole("region", { name: "Your job" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const companies = screen.getByRole("region", { name: "Deployment companies" });
+    expect(companies.nextElementSibling).toBe(facts);
   });
 
   it("asks no quick questions on an older job, whose page asks for the current statement first", async () => {

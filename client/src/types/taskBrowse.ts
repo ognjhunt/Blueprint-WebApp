@@ -94,20 +94,67 @@ export const libraryStageLabels: Readonly<Record<LibraryJobStage, string>> = {
 };
 export const opportunityLabels = { open: "Open", past: "Past", not_seeking: "Not looking for a company yet" };
 
-/**
- * Conservative, non-identifying text only. Never publish arbitrary intake prose. A description that names none of the
- * categories gets plain neutral words: "Job opportunity", kind "Other" (journey audit, 2026-11-20: it was "Work
- * assessment opportunity", kind "To be determined", which nothing ever determined).
- */
+const generatedJobTitles: ReadonlyMap<string, string> = new Map([
+  ["Carton palletizing opportunity", "Palletize cartons"],
+  ["Pallet handling opportunity", "Handle pallets"],
+  ["Palletizing opportunity", "Palletize items"],
+  ["Depalletizing opportunity", "Unload pallets"],
+  ["Case packing opportunity", "Pack products into cases"],
+  ["Machine tending opportunity", "Load or unload a machine"],
+  ["Dish handling opportunity", "Handle dishes"],
+  ["Packing opportunity", "Pack items"],
+  ["Inspection opportunity", "Inspect items"],
+  ["Material handling opportunity", "Move materials"],
+  ["Job opportunity", "Automation job"],
+]);
+
+export function jobTitleForDisplay(title: string): string {
+  return generatedJobTitles.get(title) ?? title;
+}
+
+const opportunityCategories = {
+  other: ["Job opportunity", "Other", ""],
+  dishes: ["Dish handling opportunity", "Dish handling", "Dishes"],
+  palletizing: ["Palletizing opportunity", "Palletizing", ""],
+  depalletizing: ["Depalletizing opportunity", "Depalletizing", ""],
+  cartonPalletizing: ["Carton palletizing opportunity", "Palletizing", "Cartons"],
+  palletHandling: ["Pallet handling opportunity", "Pallet handling", ""],
+  casePacking: ["Case packing opportunity", "Case packing", ""],
+  packaging: ["Packing opportunity", "Packaging", ""],
+  machineTending: ["Machine tending opportunity", "Machine tending", ""],
+  inspection: ["Inspection opportunity", "Quality inspection", ""],
+  materialHandling: ["Material handling opportunity", "Material handling", ""],
+} as const;
+
+type OpportunityCategory = typeof opportunityCategories[keyof typeof opportunityCategories];
+
+function categoryDraft([title, taskFamily, objects]: OpportunityCategory): TaskListingDetails {
+  return { title, taskFamily, objects, siteType: "", region: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "open" };
+}
+
+/** Rebuild safe details for newly created and older stored listings. */
+export function storedAnonymizedOpportunityDraft(title: unknown): TaskListingDetails {
+  return categoryDraft(Object.values(opportunityCategories).find(category => category[0] === title) ?? opportunityCategories.other);
+}
+
+/** Use the site's description to select a fixed category. No description text crosses into the listing. */
 export function anonymizedOpportunityDraft(description: string): TaskListingDetails {
   const text = description.toLowerCase();
-  const category = /dish|dishwasher/.test(text) ? ["Dish handling opportunity", "Dish handling", "Dishes"]
-    : /pallet/.test(text) ? [/carton|box/.test(text) ? "Carton palletizing opportunity" : "Pallet handling opportunity", "Pallet handling", /carton|box/.test(text) ? "Cartons" : ""]
-      : /pack/.test(text) ? ["Packing opportunity", "Packing", ""]
-        : /inspect/.test(text) ? ["Inspection opportunity", "Inspection", ""]
-          : /pick|place|transfer|move/.test(text) ? ["Material handling opportunity", "Material handling", ""]
-            : ["Job opportunity", "Other", ""];
-  return { title: category[0], taskFamily: category[1], objects: category[2], siteType: "", region: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "open" };
+  const categories = opportunityCategories;
+  if (/\b(?:machine|cnc)[ -]tend(?:ing)?\b|\b(?:un)?load\w*\b.{0,55}\b(?:into|from|out of|in) (?:(?:a|an|the) )?(?:cnc|lathe|injection mold(?:ing)? machine)\b/.test(text)) {
+    return categoryDraft(categories.machineTending);
+  }
+  if (/\bdepalleti[sz]\w*\b/.test(text)) return categoryDraft(categories.depalletizing);
+  if (/\bpalleti[sz]\w*\b|\bstack\w*\b.{0,70}\b(?:on|onto) (?:\w+ ){0,3}pallets?\b/.test(text)) {
+    return categoryDraft(/\b(?:cartons?|box(?:es)?)\b/.test(text) ? categories.cartonPalletizing : categories.palletizing);
+  }
+  if (/\bcase[ -]pack\w*\b|\b(?:pack|load)\w*\b.{0,55}\binto (?:\w+ ){0,2}(?:cases?|cartons?|boxes)\b/.test(text)) return categoryDraft(categories.casePacking);
+  if (/\binspect\w*\b|\bquality (?:check|control)\b/.test(text)) return categoryDraft(categories.inspection);
+  if (/\b(?:dish(?:es)?|dishwashers?)\b/.test(text)) return categoryDraft(categories.dishes);
+  if (/\bpallets?\b/.test(text)) return categoryDraft(categories.palletHandling);
+  if (/\bpack(?:s|ing|ed|ag\w*)?\b/.test(text)) return categoryDraft(categories.packaging);
+  if (/\b(?:pick|place|transfer|move)\w*\b/.test(text)) return categoryDraft(categories.materialHandling);
+  return categoryDraft(categories.other);
 }
 
 /** One first-look row in words (`client/src/lib/firstLookWords.ts`), as the company's page shows it. */

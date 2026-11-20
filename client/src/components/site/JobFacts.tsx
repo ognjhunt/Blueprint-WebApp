@@ -85,7 +85,7 @@ export function JobFacts({ token, facts, onSaved }: {
     }
   }
 
-  return <section aria-labelledby={`${groupId}-heading`} data-testid="job-facts" style={{ margin: "16px 0 24px" }}>
+  return <section aria-labelledby={`${groupId}-heading`} className="site-job-facts" data-testid="job-facts" style={{ margin: "16px 0 24px" }}>
     <h2 id={`${groupId}-heading`} style={{ fontSize: "1.05rem", margin: "0 0 12px" }}>{JOB_FACTS_HEADING}</h2>
     {current ? <div role="group" aria-labelledby={`${groupId}-question`} key={current}>
       {/* Buttons, not radios: arrow keys never save; Enter or Space on a choice does (review S5). */}

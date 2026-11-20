@@ -1,3 +1,4 @@
+import { BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH } from "@/lib/robotTeamAccess";
 import { useState } from "react";
 import { useWorkspace } from "@/lib/workspace";
 import { Frame, ActionLink, Empty, Tag } from "@/components/workspace/WorkspaceUI";
@@ -67,8 +68,8 @@ export default function Overview() {
       active="overview"
       title={site ? "Your jobs" : "Overview"}
       action={
-        <ActionLink href={site ? "/contact/site-operator" : "/contact/robot-team"} primary>
-          {site ? "Show us a job" : "Task library"}
+        <ActionLink href={site ? "/contact/site-operator" : BROWSE_JOBS_PATH} primary>
+          {site ? "Show us a job" : BROWSE_JOBS_LABEL}
         </ActionLink>
       }
     >
@@ -86,8 +87,8 @@ export default function Overview() {
           Send us a video of the job you want a robot to do. Jobs saved to your account open from here.
         </Empty>
       ) : (
-        <Empty title="Find site jobs" href="/contact/robot-team" action="Task library">
-          Site jobs are in the task library.
+        <Empty title="Deployment opportunities" href={BROWSE_JOBS_PATH} action={BROWSE_JOBS_LABEL}>
+          Review jobs shared by sites and respond from the job page.
         </Empty>
       )}
     </Frame>

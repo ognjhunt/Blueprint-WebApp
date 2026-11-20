@@ -14,7 +14,7 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
-import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES } from "../../client/src/lib/companyResponses";
+import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES, companyResponseNeedsNote } from "../../client/src/lib/companyResponses";
 import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 const router = Router();
@@ -29,12 +29,15 @@ function termsRequired(res: Response, access: { gated: boolean; status: string; 
       allowed: false, staff: access.staff, termsRequired: true } });
 }
 const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
-  inputs: z.string().trim().min(4).max(2000),
+  inputs: z.string().trim().max(2000),
   // The line the company saw under the form (E5); stored on the answer.
   statementVersion: z.literal(COMPANY_RESPONSE_STATEMENT_VERSION) }).strict();
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const input = interestSchema.safeParse(req.body), user = res.locals.firebaseUser;
-  if (!input.success) return res.status(400).json({ error: "Choose an answer and add a few words about it." });
+  if (!input.success) return res.status(400).json({ error: "Choose a response and keep your note under 2,000 characters." });
+  if (companyResponseNeedsNote(input.data.state) && input.data.inputs.length < 4) {
+    return res.status(400).json({ error: "Add a few words about what you need or what you tested." });
+  }
   if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your approved company's verified account." });
   if (!db) return res.status(503).json({ error: "Job unavailable" });
   try {

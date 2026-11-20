@@ -203,8 +203,11 @@ test("the deployment companies section says the send line, each answer by alias,
   const companies = page.getByRole("region", { name: "Deployment companies" });
   await expect(companies.getByText(SHARED, { exact: true })).toBeVisible();
   await expect(companies.getByText("Sent to 3 deployment companies on November 12, 2026.", { exact: true })).toBeVisible();
-  await expect(companies.getByText("Company B answered on November 12, 2026: Would need something.", { exact: true })).toBeVisible();
-  await expect(companies.getByText("Company A answered on November 13, 2026: Interested.", { exact: true })).toBeVisible();
+  const companyB = companies.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company B", exact: true }) });
+  await expect(companyB.getByText("Need more details", { exact: true })).toBeVisible();
+  await expect(companyB.getByText("November 12, 2026", { exact: true })).toBeVisible();
+  const companyA = companies.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });
+  await expect(companyA.getByText("Interested", { exact: true })).toBeVisible();
   // Why (2026-11-20): the company's words as the server gives them, and what would make an introduction possible.
   await expect(companies.getByText("In their words: “We would need a video of the far end of the line.”", { exact: true })).toBeVisible();
   await expect(companies.getByText("You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.", { exact: true })).toBeVisible();
