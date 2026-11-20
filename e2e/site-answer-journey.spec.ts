@@ -94,7 +94,7 @@ async function startWithVideo(page: Page, email: string, address: string) {
   await page.goto("/contact/site-operator", { waitUntil: "networkidle" });
   await page.locator("#start-method-upload").click();
   await page.locator("#start-footage").setInputFiles(VIDEO);
-  await page.locator("#start-task").fill("Move each sealed carton from the conveyor onto the cart.");
+  await page.locator("#start-task").fill("Pick up the sealed carton from the end of the conveyor and place it on the cart.");
   await page.locator("#start-location").fill(address);
   await page.locator("#start-email").fill(email);
   const send = page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ });
