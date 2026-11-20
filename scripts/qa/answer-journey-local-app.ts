@@ -145,11 +145,11 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
   if (!/^demo-blueprint-reliability(?:-a|-b)?\.appspot\.com$/.test(bucketName)) throw new Error('Demo bucket required');
   const [{ csrfProtection }, { default: verifyFirebaseToken }, { requireAdminRole }, { default: jobWorkflow }, { default: siteWorlds },
     { default: companyMedia }, { default: robotTeamAccess }, { default: adminRobotTeamAccess }, { default: jobOutcomes },
-    { default: workspace }, queue, { default: admin }] = await Promise.all([
+    { default: workspace }, { default: jobFacts }, queue, { default: admin }] = await Promise.all([
     import('../../server/middleware/csrf'), import('../../server/middleware/verifyFirebaseToken'), import('../../server/middleware/requireAdminRole'),
     import('../../server/routes/job-workflow'), import('../../server/routes/site-worlds'), import('../../server/routes/company-media'),
     import('../../server/routes/robot-team-access'), import('../../server/routes/admin-robot-team-access'), import('../../server/routes/job-outcomes'),
-    import('../../server/routes/workspace'), import('../../server/utils/captureCoverageQueue'), import('firebase-admin'),
+    import('../../server/routes/workspace'), import('../../server/routes/job-facts'), import('../../server/utils/captureCoverageQueue'), import('firebase-admin'),
   ]);
   // The app the product's firebaseAdmin module initialized against the emulators.
   const firebaseApp = admin.apps[0];
@@ -166,6 +166,7 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
 
   // The private job page's own reads (and the deployment-company step it can turn on).
   app.use('/api/job-workflow', csrfProtection, jobWorkflow);
+  app.use('/api/job-facts', jobFacts);
   // The deployment company's side and the job's follow-ups, mounted as server/routes.ts mounts them. Accounts are
   // real Firebase ID tokens from the Auth emulator, verified by the product's own middleware.
   app.use('/api/workspace', csrfProtection, verifyFirebaseToken, workspace);

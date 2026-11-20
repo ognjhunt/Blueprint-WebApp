@@ -16,6 +16,7 @@ import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL, type JobOutlook } from "@/l
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type JobSharing, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 import { isSiteCompanyActivity, type SiteCompanyActivity } from "@/lib/companyResponses";
+import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { robotCheckOf } from "@/lib/simulationProof";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -84,7 +85,7 @@ type TaskStatus = {
   successThresholds?: SuccessThresholdsView | null;
   /** The site's answer: which robot most likely fits, for the owner only. A fit check, never a physical test. */
   answer?: SiteAnswerView | null;
-  companyStatus?: { sharing: JobSharing; companies?: SiteCompanyActivity; descriptionOnly: boolean } | null;
+  companyStatus?: { sharing: JobSharing; companies?: SiteCompanyActivity; descriptionOnly: boolean; taskFamily?: string } | null;
 };
 
 /** Decisions that ask something of the site, or end the job: the status card stays for them under any answer. */
@@ -599,6 +600,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               sharing: data.companyStatus.sharing,
               companies: isSiteCompanyActivity(data.companyStatus.companies) ? data.companyStatus.companies : undefined,
               descriptionOnly: data.companyStatus.descriptionOnly === true,
+              taskFamily: typeof data.companyStatus.taskFamily === "string" ? data.companyStatus.taskFamily : undefined,
             } : null,
           });
         } else if (alive) readFailed(false);
@@ -880,8 +882,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // The site's quick questions, and whether the page has an action waiting on the site first (an older job's agreement,
   // a step the status card names, or the job's sentence): then they sit below that action.
   // Only for a shared job: a job under an older statement has no company to answer yet, and its page asks for v4 first.
+  const taskFamily = status?.companyStatus?.taskFamily ?? anonymizedOpportunityDraft(jobSentence ?? "").taskFamily;
   const jobFacts = answer && scope === "owner" && !withdrawn && answer.sharing?.state !== "not_shared"
-    ? <JobFacts token={token} facts={status?.jobFacts as never} /> : null;
+    ? <JobFacts key={taskFamily} token={token} facts={status?.jobFacts as never} taskFamily={taskFamily} /> : null;
   const siteActionWaiting = answer?.sharing?.olderStatement === true || !quietCard || Boolean(taskStatementForm);
   const settingsOpen = scope === "owner" && (link.status === "valid" || link.status === "held");
   const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || undefined}

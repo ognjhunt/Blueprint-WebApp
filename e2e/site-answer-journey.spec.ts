@@ -187,6 +187,13 @@ test.describe("desktop", () => {
     expect((await jobRecord(request, requestId)).access).toMatchObject({ listed: true });
     await expect(companies(page)).toContainText("0 recorded views");
     await expect(companies(page)).toContainText("0 replies");
+    const facts = page.getByRole("region", { name: "A few quick questions help companies answer" });
+    await expect(facts.getByText("Where does the robot pick up the load?")).toBeVisible();
+    await facts.getByRole("button", { name: "Moving conveyor" }).click();
+    await expect(facts.getByText("How heavy is the heaviest loaded item?")).toBeVisible();
+    await facts.getByRole("spinbutton", { name: "Weight" }).fill("20");
+    await facts.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(facts.getByText("How many items arrive per minute at the busiest time?")).toBeVisible();
 
     // 3. A deployment company applies, staff approve it, and it accepts the current Terms (signed in, in the browser).
     const applicationContext = await browser.newContext();
@@ -284,6 +291,8 @@ test.describe("desktop", () => {
     await expect(companyPage.getByRole("searchbox", { name: "Search jobs" })).toHaveValue(searchTerm);
     await row.getByRole("link", { name: "View job" }).click();
     await expect(companyPage.getByText("Pick up the sealed carton from the end of the conveyor and place it on the cart.")).toBeVisible({ timeout: 30_000 });
+    await expect(companyPage.getByText("Pickup: Moving conveyor", { exact: true })).toBeVisible();
+    await expect(companyPage.getByText("Heaviest loaded item: 9.072 kg", { exact: true })).toBeVisible();
     // The approved browser receives a ticket for the published clip. A request without a ticket is refused.
     await expect(companyPage.getByLabel("The site's video, without sound")).toHaveAttribute("src",
       new RegExp(`/api/company-media/jobs/${requestId}/video\\.mp4\\?`));

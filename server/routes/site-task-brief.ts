@@ -1146,7 +1146,7 @@ async function siteCompanyStatus(params: StatusAnswerParams | null) {
         .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; });
     // Keep withdrawal available for old description-only listings, even though companies no longer see them.
     const descriptionOnly = isJobSharedListing(params.request) && descriptionStatementShares(params.request);
-    return { sharing, companies, descriptionOnly };
+    return { sharing, companies, descriptionOnly, ...(access.listed ? { taskFamily: access.details.taskFamily } : {}) };
   } catch (error) {
     logger.warn({ error, requestId: params.requestId }, "Could not read the job's company status");
     return null;

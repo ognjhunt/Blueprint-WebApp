@@ -60,6 +60,14 @@ describe("POST /api/job-facts/:token", () => {
     expect(readJobFacts(job())).toMatchObject({ weight: "unsure", timing: "asap" });
   });
 
+  it("saves an exact measurement for a job-type question through the same owner route", async () => {
+    expect((await tap({ key: "peakPerMinute", code: "26.5" })).status).toBe(200);
+    expect((await tap({ key: "machineAccess", code: "automatic" })).status).toBe(200);
+    expect((await tap({ key: "itemsPerCase", code: "3.5" })).status).toBe(400);
+    expect((await tap({ key: "peakPerMinute", code: "26.5" }, film())).status).toBe(403);
+    expect(readJobFacts(job())).toMatchObject({ peakPerMinute: "26.5", machineAccess: "automatic" });
+  });
+
   it.each([
     ["an array", [{ key: "weight", code: "5_15kg" }], "job_facts_body_not_object"],
     ["an extra field", { key: "weight", code: "5_15kg", note: "it is heavy" }, "job_facts_unexpected_field"],
