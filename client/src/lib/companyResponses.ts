@@ -137,8 +137,6 @@ export function elapsedSince(start: string | null | undefined, end: string | nul
   return new Intl.NumberFormat("en", { style: "unit", unit, unitDisplay: "long", maximumFractionDigits: 1 }).format(value);
 }
 
-/** The example's empty state before any company replies. */
-
 /** The site's sentences. */
 export const sentToCompany = (alias: string, date: string) => `Sent to ${alias} on ${date}.`;
 export const companyAnswered = (alias: string, date: string, state: CompanyResponseState) =>
