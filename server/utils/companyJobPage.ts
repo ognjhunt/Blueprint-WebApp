@@ -15,7 +15,7 @@ import { firstLookRowFromAnswerRobot, firstLookRowInWords } from "../../client/s
 import { readJobFacts } from "./jobFacts";
 import { firstLookFromStoredPreparation } from "./firstLookTable";
 import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
-import { removeIdentifyingDetails } from "../../client/src/lib/contactRedaction";
+import { removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
 import { knownSiteIdentity } from "./siteIdentity";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
@@ -173,9 +173,9 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     taskFamily: access.details.taskFamily,
     publishedAtIso: String(record.public_task_listing?.approvedAtIso ?? ""),
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
-    // text and any other contact detail removed (`removeIdentifyingDetails`): a company gets those only through an
-    // introduction the site asks for.
-    sentence: known ? removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known) : "",
+    // text and any other contact detail removed (`removeIdentifyingDetails`), then any name-shaped text the record does
+    // not hold (`removeNamesNotHeld`): a company gets the site's name only through an introduction the site asks for.
+    sentence: known ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known)) : "",
     jobFacts: jobFactsInWords(facts),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }

@@ -129,6 +129,11 @@ function addressParts(address: string): string[] {
   return [...parts, ...streets, ...(address.match(/\b\d{5}(?:-\d{4})?\b/g) ?? [])];
 }
 
+/** Months, weekdays and compass directions: written with a capital anyway ("the March batch", "carry it North"). */
+const CALENDAR_AND_COMPASS_WORDS = new Set(["january", "february", "march", "april", "june", "july", "august", "september",
+  "october", "november", "december", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest", "northern", "southern", "eastern", "western"]);
+
 /** Words that never identify a site on their own, so never removed alone (the full name still is): generic business,
  * street, workplace and place words, months, weekdays and compass directions. The one list of them. */
 const GENERIC_NAME_WORDS = new Set(["foods", "food", "logistics", "group", "company", "warehouse", "fresh", "services", "supply",
@@ -136,11 +141,7 @@ const GENERIC_NAME_WORDS = new Set(["foods", "food", "logistics", "group", "comp
   "ltd", "corp", "corporation", "limited", "plant", "factory", "center", "centre", "distribution", "the", "and",
   "street", "avenue", "road", "lane", "boulevard", "highway", "parkway", "drive", "court", "place", "square", "terrace", "way",
   "boxes", "cartons", "totes", "pallets", "items", "parts", "bins", "shifts", "hours", "minutes", "line", "dock", "site",
-  // Months, weekdays and compass directions are written with a capital anyway ("the March batch", "carry it North").
-  "january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december",
-  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-  "north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest",
-  "northern", "southern", "eastern", "western",
+  ...CALENDAR_AND_COMPASS_WORDS,
   // Ordinary workplace and place words (planner, 2026-11-12, H3): everyday sentences stay whole.
   "station", "robot", "bay", "cell", "zone", "aisle", "shelf", "rack", "tote", "box", "pallet", "conveyor", "machine",
   "press", "oven", "counter", "safety", "quality", "central", "main", "national", "american", "united", "general", "first",
@@ -279,4 +280,92 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
 /** Whether `removeIdentifyingDetails` would change the text: the site's page may then say `CONTACT_DETAILS_REMOVED_LINE`. */
 export function identifyingDetailsRemoved(text: string, known: KnownSiteIdentity): boolean {
   return removeIdentifyingDetails(text, known) !== tidy(fold(text));
+}
+
+/* ------------------------------------------------------------- names the record does not hold (company side only) */
+
+/** Words a sentence starts with that are never a name, even when a capitalised word follows ("Move Hobart racks"). */
+const SENTENCE_STARTERS = new Set(["a", "an", "the", "we", "i", "our", "us", "you", "your", "they", "their", "it", "its", "this",
+  "that", "these", "those", "there", "here", "each", "every", "all", "any", "some", "most", "many", "few", "both", "no", "not",
+  "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "someone", "everyone", "everything", "staff",
+  "at", "in", "on", "from", "to", "into", "onto", "for", "with", "without", "by", "of", "after", "before", "during", "when",
+  "while", "once", "then", "next", "first", "second", "last", "finally", "also", "and", "but", "or", "so", "if", "about",
+  "around", "between", "under", "over", "up", "down", "out", "only", "just", "usually", "normally", "currently", "sometimes",
+  "often", "always", "now", "today", "daily", "weekly", "nightly", "please", "how", "what", "which", "who", "where", "why",
+  "my", "he", "she", "his", "her", "can", "could", "would", "should", "will", "must", "do", "does", "is", "are", "was", "were",
+  "have", "has", "need", "needs", "help", "let", "make", "get", "move", "pick", "put", "take", "carry", "bring", "load",
+  "unload", "stack", "unstack", "sort", "pack", "unpack", "wrap", "fold", "open", "close", "push", "pull", "lift", "transfer",
+  "fill", "empty", "clean", "wipe", "wash", "rinse", "inspect", "check", "scan", "label", "count", "weigh", "measure",
+  "restock", "replenish", "stock", "retrieve", "collect", "gather", "deliver", "drop", "insert", "remove", "feed", "tend",
+  "sweep", "mop", "cut", "slice", "trim", "assemble", "seal", "tape", "bag", "palletize", "palletise", "depalletize",
+  "depalletise", "kit", "pour", "mix", "cook", "fry", "bake", "flip", "serve", "hang", "polish", "sand", "paint", "weld",
+  "grind", "drill", "deburr", "return", "rotate", "turn", "align", "arrange", "organize", "organise", "set", "grab", "keep",
+  "use", "run", "operate", "start", "stop", "repeat", "replace", "swap", "shelve", "dispose", "discard", "refill", "hand"]);
+
+/** A capitalised word ("Acme", "Joe's", "Coca-Cola", "ACME"); a word with a digit in it is never one ("B2B", "M8"). */
+const CAPITALISED_WORD = /(?<![\p{L}\p{N}'’&-])\p{Lu}(?:\p{L}|['’&-](?=\p{L}))*(?![\p{L}\p{N}])/gu;
+/** A title and the capitalised word after it ("Mr. Smith", "Dr Jones"): the name, whatever follows. */
+const TITLED_NAME = /(?<![\p{L}\p{N}])(?:Mr|Mrs|Ms|Mx|Dr|Miss)\.?\s+\p{Lu}(?:\p{L}|['’-](?=\p{L}))*/gu;
+const POSSESSIVE = /['’]s$/i;
+
+/** A capitalised word that names nothing: an ordinary place or workplace word, a month, weekday, direction or country,
+ * a single letter, or a short acronym in capitals ("SKU", "SKUs", "AGV", "CNC"). */
+function ordinaryCapitalised(word: string): boolean {
+  const bare = word.replace(POSSESSIVE, "");
+  const lower = bare.toLowerCase();
+  return bare.length === 1 || /^\p{Lu}{2,3}s?$/u.test(bare) || GENERIC_NAME_WORDS.has(lower) || COUNTRY_WORDS.has(lower)
+    || lower === "blueprint";
+}
+
+/**
+ * A name the site typed that the record does not hold, out of what a deployment company reads (2026-11-20). The start
+ * form asks for no site or person name, so `removeIdentifyingDetails` cannot know one the site writes into its sentence
+ * ("At Joe's Diner, …", "Acme Fulfillment needs …", "Joe Smith at Smith Bakery …"). Run on its result, this takes out
+ * name-shaped text instead, each as `[removed]` (it may be a business, a person or a brand; it is never said to be the
+ * site):
+ *
+ * - a capitalised word inside a sentence ("ask Joe", "the Hobart dishwasher"), unless it names nothing
+ *   (`ordinaryCapitalised`);
+ * - a capitalised word with "'s" anywhere ("Joe's");
+ * - a sentence's first word followed by another capitalised word ("Acme Fulfillment"), unless the first word is one a
+ *   sentence ordinarily starts with (`SENTENCE_STARTERS`: "Move Hobart racks" keeps "Move") or the next word is a
+ *   month, weekday or direction;
+ * - a title and the name after it ("Mr. Smith");
+ * - with each, the capitalised words next to it ("Acme Foods", "Smith & Sons Bakery").
+ *
+ * Company side only: the site's task context for the Pipeline is not touched, so no digest bound to it changes.
+ *
+ * The remaining limit, exactly: a name written in lower case ("joe's diner"), a lone name as a sentence's first word with
+ * a lower-case word after it ("Acme needs …"), a name of three capital letters or fewer ("IBM") and a name made only of
+ * ordinary words ("Central Kitchen") still get through. Brand names of equipment and products are removed with names.
+ */
+export function removeNamesNotHeld(text: string): string {
+  const source = text.replace(TITLED_NAME, REMOVED);
+  const words = [...source.matchAll(CAPITALISED_WORD)].map(match => ({ word: match[0], start: match.index!,
+    end: match.index! + match[0].length }));
+  // Runs of capitalised words next to each other ("Joe Smith", "Smith & Sons Bakery"), on one line.
+  const runs: Array<typeof words> = [];
+  for (const word of words) {
+    const last = runs[runs.length - 1];
+    if (last && /^[^\S\n]+(?:&[^\S\n]+)?$/.test(source.slice(last[last.length - 1].end, word.start))) last.push(word);
+    else runs.push([word]);
+  }
+  const spans: Array<[number, number]> = [];
+  for (const run of runs) {
+    const [first] = run;
+    const atStart = startsSentence(source, first.start);
+    const firstLower = first.word.replace(POSSESSIVE, "").toLowerCase();
+    // A sentence's own capital: a word it ordinarily starts with, or an ordinary word, is kept whatever follows it.
+    const from = atStart && (SENTENCE_STARTERS.has(firstLower) || ordinaryCapitalised(first.word)) ? 1 : 0;
+    const named = run.slice(from).some((item, index) => {
+      if (ordinaryCapitalised(item.word)) return false;
+      if (from + index > 0 || !atStart || POSSESSIVE.test(item.word)) return true;
+      const next = run[1];
+      return Boolean(next) && !CALENDAR_AND_COMPASS_WORDS.has(next.word.replace(POSSESSIVE, "").toLowerCase());
+    });
+    if (named) spans.push([run[from].start, run[run.length - 1].end]);
+  }
+  let out = source;
+  for (const [start, end] of spans.reverse()) out = `${out.slice(0, start)}${REMOVED}${out.slice(end)}`;
+  return out.replace(/\[removed\](?:[^\S\n]+\[removed\])+/g, REMOVED);
 }
