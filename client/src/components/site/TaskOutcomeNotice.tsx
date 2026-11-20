@@ -1,18 +1,15 @@
 import type { TaskOutcome } from "@/types/taskOutcome";
 
+/**
+ * Where the job stands, in plain words. The outcome's evidence digests and its reference are kept for the admin job
+ * console only, never shown to the site. A scope line is said only when it has words (an estimate's caveat).
+ */
 export function TaskOutcomeNotice({ outcome, showTitle = true }: { outcome?: TaskOutcome | null; showTitle?: boolean }) {
   if (!outcome) return null;
-  return <section aria-label="Preparation outcome" className="ws-task-outcome">
+  return <section aria-label="Where your job stands" className="ws-task-outcome">
     {showTitle && <h3>{outcome.title}</h3>}
     <p>{outcome.reason}</p>
-    <p>{outcome.scope}</p>
-    {outcome.actionOwner === "none" ? <p>{outcome.nextStep}</p>
-      : <p><strong>Next step — {outcome.actionOwner === "blueprint" ? "Blueprint" : "you"}:</strong> {outcome.nextStep}</p>}
-    {(outcome.evidence.length > 0 || outcome.reference) && <details><summary>Evidence references</summary>
-      {outcome.reference && <p>Reference: {outcome.reference}</p>}
-      <ul>{outcome.evidence.map(item => <li key={`${item.label}-${item.digest}`}>
-        {item.label}: <code style={{ overflowWrap: "anywhere" }}>{item.digest}</code>
-      </li>)}</ul>
-    </details>}
+    {outcome.scope.trim() && <p>{outcome.scope}</p>}
+    {outcome.actionOwner === "site" ? <p><strong>Next:</strong> {outcome.nextStep}</p> : <p>{outcome.nextStep}</p>}
   </section>;
 }

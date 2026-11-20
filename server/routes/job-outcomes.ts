@@ -16,6 +16,11 @@ import { JOB_OUTCOME_TOKEN_PATTERN, verifyJobOutcomeToken } from "../utils/jobOu
 const router = Router();
 
 export const OUTCOME_LINK_NOT_WORKING = "This link no longer works.";
+/** Under the dead-link heading: the one other way to answer. */
+export const OUTCOME_LINK_NOT_WORKING_NEXT = "You can email hello@tryblueprint.io instead.";
+/** When the answer store cannot be reached: what happened, then what to do. */
+export const OUTCOME_NOT_RECORDED = "We couldn't record that just now.";
+export const OUTCOME_NOT_RECORDED_NEXT = "Please open the link again shortly.";
 export const OUTCOME_CONFIRM_HEADING = "Record your answer";
 export const OUTCOME_CONFIRM_BUTTON = "Record this answer";
 export const OUTCOME_THANKS_PATH = "/job-outcome/thanks";
@@ -34,7 +39,8 @@ function send(res: Response, status: number, html: string) {
   return res.status(status).type("html").send(html);
 }
 
-const notWorking = (res: Response) => send(res, 404, page(`<h1>${OUTCOME_LINK_NOT_WORKING}</h1>`));
+const notWorking = (res: Response) => send(res, 404, page(`<h1>${OUTCOME_LINK_NOT_WORKING}</h1><p>${OUTCOME_LINK_NOT_WORKING_NEXT}</p>`));
+const notRecorded = (res: Response) => send(res, 503, page(`<h1>${OUTCOME_NOT_RECORDED}</h1><p>${OUTCOME_NOT_RECORDED_NEXT}</p>`));
 
 router.get("/:token", (req, res) => {
   const token = String(req.params.token || "");
@@ -50,7 +56,7 @@ router.post("/:token", async (req, res) => {
   try {
     const result = await recordOutcomeAnswer(token);
     if (!result.ok) {
-      if (result.reason === "store_unavailable") return send(res, 503, page("<h1>Please try again shortly.</h1>"));
+      if (result.reason === "store_unavailable") return notRecorded(res);
       return notWorking(res);
     }
     res.setHeader("Cache-Control", "no-store");
@@ -58,7 +64,7 @@ router.post("/:token", async (req, res) => {
     return res.redirect(303, `${OUTCOME_THANKS_PATH}?answer=${result.state}`);
   } catch (error) {
     logger.warn({ error }, "Could not record an outcome answer");
-    return send(res, 503, page("<h1>Please try again shortly.</h1>"));
+    return notRecorded(res);
   }
 });
 

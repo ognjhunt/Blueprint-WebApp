@@ -113,7 +113,7 @@ describe("durable daily intake caps", () => {
     expect(refused.status).toBe(429);
     expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
     expect(await refused.json()).toMatchObject({ ok: false, code: "intake_global_daily_limit",
-      message: expect.stringContaining("today's limit for new requests") });
+      message: expect.stringContaining("today's limit for new jobs") });
     await settle();
     expect(sharedFakeFirestoreState.docs.has("inboundRequests/cap-c")).toBe(false);
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/cap-c:task_received")).toBe(false);

@@ -127,9 +127,8 @@ describe("a job past its window with no outcome", () => {
     // Nothing else on the job changed: the grant and its reservations are as they were.
     expect({ ...job(), website_job_window_ending: undefined }).toEqual({ ...before, website_job_window_ending: undefined });
     expect(outbox()).toEqual([]);
-    expect(JOB_WINDOW_ENDING_MESSAGE).toBe("The simulation of your site has stopped because the time Blueprint was authorized to work on this job ran out. "
-      + "Blueprint did not finish the simulation in that time, and no more simulation work will run on this job. Your first look stays on your job page. "
-      + "Nothing more is needed from you. Keep your original recording; to have Blueprint work on this site again, you can start a new job.");
+    expect(JOB_WINDOW_ENDING_MESSAGE).toBe("The simulation of your site has stopped because the time for this job ran out. "
+      + "It was not finished, and no more work will run on this job. Your first look stays on your job page. To try again, start a new job.");
     expect(await page()).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null, stage: null });
 
     // Twice more: still one ending, and nothing sent.
@@ -226,7 +225,7 @@ describe("the ending and what comes after it", () => {
     seedJob();
     await sweep();
     Object.assign(job(), { consent_revoked: true, capture_withdrawal: { state: "uploads_stopped_cleanup_pending" } });
-    expect((await page({ consentRevoked: true })).headline).toMatch(/consent was withdrawn/);
+    expect((await page({ consentRevoked: true })).headline).toMatch(/^Permission to use your video was withdrawn\./);
   });
 
 
@@ -236,7 +235,8 @@ describe("the ending and what comes after it", () => {
     seedIntake();
     sceneHoldRun("held_scene_check");
     expect((await page({ sceneProgression: { state: "held", heldReason: "held_scene_check" } })).headline)
-      .toMatch(/^The simulated scene failed the check we run before testing robots/);
+      .toBe("We couldn't finish the simulation of your site: it didn't pass one of our checks. Your first look stays on your job page. "
+        + "Nothing is needed from you.");
   });
 
   it("is the job's one ending: a Pipeline ending read afterwards does not change the page", async () => {

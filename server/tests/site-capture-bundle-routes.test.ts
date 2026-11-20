@@ -294,7 +294,7 @@ describe("the link check tells the app what to record", () => {
   it("still answers 404 for a bad link", async () => {
     const response = await api("GET", "not-a-token");
     expect(response.status).toBe(404);
-    expect(response.body.error).toBe("This upload link is not valid or has expired.");
+    expect(response.body.error).toBe("This job link is not valid or has expired.");
   });
 });
 

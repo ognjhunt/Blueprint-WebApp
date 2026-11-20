@@ -37,6 +37,9 @@ export const SITE_START_CONSENT_WITH_VIDEO_V4 =
 export const SITE_START_CONSENT_NO_VIDEO_V5 =
   "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. "
   + "We share your job with robot deployment companies we've approved.";
-/** The "also" line under "What you're agreeing to" (PACKAGE_E). Not a recorded statement. */
+/**
+ * The "Your details" line under "What you're agreeing to" (PACKAGE_E). Not a recorded statement. The Terms and Privacy
+ * Policy are named, with links, in the consent line right above it, so they are not repeated here.
+ */
 export const AGREEING_ALSO_LINE =
-  "Our Terms and Privacy Policy. We don't share your name, address or contact details unless you ask for an introduction.";
+  "We don't share your name, address or contact details unless you ask for an introduction.";

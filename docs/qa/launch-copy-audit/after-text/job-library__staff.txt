@@ -1,0 +1,74 @@
+# job-library__staff
+# route: /contact/robot-team (final URL desktop: /contact/robot-team; phone: /contact/robot-team)
+# source: client/src/components/site/TaskBrowse.tsx (staff note)
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+Find jobs
+Search jobs
+All job types
+Pallet handling
+Palletizing
+Pick and place
+Transport
+All regions
+US Midwest
+Ready to test
+
+4 jobs
+
+Move sealed cartons from conveyor to pallet
+Palletizing
+US Midwest
+Ready to test
+Objects
+Sealed cartons
+Site
+Warehouse
+Cycle target
+12 seconds
+
+On paper, the robot most likely to fit: Universal Robots UR10e.
+
+View job
+Transfer trays between two stations
+Transport
+US Midwest
+Simulation being built
+Objects
+Loaded trays
+Site
+Manufacturing
+Cycle target
+20 seconds
+View job
+Sort small rigid parts into bins
+Pick and place
+US Midwest
+Ready to test
+Objects
+Small rigid parts
+Site
+Warehouse
+Cycle target
+12 seconds
+
+On paper, the robot most likely to fit: Universal Robots UR10e.
+
+View job
+Palletize cartons
+Pallet handling
+Objects
+Cartons
+View job
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

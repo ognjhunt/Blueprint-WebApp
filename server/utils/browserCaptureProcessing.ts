@@ -60,7 +60,7 @@ export async function retainedProcessingFailure(video: WrittenObject, retryAvail
   const status = await describeBrowserUpload(payload, authorization.allowed);
   const hold = authorization.allowed ? status.processingHold : {
     code: authorization.holdReason ?? "capture_held",
-    detail: authorization.detail ?? "Your video is saved. Processing is on hold for this site.",
+    detail: authorization.detail ?? "Your video is saved, but we can't use it yet. Email hello@tryblueprint.io if this doesn't change.",
   };
   return { status: retained && hold ? 409 : 502, body: retained ? {
     error: hold?.detail ?? processingPendingMessage, message: hold?.detail ?? processingPendingMessage,

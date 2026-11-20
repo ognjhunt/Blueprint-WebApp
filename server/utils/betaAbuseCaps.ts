@@ -101,13 +101,13 @@ const CONTACT = "email hello@tryblueprint.io";
 export function intakeRefusal(decision: Exclude<DailyCapDecision, { allowed: true }>) {
   if (decision.reason === "store_unavailable") {
     return { status: 503, code: "intake_capacity_unavailable", retryAfterSeconds: decision.retryAfterSeconds,
-      message: `We could not accept new requests just now. Please try again in a minute, or ${CONTACT}.` };
+      message: `We could not accept new jobs just now. Please try again in a minute, or ${CONTACT}.` };
   }
   const message = decision.cap === "intake_ip"
-    ? `Too many requests have come from this network today. Please try again tomorrow, or ${CONTACT}.`
+    ? `Too many jobs have been started from this network today. Please try again tomorrow, or ${CONTACT}.`
     : decision.cap === "intake_email"
-      ? `This email address has started several requests today. Please try again tomorrow, or ${CONTACT}.`
-      : `We have reached today's limit for new requests. Please try again tomorrow, or ${CONTACT}.`;
+      ? `This email address has started several jobs today. Please try again tomorrow, or ${CONTACT}.`
+      : `We have reached today's limit for new jobs. Please try again tomorrow, or ${CONTACT}.`;
   return { status: 429, code: `${decision.cap}_daily_limit`, retryAfterSeconds: decision.retryAfterSeconds, message };
 }
 

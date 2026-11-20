@@ -37,7 +37,7 @@ describe("the company's page for one job", () => {
     expect(await screen.findByRole("heading", { name: "Palletize cartons" })).toBeInTheDocument();
     const account = within(screen.getByRole("navigation", { name: "Account" }));
     expect(account.queryByRole("link", { name: "Sign in" })).toBeNull();
-    expect(account.getByRole("link", { name: "Your workspace" })).toHaveAttribute("href", "/app");
+    expect(account.getByRole("link", { name: "Your account" })).toHaveAttribute("href", "/app");
     expect(fetchMock.mock.calls[0][0]).toBe("/api/site-worlds/jobs/job-1");
     expect(screen.getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
     expect(screen.getByText("Weight: 5 to 15 kg (11 to 33 lb)")).toBeInTheDocument();

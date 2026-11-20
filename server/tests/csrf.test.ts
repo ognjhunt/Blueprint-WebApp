@@ -64,7 +64,8 @@ describe("CSRF protection", () => {
 
     expect(response.status).toBe(403);
     const data = (await response.json()) as { error?: string };
-    expect(data.error).toBe("Invalid CSRF token");
+    // Forms show this text as is (launch copy, 2026-11-20), so it says what the person can do.
+    expect(data.error).toBe("This page needs a refresh. Reload it and try again. If it keeps happening, allow cookies for this site.");
   });
 
   it("accepts requests with matching CSRF cookie and header", async () => {

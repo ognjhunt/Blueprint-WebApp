@@ -1,0 +1,67 @@
+# settings-setup__site-signed-in
+# route: /settings?setup=1 (final URL desktop: /settings?setup=1; phone: /settings?setup=1)
+# source: client/src/pages/workspace/Settings.tsx; components/workspace/WorkspaceSetup.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Your jobs
+Settings
+Operator QA
+Site account
+Sign out
+← Account settings
+
+Your account
+
+Account type
+
+Are you a site or a deployment company?
+
+Your name
+Business name
+Email
+Your sign-in email
+Account type
+Choose one
+Site — I have work to automate
+Deployment company — I deploy robots
+Start a job and follow it here.
+Save
+Cancel
+
+Delete my account and data →
+
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+← Account settings
+
+Your account
+
+Account type
+
+Are you a site or a deployment company?
+
+Your name
+Business name
+Email
+Your sign-in email
+Account type
+Choose one
+Site — I have work to automate
+Deployment company — I deploy robots
+Start a job and follow it here.
+Save
+Cancel
+
+Delete my account and data →
+
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings

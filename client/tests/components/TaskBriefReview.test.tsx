@@ -98,7 +98,7 @@ describe("confirming a brief is an attestation", () => {
     // The summary is the site's to correct: it is what the job is screened as.
     expect(screen.getByLabelText(/what is the job, in one sentence/i)).toHaveValue("Cartons from a conveyor onto a pallet");
     // The confirmable answer shows its basis.
-    expect(screen.getByText(/from your footage/i)).toBeInTheDocument();
+    expect(screen.getByText(/seen in your video/i)).toBeInTheDocument();
     // The assumption is not pre-filled as an answer -- it is an open question,
     // and so is the unresolved gate. Both show the open-question copy.
     expect(screen.getAllByText(/could not tell from what you sent/i).length).toBe(2);
@@ -195,7 +195,7 @@ describe("bounded progressive review", () => {
       operatorAnswers: { sceneStability: "stable" } })} optionalAccount
       account={{ claimed: false, email: "dana@acme.example", claimToken: "claim-tok" }} />);
     expect(screen.queryByLabelText(/choose a password/i)).toBeNull();
-    expect(screen.getByLabelText(/also save this job to my account/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/^save to my account$/i)).not.toBeChecked();
     fireEvent.change(screen.getByLabelText(/between shifts/i), { target: { value: "minor_drift" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
     await screen.findByText(/that is confirmed/i);
@@ -228,7 +228,7 @@ describe("bounded progressive review", () => {
   });
   it("loads the operator's recorded pilot preferences for optional correction", () => {
     render(<TaskBriefReview token="tok" brief={brief({ pilotIntent: { pilotConsideration: "evaluation_only", deploymentPath: "pilot_only" } })} />);
-    expect(screen.getByLabelText(/would you consider a physical pilot here/i)).toHaveValue("evaluation_only");
+    expect(screen.getByLabelText(/would you consider a pilot here/i)).toHaveValue("evaluation_only");
     expect(screen.getByLabelText(/if a pilot meets the agreed targets/i)).toHaveValue("pilot_only");
   });
 });

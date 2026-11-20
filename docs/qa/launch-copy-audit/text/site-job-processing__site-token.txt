@@ -1,0 +1,29 @@
+# site-job-processing__site-token
+# route: /capture-upload/retained-fixture (final URL desktop: /capture-upload/retained-fixture; phone: /capture-upload/retained-fixture)
+# source: client/src/pages/SelfCaptureUpload.tsx; components/site/CaptureLiveStatus.tsx
+# state: video uploaded, processing pending
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+Your job
+Your video is saved.
+
+Blueprint will update this job as the work progresses.
+
+Video received.
+
+Blueprint will continue from this saved recording and update this job. You can leave this page.
+
+Update video (optional)
+Processing details (optional)
+Withdraw recording permission
+
+## Also present once collapsed sections / tabs are opened (desktop)
+If your job or recording has changed, you can send a complete new video. Your job and original video stay saved.
+Update video
+Your video is saved. We could not confirm that processing started. You do not need to upload or record it again.
+Retry processing
+Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused and your job leaves every deployment company's view at once. Each company it was sent to is asked to delete any copy it saved. Withdrawal is not deletion: a copy of the recording and any results already produced are retained, and handled as our Privacy Policy describes.
+Withdraw permission…
+
+## Phone 390: same text as desktop

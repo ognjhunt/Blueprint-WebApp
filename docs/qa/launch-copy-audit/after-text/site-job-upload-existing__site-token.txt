@@ -1,0 +1,27 @@
+# site-job-upload-existing__site-token
+# route: /capture-upload/existing-fixture?video=existing (final URL desktop: /capture-upload/existing-fixture?video=existing; phone: /capture-upload/existing-fixture?video=existing)
+# source: client/src/pages/SelfCaptureUpload.tsx
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+Upload your video
+
+Choose the video you already have. You do not need to record it again.
+
+Upload your original .mov or .mp4 file from this device.
+
+Only upload a video you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.
+
+Upload a video file
+Video on another device?
+Your job is saved.
+
+Blueprint will update this job as the work progresses.
+
+Job settings ›
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Scan this code with that device to open this job there.
+Open this job on another device
+
+## Phone 390: same text as desktop

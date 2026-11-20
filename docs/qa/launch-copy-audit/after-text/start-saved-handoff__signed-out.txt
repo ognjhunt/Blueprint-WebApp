@@ -1,0 +1,55 @@
+# start-saved-handoff__signed-out
+# route: /contact/site-operator (final URL desktop: /contact/site-operator; phone: /capture-upload/owner-fixture)
+# source: client/src/components/site/SiteCaptureStart.tsx (done screen); components/site/CaptureHandoffQr.tsx; phone lands on pages/SelfCaptureUpload.tsx
+# state: desktop: 'Now film the job.' with QR; phone: navigates to the job page recorder
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+
+DRAFT SAVED
+
+Now film the job.
+
+One full round of the job, about 30 seconds. The recorder opens in your browser.
+
+Tell people nearby that the video goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.
+
+Point your phone's camera at this code to film
+
+We also emailed this private link to owner@example.test. Please don't forward it.
+
+Open my job page ›
+
+We have your job and are reading what you sent.
+
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390 (differs from desktop)
+Blueprint
+Back to Blueprint
+Film the job
+Open the camera
+
+Tell people nearby that the video goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.
+
+How to film ›
+
+Already have a video of the work area? Upload it instead.
+
+Only upload a video you may share. People in it must know it goes to Blueprint and to deployment companies we approve.
+
+Choose or record a video
+We have your job and are reading what you sent.
+
+Blueprint will update this job as the work progresses.
+
+Ask someone else to film
+Job settings ›

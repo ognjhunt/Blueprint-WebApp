@@ -1,0 +1,12 @@
+# outcome-confirm-company__company-email-link
+# route: /api/job-outcomes/eyJraW5kIjoiam9iX291dGNvbWUiLCJyIjoiZTJlLXJlcSIsImMiOiJlMmUtY28iLCJieSI6ImNvbXBhbnkiLCJzdGF0ZSI6ImdvaW5nX2FoZWFkIiwiZXhwIjoxNzk3Nzk0MzUzfQ.0zlWN8ybWFtIJHmGsafJI6rFuzG8y5Z8_xNSXpTfRSo (final URL desktop: /api/job-outcomes/eyJraW5kIjoiam9iX291dGNvbWUiLCJyIjoiZTJlLXJlcSIsImMiOiJlMmUtY28iLCJieSI6ImNvbXBhbnkiLCJzdGF0ZSI6ImdvaW5nX2FoZWFkIiwiZXhwIjoxNzk3Nzk0MzUzfQ.0zlWN8ybWFtIJHmGsafJI6rFuzG8y5Z8_xNSXpTfRSo; phone: /api/job-outcomes/eyJraW5kIjoiam9iX291dGNvbWUiLCJyIjoiZTJlLXJlcSIsImMiOiJlMmUtY28iLCJieSI6ImNvbXBhbnkiLCJzdGF0ZSI6ImdvaW5nX2FoZWFkIiwiZXhwIjoxNzk3Nzk0MzUzfQ.0zlWN8ybWFtIJHmGsafJI6rFuzG8y5Z8_xNSXpTfRSo)
+# source: server/routes (job-outcomes HTML page)
+# state: company answers 'Going ahead'
+## Desktop 1280 (document.body.innerText)
+Record your answer
+
+Your answer: Going ahead
+
+Record this answer
+
+## Phone 390: same text as desktop

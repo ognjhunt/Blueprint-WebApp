@@ -33,10 +33,10 @@ test("on a small phone both entry points are visible before scrolling", async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await start.click();
-  await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
+  await expect(page.getByRole("form", { name: "Start a job" })).toBeVisible();
   await companies.click();
   await expect(page.getByRole("heading", { name: "Apply to see jobs" })).toBeInViewport();
-  await page.getByRole("link", { name: "Browse jobs" }).click();
+  await page.getByRole("link", { name: "See jobs", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Apply to see jobs", level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/jobs#partner-application");
 });
@@ -66,7 +66,7 @@ test("the site page is the start form alone, on a phone too", async ({ page }) =
   for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.goto("/contact/site-operator");
-    await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
+    await expect(page.getByRole("form", { name: "Start a job" })).toBeVisible();
     await expect(page.getByText("How this works", { exact: true })).toHaveCount(0);
     await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Send inquiry" })).toHaveCount(0);
@@ -82,7 +82,7 @@ test("the public pages show how sites post video and companies review jobs", asy
   await expect(page.getByRole("list", { name: "Steps" })).toContainText("We share your video and job description with approved companies");
 
   await page.goto("/partners");
-  await expect(page.locator("main")).toContainText("Review real jobs with site videos and details.");
+  await expect(page.locator("main")).toContainText("Review real jobs, each with the site's video and description.");
   await expect(page.locator("main")).not.toContainText("You answer in a minute.");
 });
 

@@ -29,7 +29,7 @@ for (const device of ["desktop", "mobile"] as const) {
       await page.goto("/contact/site-operator");
       const save = page.getByRole("button", { name: "Next: film the job" });
       await expect(page.getByText("Film or upload a video to post your job.")).toBeVisible();
-      await page.getByText("Add details (optional)", { exact: true }).click();
+      await page.getByText("Add details", { exact: true }).click();
       await page.locator("#start-location").fill("Austin");
       await page.locator("#start-region").selectOption("us");
       await page.getByRole("textbox", { name: "Your email" }).fill("qa@example.invalid");
@@ -102,7 +102,7 @@ for (const device of ["desktop", "mobile"] as const) {
       // Nothing is sent without the country and the email.
       await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
       expect(mutations).toHaveLength(0);
-      if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click();
+      if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click();
       await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
       await expect(page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true })).toHaveCount(0);
       await page.locator("#start-location").fill("Austin, TX");

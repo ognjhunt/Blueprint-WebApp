@@ -260,7 +260,7 @@ describe("normal customer UI joined to real handlers and disposable durable stor
           await vi.waitFor(async () => { await refreshDocumentView(); expect([...state.docs.keys()].some(key => key.startsWith("captureUploadSessions/") && Boolean(state.docs.get(key)?.browser_stored_upload || state.docs.get(key)?.browser_pending_delivery))).toBe(true); }, { timeout: 20_000 });
         }
         if (kind === "upload_manifest_retry") {
-          await page.getByRole("button", {name: "Retry processing", exact: true}).click();
+          await page.getByRole("button", {name: "Start processing again", exact: true}).click();
           await vi.waitFor(async () => {await refreshDocumentView(); expect([...state.docs.values()].some(row => (row.browser_pending_delivery as {state?: string} | undefined)?.state === "published")).toBe(true);}, {timeout: 10_000});
         }
         reloadDocuments(); reloadObjects(); expect(requestRows()).toHaveLength(1);

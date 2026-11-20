@@ -74,8 +74,7 @@ export interface CaptureUploadAuthorization {
 
 /** The hold for footage sent before its job is saved to an account. */
 export const SITE_ACCOUNT_REQUIRED = "site_account_required";
-export const SITE_ACCOUNT_REQUIRED_DETAIL = "Save this job to your account before you send its video. "
-  + "We can evaluate a job only if its video is sent after the job is saved to an account.";
+export const SITE_ACCOUNT_REQUIRED_DETAIL = "Save this job to your account before you send its video.";
 /** The hold for a job whose video arrived before it was saved to an account. */
 export const FOOTAGE_BEFORE_ACCOUNT = "footage_before_account";
 export const FOOTAGE_BEFORE_ACCOUNT_DETAIL = FOOTAGE_BEFORE_ACCOUNT_SENTENCE;
@@ -130,7 +129,7 @@ export async function authorizeCaptureUpload(
   }
 
   if (!request) {
-    return held("request_missing", "This link does not point at a submission we hold.");
+    return held("request_missing", "We can't find a job for this link.");
   }
 
   // Filming visits are retired (owner, 2026-11-11). A stored site job that asked for one, or that

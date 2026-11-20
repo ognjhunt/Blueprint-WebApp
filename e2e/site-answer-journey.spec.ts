@@ -185,8 +185,8 @@ test.describe("desktop", () => {
     await page.reload();
     await expectFirstLook(page);
     expect((await jobRecord(request, requestId)).access).toMatchObject({ listed: true });
-    await expect(companies(page)).toContainText("0 recorded views");
-    await expect(companies(page)).toContainText("0 replies");
+    await expect(companies(page)).toContainText("Viewed by 0 companies");
+    await expect(companies(page)).toContainText("0 responses");
     const facts = page.getByRole("region", { name: "A few quick questions help companies answer" });
     await expect(facts.getByText("Where does the robot pick up the load?")).toBeVisible();
     await facts.getByRole("button", { name: "Moving conveyor" }).click();
@@ -322,15 +322,15 @@ test.describe("desktop", () => {
     // 4. The site sees the answer under the alias, never the company's name, and nothing is introduced yet.
     await page.reload();
     const entries = companies(page);
-    await expect(entries).toContainText("1 recorded view", { timeout: 30_000 });
-    await expect(entries).toContainText("1 reply");
+    await expect(entries).toContainText("Viewed by 1 company", { timeout: 30_000 });
+    await expect(entries).toContainText("1 response");
     const companyReply = entries.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });
     await expect(companyReply.getByText("Interested", { exact: true })).toBeVisible();
     await expect(companyReply.getByText("Within a month", { exact: true })).toBeVisible();
     await expect(companyReply.getByText("How many cartons arrive per minute?", { exact: true })).toBeVisible();
-    await companyReply.getByText("Answer question", { exact: true }).click();
-    await companyReply.getByLabel("Reply to the question").fill("12 cartons per minute.");
-    await companyReply.getByRole("button", { name: "Send answer" }).click();
+    await companyReply.getByText("Reply", { exact: true }).click();
+    await companyReply.getByLabel("Your reply").fill("12 cartons per minute.");
+    await companyReply.getByRole("button", { name: "Send reply" }).click();
     await expect(companyReply.getByText("12 cartons per minute.", { exact: true })).toBeVisible();
     await companyPage.reload();
     await expect(companyPage.getByRole("region", { name: "Answer from the site" })).toContainText("12 cartons per minute.");
@@ -402,9 +402,9 @@ test.describe("desktop", () => {
     await page.goto(jobUrl);
     await answer(page).getByRole("button", { name: "Job settings ›" }).click();
     await page.getByText("Stop using my video", { exact: true }).click();
-    await page.getByRole("button", { name: "Withdraw permission…" }).click();
-    await page.getByRole("button", { name: "Yes, withdraw permission" }).click();
-    await expect(page.getByText("Recording permission withdrawn.", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Stop using my video…" }).click();
+    await page.getByRole("button", { name: "Yes, stop using my video" }).click();
+    await expect(page.getByText("Video withdrawn.", { exact: true })).toBeVisible();
     expect((await jobRecord(request, requestId)).access).toEqual({ listed: false, reason: "consent_withdrawn" });
     await companyPage.goto(`/jobs/${requestId}`);
     await expect(companyPage.getByRole("heading", { name: "This job is no longer available" })).toBeVisible({ timeout: 30_000 });

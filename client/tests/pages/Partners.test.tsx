@@ -7,7 +7,8 @@ describe("the page for deployment companies", () => {
     render(<Partners />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Find jobs for the robots you deploy.");
     expect(screen.getByText(/When a site asks to meet, we introduce you/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Browse jobs" })).toHaveAttribute("href", "/contact/robot-team");
+    expect(screen.getByText(/Review real jobs, each with the site's video and description\./)).toBeVisible();
+    expect(screen.getByRole("link", { name: "See jobs" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.getByRole("form", { name: "Deployment company application" })).toBeVisible();
     expect(document.body.textContent).not.toMatch(/\btest (?:it|on|in)\b|to test\b|can test\b/i);
   });
@@ -27,7 +28,13 @@ describe("the page for deployment companies", () => {
     expect(within(sample).getByText(/^Video: Mixkit, free license\./)).toBeVisible();
     // A live job's simulation and first look are named, never imitated: no viewer, download or result on the sample.
     expect(within(sample).queryByRole("link", { name: /Download|View the simulation/ })).toBeNull();
-    expect(within(sample).getByRole("link", { name: "Apply to see live jobs" })).toHaveAttribute("href", "#partner-application");
+    expect(within(sample).getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "#partner-application");
+    // Launch copy (2026-11-20): what a live job can include, the answers without a timing promise, and the privacy line
+    // where the introduction is explained.
+    expect(within(sample).getByRole("heading", { name: "A live job can also include" })).toBeVisible();
+    expect(within(sample).getByText("Answer Interested, Not a fit or Need more details. Once you can download the simulation, you can also answer Tested it: can do or Tested it: cannot yet.")).toBeVisible();
+    expect(within(sample).getByText("You see no site name, address or contact details until the site asks to meet you. Then we email you both each other's details.")).toBeVisible();
+    expect(sample).not.toHaveTextContent(/in a minute|busiest/);
     expect(screen.getByRole("link", { name: "See a sample job" })).toHaveAttribute("href", "#sample-job");
   });
 });

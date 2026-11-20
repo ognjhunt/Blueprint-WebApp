@@ -170,7 +170,7 @@ const createRateLimiter = ({
       req.method === "OPTIONS" ||
       skipPaths.some((path) => req.path.startsWith(path)),
     handler: (_req, res) => {
-      res.status(429).json({ error: "Too many requests. Please try again later." });
+      res.status(429).json({ error: "Too many tries in a short time. Please wait a few minutes and try again." });
     },
   });
 
@@ -355,7 +355,9 @@ app.use((req, res, next) => {
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // A browser never sees an exception's own text (it reaches forms word for word): one plain sentence instead,
+    // and the cause stays in the log below.
+    const message = status === 413 ? "That was too large to send." : "Something went wrong on our side. Please try again.";
 
     if (!res.headersSent) {
       res.status(status).json({ message });

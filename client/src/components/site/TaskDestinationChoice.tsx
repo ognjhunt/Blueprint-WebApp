@@ -19,7 +19,9 @@ export type TaskDestinationChoiceView = {
  */
 export const placeName = (index: number) => `Place ${String.fromCharCode(65 + index)}`;
 export const OUR_GUESS = " (our guess)";
-export const DESTINATION_SENTENCE = (object: string) => `We will test moving the ${object} from here to here.`;
+/** The question, about the simulation (Blueprint tests no robot): the guess, named by its letter on the picture. */
+export const DESTINATION_SENTENCE = (object: string, place: string) =>
+  `In the simulation, the ${object} goes from where it starts to ${place}. Is that right?`;
 // The Pipeline draws A (the guess) in green and B to D in blue, each with its letter; the start in orange.
 export const DESTINATION_PICTURE_KEY = "Orange: where it starts. Each letter marks a place the object could go. A, in green, is our guess.";
 export const DESTINATION_KEEPS_GOING = "Nothing is needed from you: your job keeps going either way.";
@@ -76,7 +78,7 @@ export function TaskDestinationChoice({ token, question, onAnswered }: {
   }
   if (done) return <section aria-label="Where the object goes"><p className="ms-field-hint" role="status">{DESTINATION_ANSWERED}</p></section>;
   return <section aria-label="Where the object goes" hidden={!loaded}>
-    <p>{DESTINATION_SENTENCE(object)}</p>
+    <p>{DESTINATION_SENTENCE(object, placeName(guessIndex))}</p>
     <img src={question.pictureUrl} referrerPolicy="no-referrer" onLoad={() => setLoaded(true)} onError={() => setFailed(true)}
       alt={`A frame from your video: the ${object} outlined where it starts, and the places it could go, each with its letter.`}
       style={{ display: "block", maxWidth: "100%", height: "auto" }} />

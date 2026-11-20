@@ -23,7 +23,7 @@ describe("TaskDestinationChoice", () => {
     expect(screen.getByRole("region", { hidden: true }).hidden).toBe(true);
     loaded();
     expect(screen.getByRole("region").hidden).toBe(false);
-    expect(screen.getByText("We will test moving the tote from here to here.")).toBeTruthy();
+    expect(screen.getByText("In the simulation, the tote goes from where it starts to Place A. Is that right?")).toBeTruthy();
     expect(screen.getByRole("img").getAttribute("src")).toBe(view.pictureUrl);
     expect(screen.getByText(/We will use Place A\. Nothing is needed from you/)).toBeTruthy();
     // As the Pipeline draws it: A, the guess, in green; the others in blue, each with its letter.

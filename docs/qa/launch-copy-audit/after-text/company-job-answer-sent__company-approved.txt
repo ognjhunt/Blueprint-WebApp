@@ -1,0 +1,70 @@
+# company-job-answer-sent__company-approved
+# route: /jobs/job-c1 (final URL desktop: /jobs/job-c1; phone: /jobs/job-c1)
+# source: client/src/pages/CompanyJob.tsx
+# state: after sending Interested
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+Back to jobs
+Palletize cartons
+United States
+Shared November 12, 2026
+Respond
+The job, in the site's words
+Stack 12 kg cartons from the conveyor onto the pallet.
+Weight: 5 to 15 kg (11 to 33 lb)
+
+The site's own answers. Blueprint has not checked them.
+
+The video
+Your response
+
+You answered “Interested” on November 20, 2026.
+
+Is this job a fit for your company?
+Interested
+Not a fit
+Need more details
+Note to the site
+
+The site reads these words, with your company's name and contact details taken out.
+
+Add details
+Send response
+
+Saved. The site sees this answer, without your company's name.
+
+The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.
+
+The object, and how sure we are
+
+Nothing about the object is measured or estimated yet.
+
+What this job packet does not show
+No safety assessment of any robot at this site.
+First look
+Universal Robots UR20: Fits if the item weighs under 20 kg.
+Simulation of the site
+
+The simulation of the site is not finished yet.
+
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Also present once collapsed sections / tabs are opened (desktop)
+What you have checked
+Question for the site
+Earliest start
+Not specified
+Within a month
+In 1–3 months
+More than 3 months
+
+## Phone 390: same text as desktop

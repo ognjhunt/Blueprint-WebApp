@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
-  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill(value);
+  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click(); await page.locator("#start-task").fill(value);
 }
 
 /** Real browser UI, intercepted API. Never counted as isolated-backend proof. */
@@ -105,11 +105,11 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
       // A received recording whose processing is unconfirmed reads as received,
       // with the processing state behind its optional details.
       await expect(page.getByRole("heading", { name: "We have your video.", exact: true })).toBeVisible();
-      await expect(page.getByText("Blueprint will continue from this saved recording", { exact: false })).toBeVisible();
+      await expect(page.getByText("We'll continue from your saved video", { exact: false })).toBeVisible();
       await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart");
     } else {
       await expect(page.getByRole("heading", { name: "Your job is saved. Check your video upload." })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Open the uploader", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart?video=existing");
+      await expect(page.getByRole("link", { name: "Upload the video", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart?video=existing");
     }
     expect(posts).toHaveLength(2);
     expect(posts[1]).toBe(posts[0]);
@@ -204,7 +204,7 @@ test.describe("the start form on a phone", () => {
     // Directly under the field, 8 px below it.
     const [field, line] = await Promise.all([page.locator("#start-email").boundingBox(), error.boundingBox()]);
     expect(Math.round(line!.y - (field!.y + field!.height))).toBeGreaterThanOrEqual(8);
-    await expect(page.getByText(/Job reference/)).toHaveCount(0);
+    await expect(page.getByText(/include this reference/)).toHaveCount(0);
     await expect(page.locator("#start-region")).toHaveCount(0);
     expect(posts).toHaveLength(0);
     if (shots && shot) await page.screenshot({ path: `${shots}/${shot}.png`, fullPage: true });

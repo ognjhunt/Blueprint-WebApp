@@ -87,7 +87,7 @@ describe("the owner can still copy a link to share by hand", () => {
     });
     render(<FilmLinkHandoff token="tok" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /copy a record-only link/ }));
+    fireEvent.click(screen.getByRole("button", { name: /copy a filming link/ }));
 
     await waitFor(() => {
       const link = screen.getByLabelText(/Record-only link to copy/) as HTMLInputElement;

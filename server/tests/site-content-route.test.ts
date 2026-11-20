@@ -46,18 +46,13 @@ describe("site-content route", () => {
             term: "Job packet",
             definition: expect.stringContaining("Blueprint's one service for a site"),
           }),
-          expect.objectContaining({
-            term: "Decision/Evidence Request",
-            definition: expect.stringContaining("does not select a simulator"),
-          }),
-          expect.objectContaining({
-            term: "Ground-truth boundary",
-            definition: expect.stringContaining("Ground truth means immutable raw capture evidence"),
-          }),
         ]),
       );
-      expect(payload.safety).toContain("provider execution");
-      expect(payload.safety).toContain("owner-system evidence");
+      // Launch copy (2026-11-20, a-006 to a-010, a-047): only the words a reader of the public pages needs. Pipeline's
+      // internal vocabulary, other companies' products and the retired pilot frame are not served.
+      expect(payload.definitions.map(({ term }) => term)).toEqual(["Blueprint", "Site sign-up", "Job packet"]);
+      expect(payload.safety).toBe("This endpoint returns public summaries only.");
+      expect(JSON.stringify(payload)).not.toMatch(/Pipeline|abstention|claim ceiling|Site-Task Testbed|Ground truth|Google|Waymo|\bpilot\b|\bbrief\b|\bpartner\b/i);
       // The frame of 2026-11-12: free for sites, no price stated, a job packet whose summary deployment companies
       // see only with the site's permission, the video private; Blueprint's own early trial is no longer described (2026-11-14).
       expect(JSON.stringify(payload)).toContain("Free for sites. Nothing is charged today.");

@@ -1,0 +1,24 @@
+# site-job-details-why__site-token
+# route: /capture-upload/site-answer-fixture?video=existing#details/why (final URL desktop: /capture-upload/site-answer-fixture?video=existing#details/why; phone: /capture-upload/site-answer-fixture?video=existing#details/why)
+# source: client/src/components/site/SiteAnswer.tsx; RobotFit.tsx
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+‹ Back
+First look: why this robot
+Universal Robots UR10e
+Kind
+One arm that stays in one place
+Reach
+Reach: your two spots are about 1.6 m apart (estimated from your video), so an arm standing between them needs about 0.9–1.2 m. This arm reaches 1.3 m. (source)
+Strength
+Weight: each carton is about 8–11 kg (estimated from your video), about 9–12 kg with the gripper. This arm lifts 12.5 kg. (source)
+Used for jobs like this
+A test distributor runs UR10e arms on its end-of-line carton palletizing. In real use · names this model · Example Test News
+Also
+The maker markets its e-Series arms for palletizing. Sold for it, no customer named · names robots like it (e-Series) · Example Test Maker
+How it would be run
+The objects vary, so it needs a camera to pick each one. Ask the company that sets it up how it handles each item.
+This is the first look: it looks at the robot's reach, strength and track record, not the software that runs it.
+
+## Phone 390: same text as desktop

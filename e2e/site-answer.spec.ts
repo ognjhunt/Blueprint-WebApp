@@ -148,7 +148,7 @@ test("while the simulation of the site is being built, the page says so, with th
     sharing: { state: "preparing", sharedAtIso: "2026-11-11T15:00:00.000Z" }, companies: { interested: false, sent: null, entries: [] } });
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText("Your job will appear when the video and job details are ready.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText("Companies will see your job once the video and job details are ready.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(SHARED, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Simulation of your site" }).getByText("We're building the simulation of your site.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();
@@ -200,8 +200,8 @@ test("the deployment companies section says the send line, each answer by alias,
   await page.goto(`/capture-upload/${token}?video=existing`);
   const companies = page.getByRole("region", { name: "Deployment companies" });
   await expect(companies.getByText(SHARED, { exact: true })).toBeVisible();
-  await expect(companies.getByText("3 recorded views", { exact: true })).toBeVisible();
-  await expect(companies.getByText("2 replies", { exact: true })).toBeVisible();
+  await expect(companies.getByText("Viewed by 3 companies", { exact: true })).toBeVisible();
+  await expect(companies.getByText("2 responses", { exact: true })).toBeVisible();
   const companyB = companies.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company B", exact: true }) });
   await expect(companyB.getByText("Need more details", { exact: true })).toBeVisible();
   await expect(companyB.getByText("November 12, 2026", { exact: true })).toBeVisible();
@@ -297,7 +297,7 @@ test("the place question shows its picture and sentence, This is right needs not
   await page.reload();
   const region = page.getByRole("region", { name: "Where the object goes" });
   await expect(region).toBeVisible();
-  await expect(region.getByText("We will test moving the carton from here to here.")).toBeVisible();
+  await expect(region.getByText("In the simulation, the carton goes from where it starts to Place A. Is that right?")).toBeVisible();
   await expect(region.getByRole("img")).toBeVisible();
   await expect(region.getByText("Nothing is needed from you: your job keeps going either way.")).toBeVisible();
   await region.getByRole("button", { name: "The place is wrong" }).click();

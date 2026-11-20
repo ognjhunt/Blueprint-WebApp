@@ -79,8 +79,7 @@ export function FilmLinkHandoff({ token }: { token: string }) {
   return (
     <div style={{ marginTop: "20px" }}>
       <p className="ms-field-hint" style={{ marginBottom: "8px" }}>
-        Someone else doing the filming? Send them a record-only link — they can film and upload, but
-        only you can confirm the job brief.
+        Someone else filming? Send them a link that can only film and upload. Only you can change the job description.
       </p>
 
       <form onSubmit={sendLink} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -130,7 +129,7 @@ export function FilmLinkHandoff({ token }: { token: string }) {
           disabled={copyPending}
           style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}
         >
-          {copyPending ? "Creating…" : "copy a record-only link"}
+          {copyPending ? "Creating…" : "copy a filming link"}
         </button>{" "}
         to share yourself.
       </p>

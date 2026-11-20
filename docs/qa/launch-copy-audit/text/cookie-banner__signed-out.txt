@@ -1,0 +1,69 @@
+# cookie-banner__signed-out
+# route: / (final URL desktop: /; phone: /)
+# source: client/src/components/CookieConsent.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+Post a job for robots.
+
+Share a video of one repetitive job with approved robot deployment companies.
+
+Start a job
+
+Free for sites.
+
+Film the job
+Companies review it
+Choose who to meet
+
+EXAMPLE JOB
+
+Warehouse
+Café
+Laundromat
+Factory
+Hotel
+Lab
+Picking small parcels off a shelf into a tote
+
+6 views · 3 replies
+
+Company A
+Tested it: can do
+Company B
+Need more details
+Company C
+Not a fit
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+Cookie preferences
+
+Essential cookies keep the site working. Choose whether to allow analytics and marketing cookies. Read our privacy policy.
+
+Customize
+Reject all
+Accept all
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Moving clean cups from the dish rack onto a tray
+4 views · 2 replies
+Interested
+Stacking folded towels onto a shelf
+3 views · 1 reply
+Placing small parts from a conveyor into a fixture
+8 views · 3 replies
+Placing folded napkins onto a tray
+7 views · 2 replies
+Placing sample tubes into a rack
+5 views · 0 replies
+No answers yet.
+
+## Phone 390: same text as desktop

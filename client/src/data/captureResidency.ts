@@ -71,12 +71,9 @@ export const captureRegionOptions: readonly { value: CaptureRegion; label: strin
  * before discovering that you cannot serve it."
  */
 export const captureRegionNotice =
-  "During the beta we can only take walkthroughs from sites in the United States. " +
-  "Outside the US we need data-transfer terms signed before you record anything, so tell us " +
-  "about the site and we will start that rather than send you a camera link.";
+  "We can only take videos from sites in the United States for now. " +
+  "You can save your job, but please don't film or send a video yet.";
 
 /** What an out-of-region submission is told, in the success state. */
 export const captureRegionHeldNotice =
-  "We have your site. We are not sending a camera link yet: outside the US we need " +
-  "data-transfer terms in place before we collect a walkthrough, and that is a conversation " +
-  "rather than a form. Nothing has been recorded and nothing has been shared.";
+  "We can only take videos from sites in the United States for now. Nothing has been shared.";

@@ -99,7 +99,7 @@ import { createSiteClaimToken } from "../utils/request-review-auth";
 import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
-import { CUSTOMER_JOB_EMAIL_IDENTITY, emailGreeting } from "../utils/emailLayout";
+import { CUSTOMER_JOB_EMAIL_IDENTITY } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 import { taskStatementNeeded } from "../utils/jobSentenceWait";
@@ -118,7 +118,7 @@ router.use("/:token", async (req, res, next) => {
     const rights = await loadWebsiteCaptureRights(payload.requestId);
     if (rights.consent_revoked) return res.status(409).json({
       code: "capture_processing_not_authorized",
-      error: "Recording consent was withdrawn. Capture-derived review and changes are unavailable. Your job is retained; contact Blueprint if you need help.",
+      error: "You withdrew permission to use your video, so this job can't be changed. Email hello@tryblueprint.io if you need help.",
     });
     return next();
   } catch {
@@ -412,35 +412,33 @@ function screeningOutcome(disposition: string, screenGateEnded = false): {
   // the job goes ahead, and a job packet may carry no robot test.
   if (screenGateEnded && disposition === "not_now") {
     return {
-      headline: "Noted: one of your answers may make a robot test less reliable at this site.",
-      detail: "This does not hold up your job. Your job page shows the answer we noted; if it changes, update the brief.",
+      headline: "Noted: one of your answers may affect whether a robot suits this site.",
+      detail: "This does not hold up your job. Your job page shows the answer we noted; if it changes, update your job description.",
       bookingUrl: null,
     };
   }
   if (screenGateEnded && disposition === "needs_conversation") {
     return {
-      headline: "A few questions about the site are still open.",
+      headline: "A few questions about your site are still open.",
       detail: "They do not hold up your job. Answering them in writing below adds them to your job packet; you can "
         + "leave anything you don't know.",
       bookingUrl: null,
     };
   }
+  // Older jobs, from before that decision: said as the job page says them, with no call offered and no person
+  // reviewing the answers (no person stands between a site's video and an introduction).
   if (disposition === "not_now") {
     return {
-      headline: "Not yet: we are not building a scene for this site today.",
-      detail:
-        "One of your answers means a robot evaluation would not hold up here. Your job page shows "
-        + "what is in the way. When it changes, update the brief and we will screen it again.",
+      headline: "We aren't building a simulation of your site for now, because of one of your answers.",
+      detail: "Your job page shows which one. If it changes, update your job description.",
       bookingUrl: null,
     };
   }
   if (disposition === "needs_conversation") {
     return {
-      headline: "A few questions remain before we build your scene.",
-      detail:
-        "Answer the questions in writing below or book a call. We will review your answers "
-        + "before clearing the scene for preparation.",
-      bookingUrl: bookingUrl(),
+      headline: "A few questions about your site are still open.",
+      detail: "Answer them in writing below; you can leave anything you don't know.",
+      bookingUrl: null,
     };
   }
   return null;
@@ -916,7 +914,7 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
   const requestId = requestIdFromExpiredCaptureUploadToken(String(req.params.token || ""));
   const reply = () => res.status(202).json({
     ok: true,
-    message: "If this link was one of ours, a fresh one is on its way to the email address the job was sent from.",
+    message: "If this is a Blueprint job link, a new one is on its way to the email address used for that job.",
   });
   if (!requestId || !db) return reply();
   try {
@@ -929,8 +927,8 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
       kind: "fresh_link",
       to: request.contactEmail,
       subject: "Your new Blueprint job link",
+      // No greeting, like every other site job email (the start form asks for no name).
       body: [
-        emailGreeting(request.contactFirstName),
         "Here is a fresh private link to your job. It opens your job without a password, so please don't forward it.",
         `Open your job:\n${captureUploadUrlFor(requestId, "owner")}`,
       ].join("\n\n"),
