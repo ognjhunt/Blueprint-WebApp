@@ -51,7 +51,10 @@ describe("owner-link withdrawal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw permission" }));
     expect(await screen.findByText("Recording permission withdrawn.")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/stops further processing and use of this recording/);
-    expect(screen.getByRole("status")).toHaveTextContent(/approved partners can no longer see the job/);
+    // What a withdrawal does, in the site's words: no "partners", no "evaluations", and no pause (it is not undone).
+    expect(screen.getByRole("status")).toHaveTextContent(/your job has left every deployment company's view/);
+    expect(screen.getByRole("status")).toHaveTextContent("Each company it was sent to is asked to delete any copy it saved.");
+    expect(screen.getByRole("status")).not.toHaveTextContent(/partners|evaluations|paused/);
     expect(screen.queryByText(/deleted|deletion of/i)).not.toBeInTheDocument();
     const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
     expect(posts).toHaveLength(1);
