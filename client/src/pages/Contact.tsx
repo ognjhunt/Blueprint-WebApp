@@ -32,7 +32,7 @@ export default function Contact() {
         <SEO title={`${intro} | Blueprint`} description={ROBOT_TEAM_SEO_DESCRIPTION} canonical={BROWSE_JOBS_PATH} />
         <div className="bare-page bare-forms">
           <BareScreen className={library ? "opportunities-page" : undefined}>
-            {!library && <BareBack href="/partners" />}
+            {!library && <BareBack href="/jobs" />}
             <h1 id="robot-team-title">{intro}</h1>
             <div className="bare-group ms-beta-access" id="robot-team-access">
               <TaskBrowse onLibrary={setLibrary} />

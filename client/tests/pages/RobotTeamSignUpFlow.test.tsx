@@ -37,7 +37,7 @@ describe("invitation-only account creation", () => {
     render(<BusinessSignUpFlow />);
     expect(screen.getByRole("heading", { name: "Access by invitation" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Start a job" })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByRole("link", { name: "Apply for access" })).toHaveAttribute("href", "/partners#partner-application");
+    expect(screen.getByRole("link", { name: "Apply for access" })).toHaveAttribute("href", "/jobs#partner-application");
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
     expect(mocks.invitation).not.toHaveBeenCalled();

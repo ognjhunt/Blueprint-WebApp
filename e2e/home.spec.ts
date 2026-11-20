@@ -18,7 +18,7 @@ test("homepage explains the offer and shows both paths and a labeled example", a
   await expect(steps).toHaveText(["Film the job", "Companies review it", "Choose who to meet"]);
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
-  await expect(nav.getByRole("link", { name: "For deployment companies" })).toHaveAttribute("href", "/partners");
+  await expect(nav.getByRole("link", { name: "Find jobs" })).toHaveAttribute("href", "/jobs");
   await expect(main.getByRole("region", { name: "Example job" })).toBeVisible();
   await expect(main.getByRole("tabpanel")).toContainText("6 views");
   await expect(main).not.toContainText(/job packet|pick-up-and-put-down|safety check|contact details|which did best|top AI robots/);

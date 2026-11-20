@@ -88,6 +88,7 @@ const PrerenderFallbackSummary = () => (
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/how-it-works", component: HowItWorks },
+  { path: "/jobs", component: Partners },
   { path: "/partners", component: Partners },
   { path: "/beta", component: Beta },
   { path: "/contact/robot-team", component: Contact },

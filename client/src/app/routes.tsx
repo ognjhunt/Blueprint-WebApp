@@ -205,6 +205,7 @@ export const appRoutes: AppRoute[] = [
   })),
   { path: "/", layout: "public", component: Home },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
+  { path: "/jobs", layout: "public", component: Partners },
   { path: "/partners", layout: "public", component: Partners },
   { path: "/beta", layout: "public", component: Beta },
   // The capturer network, its app and Blueprint filming visits are retired

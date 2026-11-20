@@ -6,7 +6,7 @@
 
 export const primaryNavLinks = [
   { href: "/how-it-works", label: "How it works" },
-  { href: "/partners", label: "For deployment companies" },
+  { href: "/jobs", label: "Find jobs" },
 ];
 
 // Utility links sit between the primary nav and the auth controls. The capture
@@ -24,7 +24,7 @@ export const footerProductLinks = [
   { href: "/how-it-works", label: "How it works" },
   { href: "/beta", label: "Questions" },
   { href: "/contact/site-operator", label: "Start a job" },
-  { href: "/partners", label: "For deployment companies" },
+  { href: "/jobs", label: "Find jobs" },
 ];
 
 export const footerEvidenceLinks = [
