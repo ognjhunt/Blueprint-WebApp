@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
-import { COMPANY_RESPONSE_LABELS, companyAliasName, NO_ANSWERS_YET, type CompanyResponseState } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, companyAliasName, type CompanyResponseState } from "@/lib/companyResponses";
 import { EXAMPLE_TAG } from "@/lib/publicCopy";
 import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/site/RobotScene";
 
@@ -92,9 +92,9 @@ export function PilotPreview() {
         </div>
         <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel" tabIndex={0}>
           <h2 className="bare-example-name">{example.job}</h2>
-          <p className="bare-example-by">{example.views} views · {example.answers.length} {example.answers.length === 1 ? "reply" : "replies"}</p>
+          <p className="bare-example-by">{example.views} views · {example.answers.length} {example.answers.length === 1 ? "response" : "responses"}</p>
           {example.answers.length > 0
-            ? <ul className="bare-example-answers" aria-label="Example answers">
+            ? <ul className="bare-example-answers" aria-label="Example responses">
               {example.answers.map((state, i) => (
                 <li key={ALIASES[i]}>
                   <span>{companyAliasName(ALIASES[i])}</span>
@@ -102,7 +102,7 @@ export function PilotPreview() {
                 </li>
               ))}
             </ul>
-            : <p className="bare-example-by">{NO_ANSWERS_YET}</p>}
+            : <p className="bare-example-by">No responses yet.</p>}
         </div>
       </div>
     </section>

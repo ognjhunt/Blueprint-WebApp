@@ -1421,9 +1421,8 @@ describe("guest intake without account ceremony", () => {
 });
 
 it("keeps the form to the fields it needs, and the reply time off it", async () => {
-  const { REPLY_TIMELINE } = await import("@/data/betaTimelines");
   await renderReady(<SiteCaptureStart />);
-  expect(screen.queryByText(REPLY_TIMELINE)).toBeNull();
+  expect(screen.queryByText(/reply within/i)).toBeNull();
   const start = screen.getByRole("button", { name: "Next: film the job" });
   expect(start.nextElementSibling).toHaveTextContent(SITE_START_CONSENT_NO_VIDEO);
 });

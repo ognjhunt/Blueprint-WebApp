@@ -9,14 +9,16 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("refund information is next to the cost explanation and available on mobile", async ({ page }) => {
+// Refunds left the product copy (launch copy, 2026-11-20): the cost row says only "Free for sites.", and the page stays
+// at its address, unlinked, for purchases made before the free beta.
+test("the cost row links no refunds, and refund information stays at its address on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/beta");
   await page.getByRole("button", { name: "Reject all", exact: true }).click();
   const cost = page.locator("#scope");
   await expect(cost).toContainText("Free for sites.");
-  await cost.getByRole("link", { name: "Refunds and cancellations" }).click();
-  await expect(page).toHaveURL(/\/refunds$/);
+  await expect(cost.getByRole("link", { name: /Refunds/ })).toHaveCount(0);
+  await page.goto("/refunds");
   await expect(page.getByRole("heading", { name: "Refunds and cancellations", exact: true })).toBeVisible();
   await expect(page.getByText("Purchases made before the free beta", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "applicable Terms of Service" })).toHaveAttribute("href", /\/terms(?:\/previous)?$/);
@@ -29,5 +31,5 @@ test("privacy page offers deletion and shows optional analytics off until permis
   await expect(page.getByRole("link", { name: "account deletion in Settings" })).toHaveAttribute("href", "/settings?privacy=1");
   await expect(page.getByText(/stay off until you allow the corresponding category/)).toBeVisible();
   await expect(page.getByRole("link", { name: "previous version", exact: true })).toHaveAttribute("href", "/privacy/previous");
-  await expect(page.getByRole("link", { name: "Refunds", exact: true })).toHaveAttribute("href", "/refunds");
+  await expect(page.getByRole("link", { name: "Refunds", exact: true })).toHaveCount(0);
 });

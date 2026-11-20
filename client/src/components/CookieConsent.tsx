@@ -153,7 +153,7 @@ export function CookieConsent() {
         {/* Description */}
         <p className={`mb-4 text-sm text-[#62645d]${asBar("lg:col-start-1 lg:mb-0")}`}>
           Essential cookies keep the site working. Choose whether to allow analytics and marketing cookies. Read our{" "}
-          <a href="/privacy" className="font-medium text-[#203d2e] underline underline-offset-4">privacy policy</a>.
+          <a href="/privacy" className="font-medium text-[#203d2e] underline underline-offset-4">Privacy Policy</a>.
         </p>
         {gpc && (
           <p className={`mb-4 text-sm text-[#62645d]${asBar("lg:col-start-1 lg:mb-0 lg:mt-2")}`}>
@@ -167,8 +167,8 @@ export function CookieConsent() {
             {/* Necessary */}
             <label className="flex min-h-[44px] items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-[#22251e]">Necessary</span>
-                <p className="text-xs text-[#62645d]">Required for basic site functionality</p>
+                <span className="text-sm font-medium text-[#22251e]">Essential</span>
+                <p className="text-xs text-[#62645d]">Keeps the site working</p>
               </div>
               <input
                 type="checkbox"
