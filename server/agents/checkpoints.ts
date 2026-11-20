@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence } from "./private-evidence";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -12,6 +13,8 @@ function nowTimestamp() {
 }
 
 function stripUndefinedDeep<T>(value: T): T {
+  // Firestore stores these whole. Taken apart by their own fields, serverTimestamp() was written as `{}`.
+  if (value instanceof FieldValue || value instanceof Timestamp || value instanceof Date) return value;
   if (Array.isArray(value)) {
     return value
       .filter((entry) => entry !== undefined)

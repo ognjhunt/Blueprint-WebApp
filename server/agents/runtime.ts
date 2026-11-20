@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { LANE_DATA_CLASSES, NO_PERMITTED_PROVIDER, PRIVACY_NOT_PERMITTED, PROFILE_DATA_CLASSES, PROVIDER_DESTINATIONS,
@@ -45,6 +46,8 @@ function nowTimestamp() {
 }
 
 function stripUndefinedDeep<T>(value: T): T {
+  // Firestore stores these whole. Taken apart by their own fields, serverTimestamp() was written as `{}`.
+  if (value instanceof FieldValue || value instanceof Timestamp || value instanceof Date) return value;
   if (Array.isArray(value)) {
     return value
       .filter((entry) => entry !== undefined)
@@ -916,12 +919,17 @@ function hasThresholds(thresholds: AgentSpendThresholds) {
 
 async function listRecentRunsForCostTelemetry(limit = 500): Promise<PersistedAgentRun[]> {
   if (!db) return [];
-  const snapshot = await db
-    .collection("agentRuns")
-    .orderBy("created_at", "desc")
-    .limit(Math.max(1, Math.min(limit, 1000)))
-    .get();
-  return Promise.all(snapshot.docs.map(async (doc) => {
+  const count = Math.max(1, Math.min(limit, 1000));
+  const runs = db.collection("agentRuns");
+  // Most runs saved before 2026-11-20 hold `created_at` as `{}`, and a map sorts above every timestamp, so ordering by
+  // it returned old runs first. Every run with a cost record has its start time there as a number, old and new alike.
+  // A run without one yet (in flight, or its accounting incomplete) is found by `created_at`, read as a timestamp only.
+  const [priced, recent] = await Promise.all([
+    runs.orderBy("metadata.cost_telemetry.created_at_ms", "desc").limit(count).get(),
+    runs.where("created_at", ">=", Timestamp.fromMillis(0)).orderBy("created_at", "desc").limit(count).get(),
+  ]);
+  const docs = new Map([...priced.docs, ...recent.docs].map((doc) => [doc.id, doc] as const));
+  return Promise.all([...docs.values()].map(async (doc) => {
     const raw = { ...(doc.data() as PersistedAgentRun), id: doc.id };
     if ((raw as unknown as Record<string, unknown>).agent_accounting_incomplete === true) throw new AgentEvidenceError("agent_usage_evidence_unavailable", { collection: "agentRuns", id: doc.id });
     return hydrateAgentEvidence(raw, { collection: "agentRuns", id: doc.id });

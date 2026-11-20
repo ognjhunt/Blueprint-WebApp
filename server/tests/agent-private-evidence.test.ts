@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 const fake = vi.hoisted(() => ({ objects: new Map<string, string>(), available: true, timeoutAfterWrite: false, generation: "1", runs: new Map<string, any>() }));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({
@@ -208,6 +209,23 @@ describe("private agent evidence", () => {
     expect(saved.metadata?.huge).toBeUndefined();
     expect(Buffer.byteLength(JSON.stringify(saved))).toBeLessThan(AGENT_DOCUMENT_BYTE_BUDGET);
     expect((await hydrateAgentEvidence(saved, scope)).metadata.huge).toBe("x".repeat(900_000));
+  });
+  it("writes a serverTimestamp sentinel, a stored Timestamp and a Date whole, inline, offloaded and on failure", async () => {
+    const createdAt = Timestamp.fromMillis(1_763_600_000_123), dueBy = new Date(1_763_600_000_456);
+    for (const prior of [{ id: scope.id, status: "running", created_at: createdAt }, { ...large(), status: "running", created_at: createdAt }]) {
+      let saved: any = prior;
+      const document = { get: async () => ({ exists: true, data: () => saved }),
+        set: async (value: any, options?: any) => { saved = options?.merge ? { ...saved, ...value } : value; } };
+      const database = { runTransaction: async (fn: any) => fn({ get: (ref: any) => ref.get(), set: (ref: any, value: any, options?: any) => ref.set(value, options) }) };
+      await persistAgentEvidence(document, scope, { status: "running", updated_at: FieldValue.serverTimestamp(), due_by: dueBy }, database);
+      expect(Boolean(saved.agent_evidence_ref)).toBe("raw_output_text" in prior);
+      expect(saved.created_at).toBe(createdAt);
+      expect(saved.updated_at.isEqual(FieldValue.serverTimestamp())).toBe(true);
+      expect(saved.due_by).toBe(dueBy);
+      await persistAgentEvidenceFailure(document, scope, { status: "failed", updated_at: FieldValue.serverTimestamp() }, new Error("x"), database);
+      expect(saved.created_at).toBe(createdAt);
+      expect(saved.updated_at.isEqual(FieldValue.serverTimestamp())).toBe(true);
+    }
   });
   it("rejects controls too large instead of silently truncating originals", async () => {
     await expect(projectAgentEvidence({ ...large(), provider: "p".repeat(800_000) }, scope)).rejects.toThrow("agent_evidence_controls_too_large");

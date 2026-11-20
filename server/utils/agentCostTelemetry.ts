@@ -907,7 +907,9 @@ export function extractAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTele
     conservative_spend_usd: conservativeSpend,
     spend_reservation: spendReservation,
     spend_accounting_status: estimatedCost !== null ? "complete" : conservativeSpend !== null ? "reserved_unknown" : "unresolved",
-    created_at_ms: asTimestampMs(run.created_at ?? run.updated_at),
+    // A run saved with `created_at: {}` (before 2026-11-20) keeps its start time in its cost record.
+    created_at_ms: asTimestampMs(run.created_at ?? run.updated_at)
+      ?? asTimestampMs(asRecord(asRecord(run.metadata)?.cost_telemetry)?.created_at_ms),
   };
 }
 
