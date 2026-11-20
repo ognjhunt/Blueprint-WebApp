@@ -72,10 +72,10 @@ describe("sending composes a film-scoped link and reports honestly", () => {
     expect(result.filmUrl).toMatch(/\/capture-upload\//);
     const text = (sendEmailMock.mock.calls[0][0] as { text: string }).text;
     expect(text).toContain(result.filmUrl);
-    // Says what opens: the App Clip on an iPhone once it is available, the
-    // browser recorder everywhere else. Never that there is no app.
-    expect(text).toMatch(/On an iPhone it opens a small Blueprint camera when that is available/);
-    expect(text).toMatch(/everywhere else the recorder opens in your browser/);
+    // Says what opens: the browser recorder, on every phone. No capture app is in use (owner, 2026-11-11), so
+    // nothing promises a Blueprint camera that the link never opens.
+    expect(text).toContain("Open this link on your phone. The recorder opens in your browser. No account is needed");
+    expect(text).not.toMatch(/iPhone|Blueprint camera|App Clip/i);
     expect(text).not.toMatch(/no app|app to install|app needed/i);
     // How to film the job, in the job page's own words: an arc around it, not a walk straight past.
     expect(text).toContain("\n\nWalk slowly in a half circle around where the job happens, keeping it in view.\n\n");
