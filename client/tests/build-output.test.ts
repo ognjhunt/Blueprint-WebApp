@@ -301,7 +301,7 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="start-description-authority"');
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain("Job library");
+    expect(robotHtml).toContain("Apply to see jobs");
     expect(robotHtml).toContain("Approved deployment companies can browse jobs and respond.");
     // The application is public; tasks and executable plans still wait for
     // server access approval.
