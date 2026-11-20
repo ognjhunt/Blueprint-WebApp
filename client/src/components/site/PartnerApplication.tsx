@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { applyForEarlyAccess, EarlyAccessApplicationError } from "@/lib/robotTeamAccess";
+import { companyJobReturnPath } from "@/lib/authReturnPath";
 
 /**
  * The one application a deployment company sends to see jobs (on `/partners`; `/contact/robot-team` points here). It
@@ -23,6 +24,7 @@ export function PartnerApplication() {
     if (inFlight.current) return;
     inFlight.current = true;
     const data = new FormData(event.currentTarget);
+    const returnToJob = companyJobReturnPath(new URLSearchParams(window.location.search).get("next"));
     const read = (key: string) => String(data.get(key) ?? "").trim();
     setState("sending");
     setError("");
@@ -38,6 +40,7 @@ export function PartnerApplication() {
         region: read("region"),
         acceptedTerms: true,
         optionalUpdates: data.get("optionalUpdates") === "on",
+        ...(returnToJob ? { returnToJob } : {}),
       });
       setState("saved");
     } catch (failure) {

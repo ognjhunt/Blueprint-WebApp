@@ -84,11 +84,13 @@ const { default: worldsRouter } = await import("../routes/site-worlds");
 const { default: mediaRouter } = await import("../routes/company-media");
 const { default: viewsRouter } = await import("../routes/website-atlas-preview-views");
 const { default: accessRouter } = await import("../routes/robot-team-access");
+const { default: briefRouter } = await import("../routes/site-task-brief");
 const { sendJobToApprovedCompanies, sendJobToCompaniesIfListed, sweepAutomaticSends } = await import("../utils/jobAutoSend");
 const { requestIntroduction } = await import("../utils/jobIntroductions");
 const { loadSiteCompanyActivity } = await import("../utils/jobCompanies");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 
 const ID = "req-e2";
 const CAPTURE = `walkthrough-${ID}`;
@@ -246,6 +248,7 @@ beforeEach(async () => {
   app.use("/api/company-media", mediaRouter);
   app.use("/api/website-atlas-preview-views", viewsRouter);
   app.use("/api/robot-team-access", accessRouter);
+  app.use("/api/site-task-brief", briefRouter);
   server = createServer(app);
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", () => resolve()));
   const address = server.address();
@@ -260,6 +263,55 @@ afterEach(async () => {
 /* ----------------------------------------------------------------- the company's page */
 
 describe("the company's page for one job (E3)", () => {
+  it("counts each approved company only once and puts anonymized success criteria next to the job", async () => {
+    const brief = state.docs.get(`siteTaskBriefs/${ID}`)!;
+    state.docs.set(`siteTaskBriefs/${ID}`, { ...brief, successCriteria: {
+      successDefinition: `Keep each carton upright at 12 cartons per minute. Questions to ${SITE.email}.`,
+    } });
+    expect((await list()).status).toBe(200);
+    expect((await loadSiteCompanyActivity(ID)).views ?? 0).toBe(0);
+    const opened = await page();
+    expect(opened.body.item.successRule).toContain("12 cartons per minute");
+    expectNoSiteIn("success criteria", opened.body.item.successRule);
+    expect((await page()).status).toBe(200);
+    expect((await page(PENDING)).status).toBe(404);
+    expect((await page(SOUTH)).status).toBe(200);
+    expect((await loadSiteCompanyActivity(ID)).views).toBe(2);
+  });
+
+  it("answers the current question through the private owner link and notifies only the company that asked", async () => {
+    const question = "How many cartons arrive per minute?";
+    expect((await answer(NORTH, { state: "needs_something", inputs: question, details: {
+      verified: `Our arm can lift 12 kg. See ${NORTH.email}.`, startWindow: "within_month",
+    } })).status).toBe(200);
+    const activity = await loadSiteCompanyActivity(ID);
+    const reply = activity.entries.find(entry => entry.kind === "answered");
+    if (reply?.kind !== "answered" || !reply.question) throw new Error("No question was projected");
+    expect(reply).toMatchObject({ alias: "Company A", question: { text: question }, details: { startWindow: "within_month" } });
+    expect(reply.details?.verified).toContain("12 kg");
+    expect(JSON.stringify(reply)).not.toContain(NORTH.email);
+    const submit = async (scope: "owner" | "film", questionId = reply.question!.id) => {
+      const token = createCaptureUploadToken({ requestId: ID, captureId: CAPTURE, sceneId: `site-${ID}`, scope });
+      return realFetch(`${base}/api/site-task-brief/${token}/clarifications`, { method: "POST",
+        headers: { "content-type": "application/json", cookie: "csrf_token=e2-test", "x-csrf-token": "e2-test" },
+        body: JSON.stringify({ alias: "A", questionId, answer: `12 cartons per minute. Email ${SITE.email}.` }) });
+    };
+    expect((await submit("film")).status).toBe(403);
+    expect((await submit("owner", "0".repeat(64))).status).toBe(409);
+    expect((await submit("owner")).status).toBe(200);
+    expect((await submit("owner")).status).toBe(200);
+    const notice = outbox().filter(row => row.kind === "job_clarification");
+    expect(notice).toHaveLength(1);
+    expect(notice[0]).toMatchObject({ to: NORTH.email, status: "pending" });
+    expect(notice[0].body).not.toContain("12 cartons per minute");
+    const clarification = (await page()).body.item.clarification;
+    expect(clarification).toMatchObject({ question, answer: expect.stringContaining("12 cartons per minute") });
+    expectNoSiteIn("clarification", clarification.answer);
+    expect((await page(SOUTH)).body.item.clarification).toBeUndefined();
+    await deliverOutbox({ limit: 50 });
+    expect(outbox().find(row => row.kind === "job_clarification")).toMatchObject({ status: "sent" });
+  });
+
   it("shows the site's sentence with contact details removed, its answers in words, the country, the media and the form line", async () => {
     const { status, body, raw } = await page();
     expect(status).toBe(200);

@@ -40,6 +40,7 @@ import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
 import { createHash, randomUUID } from "node:crypto";
 import { automationBatch } from "./automationBatch";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
+import { clarificationNoticeIsCurrent } from "./jobClarifications";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
@@ -77,6 +78,8 @@ export type OutboxKind =
   | "robot_team_access_approved"
   /** Company: a new job, to an approved deployment company that asked for job emails (E4): once per job. */
   | "robot_team_new_task"
+  /** Company: the site answered its question on the job page. */
+  | "job_clarification"
   /** Company: the site asked to meet it; the site's details (E6): once per introduction. */
   | "introduction_made_company"
   /** Both sides, at 14, 45 and 90 days after an introduction: what happened (E8). */
@@ -435,6 +438,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       // still describe the provider effect and are never recast as cancelled.
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
+      const currentClarification = await clarificationNoticeIsCurrent(entry, tx);
       const introduction = await introductionEmailCheck(entry, tx);
       const currentIntroduction = introduction.current;
       // The site's "Meet {company}" waits for the company's email to be sent (H2). Not an attempt, not a cancellation.
@@ -444,7 +448,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       }
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
       const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
-      if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert
+      if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert || !currentClarification
         || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice) {
         // An introduction that may no longer go ahead is cancelled as a whole (G3): the other email, the record and its
         // billable event, in this transaction. Not from a row whose earlier dispatch may already have reached someone.

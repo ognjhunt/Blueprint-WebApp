@@ -302,6 +302,16 @@
 }
 
 .site-company-summary .bare-helper { font-weight: 400; }
+.site-company-metrics { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.company-response-facts { display: grid; gap: 8px; margin: 8px 0 0; }
+.company-response-facts dt { font-size: 13px; font-weight: 650; }
+.company-response-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.company-question { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #f5f6ef; }
+.company-question details, .company-reply-optional > label { margin-top: 8px; }
+.company-question summary, .company-reply-optional summary { cursor: pointer; }
+.company-question form { margin-top: 8px; }
+.company-job-success { margin-block: 12px; padding: 10px 12px; border-left: 3px solid #7b9480; background: #f2f5ee; }
+.company-job-success h3 { margin: 0 0 3px; font-size: 14px; }
 .bare-screen ul.site-job-company-entries { display: grid; gap: 10px; padding: 0; list-style: none; }
 .site-job-company-entries > li {
   min-width: 0;

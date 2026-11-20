@@ -18,6 +18,21 @@ beforeEach(() => {
   mocks.workspace.mockResolvedValue({ ok: true }); mocks.verify.mockResolvedValue(undefined);
 });
 describe("invitation-only account creation", () => {
+  it("brings an existing unverified account back to the original job using its prefilled details", async () => {
+    mocks.invitation.mockImplementation(async path => {
+      if (path === "inspect") return { ...invitation, returnTo: "/jobs/carton-job", optionalUpdates: true };
+      throw Object.assign(new Error("Existing account"), { code: "account_already_exists" });
+    });
+    mocks.passwordSignIn.mockResolvedValue({ user });
+    await openInvitation();
+    consent();
+    fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/jobs/carton-job"));
+    expect(mocks.verify).toHaveBeenCalledWith(user, { url: `${window.location.origin}/jobs/carton-job` });
+    expect(mocks.workspace).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Team", organization: "Robot Co",
+      workspaceType: "robot_team", acceptedTerms: true, optionalUpdates: true });
+  });
   it("offers public intake without credentials or Google signup", () => {
     render(<BusinessSignUpFlow />);
     expect(screen.getByRole("heading", { name: "Access by invitation" })).toBeVisible();

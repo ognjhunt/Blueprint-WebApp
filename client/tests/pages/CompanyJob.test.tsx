@@ -64,7 +64,7 @@ describe("the company's page for one job", () => {
     for (const radio of within(form).getAllByRole("radio")) { expect(radio).not.toBeChecked(); expect(radio).toBeRequired(); }
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Your answer is saved." }) });
     fireEvent.click(within(form).getByLabelText("Need more details"));
-    fireEvent.change(within(form).getByRole("textbox"), { target: { value: "A second gripper." } });
+    fireEvent.change(within(form).getByRole("textbox", { name: "What details would help you decide?" }), { target: { value: "A second gripper." } });
     fireEvent.submit(form);
     await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Your answer is saved."));
     const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
@@ -126,7 +126,7 @@ describe("the company's page for one job", () => {
     const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
     expect(main.getByRole("link", { name: "Sign in to this job" })).toHaveAttribute("href", signInHref);
     expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
-    expect(main.getByRole("link", { name: "Apply as a deployment company" })).toHaveAttribute("href", "/partners#partner-application");
+    expect(main.getByRole("link", { name: "Apply as a deployment company" })).toHaveAttribute("href", "/partners?next=%2Fjobs%2Fjob-1#partner-application");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -169,7 +169,7 @@ describe("the company's page for one job", () => {
     expect(within(result).getByRole("button", { name: "Send simulation result" })).toBeVisible();
 
     fireEvent.click(screen.getByRole("link", { name: "Respond to opportunity" }));
-    expect(within(screen.getByRole("form", { name: "Response to opportunity" })).getByRole("textbox")).toHaveValue("What is the cycle time?");
+    expect(within(screen.getByRole("form", { name: "Response to opportunity" })).getByRole("textbox", { name: "What details would help you decide?" })).toHaveValue("What is the cycle time?");
   });
 
   it("asks a company that has not accepted the current Terms to agree, shows nothing of the job, then loads it", async () => {

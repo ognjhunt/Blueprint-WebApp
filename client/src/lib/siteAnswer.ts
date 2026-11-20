@@ -255,6 +255,8 @@ export interface SiteAnswer {
 export type JobSharingState = "not_shared" | "preparing" | "visible" | "not_visible";
 export interface JobSharing {
   state: JobSharingState;
+  /** The current video reached Blueprint, whether or not the company copy is ready. */
+  videoReceived?: boolean;
   /** When the site accepted the statement that shares the job. */
   sharedAtIso: string | null;
   /** Not shared, and the site agreed to an older statement: its page offers the current one (recording v4) once. */

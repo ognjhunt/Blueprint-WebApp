@@ -50,7 +50,6 @@ export const HOME_SEO_DESCRIPTION = `${HOME_SUB_LINE} See responses and choose w
  * invented and marked "Example"; the answer labels and aliases come from `companyResponses.ts`, as the site sees them.
  */
 export const EXAMPLE_TAG = "Example job";
-export const exampleSentTo = (count: number) => `Sent to ${count} deployment ${count === 1 ? "company" : "companies"}`;
 export const HOW_SEO_DESCRIPTION = HOME_SEO_DESCRIPTION;
 export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, how fast we reply, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
 export const START_SEO_DESCRIPTION = "Upload a video of a repetitive job, or start now and film it on your phone. Free for sites.";

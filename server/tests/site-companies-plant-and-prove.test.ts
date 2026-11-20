@@ -267,14 +267,14 @@ describe("the emails to the site", () => {
     // The one email when the job goes to the companies (the "your job is with companies" one went with it, 2026-11-19).
     const sent = build("job_sent", { eventId: "companies", companyCount: 4 });
     expect(sent.idempotencyKey).toBe(`${ID}:job_sent:companies`);
-    expect(sent.body).toBe("Your job is with 4 deployment companies. We don't share your name, address or contact details with a "
+    expect(sent.body).toBe("Your job is posted for approved deployment companies. We don't share your name, address or contact details with a "
       + `deployment company unless you ask for an introduction to it. Your job page shows any answer.\n\n${HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`);
-    expect(build("job_sent", { eventId: "companies", companyCount: 1 }).body).toMatch(/^Your job is with 1 deployment company\./);
+    expect(build("job_sent", { eventId: "companies", companyCount: 1 }).body).toMatch(/^Your job is posted for approved deployment companies\./);
     const answered = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested" });
     expect(answered.body).toBe(`A deployment company answered about your job: Interested. Your job page has the details.\n\nOpen your job:\n${url}`);
     const needs = build("company_answered", { eventId: "B-needs_something", companyAnswerState: "needs_something" });
     expect(needs.body).toBe("A deployment company answered about your job: Need more details. Your job page has the details. "
-      + `A few quick answers on your job page may be all they need.\n\nOpen your job:\n${url}`);
+      + `You can answer a company’s question on your job page.\n\nOpen your job:\n${url}`);
     for (const row of [sent, answered, needs]) {
       expectNone(row.kind, JSON.stringify(row), [...NORTH_PLANTED, ...SOUTH_PLANTED]);
       expect(`${row.subject} ${row.body}`).not.toMatch(/summary/i);

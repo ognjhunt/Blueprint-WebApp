@@ -230,12 +230,28 @@ router.post("/:token/success-thresholds", csrfProtection, async (req, res) => {
   }
 });
 
-/**
- * "Introduce us" (PACKAGE_E E6): the site asks for an introduction to one deployment company that answered Interested.
- * `requestIntroduction` (`server/utils/jobIntroductions.ts`) re-checks everything in one transaction, records the
- * introduction and queues both emails; this route only checks the owner's link and says each refusal in one sentence.
- * The body names the company by its alias on this job, never by anything else. Owner link only.
- */
+/** Answer one company's current question from the site's private owner link. */
+router.post("/:token/clarifications", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified || verified.scope !== "owner")
+    return res.status(403).json({ error: "Open the owner's job link to answer this question." });
+  const { SITE_CLARIFICATION_LIMIT } = await import("../../client/src/lib/companyResponses");
+  const body = z.object({ alias: z.string().regex(/^[A-Z]{1,3}$/), questionId: z.string().regex(/^[a-f0-9]{64}$/),
+    answer: z.string().trim().min(2).max(SITE_CLARIFICATION_LIMIT) }).strict().safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "Enter a short answer about the job." });
+  try {
+    const { answerCompanyQuestion } = await import("../utils/jobClarifications");
+    const result = await answerCompanyQuestion({ jobId: verified.requestId, ...body.data });
+    if (result.status === "saved") return res.json({ ok: true, answer: result.answer });
+    if (result.status === "needs_detail") return res.status(400).json({ error: "Add a detail about the job, such as a size, rate, or requirement." });
+    return res.status(409).json({ error: "This question is no longer open. Refresh the job to see the latest responses." });
+  } catch {
+    return res.status(503).json({ error: "Your answer could not be saved. Please try again." });
+  }
+});
+
+/** Introduce the site to one eligible company by alias. The signed owner link is required. */
 router.post("/:token/introductions", csrfProtection, async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const verified = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -1123,6 +1139,8 @@ async function siteCompanyStatus(params: StatusAnswerParams | null) {
     ]);
     const { access } = await loadCompanyJobAccess(params.requestId, params.request);
     const sharing = jobSharingOf(params.request, access);
+    if (sharing.state === "preparing" || (sharing.state === "not_shared" && !sharing.olderStatement && !params.videoReceived))
+      sharing.videoReceived = params.videoReceived;
     const companies = sharing.state === "not_shared" ? undefined
       : await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
         .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; });

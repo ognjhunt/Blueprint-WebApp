@@ -23,6 +23,7 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
 import { listTaskBrowseCards } from "../utils/taskBrowse";
+import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
 
 const router = Router();
 
@@ -52,6 +53,7 @@ export const applicationSchema = z
     termsVersion: z.string().max(40).optional(),
     privacyVersion: z.string().max(40).optional(),
     optionalUpdates: z.boolean().optional(),
+    returnToJob: z.string().max(130).transform(path => companyJobReturnPath(path) ?? undefined).optional(),
   })
   .strict();
 
@@ -66,12 +68,13 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
   // What the form showed, recorded exactly when it still counts as current; refused otherwise.
   const shown = shownVersionsCount(parsed.data.termsVersion, parsed.data.privacyVersion);
   if (!shown) return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
-  const { acceptedTerms: _accepted, termsVersion: _terms, privacyVersion: _privacy, ...fields } = parsed.data;
+  const { acceptedTerms: _accepted, termsVersion: _terms, privacyVersion: _privacy, returnToJob, ...fields } = parsed.data;
   // The one application form (/partners) no longer asks these; a field the request leaves out keeps what the record
   // already holds (the older forms stored them), so a pending company that applies again loses nothing.
   const sent = (key: "supportedSystems" | "pilotPackage" | "testSite") =>
     Object.prototype.hasOwnProperty.call(req.body, key) ? fields[key] : undefined;
-  const application = { ...fields, supportedSystems: sent("supportedSystems"), pilotPackage: sent("pilotPackage"), testSite: sent("testSite") };
+  const application = { ...fields, ...(returnToJob ? { returnToJob } : {}),
+    supportedSystems: sent("supportedSystems"), pilotPackage: sent("pilotPackage"), testSite: sent("testSite") };
   try {
     // An unavailable library remains unknown to the fit checklist. Admission is manual.
     const listed = await listTaskBrowseCards().catch(() => []);

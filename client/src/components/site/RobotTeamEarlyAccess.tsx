@@ -60,16 +60,38 @@ function ApplyLink() {
   );
 }
 
-export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess | null; email: string | null }) {
+export function RobotTeamEarlyAccess({ access, email, returnTo = "/contact/robot-team", onVerified }: {
+  access: LibraryAccess | null; email: string | null; returnTo?: string; onVerified?: () => void;
+}) {
   const status = access?.status ?? "none";
   const [verification, setVerification] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  useEffect(() => {
+    if (status !== "approved" || access?.emailVerified !== false || !email || !onVerified) return;
+    let active = true;
+    async function checkVerification() {
+      try {
+        const user = await currentAuthUser();
+        if (!user || user.email?.toLowerCase() !== email?.toLowerCase()) return;
+        await user.reload();
+        if (!user.emailVerified) return;
+        await user.getIdToken(true);
+        if (active) onVerified?.();
+      } catch {
+        // Reopening the verification link or returning to this tab will try again.
+      }
+    }
+    void checkVerification();
+    const checkOnFocus = () => void checkVerification();
+    window.addEventListener("focus", checkOnFocus);
+    return () => { active = false; window.removeEventListener("focus", checkOnFocus); };
+  }, [status, access?.emailVerified, email, onVerified]);
 
   async function resendVerification() {
     setVerification("sending");
     try {
       const user = await currentAuthUser();
       if (!user || !email || user.email?.toLowerCase() !== email.toLowerCase()) throw new Error("account_changed");
-      await sendAccountVerification(user, `${window.location.origin}/contact/robot-team`);
+      await sendAccountVerification(user, new URL(returnTo, window.location.origin).toString());
       setVerification("sent");
     } catch {
       setVerification("error");
@@ -80,11 +102,11 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
     return (
       <div className="ms-task-empty">
         <h2>You are approved. Verify your email to see jobs.</h2>
-        <p>Open the verification email we sent{email ? ` to ${email}` : ""}, then come back to this page.</p>
+        <p>Open the verification email we sent{email ? ` to ${email}` : ""}. Its link takes you back here.</p>
         <button className="ms-button" type="button" disabled={verification === "sending"} onClick={() => void resendVerification()}>
           {verification === "sending" ? "Sending…" : "Resend verification email"}
         </button>
-        {verification === "sent" && <p role="status">Verification email sent. Check your inbox, then reload this page.</p>}
+        {verification === "sent" && <p role="status">Verification email sent. Open the link in your inbox.</p>}
         {verification === "error" && <p role="alert">We could not resend the email. Try again from Settings.</p>}
       </div>
     );

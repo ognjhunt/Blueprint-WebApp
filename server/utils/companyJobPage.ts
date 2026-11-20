@@ -16,6 +16,7 @@ import { readJobFacts } from "./jobFacts";
 import { firstLookFromStoredPreparation } from "./firstLookTable";
 import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
 import { removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
+import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 import { knownSiteIdentity } from "./siteIdentity";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
@@ -164,6 +165,11 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     const words = firstLookRowInWords(firstLookRowFromAnswerRobot(robot), facts);
     return { verdict: words.verdict, text: words.text, robot: words.robot };
   });
+  const question = questionOnReply(answerRow);
+  const clarification = question ? clarificationOnReply(answerRow, question.id) : undefined;
+  const successRule = known && !brief?.successCriteria?.unknown
+    ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.successCriteria?.successDefinition ?? "").trim().slice(0, 1000), known))
+    : "";
   return {
     schemaVersion: "company_job_page.v1",
     id: requestId,
@@ -174,6 +180,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // text and any other contact detail removed (`removeIdentifyingDetails`), then any name-shaped text the record does
     // not hold (`removeNamesNotHeld`): a company gets the site's name only through an introduction the site asks for.
     sentence: known ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known)) : "",
+    ...(successRule ? { successRule } : {}),
     jobFacts: jobFactsInWords(facts),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
@@ -187,7 +194,9 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     notShown: packet.notShown,
     myAnswer: answerRow && isCompanyResponseState(answerRow.state) ? { state: answerRow.state,
       inputs: typeof answerRow.inputs === "string" ? answerRow.inputs : "", updatedAtIso: String(answerRow.updatedAtIso ?? ""),
-      statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null } : null,
+      statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null,
+      ...(answerRow.details ? { details: answerRow.details } : {}) } : null,
+    ...(question && clarification ? { clarification: { question: question.text, answer: clarification } } : {}),
     responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT },
   };
 }

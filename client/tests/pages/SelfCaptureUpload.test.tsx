@@ -1478,7 +1478,7 @@ describe("the site's answer leads its job page", () => {
   it("says the job is shared, or shared but not visible right now, as the server decided, and offers no button either way", async () => {
     setUserAgent(DESKTOP_UA);
     for (const [sharing, line] of [
-      [{ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "We share your job with the deployment companies we approve."],
+      [{ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "Posted for approved deployment companies"],
       [{ state: "not_visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "Your job is not visible to companies right now."],
     ] as const) {
       vi.stubGlobal("fetch", answerFetch({ answer: { ...readyAnswer, jobCardListed: true, sharing } }));

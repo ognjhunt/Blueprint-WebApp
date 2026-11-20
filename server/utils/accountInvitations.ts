@@ -2,6 +2,7 @@ import { authAdmin } from "../../client/src/lib/firebaseAdmin";
 import { MIN_PASSWORD_LENGTH } from "../../client/src/lib/passwordPolicy";
 import { accessRecordId, getAccessRecordForEmail, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { createAccountInvitationToken, verifyAccountInvitationToken, type AccountInvitationPayload } from "./request-review-auth";
+import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
 
 export class AccountInvitationError extends Error {
   constructor(public status: number, message: string, public code = "account_invitation_required") { super(message); }
@@ -20,7 +21,9 @@ export async function resolveAccountInvitation(token: string) {
   const email = payload.email.trim().toLowerCase();
   const record = await getAccessRecordForEmail(email);
   if (!record || record.status !== "approved" || !record.decidedBy || record.decidedAtIso !== payload.revision || accessRecordId(email) !== payload.sourceId) return deny();
-  return { ...payload, email, name: record.name, organization: record.company, returnTo: "/contact/robot-team" };
+  return { ...payload, email, name: record.name, organization: record.company,
+    returnTo: companyJobReturnPath(record.returnToJob) ?? "/contact/robot-team",
+    optionalUpdates: record.optionalUpdates ?? record.newJobAlertsOptIn ?? false };
 }
 
 /** Independent of client-writable profiles and library-open switches. */

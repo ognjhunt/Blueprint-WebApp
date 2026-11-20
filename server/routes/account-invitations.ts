@@ -15,7 +15,11 @@ const handleError = (error: unknown, res: any) => {
   return res.status(503).json({ error: "Account invitations are temporarily unavailable. Please try again." });
 };
 router.post("/inspect", async (req, res) => {
-  try { const invitation = await resolveAccountInvitation(tokenSchema.parse(req.body?.invitation)); const { email, name, organization, workspaceType, returnTo } = invitation; return res.json({ email, name, organization, workspaceType, returnTo }); }
+  try {
+    const { email, name, organization, workspaceType, returnTo, optionalUpdates } =
+      await resolveAccountInvitation(tokenSchema.parse(req.body?.invitation));
+    return res.json({ email, name, organization, workspaceType, returnTo, optionalUpdates });
+  }
   catch (error) { return handleError(error, res); }
 });
 router.post("/redeem", async (req, res) => {

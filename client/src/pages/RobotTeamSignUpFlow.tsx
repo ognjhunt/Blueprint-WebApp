@@ -8,6 +8,7 @@ import { workspaceRequest } from "@/lib/workspace";
 import { invitationRequest, type AccountInvitation } from "@/lib/accountInvitation";
 import { friendlyAuthError } from "@/lib/siteClaim";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { authReturnPath } from "@/lib/authReturnPath";
 
 /** Public URLs collect interest; only a current server-approved invitation shows credentials. */
 export default function RobotTeamSignUpFlow() {
@@ -31,6 +32,7 @@ export default function RobotTeamSignUpFlow() {
     invitationRequest<AccountInvitation>("inspect", token).then(data => {
       if (!active) return;
       setInvitation(data); setName(data.name); setOrganization(data.organization);
+      setOptionalUpdates(data.optionalUpdates === true);
       void import("@/lib/firebase").catch(() => undefined);
     }).catch(failure => { if (active) setError(failure.message); }).finally(() => { if (active) setChecking(false); });
     return () => { active = false; };
@@ -40,8 +42,9 @@ export default function RobotTeamSignUpFlow() {
     if (!invitation || user.email?.trim().toLowerCase() !== invitation.email) throw new Error("Sign in with the email address on your Blueprint invitation.");
     account.current = user;
     await workspaceRequest(user, "/setup", "POST", { name: name.trim(), organization: organization.trim(), workspaceType: invitation.workspaceType, acceptedTerms: true, optionalUpdates });
-    if (!user.emailVerified) await sendEmailVerification(user, { url: new URL(invitation.returnTo, window.location.origin).toString() });
-    window.location.assign(invitation.returnTo);
+    const returnTo = authReturnPath(invitation.returnTo) ?? "/contact/robot-team";
+    if (!user.emailVerified) await sendEmailVerification(user, { url: new URL(returnTo, window.location.origin).toString() });
+    window.location.assign(returnTo);
   }
   async function submit(google: boolean) {
     if (pending.current || !invitation) return;
@@ -90,10 +93,13 @@ export default function RobotTeamSignUpFlow() {
         <p className="auth-description">Your robot team is approved. Use the email address on your invitation.</p>
         <form className="auth-form auth-simple-signup" onSubmit={event => { event.preventDefault(); void submit(false); }} aria-busy={busy}>
           <div><label htmlFor="email">Work email</label><input id="email" type="email" value={invitation.email} readOnly autoComplete="email" /></div>
-          <div><label htmlFor="contactName">Your name</label><input id="contactName" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={160} disabled={busy} required /></div>
-          <div><label htmlFor="organizationName">Organization</label><input id="organizationName" value={organization} onChange={e => setOrganization(e.target.value)} autoComplete="organization" maxLength={160} disabled={busy} required /></div>
+          <details open={!invitation.name || !invitation.organization ? true : undefined}>
+            <summary>Review account details</summary>
+            <div><label htmlFor="contactName">Your name</label><input id="contactName" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={160} disabled={busy} /></div>
+            <div><label htmlFor="organizationName">Company</label><input id="organizationName" value={organization} onChange={e => setOrganization(e.target.value)} autoComplete="organization" maxLength={160} disabled={busy} /></div>
+            <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={busy} /><span>Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime.</span></label>
+          </details>
           {!account.current && <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} minLength={8} autoComplete="new-password" disabled={busy} /><button type="button" disabled={busy} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p className="auth-signup-note">At least 8 characters. Skip this field to use Google.</p></div>}
-          <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={busy} /><span>Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime.</span></label>
           <label className="auth-signup-consent"><input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)} disabled={busy} /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this organization’s account.</span></label>
           <button className="auth-primary" type="submit" disabled={busy}>{busy ? "Saving…" : account.current ? "Finish setup" : "Create account"}<ArrowRight size={18} aria-hidden="true" /></button>
         </form>
@@ -101,7 +107,7 @@ export default function RobotTeamSignUpFlow() {
         <button className="auth-google" type="button" disabled={busy} onClick={() => void submit(true)}>Continue with Google</button>
       </>}
       {error && <div className="auth-error" role="alert">{error}</div>}
-      <p className="auth-account-link">Already have an account? <a href="/sign-in">Sign in</a></p>
+      <p className="auth-account-link">Already have an account? <a href={`/sign-in?next=${encodeURIComponent(authReturnPath(invitation?.returnTo ?? null) ?? "/contact/robot-team")}`}>Sign in</a></p>
     </AuthLayout>
   </>;
 }
