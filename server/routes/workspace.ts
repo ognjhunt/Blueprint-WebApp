@@ -232,7 +232,7 @@ router.post(
         company: reuseSiteDetails && submittedOrganization ? submittedOrganization : input.organization,
         buyerType: input.workspaceType,
         workspaceSetupCompletedAt: now,
-        ...(!user.updatePreferences && input.optionalUpdates !== undefined ? { updatePreferences: buildUpdatePreferences({ newsletter: input.optionalUpdates, newJobAlerts: input.optionalUpdates, interests: {}, declaredCategories: {}, requirements: {} }, "signup") } : {}),
+        ...(!user.updatePreferences && input.optionalUpdates !== undefined ? { updatePreferences: buildUpdatePreferences({ newsletter: input.optionalUpdates, newJobAlerts: true, interests: {}, declaredCategories: {}, requirements: {} }, "signup") } : {}),
         ...(!snapshot.exists
           ? { uid: auth.uid, email: text(auth.email), createdDate: now }
           : {}),

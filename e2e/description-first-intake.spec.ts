@@ -53,7 +53,7 @@ for (const device of ["desktop", "mobile"] as const) {
 
     // Owner direction 2026-11-11: the sentence is optional; a typed one, in the
     // site's words, confirms the brief when it is submitted.
-    test("capture setup takes an optional typed task, then continues to required video", async ({ page, context, baseURL }, testInfo) => {
+    test("capture setup takes the typed task, then continues to required video", async ({ page, context, baseURL }, testInfo) => {
       const token = "synthetic-description-owner";
       const mutations: Array<{ path: string; body: any }> = [];
       const errors: string[] = [];

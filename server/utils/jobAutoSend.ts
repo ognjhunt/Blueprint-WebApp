@@ -3,8 +3,8 @@
  *
  * When a job first becomes listed (`teamJobAccess(record).listed`, the whole E2 rule), one transaction:
  * - records one `companySends` row per approved deployment company, `sentBy: "system"`, id `system-<companyId>`;
- * - queues the new-job email (kind `robot_team_new_task`) to each of those companies that asked for job emails and is
- *   not suppressed; the dispatch gate (`jobAlertIsCurrent`) re-checks listing, approval, preference and suppression;
+ * - queues the new-job email (kind `robot_team_new_task`) to each of those companies that has not turned job emails
+ *   off and is not suppressed (`companyWantsJobEmails`, owner 2026-11-20); the dispatch gate (`jobAlertIsCurrent`) re-checks listing, approval, preference and suppression;
  * - queues the site's one `job_sent` email ("Your job is with {n} deployment companies.");
  * - writes `company_auto_send = { schemaVersion: 1, sentAtIso, count }` on the job, so it happens once.
  * A job with no approved deployment company yet is left for a later pass. A company approved later sees listed jobs in
@@ -21,9 +21,8 @@ import { newJobEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
-import { savedUpdatePreferences } from "./updatePreferences";
 import { captureUploadUrlFor } from "./captureUploadToken";
-import { NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
+import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
 
 export const AUTO_SEND_FIELD = "company_auto_send";
@@ -34,11 +33,6 @@ export type AutoSendResult =
 
 const isPullRequestPreview = () => process.env.IS_PULL_REQUEST?.trim().toLowerCase() === "true";
 
-/** The company asked for job emails: its saved preference, or the opt-in mirrored onto its record. */
-export function companyOptedIn(record: Partial<RobotTeamAccessRecord>, userPreferences?: unknown): boolean {
-  const saved = savedUpdatePreferences(record.preferencesAccountUid ? userPreferences : record.updatePreferences);
-  return saved ? saved.newJobAlerts === true : record.newJobAlertsOptIn === true;
-}
 
 /** Send one job to every approved deployment company, once. Idempotent: a second call finds the marker and does nothing. */
 export async function sendJobToApprovedCompanies(requestId: string, now: () => Date = () => new Date()): Promise<AutoSendResult> {
@@ -58,14 +52,14 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
       .filter(row => /^[a-f0-9]{64}$/.test(row.id) && companyMaySeeJobs(row.data))
       .sort((a, b) => a.id.localeCompare(b.id));
     if (!companies.length) return { sent: false, reason: "no_companies" };
-    // Reads first: each opted-in company's saved preference and suppression, and the site's notice row.
+    // Reads first: each company's saved preference and suppression, and the site's notice row.
     const emailed: Array<{ id: string; email: string }> = [];
     for (const company of companies) {
       const email = String(company.data.email ?? "").trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) continue;
       const user = company.data.preferencesAccountUid
         ? (await tx.get(store.collection("users").doc(company.data.preferencesAccountUid))).data()?.updatePreferences : undefined;
-      if (!companyOptedIn(company.data, user)) continue;
+      if (!companyWantsJobEmails(company.data, user)) continue;
       const suppression = (await tx.get(store.collection("email_suppressions").doc(email))).data();
       if (suppressedForJobAlerts(suppression)) continue;
       emailed.push({ id: company.id, email });

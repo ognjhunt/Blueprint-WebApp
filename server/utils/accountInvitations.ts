@@ -23,7 +23,9 @@ export async function resolveAccountInvitation(token: string) {
   if (!record || record.status !== "approved" || !record.decidedBy || record.decidedAtIso !== payload.revision || accessRecordId(email) !== payload.sourceId) return deny();
   return { ...payload, email, name: record.name, organization: record.company,
     returnTo: companyJobReturnPath(record.returnToJob) ?? "/contact/robot-team",
-    optionalUpdates: record.optionalUpdates ?? record.newJobAlertsOptIn ?? false };
+    // The setup form's one box is Blueprint updates (job emails are on for every approved company): never pre-ticked
+    // from the job-email flag.
+    optionalUpdates: record.updatePreferences?.newsletter ?? record.optionalUpdates ?? false };
 }
 
 /** Independent of client-writable profiles and library-open switches. */

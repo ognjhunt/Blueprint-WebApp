@@ -21,10 +21,16 @@ export const updatePreferencesInputSchema = z.object({
   requirements: retentionRequirementsSchema.default({}),
 }).strict();
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesInputSchema>;
+/**
+ * v1: one box bundled job emails with Blueprint updates, off unless ticked. v2 (owner, 2026-11-20): job emails are on
+ * for every approved deployment company and the one box is Blueprint updates only; Settings holds both switches.
+ */
+export const UPDATE_PREFERENCES_VERSIONS = ["optional-updates-v1", "optional-updates-v2"] as const;
+export const CURRENT_UPDATE_PREFERENCES_VERSION = "optional-updates-v2" as const;
 export type UpdatePreferences = UpdatePreferencesInput & {
   source: "signup" | "application" | "settings";
   updatedAtIso: string;
-  version: "optional-updates-v1";
+  version: typeof UPDATE_PREFERENCES_VERSIONS[number];
 };
 // These fields are included in the owner's existing public-card approval.
 // Missing values stay unknown, particularly rights and retention.

@@ -157,9 +157,10 @@ export async function recordAccessApplication(
       ...(returnToJob ? { returnToJob } : {}),
       partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
       supportedSystems: application.supportedSystems === undefined ? prior?.supportedSystems ?? null : application.supportedSystems,
-      newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? (!prior && application.optionalUpdates === true),
+      // Job emails start on once approved (owner, 2026-11-20); the form's one box is Blueprint updates only.
+      newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? true,
       ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : !prior && application.optionalUpdates !== undefined
-        ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: application.optionalUpdates, interests: {}, declaredCategories: {}, requirements: {} }, "application") } : {}),
+        ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: true, interests: {}, declaredCategories: {}, requirements: {} }, "application") } : {}),
       ...(prior?.preferencesAccountUid ? { preferencesAccountUid: prior.preferencesAccountUid } : {}),
       email,
       testSite: application.testSite === undefined ? prior?.testSite ?? null : application.testSite,
@@ -244,7 +245,7 @@ export async function inviteRobotTeam(params: {
     const record: RobotTeamAccessRecord = {
       ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : {}),
       ...(prior?.preferencesAccountUid ? { preferencesAccountUid: prior.preferencesAccountUid } : {}),
-      newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? false,
+      newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? true,
       name: params.name,
       email,
       company: params.company,

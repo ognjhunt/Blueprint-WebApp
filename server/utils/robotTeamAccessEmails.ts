@@ -146,7 +146,7 @@ export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
 // The answers are the form's own, in the sentence the public pages use (`COMPANY_ANSWERS`).
 export const NEW_JOB_EMAIL_BODY = "A site is looking for a deployment company for one of its jobs. See the job and answer in a minute: "
   + `${COMPANY_ANSWERS}.`;
-const NEW_JOB_ALERTS_LINE = "You chose relevant new-job alerts. Change your preferences in Settings or unsubscribe below.";
+const NEW_JOB_ALERTS_LINE = "Approved deployment companies get an email for each new job. Turn these off in Settings or unsubscribe below.";
 
 /** The email an approved deployment company that asked for job emails gets when a job is shared: the job's link only. */
 export function newJobEmail(params: { to: string; jobUrl: string }) {

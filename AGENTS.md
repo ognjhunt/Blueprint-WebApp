@@ -41,7 +41,7 @@ and contact details are never shared without asking the site first. A
 withdrawal removes the job from every company's view at once. A copy a company
 already saved cannot be taken back; the company is asked to delete it.
 
-No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press for each company it wants to meet; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. The website works this way: a job goes to the
+No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and each is emailed about it unless it turned job emails off. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press for each company it wants to meet; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. The website works this way: a job goes to the
 approved companies on its own, the site presses Introduce us, and the follow-up
 questions are sent.
 

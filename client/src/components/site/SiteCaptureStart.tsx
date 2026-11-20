@@ -85,6 +85,7 @@ const restoredCountryAsked = (draft: { location?: string; regionManuallySet: boo
   Boolean(draft.regionManuallySet) || Boolean(draft.location?.trim());
 
 const VIDEO_MISSING = "Choose the video of the job, or film it next.";
+const TASK_MISSING = "Say what the robot should do in one sentence.";
 
 export const STATEMENTS_CHANGED = "The wording on this form has changed since you last pressed the button. Read it, then press the button again.";
 
@@ -274,6 +275,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
   const [countryAsked, setCountryAsked] = useState(restoredCountryAsked(initial.draft));
   // Why we cannot send to the typed email, said under the field (checked here first, then by the server).
   const [emailError, setEmailError] = useState<string | null>(null);
+  // The one sentence the job needs, said under its field when the button is pressed without it.
+  const [taskError, setTaskError] = useState<string | null>(null);
   // An address we accept but that is likely mistyped (a Gmail name of an unusual length): said in the helper's place,
   // never blocking. Shown when the person leaves the field or presses the button.
   const [emailHint, setEmailHint] = useState<string | null>(null);
@@ -314,9 +317,10 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
   const footageWanted = hasFootage && region !== "non_us";
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
-  // Owner direction 2026-11-11: an email and a video start a job; the sentence
-  // is optional and typing it is the confirmation. Sharing an anonymised card
-  // is the site's explicit choice. Never retained: each submission chooses afresh.
+  // Owner direction 2026-11-20: an email, one sentence and a video start a job. The sentence is asked here because
+  // a job cannot reach deployment companies without it, and asking later is a second step on a clock. Typing it is
+  // the confirmation. Sharing an anonymised card is the site's explicit choice. Never retained: each submission
+  // chooses afresh.
   const formRef = useRef<HTMLFormElement>(null);
   function adoptRecovery(other: SiteCaptureRecovery, resetChanged = true) {
     const changed = recovery.current.requestId !== other.requestId
@@ -374,7 +378,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
       setStorageAvailable(true);
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
-      setPending(null); setState({ status: "idle" }); setEmailError(null); setEmailHint(null); setClaudeConsent(false); setSolAgentsConsent(false);
+      setPending(null); setState({ status: "idle" }); setEmailError(null); setEmailHint(null); setTaskError(null); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); setRegionManuallySet(false); setRegionPlace(null); setCountryMissing(false); setCountryAsked(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
@@ -415,20 +419,23 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
     const emailRefusal = typedEmail && !typedEmail.ok ? typedEmail.reason : null;
     if (typedEmail) setEmailHint(typedEmail.ok && typedEmail.hint ? EMAIL_HINT_SENTENCES[typedEmail.hint] : null);
     // The form does every check itself (`noValidate`: no browser bubble), each said under its own field, and focus
-    // goes to the first field to fix, in page order: the video, the country, the email.
+    // goes to the first field to fix, in page order: the video, the sentence, the country, the email.
     const videoMissing = !retained && footageWanted && !footage;
-    if (!retained && (!region || emailRefusal || videoMissing)) {
+    const taskMissing = !retained && !String(new FormData(formRef.current!).get("startTask") ?? "").trim();
+    if (!retained && (!region || emailRefusal || videoMissing || taskMissing)) {
       if (!region) { setCountryMissing(true); setCountryAsked(true); }
       setEmailError(emailRefusal ? EMAIL_REFUSAL_SENTENCES[emailRefusal] : null);
+      setTaskError(taskMissing ? TASK_MISSING : null);
       if (videoMissing) setFootageError(VIDEO_MISSING);
       if (state.status === "failed") setState({ status: "idle" });
-      window.setTimeout(() => document.querySelector<HTMLElement>(videoMissing ? "#start-footage" : !region ? "#start-region" : "#start-email")?.focus(), 0);
+      window.setTimeout(() => document.querySelector<HTMLElement>(videoMissing ? "#start-footage" : taskMissing ? "#start-task"
+        : !region ? "#start-region" : "#start-email")?.focus(), 0);
       return;
     }
     setEmailError(null);
-    // No typed task is required on any path: the server accepts a job with no
-    // description under the description authority (film later) or
-    // the recording grant (a video attached now), and drafts it from the video.
+    setTaskError(null);
+    // A job saved before the sentence was asked here (a retained submission) is sent as it was: the server still
+    // accepts a job with no sentence and its page asks for one.
     if (!retained && footageWanted && !footage) return;
 
     const data = new FormData(formRef.current!);
@@ -870,6 +877,15 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           </div>
         )}
 
+        {/* Asked on this screen (owner, 2026-11-20): a job reaches deployment companies only with its sentence. */}
+        <BareField label="The job in one sentence" htmlFor="start-task" error={taskError}
+          helper={<>What should the robot do? Typing it confirms: “{TASK_CONFIRMATION_STATEMENT}”</>}>
+          <BareTextarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2} required
+            aria-describedby={describedBy("start-task", { helper: true, error: taskError })} aria-invalid={taskError ? true : undefined}
+            onChange={() => { if (taskError) setTaskError(null); }}
+            placeholder="For example, put each packed carton at the end of the table" />
+        </BareField>
+
         <BareField label="Where is the job?" htmlFor="start-location">
           <LocationAutocomplete
             id="start-location"
@@ -928,14 +944,9 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           : `Signed in as ${currentUser.email}, which is not a site workspace. Use the private job link we email you; saving it to a site account is optional.`}</p>}
 
         {/* The optional details open in place, under the fields they add to (owner, 2026-11-12: a drop-down, not a
-            screen of their own). A closed disclosure still sends its fields, so a restored sentence is never lost. */}
+            screen of their own). A closed disclosure still sends its fields, so a restored answer is never lost. */}
         <details className="bare-disclosure" style={{ marginTop: 16 }}>
           <summary>Add details (optional)</summary>
-          <BareField label="The job in one sentence" htmlFor="start-task"
-            helper={<>We write this from your video if you leave it empty. Typing here confirms: “{TASK_CONFIRMATION_STATEMENT}”</>}>
-            <BareTextarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2}
-              aria-describedby="start-task-help" placeholder="For example, put each packed carton at the end of the table" />
-          </BareField>
           <BareField label="What counts as success?" htmlFor="start-success">
             <BareInput id="start-success" name="startSuccess" type="text" maxLength={1000}
               defaultValue={recovery.current.draft.successDefinition ?? ""}

@@ -35,7 +35,7 @@ test("prerendered intake stays inactive while its scripts are unavailable", asyn
 
 // Bare bones (owner, 2026-11-11): the first screen is the video, where the job is and an email; everything optional is
 // one quiet link away, on its own screen.
-test("phone: the first screen holds the video, where the job is and the email, and the button", async ({ page }) => {
+test("phone: the first screen holds the video, the sentence, where the job is, the email and the button", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
@@ -47,15 +47,18 @@ test("phone: the first screen holds the video, where the job is and the email, a
   }).toBeLessThan(844);
   await expect(page.getByRole("combobox", { name: "Where is the job?" })).toBeVisible();
   await expect(page.locator("#start-email")).toBeVisible();
-  await expect(page.locator("#start-task")).toBeHidden();
+  // The job's sentence is asked on the screen itself (owner, 2026-11-20); the rest waits in the optional details.
+  await expect(page.locator("#start-task")).toBeVisible();
+  await expect(page.locator("#start-success")).toBeHidden();
   // The optional details open in place, a drop-down on the same screen and address (owner, 2026-11-12).
   await page.getByText("Add details (optional)", { exact: true }).click();
-  await expect(page.locator("#start-task")).toBeVisible();
+  await expect(page.locator("#start-success")).toBeVisible();
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
   await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Where is the job?" })).toBeVisible();
   await page.getByText("Add details (optional)", { exact: true }).click();
-  await expect(page.locator("#start-task")).toBeHidden();
+  await expect(page.locator("#start-success")).toBeHidden();
+  await expect(page.locator("#start-task")).toBeVisible();
   await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

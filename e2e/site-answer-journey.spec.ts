@@ -89,16 +89,16 @@ async function csrf(request: APIRequestContext) {
   return { "X-CSRF-Token": (await response.json()).csrfToken as string };
 }
 
-/** The start form: upload a video, a typed city or region, the country, an email. No typed job and no share step. */
+/** The start form: upload a video, the job in one sentence, a typed city or region, the country, an email. No share step. */
 async function startWithVideo(page: Page, email: string, address: string) {
   await page.goto("/contact/site-operator", { waitUntil: "networkidle" });
   await page.locator("#start-method-upload").click();
   await page.locator("#start-footage").setInputFiles(VIDEO);
+  await page.locator("#start-task").fill("Move each sealed carton from the conveyor onto the cart.");
   await page.locator("#start-location").fill(address);
   await page.locator("#start-email").fill(email);
   const send = page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ });
   await page.locator("#start-region").selectOption("us");
-  await expect(page.locator("#start-task")).toHaveValue("");
   // Sharing is the service: nothing on the start form asks to share.
   await expect(page.getByRole("button", { name: /share my job/i })).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(/May we share/i);
@@ -207,7 +207,7 @@ test.describe("desktop", () => {
     await application.getByLabel("What jobs can you deliver?").fill("Moving cartons from conveyors to carts.");
     await application.getByLabel("Which robots do you deploy?").fill("A mobile arm that picks cartons up to 15 kg.");
     await application.getByLabel("Where can you deploy?").fill("United States");
-    await application.getByLabel("Email me relevant job opportunities").check();
+    // No box for job emails: an approved company gets them unless it turns them off (owner, 2026-11-20).
     const applied = applicationPage.waitForResponse(response => response.url().endsWith("/api/robot-team-access/apply")
       && response.request().method() === "POST");
     await application.getByRole("button", { name: "Apply", exact: true }).click();

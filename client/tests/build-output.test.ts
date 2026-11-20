@@ -343,7 +343,8 @@ describe("build output", () => {
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
     expect(browserJavaScript).toContain("Share a video of one repetitive job with approved robot deployment companies.");
-    expect(browserJavaScript).toContain("We write this from your video if you leave it empty.");
+    // The start form asks for the job's sentence on its first screen (owner, 2026-11-20).
+    expect(browserJavaScript).toContain("Say what the robot should do in one sentence.");
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {

@@ -59,12 +59,15 @@ const CONSTANT_STATEMENTS = [
  * word and an appended sentence both fail. A `{expression}` child renders as `{…}`.
  */
 const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; text: string }> = [
-  { version: "optional-updates-v1", file: "client/src/components/site/PartnerApplication.tsx", tag: "label",
-    text: "Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime." },
-  { version: "optional-updates-v1", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
-    text: "Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime." },
+  // v2 (owner, 2026-11-20): job emails are on for every approved company; the one box is Blueprint updates only.
+  { version: "optional-updates-v2", file: "client/src/components/site/PartnerApplication.tsx", tag: "label",
+    text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
+  { version: "optional-updates-v2", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
+    text: "Also email me Blueprint updates (optional). You get an email for each new job either way; unsubscribe anytime." },
   { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
   { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Relevant new-job alerts" },
+  { version: "optional-updates-v2", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
+  { version: "optional-updates-v2", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Relevant new-job alerts" },
   { version: "2026-09-24.v1", file: "client/src/components/site/SiteCaptureStart.tsx", tag: "BareCheck",
     text: "For this development test, I authorize Blueprint to send selected frames and task evidence from this recording to Anthropic for Claude Opus 5.5 3D authoring. Blueprint pays the bounded provider cost; this does not train a model on my recording. See Anthropic’s commercial API terms." },
   { version: "2026-09-24.v1", file: "client/src/components/site/SiteCaptureStart.tsx", tag: "BareCheck",
@@ -81,6 +84,11 @@ const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; tex
  * on any page under its old version.
  */
 const RETIRED_INLINE_STATEMENTS = [
+  // The bundled box (job emails and Blueprint updates together, off unless ticked), replaced by v2 on 2026-11-20.
+  { version: "optional-updates-v1", was: "client/src/components/site/PartnerApplication.tsx",
+    text: "Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime." },
+  { version: "optional-updates-v1", was: "client/src/pages/RobotTeamSignUpFlow.tsx",
+    text: "Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime." },
   { version: "public-task-card-v1", was: "client/src/components/site/SiteCaptureStart.tsx",
     text: "Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)" },
   { version: "public-task-card-v1", was: "client/src/components/site/PublicTaskListing.tsx",
@@ -210,7 +218,7 @@ describe("recorded statements keep their exact text under their version", () => 
     // RobotTeamEarlyAccess.tsx carried its own application until 2026-11-20; it now points to the one on /partners.
     const surfaces = ["client/src/components/site/PartnerApplication.tsx", "client/src/pages/RobotTeamSignUpFlow.tsx"];
     for (const file of surfaces) expect(sourceText(file)).toMatch(/optionalUpdates/);
-    const pinned = new Set(INLINE_STATEMENTS.filter(row => row.version === "optional-updates-v1").map(row => row.file));
+    const pinned = new Set(INLINE_STATEMENTS.filter(row => row.version === "optional-updates-v2").map(row => row.file));
     for (const file of surfaces) expect(pinned.has(file), file).toBe(true);
   });
 });

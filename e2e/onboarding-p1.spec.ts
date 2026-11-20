@@ -222,7 +222,7 @@ test("phone owner opens the recorder and keeps progress visible", async ({ brows
 
 // Owner direction 2026-11-11: the sentence is optional; a typed one confirms the brief
 // when submitted, before the video is recorded.
-for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video intake takes an optional typed task, then continues to recording`, async ({ browser }) => {
+for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video intake takes the typed task, then continues to recording`, async ({ browser }) => {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, ...(mobile ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true } : {}) });
   const page = await context.newPage(); const mutations = await fixtures(page);
   await page.goto("/contact/site-operator");

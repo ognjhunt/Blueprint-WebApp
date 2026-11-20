@@ -1,8 +1,9 @@
 import { dbAdmin as db } from '../../client/src/lib/firebaseAdmin';
-import { updatePreferencesInputSchema, type UpdatePreferences, type UpdatePreferencesInput } from '../../client/src/types/updatePreferences';
+import { CURRENT_UPDATE_PREFERENCES_VERSION, UPDATE_PREFERENCES_VERSIONS, updatePreferencesInputSchema, type UpdatePreferences,
+  type UpdatePreferencesInput } from '../../client/src/types/updatePreferences';
 import { accessRecordId } from './robotTeamEarlyAccess';
 export function buildUpdatePreferences(input: UpdatePreferencesInput, source: UpdatePreferences['source']): UpdatePreferences {
-  return { ...updatePreferencesInputSchema.parse(input), source, updatedAtIso: new Date().toISOString(), version: 'optional-updates-v1' };
+  return { ...updatePreferencesInputSchema.parse(input), source, updatedAtIso: new Date().toISOString(), version: CURRENT_UPDATE_PREFERENCES_VERSION };
 }
 export function savedUpdatePreferences(value: unknown): UpdatePreferences | null {
   if (!value || typeof value !== 'object') return null;
@@ -10,7 +11,7 @@ export function savedUpdatePreferences(value: unknown): UpdatePreferences | null
   const { source, updatedAtIso, version, ...input } = stored;
   const parsed = updatePreferencesInputSchema.safeParse(input);
   if (!parsed.success || !['signup', 'application', 'settings'].includes(source)
-    || version !== 'optional-updates-v1' || !Number.isFinite(Date.parse(updatedAtIso))) return null;
+    || !(UPDATE_PREFERENCES_VERSIONS as readonly string[]).includes(version) || !Number.isFinite(Date.parse(updatedAtIso))) return null;
   return { ...parsed.data, source, updatedAtIso, version };
 }
 /** Bind only a verified account's preferences to its existing contact. A signup cannot claim another email. */
