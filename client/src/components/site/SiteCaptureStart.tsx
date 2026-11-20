@@ -86,6 +86,13 @@ const restoredCountryAsked = (draft: { location?: string; regionManuallySet: boo
 
 const VIDEO_MISSING = "Choose the video of the job, or film it next.";
 
+/**
+ * What happens after the video is sent, said only as far as it is true: the video is read and the job page shows what
+ * comes of it. No email is promised: the site is emailed only when its job goes to companies, a company answers, or the
+ * job needs something from it (`captureOutbox.ts`), and none of those is certain.
+ */
+export const NEXT_AFTER_VIDEO = "Next, we watch your video. Your job page shows what we find.";
+
 export const STATEMENTS_CHANGED = "The wording on this form has changed since you last pressed the button. Read it, then press the button again.";
 
 /**
@@ -711,7 +718,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
             ]} />
             {done.uploaded === "processing_pending"
               ? <p>Blueprint will continue from this saved recording and update your job. You can leave this page.</p>
-              : <p>Next, we watch your video and email you.</p>}
+              : <p>{NEXT_AFTER_VIDEO}</p>}
             {done.uploaded !== "done" && done.uploaded !== "processing_pending" && done.uploadMessage && <p className="bare-helper">{done.uploadMessage}</p>}
             {done.uploaded === "processing_pending" && (done.uploadMessage || done.processingRetryAvailable) && (
               <details aria-label="Processing details">

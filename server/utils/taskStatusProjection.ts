@@ -807,7 +807,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       // off, a person reviews it, and that is what the site is told.
       headline: input.footageReviewAutomated === false
         ? "We have your recording. Our team reviews it and emails you with the next step."
-        : "We have your recording. Blueprint handles reconstruction and evaluation; the next update will appear in this job.",
+        : "We have your video. Nothing is needed from you now.",
       operatorAction: null,
     };
   }
@@ -824,7 +824,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   return {
     ...base,
     decision: "record",
-    headline: "We can assess this job. A recording of the work area is the next step.",
+    headline: "Your job is saved. A video of the job is the next step.",
     operatorAction: "Film the work area from your capture link.",
   };
 }

@@ -142,7 +142,8 @@ describe("the decision ladder", () => {
   it("asks for a recording once the brief is confirmed and coverage is unknown", () => {
     const status = projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true }));
     expect(status.decision).toBe("record");
-    expect(status.headline).toMatch(/we can assess this job/i);
+    // Nothing is claimed about the job before any video: only what is saved and what comes next.
+    expect(status.headline).toBe("Your job is saved. A video of the job is the next step.");
   });
 
   it("reaches assessing when coverage is measured as sufficient", () => {
@@ -158,7 +159,8 @@ describe("the decision ladder", () => {
       base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true }),
     );
     expect(status.decision).toBe("footage_received");
-    expect(status.headline).toMatch(/we have your recording/i);
+    // Plain words, and no promise of an update or an email the site may never get.
+    expect(status.headline).toBe("We have your video. Nothing is needed from you now.");
     expect(status.operatorAction).toBeNull();
   });
 

@@ -296,7 +296,7 @@ describe("a site that sends its footage before confirming its brief", () => {
     await confirmBrief(token);
     const page = (await jobStatus(token)).status;
     expect(page.decision).toBe("footage_received");
-    expect(`${page.headline} ${page.operatorAction ?? ""}`).not.toMatch(/film the work area|recording of the work area is the next step/i);
+    expect(`${page.headline} ${page.operatorAction ?? ""}`).not.toMatch(/film the work area|recording of the work area is the next step|video of the job is the next step/i);
   });
 });
 
