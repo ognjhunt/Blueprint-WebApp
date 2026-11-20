@@ -1,0 +1,133 @@
+# onboarding__site-signed-in
+# route: /onboarding (final URL desktop: /onboarding; phone: /onboarding)
+# source: client/src/pages/OnboardingChecklist.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Your jobs
+Settings
+Operator QA
+Site workspace
+Sign out
+
+Operator QA
+
+Finish setup
+
+Your account is ready. Review your details, then open your workspace.
+
+Account details
+
+Name, organization, and sign-in details
+
+Saved
+Site & job
+
+Open each job on its job page from your jobs.
+
+Your jobs →
+Intake summary & next steps
+Open workspace →
+
+You can return to your job and settings at any time.
+
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Account profile complete
+Your account exists and the intake owner is identified.
+Completed
+2
+Confirm the site claim
+Name the facility, operator, location, and why the site should enter the review queue.
+Review site claim
+3
+Define access boundaries
+Capture windows, restricted zones, escort rules, and safety limits stay structured before a meeting.
+Update access rules
+4
+Confirm privacy rules
+Camera limits, redaction needs, private areas, and security concerns decide whether human scoping is required.
+Update privacy notes
+5
+Set commercialization preference
+OPTIONAL
+Choose whether the site is private, claim-only, or potentially listable in the partner job library.
+Update preference
+6
+Structured intake captured
+The website has enough structured detail to route the request before any calendar step.
+Review intake
+7
+Route the submission for review
+The request enters intake review before authorization, evidence planning, or an operator call begins.
+Open submission form
+Keep calendar secondary
+A meeting is optional until the structured intake shows a concrete site, workflow, buyer, or rights question.
+9
+Review world-model opportunities
+See what downstream buyer-facing world-model access can look like once a site is ready to package.
+Open world models
+10
+Confirm team contact
+Identify the facility contact who can answer access, privacy, and scheduling questions.
+Open settings
+Buyer type
+Site operator
+Primary path
+Structured intake review
+Site claim
+Site Claim Needs Detail
+Access boundary
+Needs Access Rules
+Claim readiness
+Not measured yet
+Calendar
+not needed yet
+Site
+Not set yet
+Location
+Job
+Site access & review
+Rights
+Needs owner or release context
+Add who can approve capture, release, or downstream use before this moves.
+Needs privacy boundary
+Add camera limits, restricted areas, redaction needs, or security rules.
+Access
+Needs access rules
+Add capture windows, escort rules, restricted zones, or safety limits.
+Commercial control
+Needs commercial preference
+Choose whether the site stays private, claim-only, or potentially listable.
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+
+Operator QA
+
+Finish setup
+
+Your account is ready. Review your details, then open your workspace.
+
+Account details
+
+Name, organization, and sign-in details
+
+Saved
+Site & job
+
+Open each job on its job page from your jobs.
+
+Your jobs →
+Intake summary & next steps
+Open workspace →
+
+You can return to your job and settings at any time.
+
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms

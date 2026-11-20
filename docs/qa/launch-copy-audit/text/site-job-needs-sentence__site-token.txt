@@ -1,0 +1,44 @@
+# site-job-needs-sentence__site-token
+# route: /capture-upload/site-answer-fixture?video=existing (final URL desktop: /capture-upload/site-answer-fixture?video=existing; phone: /capture-upload/site-answer-fixture?video=existing)
+# source: client/src/components/site/SiteAnswer.tsx; pages/SelfCaptureUpload.tsx (Name the job form)
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+Your job
+
+We read your job as: “Move cartons from the end of the conveyor onto the pallet.”
+
+Deployment companies
+
+Your job is not shared with any company yet.
+
+FIRST LOOK
+
+On paper, the robot most likely to fit: Universal Robots UR10e.
+
+From published specifications and where it has been used.
+
+✓
+Reaches far enough
+✓
+Strong enough
+✓
+Already used for jobs like this
+
+How sure are we? 
+ Fairly sure
+
+The weight and distances are estimated from your video.
+
+SIMULATION OF YOUR SITE
+
+Tell us in one sentence what the robot should do, so we can build the simulation of your job.
+
+See details ›
+Job settings ›
+
+Nothing here is a test at your site. The first look checks only picking up and putting down. It does not certify performance or safety.
+
+In one line, what should the robot do?Save
+
+## Phone 390: same text as desktop

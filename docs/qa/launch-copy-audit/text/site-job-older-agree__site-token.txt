@@ -1,0 +1,47 @@
+# site-job-older-agree__site-token
+# route: /capture-upload/site-answer-fixture?video=existing (final URL desktop: /capture-upload/site-answer-fixture?video=existing; phone: /capture-upload/site-answer-fixture?video=existing)
+# source: client/src/components/site/SiteAnswer.tsx; pages/SelfCaptureUpload.tsx
+# state: job sent before sharing was the service: v4 agreement button
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+Your job
+
+We read your job as: “Move cartons from the end of the conveyor onto the pallet.”
+
+Deployment companies
+
+Not shared yet.
+
+Agree and send my job
+
+By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.
+
+FIRST LOOK
+
+On paper, the robot most likely to fit: Universal Robots UR10e.
+
+From published specifications and where it has been used.
+
+✓
+Reaches far enough
+✓
+Strong enough
+✓
+Already used for jobs like this
+
+How sure are we? 
+ Fairly sure
+
+The weight and distances are estimated from your video.
+
+SIMULATION OF YOUR SITE
+
+The simulation of your site is ready.
+
+See details ›
+Job settings ›
+
+Nothing here is a test at your site. The first look checks only picking up and putting down. It does not certify performance or safety.
+
+## Phone 390: same text as desktop

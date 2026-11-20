@@ -1,0 +1,62 @@
+# find-jobs-applied__signed-out
+# route: /jobs#partner-application (final URL desktop: /jobs#partner-application; phone: /jobs#partner-application)
+# source: client/src/components/site/PartnerApplication.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+Find jobs for the robots you deploy.
+
+Review real jobs with site videos and details. When a site asks to meet, we introduce you.
+
+See a sample job
+
+Already approved? Browse jobs
+
+Your application is saved.
+
+We'll email you if your company is approved to see jobs. Once approved, you get an email for each new job.
+
+SAMPLE JOB
+
+Load parcels onto a hand truck
+
+Stock footage, not a live job. No site posted it.
+
+The job, in the site's words
+Pick up each parcel and stack it on the hand truck.
+What counts as done
+
+Every parcel is on the hand truck, stacked so none falls.
+
+Cardboard parcels in two sizes
+Stacked on a two-wheel hand truck, the larger parcel at the bottom
+Outdoors, on a paved path
+The video
+
+Video: Mixkit, free license. Sound removed, as on every job.
+
+On a live job, you also get
+The site's answers to a few questions for its kind of job, such as the heaviest item and the busiest rate.
+A first look on paper at which kinds of robot most likely fit, from published specifications.
+A simulation of the site with the job's object in it, to download and open in your own tools.
+No site name, address or contact details until the site asks to meet you.
+How you answer
+
+Answer in a minute: Interested, Not a fit or Need more details; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet.
+
+If the site wants to meet you, we email you both each other's details.
+
+Apply to see live jobs
+
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

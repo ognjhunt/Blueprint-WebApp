@@ -1,0 +1,35 @@
+# job-library__signed-out
+# route: /contact/robot-team (final URL desktop: /contact/robot-team; phone: /contact/robot-team)
+# source: client/src/pages/Contact.tsx; components/site/TaskBrowse.tsx; components/site/RobotTeamEarlyAccess.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+‹ Back
+Apply to see jobs
+
+Approved deployment companies can browse jobs and respond.
+
+Apply
+
+Already approved? Sign in or use your emailed invitation to set up your account.
+
+Lost or expired link? Email me a new one
+
+Nothing is charged today. Have a job to automate? Start a job.
+
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Also present once collapsed sections / tabs are opened (desktop)
+APPROVED EMAIL
+Email my invitation link
+
+## Phone 390: same text as desktop

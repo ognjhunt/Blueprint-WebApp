@@ -1,0 +1,55 @@
+# claim__site-token
+# route: /claim/claim-fixture (final URL desktop: /claim/claim-fixture; phone: /claim/claim-fixture)
+# source: client/src/pages/ClaimSite.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+
+YOUR JOB IS SAVED
+
+Keep track of Rivera Packaging, Dock 4.
+
+Claim the workspace for “Move sealed cartons from the conveyor onto the pallet.” to follow its progress and review results when they are available.
+
+We’ll attach this site and job to your account using the details you already supplied. You can review results, control the listing, and pause it anytime.
+
+Work email
+The email you submitted with this job. Use the same address to save it to your account.
+Password
+Choose one — 8 characters or more.
+Create account and save job
+
+Already have an account? Sign in instead
+
+or
+Continue with Google
+Illustrative scene
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+
+YOUR JOB IS SAVED
+
+Keep track of Rivera Packaging, Dock 4.
+
+Claim the workspace for “Move sealed cartons from the conveyor onto the pallet.” to follow its progress and review results when they are available.
+
+We’ll attach this site and job to your account using the details you already supplied. You can review results, control the listing, and pause it anytime.
+
+Work email
+The email you submitted with this job. Use the same address to save it to your account.
+Password
+Choose one — 8 characters or more.
+Create account and save job
+
+Already have an account? Sign in instead
+
+or
+Continue with Google
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms

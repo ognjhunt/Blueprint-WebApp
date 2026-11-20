@@ -1,0 +1,17 @@
+# site-job-details-no-fit__site-token
+# route: /capture-upload/site-answer-fixture?video=existing#details (final URL desktop: /capture-upload/site-answer-fixture?video=existing#details/ruled-out; phone: /capture-upload/site-answer-fixture?video=existing#details/ruled-out)
+# source: client/src/components/site/SiteAnswer.tsx (details sub-screens); RobotFit.tsx
+# state: Details > Robots that don't fit
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+‹ Back
+Robots that don't fit
+11 robots
+Universal Robots UR5e
+Weight: each carton is about 8–11 kg (estimated from your video). This arm lifts 5 kg.
+Franka Robotics Research 3 (FR3)
+Weight: each carton is about 8–11 kg (estimated from your video). This arm lifts 3 kg.
+And 9 more.
+
+## Phone 390: same text as desktop
