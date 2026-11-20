@@ -26,7 +26,8 @@
  * website jobs count (`isWebsiteJobRecord` and a task brief); nothing is written for any other request. The clock
  * runs as long as a grant's window would (`websiteJobWindowSeconds`). A job waiting on the site
  * (no finished recording, or a held job's one step) then ends with the truth: we did not receive
- * what was needed. A job waiting on Blueprint (the site did its part, no grant came) ends held, and
+ * what was needed. A job the site sent with its description only, saying what the job is, waits on
+ * nobody: it is complete without a video and gets no clock (`descriptionOnlyJobComplete`). A job waiting on Blueprint (the site did its part, no grant came) ends held, and
  * the ops monitor pages before that (`scanWebsiteJobsWaitingOnGrant`). A job whose grant arrives later is the
  * window sweep's again.
  */
@@ -52,7 +53,7 @@ import { savedWalkthrough } from "./siteWalkthrough";
 import { stuckAlertMs } from "./websitePreparationWatch";
 import { isApprovedCaptureRegion } from "../../client/src/data/captureResidency";
 import { hasCurrentDescriptionAuthority } from "./descriptionAuthority";
-import { newWebsiteJobNoGrantClock, recordedWebsiteJobNoGrantEnding,
+import { descriptionOnlyJobComplete, newWebsiteJobNoGrantClock, recordedWebsiteJobNoGrantEnding,
   sealWebsiteJobNoGrantEnding, websiteJobNoGrantClock, WEBSITE_JOB_NO_GRANT_CLOCK_FIELD,
   WEBSITE_JOB_NO_GRANT_ENDING_FIELD, WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD,
   type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
@@ -199,6 +200,11 @@ export type JobNoGrantSweepResult =
   | "not_a_job"
   /** The no-grant ending is already recorded. */
   | "ending_recorded"
+  /**
+   * The site sent the job with its description only and said what the job is: the job is complete without a video,
+   * listed for companies, and waits on nobody (`descriptionOnlyJobComplete`). No clock, no ending.
+   */
+  | "description_only"
   | "withdrawn"
   | "owner_closed"
   | "result_recorded"
@@ -255,6 +261,7 @@ async function latestSiteActivityEpoch(requestId: string, record: Record<string,
 function noGrantSkip(record: Record<string, any> | undefined, requestId: string): JobNoGrantSweepResult | null {
   if (!record || record.website_scene_sponsorship) return "has_grant";
   if (!isWebsiteJobRecord(record)) return "not_a_job";
+  if (descriptionOnlyJobComplete(record)) return "description_only";
   if (recordedWebsiteJobNoGrantEnding(record, requestId)) return "ending_recorded";
   if (record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return "withdrawn";
   if (websiteRunClosure(record, requestId, siteWalkthroughIdentity(requestId, record).captureId)) return "owner_closed";

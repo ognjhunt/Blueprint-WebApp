@@ -11,7 +11,8 @@
  * - the listing record is `job-shared-2026-11-12` (`sharedJobListing`); older cards drop out with no data change;
  * - the job sentence exists (the site's brief holds a real sentence);
  * and none of: the site's withdrawal, Blueprint's operator hold, a rights hold, an authority end (the Pipeline's
- * preparation `authority_ended`), the site closing its job (`website_run_closures`, or `workspace_task` paused/closed).
+ * preparation `authority_ended`), the site closing its job (`website_run_closures`, or `workspace_task` paused/closed),
+ * the job ended because what was needed from the site never came (the no-grant ending, a wait on the site).
  * A first look or a simulation is NOT required. Nor is an upload-time privacy decision: no screen has held a capture
  * since 2026-09-24 (`capturePrivacyScreen.ts` always proceeds), so waiting for its record only stranded jobs.
  *
@@ -42,6 +43,7 @@ import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";
 import { isInternalTestJob } from "./internalTestJob";
 import { descriptionStatementShares } from "./jobSharedListing";
+import { recordedWebsiteJobNoGrantEnding } from "./websiteJobWindowEnding";
 
 /** Why a job is closed to robot teams, in the order the checks run. */
 export type TeamJobClosedReason =
@@ -82,7 +84,12 @@ export type TeamJobClosedReason =
   /** The scene has not been shown to run an evaluation yet. */
   | "scene_not_runnable"
   /** Listed: the site sent the job with its description only (v5), so there is no video yet. */
-  | "no_video_yet";
+  | "no_video_yet"
+  /**
+   * The job ended because what was needed from the site never came (`websiteJobWindowSweep`'s no-grant ending, a wait
+   * on the site): its page says so and asks for a new job, so no company sees it either.
+   */
+  | "job_ended";
 
 export type TeamJobAccess =
   | { listed: false; evaluationAvailable: false; reason: TeamJobClosedReason; details: null }
@@ -232,6 +239,9 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
   // `workspace_task.paused` from the retired pause control does NOT close: under E2 there is no site pause, and a job
   // paused before 2026-11-12 must not be stranded (planner, 15:07Z).
   if (closedBySite(raw) || raw.workspace_task?.archived === true) return closed("closed_by_site");
+  // The job's page and its listing say the same: a job ended for want of the site's step is not shown to companies. A
+  // wait on Blueprint that ran out holds only the simulation; the job stays listed (`jobNoGrantEndingMessage`).
+  if (recordedWebsiteJobNoGrantEnding(raw)?.waiting_on === "site") return closed("job_ended");
   if (raw.evidence_tier === "development_only" || raw.pipeline?.evidence_tier === "development_only")
     return closed("development_only");
   const legacy = legacyRestriction(raw);

@@ -538,6 +538,7 @@ const CLOSED_WORDS: Partial<Record<TeamJobClosedReason, string>> = {
   no_job_sentence: "the site has not said what the job is yet",
   authority_ended: "Blueprint's authority to work on it ended",
   closed_by_site: "the site closed the job",
+  job_ended: "the job ended because what was needed from the site never came",
 };
 
 /** The job's sharing state in words, as `teamJobAccess` decides it. */

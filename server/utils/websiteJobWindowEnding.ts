@@ -14,6 +14,8 @@
  */
 import { z } from "zod";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest, matchesCrossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
+import { descriptionStatementShares } from "./jobSharedListing";
+import { taskBriefUnclear } from "./siteTaskScope";
 
 export const WEBSITE_JOB_WINDOW_ENDING_FIELD = "website_job_window_ending";
 export const WEBSITE_JOB_WINDOW_ENDING_SCHEMA = "website_job_window_ending.v1";
@@ -151,17 +153,34 @@ export function sealWebsiteJobNoGrantEnding(value: Omit<WebsiteJobNoGrantEnding,
 }
 
 /**
+ * A job the site sent with its description only (description statement v5, no recording grant) whose brief says what
+ * the job is: complete without a video, and listed for companies as it is (`teamJobAccess`, `no_video_yet`). Nothing
+ * waits on the site, and no grant will come for a video that was never asked for, so the no-grant clock never runs
+ * for it (2026-11-20). A brief with no sentence about the job still waits on the site's sentence.
+ */
+export function descriptionOnlyJobComplete(record: Record<string, any> | undefined): boolean {
+  return descriptionStatementShares(record) && !taskBriefUnclear(record?.site_task_scope);
+}
+
+/**
  * The no-grant ending recorded for this job, or null: none was recorded, it does not read, or the
  * job has a grant now. The job is named by `requestId`, or by the record's own `requestId` when it
  * carries one. A grant issued later (the owner's fix of the wait) is the job's own window,
  * which the window sweep ends; the no-grant ending then stops speaking for the job.
+ *
+ * An ending recorded for a complete description-only job (`descriptionOnlyJobComplete`) as a wait on the site does
+ * not speak for it either: before 2026-11-20 the clock took the missing video for the site's step and ended such jobs
+ * while companies still saw them. The record stays as stored; every reader (the job pages, the grant, the ops monitor
+ * and the sweep) reads the job as open, as its listing already did.
  */
 export function recordedWebsiteJobNoGrantEnding(record: Record<string, any> | undefined,
   requestId: string | undefined = typeof record?.requestId === "string" ? record.requestId : undefined): WebsiteJobNoGrantEnding | null {
   if (!record || record.website_scene_sponsorship) return null;
   const parsed = noGrantEndingSchema.safeParse(record[WEBSITE_JOB_NO_GRANT_ENDING_FIELD]);
-  return parsed.success && (requestId === undefined || parsed.data.request_id === requestId)
-    && matchesCrossRuntimeArtifactDigest(parsed.data, "ending_digest") ? parsed.data : null;
+  if (!parsed.success || (requestId !== undefined && parsed.data.request_id !== requestId)
+    || !matchesCrossRuntimeArtifactDigest(parsed.data, "ending_digest")) return null;
+  if (parsed.data.waiting_on === "site" && !parsed.data.reason && descriptionOnlyJobComplete(record)) return null;
+  return parsed.data;
 }
 
 
