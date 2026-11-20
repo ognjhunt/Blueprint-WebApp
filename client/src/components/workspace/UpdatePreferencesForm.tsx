@@ -17,7 +17,7 @@ export function UpdatePreferencesForm({ preferences, pending, save }: {
   }}>
     <h2>Optional email updates</h2>
     <label><input type="checkbox" name="newsletter" defaultChecked={preferences?.newsletter ?? false} /> Blueprint news and updates</label>
-    <label><input type="checkbox" name="newJobAlerts" defaultChecked={preferences?.newJobAlerts ?? false} /> Relevant new-job alerts</label>
+    <label><input type="checkbox" name="newJobAlerts" defaultChecked={preferences?.newJobAlerts ?? true} /> Relevant new-job alerts</label>
     <p className="ws-muted">Account, application and jobs you are already involved in have separate notices. Unsubscribe anytime. Email suppression takes precedence over these choices.</p>
     <details><summary>Targeting preferences (optional)</summary>
       <p className="ws-muted">Comma-separated exact categories. Leave an interest blank for any value. If a selected category or a hard requirement is unknown, that job will not trigger an alert.</p>

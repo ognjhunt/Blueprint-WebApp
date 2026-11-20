@@ -5,6 +5,9 @@
  * sentence. Never a status or progress email, never after a withdrawal or the site closing the job, and never for an
  * ending (a window or no-grant ending, a terminal scene outcome, the $40 cap's `spending_cap_reached`).
  *
+ * The first video is the one ask the job link email already carries, so it is asked again once, a day into the site's
+ * week (owner, 2026-11-20): the reminder, with the date the job stays open until.
+ *
  * One short line saying what is needed, and the private link. Once per distinct ask: the outbox document id names the
  * job, the capture and the ask's own words, so the same ask is never sent twice, whatever the trigger. Read again at
  * dispatch by the same rule: an ask that no longer stands is cancelled, never sent. The sweep of every site job and
@@ -20,7 +23,8 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { websiteRunClosure } from "./websiteRunClosure";
 import { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
-import { recordedWebsiteJobNoGrantEnding, recordedWebsiteJobWindowEnding } from "./websiteJobWindowEnding";
+import { noGrantClockEndsAtEpoch, recordedWebsiteJobNoGrantEnding, recordedWebsiteJobWindowEnding,
+  websiteJobNoGrantClock } from "./websiteJobWindowEnding";
 import { largeVideoAskOutcome, projectAtlasPreparationOutcome, TASK_NOT_NAMED_SENTENCES } from "./taskPreparationOutcome";
 import { pageAskedOutcome, safeSceneViewUrl } from "./taskStatusProjection";
 
@@ -34,6 +38,14 @@ const keyPart = (value: string) => value.replace(/[^A-Za-z0-9._-]/g, "_").slice(
 export const siteActionNoticeKey = (requestId: string, ask: Pick<SiteAsk, "key">) =>
   `${requestId.trim()}:${SITE_ACTION_KIND}:${keyPart(ask.key)}`;
 
+/** How long into the site's wait for its first video the one reminder goes: a day, after the job link email. */
+export const FIRST_VIDEO_REMINDER_AFTER_SECONDS = 86400;
+export const FIRST_VIDEO_REMINDER_TITLE = "Your job is waiting for its video";
+/** The reminder's next step, with the day the job stays open until (UTC, as every date in a site email). */
+export const firstVideoReminderNextStep = (endsAtEpoch: number) => "Film or upload one full round of the job from "
+  + `this link. Your job stays open until ${new Date(endsAtEpoch * 1000).toLocaleDateString("en-US",
+    { month: "long", day: "numeric", timeZone: "UTC" })}.`;
+
 /** One ask, keyed by the capture and the ask's own words: the same ask is the same key, another ask another. */
 function askOf(captureId: string, title: string, nextStep: string): SiteAsk {
   return { key: `${captureId}.${createHash("sha256").update(`${title}\n${nextStep}`).digest("hex").slice(0, 16)}`, title, nextStep };
@@ -46,7 +58,8 @@ function askOf(captureId: string, title: string, nextStep: string): SiteAsk {
  * (`loadCurrentWebsitePreparationStatus`, so a failure retained for an earlier context asks nothing), and from the job's
  * own record, when that outcome's step is the site's. Null after a withdrawal, the site closing the job, or an ending.
  */
-export async function currentSiteAsk(requestId: string, record: Record<string, any> | null | undefined, tx?: Tx): Promise<SiteAsk | null> {
+export async function currentSiteAsk(requestId: string, record: Record<string, any> | null | undefined, tx?: Tx,
+  nowMs = Date.now()): Promise<SiteAsk | null> {
   if (!db || !record || record.capture_withdrawal) return null;
   const rights = projectWebsiteCaptureRights(record);
   if (rights.consent_revoked) return null;
@@ -77,7 +90,26 @@ export async function currentSiteAsk(requestId: string, record: Record<string, a
       && Boolean(safeSceneViewUrl(reconstruction.assets?.launchUrl) || safeSceneViewUrl(reconstruction.assets?.panoUrl)),
     sceneProgression: preparationStatus?.state === "handed_off" ? sceneProgression : null,
     siteNamedTask: Boolean(brief) && !isPlaceholderSummary(brief!.summary) });
-  return outcome?.actionOwner === "site" ? askOf(captureId, outcome.title, outcome.nextStep) : null;
+  if (outcome?.actionOwner === "site") return askOf(captureId, outcome.title, outcome.nextStep);
+  if (outcome) return null;
+  return firstVideoReminder(requestId, record, captureId, nowMs);
+}
+
+/**
+ * The page's "A video of the job is the next step", asked again once: while the site's clock for this capture has run
+ * a day and no recording is saved. The ask names the clock's end, so it is fixed for the clock and sent once.
+ */
+async function firstVideoReminder(requestId: string, record: Record<string, any>, captureId: string, nowMs: number): Promise<SiteAsk | null> {
+  if (record.website_scene_sponsorship) return null;
+  const clock = websiteJobNoGrantClock(record, requestId);
+  if (!clock || clock.waiting_on !== "site" || (clock.capture_id !== undefined && clock.capture_id !== captureId)) return null;
+  const nowEpoch = Math.floor(nowMs / 1000);
+  const endsAt = noGrantClockEndsAtEpoch(clock);
+  if (nowEpoch < clock.since_epoch + FIRST_VIDEO_REMINDER_AFTER_SECONDS || nowEpoch >= endsAt) return null;
+  const { savedWalkthrough } = await import("./siteWalkthrough");
+  const walkthrough = await savedWalkthrough(siteWalkthroughIdentity(requestId, record));
+  if (!walkthrough || walkthrough.received) return null;
+  return askOf(captureId, FIRST_VIDEO_REMINDER_TITLE, firstVideoReminderNextStep(endsAt));
 }
 
 /** The email for one ask: one short line saying what is needed, and the private link. */
@@ -89,10 +121,11 @@ export function buildSiteActionNotification(params: { requestId: string; to: str
 }
 
 /** Queue the job's current ask once. Never throws for a job with nothing asked; a repeat of the same ask queues nothing. */
-export async function notifySiteActionNeeded(requestId: string, known?: Record<string, any>): Promise<{ enqueued: boolean }> {
+export async function notifySiteActionNeeded(requestId: string, known?: Record<string, any>,
+  nowMs = Date.now()): Promise<{ enqueued: boolean }> {
   if (!db) return { enqueued: false };
   const record = known ?? (await db.collection("inboundRequests").doc(requestId).get()).data();
-  const ask = await currentSiteAsk(requestId, record);
+  const ask = await currentSiteAsk(requestId, record, undefined, nowMs);
   if (!ask) return { enqueued: false };
   const to = String(await decryptFieldValue(record?.contact?.email ?? "")).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { enqueued: false };

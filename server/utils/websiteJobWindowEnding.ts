@@ -101,6 +101,21 @@ const clockSchema = z.object({
 }).strict();
 export type WebsiteJobNoGrantClock = z.infer<typeof clockSchema>;
 
+/**
+ * How long a job waits on the site (its first video, a smaller video, or its one sentence) before it ends: a week
+ * (owner, 2026-11-20), whatever a grant's window is. A grant's window bounds what Blueprint spends on a job; it was
+ * never meant to bound how long a site has to film, and at one day it ended jobs from sites that film on their next
+ * shift. A clock started shorter than this (before the change) runs this long too; a wait on Blueprint keeps the
+ * window it started with.
+ */
+export const WEBSITE_JOB_SITE_WAIT_SECONDS = 7 * 86400;
+/** The window a new clock for this wait starts with. */
+export const noGrantWaitWindowSeconds = (waitingOn: WebsiteJobNoGrantWait, grantWindowSeconds: number) =>
+  waitingOn === "site" ? WEBSITE_JOB_SITE_WAIT_SECONDS : grantWindowSeconds;
+/** When a clock ends: its own window, and never sooner than a week for a wait on the site. */
+export const noGrantClockEndsAtEpoch = (clock: Pick<WebsiteJobNoGrantClock, "since_epoch" | "window_seconds" | "waiting_on">) =>
+  clock.since_epoch + (clock.waiting_on === "site" ? Math.max(clock.window_seconds, WEBSITE_JOB_SITE_WAIT_SECONDS) : clock.window_seconds);
+
 /** The job's no-grant clock, or null: none started, it does not read, or it names another job. */
 export function websiteJobNoGrantClock(record: Record<string, any> | undefined, requestId: string): WebsiteJobNoGrantClock | null {
   const parsed = clockSchema.safeParse(record?.[WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]);

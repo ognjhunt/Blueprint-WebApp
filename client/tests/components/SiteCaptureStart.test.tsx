@@ -176,11 +176,14 @@ it("opens the optional details and the statements in place, on the same screen a
     const agreeing = screen.getByText("What you're agreeing to", { selector: "summary" }).closest("details")!;
     expect(details).not.toHaveAttribute("open");
     expect(agreeing).not.toHaveAttribute("open");
-    expect(screen.getByLabelText(/The job in one sentence/)).not.toBeVisible();
+    // The sentence is asked on the screen itself, never inside the optional details (owner, 2026-11-20).
+    expect(screen.getByLabelText(/The job in one sentence/)).toBeVisible();
+    expect(screen.getByLabelText(/The job in one sentence/).closest("details")).toBeNull();
+    expect(screen.getByLabelText(/What counts as success/)).not.toBeVisible();
 
     fireEvent.click(screen.getByText("Add details (optional)", { selector: "summary" }));
     expect(details).toHaveAttribute("open");
-    for (const label of [/The job in one sentence/, /What counts as success/, /How often does it happen/, /Where are you in the process/]) {
+    for (const label of [/What counts as success/, /How often does it happen/, /Where are you in the process/]) {
       expect(screen.getByLabelText(label)).toBeVisible();
     }
     fireEvent.click(screen.getByText("What you're agreeing to", { selector: "summary" }));
@@ -517,19 +520,19 @@ it("keeps optional details when switching between upload and recording", async (
 
 // Owner direction 2026-11-11: a site sends an email and a video; Blueprint drafts the job
 // description from the video. The sentence is optional; typing one is the confirmation.
-it("leaves the task optional, has no task box, and sends a typed sentence as the confirmation", async () => {
+it("asks for the sentence on the first screen, required, and sends it as the confirmation", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
   await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   const task = document.querySelector<HTMLTextAreaElement>("#start-task")!;
-  expect(task).not.toBeRequired();
-  expect(task.closest("details")).not.toHaveAttribute("open");
-  openDetails();
+  expect(task).toBeRequired();
+  expect(task.closest("details")).toBeNull();
   expect(task).toBeVisible();
   expect(screen.getByLabelText(/The job in one sentence/)).toBe(task);
   // Typing the sentence is the confirmation, so its recorded statement is shown under the field, word for word.
-  expect(document.querySelector("#start-task-help")).toHaveTextContent(`Typing here confirms: “${TASK_CONFIRMATION_STATEMENT}”`);
+  expect(document.querySelector("#start-task-help")).toHaveTextContent(`Typing it confirms: “${TASK_CONFIRMATION_STATEMENT}”`);
   expect(document.querySelector("#start-task-confirmation")).toBeNull();
+  openDetails();
   expect(document.querySelector("#start-success")).not.toBeRequired();
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   chooseCountry("us");
@@ -549,27 +552,49 @@ it("leaves the task optional, has no task box, and sends a typed sentence as the
   expect(upload.send).not.toHaveBeenCalled();
 });
 
-it("starts the film-on-a-phone path with only a country and an email", async () => {
+it("starts the film-on-a-phone path with only a sentence, a country and an email", async () => {
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
+    json: async () => init?.method === "POST" ? { captureUrl: "/capture-upload/phone.signed" } : { features: [] } }));
+  await renderReady(<SiteCaptureStart />);
+  describeTask("Move sealed cartons to the dock");
+  fireEvent.change(askCountry(), { target: { value: "us" } });
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("heading", { name: "Now film the job." });
+  const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+  expect(sent).toMatchObject({ taskStatement: "Move sealed cartons to the dock", captureMode: "self_capture", captureRegion: "us",
+    descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null,
+    acceptedTerms: true, taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION } });
+  expect(sent).not.toHaveProperty("publicTaskListing");
+});
+
+it("asks for the sentence under its field and sends nothing until it is given", async () => {
   fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
     json: async () => init?.method === "POST" ? { captureUrl: "/capture-upload/phone.signed" } : { features: [] } }));
   await renderReady(<SiteCaptureStart />);
   fireEvent.change(askCountry(), { target: { value: "us" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
   fireEvent.submit(screen.getByRole("form"));
+  const task = document.querySelector<HTMLTextAreaElement>("#start-task")!;
+  expect(await screen.findByText("Say what the robot should do in one sentence.")).toHaveAttribute("id", "start-task-error");
+  expect(task).toHaveAttribute("aria-invalid", "true");
+  await waitFor(() => expect(document.activeElement).toBe(task));
+  expect(postsTo("/api/inbound-request")).toHaveLength(0);
+  // Typing clears the ask; the next press sends the job.
+  describeTask("Move sealed cartons to the dock");
+  expect(screen.queryByText("Say what the robot should do in one sentence.")).toBeNull();
+  fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Now film the job." });
-  const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
-  expect(sent).toMatchObject({ taskStatement: "", captureMode: "self_capture", captureRegion: "us", descriptionOnly: true,
-    descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, acceptedTerms: true });
-  expect(sent).not.toHaveProperty("taskConfirmation");
-  expect(sent).not.toHaveProperty("publicTaskListing");
+  expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body).taskStatement).toBe("Move sealed cartons to the dock");
 });
 
-it("asks no typed task and no street address, and says it will reply when no job link comes back", async () => {
+it("asks no street address, and says it will reply when no job link comes back", async () => {
   fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
     json: async () => init?.method === "POST" ? { captureUrl: null } : { features: [] } }));
   await renderReady(<SiteCaptureStart />);
-  expect(document.querySelector("#start-task")).not.toBeRequired();
+  expect(document.querySelector("#start-task")).toBeRequired();
   expect(document.querySelector("#start-location")).not.toBeRequired();
+  describeTask("Move sealed cartons to the dock");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "100 Congress Ave, Austin, TX" } });
   chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
@@ -577,15 +602,15 @@ it("asks no typed task and no street address, and says it will reply when no job
   await screen.findByRole("heading", { name: "We have your site." });
   expect(screen.getByText("We will reply to owner@example.test with the link to film or upload the video.")).toBeInTheDocument();
   const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
-  expect(sent).toMatchObject({ taskStatement: "", captureMode: "self_capture", descriptionOnly: true, consentAttestation: null,
-    siteLocation: "100 Congress Ave, Austin, TX" });
-  expect(sent).not.toHaveProperty("taskConfirmation");
+  expect(sent).toMatchObject({ taskStatement: "Move sealed cartons to the dock", captureMode: "self_capture", descriptionOnly: true,
+    consentAttestation: null, siteLocation: "100 Congress Ave, Austin, TX" });
 });
 
 it("asks one question about the video and sets the consent in one line under the button, with the full statements one tap away", async () => {
   await renderReady(<SiteCaptureStart />);
-  // The sentence is optional: it waits, closed, under "Add details (optional)".
-  expect(document.querySelector("#start-task")!.closest("details")).not.toHaveAttribute("open");
+  // The sentence is the one thing asked about the job itself: on the screen, required, never in the optional details.
+  expect(document.querySelector("#start-task")!.closest("details")).toBeNull();
+  expect(document.querySelector("#start-task")).toBeRequired();
   // Filming later is the default; the video is one quiet link away.
   expect(screen.getByText("Film or upload a video to post your job.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Next: film the job" })).toBeInTheDocument();
@@ -858,7 +883,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   // Owner direction 2026-11-11: a video, the country and the account are enough. Nothing is
   // typed, so nothing is confirmed or shared; Blueprint drafts the description from the video.
-  it("starts from the video alone: no sentence, no confirmation and no listing are sent", async () => {
+  it("does not start from the video alone: the sentence is asked under its field, then the video is sent", async () => {
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "done" });
     const file = video();
@@ -868,11 +893,16 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     chooseCountry("us");
     fireEvent.submit(screen.getByRole("form"));
+    await screen.findByText("Say what the robot should do in one sentence.");
+    expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
+    expect(upload.send).not.toHaveBeenCalled();
+    describeTask("Move sealed cartons to the dock");
+    fireEvent.submit(screen.getByRole("form"));
     await screen.findByText("We have your video.", { selector: "h1" });
     const submitted = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
-    expect(submitted).toMatchObject({ taskStatement: "", descriptionOnly: false, hasExistingFootage: true,
-      siteTaskGates: {}, siteTaskSpec: {}, consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" } });
-    expect(submitted).not.toHaveProperty("taskConfirmation");
+    expect(submitted).toMatchObject({ taskStatement: "Move sealed cartons to the dock", descriptionOnly: false, hasExistingFootage: true,
+      siteTaskGates: {}, siteTaskSpec: {}, consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" },
+      taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION } });
     expect(submitted).not.toHaveProperty("publicTaskListing");
     expect(submitted).not.toHaveProperty("successCriteria");
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
@@ -1431,6 +1461,7 @@ describe("with the one-line consent switched off", () => {
     }
     expect(document.querySelector("[data-consent-line]")).toBeNull();
     expect(document.querySelector("details[data-agreeing]")).toBeNull();
+    describeTask("Move sealed cartons to the dock");
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
@@ -1449,6 +1480,7 @@ describe("with the one-line consent switched off", () => {
     fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
       ? { ok: true, status: 201, json: async () => ({ captureUrl: null }) } : photon([]));
     await renderReady(<SiteCaptureStart />);
+    describeTask("Move sealed cartons to the dock");
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin, Germany" } });
     chooseCountry("non_us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
@@ -1491,6 +1523,7 @@ describe("the country a place gave is kept", () => {
   it("keeps it after the server refuses the submission (the reproduced fault)", async () => {
     serve(locate(), [{ status: 422, body: { message: "Correct task" } }]);
     await renderReady(<SiteCaptureStart />);
+    describeTask("Move sealed cartons to the dock");
     await useMyLocation();
     expectInferredUnitedStates();
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
@@ -1584,6 +1617,7 @@ describe("the country a place gave is kept", () => {
  */
 describe("an email we cannot send to", () => {
   function fillWith(email: string) {
+    describeTask("Move sealed cartons to the dock");
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: email } });
@@ -1720,6 +1754,7 @@ describe("the bot trap", () => {
     fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
       ? { ok: true, status: 201, json: async () => ({ captureUrl: null }) } : photon([]));
     await renderReady(<SiteCaptureStart />);
+    describeTask("Move sealed cartons to the dock");
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });

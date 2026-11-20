@@ -145,6 +145,8 @@ test.describe("the start form on a phone", () => {
     });
     await page.goto("/contact/site-operator");
     await page.locator("#start-email").waitFor();
+    // The job's sentence is asked on this screen (owner, 2026-11-20); these tests are about the other fields.
+    await page.locator("#start-task").fill("Move sealed cartons to the dock");
   }
   async function useMyLocation(page: import("@playwright/test").Page) {
     await page.getByRole("button", { name: "Use my location" }).click();

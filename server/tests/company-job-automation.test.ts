@@ -126,11 +126,15 @@ function company(tag: string, extra: Record<string, unknown> = {}) {
     newJobAlertsOptIn: true, appliedAtIso: "2026-11-01T00:00:00.000Z", updatedAtIso: "2026-11-01T00:00:00.000Z",
     decidedAtIso: "2026-11-02T00:00:00.000Z", decidedBy: "ops", decisionNote: null, ...extra };
 }
+/** A company that turned job emails off in Settings: the only saved choice that stops them (owner, 2026-11-20). */
+const jobEmailsOffInSettings = () => ({ newJobAlertsOptIn: false, updatePreferences: { newsletter: false, newJobAlerts: false,
+  interests: {}, declaredCategories: {}, requirements: {}, source: "settings", updatedAtIso: "2026-11-03T00:00:00.000Z",
+  version: "optional-updates-v2" } });
 const NORTH = company("North");
 const SOUTH = company("South");
 const EAST = company("East");
 const WEST = company("West");
-const QUIET = company("Quiet", { newJobAlertsOptIn: false });
+const QUIET = company("Quiet", jobEmailsOffInSettings());
 const MUTED = company("Muted");
 const TECH = company("Tech", { partnerRole: "technology" });
 const PENDING = company("Pending", { status: "applied" });
@@ -577,7 +581,7 @@ describe("the automatic send (E4)", () => {
     expect(outbox()).toHaveLength(0);
   });
 
-  it("records one system send per approved deployment company and emails only those that asked and are not suppressed", async () => {
+  it("records one system send per approved deployment company and emails all but those that turned job emails off or are suppressed", async () => {
     const result = await sendJobToApprovedCompanies(ID);
     const deployment = [NORTH, SOUTH, EAST, WEST, QUIET, MUTED];
     expect(result).toMatchObject({ sent: true, count: deployment.length, emailed: 4 });
@@ -595,6 +599,21 @@ describe("the automatic send (E4)", () => {
     expect(jobDoc().company_auto_send).toMatchObject({ schemaVersion: 1, count: 6 });
     // The site's page reports the count and the first date.
     expect((await loadSiteCompanyActivity(ID)).sent).toEqual({ count: 6, firstAtIso: result.sent ? result.sentAtIso : "" });
+  });
+
+  it("emails a company that made no choice, or said no only in the old bundled box, and not one that said no in Settings", async () => {
+    const bundled = { newsletter: false, newJobAlerts: false, interests: {}, declaredCategories: {}, requirements: {},
+      updatedAtIso: "2026-11-03T00:00:00.000Z", version: "optional-updates-v1" };
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, { ...NORTH, newJobAlertsOptIn: false });
+    state.docs.set(`robotTeamAccess/${sha(SOUTH.email)}`, { ...SOUTH, newJobAlertsOptIn: false, updatePreferences: { ...bundled, source: "application" } });
+    state.docs.set(`robotTeamAccess/${sha(EAST.email)}`, { ...EAST, newJobAlertsOptIn: false, updatePreferences: { ...bundled, source: "signup" } });
+    state.docs.set(`robotTeamAccess/${sha(WEST.email)}`, { ...WEST, ...jobEmailsOffInSettings() });
+    await sendJobToApprovedCompanies(ID);
+    expect(outbox().filter(row => row.kind === "robot_team_new_task").map(row => row.to).sort())
+      .toEqual([NORTH, SOUTH, EAST].map(record => record.email).sort());
+    await deliverOutbox({ limit: 50 });
+    expect(seams.sendEmail.mock.calls.map(([message]) => String(message.to)).filter(to => to !== "" && [NORTH, SOUTH, EAST, WEST]
+      .some(record => record.email === to)).sort()).toEqual([NORTH, SOUTH, EAST].map(record => record.email).sort());
   });
 
   it("tells sites with shared video how to withdraw and sends no notice for a legacy description draft", async () => {
@@ -633,7 +652,7 @@ describe("the automatic send (E4)", () => {
 
   it("delivers the email only while the job is listed and the company still wants it, at dispatch", async () => {
     await sendJobToApprovedCompanies(ID);
-    state.docs.set(`robotTeamAccess/${sha(SOUTH.email)}`, { ...SOUTH, newJobAlertsOptIn: false });
+    state.docs.set(`robotTeamAccess/${sha(SOUTH.email)}`, { ...SOUTH, ...jobEmailsOffInSettings() });
     state.docs.set(`robotTeamAccess/${sha(EAST.email)}`, { ...EAST, status: "declined" });
     state.docs.set(`email_suppressions/${WEST.email}`, { global_suppressed: true });
     await deliverOutbox({ limit: 50 });

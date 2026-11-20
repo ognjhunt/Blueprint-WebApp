@@ -23,10 +23,11 @@
  * record (`websiteJobWindowEnding.ts`), started the first time the pass sees it waiting. No
  * backfill: a job that had already waited a whole window since its latest site activity when the pass
  * first sees it (or whose stored times cannot be read) is ended then, with no email and no page. Only
- * website jobs count (`isWebsiteJobRecord` and a task brief); nothing is written for any other request. The clock
- * runs as long as a grant's window would (`websiteJobWindowSeconds`). A job waiting on the site
- * (no finished recording, or a held job's one step) then ends with the truth: we did not receive
- * what was needed. A legacy v5 description draft with a usable brief is exempt (`descriptionOnlyJobComplete`).
+ * website jobs count (`isWebsiteJobRecord` and a task brief); nothing is written for any other request. A wait on
+ * the site runs a week (`WEBSITE_JOB_SITE_WAIT_SECONDS`, owner 2026-11-20), with one reminder a day in
+ * (`siteActionNeeded.ts`); a wait on Blueprint runs as long as a grant's window would (`websiteJobWindowSeconds`).
+ * A job waiting on the site (no finished recording, or a held job's one step) then ends with the truth: we did not
+ * receive what was needed. A legacy v5 description draft with a usable brief is exempt (`descriptionOnlyJobComplete`).
  * A job waiting on Blueprint (the site did its part, no grant came) ends held, and
  * the ops monitor pages before that (`scanWebsiteJobsWaitingOnGrant`). A job whose grant arrives later is the
  * window sweep's again.
@@ -53,7 +54,7 @@ import { savedWalkthrough } from "./siteWalkthrough";
 import { stuckAlertMs } from "./websitePreparationWatch";
 import { isApprovedCaptureRegion } from "../../client/src/data/captureResidency";
 import { hasCurrentDescriptionAuthority } from "./descriptionAuthority";
-import { descriptionOnlyJobComplete, newWebsiteJobNoGrantClock, recordedWebsiteJobNoGrantEnding,
+import { descriptionOnlyJobComplete, newWebsiteJobNoGrantClock, noGrantClockEndsAtEpoch, noGrantWaitWindowSeconds, recordedWebsiteJobNoGrantEnding,
   sealWebsiteJobNoGrantEnding, websiteJobNoGrantClock, WEBSITE_JOB_NO_GRANT_CLOCK_FIELD,
   WEBSITE_JOB_NO_GRANT_ENDING_FIELD, WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD,
   type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
@@ -291,8 +292,8 @@ const noGrantPageDueMs = (clock: WebsiteJobNoGrantClock) =>
   clock.since_epoch * 1000 + Math.min(stuckAlertMs(), clock.window_seconds * 500);
 
 /**
- * Keeps the clock of one job that never received a grant, and ends the job once the clock has run as
- * long as a grant's window would. `observed` is the job record when the caller has just read it.
+ * Keeps the clock of one job that never received a grant, and ends the job once the clock has run: a week for a wait
+ * on the site, a grant's window for a wait on Blueprint. `observed` is the job record when the caller has just read it.
  *
  * A job whose active capture's video was too large for frame extraction (`websiteLargeVideoBlock.ts`)
  * gets no hand-off, so no grant will come for that video. The pass records the new-video ask for it
@@ -335,11 +336,11 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const restart = newlyClocked || !observedClock || observedClock.waiting_on !== waitingOn
     || (observedClock.capture_id !== undefined && observedClock.capture_id !== identity.captureId);
   const askWrite = Boolean(ask && recordedAsk?.ask_digest !== ask.ask_digest) || staleAsk;
-  if (!askWrite && !restart && observedClock!.since_epoch + observedClock!.window_seconds > nowEpoch) return "waiting";
+  if (!askWrite && !restart && noGrantClockEndsAtEpoch(observedClock!) > nowEpoch) return "waiting";
   // No backfill. The first time the sweep sees a job, a job that had already waited a whole window
   // since its latest site activity would have ended before this change: it is ended now, with no
   // email and no page. A job whose stored times cannot be read is taken as old, never as new.
-  const windowSeconds = websiteJobWindowSeconds();
+  const windowSeconds = noGrantWaitWindowSeconds(waitingOn, websiteJobWindowSeconds());
   const latestActivity = observedClock || newlyClocked ? undefined : await latestSiteActivityEpoch(requestId, observed!);
   const backfill: WebsiteJobNoGrantEndingNotice | null = latestActivity === undefined ? null
     : latestActivity === null ? "none_age_unknown"
@@ -379,7 +380,7 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
       return commit("clock_started");
     }
     const clock = observedClock!;
-    if (clock.since_epoch + clock.window_seconds > nowEpoch) return commit("video_ask_updated");
+    if (noGrantClockEndsAtEpoch(clock) > nowEpoch) return commit("video_ask_updated");
     // No email: the job page states the ending (owner, 2026-11-19).
     transaction.update(jobRef, { ...updates, [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
       waiting_on: clock.waiting_on, ...reason, waiting_since_epoch: clock.since_epoch, ended_at_epoch: nowEpoch,
@@ -423,7 +424,7 @@ export async function sweepWebsiteJobWindows(options: { limit?: number; now?: ()
   if (!waiting.docs.length) waiting = await automationBatch(db, sites, NO_GRANT_CURSOR, limit);
   for (const row of waiting.docs) {
     // Whatever the clock says: a job that cannot continue without the site is told once per ask (`siteActionNeeded.ts`).
-    await notifySiteActionNeeded(row.id, row.data())
+    await notifySiteActionNeeded(row.id, row.data(), (options.now ?? Date.now)())
       .catch(error => logger.warn({ err: error, requestId: row.id }, "Could not read a site job's ask; the next rotation tries again"));
     if (row.data()?.website_scene_sponsorship) continue;
     summary.examined += 1;

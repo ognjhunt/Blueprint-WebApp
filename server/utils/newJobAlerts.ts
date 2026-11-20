@@ -2,7 +2,7 @@
  * The dispatch gate for the new-job email to approved deployment companies (package E, E4). The automatic send
  * (`jobAutoSend.ts`) queues it; this re-checks, in the dispatch transaction, everything that must still hold: the job
  * is listed under the whole sharing rule, the company is still an approved deployment company at that address, it
- * still wants job emails, and the address is not suppressed.
+ * has not turned job emails off, and the address is not suppressed.
  */
 import { dbAdmin as db } from '../../client/src/lib/firebaseAdmin';
 import type { OutboxEntry } from './captureOutbox';
@@ -21,9 +21,22 @@ export const newJobAlertKey = (jobId: string, companyId: string) => `robot_team_
 /**
  * Whether the automatic new-job email sends (owner, 2026-11-12: "all 11 steps should be automated and not need a
  * human in the loop"). It does: a job is shared with every approved deployment company as soon as it is listed, and
- * the companies that asked for job emails are told. The gate below still decides each email at dispatch.
+ * each is emailed unless it turned job emails off (owner, 2026-11-20). The gate below still decides each email at dispatch.
  */
 export const AUTOMATIC_NEW_JOB_ALERTS_SEND = true;
+
+/**
+ * Whether an approved deployment company gets job emails (owner, 2026-11-20): yes, unless it turned them off. Job emails
+ * are the service a company applied for, so they start on. Only a choice saved in Settings turns them off here (the
+ * unsubscribe link in every job email is the other way, through `suppressedForJobAlerts`). A preference saved at
+ * application or account setup came from one box that bundled job emails with Blueprint updates and defaulted to off,
+ * so it is not read as a refusal of job emails.
+ */
+export function companyWantsJobEmails(record: { preferencesAccountUid?: string | null; updatePreferences?: unknown },
+  userPreferences?: unknown): boolean {
+  const saved = savedUpdatePreferences(record.preferencesAccountUid ? userPreferences : record.updatePreferences);
+  return saved?.source === 'settings' ? saved.newJobAlerts === true : true;
+}
 
 /** The suppression scopes that stop an optional job email. */
 export function suppressedForJobAlerts(blocked: Record<string, any> | undefined): boolean {
@@ -52,8 +65,7 @@ export async function jobAlertIsCurrent(entry: Pick<OutboxEntry, 'kind' | 'to' |
     || String(record.email ?? '').trim().toLowerCase() !== email) return false;
   const user = record.preferencesAccountUid
     ? (await tx.get(db.collection('users').doc(record.preferencesAccountUid))).data() : null;
-  const preferences = savedUpdatePreferences(record.preferencesAccountUid ? user?.updatePreferences : record.updatePreferences);
-  if (preferences ? !preferences.newJobAlerts : record.newJobAlertsOptIn !== true) return false;
+  if (!companyWantsJobEmails(record, user?.updatePreferences)) return false;
   const { access } = await loadCompanyJobAccess(alert.jobId, undefined, tx);
   return access.listed;
 }

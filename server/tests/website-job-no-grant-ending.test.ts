@@ -34,6 +34,13 @@ vi.mock("../utils/siteWalkthrough", async (original) => ({
     : { upload: { captureReceived: recording.received }, received: recording.received, uploadState: recording.received ? "retained" : "not_received" }),
 }));
 
+/** A grant's window as production configures it, when a test sets one; otherwise the real default. */
+const grantWindow = vi.hoisted(() => ({ seconds: null as number | null }));
+vi.mock("../utils/websiteSceneSponsorship", async (original) => {
+  const actual = await original<typeof import("../utils/websiteSceneSponsorship")>();
+  return { ...actual, websiteJobWindowSeconds: () => grantWindow.seconds ?? actual.websiteJobWindowSeconds() };
+});
+
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { scanWebsiteJobsWaitingOnGrant } from "../utils/betaOpsMonitor";
 import { deliverOutbox } from "../utils/captureOutbox";
@@ -109,7 +116,8 @@ describe.each([
       expect(await sweepAt(seconds)).toEqual({ examined: 1, ended: 0, failed: 0 });
     }
     expect(job()).not.toHaveProperty("website_job_no_grant_ending");
-    expect(outbox()).toHaveLength(0);
+    // A wait on the site gets its one reminder a day in (owner, 2026-11-20); a wait on Blueprint asks the site nothing.
+    expect(outbox().map(([, row]) => row.kind)).toEqual(waitingOn === "site" ? ["site_action_needed"] : []);
     expect((await page()).decision).not.toBe("ended");
 
     // Due: ended once, in one write; the page says it (no email, owner 2026-11-19).
@@ -118,7 +126,8 @@ describe.each([
     expect(ending).toMatchObject({ schema_version: "website_job_no_grant_ending.v1", request_id: "job-one", waiting_on: waitingOn,
       waiting_since_epoch: NOW / 1000, ended_at_epoch: NOW / 1000 + WINDOW, notice: "none_emails_retired" });
     expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
-    expect(outbox()).toHaveLength(0);
+    // The ending itself queues nothing.
+    expect(outbox()).toHaveLength(waitingOn === "site" ? 1 : 0);
 
     // The job page says the same sentence, the way a window ending shows.
     expect(await page()).toMatchObject({ decision: "ended", headline: message, operatorAction: null, stage: null });
@@ -128,6 +137,7 @@ describe.each([
       expect(await sweepAt(seconds)).toEqual({ examined: 1, ended: 0, failed: 0 });
     }
     expect(job().website_job_no_grant_ending).toEqual(ending);
+    // A reminder still queued when the job ended is no longer true, so it is cancelled, never sent.
     await deliverOutbox();
     expect(send).not.toHaveBeenCalled();
   });
@@ -139,6 +149,83 @@ describe.each([
     expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("withdrawn");
     expect(job()).not.toHaveProperty("website_job_no_grant_ending");
     expect(outbox()).toHaveLength(0);
+  });
+});
+
+describe("a week for the site, with one reminder (owner, 2026-11-20)", () => {
+  const reminders = () => outbox().filter(([, row]) => row.kind === "site_action_needed");
+
+  afterEach(() => { grantWindow.seconds = null; });
+
+  it("gives a wait on the site a week even when a grant's window is a day", async () => {
+    grantWindow.seconds = DAY;
+    seedJob();
+    await sweepAt(0);
+    expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "site", window_seconds: 7 * DAY });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(DAY))).toBe("waiting");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(7 * DAY - 1))).toBe("waiting");
+    expect(await sweepAt(7 * DAY)).toEqual({ examined: 1, ended: 1, failed: 0 });
+  });
+
+  it("starts a wait on Blueprint at a grant's window", async () => {
+    // Two days: the seeded job was created a day ago, so a one-day window would already have run out (no backfill).
+    grantWindow.seconds = 2 * DAY;
+    recording.received = true;
+    seedJob();
+    await sweepAt(0);
+    expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "blueprint", window_seconds: 2 * DAY });
+  });
+
+  it("runs a site clock started at a day (before the change) for the full week", async () => {
+    seedJob();
+    await sweepAt(0);
+    job().website_job_no_grant_clock.window_seconds = DAY;
+    expect(await sweepWebsiteJobNoGrant("job-one", at(DAY))).toBe("waiting");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(6 * DAY))).toBe("waiting");
+    expect(await sweepAt(7 * DAY)).toEqual({ examined: 1, ended: 1, failed: 0 });
+  });
+
+  it("keeps a wait on Blueprint at the window it started with", async () => {
+    recording.received = true;
+    seedJob();
+    await sweepAt(0);
+    job().website_job_no_grant_clock.window_seconds = DAY;
+    expect(await sweepAt(DAY)).toEqual({ examined: 1, ended: 1, failed: 0 });
+    expect(reminders()).toHaveLength(0);
+  });
+
+  it("reminds the site once, a day in, with the day the job stays open until, and sends it", async () => {
+    seedJob();
+    await sweepAt(0);
+    await sweepAt(DAY - 1);
+    expect(reminders()).toHaveLength(0);
+    await sweepAt(DAY);
+    await sweepAt(2 * DAY);
+    await sweepAt(5 * DAY);
+    expect(reminders()).toHaveLength(1);
+    const [, row] = reminders()[0];
+    expect(row).toMatchObject({ to: "owner@example.com", subject: "Your job needs something from you", replyTo: "hello@tryblueprint.io" });
+    expect(row.body).toContain("Your job is waiting for its video. Film or upload one full round of the job from this link. "
+      + "Your job stays open until November 19.");
+    expect(row.body).toMatch(/Open your job:\n\S+/);
+    // Dispatch reads the ask again at its own time: still true, so it goes.
+    vi.setSystemTime(at(5 * DAY));
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends no reminder once the video has arrived, and cancels one queued before it did", async () => {
+    seedJob();
+    await sweepAt(0);
+    await sweepAt(DAY);
+    expect(reminders()).toHaveLength(1);
+    recording.received = true;
+    vi.setSystemTime(at(DAY + HOUR));
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+    expect(reminders()[0][1].status).toBe("cancelled");
+    await sweepAt(3 * DAY);
+    expect(reminders()).toHaveLength(1);
   });
 });
 
