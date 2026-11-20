@@ -5,6 +5,7 @@ import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { authReturnPath } from "@/lib/authReturnPath";
 
 interface ValidationErrors {
   email?: string;
@@ -45,21 +46,21 @@ export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const { signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn } = useAuth();
   const browserLocation = typeof window === "undefined" ? null : window.location;
-  const resultPath = new URLSearchParams(browserLocation?.search || "").get("next");
-  const resultLink = resultPath && /^\/app\/results\/[A-Za-z0-9_-]+$/.test(resultPath)
-    ? new URL(resultPath, browserLocation?.origin || "https://tryblueprint.io").href
+  const returnPath = authReturnPath(new URLSearchParams(browserLocation?.search || "").get("next"));
+  const isCompanyJob = returnPath?.startsWith("/jobs/");
+  const returnLink = returnPath && browserLocation
+    ? new URL(returnPath, browserLocation.origin).href
     : browserLocation?.href || "";
 
   useEffect(() => {
-    const next = new URLSearchParams(window.location.search).get("next");
-    if (next && /^\/app\/results\/[A-Za-z0-9_-]+$/.test(next)) {
+    if (returnPath) {
       try {
-        sessionStorage.setItem("redirectAfterAuth", next);
+        sessionStorage.setItem("redirectAfterAuth", returnPath);
       } catch {
         // Sign-in still works when this browser disables session storage.
       }
     }
-  }, []);
+  }, [returnPath]);
 
   useEffect(() => {
     if (redirectChecked.current) return;
@@ -146,9 +147,9 @@ export default function Login() {
     }
   };
 
-  const copyResultLink = async () => {
+  const copyReturnLink = async () => {
     try {
-      await navigator.clipboard.writeText(resultLink);
+      await navigator.clipboard.writeText(returnLink);
       setLinkCopied(true);
     } catch {
       setLinkCopied(false);
@@ -166,9 +167,9 @@ export default function Login() {
         {authError && <p className="auth-error" role="alert">{authError}</p>}
         {authErrorCode === "auth/popup-blocked" && (
           <div className="auth-browser-handoff">
-            <p>Tap the browser menu and choose <strong>Open in Safari</strong>. If that option is unavailable, copy this link and paste it into Safari. Your result will open after sign-in.</p>
-            <button type="button" onClick={copyResultLink}>{linkCopied ? "Link copied" : "Copy result link"}</button>
-            <input aria-label="Result link to open in Safari" readOnly value={resultLink} onFocus={(event) => event.currentTarget.select()} />
+            <p>Tap the browser menu and choose <strong>Open in Safari</strong>. If that option is unavailable, copy this link and paste it into Safari. {isCompanyJob ? "You’ll return to the job page after sign-in." : "Your result will open after sign-in."}</p>
+            <button type="button" onClick={copyReturnLink}>{linkCopied ? "Link copied" : isCompanyJob ? "Copy job link" : "Copy result link"}</button>
+            <input aria-label={isCompanyJob ? "Job link to open in Safari" : "Result link to open in Safari"} readOnly value={returnLink} onFocus={(event) => event.currentTarget.select()} />
           </div>
         )}
         <div><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" inputMode="email" value={formData.email} onChange={handleInputChange} onBlur={handleBlur} placeholder="you@company.com" disabled={isLoading} aria-invalid={Boolean(errors.email && touched.email)} aria-describedby={errors.email && touched.email ? "email-error" : undefined} />{errors.email && touched.email && <p id="email-error" className="auth-field-error">{errors.email}</p>}</div>

@@ -1,7 +1,7 @@
 import { BareBack, BareFine, BareGroup, BareLabel, BareRows, BareScreen } from "@/components/bare/Bare";
 import { SEO } from "@/components/SEO";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
-import { COMPANY_ANSWERS, FOR_DEPLOYMENT_COMPANIES, INTRODUCIBLE_ANSWERS, PARTNERS_SEO_DESCRIPTION } from "@/lib/publicCopy";
+import { COMPANY_ANSWERS, FIRST_LOOK_WHEN_READY, FOR_DEPLOYMENT_COMPANIES, INTRODUCIBLE_ANSWERS, PARTNERS_SEO_DESCRIPTION } from "@/lib/publicCopy";
 
 /**
  * For deployment companies, bare bones (frame of 2026-11-12): what a company gets for each job, how it is approved,
@@ -18,7 +18,7 @@ export default function Partners() {
         <BareGroup>
           <BareLabel>{FOR_DEPLOYMENT_COMPANIES}</BareLabel>
           <h1 id="partner-title">Real jobs from real sites.</h1>
-          <p>Each job packet gives you the site's description and a first look at which robots could fit. It includes what counts as done when available. When the site sends video, you get it without sound. We add the simulation when it is ready.</p>
+          <p>Each job packet gives you the site's description and what counts as done when known. {FIRST_LOOK_WHEN_READY} When the site sends video, you get it without sound. We add the simulation when it is ready.</p>
         </BareGroup>
         <BareRows title="How it works" rows={[
           { key: "approval", label: "How to be approved", value: "Apply below. We approve each company by hand." },
