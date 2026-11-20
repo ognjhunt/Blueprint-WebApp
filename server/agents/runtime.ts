@@ -8,7 +8,6 @@ import { createAgentCheckpoint } from "./checkpoints";
 import { attachRequestMeta, logger } from "../logger";
 import { recordOpsActionLog } from "./ops-action-logs";
 import { recordRuntimeEvent } from "./runtime-events";
-import { recordAgentRunOverhead } from "../utils/accountSpendOverhead";
 import {
   extractAgentCostTelemetry,
   summarizeRollingAgentSpend,
@@ -1650,10 +1649,6 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
           cost_guardrail: costGuardrail,
         },
       });
-      // Named overhead for the account's month (owner, 2026-11-20): outside every job's cap, never on a job ledger.
-      await recordAgentRunOverhead(db, { runId, taskKind: normalizedTask.kind, provider: result.provider,
-        model: result.model, telemetry: costTelemetry, nowMs: Date.now(),
-        requestId: (normalizedTask.metadata as Record<string, unknown> | undefined)?.request_id });
     }
 
     if (options?.sessionId) {
