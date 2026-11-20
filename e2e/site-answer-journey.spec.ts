@@ -274,13 +274,14 @@ test.describe("desktop", () => {
 
     // The company sees the job in its library and on the job's page, under no site name, address or contact.
     await companyPage.goto("/contact/robot-team");
-    await companyPage.getByRole("searchbox", { name: "Search jobs" }).fill("carton");
     const row = companyPage.locator(`li#job-${requestId}`);
     await expect(row).toBeVisible({ timeout: 30_000 });
+    const searchTerm = (await row.getByRole("heading").innerText()).trim().split(/\s+/)[0];
+    await companyPage.getByRole("searchbox", { name: "Search jobs" }).fill(searchTerm);
     await row.getByRole("link", { name: "View job" }).click();
     await expect(companyPage).toHaveURL(new RegExp(`/jobs/${requestId}\\?from=`));
     await companyPage.getByRole("link", { name: "Back to jobs" }).click();
-    await expect(companyPage.getByRole("searchbox", { name: "Search jobs" })).toHaveValue("carton");
+    await expect(companyPage.getByRole("searchbox", { name: "Search jobs" })).toHaveValue(searchTerm);
     await row.getByRole("link", { name: "View job" }).click();
     await expect(companyPage.getByText("Pick up the sealed carton from the end of the conveyor and place it on the cart.")).toBeVisible({ timeout: 30_000 });
     // The approved browser receives a ticket for the published clip. A request without a ticket is refused.
