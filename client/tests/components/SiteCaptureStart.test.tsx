@@ -115,7 +115,7 @@ function describeTask(task: string, root: ParentNode = document) {
 
 /** The optional details open in place, one quiet link away (owner, 2026-11-12: a drop-down, not a screen of their own). */
 function openDetails() {
-  const summary = screen.getByText("Add details (optional)", { selector: "summary" });
+  const summary = screen.getByText("Add details", { selector: "summary" });
   if (!summary.closest("details")!.open) fireEvent.click(summary);
 }
 
@@ -172,7 +172,7 @@ it("opens the optional details and the statements in place, on the same screen a
   window.history.replaceState(null, "", "/contact/site-operator");
   try {
     await renderReady(<SiteCaptureStart />);
-    const details = screen.getByText("Add details (optional)", { selector: "summary" }).closest("details")!;
+    const details = screen.getByText("Add details", { selector: "summary" }).closest("details")!;
     const agreeing = screen.getByText("What you're agreeing to", { selector: "summary" }).closest("details")!;
     expect(details).not.toHaveAttribute("open");
     expect(agreeing).not.toHaveAttribute("open");
@@ -181,7 +181,7 @@ it("opens the optional details and the statements in place, on the same screen a
     expect(screen.getByLabelText(/The job in one sentence/).closest("details")).toBeNull();
     expect(screen.getByLabelText(/What counts as success/)).not.toBeVisible();
 
-    fireEvent.click(screen.getByText("Add details (optional)", { selector: "summary" }));
+    fireEvent.click(screen.getByText("Add details", { selector: "summary" }));
     expect(details).toHaveAttribute("open");
     for (const label of [/What counts as success/, /How often does it happen/, /Where are you in the process/]) {
       expect(screen.getByLabelText(label)).toBeVisible();
@@ -241,7 +241,7 @@ describe("SiteCaptureStart and the country", () => {
     expect(region()).toHaveValue("");
     expect(screen.queryByText(nonUsNotice)).toBeNull();
     fireEvent.submit(screen.getByRole("form"));
-    expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
+    expect(screen.getByText("Choose the country of the site.")).toBeInTheDocument();
     expect(postsTo("/api/inbound-request")).toHaveLength(0);
     expect(upload.send).not.toHaveBeenCalled();
   });
@@ -263,7 +263,7 @@ describe("SiteCaptureStart and the country", () => {
     expect(region()).toBeInTheDocument();
     expect(screen.queryByText(nonUsNotice)).toBeNull();
     fireEvent.submit(screen.getByRole("form"));
-    expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
+    expect(screen.getByText("Choose the country of the site.")).toBeInTheDocument();
     expect(postsTo("/api/inbound-request")).toHaveLength(0);
     expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
   });
@@ -360,7 +360,7 @@ describe("SiteCaptureStart and the country", () => {
       await waitFor(() => expect(resolveDetails).toBeTypeOf("function"));
       await act(async () => { resolveDetails!({ countryCode: null }); });
       fireEvent.submit(screen.getByRole("form"));
-      expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
+      expect(screen.getByText("Choose the country of the site.")).toBeInTheDocument();
       expect(postsTo("/api/inbound-request")).toHaveLength(0);
       expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
       fireEvent.change(location, { target: { value: "Austin, TX" } });
@@ -381,7 +381,7 @@ describe("SiteCaptureStart and the country", () => {
     expect(document.querySelector("#start-location")).not.toBeRequired();
     fireEvent.submit(screen.getByRole("form"));
     expect(region()).toHaveValue("");
-    expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
+    expect(screen.getByText("Choose the country of the site.")).toBeInTheDocument();
     expect(postsTo("/api/inbound-request")).toHaveLength(0);
   });
 
@@ -412,7 +412,7 @@ describe("SiteCaptureStart and the country", () => {
 
     fireEvent.submit(screen.getByRole("form"));
 
-    expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
+    expect(screen.getByText("Choose the country of the site.")).toBeInTheDocument();
     await waitFor(() => expect(document.activeElement).toBe(region()));
     expect(fetchMock.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(0);
   });

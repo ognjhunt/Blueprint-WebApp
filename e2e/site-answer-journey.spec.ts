@@ -302,7 +302,7 @@ test.describe("desktop", () => {
     const form = companyPage.getByRole("form", { name: "Response to opportunity" });
     await form.getByLabel("Interested").check();
     await form.getByRole("textbox", { name: "Note to the site (optional)" }).fill("We move cartons like these today.");
-    await form.getByText("Add details (optional)", { exact: true }).click();
+    await form.getByText("Add details", { exact: true }).click();
     await form.getByLabel("What you’ve verified").fill("The carton weight is in our payload range.");
     await form.getByLabel("Question for the site").fill("How many cartons arrive per minute?");
     await form.getByLabel("Earliest start").selectOption("within_month");

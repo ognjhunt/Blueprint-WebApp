@@ -41,7 +41,7 @@ import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRe
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
-import { FILM_AROUND_THE_JOB, FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
+import { FILM_AROUND_THE_JOB, FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE, FOOTAGE_UPLOAD_NOTICE_BESIDE_FILMING } from "@/lib/footageNotice";
 import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
 import { withCsrfHeader } from "@/lib/csrf";
 import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo, type VideoUploadResult } from "@/lib/selfCaptureVideo";
@@ -312,10 +312,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         body: JSON.stringify({ granted: true, statementVersion: RECORDING_RIGHTS_STATEMENT_V4_VERSION }),
       });
       const result = await response.json().catch(() => null);
-      if (!response.ok || !result?.ok) throw new Error(result?.error || "We could not save recording permission. Try again shortly.");
+      if (!response.ok || !result?.ok) throw new Error(result?.error || "We could not save your permission. Try again shortly.");
       const statusResponse = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
       const data = await statusResponse.json().catch(() => null);
-      if (!statusResponse.ok || !data?.ok) throw new Error("Permission was saved. Reopen this link to check whether footage can be added.");
+      if (!statusResponse.ok || !data?.ok) throw new Error("Your permission is saved. Reopen this link to see whether you can add a video.");
       if (linkGeneration.current !== generation) return;
       setLink(data.state === "held" ? {
         status: "held", detail: String(data.detail || "This job can't take a video yet."),
@@ -325,7 +325,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         recordingConsentAvailable: data.recordingConsentAvailable === true,
       } : { status: "valid", accepts: data.accepts ?? ["mov", "mp4"], expiresAt: String(data.expiresAt || "") });
     } catch (error) {
-      if (linkGeneration.current === generation) setConsentError(error instanceof Error ? error.message : "We could not save recording permission.");
+      if (linkGeneration.current === generation) setConsentError(error instanceof Error ? error.message : "We could not save your permission.");
     } finally {
       if (linkGeneration.current === generation) {
         operationInFlight.current = false;
@@ -789,7 +789,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   ) : (
     <details aria-label="Your job description" style={{ margin: "16px 0" }}>
       <summary>Confirm your job description</summary>
-      <p className="ms-field-hint">Check the job and answers, fix anything we got wrong, and confirm. We keep preparing your job from your video meanwhile.</p>
+      <p className="ms-field-hint">Check the job and answers, fix anything we got wrong, and confirm.</p>
       <TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount onConfirmed={onBriefConfirmed} />
     </details>
   );
@@ -1185,9 +1185,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               <p className="ms-field-hint">
                 {existingVideoOnly ? "Upload your original .mov or .mp4 file from this device." : onAPhone
                   ? "Already have a video of the work area? Upload it instead."
-                  : "Already have the recording on this computer? Upload a .mov or .mp4 file."}
+                  : "Already have a video on this computer? Upload a .mov or .mp4 file."}
               </p>
-              <p className="ms-field-hint">{FOOTAGE_UPLOAD_NOTICE}</p>
+              {/* On a phone the recorder's filming notice is right above, with the sound line; it is said once. */}
+              <p className="ms-field-hint">{onAPhone && !existingVideoOnly ? FOOTAGE_UPLOAD_NOTICE_BESIDE_FILMING : FOOTAGE_UPLOAD_NOTICE}</p>
 
               {/* One filled button per page: the camera or the handoff above leads, so this one is quiet there. */}
               <button

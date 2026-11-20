@@ -193,7 +193,7 @@ test("desktop owner opens video capture with one status and no share settings", 
   await expect(page.getByRole("link", { name: "Blueprint home" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open the camera" })).toHaveCount(0);
   const upload = await page.getByRole("button", { name: "Upload a video file" }).boundingBox();
-  const instruction = await page.getByText("Already have the recording on this computer? Upload a .mov or .mp4 file.").boundingBox();
+  const instruction = await page.getByText("Already have a video on this computer? Upload a .mov or .mp4 file.").boundingBox();
   // The upload is its own group (round 5 rhythm): its line, the footage notice and the button, 16 px apart. The button
   // stays right under its two lines, never pushed down the page (rewritten from < 110 px, which predates the rhythm).
   expect(upload!.y - instruction!.y).toBeLessThan(140);
@@ -231,7 +231,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   await expect(form.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
   await expect(form.locator("#start-task")).toHaveValue("");
   await expect(form.locator("#start-task")).toBeAttached();
-  if (!await form.locator("#start-task").isVisible()) await form.getByText("Add details (optional)", { exact: true }).click(); await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
+  if (!await form.locator("#start-task").isVisible()) await form.getByText("Add details", { exact: true }).click(); await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
   await expect(form.locator("#start-rights")).toHaveCount(0);

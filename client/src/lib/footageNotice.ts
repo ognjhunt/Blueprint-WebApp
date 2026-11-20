@@ -19,6 +19,9 @@ export const FILMING_NOTICE =
 export const FOOTAGE_UPLOAD_NOTICE =
   "Only upload a video you may share. People in it must know it goes to Blueprint and to deployment companies we approve. "
   + "Avoid conversations: we remove the sound.";
+/** The same, right under FILMING_NOTICE (the phone's recorder): its sound line is already on screen, so it is not said twice. */
+export const FOOTAGE_UPLOAD_NOTICE_BESIDE_FILMING =
+  "Only upload a video you may share. People in it must know it goes to Blueprint and to deployment companies we approve.";
 
 /**
  * How to film the job itself, said where the site films (the recorder, the job page's "How to film" and the

@@ -76,4 +76,4 @@ export const captureRegionNotice =
 
 /** What an out-of-region submission is told, in the success state. */
 export const captureRegionHeldNotice =
-  "We can only take videos from sites in the United States for now. Nothing has been recorded or shared.";
+  "We can only take videos from sites in the United States for now. Nothing has been shared.";

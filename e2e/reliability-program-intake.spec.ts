@@ -4,7 +4,7 @@ import path from "node:path";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
-  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill(value);
+  if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click(); await page.locator("#start-task").fill(value);
 }
 const origin = "http://127.0.0.1:28879";
 const create = "/api/inbound-request";
@@ -220,7 +220,7 @@ test("UI-CROSS-TAB-002 stale edits after lost response preserve winner across re
   await fill(first);await fill(second);
   await first.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();await expect(first.getByRole("alert")).toBeVisible();
   // Only the text: the stale tab adopts the frozen submission as soon as it saves, and its box is then locked.
-  if (!await second.locator("#start-task").isVisible()) await second.getByText("Add details (optional)", { exact: true }).click(); await second.locator("#start-task").fill("Stale edits must not replace frozen task");
+  if (!await second.locator("#start-task").isVisible()) await second.getByText("Add details", { exact: true }).click(); await second.locator("#start-task").fill("Stale edits must not replace frozen task");
   await second.reload();await expect(second.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
   await second.getByRole("button",{name:"Recover saved job"}).click();
   await expect(second.getByRole("link",{name:"Open my job page ›"})).toBeVisible();

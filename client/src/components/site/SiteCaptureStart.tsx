@@ -926,8 +926,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         </BareField>
 
         {showCountry && (
-          <BareField label="Country of the site" htmlFor="start-region" helper="Only if the city or region doesn't say."
-            error={countryMissing && !region ? "Choose the site country so we can check recording permission." : null}>
+          <BareField label="Country of the site" htmlFor="start-region" helper="Only needed if your location doesn't show the country."
+            error={countryMissing && !region ? "Choose the country of the site." : null}>
             <BareSelect id="start-region" name="startRegion" required value={region}
               aria-describedby={describedBy("start-region", { helper: true, error: countryMissing && !region })}
               onChange={(event) => {
@@ -959,7 +959,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         {/* The optional details open in place, under the fields they add to (owner, 2026-11-12: a drop-down, not a
             screen of their own). A closed disclosure still sends its fields, so a restored answer is never lost. */}
         <details className="bare-disclosure" style={{ marginTop: 16 }}>
-          <summary>Add details (optional)</summary>
+          <summary>Add details</summary>
           <BareField label="What counts as success?" htmlFor="start-success">
             <BareInput id="start-success" name="startSuccess" type="text" maxLength={1000}
               defaultValue={recovery.current.draft.successDefinition ?? ""}
