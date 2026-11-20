@@ -40,10 +40,11 @@ export const HOME_START_HELPER = "A video or description, where the job is, and 
 export const FOR_DEPLOYMENT_COMPANIES_LINK = "Deploy robots? See how jobs reach you";
 /** The page's own name, in the navigation and its label. */
 export const FOR_DEPLOYMENT_COMPANIES = "For deployment companies";
+export const FIRST_LOOK_WHEN_READY = "We add a first look at which robots could fit when we have enough detail.";
 
 export const HOW_STEPS = [
   { key: "video", title: "Your job", line: "Film one recurring job or send a description." },
-  { key: "packet", title: "Your job packet", line: "What the job is, what counts as done, and a first look on paper. If you send video, we add it without sound and build a simulation when we can." },
+  { key: "packet", title: "Your job packet", line: `What the job is and what counts as done when known. ${FIRST_LOOK_WHEN_READY} If you send video, we add it without sound and build a simulation when we can.` },
   { key: "companies", title: "Deployment companies", line: "We share your job with deployment companies we approve by hand. When they answer, you choose which to meet." },
 ] as const;
 
@@ -61,8 +62,8 @@ export const EXAMPLE_TAG = "Example";
 export const EXAMPLE_CARD_NAME = "Example of a job page once deployment companies answer";
 export const exampleSentTo = (count: number) => `Sent to ${count} deployment ${count === 1 ? "company" : "companies"}`;
 export const EXAMPLE_FOOT = "Everything in this example is made up.";
-export const HOW_SEO_DESCRIPTION = "A video or description of a recurring job becomes a job packet with a first look on paper. We use video to build a simulation when we can. Free for sites.";
+export const HOW_SEO_DESCRIPTION = `A video or description of a recurring job becomes a job packet. ${FIRST_LOOK_WHEN_READY} Free for sites.`;
 export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, how fast we reply, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
-export const START_SEO_DESCRIPTION = "Start a job with a video or description of the work, where the job is, and an email. Blueprint makes a job packet with a first look at which robots could fit. Free for sites.";
-export const PARTNERS_SEO_DESCRIPTION = "Robot deployment companies can apply to receive job packets with the site's description, a first look, and video and simulation when available. Nothing is charged today.";
+export const START_SEO_DESCRIPTION = "Start a job with a video or description of the work, where the job is, and an email. Blueprint sends it to approved deployment companies. Free for sites.";
+export const PARTNERS_SEO_DESCRIPTION = "Robot deployment companies can apply to receive job packets with the site's description and a first look when available. Nothing is charged today.";
 export const ROBOT_TEAM_SEO_DESCRIPTION = "Approved deployment companies see the jobs sites send and answer. Blueprint approves each company by hand. Nothing is charged today.";
