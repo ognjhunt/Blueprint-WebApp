@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { COMPANY_ANSWERS, SAMPLE_JOB } from "@/lib/publicCopy";
+import { EVERYDAY_ANSWERS, SAMPLE_JOB, TESTED_ANSWERS } from "@/lib/publicCopy";
 
 /**
  * One sample job on the Find jobs page (owner, 2026-11-20), laid out as an approved company sees a live job
@@ -32,10 +32,10 @@ export function SampleJob() {
 
       <div className="company-job-overview sample-job-live">
         <section aria-label="On a live job">
-          <h3>On a live job, you also get</h3>
+          <h3>A live job can also include</h3>
           <ul>{SAMPLE_JOB.liveAlso.map(line => <li key={line}>{line}</li>)}</ul>
           <h3>How you answer</h3>
-          <p>{`Answer in a minute: ${COMPANY_ANSWERS}.`}</p>
+          <p>{`Answer ${EVERYDAY_ANSWERS}. Once you can download the simulation, you can also answer ${TESTED_ANSWERS}.`}</p>
           <p>{SAMPLE_JOB.introduction}</p>
           <p><a className="ms-button" href="#partner-application">{SAMPLE_JOB.cta}<ArrowRight size={18} aria-hidden="true" /></a></p>
         </section>

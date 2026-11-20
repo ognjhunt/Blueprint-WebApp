@@ -200,7 +200,7 @@ const canonicalPublicQaRoutes: PublicQaRoute[] = [
   { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "How it works", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "Questions ›", hrefStartsWith: "/beta" }] },
   { label: "Questions", path: "/beta", canonicalPath: "/beta", expectedHeading: "Questions", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Home", path: "/", canonicalPath: "/", expectedHeading: "Post a job for robots.", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "For deployment companies", hrefStartsWith: "/partners" }] },
-  { label: "For deployment companies", path: "/partners", canonicalPath: "/partners", expectedHeading: "Find jobs for the robots you deploy.", requiredCtas: [{ label: "Browse jobs", hrefStartsWith: "/contact/robot-team" }] },
+  { label: "For deployment companies", path: "/partners", canonicalPath: "/partners", expectedHeading: "Find jobs for the robots you deploy.", requiredCtas: [{ label: "See jobs", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Start a job", requiredCtas: [] },
   { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Job library", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },

@@ -32,7 +32,7 @@ test("custom preferences are keyboard accessible and persist on mobile", async (
   const banner = page.getByRole("region", { name: "Cookie preferences" });
   await banner.getByRole("button", { name: "Customize", exact: true }).click();
   await expect(banner.getByRole("button", { name: "Hide details", exact: true })).toHaveAttribute("aria-expanded", "true");
-  await expect(banner.getByRole("checkbox", { name: /^Necessary/ })).toBeDisabled();
+  await expect(banner.getByRole("checkbox", { name: /^Essential/ })).toBeDisabled();
   await banner.getByRole("checkbox", { name: /^Analytics/ }).uncheck();
   await banner.getByRole("checkbox", { name: /^Marketing/ }).check();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

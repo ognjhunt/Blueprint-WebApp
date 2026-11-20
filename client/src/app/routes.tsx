@@ -333,7 +333,9 @@ export const appRoutes: AppRoute[] = [
 
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
-  { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
+  // Staff only (launch copy, 2026-11-20, f-103): the capture upload and review page is an operations tool, opened from the
+  // admin job console; no customer page links it.
+  { path: "/app/captures", layout: "protected", shell: "bare", requireRoles: ADMIN_ROLES, component: AppCaptures },
 
   // 404
   { layout: "public", shell: "bare", component: NotFound },

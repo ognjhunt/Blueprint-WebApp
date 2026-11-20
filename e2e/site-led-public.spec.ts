@@ -36,7 +36,7 @@ test("on a small phone both entry points are visible before scrolling", async ({
   await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
   await companies.click();
   await expect(page.getByRole("heading", { name: "Apply for access" })).toBeInViewport();
-  await page.getByRole("link", { name: "Browse jobs" }).click();
+  await page.getByRole("link", { name: "See jobs", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Apply to see jobs", level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/partners#partner-application");
 });
@@ -82,7 +82,7 @@ test("the public pages show how sites post video and companies review jobs", asy
   await expect(page.getByRole("list", { name: "Steps" })).toContainText("We share your video and job description with approved companies");
 
   await page.goto("/partners");
-  await expect(page.locator("main")).toContainText("Review real jobs with site videos and details.");
+  await expect(page.locator("main")).toContainText("Review real jobs, each with the site's video and description.");
   await expect(page.locator("main")).not.toContainText("You answer in a minute.");
 });
 

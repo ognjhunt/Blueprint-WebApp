@@ -62,10 +62,10 @@ describe("Site-led homepage", () => {
     expect(counts.size).toBeGreaterThan(1);
     fireEvent.click(within(card).getByRole("tab", { name: "Warehouse" }));
     expect(within(card).getByRole("tabpanel")).toHaveTextContent(
-      /Picking small parcels.*6 views.*3 replies.*Company A.*Tested it: can do.*Company B.*Need more details.*Company C.*Not a fit/);
+      /Picking small parcels.*6 views.*3 responses.*Company A.*Tested it: can do.*Company B.*Need more details.*Company C.*Not a fit/);
     // One example shows the state before any answer.
     fireEvent.click(within(card).getByRole("tab", { name: "Lab" }));
-    expect(within(card).getByRole("tabpanel")).toHaveTextContent(/5 views.*0 replies.*No answers yet\./);
+    expect(within(card).getByRole("tabpanel")).toHaveTextContent(/5 views.*0 responses.*No responses yet\./);
   });
 
   it.each([

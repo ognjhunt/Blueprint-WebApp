@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Header } from "@/components/site/Header";
+import { Footer } from "@/components/site/Footer";
 
 const authStateMock = vi.hoisted(() => ({
   currentUser: null as null | { uid: string },
@@ -17,6 +18,7 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => authStateMock,
 }));
 
+// Launch copy (2026-11-20): the Runway header and footer carry the public pages' links, in the same words.
 describe("Header", () => {
   beforeEach(() => {
     authStateMock.currentUser = null;
@@ -25,73 +27,58 @@ describe("Header", () => {
     authStateMock.logout = vi.fn();
   });
 
-  it("keeps the buyer-facing nav focused", () => {
+  it("has the public pages' two links and Sign in, and nothing from the old frame", () => {
     render(<Header />);
 
-    expect(screen.queryByRole("link", { name: /^Jobs we support$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Find jobs$/i })).toHaveAttribute("href", "/jobs");
-    expect(screen.getByRole("link", { name: /^How it works$/i })).toHaveAttribute(
-      "href",
-      "/how-it-works",
-    );
-    expect(screen.queryByRole("link", { name: /^Beta program$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Proof$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Evaluate$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Sites$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Readiness$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Site packages$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Capture$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^For capturers$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Sample Listing$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Deliverables$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^About$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Policy Evaluation Set$/i })).not.toBeInTheDocument();
+    const nav = within(screen.getByRole("navigation", { name: "Main navigation" }));
+    expect(nav.getAllByRole("link").map((link) => link.textContent)).toEqual(["How it works", "Find jobs"]);
+    expect(nav.getByRole("link", { name: "Find jobs" })).toHaveAttribute("href", "/jobs");
+    expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
+    expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" }))
+      .toHaveAttribute("href", "/sign-in");
+    expect(document.body.textContent).not.toMatch(/Sign up|Robot team|Site operator|Task Evaluation Run|pilot|Choose access path|Explore|Signed in as/);
   });
 
-  it("uses a single site-first action in the header", () => {
+  it("shows the same links in the phone menu", () => {
     render(<Header />);
-
-    const requestLink = screen.getAllByRole("link", { name: /^Start a job$/i })[0];
-    expect(requestLink).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.queryByRole("link", { name: /Capture network/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /See policy evaluation/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Book call$/i })).not.toBeInTheDocument();
-  });
-
-  it("exposes sign-in and persona-specific signup paths", () => {
-    render(<Header />);
-
-    expect(screen.getByRole("link", { name: /Sign in/i })).toHaveAttribute(
-      "href",
-      "/sign-in",
-    );
 
     fireEvent.click(screen.getByRole("button", { name: /Toggle navigation/i }));
-
-    expect(screen.getByRole("link", { name: /^Sign up: Robot team$/i })).toHaveAttribute(
-      "href",
-      "/signup/business?buyerType=robot_team&source=header-signup",
-    );
-    expect(screen.getByRole("link", { name: /^Sign up: Site operator$/i })).toHaveAttribute(
-      "href",
-      "/contact/site-operator?source=header-signup",
-    );
+    expect(within(screen.getByRole("navigation", { name: "Menu" })).getAllByRole("link").map((link) => link.textContent))
+      .toEqual(["How it works", "Find jobs", "Sign in"]);
   });
 
-  it("switches the signed-in header toward the account persona workspace", () => {
-    authStateMock.currentUser = { uid: "site-operator-uid" };
-    authStateMock.userData = {
-      buyerType: "site_operator",
-      finishedOnboarding: false,
-      organizationName: "Brightleaf Ops",
-    };
+  it.each([
+    { buyerType: "site_operator", finishedOnboarding: false },
+    { buyerType: "site_operator", finishedOnboarding: true },
+    { buyerType: "robot_team", finishedOnboarding: false },
+    { buyerType: "robot_team", finishedOnboarding: true },
+  ])("gives every signed-in account one link, Your account, to /app (%o)", (userData) => {
+    authStateMock.currentUser = { uid: "account-uid" };
+    authStateMock.userData = { ...userData, organizationName: "Brightleaf Ops" };
 
     render(<Header />);
 
-    expect(screen.getAllByRole("link", { name: /Finish site onboarding/i })[0]).toHaveAttribute(
-      "href",
-      "/onboarding",
-    );
+    expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Your account" }))
+      .toHaveAttribute("href", "/app");
+    expect(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("link", { name: "Find jobs" }))
+      .toHaveAttribute("href", "/contact/robot-team");
     expect(screen.queryByRole("link", { name: /Sign in/i })).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/onboarding|workspace|Brightleaf/i);
+  });
+});
+
+describe("Footer", () => {
+  it("has the public pages' footer links and no Refunds link", () => {
+    render(<Footer />);
+
+    const footer = within(screen.getByRole("navigation", { name: "Footer navigation" }));
+    expect(footer.getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Questions", "/beta"],
+      ["About", "/beta#who-we-are"],
+      ["Privacy", "/privacy"],
+      ["Terms", "/terms"],
+    ]);
+    expect(footer.getByRole("button", { name: "Cookie settings" })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/Refunds|Evidence|Product/);
   });
 });
