@@ -40,8 +40,8 @@ test('valid invitations fix the email and team type despite query overrides', as
 });
 test('expired or revoked invitations expose no account-creation form', async ({ page }) => {
   await page.route('**/api/csrf', route => route.fulfill({ json: { csrfToken: 'test' } }));
-  await page.route('**/api/account-invitations/inspect', route => route.fulfill({ status: 403, json: { error: 'Account creation requires a current Blueprint invitation.' } }));
+  await page.route('**/api/account-invitations/inspect', route => route.fulfill({ status: 403, json: { error: 'This invitation link no longer works. Use the link on this page to get a new one.' } }));
   await page.goto('/signup/business?invitation=expired');
-  await expect(page.getByRole('alert')).toContainText('current Blueprint invitation');
+  await expect(page.getByRole('alert')).toContainText('This invitation link no longer works.');
   await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
 });

@@ -43,9 +43,9 @@ describe("invitation-only account creation", () => {
     expect(mocks.invitation).not.toHaveBeenCalled();
   });
   it("keeps malformed/expired invitations out of the credential form", async () => {
-    mocks.invitation.mockRejectedValue(new Error("Account creation requires a current Blueprint invitation."));
+    mocks.invitation.mockRejectedValue(new Error("This invitation link no longer works. Use the link on this page to get a new one."));
     window.history.replaceState({}, "", "/signup/business?invitation=invalid"); render(<BusinessSignUpFlow />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("current Blueprint invitation");
+    expect(await screen.findByRole("alert")).toHaveTextContent("This invitation link no longer works. Use the link on this page to get a new one.");
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument(); expect(mocks.custom).not.toHaveBeenCalled();
   });
   it("locks identity and team type to the server invitation despite query overrides", async () => {
