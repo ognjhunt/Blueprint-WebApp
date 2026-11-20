@@ -5,7 +5,7 @@ import type { AccountDeletionRequest, AccountDeletionQueueItem } from "../../cli
 
 export const ACCOUNT_DELETION_COLLECTION = "accountDeletionRequests";
 export const RECENT_SIGN_IN_SECONDS = 5 * 60;
-const REQUEST_MESSAGE = "Your request is recorded for privacy review. Your account remains active until we process it. We will confirm the outcome, including any records that must be retained. This receipt does not confirm deletion.";
+const REQUEST_MESSAGE = "We have your request. Nothing is deleted yet, and your account stays open until we finish. We'll tell you what we deleted and anything we must keep.";
 
 export class AccountDeletionError extends Error {
   constructor(message: string, public status: number, public code: string) { super(message); }

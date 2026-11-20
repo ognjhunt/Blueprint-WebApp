@@ -81,14 +81,33 @@ describe("ClaimSite", () => {
     mocks.workspaceRequest.mockResolvedValue({ ok: true });
   });
 
-  it("uses neutral task progress copy and links an already claimed site to the workspace", async () => {
+  it("says a job already saved to an account is there, and links to the jobs", async () => {
     claimResponse({ ...summary, alreadyClaimed: true });
     render(<ClaimSite />);
 
-    expect(await screen.findByRole("heading", { name: /already in a workspace/i })).toBeInTheDocument();
-    expect(screen.getByText(/job, progress, and available results/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /open your workspace/i })).toHaveAttribute("href", "/app");
-    expect(screen.queryByText(/robot teams can now evaluate/i)).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "This job is already saved to an account." })).toBeInTheDocument();
+    expect(screen.getByText("Sign in to open it.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open your jobs/i })).toHaveAttribute("href", "/app");
+    expect(screen.queryByText(/workspace|results|robot teams can now evaluate/i)).not.toBeInTheDocument();
+  });
+
+  it("says a refused link does not work and where a new one comes from", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
+    render(<ClaimSite />);
+
+    expect(await screen.findByRole("heading", { name: "This link doesn't work." })).toBeInTheDocument();
+    expect(screen.getByText(/This link has expired or is not valid\. For a new one, open your job page and choose Job settings › Save to my account/))
+      .toBeInTheDocument();
+    expect(screen.queryByText(/workspace/i)).not.toBeInTheDocument();
+  });
+
+  it("gives a server failure the retry screen, not an expired link", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({ error: "We could not load that right now. Try again shortly." }) }));
+    render(<ClaimSite />);
+
+    expect(await screen.findByRole("heading", { name: /couldn’t check this link/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "This link doesn't work." })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
   });
 
   it("does not describe a network failure as an expired claim", async () => {
@@ -108,9 +127,9 @@ describe("ClaimSite", () => {
     await screen.findByRole("heading", { name: /keep track of packing line/i });
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
 
-    await screen.findByRole("heading", { name: /this site is yours/i });
+    await screen.findByRole("heading", { name: "Saved to your account." });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.signIn).not.toHaveBeenCalled();
     expect(mocks.workspaceRequest).toHaveBeenCalledWith(
@@ -133,9 +152,9 @@ describe("ClaimSite", () => {
     act(() => mocks.authChanged?.(restored));
 
     await waitFor(() => expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument());
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
 
-    await screen.findByRole("heading", { name: /this site is yours/i });
+    await screen.findByRole("heading", { name: "Saved to your account." });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.signIn).not.toHaveBeenCalled();
     expect(mocks.workspaceRequest).toHaveBeenCalledWith(
@@ -155,7 +174,7 @@ describe("ClaimSite", () => {
     await screen.findByRole("heading", { name: /keep track of packing line/i });
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
 
     await screen.findByRole("heading", { name: /check your inbox/i });
     expect(mocks.sendVerification).toHaveBeenCalledWith(
@@ -174,7 +193,7 @@ describe("ClaimSite", () => {
 
     created.emailVerified = true;
     fireEvent.click(screen.getByRole("button", { name: /i’ve verified/i }));
-    await screen.findByRole("heading", { name: /this site is yours/i });
+    await screen.findByRole("heading", { name: "Saved to your account." });
     expect(created.reload).toHaveBeenCalledOnce();
     expect(created.getIdToken).toHaveBeenCalledWith(true);
     expect(mocks.workspaceRequest).toHaveBeenCalled();
@@ -190,7 +209,7 @@ describe("ClaimSite", () => {
     await screen.findByRole("heading", { name: /keep track of packing line/i });
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
 
     await screen.findByRole("heading", { name: /check your inbox/i });
     expect(mocks.sendVerification).toHaveBeenCalledTimes(1);
@@ -204,7 +223,7 @@ describe("ClaimSite", () => {
 
     await screen.findByRole("heading", { name: /keep track of packing line/i });
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
     await screen.findByRole("heading", { name: /check your inbox/i });
     expect(mocks.sendVerification).toHaveBeenCalledTimes(1);
 
@@ -219,7 +238,7 @@ describe("ClaimSite", () => {
       mocks.auth.currentUser = user();
       render(<ClaimSite />);
 
-      await screen.findByRole("heading", { name: /this site is yours/i });
+      await screen.findByRole("heading", { name: "Saved to your account." });
       expect(mocks.workspaceRequest).toHaveBeenCalledWith(
         mocks.auth.currentUser, "/claim", "POST", { token: "claim-token-123", acceptedTerms: false },
       );
@@ -234,8 +253,8 @@ describe("ClaimSite", () => {
     render(<ClaimSite />);
     await screen.findByRole("heading", { name: /keep track of packing line/i });
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
-    await screen.findByRole("heading", { name: /this site is yours/i });
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
+    await screen.findByRole("heading", { name: "Saved to your account." });
     expect(mocks.workspaceRequest).toHaveBeenCalledWith(
       mocks.auth.currentUser, "/claim", "POST",
       { token: "claim-token-123", acceptedTerms: false },
@@ -248,13 +267,13 @@ describe("ClaimSite", () => {
     render(<ClaimSite />);
     await screen.findByRole("heading", { name: /keep track of packing line/i });
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
     await screen.findByRole("heading", { name: /check your inbox/i });
     expect(mocks.workspaceRequest).not.toHaveBeenCalled();
     expect(mocks.sendVerification).toHaveBeenCalledOnce();
     mocks.auth.currentUser.emailVerified = true;
     fireEvent.click(screen.getByRole("button", { name: /i’ve verified/i }));
-    await screen.findByRole("heading", { name: /this site is yours/i });
+    await screen.findByRole("heading", { name: "Saved to your account." });
     expect(mocks.workspaceRequest).toHaveBeenCalledWith(
       mocks.auth.currentUser, "/claim", "POST", { token: "claim-token-123", acceptedTerms: false },
     );
@@ -268,8 +287,8 @@ describe("ClaimSite", () => {
     render(<ClaimSite />);
     await screen.findByRole("heading", { name: /keep track of packing line/i });
     await waitFor(() => expect(screen.queryByRole("checkbox")).not.toBeInTheDocument());
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
-    await screen.findByRole("heading", { name: /this site is yours/i });
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
+    await screen.findByRole("heading", { name: "Saved to your account." });
     expect(mocks.workspaceRequest).toHaveBeenCalledWith(
       mocks.auth.currentUser, "/claim", "POST",
       { token: "claim-token-123", acceptedTerms: false },
@@ -302,7 +321,7 @@ describe("ClaimSite", () => {
     mocks.token = "second-claim-token";
     view.rerender(<ClaimSite />);
 
-    expect(screen.queryByRole("form", { name: /claim this site/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Save this job to your account" })).not.toBeInTheDocument();
     expect(screen.queryByText(/packing line/i)).not.toBeInTheDocument();
     expect(screen.getByText("Loading…")).toBeInTheDocument();
     expect(mocks.workspaceRequest).not.toHaveBeenCalled();
@@ -325,7 +344,7 @@ describe("ClaimSite", () => {
     await screen.findByRole("heading", { name: /keep track of second site/i });
     expect(screen.getByLabelText(/password/i)).toHaveValue("");
     expect(screen.getByRole("checkbox")).not.toBeChecked();
-    expect(screen.getByRole("textbox", { name: /work email/i })).toHaveValue("other@example.com");
+    expect(screen.getByRole("textbox", { name: /^Email/ })).toHaveValue("other@example.com");
   });
 
   it("ignores a late retry from the previous claim after navigating to another link", async () => {
@@ -360,13 +379,13 @@ describe("ClaimSite", () => {
     fireEvent.click(screen.getByRole("link", { name: /sign in instead/i }));
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "private-password" } });
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
     mocks.token = "second-claim-token";
     view.rerender(<ClaimSite />);
     await screen.findByRole("heading", { name: /keep track of second site/i });
     await act(async () => finishSignIn({ user: user() }));
     expect(screen.getByRole("heading", { name: /keep track of second site/i })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /this site is yours/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Saved to your account." })).not.toBeInTheDocument();
     expect(mocks.workspaceRequest).not.toHaveBeenCalledWith(expect.anything(), "/claim", "POST", expect.objectContaining({ token: "second-claim-token" }));
   });
 
@@ -382,7 +401,7 @@ describe("ClaimSite", () => {
     const view = render(<ClaimSite />);
     await screen.findByRole("heading", { name: /keep track of packing line/i });
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
     fireEvent.click(await screen.findByRole("button", { name: /i’ve verified/i }));
     mocks.token = "second-claim-token";
     view.rerender(<ClaimSite />);
@@ -390,7 +409,7 @@ describe("ClaimSite", () => {
     existing.emailVerified = true;
     await act(async () => finishReload());
     expect(screen.getByRole("heading", { name: /keep track of second site/i })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /this site is yours/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Saved to your account." })).not.toBeInTheDocument();
     expect(mocks.workspaceRequest).not.toHaveBeenCalledWith(expect.anything(), "/claim", "POST", expect.objectContaining({ token: "second-claim-token" }));
   });
 
@@ -398,23 +417,23 @@ it("sets up a password account from submitted details after verifying reuse of i
   claimResponse({ ...summary, siteTermsAcceptedCurrent: true, accountDefaults: { name: "Alex Owner", organization: "Actual Company" } } as any);
   const created = user({ emailVerified: false }); mocks.create.mockResolvedValue({ user: created });
   render(<ClaimSite />); await screen.findByRole("heading", { name: /keep track of packing line/i });
-  expect(screen.getByRole("textbox", { name: /work email/i })).toHaveAttribute("readonly");
+  expect(screen.getByRole("textbox", { name: /^Email/ })).toHaveAttribute("readonly");
   expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
-  fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+  fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
   await screen.findByRole("heading", { name: /check your inbox/i });
   expect(mocks.workspaceRequest).not.toHaveBeenCalled();
   created.emailVerified = true;
   mocks.workspaceRequest.mockRejectedValueOnce(new WorkspaceRequestError("Set up the workspace first.", 403, "workspace_setup_required"));
   fireEvent.click(screen.getByRole("button", { name: /i’ve verified/i }));
-  await screen.findByRole("heading", { name: /this site is yours/i });
+  await screen.findByRole("heading", { name: "Saved to your account." });
   expect(mocks.workspaceRequest).toHaveBeenCalledWith(created, "/setup", "POST", { name: "Alex Owner", organization: "Actual Company", workspaceType: "site_operator", acceptedTerms: false, siteClaimToken: "claim-token-123" });
 });
 it("attaches Google sign-in to the submitted job without repeated intake or verification", async () => {
   claimResponse({ ...summary, siteTermsAcceptedCurrent: true });
   const signedIn = user(); mocks.google.mockResolvedValue(signedIn);
   render(<ClaimSite />); fireEvent.click(await screen.findByRole("button", { name: "Continue with Google" }));
-  await screen.findByRole("heading", { name: /this site is yours/i });
+  await screen.findByRole("heading", { name: "Saved to your account." });
   expect(mocks.workspaceRequest).toHaveBeenCalledWith(signedIn, "/claim", "POST", { token: "claim-token-123", acceptedTerms: false });
   expect(mocks.create).not.toHaveBeenCalled(); expect(mocks.sendVerification).not.toHaveBeenCalled();
   expect(screen.getByRole("link", { name: "Open your jobs" })).toHaveAttribute("href", "/app");
@@ -431,10 +450,10 @@ it("retries attachment with the account already created instead of creating a se
   mocks.workspaceRequest.mockRejectedValueOnce(new Error("Temporarily unavailable"));
   render(<ClaimSite />); await screen.findByRole("heading", { name: /keep track of packing line/i });
   fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
-  fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+  fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
   await screen.findByText("Temporarily unavailable");
-  fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
-  await screen.findByRole("heading", { name: /this site is yours/i }); expect(mocks.create).toHaveBeenCalledTimes(1);
+  fireEvent.submit(screen.getByRole("form", { name: "Save this job to your account" }));
+  await screen.findByRole("heading", { name: "Saved to your account." }); expect(mocks.create).toHaveBeenCalledTimes(1);
 });
 
 });

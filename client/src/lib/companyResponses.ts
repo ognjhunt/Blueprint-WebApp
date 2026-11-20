@@ -147,7 +147,7 @@ export const companyAnswered = (alias: string, date: string, state: CompanyRespo
 /** Under an answer: the company's words, as the server gives them (its identity already taken out). */
 export const companyReason = (reason: string) => `In their words: “${reason}”`;
 /** Under an answer that is not a yes and carries no words the site may read: said plainly, nothing invented. */
-export const NO_REASON_SHOWN = "No reason we can show.";
+export const NO_REASON_SHOWN = "No reason shared.";
 /**
  * Under an answer that may become an introduction when the company changes it (`MAY_CHANGE_RESPONSE_STATES`): either
  * answer an introduction may follow (`INTRODUCIBLE_RESPONSE_STATES`), so a "Tested it: cannot yet" is not told that only

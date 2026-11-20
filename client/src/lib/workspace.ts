@@ -54,7 +54,7 @@ export async function workspaceRequest<T>(
       throw new WorkspaceRequestError(
         value.error ||
           value.message ||
-          "Could not load your workspace. Please try again.",
+          "We could not load your account. Please try again.",
         response.status,
         value.code ||
           (response.status === 403 &&

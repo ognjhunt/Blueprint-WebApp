@@ -7,14 +7,7 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
 import { CompanyTermsPrompt } from "./CompanyTermsPrompt";
-import { jobTitleForDisplay, libraryStageLabels, opportunityLabels, type TaskBrowseCard } from "@/types/taskBrowse";
-
-const JOB_VIEWS = [
-  { value: "open", label: "Open jobs" },
-  { value: "past", label: "Past jobs" },
-  { value: "all", label: "All jobs" },
-] as const;
-type JobView = typeof JOB_VIEWS[number]["value"];
+import { jobTitleForDisplay, libraryStageLabels, type TaskBrowseCard } from "@/types/taskBrowse";
 
 function browseParam(key: string) {
   return typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get(key) ?? "";
@@ -27,7 +20,6 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
   const [retry, setRetry] = useState(0);
   const [family, setFamily] = useState(() => browseParam("type").slice(0, 100));
   const [region, setRegion] = useState(() => browseParam("region").slice(0, 100));
-  const [view, setView] = useState<JobView | null>(() => JOB_VIEWS.find(option => option.value === browseParam("view"))?.value ?? null);
   const [search, setSearch] = useState(() => browseParam("q").slice(0, 100));
   const [readyToTest, setReadyToTest] = useState(() => browseParam("test") === "1");
   const [access, setAccess] = useState<LibraryAccess | null>(null);
@@ -60,7 +52,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
       .finally(() => window.clearTimeout(timeout));
     return () => { window.clearTimeout(timeout); controller.abort(); };
   }, [retry, currentUser?.uid]);
-  // Keep older email links to past jobs usable with an open-jobs default.
+  // An emailed link to one job (`#job-…`) scrolls to its card.
   const hash = typeof window === "undefined" ? "" : window.location.hash;
   const linkedItem = items.find(item => hash === `#job-${item.id}`);
   useEffect(() => {
@@ -69,12 +61,13 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
   useEffect(() => {
     if (state !== "loading") onLibrary?.(state === "ready" ? access === null || access.allowed : Boolean(currentUser));
   }, [state, access, currentUser, onLibrary]);
-  const filterParams = { q: search, type: family, region, view: view ?? "", test: readyToTest ? "1" : "" };
+  const filterParams = { q: search, type: family, region, test: readyToTest ? "1" : "" };
   const filtersQuery = new URLSearchParams(Object.entries(filterParams).filter(([, value]) => value !== "")).toString();
   useEffect(() => {
     if (state !== "ready" || access?.allowed === false || window.location.pathname !== BROWSE_JOBS_PATH) return;
     const url = new URL(window.location.href);
     const selected = new URLSearchParams(filtersQuery);
+    // "view" was the open/past toggle; every listed job is open, so an old link's value is dropped.
     for (const key of ["q", "type", "region", "view", "test"]) {
       const value = selected.get(key);
       if (value) url.searchParams.set(key, value);
@@ -82,10 +75,8 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
     }
     if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
   }, [state, access, filtersQuery]);
-  const activeView = view ?? (linkedItem?.opportunity === "not_seeking" ? "all" : linkedItem?.opportunity ?? "open");
   const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const filtered = items.filter(item => {
-    if (activeView !== "all" && item.opportunity !== activeView) return false;
     if ((family && item.taskFamily !== family) || (region && item.region !== region)) return false;
     if (readyToTest && item.simulationDownloadAvailable !== true) return false;
     const listing = [item.title, jobTitleForDisplay(item.title), item.taskFamily, item.region, item.objects, item.siteType].join(" ").toLowerCase();
@@ -113,26 +104,16 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
   // Anything other than an explicit "allowed" is the early-access page.
   const gated = state === "ready" && access !== null && !access.allowed;
   if (gated) return <RobotTeamEarlyAccess access={access} email={currentUser?.email ?? null} onVerified={() => setRetry(value => value + 1)} />;
-  // Say why the library shows instead of the way to apply, so a signed-in
-  // viewer is never left guessing. The application form is public, on /partners.
-  const viewer = currentUser && state === "ready" && access?.staff ? <p className="ms-field-hint" role="note">
-    Signed in as {currentUser.email ?? "your account"} · staff view: you see what approved teams see. <a className="ms-text-link" href="/partners#partner-application">See the application form</a>
-  </p> : null;
+  // Staff see exactly what an approved company sees, with no hint of their own on this page.
   const regions = [...new Set(items.map(item => item.region).filter(Boolean))].sort();
   const families = [...new Set(items.map(item => item.taskFamily).filter(Boolean))].sort();
   return <section aria-label={BROWSE_JOBS_LABEL} className="opportunities">
-    {viewer}
     {items.length === 0 ? <div className="opportunities-empty">
       <Box size={24} aria-hidden="true" />
-      <h2>The first site jobs are being prepared.</h2>
-      <p>Jobs appear here when the video and job details are ready to review.</p>
+      <h2>No jobs yet.</h2>
+      <p>New jobs appear here when their video is ready.</p>
     </div> : <>
       <div className="opportunities-toolbar">
-        <div className="opportunities-views" role="group" aria-label="Job availability">
-          {JOB_VIEWS.map(({ value, label }) => (
-            <button key={value} type="button" aria-pressed={activeView === value} onClick={() => setView(value)}>{label}</button>
-          ))}
-        </div>
         <div className="opportunities-filters">
           <label className="opportunities-search">
             <span className="sr-only">Search jobs</span>
@@ -159,13 +140,13 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
       </div>
       {filtered.length === 0 ? <div className="opportunities-empty">
         <Search size={24} aria-hidden="true" />
-        <h2>{filtersActive ? "No jobs match these filters." : activeView === "past" ? "No past jobs." : "No open jobs right now."}</h2>
-        {!filtersActive && activeView !== "all" && <button type="button" className="ms-inline-link" onClick={() => setView("all")}>See all jobs</button>}
+        <h2>No jobs match these filters.</h2>
       </div> : <ul className="opportunities-list">{filtered.map(item => {
         const title = jobTitleForDisplay(item.title);
         const ready = item.simulationDownloadAvailable === true;
+        // No label when the stage is unknown, or built but not yet downloadable.
         const simulationStatus = ready ? "Ready to test" : item.simulationStage && item.simulationStage !== "simulation_built"
-          ? libraryStageLabels[item.simulationStage] : "No simulation download";
+          ? libraryStageLabels[item.simulationStage] : null;
         return <li key={item.id} id={`job-${item.id}`} className="opportunity-card">
           {item.thumbnailUrl ? <TaskThumbnail src={item.thumbnailUrl} title={title} taskFamily={item.taskFamily} />
             : <span className="opportunity-icon" aria-hidden="true"><Box size={24} strokeWidth={1.5} /></span>}
@@ -175,10 +156,9 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
               {item.taskFamily !== "Other" && item.taskFamily && <span>{item.taskFamily}</span>}
               {item.region && <span><MapPin size={14} aria-hidden="true" />{item.region}</span>}
             </div>
-            <div className="opportunity-labels">
-              {item.opportunity !== "open" && <span>{opportunityLabels[item.opportunity]}</span>}
+            {simulationStatus && <div className="opportunity-labels">
               <span className={ready ? "opportunity-label-ready" : undefined}>{simulationStatus}</span>
-            </div>
+            </div>}
             <TaskFacts details={item} omitRegion />
             {item.answerHeadline && <p className="opportunity-first-look">{item.answerHeadline}</p>}
           </div>

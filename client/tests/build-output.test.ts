@@ -126,8 +126,9 @@ describe("build output", () => {
 
   it("makes the one company application inspectable without JavaScript, and the job library's page point to it", () => {
     const html = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(html).toContain('href="/partners#partner-application"');
+    expect(html).toContain('href="/jobs#partner-application"');
     expect(html).not.toContain('aria-label="Early access application"');
+    expect(html).not.toContain('aria-label="Early access"');
     expect(html).not.toContain('role="status">Loading…');
     const partners = fs.readFileSync(distPath("partners/index.html"), "utf8");
     expect(partners).toContain('aria-label="Deployment company application"');
@@ -318,7 +319,7 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Apply to see jobs");
-    expect(robotHtml).toContain("Approved deployment companies can browse jobs and respond.");
+    expect(robotHtml).toContain("Approved deployment companies can see jobs and respond.");
     // The application is public; tasks and executable plans still wait for
     // server access approval.
     expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");

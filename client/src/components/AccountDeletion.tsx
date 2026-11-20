@@ -65,8 +65,8 @@ export default function AccountDeletion() {
 
   return <section className="ws-section" aria-labelledby="account-deletion-heading">
     <h2 id="account-deletion-heading">Delete my account and data</h2>
-    <p className="ws-muted">Request closure of your Blueprint account and deletion of your personal data. We review linked jobs, shared recordings, provider copies and any legal retention requirements before processing the request.</p>
-    <p className="ws-note">Submitting this request does not immediately close your account or erase recordings. You can keep checking its status here. We will confirm what was deleted and explain any information we must retain. <Link href="/privacy" className="ws-link">Read the privacy policy</Link>.</p>
+    <p className="ws-muted">Ask us to close your account and delete your personal data. First we check your jobs and the videos you shared. We also check copies our service providers hold, and what the law says we must keep.</p>
+    <p className="ws-note">Nothing is deleted right away. Your account stays open until we finish. You can check the status here, and we'll tell you what we deleted and anything we must keep. <Link href="/privacy" className="ws-link">Read the privacy policy</Link>.</p>
     {!currentUser ? <Link className="ws-link" href="/sign-in?redirect=%2Fsettings%3Fprivacy%3D1">Sign in to request deletion →</Link> : query.isLoading ? <p role="status">Loading privacy request…</p>
       : query.error ? <div role="alert"><p>{query.error.message}</p><button type="button" className="ws-link" onClick={() => query.refetch()}>Try again</button></div>
       : query.data?.request ? <div className="ws-section" role="status">

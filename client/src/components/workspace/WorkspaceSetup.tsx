@@ -64,9 +64,9 @@ function SetupForm({
     && (account.siteIntakeRequired === true || !account.workspaceType)) return (
     <section className="ws-account-setup">
       <h1>Start with your site and job</h1>
-      <p className="ws-muted">Show us the work. We’ll use your submitted details to set up the workspace and save the job to your account.</p>
-      <Link className="ws-primary" href="/contact/site-operator">Show us a task →</Link>
-      <button className="ws-link" type="button" onClick={() => setWorkspaceType("")}>Choose another workspace</button>
+      <p className="ws-muted">Start a job first. We set up your account from it.</p>
+      <Link className="ws-primary" href="/contact/site-operator">Start a job →</Link>
+      <button className="ws-link" type="button" onClick={() => setWorkspaceType("")}>Back</button>
     </section>
   );
   return (
@@ -79,16 +79,16 @@ function SetupForm({
       <header className="ws-heading">
         <div>
           <p>Your account</p>
-          <h1>{manage ? "Workspace setup" : "Set up your workspace"}</h1>
+          <h1>{manage ? "Account type" : "Set up your account"}</h1>
         </div>
       </header>
       <p className="ws-muted">
-        Choose how you’ll use Blueprint, then add your site or robot details.
+        Are you a site or a deployment company?
       </p>
       <form
         method="post"
         className="ws-form ws-section"
-        aria-label="Workspace setup"
+        aria-label="Account setup"
         aria-busy={busy}
         onSubmit={async (event) => {
           event.preventDefault();
@@ -111,7 +111,7 @@ function SetupForm({
             setError(
               failure instanceof Error
                 ? failure.message
-                : "Could not save your workspace. Please try again.",
+                : "Could not save your account. Please try again.",
             );
             if (
               failure instanceof WorkspaceRequestError &&
@@ -142,7 +142,9 @@ function SetupForm({
             />
           </div>
           <div className="ws-field">
-            <label htmlFor={`${id}-organization`}>Organization</label>
+            <label htmlFor={`${id}-organization`}>
+              {workspaceType === "robot_team" ? "Company" : "Business name"}
+            </label>
             <input
               id={`${id}-organization`}
               value={organization}
@@ -165,32 +167,32 @@ function SetupForm({
             <small id={`${id}-email-note`}>Your sign-in email</small>
           </div>
           <div className="ws-field wide">
-            <label htmlFor={`${id}-type`}>Workspace type</label>
+            <label htmlFor={`${id}-type`}>Account type</label>
             <select
               id={`${id}-type`}
               value={workspaceType}
               required
               disabled={busy}
               onChange={(event) => setWorkspaceType(event.target.value)}
-              aria-describedby={`${id}-type-note`}
+              aria-describedby={workspaceType ? `${id}-type-note` : undefined}
             >
               <option value="" disabled>
-                Choose a workspace
+                Choose one
               </option>
               <option value="site_operator">
                 Site — I have work to automate
               </option>
               <option value="robot_team">
-                Robot team — I want to test my robots
+                Deployment company — I deploy robots
               </option>
             </select>
-            <small id={`${id}-type-note`}>
-              {workspaceType === "site_operator"
-                ? "Set up site jobs, captures, and pilot decisions."
-                : workspaceType === "robot_team"
-                  ? "Set up embodiments, policies, checkpoints, containers, or endpoints."
-                  : "You can change this in Settings. Saved records are kept."}
-            </small>
+            {workspaceType && (
+              <small id={`${id}-type-note`}>
+                {workspaceType === "site_operator"
+                  ? "Start a job and follow it here."
+                  : "For deployment companies we have approved."}
+              </small>
+            )}
           </div>
         </div>
         {account.termsRequired && (
@@ -214,15 +216,7 @@ function SetupForm({
             className="ws-primary"
             disabled={busy || !workspaceType}
           >
-            {busy
-              ? "Opening workspace…"
-              : manage
-                ? "Save workspace"
-                : workspaceType === "site_operator"
-                  ? "Continue to site setup →"
-                  : workspaceType === "robot_team"
-                    ? "Continue to robot setup →"
-                    : "Save and continue →"}
+            {busy ? "Saving…" : manage ? "Save" : "Continue →"}
           </button>
           {manage && (
             <Link href="/settings" className="ws-link">

@@ -28,5 +28,5 @@ export function companyJobSignInHref(jobId: string): string {
 
 export function companyApplicationHref(jobId: string): string {
   const path = companyJobReturnPath(`/jobs/${jobId}`);
-  return `/partners${path ? `?next=${encodeURIComponent(path)}` : ""}#partner-application`;
+  return `/jobs${path ? `?next=${encodeURIComponent(path)}` : ""}#partner-application`;
 }

@@ -102,10 +102,10 @@ export { knownSiteIdentity };
 export const PACKET_NOT_SHOWN = [
   "No test at the site: everything here comes from what the site sent and what Blueprint built from it.",
   "No safety assessment of any robot at this site.",
-  "The way in: the route from the site's entrance to the job, its doorways, aisle widths, steps, ramps and floor "
-    + "surface were not measured. A simulation holds only what the video filmed.",
+  "The way in: doorways, aisles, steps, ramps and floors between the entrance and the job were not measured. "
+    + "The simulation holds only what the video filmed.",
   "The surroundings: lighting, how busy the area is and whether people work near the job were not assessed.",
-  "The site's safety rules (guarding, speed limits, distances to keep from people, hours people are present) were not asked.",
+  "The site's safety rules, such as guarding, speed limits and when people are nearby, were not asked.",
 ] as const;
 /** The site's quick question each Pipeline estimate answers (`PACKET_FACT_QUESTIONS`), as the job page keys it. */
 const SITE_QUESTION: Readonly<Record<(typeof PACKET_FACT_QUESTIONS)[number], JobFactKey>> = {

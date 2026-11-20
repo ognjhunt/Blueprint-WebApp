@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { resultSignInHref } from "@/lib/authReturnPath";
 import { WorkspaceContext } from "@/components/workspace/WorkspaceContext";
 import { LegalUpdateBanner } from "@/components/site/LegalVersionNotes";
+import { openCookieSettings } from "@/components/CookieConsent";
 import type { WorkspaceRole } from "@/types/workspace";
 import "@/components/workspace/workspace.css";
 
@@ -79,8 +80,13 @@ export function AppShell({
         userData?.organizationName ||
         userData?.name ||
         currentUser?.displayName ||
-        "Your workspace",
+        "Your account",
     );
+  const accountType = !configured
+    ? "Account setup"
+    : isSite
+      ? "Site account"
+      : "Deployment company account";
   const items = !configured
     ? [
         ["overview", "Overview", "/app"],
@@ -145,13 +151,7 @@ export function AppShell({
             <div className="ws-desktop-brand">{brand}</div>
             <nav
               id="workspace-navigation"
-              aria-label={
-                !configured
-                  ? "Workspace setup"
-                  : isSite
-                    ? "Site workspace"
-                    : "Robot-team workspace"
-              }
+              aria-label={accountType}
             >
               {items.map(([key, label, href]) => (
                 <Link
@@ -166,13 +166,7 @@ export function AppShell({
             </nav>
             <div className="ws-account">
               <span>{account}</span>
-              <small>
-                {!configured
-                  ? "Workspace setup"
-                  : isSite
-                    ? "Site workspace"
-                    : "Robot-team workspace"}
-              </small>
+              <small>{accountType}</small>
               <button
                 type="button"
                 onClick={async () => {
@@ -205,6 +199,9 @@ export function AppShell({
             <div>
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
+              <button type="button" onClick={openCookieSettings}>
+                Cookie settings
+              </button>
             </div>
           </footer>
         </div>
