@@ -205,14 +205,14 @@ function ReplyQuestion({ token, alias, question, onChanged }: { token: string; a
   return <div className="company-question">
     <dl className="company-response-facts">
       <div><dt>What they need to know</dt><dd>{question.text}</dd></div>
-      {shownAnswer && <div><dt>Your answer</dt><dd>{shownAnswer}</dd></div>}
+      {shownAnswer && <div><dt>Site reply</dt><dd>{shownAnswer}</dd></div>}
     </dl>
     {!shownAnswer && <details>
       <summary className="bare-inline-link">Answer question</summary>
       <form className="ms-form" onSubmit={submit}>
-        <label>Your answer<textarea rows={2} minLength={2} maxLength={SITE_CLARIFICATION_LIMIT} required value={answer}
+        <label>Reply to the question<textarea rows={2} minLength={2} maxLength={SITE_CLARIFICATION_LIMIT} required value={answer}
           onChange={event => setAnswer(event.target.value)} /></label>
-        <p className="bare-helper">Blueprint shares your answer with {alias} and keeps your contact details private.</p>
+        <p className="bare-helper">Blueprint shares this reply with {alias} and keeps your contact details private.</p>
         <button type="submit" className="ms-button" disabled={busy}>{busy ? "Saving…" : "Send answer"}</button>
         {error && <p role="alert">{error}</p>}
       </form>

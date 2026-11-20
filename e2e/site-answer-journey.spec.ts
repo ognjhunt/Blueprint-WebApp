@@ -320,7 +320,7 @@ test.describe("desktop", () => {
     await expect(companyReply.getByText("Within a month", { exact: true })).toBeVisible();
     await expect(companyReply.getByText("How many cartons arrive per minute?", { exact: true })).toBeVisible();
     await companyReply.getByText("Answer question", { exact: true }).click();
-    await companyReply.getByLabel("Your answer").fill("12 cartons per minute.");
+    await companyReply.getByLabel("Reply to the question").fill("12 cartons per minute.");
     await companyReply.getByRole("button", { name: "Send answer" }).click();
     await expect(companyReply.getByText("12 cartons per minute.", { exact: true })).toBeVisible();
     await companyPage.reload();
