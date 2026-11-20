@@ -102,6 +102,7 @@ describe("the robot page", () => {
     expect(screen.getByText("We approve each company by hand and email you. Approved companies see the jobs sites send us, and answer."))
       .toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/choose to share|chooses to share/i);
+    expect(screen.getAllByText(/Nothing is charged today\./)).toHaveLength(1);
   });
 
   it("shows an approved team the job library", async () => {
@@ -113,6 +114,10 @@ describe("the robot page", () => {
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "The first site jobs are being prepared." })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Apply" })).toBeNull();
+    // An approved company is not asked to apply (journey audit, 2026-11-20), and the page says no price once.
+    expect(screen.getByRole("heading", { level: 1, name: "Job library" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Apply to see jobs" })).toBeNull();
+    expect(screen.getAllByText(/Nothing is charged today\./)).toHaveLength(1);
   });
 });
 

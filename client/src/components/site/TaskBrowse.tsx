@@ -12,7 +12,8 @@ import { libraryStageLabels, opportunityLabels, type TaskBrowseCard } from "@/ty
 
 /** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
 
-export function TaskBrowse() {
+/** `onLibrary` hears whether the library itself is shown, so the page's heading says what the viewer is looking at. */
+export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void }) {
   const [items, setItems] = useState<TaskBrowseCard[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error" | "terms">("loading");
   const [retry, setRetry] = useState(0);
@@ -55,6 +56,9 @@ export function TaskBrowse() {
     const target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
     target?.scrollIntoView?.({ block: "start" });
   }, [state, items]);
+  // The library shows on the same rule as the render below: ready, and not the early-access page.
+  const libraryShown = state === "ready" && (access === null || access.allowed);
+  useEffect(() => { onLibrary?.(libraryShown); }, [libraryShown, onLibrary]);
   const filtered = items.filter(item => (!family || item.taskFamily === family)
     && (!region || item.region.toLowerCase().includes(region.toLowerCase()))
     && (!availability || (availability === "ready" ? item.evaluationAvailable : item.opportunity === availability)));
@@ -114,7 +118,6 @@ export function TaskBrowse() {
         <p><a className="ms-text-link" href={item.jobUrl ?? `/jobs/${encodeURIComponent(item.id)}`}>Open the job and answer</a></p>
       </li>)}</ul>
     </>}
-    <p className="ms-field-hint">Nothing is charged today.</p>
     <p className="ms-field-hint"><a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
 }

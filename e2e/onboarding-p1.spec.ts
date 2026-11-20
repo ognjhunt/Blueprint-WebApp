@@ -125,6 +125,8 @@ for (const mobile of [false, true]) {
     const mutations = await fixtures(page);
     await page.goto("/contact/robot-team");
     await expect(page.getByRole("heading", { name: card.title })).toBeVisible();
+    // A company the library is shown to is not asked to apply.
+    await expect(page.getByRole("heading", { level: 1, name: "Job library", exact: true })).toBeVisible();
     await expect(page.getByLabel("Work email", { exact: true }).first()).not.toBeVisible();
     await expect(page.getByText("Job illustration · not a site photo", { exact: true })).toHaveCount(3);
     expect(mutations).toEqual([]);
@@ -140,7 +142,9 @@ for (const mobile of [false, true]) {
     await expect(selected.getByText("Site's proposed pilot price")).toBeVisible();
     await expect(selected.getByText("Four weeks including setup and provider support")).toBeVisible();
     await expect(selected.getByText("$5,000 per month")).toBeVisible();
-    await expect(page.getByText("Nothing is charged today.", { exact: true })).toBeVisible();
+    // Said once on the page, in its fine print (journey audit, 2026-11-20: the library said it a second time).
+    await expect(page.getByText("Nothing is charged today.")).toHaveCount(1);
+    await expect(page.getByText("Nothing is charged today.")).toBeVisible();
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     expect(mutations).toEqual([]);
     expect(errors).toEqual([]); await context.close();
@@ -160,6 +164,7 @@ test("an approved team's empty library says tasks are coming; an outage is not a
 test("a robot team outside early access applies, on the one application form, instead of browsing", async ({ page }) => {
   const mutations = await fixtures(page, { gated: true }); await page.goto("/contact/robot-team");
   await expect(page.getByRole("form", { name: "Early access application" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1, name: "Apply to see jobs", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Apply", exact: true }).click();
   await expect(page).toHaveURL(/\/partners#partner-application$/);
   const form = page.getByRole("form", { name: "Deployment company application" });
@@ -263,7 +268,7 @@ test("free beta does not restore paid checkout controls after a reload", async (
   const mutations = await fixtures(page);
   await page.goto("/contact/robot-team");
   for (let attempt = 0; attempt < 2; attempt++) {
-    await expect(page.getByText("Nothing is charged today.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Nothing is charged today.")).toBeVisible();
     await expect(page.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     await expect(page.locator("#plan-hardware")).toHaveCount(0);
