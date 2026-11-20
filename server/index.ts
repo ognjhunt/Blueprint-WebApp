@@ -10,6 +10,7 @@ import { registerRoutes } from "./routes";
 import { privateWorkLogPath } from "./utils/blueprintWorkLogPrivacy";
 import { startOutboxPump } from "./utils/captureOutbox";
 import { setupVite, serveStatic } from "./vite";
+import { refuseUpgrades } from "./utils/websocketUpgrades";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
 import { describeInviteeAllowlist } from "./utils/inviteeAllowlist";
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
@@ -348,9 +349,9 @@ app.use((req, res, next) => {
 (async () => {
   registerRoutes(app);
   const server = createServer(app);
-  server.on("upgrade", (_req, socket) => {
-    socket.destroy();
-  });
+  // Every WebSocket upgrade is refused, except the Vite dev server's HMR socket in development (`websocketUpgrades.ts`).
+  let viteHmr = false;
+  server.on("upgrade", refuseUpgrades({ viteHmr: () => viteHmr }));
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -510,6 +511,7 @@ app.use((req, res, next) => {
   // reloads resetting in-progress forms. API routes retain the test environment.
   const staticBrowserTest = process.env.BLUEPRINT_E2E === "1" && process.env.BLUEPRINT_E2E_STATIC === "1";
   if (app.get("env") === "development" && !staticBrowserTest) {
+    viteHmr = true;
     await setupVite(app, server);
   } else {
     serveStatic(
