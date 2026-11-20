@@ -18,8 +18,8 @@
  * admin robot-team-access and job-outcomes routers with their production middleware (CSRF, Firebase token
  * verification, the admin role check), the coverage review, the automatic send, the introduction transaction, the
  * outcome-question sweep, Firestore, Storage and Auth (emulators), the normal Vite app. Synthetic: the video model's
- * reply (a scripted reading of one carton) and the unsigned storage read URL. The browser's Firebase Auth requests are
- * answered by the local Auth emulator. Email is read from the outbox, never delivered.
+ * reply (a scripted reading of one carton), the unsigned storage read URL and the empty location suggestions for a
+ * manually chosen country. The local Auth emulator answers Firebase Auth requests. The test reads the email outbox.
  */
 import { test, expect, devices, type BrowserContext, type Page, type APIRequestContext } from "@playwright/test";
 import path from "node:path";
@@ -42,6 +42,10 @@ function jobOf(href: string) {
  */
 async function localOnly(context: BrowserContext, missing: string[]) {
   await context.route(/^https?:\/\/(?!127\.0\.0\.1(?::|\/)|localhost(?::|\/))/, route => route.abort("blockedbyclient"));
+  // These jobs use typed locations and an explicitly chosen country. An empty geocoder response
+  // lets the form exercise that path without contacting a geocoding provider.
+  await context.route(url => url.origin === ORIGIN && url.pathname === "/api/location-autocomplete",
+    route => route.fulfill({ json: { suggestions: [] } }));
   await context.route(/^https:\/\/(identitytoolkit|securetoken)\.googleapis\.com\//, async route => {
     const url = new URL(route.request().url());
     const response = await route.fetch({ url: `${AUTH_EMULATOR}/${url.host}${url.pathname}${url.search}` });
@@ -176,13 +180,26 @@ test.describe("desktop", () => {
     await expect(companies(page)).toContainText("Not sent to any deployment company yet.");
 
     // 3. A deployment company applies, staff approve it, and it accepts the current Terms (signed in, in the browser).
+    const applicationContext = await browser.newContext();
+    await localOnly(applicationContext, missing);
+    const applicationPage = await applicationContext.newPage();
+    await applicationPage.goto("/partners");
+    const application = applicationPage.getByRole("form", { name: "Deployment company application" });
+    await application.getByLabel("Your name").fill(company.contact);
+    await application.getByLabel("Work email").fill(company.email);
+    await application.locator('input[name="company"]').fill(company.name);
+    await application.getByLabel("What jobs can you deliver?").fill("Moving cartons from conveyors to carts.");
+    await application.getByLabel("Which robots do you deploy?").fill("A mobile arm that picks cartons up to 15 kg.");
+    await application.getByLabel("Where can you deploy?").fill("United States");
+    await application.getByLabel("Email me relevant job opportunities").check();
+    const applied = applicationPage.waitForResponse(response => response.url().endsWith("/api/robot-team-access/apply")
+      && response.request().method() === "POST");
+    await application.getByRole("button", { name: "Apply", exact: true }).click();
+    const applicationResponse = await applied;
+    expect(applicationResponse.status(), await applicationResponse.text()).toBe(202);
+    await expect(applicationPage.getByRole("heading", { name: "Your application is saved." })).toBeVisible();
+    await applicationContext.close();
     const applyHeaders = await csrf(request);
-    const legal = await import("../client/src/lib/legalAcceptance");
-    const applied = await request.post(`${ORIGIN}/api/robot-team-access/apply`, { headers: applyHeaders, data: {
-      name: company.contact, email: company.email, company: company.name, robot: "A mobile arm that picks cartons up to 15 kg.",
-      workWanted: "Moving cartons from conveyors to carts.", partnerRole: "deployment", acceptedTerms: true,
-      termsVersion: legal.TERMS_VERSION, privacyVersion: legal.PRIVACY_VERSION, optionalUpdates: true } });
-    expect(applied.status(), await applied.text()).toBe(202);
     const companyId = (await import("node:crypto")).createHash("sha256").update(company.email).digest("hex");
     const staffToken = await account(request, `core-journey-staff-${stamp}@example.invalid`, "core-journey-staff-pass", { admin: true });
     const decided = await request.post(`${ORIGIN}/api/admin/robot-team-access/${companyId}/decision`, {
