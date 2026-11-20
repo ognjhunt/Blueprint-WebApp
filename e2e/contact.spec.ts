@@ -86,7 +86,9 @@ test("capture accepts country permission without an address and keeps non-US fil
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ buyerType: "site_operator", siteLocation: "", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: null,
     taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } });
-  await expect(page.getByText(/We are not sending a camera link yet/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your job is saved.", exact: true })).toBeVisible();
+  await expect(page.getByText("We can only take videos from sites in the United States for now. Nothing has been recorded or shared.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/We will reply/)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
 
