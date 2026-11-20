@@ -18,11 +18,14 @@ import { finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { COMPANY_RESPONSE_LABELS, isCompanyResponseState, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { JOB_FACTS_NUDGE } from "../../client/src/lib/jobFacts";
+import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL } from "../../client/src/lib/jobOutlook";
 
 export type TaskLifecycleMilestone = Extract<OutboxKind, "task_received" | "job_sent" | "company_answered" | "introduction_made_site">;
 
-/** How a site stops sharing: the withdrawal is on its job page. */
-export const HOW_TO_WITHDRAW = "To stop, open your job page, choose Job settings, then Stop using my video. Your job then leaves every company's view at once.";
+/** How a site stops sharing: the withdrawal is on its job page, named as the page names it (`jobOutlook.ts`). */
+export const HOW_TO_WITHDRAW = `To stop, open your job page, choose Job settings, then ${STOP_USING_VIDEO_LABEL}. Your job then leaves every company's view at once.`;
+/** The same for a job sent with its description only: its page shows the way to withdraw it, by that name. */
+export const HOW_TO_WITHDRAW_DESCRIPTION_ONLY = `To stop, open your job page and choose ${WITHDRAW_JOB_LABEL}. Your job then leaves every company's view at once.`;
 /** The `job_sent` email's sentence (PACKAGE_E E4): one per job, with the count. */
 export const jobSentSentence = (count: number) => Number.isInteger(count) && count > 0
   ? `Your job is with ${count} deployment ${count === 1 ? "company" : "companies"}.` : "Your job is with deployment companies.";
@@ -30,17 +33,19 @@ export const jobSentSentence = (count: number) => Number.isInteger(count) && cou
 export const JOB_SENT_EVENT_ID = "companies";
 
 // Bare bones (2026-11-11): each notice says one thing in at most three short lines, then one button ("Label:\nURL").
-const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string) => string }> = {
+const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, descriptionOnly: boolean) => string }> = {
   task_received: {
     subject: "Your Blueprint job link",
     body: (url) => `We have your job.\n\nIf you haven't sent the video yet, send it from your job page. This link opens your job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
   },
   // Once per job (PACKAGE_E E4): when the job is first sent to the approved deployment companies. The detail is only
-  // the count, a whole number; read again at dispatch: sent only while the job is visible. It says how to stop.
+  // the count, a whole number; read again at dispatch: sent only while the job is visible. It says how to stop, in the
+  // words of the job's own page: a job sent with its description only is withdrawn, not its video.
   job_sent: {
     subject: "Your job was sent to deployment companies",
-    body: (url, detail) => `${jobSentSentence(Number(detail))} We don't share your name, address or contact details with a `
-      + `deployment company unless you ask for an introduction to it. Your job page shows any answer.\n\n${HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`,
+    body: (url, detail, descriptionOnly) => `${jobSentSentence(Number(detail))} We don't share your name, address or contact details with a `
+      + `deployment company unless you ask for an introduction to it. Your job page shows any answer.\n\n${
+        descriptionOnly ? HOW_TO_WITHDRAW_DESCRIPTION_ONLY : HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`,
   },
   // One per company and answer, never the company's name or words: the detail is only a fixed label, and for
   // "Would need something" the one nudge toward the job page's quick questions (PACKAGE_E E1).
@@ -84,6 +89,8 @@ export function buildTaskLifecycleNotification(params: {
   companyAnswerState?: CompanyResponseState;
   /** `job_sent` only: how many approved deployment companies the job was sent to. */
   companyCount?: number;
+  /** `job_sent` only: the job was sent with its description only (`descriptionStatementShares`), so it has no video to stop. */
+  descriptionOnly?: boolean;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (params.milestone === "company_answered" && !isCompanyResponseState(params.companyAnswerState)) {
@@ -100,7 +107,7 @@ export function buildTaskLifecycleNotification(params: {
     kind: params.milestone,
     to: params.to,
     subject: message.subject,
-    body: finePrintLast(message.body(url, detail)),
+    body: finePrintLast(message.body(url, detail, params.descriptionOnly === true)),
     replyTo: "hello@tryblueprint.io",
   };
 }

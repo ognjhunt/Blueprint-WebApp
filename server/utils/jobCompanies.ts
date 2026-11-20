@@ -285,7 +285,9 @@ export async function prepareSiteNotice(tx: Tx, requestId: string, record: Data,
   if (existing.exists) return null;
   if (projectWebsiteCaptureRights(record).consent_revoked || !teamJobAccess(record).listed) return null;
   const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
-  const notice = build({ requestId, to, captureUrl, ...params });
+  // The job_sent email names the way to stop as the job's page does: a job sent with its description only is withdrawn.
+  const { descriptionStatementShares } = await import("./jobSharedListing");
+  const notice = build({ requestId, to, captureUrl, ...params, descriptionOnly: descriptionStatementShares(record) });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     logger.warn({ requestId, milestone: params.milestone }, "The site has no usable email; its company email is not queued");
     return null;
