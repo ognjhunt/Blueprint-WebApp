@@ -207,7 +207,7 @@ test("the deployment companies section says the send line, each answer by alias,
   await expect(companies.getByText("Company A answered on November 13, 2026: Interested.", { exact: true })).toBeVisible();
   // Why (2026-11-20): the company's words as the server gives them, and what would make an introduction possible.
   await expect(companies.getByText("In their words: “We would need a video of the far end of the line.”", { exact: true })).toBeVisible();
-  await expect(companies.getByText("You can ask for an introduction if Company B changes its answer to Interested.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.", { exact: true })).toBeVisible();
   await expect(companies.getByRole("button", { name: "Introduce us" })).toHaveCount(1);
   await expect(companies.getByText("We give Company A your name, address and contact details, and give you theirs.", { exact: true })).toBeVisible();
   await expect(companies.getByText("We will write to you about next steps.")).toHaveCount(0);
