@@ -105,7 +105,7 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
       // A received recording whose processing is unconfirmed reads as received,
       // with the processing state behind its optional details.
       await expect(page.getByRole("heading", { name: "We have your video.", exact: true })).toBeVisible();
-      await expect(page.getByText("Blueprint will continue from this saved recording", { exact: false })).toBeVisible();
+      await expect(page.getByText("We'll continue from your saved video", { exact: false })).toBeVisible();
       await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart");
     } else {
       await expect(page.getByRole("heading", { name: "Your job is saved. Check your video upload." })).toBeVisible();
