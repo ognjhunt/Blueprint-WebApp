@@ -136,6 +136,9 @@ export function startAutomaticSendWorker(options: { intervalMs?: number; lease?:
     if (stopped) return;
     if (!running && lease.isLeader()) {
       running = true;
+      // Jobs sent with their description only before their listing record was written get it first (owner, 2026-11-19).
+      try { await import("./jobSharedListing").then(({ backfillDescriptionSharedListings }) => backfillDescriptionSharedListings()); }
+      catch (error) { logger.error({ err: error }, "Listing backfill for description-only jobs failed; it will retry"); }
       try { await sweepAutomaticSends(); }
       catch (error) { logger.error({ err: error }, "Automatic send sweep failed; it will retry"); }
       finally { running = false; }
