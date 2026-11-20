@@ -1,0 +1,61 @@
+# home__signed-out
+# route: / (final URL desktop: /; phone: /)
+# source: client/src/pages/Home.tsx; components/site/PilotPreview.tsx; components/site/MinimalSiteLayout.tsx; lib/publicCopy.ts
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+Post a job for robots.
+
+Share a video of one repetitive job with approved robot deployment companies.
+
+Start a job
+
+Free for sites.
+
+Film the job
+Companies review it
+Choose who to meet
+
+EXAMPLE JOB
+
+Warehouse
+Café
+Laundromat
+Factory
+Hotel
+Lab
+Picking small parcels off a shelf into a tote
+
+6 views · 3 responses
+
+Company A
+Tested it: can do
+Company B
+Need more details
+Company C
+Not a fit
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Moving clean cups from the dish rack onto a tray
+4 views · 2 responses
+Interested
+Stacking folded towels onto a shelf
+3 views · 1 response
+Placing small parts from a conveyor into a fixture
+8 views · 3 responses
+Placing folded napkins onto a tray
+7 views · 2 responses
+Placing sample tubes into a rack
+5 views · 0 responses
+No responses yet.
+
+## Phone 390: same text as desktop

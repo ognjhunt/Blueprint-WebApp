@@ -61,7 +61,7 @@ const SITE_OWNER = { uid: "site-owner-fixture", email: "owner@example.test", get
 async function renderAsSiteOwner() {
   identity.user = SITE_OWNER;
   const view = await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace as owner@example.test/);
+  await screen.findByText(/This job will be saved to your account\./);
   return view;
 }
 /** A site account is not asked for an email: the account has one. */
@@ -157,7 +157,7 @@ it("RETURN-004: an acknowledged upload recovers without requiring lost File byte
   await screen.findByRole("heading",{name:"Your job is saved. Check your video upload."});
   view.unmount();await renderAsSiteOwner();
   fireEvent.click(screen.getByRole("button",{name:"Return to saved job"}));
-  await screen.findByRole("link",{name:"Open the uploader"});
+  await screen.findByRole("link",{name:"Upload the video"});
   expect(sent).toHaveLength(2);expect(sent[1].body).toEqual(sent[0].body);expect(sender).toHaveBeenCalledTimes(1);
   sender.mockRestore();
 });
@@ -210,7 +210,7 @@ it("INTAKE-REGRESSION-031: malformed failure fields retain a safe actionable err
     : {ok:true,status:200,json:async()=>({features:[]})});
   await renderReady(<SiteCaptureStart />);fill();submit();
   await expect(screen.findByRole("alert")).resolves.toHaveTextContent("We could not save that. Please try again");
-  expect(screen.getByText(/Job reference: capture-/)).toBeInTheDocument();
+  expect(screen.getByText(/If this keeps happening, email hello@tryblueprint\.io and include this reference: capture-/)).toBeInTheDocument();
   expect(screen.queryByText(/private fixture/)).toBeNull();
 });
 // Owner, 2026-11-12: the form never asks a site to clear its browser. A copy it cannot read starts a fresh draft, and
@@ -249,7 +249,7 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
 it("CROSS-TAB-013 unsupported coordination still shows the form, says so, and blocks dispatch with a next step",async()=>{
   vi.stubGlobal("navigator",{userAgent:"fixture"});await renderReady(<SiteCaptureStart />);
   expect(screen.getByRole("form")).toBeInTheDocument();
-  expect(await screen.findByText(/cannot safely save or coordinate recovery details/)).toBeInTheDocument();
+  expect(await screen.findByText(/This browser can't save your progress\. Try another browser/)).toBeInTheDocument();
   fill();submit();
   await expect(screen.findByRole("alert")).resolves.toHaveTextContent("email hello@tryblueprint.io");
   expect(sent).toHaveLength(0);

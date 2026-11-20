@@ -1,0 +1,119 @@
+# start-recover__signed-out
+# route: /contact/site-operator (final URL desktop: /contact/site-operator; phone: /contact/site-operator)
+# source: client/src/components/site/SiteCaptureStart.tsx (pending recovery notice)
+# state: first send lost (503), page reloaded
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+‹ Back
+Start a job
+
+This submission may already be saved. Recover the same job before starting another.
+
+Recover saved job
+
+Job reference: capture-249ff836-8ec2-4c74-8750-082791b2f1ff
+
+VIDEO OF THE JOB
+
+Film or upload a video to post your job.
+
+I have a video ›
+THE JOB IN ONE SENTENCE
+
+What should the robot do? Typing it confirms: “This is the task I want Blueprint to evaluate.”
+
+WHERE IS THE JOB?
+Use my location
+COUNTRY OF THE SITE
+Choose the site country
+United States
+Outside the United States
+
+Only if the city or region doesn't say.
+
+YOUR EMAIL
+
+We send your private job link here.
+
+Add details (optional)
+Next: film the job
+
+By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.
+
+What you're agreeing to
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Also present once collapsed sections / tabs are opened (desktop)
+WHAT COUNTS AS SUCCESS?
+HOW OFTEN DOES IT HAPPEN?
+WHERE ARE YOU IN THE PROCESS?
+Not sure yet
+Exploring whether automation makes sense
+Planning a pilot
+Ready to run a pilot
+Submitting does not authorize spending.
+IF YOU WRITE THE JOB IN ONE SENTENCE
+“This is the task I want Blueprint to evaluate.”
+ALSO
+Our Terms and Privacy Policy. We don't share your name, address or contact details unless you ask for an introduction.
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+‹ Back
+Start a job
+
+This submission may already be saved. Recover the same job before starting another.
+
+Recover saved job
+
+Job reference: capture-cc8977e6-fb82-414a-96d0-37b8bfe9a57c
+
+VIDEO OF THE JOB
+
+Film or upload a video to post your job.
+
+I have a video ›
+THE JOB IN ONE SENTENCE
+
+What should the robot do? Typing it confirms: “This is the task I want Blueprint to evaluate.”
+
+WHERE IS THE JOB?
+Use my location
+COUNTRY OF THE SITE
+Choose the site country
+United States
+Outside the United States
+
+Only if the city or region doesn't say.
+
+YOUR EMAIL
+
+We send your private job link here.
+
+Add details (optional)
+Next: film the job
+
+By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.
+
+What you're agreeing to
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.

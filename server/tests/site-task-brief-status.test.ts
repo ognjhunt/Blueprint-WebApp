@@ -223,7 +223,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     // A retryable failure is not an ending: the outlook stays building and says a step failed (review 2026-11-11).
     // Rewritten from the retired `simulationBuilding: false`, which the outlook decision replaced.
     expect(body.outlook).toEqual({ phase: "building", reason: "step_failed",
-      sentence: "A step failed and we're working on it. We'll email you the result." });
+      sentence: "A step on our side failed. Nothing is needed from you." });
     answer.mockRestore();
     expect(body.status.headline).not.toMatch(/are preparing|results are in/i);
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
@@ -240,7 +240,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
     expect(body.status.headline).toBe("We could not prepare your job in time");
     expect(body.status.headline).not.toContain("our team has been told");
-    expect(body.status.outcome.reason).toContain("for a reason on our side. Nothing you did caused it");
+    expect(body.status.outcome.reason).toBe("We couldn't finish preparing your job. The problem was on our side, not yours.");
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });
@@ -252,9 +252,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
       since_iso: "2026-10-01T00:00:00.000Z", due_at_ms: null, alerted_at_iso: "2026-10-01T02:00:00.000Z" } });
     const { body } = await status();
     expect(preparation.read).not.toHaveBeenCalled();
-    expect(body.status.headline).toContain("Preparing it is taking longer than it should and needs review");
+    expect(body.status.headline).toBe("Your video is saved. Preparing it is taking longer than usual. You don't need to send it again.");
     expect(body.status.headline).not.toContain("our team has been told");
-    expect(body.status.headline).not.toContain("we are preparing it");
+    expect(body.status.headline).not.toContain("We're preparing your job");
     // No status from the Pipeline yet. The outlook decision counts the time before the first status as building
     // (the job window bounds it), while the status line still says it needs review. Rewritten from the retired
     // `simulationBuilding: false`, which the outlook decision replaced.
@@ -470,7 +470,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const body = await (await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`)).json();
     expect(body.status).toMatchObject({decision: "processing_failure", operatorAction: null,
       outcome: {category: "processing_failure", actionOwner: "blueprint"}});
-    expect(body.status.outcome.nextStep).toMatch(/do not need to record or upload it again/);
+    expect(body.status.outcome.nextStep).toBe("Nothing is needed from you. Your video is saved; you don't need to send it again.");
     const film = createCaptureUploadToken({requestId: "req-1", sceneId: "site-req-1", captureId: "walkthrough-req-1", scope: "film"});
     const filmed = await (await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).json();
     expect(filmed.status.outcome).toBeUndefined();
@@ -576,7 +576,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true,
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Recording consent was withdrawn, so we can no longer review the video or show the scene preview.", operatorAction: null } });
+      status: { headline: "Permission to use your video was withdrawn. Companies can no longer see your job.", operatorAction: null } });
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
@@ -604,7 +604,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Recording consent was withdrawn, so we can no longer review the video or show the scene preview.", operatorAction: null } });
+      status: { headline: "Permission to use your video was withdrawn. Companies can no longer see your job.", operatorAction: null } });
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
   });
@@ -814,9 +814,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
 
     const { body } = await status();
 
-    expect(body.status.decision).toBe("screening");
-    expect(body.status.headline).toContain("Robot screening has not started");
-    expect(body.status.headline).toContain("Results are not available yet");
+    // Blueprint runs no robot software in the simulation (owner, 2026-11-14): an older run record reads as a ready simulation.
+    expect(body.status).toMatchObject({ decision: "assessing", headline: "The simulation of your site is ready. Nothing is needed from you." });
+    expect(body.status.headline).not.toMatch(/screening|results|evaluation/i);
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 
@@ -835,18 +835,15 @@ describe("GET /api/site-task-brief/:token/status", () => {
     // Unscored observations never imply policy failure. With nothing else in
     // flight the site hears that none can support a recommendation yet.
     const settled = (await status()).body;
-    expect(settled.status.decision).toBe("no_qualified_evaluation");
-    expect(settled.status.headline).toMatch(/none can support a recommendation yet\. 1 run could not be scored against your pass mark/);
-    expect(settled.status.headline).not.toMatch(/passed|failed|without passing/i);
+    expect(settled.status).toMatchObject({ decision: "assessing", headline: "The simulation of your site is ready. Nothing is needed from you." });
+    expect(settled.status.headline).not.toMatch(/passed|failed|without passing|recommendation|scored/i);
 
     sharedFakeFirestoreState.docs.set("evaluationRuns/run_q1", {
       runId: "run_q1", teamId: "team-b", sceneId: "req-1", state: "requested", requestedAtIso: "2026-09-19T00:00:00.000Z",
     });
     const { body } = await status();
 
-    expect(body.status.decision).toBe("results");
-    expect(body.status.headline).toContain("Each run's episodes are shown separately");
-    expect(body.status.operatorAction).toBe("Review the results.");
+    expect(body.status).toMatchObject({ decision: "assessing", headline: "The simulation of your site is ready. Nothing is needed from you.", operatorAction: null });
   });
 
   // Sharing is the service (2026-11-12): no status asks the site to publish a job card.
@@ -875,7 +872,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
 
     const { body } = await status();
 
-    expect(body.status.decision).toBe("screening");
+    expect(body.status.headline).toBe("The simulation of your site is ready. Nothing is needed from you.");
     expect(body.claimUrl ?? null).toBeNull();
   });
 
@@ -905,7 +902,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
 
     const { body } = await status();
     expect(body.sceneViewUrl).toBe("https://viewer.example/world-1");
-    expect(body.status.headline).toBe("Your scene preview is ready. We are preparing the job for simulation.");
+    expect(body.status.headline).toBe("A preview of your site is ready. We're preparing the simulation.");
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
     expect(body.status.decision).toBe("assessing");
 
@@ -976,7 +973,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { code, body } = await status();
     expect(code).toBe(200);
     expect(body.status.decision).toBe("processing_failure");
-    expect(body.status.headline).toMatch(/Blueprint could not finish processing/i);
+    expect(body.status.headline).toBe("We could not finish preparing your job");
     expect(body.status.headline).not.toMatch(/we are preparing|private upstream|private\.example/);
     expect(body.status.operatorAction).toBeNull();
     expect(body.sceneViewUrl).toBeNull();
@@ -988,13 +985,13 @@ describe("GET /api/site-task-brief/:token/status", () => {
   it("uses a newer ready record even if old failure details remain", async () => {
     const failed = { state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail" };
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { world_reconstruction: failed });
-    expect((await status()).body.status.headline).toMatch(/Blueprint could not finish processing/i);
+    expect((await status()).body.status.headline).toBe("We could not finish preparing your job");
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { world_reconstruction: {
       ...failed, state: "ready", assets: { launchUrl: "https://viewer.example/current" },
     } });
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
     const { body } = await status();
-    expect(body.status.headline).toMatch(/scene preview is ready/i);
+    expect(body.status.headline).toMatch(/^A preview of your site is ready\./);
     expect(body.status.headline).not.toMatch(/could not finish|private upstream/);
     expect(body.sceneViewUrl).toBe("https://viewer.example/current");
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);

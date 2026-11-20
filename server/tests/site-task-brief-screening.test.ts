@@ -165,15 +165,16 @@ describe("the confirmation says what our screen decided", () => {
   });
 
 
-  it("offers written clarification or a call without clearing the preparation gate", async () => {
+  // No call is offered and no person reviews the answers: no person stands between a site's video and an introduction.
+  it("offers written clarification, never a call, without clearing the preparation gate", async () => {
     const response = await confirm();
     expect(response.status).toBe(200);
     const body = (await response.json()) as { disposition: string; screening: any };
     expect(body.disposition).toBe("needs_conversation");
-    expect(body.screening.headline).toMatch(/questions remain/i);
-    expect(body.screening.detail).toMatch(/in writing.*or book a call/i);
-    expect(body.screening.detail).toMatch(/review your answers.*before clearing/i);
-    expect(body.screening.bookingUrl).toMatch(/^https:\/\//);
+    expect(body.screening.headline).toBe("A few questions about your site are still open.");
+    expect(body.screening.detail).toBe("Answer them in writing below; you can leave anything you don't know.");
+    expect(body.screening.detail).not.toMatch(/call|review/i);
+    expect(body.screening.bookingUrl).toBeNull();
     expect(enqueueOutbox).not.toHaveBeenCalled();
 
     await vi.waitFor(() => expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(1));
@@ -263,8 +264,8 @@ describe("the confirmation says what our screen decided", () => {
   it("asks a brief that gives no sentence about the job for one, in its reply (no email), and names no kind of job", async () => {
     await saveBrief(draftBrief({ requestId: "req-1", summary: "your site task", captureMode: "self_capture", proposed: [] }));
     const body = (await (await confirm(clearAnswers(), NO_SUCCESS)).json()) as { screening: any };
-    expect(body.screening).toEqual({ headline: "Your job brief needs one sentence about the job before we can evaluate it.",
-      detail: "From your job brief, we could not tell what the job is. Describe the job in one sentence at the top of your job brief and confirm it again.",
+    expect(body.screening).toEqual({ headline: "Tell us the job in one sentence.",
+      detail: "We couldn't tell what the job is from your description. Write it in one sentence in your job description and confirm it.",
       bookingUrl: null });
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });
@@ -273,7 +274,7 @@ describe("the confirmation says what our screen decided", () => {
     const response = await confirm({ ...clearAnswers(), sceneStability: "reconfigured" });
     const body = (await response.json()) as { disposition: string; screening: any };
     expect(body.disposition).toBe("not_now");
-    expect(body.screening.headline).toMatch(/not building a scene/);
+    expect(body.screening.headline).toBe("We aren't building a simulation of your site for now, because of one of your answers.");
     expect(body.screening.bookingUrl).toBeNull();
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });
@@ -333,7 +334,9 @@ describe("an expired task link asks for a fresh one", () => {
     const message = enqueue.mock.calls[0][0] as { to: string; kind: string; body: string; replyTo: string };
     // Replies go where every other email to a site sends them (journey audit, 2026-11-20), not to ops@.
     expect(message).toMatchObject({ to: "ops@acme.example", kind: "fresh_link", replyTo: "hello@tryblueprint.io" });
-    expect(message.body).toMatch(/^Hi Dana,/);
+    // No greeting, like every other site job email (launch copy, 2026-11-20).
+    expect(message.body).toMatch(/^Here is a fresh private link to your job\./);
+    expect(message.body).not.toMatch(/^Hi\b/);
     expect(message.body).toMatch(/\/capture-upload\//);
 
     const forged = await post(`${expired.split(".")[0]}.not-a-signature`);

@@ -1,75 +1,36 @@
-import { ArrowUpRight } from "lucide-react";
-import { HOME_SUB_LINE, HOME_TITLE } from "@/lib/publicCopy";
-
-import {
-  footerCompanyLinks,
-  footerEvidenceLinks,
-  footerProductLinks,
-} from "./navigation";
-
-type FooterColumn = {
-  heading: string;
-  links: ReadonlyArray<{ href: string; label: string }>;
-};
-
-const footerColumns: FooterColumn[] = [
-  { heading: "Product", links: footerProductLinks },
-  { heading: "Evidence", links: footerEvidenceLinks },
-  { heading: "Company", links: footerCompanyLinks },
-];
+import { COMPANY } from "@/data/company";
+import { openCookieSettings } from "@/components/CookieConsent";
+import { footerLinks } from "./navigation";
 
 /**
- * The footer says what Blueprint does in the home page's words (2026-11-12).
+ * The Runway footer (staff operations pages, and a moment on a redirect): the same links as the public pages' footer
+ * (`MinimalSiteLayout`), from the same model (`navigation.ts`), launch copy 2026-11-20.
  */
 export function Footer() {
   return (
     <footer className="border-t border-runway-line bg-runway-deep text-runway-text">
-      <div className="mx-auto max-w-[92rem] px-5 pb-8 pt-16 sm:px-8 lg:px-10 lg:pt-20">
-        <div className="grid gap-14 border-b border-runway-line pb-16 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-          <div className="max-w-[26rem]">
+      <div className="mx-auto flex max-w-[92rem] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-8 text-sm sm:px-8 lg:px-10">
+        <nav aria-label="Footer navigation" className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {footerLinks.map((link) => (
             <a
-              href="/"
-              className="text-[1.08rem] font-bold uppercase tracking-[0.16em] text-runway-signal"
-              aria-label="Blueprint home"
+              key={link.href}
+              href={link.href}
+              className="inline-flex min-h-10 items-center text-runway-mute transition hover:text-runway-text"
             >
-              Blueprint
+              {link.label}
             </a>
-            <p className="mt-7 text-sm leading-7 text-runway-mute">
-              {HOME_TITLE} {HOME_SUB_LINE}
-            </p>
-            <a
-              href="mailto:hello@tryblueprint.io"
-              className="mt-5 inline-flex items-center gap-2 text-sm text-runway-mute transition hover:text-runway-signal"
-            >
-              hello@tryblueprint.io
-              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-            </a>
-          </div>
-
-          {footerColumns.map((column) => (
-            <nav key={column.heading}>
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-runway-faint">
-                {column.heading}
-              </p>
-              <ul className="mt-5 space-y-1">
-                {column.links.map((link) => (
-                  <li key={`${column.heading}-${link.href}`}>
-                    <a
-                      href={link.href}
-                      className="inline-flex min-h-10 items-center text-sm text-runway-mute transition hover:translate-x-0.5 hover:text-runway-text"
-                    >
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
           ))}
-        </div>
-
-        <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-runway-faint sm:grid-cols-[auto_1fr] sm:items-start">
-          <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
-        </div>
+          <button
+            type="button"
+            onClick={openCookieSettings}
+            className="inline-flex min-h-10 items-center text-runway-mute transition hover:text-runway-text"
+          >
+            Cookie settings
+          </button>
+        </nav>
+        <p className="font-mono text-[10px] leading-5 text-runway-faint">
+          &copy; {new Date().getFullYear()} {COMPANY.legalName}
+        </p>
       </div>
     </footer>
   );

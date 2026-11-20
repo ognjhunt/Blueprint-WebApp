@@ -112,6 +112,18 @@ describe("build output", () => {
     expect(signup).not.toContain('id="email"');
   });
 
+  // Owner rule: development-only consent boxes never render in production. They exist only behind
+  // `import.meta.env.DEV` (SiteCaptureStart.tsx), so their recorded words are not in any shipped script.
+  it("ships no development consent box in the client bundle, whatever link opens the start form", () => {
+    const assets = distPath("assets");
+    for (const file of fs.readdirSync(assets).filter(name => name.endsWith(".js"))) {
+      const source = fs.readFileSync(path.join(assets, file), "utf8");
+      expect(source, file).not.toContain("For this development test");
+      expect(source, file).not.toContain("managed-agent 3D authoring");
+      expect(source, file).not.toMatch(/start-[a-z0-9-]+-authoring/);
+    }
+  });
+
   it("makes the one company application inspectable without JavaScript, and the job library's page point to it", () => {
     const html = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(html).toContain('href="/partners#partner-application"');
@@ -180,10 +192,12 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/beta", "/jobs", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds"].forEach((route) => {
+    ["/", "/how-it-works", "/beta", "/jobs", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(9);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(8);
+    // Refunds left the product copy (launch copy, 2026-11-20): the page stays routed for earlier purchases, unlisted.
+    expect(sitemap).not.toContain("<loc>https://tryblueprint.io/refunds</loc>");
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/jobs-we-support</loc>");
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/about</loc>");
 
@@ -226,8 +240,10 @@ describe("build output", () => {
     expect(robots).toContain("Disallow: /world-models/*/workspace");
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
-    expect(llms).toContain("https://tryblueprint.io/partners");
-    expect(llms).toContain("Applications stay pending until Blueprint approves the company by hand");
+    expect(llms).toContain("- [Find jobs (deployment companies): apply to see jobs](https://tryblueprint.io/jobs)");
+    expect(llms).toContain("Deployment companies apply at https://tryblueprint.io/jobs. Blueprint approves each company before it sees jobs.");
+    // Internal style notes and the retired run name are not published (launch copy, 2026-11-20).
+    for (const text of [llms, llmsFull]) expect(text).not.toMatch(/Evidence boundary|Task Evaluation Run|Pipeline|abstention/);
     // The agent API and its section went on 2026-11-12: nothing in the published text points an agent at it.
     for (const text of [llms, llmsFull]) expect(text).not.toMatch(/agent-access|agent-team|Agent interfaces|paid_evaluations_disabled/);
     expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
@@ -291,8 +307,8 @@ describe("build output", () => {
     // dedicated browser intake lane checks its task/consent/required fields.
     // Static HTML must expose loading and cannot submit a fresh identity.
     expect(siteHtml).toContain("Start a job");
-    expect(siteHtml).toContain("Loading your account and saved draft");
-    expect(siteHtml).not.toContain('aria-label="Start a site capture"');
+    expect(siteHtml).toContain('role="status">Loading…');
+    expect(siteHtml).not.toContain('aria-label="Start a job"');
     expect(siteHtml).not.toContain('id="start-task"');
     expect(siteHtml).not.toContain("How this works");
     // The country comes from the address; its select opens only to correct it.
@@ -336,7 +352,9 @@ describe("build output", () => {
     });
     expect(browserJavaScript).not.toMatch(/pplx-[A-Za-z0-9_-]{12,}/);
     expect(browserJavaScript).not.toMatch(/fc-[A-Za-z0-9_-]{12,}/);
-    expect(browserJavaScript).toContain("Task Evaluation Run");
+    // The retired product name left the last page that shipped it (the old header's "Request another Task Evaluation
+    // Run", launch copy 2026-11-20); the positive sentinels below prove the scan reads the real bundle.
+    expect(browserJavaScript).not.toContain("Task Evaluation Run");
     // Sentinels that the current public message actually shipped to the browser.
     // Replaced rather than dropped: the point of these is to prove the scan
     // above is reading the real public bundle, so removing one because the copy

@@ -1,0 +1,39 @@
+# site-job-settings-describe__site-token
+# route: /capture-upload/site-answer-fixture?video=existing (final URL desktop: /capture-upload/site-answer-fixture?video=existing#settings; phone: /capture-upload/site-answer-fixture?video=existing#settings)
+# source: client/src/pages/SelfCaptureUpload.tsx (Job settings); TaskBriefReview.tsx; OwnerRecordingWithdrawal.tsx
+# state: Job settings > Change my job description (opened in place)
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+‹ Back
+Job settings
+Send a new video
+Change my job description
+A few questions about the job
+
+Answer what you know and correct anything we misunderstood. Unknowns can stay open; Blueprint can prepare and evaluate the job while you review it.
+
+What is the job, in one sentence?
+We wrote this from what you sent. Correct it if we read the job wrong.
+
+Blueprint helps assess this job using the information and permissions you already supplied. Correct the job summary where it matters. Saving corrections does not grant new publication or sharing rights, authorize spending, or commit your site to a visit. Any pilot is agreed directly between you and the deployment company.
+
+What counts as success? (optional)
+
+Add or correct your targets when they matter to the recommendation. Leaving them open does not prevent assessment; we cannot infer required throughput or success rates from a clip.
+
+Successful cycle
+Minimum success rate (%)
+Maximum cycle time (seconds)
+I don't know the success criteria yet
+Your name
+So we know who confirmed the brief. This is the attestation.
+This is right — confirm it
+Contact Blueprint about this job
+Stop using my video
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused and your job leaves every deployment company's view at once. Each company it was sent to is asked to delete any copy it saved. Withdrawal is not deletion: a copy of the recording and any results already produced are retained, and handled as our Privacy Policy describes.
+Withdraw permission…
+
+## Phone 390: same text as desktop

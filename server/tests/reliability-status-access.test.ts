@@ -173,7 +173,7 @@ describe("D generated withdrawal publication cases", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     const body = await response.json();
     expect(body.sceneViewUrl).toBeNull();
-    expect(body.status.headline).toMatch(/consent was withdrawn/i);
+    expect(body.status.headline).toBe("Permission to use your video was withdrawn. Companies can no longer see your job.");
     expect(body.status.headline).not.toMatch(/preview is ready|preparing|screening|results are in/i);
     expect(body.status.operatorAction).toBeNull();
     expect(body.status.missingViews).toEqual([]);

@@ -368,24 +368,18 @@ export function TaskBriefReview(props: {
             <p style={{ fontWeight: 500 }}>{state.verdict.screening.headline}</p>
             <p className="ms-field-hint">{state.verdict.screening.detail}</p>
             {state.verdict.disposition === "needs_conversation" && <TaskClarification token={props.token} />}
-            {state.verdict.screening.bookingUrl && (
-              <a className="ms-button" href={state.verdict.screening.bookingUrl} target="_blank" rel="noreferrer">
-                Book the call
-              </a>
-            )}
           </>
         ) : (
           <p className="ms-field-hint">{state.verdict.nextAction}</p>
         )}
         {!state.verdict.screening && state.verdict.stillNeeded.length > 0 && (
           <p className="ms-field-hint">
-            Still needed to assess the suitable options: {state.verdict.stillNeeded.join(", ")}.
-            We will explain which missing facts need a measurement, footage or a conversation.
+            Still needed: {state.verdict.stillNeeded.join(", ")}.
           </p>
         )}
         {accountOutcome.status === "saved" && (
           <p className="ms-field-hint">
-            Saved to your account. <a className="ms-text-link" href="/app">Open your workspace</a>
+            Saved to your account. <a className="ms-text-link" href="/app">Open your account</a>
           </p>
         )}
         {accountOutcome.status === "verify" && (
@@ -425,26 +419,25 @@ export function TaskBriefReview(props: {
       </h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
         {drafted
-          ? "We used what you sent to prefill this summary. Correct anything we got wrong, then confirm your review. Blueprint can prepare and evaluate the job while you review it."
-          : "Answer what you know and correct anything we misunderstood. Unknowns can stay open; Blueprint can prepare and evaluate the job while you review it."}
+          ? "We used what you sent to prefill this summary. Correct anything we got wrong, then confirm it. We keep preparing your job while you check it."
+          : "Answer what you know and correct anything we misunderstood. Unknowns can stay open. We keep preparing your job while you check it."}
       </p>
 
       <label htmlFor="brief-summary">
         <span>What is the job, in one sentence?</span>
         <span className="ms-field-hint">
           {placeholderSummary
-            ? "Your footage shows the work area, not what the robot should do. For example: “Pick up each carton and place it at the end of the table.”"
+            ? "Your video shows the work area, not what the robot should do. For example: “Pick up each carton and place it at the end of the table.”"
             : props.brief.confirmedAtSubmission
-              ? "Your words from when you submitted the job. If the task has changed, change it here and confirm it again."
+              ? "Your words from when you sent the job. If the job has changed, change it here and confirm it again."
               : "We wrote this from what you sent. Correct it if we read the job wrong."}
         </span>
         <input id="brief-summary" type="text" value={summary} onChange={(event) => setSummary(event.target.value)}
           required maxLength={300} />
       </label>
-      {props.brief.proposed.some(answer => answer.basis === "observation") && <details><summary>What your footage shows</summary>
-        {props.brief.proposed.filter(answer => answer.basis === "observation").map(answer => <p key={answer.fieldId}>{answer.reading} <span className="ms-field-hint">(from your footage{answer.confidence !== undefined ? `; confidence ${Math.round(answer.confidence * 100)}%` : ""}{answer.atSeconds != null ? `; at ${answer.atSeconds}s` : ""}). This is an observation of the clip; the job across shifts remains a separate question.</span></p>)}
+      {props.brief.proposed.some(answer => answer.basis === "observation") && <details><summary>What your video shows</summary>
+        {props.brief.proposed.filter(answer => answer.basis === "observation").map(answer => <p key={answer.fieldId}>{answer.reading} <span className="ms-field-hint">(seen in your video{answer.atSeconds != null ? ` at ${answer.atSeconds}s` : ""})</span></p>)}
       </details>}
-      <p className="ms-field-hint">Blueprint helps assess this job using the information and permissions you already supplied. Correct the job summary where it matters. Saving corrections does not grant new publication or sharing rights, authorize spending, or commit your site to a visit. Any pilot is agreed directly between you and the deployment company.</p>
 
       {/* What we think we know, each with where it came from. The operator can
           override any of it, or say they do not know. */}
@@ -517,8 +510,8 @@ export function TaskBriefReview(props: {
       ))}
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
-        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What counts as success? (optional)</legend>
-        <p className="ms-field-hint">Add or correct your targets when they matter to the recommendation. Leaving them open does not prevent assessment; we cannot infer required throughput or success rates from a clip.</p>
+        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What counts as success?</legend>
+        <p className="ms-field-hint">Add targets if you have them. You can leave them open.</p>
         <label htmlFor="success-definition"><span>Successful cycle</span>
           <input id="success-definition" value={successDefinition} onChange={(event) => { touchedSuccess.current = true; setSuccessDefinition(event.target.value); }} disabled={successUnknown} maxLength={1000} placeholder="For example, the carton reaches the pallet without damage" />
         </label>
@@ -531,11 +524,11 @@ export function TaskBriefReview(props: {
         <label htmlFor="success-unknown"><input id="success-unknown" type="checkbox" checked={successUnknown} onChange={(event) => { touchedSuccess.current = true; setSuccessUnknown(event.target.checked); }} /> I don't know the success criteria yet</label>
       </fieldset>
 
-      {props.brief.pilotIntent && <details><summary>Your recorded pilot preferences (optional corrections)</summary>
+      {props.brief.pilotIntent && <details><summary>Your recorded pilot preferences</summary>
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
-        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What could follow this assessment?</legend>
+        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What might come next?</legend>
         <p className="ms-field-hint">These answers describe your plans and commit you to nothing.</p>
-        <label htmlFor="pilot-consideration"><span>If a provider appears to fit, would you consider a physical pilot here?</span>
+        <label htmlFor="pilot-consideration"><span>If a deployment company looks like a fit, would you consider a pilot here?</span>
           <select id="pilot-consideration" value={pilotConsideration} onChange={(event) => setPilotConsideration(event.target.value as SitePilotIntent["pilotConsideration"])}>
             <option value="">Choose…</option>
             {pilotConsiderationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -551,10 +544,10 @@ export function TaskBriefReview(props: {
 
       </details>}
 
-      {props.optionalAccount && accountAvailable && <label className="ms-check-row"><input type="checkbox" checked={saveAccount} onChange={event => setSaveAccount(event.target.checked)} />Also save this job to my account (optional)</label>}
+      {props.optionalAccount && accountAvailable && <label className="ms-check-row"><input type="checkbox" checked={saveAccount} onChange={event => setSaveAccount(event.target.checked)} />Save to my account</label>}
       {needsAccount && (
         <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "10px 0" }}>
-          <legend style={{ padding: "0 6px", fontWeight: 600 }}>Save this site to your account</legend>
+          <legend style={{ padding: "0 6px", fontWeight: 600 }}>Save this job to your account</legend>
           {signedInAsOwner ? (
             <p className="ms-field-hint" style={{ marginTop: 0 }}>Saving to your account as {signedIn?.email}.</p>
           ) : (
@@ -599,7 +592,7 @@ export function TaskBriefReview(props: {
 
       <label htmlFor="confirm-name">
         <span>Your name</span>
-        <span className="ms-field-hint">So we know who confirmed the brief. This is the attestation.</span>
+        <span className="ms-field-hint">So we know who confirmed the job.</span>
         <input id="confirm-name" type="text" value={name} onChange={(event) => setName(event.target.value)} required maxLength={200} />
       </label>
 

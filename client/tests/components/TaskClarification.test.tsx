@@ -33,7 +33,7 @@ describe("inline owner questions", () => {
     expect(fetch.mock.calls[0][0]).toContain("?mode=assessment");
     fireEvent.change(screen.getByRole("textbox",{name:"Your answers"}),{target:{value:"30 N"}});
     fireEvent.click(screen.getByRole("button",{name:"Save answers"}));
-    await screen.findByText("Your answer is saved with this job for review.");
+    await screen.findByText("Your answer is saved with your job.");
     expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({revision,explanation:"30 N",mode:"assessment"});
   });
   it("does not replace missing analysis questions with a checklist",async()=>{
@@ -45,7 +45,7 @@ describe("inline owner questions", () => {
   it("distinguishes an unavailable analysis from no questions",async()=>{
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue({ok:true,json:async()=>({revision,needed:false,questions:[],assessmentState:"unavailable"})}));
     render(<TaskClarification token="owner-fixture" mode="assessment" />);
-    await screen.findByText("Video-analysis questions are temporarily unavailable.");
+    await screen.findByText("These questions are not available right now.");
     expect(screen.getByRole("button",{name:"Retry questions"})).toBeInTheDocument();
     expect(screen.queryByText(/no specific video-analysis questions/)).not.toBeInTheDocument();
   });
@@ -55,7 +55,7 @@ describe("inline owner questions", () => {
     await screen.findByText(questions.questions[0]);
     fireEvent.change(screen.getByRole("textbox",{name:"Your answers"}),{target:{value:"30 N"}});
     fireEvent.click(screen.getByRole("button",{name:"Save answers"}));
-    await screen.findByText("Your answer is saved with this job for review.");
+    await screen.findByText("Your answer is saved with your job.");
     expect(fetch.mock.calls[1][1]).toMatchObject({method:"POST",headers:{"x-csrf-token":"fixture"}});
     expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({revision,explanation:"30 N"});
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("inline owner questions", () => {
   it("shows retained answers on return without resubmitting",async()=>{
     const fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>({...questions,response:{revision,explanation:"Measured force: 30 N.",state:"review_required"}})});
     vi.stubGlobal("fetch",fetch);render(<TaskClarification token="owner-fixture" />);
-    await screen.findByText("Your answer is saved with this job for review.");
+    await screen.findByText("Your answer is saved with your job.");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();expect(fetch).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button",{name:"Edit your answer"}));
     expect(screen.getByDisplayValue("Measured force: 30 N.")).toBeInTheDocument();

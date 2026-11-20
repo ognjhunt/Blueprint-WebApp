@@ -1,0 +1,23 @@
+# site-job-details-unseen__site-token
+# route: /capture-upload/site-answer-fixture?video=existing#details (final URL desktop: /capture-upload/site-answer-fixture?video=existing#details/unseen; phone: /capture-upload/site-answer-fixture?video=existing#details/unseen)
+# source: client/src/components/site/SiteAnswer.tsx (details sub-screens); RobotFit.tsx
+# state: Details > What we couldn't see
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+‹ Back
+What we couldn't see
+We couldn't see
+Whether there is floor space for the robot between the two spots.
+The gripper the cartons need.
+How many different objects the job handles: we also saw shrink-wrapped trays.
+Safety around people, which the company that installs the robot assesses at your site.
+To be surer
+Tell us the cartons' weight.
+A measured scene of your work area.
+A pilot at your site.
+How sure we are
+The weight and distances are estimated from your video.
+We found documented production use of this robot for palletizing.
+
+## Phone 390: same text as desktop

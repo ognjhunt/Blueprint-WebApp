@@ -1,0 +1,9 @@
+# outcome-bad-link__email-link
+# route: /api/job-outcomes/not-a.real-token (final URL desktop: /api/job-outcomes/not-a.real-token; phone: /api/job-outcomes/not-a.real-token)
+# source: server/routes (job-outcomes HTML page)
+## Desktop 1280 (document.body.innerText)
+This link no longer works.
+
+You can email hello@tryblueprint.io instead.
+
+## Phone 390: same text as desktop

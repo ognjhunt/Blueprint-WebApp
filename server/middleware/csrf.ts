@@ -64,7 +64,9 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
   const headerToken = req.header(CSRF_HEADER_NAME) || req.header("X-CSRF-Token");
 
   if (!cookieToken || !headerToken || cookieToken !== headerToken) {
-    return res.status(403).json({ error: "Invalid CSRF token" });
+    // Forms show this text as is, so it says what the person can do.
+    return res.status(403).json({
+      error: "This page needs a refresh. Reload it and try again. If it keeps happening, allow cookies for this site." });
   }
 
   return next();

@@ -557,9 +557,10 @@ async function uploadFor(baseUrl: string, requestId: string, bytes = "x", extens
 
 function expectSameJobVideoRepair(body: Record<string, unknown>) {
   expect(body.repairAvailable).toBe(true);
-  expect(body.message).toMatch(/original recording stays saved/i);
-  expect(body.message).toMatch(/Update walkthrough on this job/i);
-  expect(body.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
+  // The page's own control is named: "Send a new video" (`NEW_VIDEO_LABEL`); no "Update walkthrough" button exists.
+  expect(body.message).toMatch(/^(Your original video is saved\. |Keep your original file while we check it is saved\. )/);
+  expect(body.message).toMatch(/To send a complete new video, choose Send a new video on your job page\./);
+  expect(body.message).not.toMatch(/start a new job|original (recording|video) (was|has been) replaced|walkthrough/i);
 }
 
 async function uploadStatus(baseUrl: string, requestId: string) {

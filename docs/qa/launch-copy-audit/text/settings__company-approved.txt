@@ -1,0 +1,114 @@
+# settings__company-approved
+# route: /settings (final URL desktop: /settings; phone: /settings)
+# source: client/src/pages/workspace/Settings.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Overview
+Browse jobs
+Settings
+Rivera Packaging
+Robot-team workspace
+Sign out
+
+Rivera Packaging
+
+Settings
+Account
+Your name
+Organization
+Email
+Your sign-in email
+Save changes
+Optional email updates
+ Blueprint news and updates Relevant new-job alerts
+
+Account, application and jobs you are already involved in have separate notices. Unsubscribe anytime. Email suppression takes precedence over these choices.
+
+Targeting preferences (optional)
+Team categories (optional)
+Save update preferences
+Security
+
+Delete my account and data →
+
+Password
+Reset password →
+Email status
+Verified
+Workspace
+Change workspace type →
+
+Robot-team workspace
+
+Read the job summaries shared with you and answer them.
+
+Open overview →
+Browse jobs →
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Comma-separated exact categories. Leave an interest blank for any value. If a selected category or a hard requirement is unknown, that job will not trigger an alert.
+Roles
+Regions
+Industry focus
+Embodiments
+Policy categories (e.g. WAM, VLA)
+Job types
+Capabilities
+Maximum data retention (days)
+A hard requirement; blank means no limit specified.
+Require no use of data for training
+Required rights scopes
+Comma-separated. Preferences never grant access to private evidence.
+Your declared categories for jobs with recipient requirements. Policy categories describe your stack; they do not verify robot performance.
+Team Regions
+Team Industry focus
+Team Embodiments
+Team Policy categories (e.g. WAM, VLA)
+Team Job types
+Team Capabilities
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+
+Rivera Packaging
+
+Settings
+Account
+Your name
+Organization
+Email
+Your sign-in email
+Save changes
+Optional email updates
+ Blueprint news and updates Relevant new-job alerts
+
+Account, application and jobs you are already involved in have separate notices. Unsubscribe anytime. Email suppression takes precedence over these choices.
+
+Targeting preferences (optional)
+Team categories (optional)
+Save update preferences
+Security
+
+Delete my account and data →
+
+Password
+Reset password →
+Email status
+Verified
+Workspace
+Change workspace type →
+
+Robot-team workspace
+
+Read the job summaries shared with you and answer them.
+
+Open overview →
+Browse jobs →
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms

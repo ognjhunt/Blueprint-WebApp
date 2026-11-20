@@ -71,7 +71,9 @@ it("joins the existing job, bounded review, sharing under v4 and Blueprint's rev
     const review = render(<TaskBriefReview token={token} brief={intake.brief} />);
     expect(screen.queryByText(/could not tell from what you sent/i)).toBeNull();
     expect(screen.queryByLabelText(/would you consider/i)).toBeNull();
-    expect(screen.getByText(/confidence 90%/)).toBeInTheDocument();
+    // The video's reading shows where it came from, never a confidence number (launch copy, 2026-11-20).
+    expect(screen.getByText(/seen in your video/)).toBeInTheDocument();
+    expect(screen.queryByText(/confidence/)).toBeNull();
     fireEvent.change(screen.getByLabelText(/successful cycle/i), { target: { value: "Carton reaches pallet intact" } });
     fireEvent.change(screen.getByLabelText(/maximum cycle time/i), { target: { value: "30" } });
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
@@ -93,7 +95,7 @@ it("joins the existing job, bounded review, sharing under v4 and Blueprint's rev
     expect(draft.assessment, JSON.stringify(draft)).toBeTruthy();
     expect(draft.assessment).not.toHaveProperty("decisionEvidence");
     const assessment = render(<SiteAdvisoryReport advisory={draft.assessment} />);
-    expect(screen.getByText("Processing details").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Earlier video notes").closest("details")).not.toHaveAttribute("open");
     expect(screen.queryByText(/A carton moves onto the pallet/)).toBeNull();
     expect(screen.queryByText(/Untrusted prose/)).toBeNull(); assessment.unmount();
     expect(draft).not.toHaveProperty("recommendation");
