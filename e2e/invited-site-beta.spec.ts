@@ -101,7 +101,7 @@ for (const width of [390, 1440]) {
     });
 
     await page.goto("/contact/site-operator");
-    if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details (optional)", { exact: true }).click(); await page.locator("#start-task").fill("Cartons reach the pallet without damage");
+    if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click(); await page.locator("#start-task").fill("Cartons reach the pallet without damage");
     await page.locator("#start-location").fill("Austin, TX");
     // Typed text is never read for a country (the privacy gate): the site chooses it.
     await page.locator("#start-region").selectOption("us");

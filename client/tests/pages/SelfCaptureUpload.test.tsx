@@ -1021,9 +1021,10 @@ describe("SelfCaptureUpload keeps an existing job's confirmation one click away 
 
     const step = await screen.findByLabelText("Your job description");
     expect(step).not.toHaveAttribute("open");
-    // Preparation continues from the recording; the existing job's one click is
-    // the step that lets Blueprint run it, never worded as optional (2026-11-07).
-    expect(step).toHaveTextContent(/We keep preparing your job from your video meanwhile\./);
+    // The existing job's one click is the step that lets Blueprint run it, never worded as optional (2026-11-07).
+    // The form inside says preparation goes on meanwhile; the step says it once, not twice (read-through, 2026-11-20).
+    expect(step).toHaveTextContent(/Check the job and answers, fix anything we got wrong, and confirm\./);
+    expect(step).not.toHaveTextContent(/from your video meanwhile/);
     expect(step.querySelector("summary")).toHaveTextContent(CONFIRM_STEP);
     expect(step.querySelector("summary")).not.toHaveTextContent(/optional/i);
     expect(screen.getByRole("button", { name: "This is right — confirm it" })).not.toBeVisible();

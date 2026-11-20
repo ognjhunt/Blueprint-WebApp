@@ -58,11 +58,11 @@ export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalSta
     <div role="status">
       <p><strong>Video withdrawn.</strong></p>
       <p className="ms-field-hint">
-        {requested ? `Withdrawn on ${requested}. ` : ""}We stop using your video, and your job has left every company's view.
-        No new uploads are accepted. {WITHDRAWN_COMPANY_COPIES}{" "}
+        {requested ? `Withdrawn on ${requested}. ` : ""}Your job has left every company's view, and no new uploads are accepted.
+        {" "}{WITHDRAWN_COMPANY_COPIES}{" "}
         {status.pipelineAcknowledged
-          ? "Our systems have stopped using it."
-          : "We're stopping our systems now; this page updates when that's done."}
+          ? "We have stopped using your video."
+          : "We're stopping our use of your video now; this page updates when that's done."}
       </p>
       <p className="ms-field-hint">{RETAINED}</p>
     </div>

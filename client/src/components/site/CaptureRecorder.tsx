@@ -365,7 +365,7 @@ export function CaptureRecorder(props: {
     if (queueRef.current.length) {
       setState({
         status: "failed",
-        message: "Some of your recording has not uploaded yet. Press resume to finish sending it.",
+        message: "Some of your video has not uploaded yet. Press resume to finish sending it.",
         recoverable: true,
       });
       return;

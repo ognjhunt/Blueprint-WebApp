@@ -50,9 +50,9 @@ describe("owner-link withdrawal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Stop using my video…" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, stop using my video" }));
     expect(await screen.findByText("Video withdrawn.")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent(/We stop using your video/);
+    expect(screen.getByRole("status")).toHaveTextContent(/We're stopping our use of your video now/);
     // What a withdrawal does, in the site's words: no "partners", no "evaluations", and no pause (it is not undone).
-    expect(screen.getByRole("status")).toHaveTextContent(/your job has left every company's view\. No new uploads are accepted\./);
+    expect(screen.getByRole("status")).toHaveTextContent(/Your job has left every company's view, and no new uploads are accepted\./);
     expect(screen.getByRole("status")).toHaveTextContent("Each company it was sent to is asked to delete any copy it saved.");
     expect(screen.getByRole("status")).not.toHaveTextContent(/partners|evaluations|paused/);
     expect(screen.queryByText(/deleted|deletion of/i)).not.toBeInTheDocument();
@@ -78,7 +78,8 @@ describe("owner-link withdrawal", () => {
       lateUploadCheckAtIso: "2026-10-20T01:00:00.000Z", completedAtIso: null } })));
     render(<OwnerRecordingWithdrawal token={TOKEN} />);
     expect(await screen.findByText("Video withdrawn.")).toBeInTheDocument();
-    expect(screen.getByText(/We're stopping our systems now; this page updates when that's done\./)).toBeInTheDocument();
+    expect(screen.getByText(/We're stopping our use of your video now; this page updates when that's done\./)).toBeInTheDocument();
+    expect(screen.queryByText(/We have stopped using your video/)).not.toBeInTheDocument();
     expect(screen.queryByText("Stop using my video")).not.toBeInTheDocument();
   });
 
@@ -87,7 +88,7 @@ describe("owner-link withdrawal", () => {
       storageDeletion: { state: "deleted", deletedObjectCount: 7, lateUploadCheckAtIso: null, completedAtIso: "2026-10-13T02:00:00.000Z" } })));
     render(<OwnerRecordingWithdrawal token={TOKEN} />);
     expect(await screen.findByText("Video withdrawn.")).toBeInTheDocument();
-    expect(screen.getByText(/Our systems have stopped using it\./)).toBeInTheDocument();
+    expect(screen.getByText(/We have stopped using your video\./)).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/We keep a copy of the video and any results already made, as our Privacy Policy describes\./);
     expect(screen.queryByText(/has been deleted|footage .*deleted/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
