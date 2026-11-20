@@ -71,8 +71,6 @@ type TaskStatus = {
   firstLookTable?: FirstLookWords | null;
   /** The server holds a recording, whichever device sent it. */
   captureReceived?: boolean;
-  /** Coverage is checked automatically; false means a person reviews it. */
-  footageReviewAutomated?: boolean;
   /** The optional correction of the guessed object to move, for the owner only. */
   targetChoice?: TaskTargetChoiceView | null;
   destinationChoice?: TaskDestinationChoiceView | null;
@@ -588,7 +586,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             jobFacts: data.scope === "owner" ? data.jobFacts ?? null : null,
             firstLookTable: data.scope === "owner" && data.firstLookTable && Array.isArray(data.firstLookTable.rows) ? data.firstLookTable : null,
             captureReceived: data.captureReceived === true,
-            footageReviewAutomated: data.footageReviewAutomated !== false,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
             destinationChoice: data.scope === "owner" && isDestinationChoice(data.destinationChoice) ? data.destinationChoice : null,
             destinationAnswered: data.scope === "owner" && data.destinationAnswered === true,

@@ -87,7 +87,6 @@ import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
-import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
 import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
@@ -1319,7 +1318,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         footageBeforeAccount,
         consentRevoked: request?.captureRights.consent_revoked,
         jobWorkWindow: request?.jobWorkWindow ?? null,
-        footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
         visualReconstructionReady: payload.scope === "owner" && request?.visualReconstructionReady === true,
         scenePreparationFailed: reconstruction?.state === "failed",
@@ -1389,9 +1387,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       captureReceived: hasStoredCapture,
       uploadState,
       processingHold: upload.processingHold ?? null,
-      // Whether coverage is checked automatically or by a person, so the page
-      // says which one happens.
-      footageReviewAutomated: isSiteVideoEvidenceEnabled(),
       summary: request?.captureRights.consent_revoked ? null : brief?.summary ?? null,
       claimUrl,
       sceneViewUrl: scenePreviewUrl ?? (status.resultSuperseded ? null : sceneViewUrl),

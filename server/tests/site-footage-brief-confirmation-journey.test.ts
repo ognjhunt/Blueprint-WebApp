@@ -248,7 +248,7 @@ describe("a site that sends its footage before confirming its brief", () => {
     const { status, captureReceived } = await jobStatus(token);
     expect(captureReceived).toBe(true);
     expect(status.decision).toBe("footage_received");
-    expect(status.headline).toMatch(/have your recording/i);
+    expect(status.headline).toMatch(/have your video/i);
     expect(status.headline).not.toMatch(/confirm your job brief|film again/i);
     expect(status.operatorAction).toBeNull();
   });
