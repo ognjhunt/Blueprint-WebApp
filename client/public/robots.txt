@@ -1,5 +1,5 @@
 # Blueprint public crawler policy.
-# Search crawlers are allowed for public buyer pages. Training/grounding controls
+# Search crawlers are allowed for public pages. Training/grounding controls
 # stay separate from search visibility so ChatGPT Search and Google Search can
 # crawl public pages without treating training opt-in as the same decision.
 
@@ -48,7 +48,7 @@ Disallow: /ops/
 Disallow: /internal/
 
 # Anthropic's search-index crawler. Same public-page policy as other search
-# crawlers so Claude can cite Blueprint's public buyer pages in answers.
+# crawlers so Claude can cite Blueprint's public pages in answers.
 User-agent: Claude-SearchBot
 Allow: /
 Disallow: /admin/
@@ -72,7 +72,7 @@ Disallow: /ops/
 Disallow: /internal/
 
 # Perplexity's answer-engine crawler. Same public-page policy so Perplexity
-# can index and cite public buyer pages.
+# can index and cite public pages.
 User-agent: PerplexityBot
 Allow: /
 Disallow: /admin/

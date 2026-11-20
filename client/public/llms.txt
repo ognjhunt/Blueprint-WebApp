@@ -1,6 +1,6 @@
 # Blueprint
 
-> Post a job for robots. A site films one job that repeats, once. Blueprint sends the job, as a job packet (what the job is, a first look at which robots could fit, and the simulation of the site once it is built), to the robot deployment companies it approves, so they can tell the site if they can do it. A site's name, address and contact details go to a company only when the site asks for an introduction. Free for sites.
+> Post a job for robots. A site films one job that repeats. Blueprint turns the video into a job packet: the site's description, the video without sound, a first look at which robots could fit, and a simulation of the site when it is ready. Blueprint shares the packet with the deployment companies it approves, so they can say if they can do the job. A site's name, address and contact details go to a company only when the site asks for an introduction. Free for sites.
 
 The job packet holds the site's own sentence for the job. Blueprint adds a first look at which robots could fit when there is enough detail, using published specifications and where the robots have been used. Blueprint uses video to build a simulation of the site when it can. The job can still go to companies while the simulation is being built.
 
@@ -10,16 +10,10 @@ Blueprint sends each job automatically to the deployment companies it has approv
 
 - [Home](https://tryblueprint.io/)
 - [How it works](https://tryblueprint.io/how-it-works)
-- [Questions: cost, jobs that fit, privacy, who we are](https://tryblueprint.io/beta)
+- [Questions: cost, what deployment companies see, privacy, who we are](https://tryblueprint.io/beta)
 - [Start a job (sites)](https://tryblueprint.io/contact/site-operator)
-- [For deployment companies: apply to receive jobs](https://tryblueprint.io/partners)
+- [Find jobs (deployment companies): apply to see jobs](https://tryblueprint.io/jobs)
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Deployment companies apply on the page for deployment companies. Applications stay pending until Blueprint approves the company by hand; applying does not grant access or promise a job. Contact: hello@tryblueprint.io.
-
-## Evidence boundary
-
-Customer wording uses “job” for the work a site wants automated and “task” for the specific robot action and its technical conditions. API fields and identifiers retain their existing names.
-
-A Task Evaluation Run returns a decision or abstention. Pipeline owns method qualification and routing; physical outcomes remain distinct from simulation and generated evidence.
+Deployment companies apply at https://tryblueprint.io/jobs. Blueprint approves each company before it sees jobs. Contact: hello@tryblueprint.io.

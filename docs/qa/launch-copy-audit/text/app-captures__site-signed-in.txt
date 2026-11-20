@@ -1,0 +1,89 @@
+# app-captures__site-signed-in
+# route: /app/captures (final URL desktop: /app/captures; phone: /app/captures)
+# source: client/src/pages/app/Captures.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Your jobs
+Settings
+Operator QA
+Site workspace
+Sign out
+Captures
+
+Upload capture files for your jobs, then follow each one through review.
+
+Upload a capture
+Capture type
+360° video
+Insta360 original (.insv)
+Phone or ordinary video
+3D Gaussian splat (.ply)
+3D model (USD, GLB, or PLY)
+A stitched MP4 or MOV from a 360° camera. Used to review the space and find jobs until its scale is checked.
+Scene ID
+A short ID for the space, like warehouse-cell-a.
+Capture file
+Optional details
+I have the right to upload this capture for evaluation.
+The site and anyone in the capture have given the consent they need to.
+Privacy
+Cleared for evaluation use
+Local processing only
+
+Firebase Admin auth is not configured on this server..
+
+Uploading isn't acceptance. We check the file and tell you if anything needs recapturing.
+
+Upload
+Capture tips
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Camera manufacturer
+Camera model
+The job, if you know it
+Leave blank and we'll propose jobs for you to approve.
+Notes
+Move slowly and overlap your passes.
+Show where the robot would stand and how it gets there.
+Circle the task objects closely, including the back and underside.
+Keep people, screens, documents, and moving things out of view when you can.
+Include a measured calibration board if exact size matters.
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+Captures
+
+Upload capture files for your jobs, then follow each one through review.
+
+Upload a capture
+Capture type
+360° video
+Insta360 original (.insv)
+Phone or ordinary video
+3D Gaussian splat (.ply)
+3D model (USD, GLB, or PLY)
+A stitched MP4 or MOV from a 360° camera. Used to review the space and find jobs until its scale is checked.
+Scene ID
+A short ID for the space, like warehouse-cell-a.
+Capture file
+Optional details
+I have the right to upload this capture for evaluation.
+The site and anyone in the capture have given the consent they need to.
+Privacy
+Cleared for evaluation use
+Local processing only
+
+Firebase Admin auth is not configured on this server..
+
+Uploading isn't acceptance. We check the file and tell you if anything needs recapturing.
+
+Upload
+Capture tips
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms

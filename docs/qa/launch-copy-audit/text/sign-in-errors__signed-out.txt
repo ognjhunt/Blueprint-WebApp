@@ -1,0 +1,49 @@
+# sign-in-errors__signed-out
+# route: /sign-in (final URL desktop: /sign-in; phone: /sign-in)
+# source: client/src/pages/Login.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Sign in
+Continue with Google
+or
+Email
+
+Email is required
+
+Password
+
+Password is required
+
+Forgot password?
+Sign in
+
+New to Blueprint? Start a job
+
+Illustrative scene
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+Sign in
+Continue with Google
+or
+Email
+
+Email is required
+
+Password
+
+Password is required
+
+Forgot password?
+Sign in
+
+New to Blueprint? Start a job
+
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms

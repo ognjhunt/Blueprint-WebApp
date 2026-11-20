@@ -1,0 +1,26 @@
+# start-non-us__signed-out
+# route: /contact/site-operator (final URL desktop: /contact/site-operator; phone: /contact/site-operator)
+# source: client/src/components/site/SiteCaptureStart.tsx (non-US hold)
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+
+SAVED
+
+Your job is saved.
+
+We can only take videos from sites in the United States for now. Nothing has been shared.
+
+Please don't send a video yet: we would have to delete it unwatched.
+
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

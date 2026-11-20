@@ -1,0 +1,26 @@
+# job-library__company-declined
+# route: /contact/robot-team (final URL desktop: /contact/robot-team; phone: /contact/robot-team)
+# source: client/src/components/site/RobotTeamEarlyAccess.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Browse jobs
+Your workspace
+‹ Back
+Apply to see jobs
+Thanks for applying.
+
+We cannot offer access yet. We will email you if that changes, and you can reach us at hello@tryblueprint.io.
+
+Nothing is charged today. Have a job to automate? Start a job.
+
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

@@ -1,0 +1,21 @@
+# company-job__company-applied
+# route: /jobs/job-c1 (final URL desktop: /jobs/job-c1; phone: /jobs/job-c1)
+# source: client/src/pages/CompanyJob.tsx; RobotTeamEarlyAccess.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+Your application is in review.
+
+We'll email you if your company is approved.
+
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

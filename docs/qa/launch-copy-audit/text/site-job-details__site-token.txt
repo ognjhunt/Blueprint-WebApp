@@ -1,0 +1,15 @@
+# site-job-details__site-token
+# route: /capture-upload/site-answer-fixture?video=existing#details (final URL desktop: /capture-upload/site-answer-fixture?video=existing#details; phone: /capture-upload/site-answer-fixture?video=existing#details)
+# source: client/src/components/site/SiteAnswer.tsx (details screen)
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+‹ Back
+Details
+First look: why this robot
+Other robots
+Robots that don't fit
+What we estimated
+What we couldn't see
+
+## Phone 390: same text as desktop

@@ -1,0 +1,26 @@
+# not-found__signed-out
+# route: /this-page-does-not-exist (final URL desktop: /this-page-does-not-exist; phone: /this-page-does-not-exist)
+# source: client/src/pages/NotFound.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+
+404
+
+That page isn’t here.
+
+Let’s get you back to the right place.
+
+Back to Blueprint
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

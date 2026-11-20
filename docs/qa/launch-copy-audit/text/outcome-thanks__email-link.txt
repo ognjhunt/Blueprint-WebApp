@@ -1,0 +1,7 @@
+# outcome-thanks__email-link
+# route: /job-outcome/thanks?answer=not_going_ahead (final URL desktop: /job-outcome/thanks?answer=not_going_ahead; phone: /job-outcome/thanks?answer=not_going_ahead)
+# source: client/src/pages/JobOutcomeThanks.tsx; lib/jobOutcomeStates.ts
+## Desktop 1280 (document.body.innerText)
+Thanks. We've recorded: Not going ahead.
+
+## Phone 390: same text as desktop

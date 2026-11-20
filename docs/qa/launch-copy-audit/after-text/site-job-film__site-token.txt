@@ -1,0 +1,62 @@
+# site-job-film__site-token
+# route: /capture-upload/site-answer-fixture (final URL desktop: /capture-upload/site-answer-fixture; phone: /capture-upload/site-answer-fixture)
+# source: client/src/pages/SelfCaptureUpload.tsx; components/site/CaptureRecorder.tsx; FilmLinkHandoff.tsx
+# state: draft saved without a video (awaiting upload)
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+Film or upload the job
+Point your phone at this.
+
+Scan to film the work area. Keep this page open to follow progress.
+
+Scan to open the recorder on your phone
+Copy the link
+http://127.0.0.1:4810/capture-upload/site-answer-fixture
+
+Already have a video on this computer? Upload a .mov or .mp4 file.
+
+Only upload a video you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.
+
+Upload a video file
+Ask someone else to film
+Confirm your job description
+Job settings ›
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Someone else filming? Send them a link that can only film and upload. Only you can change the job description.
+Send link
+Or copy a filming link to share yourself.
+Check the job and answers, fix anything we got wrong, and confirm.
+A few questions about the job
+Answer what you know and correct anything we misunderstood. Unknowns can stay open. We keep preparing your job while you check it.
+What is the job, in one sentence?
+We wrote this from what you sent. Correct it if we read the job wrong.
+What counts as success?
+Add targets if you have them. You can leave them open.
+Successful cycle
+Minimum success rate (%)
+Maximum cycle time (seconds)
+I don't know the success criteria yet
+Your name
+So we know who confirmed the job.
+This is right — confirm it
+
+## Phone 390 (differs from desktop)
+Blueprint
+Back to Blueprint
+Film the job
+Open the camera
+
+Tell people nearby that the video goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.
+
+How to film ›
+
+Already have a video of the work area? Upload it instead.
+
+Only upload a video you may share. People in it must know it goes to Blueprint and to deployment companies we approve.
+
+Choose or record a video
+Ask someone else to film
+Confirm your job description
+Job settings ›

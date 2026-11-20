@@ -1,0 +1,58 @@
+# workspace-setup__account-no-type
+# route: /app (final URL desktop: /app; phone: /app)
+# source: client/src/components/workspace/WorkspaceSetup.tsx
+# state: fake-auth user, no workspace role; server says setup required
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Overview
+Settings
+Operator QA
+Account setup
+Sign out
+
+Your account
+
+Set up your account
+
+Are you a site or a deployment company?
+
+Your name
+Business name
+Email
+Your sign-in email
+Account type
+Choose one
+Site — I have work to automate
+Deployment company — I deploy robots
+I agree to Blueprint’s Terms and Privacy Policy.
+Continue →
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+
+Your account
+
+Set up your account
+
+Are you a site or a deployment company?
+
+Your name
+Business name
+Email
+Your sign-in email
+Account type
+Choose one
+Site — I have work to automate
+Deployment company — I deploy robots
+I agree to Blueprint’s Terms and Privacy Policy.
+Continue →
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings

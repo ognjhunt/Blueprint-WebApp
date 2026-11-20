@@ -1,0 +1,43 @@
+# workspace-overview-empty__site-signed-in
+# route: /app (final URL desktop: /app; phone: /app)
+# source: client/src/pages/workspace/Overview.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Your jobs
+Settings
+Rivera Packaging
+Site account
+Sign out
+
+Rivera Packaging
+
+Your jobs
+Start a job
+No jobs yet
+
+Send us a video of the job you want a robot to do. Jobs saved to your account open from here.
+
+Start a job
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+
+Rivera Packaging
+
+Your jobs
+Start a job
+No jobs yet
+
+Send us a video of the job you want a robot to do. Jobs saved to your account open from here.
+
+Start a job
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings

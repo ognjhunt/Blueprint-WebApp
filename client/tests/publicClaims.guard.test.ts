@@ -30,6 +30,10 @@ const CLAIM_FILES = [
   "client/src/components/site/RobotScene.tsx",
   "client/src/components/site/Footer.tsx",
   "client/src/components/site/MinimalSiteLayout.tsx",
+  // Launch copy (2026-11-20): the header and footer links, the Find jobs sample job and the home page's example card.
+  "client/src/components/site/navigation.ts",
+  "client/src/components/site/SampleJob.tsx",
+  "client/src/components/site/PilotPreview.tsx",
   "client/src/components/site/SiteAnswer.tsx",
   "client/src/components/site/JobCardAnswer.tsx",
   "client/src/components/site/TaskBrowse.tsx",
