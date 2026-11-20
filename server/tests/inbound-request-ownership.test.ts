@@ -139,7 +139,7 @@ describe("atomic inbound request ownership", () => {
       expect(saved.capture_owner_uid).not.toBe("forged-owner");
       expect(saved.account_owner_uid).toBeUndefined();
       expect(saved.request).toMatchObject({ taskStatement: "", taskDescription: null, siteTaskGates: null, siteTaskSpec: {} });
-      expect(saved.public_task_listing.details.title).toBe("Work assessment opportunity");
+      expect(saved.public_task_listing.details.title).toBe("Job opportunity");
       const captureSetup = await post({ ...body, requestId: "capture-setup", hasExistingFootage: false, descriptionOnly: true,
         consentAttestation: null, acceptedTerms: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" } });
       expect(captureSetup.status).toBe(201);

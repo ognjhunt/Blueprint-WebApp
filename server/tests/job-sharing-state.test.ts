@@ -102,4 +102,27 @@ describe("where a site's job stands with deployment companies", () => {
     // The listing record replaces the older card whole: none of its free text survives.
     expect(JSON.stringify(after.public_task_listing)).not.toMatch(/Warehouse|"US"|Totes/);
   });
+
+  // Journey audit, 2026-11-20: a job started with a video alone was shared before its site typed a sentence, so its
+  // card and page said "Work assessment opportunity" / "To be determined" for good. Its category now comes from the
+  // sentence on its brief, a closed category only; a stored category is kept; words naming no category read plainly.
+  it("titles a job shared before its sentence by the category of the sentence it has now", () => {
+    const videoOnly = site({ public_task_listing: buildJobSharedListing({ taskStatement: "", atIso: AT }),
+      capture_privacy_screen: { proceeded: true, eligibility: "eligible" } }, { consent_attestation: grant("2026-11-12.v4") });
+    expect(videoOnly.public_task_listing.details).toMatchObject({ title: "Job opportunity", taskFamily: "Other" });
+    const access = teamJobAccess(videoOnly, { brief: { summary: "Acme Foods: pick up the sealed carton and place it on the cart." } });
+    expect(access.details).toMatchObject({ title: "Material handling opportunity", taskFamily: "Material handling" });
+    expect(JSON.stringify(access.details)).not.toMatch(/Acme|carton|cart\b/);
+    // A listing stored under an older neutral title reads the same way.
+    const older = { ...videoOnly, public_task_listing: { ...videoOnly.public_task_listing,
+      details: { ...videoOnly.public_task_listing.details, title: "Work assessment opportunity", taskFamily: "To be determined" } } };
+    expect(teamJobAccess(older, { brief: { summary: "Stack the dish racks on the shelf." } }).details)
+      .toMatchObject({ title: "Dish handling opportunity", taskFamily: "Dish handling" });
+    // A sentence that names no category: plain words, never "To be determined".
+    expect(teamJobAccess(videoOnly, { brief: { summary: "Wipe each table after the lunch rush." } }).details)
+      .toMatchObject({ title: "Job opportunity", taskFamily: "Other" });
+    // A category stored from the typed sentence is kept.
+    expect(teamJobAccess(shared(), { brief: { summary: "Inspect each part before it ships." } }).details)
+      .toMatchObject({ title: "Material handling opportunity" });
+  });
 });

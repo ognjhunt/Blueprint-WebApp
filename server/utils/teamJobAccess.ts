@@ -33,7 +33,7 @@ import { sceneScreenGateEnded } from "./sceneScreenGate";
 import type { TaskListingDetails, TeamEvaluationTerms } from "../../client/src/types/taskBrowse";
 import type { InboundRequest } from "../types/inbound-request";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
-import { sharedJobListing } from "./taskListingDetails";
+import { listingDetailsForSentence, sharedJobListing } from "./taskListingDetails";
 import { SHARING_RECORDING_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { operatorListingHold, operatorListingPaused } from "./operatorListing";
@@ -251,7 +251,8 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
   const listing = sharedJobListing(raw);
   if (!listing) return closed("not_listed");
   if (context.brief !== undefined && !briefHasSentence(context.brief)) return closed("no_job_sentence");
-  const details = listing.details;
+  // A job shared before its site typed a sentence takes its category from the sentence now on its brief.
+  const details = listingDetailsForSentence(listing.details, context.brief?.summary);
   if (sharedWithoutVideo) return { listed: true, evaluationAvailable: false, reason: "no_video_yet", details };
   if (!rights.derived_scene_generation_allowed)
     return { listed: true, evaluationAvailable: false, reason: "recording_consent_missing", details };
