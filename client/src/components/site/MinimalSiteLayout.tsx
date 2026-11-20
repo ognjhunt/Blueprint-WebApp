@@ -12,7 +12,7 @@ function workspaceFor(user: WorkspaceUser | null | undefined) {
   return { href: "/app", label: "Your workspace" };
 }
 
-export function MinimalSiteLayout({ children }: PropsWithChildren) {
+export function MinimalSiteLayout({ children, signInHref = "/sign-in" }: PropsWithChildren<{ signInHref?: string }>) {
   // Bare bones (2026-11-11): the header is the brand and one quiet link; the page owns its one button. A signed-in
   // visitor sees their account, routed the way the app header routes each persona.
   const auth = useOptionalAuth();
@@ -26,7 +26,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
         <nav aria-label="Account">
           {signedIn ? <a className="bare-site-head-link" href={account.href}>{account.label}</a>
-            : <a className="bare-site-head-link" href="/sign-in">Sign in</a>}
+            : <a className="bare-site-head-link" href={signInHref}>Sign in</a>}
         </nav>
       </header>
       <main id="main-content">{children}</main>
