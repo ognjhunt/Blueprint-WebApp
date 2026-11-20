@@ -63,7 +63,8 @@ router.get("/", async (req, res) => {
   try {
     const result = await placesRequest("places:autocomplete", key,
       "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.distanceMeters",
-      { input, sessionToken, languageCode: "en", regionCode: "us",
+      // Cities and regions only: the start form asks for no street address (owner, 2026-11-20).
+      { input, sessionToken, languageCode: "en", regionCode: "us", includedPrimaryTypes: ["(regions)"],
         locationBias: origin ? { circle: { center: origin, radius: 50_000 } } : { rectangle: { low: { latitude: 24, longitude: -125 }, high: { latitude: 49, longitude: -66 } } },
         ...(origin ? { origin } : {}),
       });

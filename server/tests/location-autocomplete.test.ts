@@ -54,7 +54,7 @@ describe("server-side Places autocomplete", () => {
     expect(providerFetch).toHaveBeenCalledWith("https://places.googleapis.com/v1/places:autocomplete", expect.objectContaining({
       method: "POST", headers: expect.objectContaining({ "X-Goog-Api-Key": "private-server-fixture-key",
         "X-Goog-FieldMask": "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.distanceMeters" }),
-      body: JSON.stringify({ input: "1005 Crete Street", sessionToken: token, languageCode: "en", regionCode: "us",
+      body: JSON.stringify({ input: "1005 Crete Street", sessionToken: token, languageCode: "en", regionCode: "us", includedPrimaryTypes: ["(regions)"],
         locationBias: { rectangle: { low: { latitude: 24, longitude: -125 }, high: { latitude: 49, longitude: -66 } } } }),
       signal: expect.any(AbortSignal),
     }));

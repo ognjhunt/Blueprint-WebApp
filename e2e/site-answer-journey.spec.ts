@@ -84,7 +84,7 @@ async function csrf(request: APIRequestContext) {
   return { "X-CSRF-Token": (await response.json()).csrfToken as string };
 }
 
-/** The start form: upload a video, a typed street address, the country, an email. No typed job and no share step. */
+/** The start form: upload a video, a typed city or region, the country, an email. No typed job and no share step. */
 async function startWithVideo(page: Page, email: string, address: string) {
   await page.goto("/contact/site-operator", { waitUntil: "networkidle" });
   await page.locator("#start-method-upload").click();
@@ -153,13 +153,13 @@ test.describe("desktop", () => {
 
   test("email and video in, shared automatically, a company answers, the site asks for an introduction, follow-ups, withdrawal", async ({ page, request, browser }) => {
     const stamp = Date.now();
-    const site = { email: `core-journey-site-${stamp}@example.invalid`, address: `1847 Quillfeather Lane ${stamp}, Dockside` };
+    const site = { email: `core-journey-site-${stamp}@example.invalid`, address: `Quillfeather Harbour ${stamp}, Dockside` };
     const company = { email: `core-journey-company-${stamp}@example.invalid`, name: `Quillfeather Robotics ${stamp}`,
       contact: "Ada Corewright", password: "core-journey-company-pass" };
     const missing: string[] = [];
     await localOnly(page.context(), missing);
 
-    // 1. The site starts a job: email, address and video in, the current statements accepted, no share step.
+    // 1. The site starts a job: email, its city or region and video in, the current statements accepted, no share step.
     const { link, requestId, token } = await startWithVideo(page, site.email, site.address);
     const jobUrl = new URL((await link.getAttribute("href"))!, ORIGIN).href;
     await link.click();
@@ -259,7 +259,7 @@ test.describe("desktop", () => {
 
     // Privacy hard stop: nothing the company was sent or shown names the site, its address or its contact.
     const companyPageText = await companyPage.locator("body").innerText();
-    for (const secret of [site.address, "Quillfeather Lane", site.email]) {
+    for (const secret of [site.address, "Quillfeather Harbour", site.email]) {
       expect(companyPageText, "company page").not.toContain(secret);
       for (const text of companySaw) expect(text, "company-facing response").not.toContain(secret);
       for (const email of afterSend.filter(item => item.to === company.email)) expect(email.body + email.subject).not.toContain(secret);

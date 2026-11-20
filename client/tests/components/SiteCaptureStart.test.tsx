@@ -205,7 +205,7 @@ it("has no statements disclosure while the one-line consent is off: they are quo
 });
 
 describe("SiteCaptureStart and the country", () => {
-  it("retains the filled current address across reload even when the prior address had the same country", async () => {
+  it("retains the filled city across reload even when the prior place had the same country, and never fills the street", async () => {
     fetchMock.mockResolvedValue(photon([{ housenumber: "200", street: "East Main Street", city: "Durham", state: "NC", country: "United States", countrycode: "US" }]));
     vi.stubGlobal("navigator", { ...navigator, geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } } as GeolocationPosition) } });
     const view = await renderReady(<SiteCaptureStart />);
@@ -214,7 +214,8 @@ describe("SiteCaptureStart and the country", () => {
     // Typed text is never read for a country: it is asked for.
     expect(region()).toHaveValue("");
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-    const address = "200 East Main Street, Durham, NC, United States";
+    // The city it is in, never the street (owner, 2026-11-20).
+    const address = "Durham, NC, United States";
     await waitFor(() => expect(input).toHaveValue(address));
     const key = siteCaptureDraftKey(null, "default");
     await waitFor(() => expect(durability.rows.get(key)?.value.draft).toMatchObject({ location: address, region: "us" }));
@@ -417,14 +418,15 @@ describe("SiteCaptureStart and the country", () => {
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: account.user, loading: account.loading }) }));
 
 
-it("asks where the job is, not for a street address", async () => {
+// Owner decision, 2026-11-20: the form asks for the city or region and the country only, never a street address.
+it("asks where the job is as a city or region, not for a street address", async () => {
   await renderReady(<SiteCaptureStart />);
   const label = document.querySelector('label[for="start-location"]')!;
   expect(label).toHaveTextContent(/^Where is the job\?/);
   expect(document.querySelector("#start-location")).not.toBeRequired();
   // One placeholder and one quiet "Use my location", not three pieces of helper text.
-  expect(document.querySelector("#start-location")).toHaveAttribute("placeholder", "Street address or city");
-  expect(screen.queryByText(/Street address or city\.|Fill your current address/)).toBeNull();
+  expect(document.querySelector("#start-location")).toHaveAttribute("placeholder", "City or region");
+  expect(document.body.textContent).not.toMatch(/street address|No address is needed|Fill your current address/i);
   expect(screen.getByRole("button", { name: "Use my location" })).toBeInTheDocument();
 });
 
@@ -1447,7 +1449,8 @@ describe("with the one-line consent switched off", () => {
  * address was resolved that way and has not been edited since. Typed text still never resolves one.
  */
 describe("the country a place gave is kept", () => {
-  const FILLED = "4201 West Parmer Lane, Austin, Texas, United States";
+  // "Use my location" fills the city it is in, never the street (owner, 2026-11-20).
+  const FILLED = "Austin, Texas, United States";
   function locate(properties: Record<string, unknown> = { housenumber: "4201", street: "West Parmer Lane", city: "Austin", state: "Texas", country: "United States", countrycode: "US" }) {
     vi.stubGlobal("navigator", { ...navigator, geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 30.44, longitude: -97.72 } } as GeolocationPosition) } });
     return properties;

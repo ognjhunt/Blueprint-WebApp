@@ -861,7 +861,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           <LocationAutocomplete
             id="start-location"
             name="startLocation"
-            placeholder="Street address or city"
+            placeholder="City or region"
             defaultValue={recovery.current.draft.location}
             maxLength={300}
             onSelectionChange={(place) => {
@@ -884,7 +884,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         </BareField>
 
         {showCountry && (
-          <BareField label="Country of the site" htmlFor="start-region" helper="Only if the address doesn't say. No address is needed."
+          <BareField label="Country of the site" htmlFor="start-region" helper="Only if the city or region doesn't say."
             error={countryMissing && !region ? "Choose the site country so we can check recording permission." : null}>
             <BareSelect id="start-region" name="startRegion" required value={region}
               aria-describedby={describedBy("start-region", { helper: true, error: countryMissing && !region })}

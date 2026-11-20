@@ -42,6 +42,9 @@ describe("suggestions from the free provider", () => {
     const option = await screen.findByText("Durham, North Carolina, United States");
     expect(option).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("photon.komoot.io"))).toBe(true);
+    // Cities and regions only, never a house or a street (owner, 2026-11-20).
+    const query = new URL(String(fetchMock.mock.calls.find(([url]) => String(url).includes("photon.komoot.io"))![0])).searchParams;
+    expect(query.getAll("layer")).toEqual(["city", "district", "locality", "county", "state"]);
   });
 
   it("fills the field with the chosen suggestion and closes the list", async () => {
@@ -169,6 +172,7 @@ describe("reporting the chosen place", () => {
         const request = { input: parsed.searchParams.get("input")!, sessionToken: parsed.searchParams.get("sessionToken")! };
         return { ok: true, json: () => fetchAutocompleteSuggestions(request) };
       }
+      // A street result from the keyless provider is shown as its city: the field never offers a street (2026-11-20).
       return photonRaw([{ city: "Durham", street: "Crete Street", housenumber: "1005", country: "United States", countrycode: "US" }]);
     });
     return { fetchFields, fetchAutocompleteSuggestions };
@@ -261,8 +265,8 @@ describe("reporting the chosen place", () => {
     const input = field();
     fireEvent.change(input, { target: { value: "1005 crete" } });
     fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.click(await screen.findByRole("option", { name: "1005 Crete Street, Durham, United States" }));
-    expect(input.value).toBe("1005 Crete Street, Durham, United States");
+    fireEvent.click(await screen.findByRole("option", { name: "Durham, United States" }));
+    expect(input.value).toBe("Durham, United States");
   });
 
   it("falls back when Google never answers without accepting its late response", async () => {
@@ -273,9 +277,9 @@ describe("reporting the chosen place", () => {
     const input = field();
     fireEvent.change(input, { target: { value: "durham" } });
     await act(async () => { await vi.advanceTimersByTimeAsync(1650); });
-    expect(screen.getByRole("option", { name: "1005 Crete Street, Durham, United States" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Durham, United States" })).toBeInTheDocument();
     await act(async () => { complete({ suggestions: [] }); });
-    expect(screen.getByRole("option", { name: "1005 Crete Street, Durham, United States" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Durham, United States" })).toBeInTheDocument();
   });
 
   it("closes immediately on selection even when country details are slow", async () => {
@@ -392,7 +396,7 @@ describe("the configured browser Maps key", () => {
     }));
     expect(fetchFields).toHaveBeenCalledWith({ fields: ["addressComponents"] });
     expect(fetchAutocompleteSuggestions).toHaveBeenCalledWith({ input: "london", sessionToken: expect.any(Object), region: "us",
-      locationBias: { west: -125, east: -66, south: 24, north: 49 } });
+      includedPrimaryTypes: ["(regions)"], locationBias: { west: -125, east: -66, south: 24, north: 49 } });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -452,12 +456,12 @@ describe("the configured browser Maps key", () => {
     fireEvent.change(input, { target: { value: "1005 Crete Street" } });
     await act(async () => { getCurrentPosition.mock.calls[0][0]({ coords: { latitude: 35.9940321, longitude: -78.8986192 } }); });
     await screen.findByRole("option");
-    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith({ input: "1005 Crete Street", sessionToken: token, region: "us",
+    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith({ input: "1005 Crete Street", sessionToken: token, region: "us", includedPrimaryTypes: ["(regions)"],
       locationBias: { center: { lat: 35.994, lng: -78.899 }, radius: 50000 }, origin: { lat: 35.994, lng: -78.899 } });
     expect(input.value).toBe("1005 Crete Street");
     fireEvent.click(screen.getByRole("button", { name: "Clear location preference" }));
     await screen.findByRole("option");
-    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith({ input: "1005 Crete Street", sessionToken: token, region: "us",
+    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith({ input: "1005 Crete Street", sessionToken: token, region: "us", includedPrimaryTypes: ["(regions)"],
       locationBias: { west: -125, east: -66, south: 24, north: 49 } });
   });
 
@@ -480,23 +484,25 @@ describe("the configured browser Maps key", () => {
     expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith(expect.not.objectContaining({ origin: expect.anything() }));
   });
 
-  it("fills an empty field from Google geocoding and reports the authoritative country", async () => {
+  it("fills an empty field with the city from Google geocoding, never the street, and reports the authoritative country", async () => {
     googleFixture("1005 Crete Street, Durham, NC");
     const geocode = vi.fn(async () => ({ results: [{ formatted_address: "1005 Crete St, Durham, NC 27707, USA", types: ["street_address"],
-      address_components: [{ types: ["country"], short_name: "US" }] }] }));
+      address_components: [{ types: ["country"], short_name: "US" }] }, { formatted_address: "North Carolina, USA",
+      types: ["administrative_area_level_1", "political"], address_components: [{ types: ["country"], short_name: "US" }] },
+    { formatted_address: "Durham, NC, USA", types: ["locality", "political"], address_components: [{ types: ["country"], short_name: "US" }] }] }));
     Object.assign(window.google.maps, { importLibrary: vi.fn(async () => ({ Geocoder: class { geocode = geocode; } })) });
     vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } } as GeolocationPosition) } });
     const onSelectionChange = vi.fn();
     render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("1005 Crete St, Durham, NC 27707, USA"));
-    expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "1005 Crete St, Durham, NC 27707, USA", countryCode: "US" });
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("Durham, NC, USA"));
+    expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "Durham, NC, USA", countryCode: "US" });
     expect(geocode).toHaveBeenCalledWith({ location: { lat: 35.9940321, lng: -78.8986192 } });
-    expect(screen.getByRole("status")).toHaveTextContent("Current address filled. Check it before continuing.");
+    expect(screen.getByRole("status")).toHaveTextContent("Filled in your city or region. Check it before continuing.");
     expect(screen.getByRole("img", { name: "Powered by Google" })).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Clear location preference" }));
-    expect(screen.getByRole("combobox")).toHaveValue("1005 Crete St, Durham, NC 27707, USA");
+    expect(screen.getByRole("combobox")).toHaveValue("Durham, NC, USA");
     expect(screen.getAllByRole("img", { name: "Powered by Google" }).length).toBeGreaterThan(0);
   });
 
@@ -508,13 +514,13 @@ describe("the configured browser Maps key", () => {
     const onSelect = vi.fn();
     render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("1005 Centre Street, Toronto, Canada"));
-    expect(onSelect).toHaveBeenLastCalledWith({ label: "1005 Centre Street, Toronto, Canada", countryCode: "CA" });
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("Toronto, Canada"));
+    expect(onSelect).toHaveBeenLastCalledWith({ label: "Toronto, Canada", countryCode: "CA" });
     expect(screen.getByRole("link", { name: "© OpenStreetMap" })).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toContain("photon.komoot.io/reverse?");
   });
 
-  it.each([true, false])("fills address parts instead of the closest bus stop name (numbered address available: %s)", async (numbered) => {
+  it.each([true, false])("fills the city, never the street or the closest bus stop name (numbered address available: %s)", async (numbered) => {
     googleFixture("Durham, NC");
     const candidates = [
       { name: "E Main St at Roxboro St (WB)", street: "East Main Street", city: "Durham", countrycode: "US" },
@@ -525,8 +531,8 @@ describe("the configured browser Maps key", () => {
     vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } } as GeolocationPosition) } });
     const input = field();
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-    await waitFor(() => expect(input).toHaveValue(`${numbered ? "201 " : ""}East Main Street, Durham`));
-    expect(input.value).not.toMatch(/bus|business|WB/i);
+    await waitFor(() => expect(input).toHaveValue("Durham"));
+    expect(input.value).not.toMatch(/bus|business|WB|Main|201/i);
   });
 
   it("falls back from a stalled Google reverse lookup and ignores its later answer", async () => {
@@ -539,9 +545,9 @@ describe("the configured browser Maps key", () => {
     const input = field();
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-    expect(input).toHaveValue("200 East Main Street, Durham");
-    await act(async () => { complete({ results: [{ formatted_address: "Late Google address", types: ["street_address"], address_components: [] }] }); });
-    expect(input).toHaveValue("200 East Main Street, Durham");
+    expect(input).toHaveValue("Durham");
+    await act(async () => { complete({ results: [{ formatted_address: "Late Google city", types: ["locality"], address_components: [] }] }); });
+    expect(input).toHaveValue("Durham");
   });
 
   it("stops a stalled fallback lookup and leaves the empty field usable", async () => {
@@ -553,7 +559,7 @@ describe("the configured browser Maps key", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     expect(screen.getByRole("button", { name: "Clear location preference" })).toBeEnabled();
-    expect(screen.getByRole("status")).toHaveTextContent("Couldn’t fill your address");
+    expect(screen.getByRole("status")).toHaveTextContent("Couldn’t fill your city or region");
     expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
     fireEvent.change(input, { target: { value: "My address" } });
     expect(input).toHaveValue("My address");
@@ -573,7 +579,7 @@ describe("the configured browser Maps key", () => {
     if (action === "edit") fireEvent.change(input, { target: { value: "My newer address" } });
     if (action === "escape") fireEvent.keyDown(input, { key: "Escape" });
     if (action === "unmount") view.unmount();
-    await act(async () => { complete({ results: [{ formatted_address: "Stale address", types: ["street_address"], address_components: [] }] }); });
+    await act(async () => { complete({ results: [{ formatted_address: "Stale city", types: ["locality"], address_components: [] }] }); });
     expect(onSelect).not.toHaveBeenCalled();
     expect(input).toHaveValue(action === "edit" ? "My newer address" : "Existing address");
   });
@@ -591,7 +597,7 @@ describe("the configured browser Maps key", () => {
     await act(async () => { getCurrentPosition.mock.calls[0][0]({ coords: { latitude: 35.994, longitude: -78.899 } }); });
     await screen.findByRole("option");
     expect(input).toHaveValue("1005 Crete");
-    expect(screen.getByRole("status")).toHaveTextContent("Couldn’t fill your address");
+    expect(screen.getByRole("status")).toHaveTextContent("Couldn’t fill your city or region");
     expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith(expect.objectContaining({ origin: { lat: 35.994, lng: -78.899 } }));
   });
 
@@ -635,8 +641,8 @@ describe("the configured browser Maps key", () => {
     const input = field();
     fireEvent.change(input, { target: { value: "1005 crete" } });
     fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.click(await screen.findByRole("option", { name: "1005 Crete Street, Durham, United States" }));
-    expect(input.value).toBe("1005 Crete Street, Durham, United States");
+    fireEvent.click(await screen.findByRole("option", { name: "Durham, United States" }));
+    expect(input.value).toBe("Durham, United States");
   });
 
   it("falls back when Google never answers without accepting its late response", async () => {
