@@ -19,15 +19,16 @@ describe("signed-in state on public pages", () => {
     auth.currentUser = { uid: "u1", email: "ops@example.test" };
     rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
-    expect(screen.getAllByRole("link", { name: "Your workspace" })[0]).toHaveAttribute("href", "/app");
+    expect(screen.getAllByRole("link", { name: "Your account" })[0]).toHaveAttribute("href", "/app");
 
+    // Launch copy (2026-11-20, d-069): one link for every account, whatever its role or set-up; /app sends it on.
     auth.userData = { role: "capturer" };
     rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
-    // The capturer role is retired (2026-11-11): routed like everyone else.
-    expect(screen.getAllByRole("link", { name: "Finish onboarding" })[0]).toHaveAttribute("href", "/onboarding");
+    expect(screen.getAllByRole("link", { name: "Your account" })[0]).toHaveAttribute("href", "/app");
     auth.userData = { finishedOnboarding: false };
     rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
-    expect(screen.getAllByRole("link", { name: "Finish onboarding" })[0]).toHaveAttribute("href", "/onboarding");
+    expect(screen.getAllByRole("link", { name: "Your account" })[0]).toHaveAttribute("href", "/app");
+    expect(screen.queryByRole("link", { name: /onboarding|workspace/i })).toBeNull();
   });
 
   it("tells staff why they see the library and where the public application form is", async () => {

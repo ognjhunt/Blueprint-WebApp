@@ -1,0 +1,18 @@
+# site-job-details-estimated__site-token
+# route: /capture-upload/site-answer-fixture?video=existing#details (final URL desktop: /capture-upload/site-answer-fixture?video=existing#details/estimated; phone: /capture-upload/site-answer-fixture?video=existing#details/estimated)
+# source: client/src/components/site/SiteAnswer.tsx (details sub-screens); RobotFit.tsx
+# state: Details > What we estimated
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+‹ Back
+The numbers we used
+Where each came from
+Weight of each carton
+8–11 kg (estimated from your video)
+Distance between the two spots
+about 1.6 m (estimated from your video)
+Height of the pallet stack
+up to 1.2 m (you told us)
+
+## Phone 390: same text as desktop

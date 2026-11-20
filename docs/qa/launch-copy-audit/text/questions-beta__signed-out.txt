@@ -1,0 +1,60 @@
+# questions-beta__signed-out
+# route: /beta (final URL desktop: /beta; phone: /beta)
+# source: client/src/pages/Beta.tsx; data/betaTimelines.ts; data/company.ts; lib/publicCopy.ts
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+‹ Back
+Questions
+For sites
+Cost
+Free for sites. Refunds and cancellations
+Blueprint reply
+We usually reply within an hour.
+Jobs
+Jobs that involve picking something up and putting it down are a good fit. You can post other jobs, too.
+Your job packet
+What's in it
+Your video and job description, a first look, and a simulation of your site when ready.
+First look
+An estimate of which robots could fit, based on published specs and prior use.
+Simulation
+A simulation helps companies review your job. It does not certify performance or safety.
+Deployment companies
+Responses
+A company can answer Interested, Not a fit or Need more details; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet. We can't promise any will say yes.
+Introductions
+Press Introduce us beside a company that answered Interested or Tested it: can do. We send both sides each other's contact details.
+Setting it up
+You agree any work and its terms with the company directly.
+Your video
+Your video
+We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job. Your name, address and contact details go to a company only if you ask for an introduction.
+Sharing
+It is part of sending a job. A job started before 12 November 2026 is shared only if you agree on its job page.
+Stopping
+You can stop us using your video at any time, from your job page. Your job then leaves every company's view at once.
+Who we are
+Company
+Blueprint Robotics, Inc.
+Address
+6801 Burnet Rd, Austin, TX 78757
+Where
+Sites in the United States film their own job.
+Email
+hello@tryblueprint.io
+Privacy
+privacy@tryblueprint.io
+Start a job
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

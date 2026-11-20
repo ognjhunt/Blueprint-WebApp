@@ -1,0 +1,77 @@
+# site-job-introduce-refused__site-token
+# route: /capture-upload/site-answer-fixture?video=existing (final URL desktop: /capture-upload/site-answer-fixture?video=existing; phone: /capture-upload/site-answer-fixture?video=existing)
+# source: client/src/components/site/SiteAnswer.tsx
+# state: after pressing Introduce us (server answers already_introduced)
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+Your job
+
+We read your job as: “Move cartons from the end of the conveyor onto the pallet.”
+
+Deployment companies
+
+Posted for approved deployment companies
+
+Viewed by 3 companies
+2 responses
+
+Company B
+Need more details
+
+Answered November 12, 2026
+
+In their words: “We would need a video of the far end of the line.”
+
+You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.
+
+Company A
+Interested
+
+Answered November 13, 2026
+
+Introduce us
+
+We give Company A your name, address and contact details, and give you theirs.
+
+You have already been introduced to this company.
+
+A few quick questions help companies answer
+
+Where does the robot pick up the load?
+
+Fixed location
+Moving conveyor
+Cart or mobile robot
+Not sure
+
+1 of 5
+
+FIRST LOOK
+
+On paper, the robot most likely to fit: Universal Robots UR10e.
+
+From published specifications and where it has been used.
+
+✓
+Reaches far enough
+✓
+Strong enough
+✓
+Already used for jobs like this
+
+How sure are we? 
+ Fairly sure
+
+The weight and distances are estimated from your video.
+
+SIMULATION OF YOUR SITE
+
+The simulation of your site is ready.
+
+See details ›
+Job settings ›
+
+Nothing here is a test at your site. The first look checks only picking up and putting down. It does not certify performance or safety.
+
+## Phone 390: same text as desktop

@@ -1,0 +1,79 @@
+# find-jobs-errors__signed-out
+# route: /jobs#partner-application (final URL desktop: /jobs#partner-application; phone: /jobs#partner-application)
+# source: client/src/components/site/PartnerApplication.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+Find jobs for the robots you deploy.
+
+Review real jobs with site videos and details. When a site asks to meet, we introduce you.
+
+See a sample job
+
+Already approved? Browse jobs
+
+Apply for access
+
+We review each application by hand. Once approved, you get an email for each new job. Nothing is charged today.
+
+Your company
+YOUR NAME
+WORK EMAIL
+COMPANY
+WHAT JOBS CAN YOU DELIVER?
+WHICH ROBOTS DO YOU DEPLOY?
+WHERE CAN YOU DEPLOY?
+Add a website (optional)
+Also email me Blueprint updates. Optional; unsubscribe anytime.
+
+By applying, you agree to our Terms of Service and Privacy Policy. Application notices are separate from optional updates.
+
+Apply
+
+SAMPLE JOB
+
+Load parcels onto a hand truck
+
+Stock footage, not a live job. No site posted it.
+
+The job, in the site's words
+Pick up each parcel and stack it on the hand truck.
+What counts as done
+
+Every parcel is on the hand truck, stacked so none falls.
+
+Cardboard parcels in two sizes
+Stacked on a two-wheel hand truck, the larger parcel at the bottom
+Outdoors, on a paved path
+The video
+
+Video: Mixkit, free license. Sound removed, as on every job.
+
+On a live job, you also get
+The site's answers to a few questions for its kind of job, such as the heaviest item and the busiest rate.
+A first look on paper at which kinds of robot most likely fit, from published specifications.
+A simulation of the site with the job's object in it, to download and open in your own tools.
+No site name, address or contact details until the site asks to meet you.
+How you answer
+
+Answer in a minute: Interested, Not a fit or Need more details; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet.
+
+If the site wants to meet you, we email you both each other's details.
+
+Apply to see live jobs
+
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Also present once collapsed sections / tabs are opened (desktop)
+COMPANY WEBSITE
+
+## Phone 390: same text as desktop

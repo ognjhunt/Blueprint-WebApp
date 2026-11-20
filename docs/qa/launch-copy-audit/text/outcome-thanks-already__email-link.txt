@@ -1,0 +1,7 @@
+# outcome-thanks-already__email-link
+# route: /job-outcome/thanks?already=installed (final URL desktop: /job-outcome/thanks?already=installed; phone: /job-outcome/thanks?already=installed)
+# source: client/src/pages/JobOutcomeThanks.tsx
+## Desktop 1280 (document.body.innerText)
+This introduction is already recorded as Installed. Nothing more is needed.
+
+## Phone 390: same text as desktop

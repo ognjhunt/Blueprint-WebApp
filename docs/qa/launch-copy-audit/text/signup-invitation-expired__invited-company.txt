@@ -1,0 +1,43 @@
+# signup-invitation-expired__invited-company
+# route: /signup/business?invitation=expired (final URL desktop: /signup/business?invitation=expired; phone: /signup/business?invitation=expired)
+# source: client/src/pages/BusinessSignUpFlow.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Access by invitation
+
+Register your robot team. We’ll invite you after the required review and approval.
+
+Apply for access
+Start a job
+
+Already approved? Open the invitation link we emailed you, or get a new invitation link.
+
+Account creation requires a current Blueprint invitation.
+
+Already have an account? Sign in
+
+Illustrative scene
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+Access by invitation
+
+Register your robot team. We’ll invite you after the required review and approval.
+
+Apply for access
+Start a job
+
+Already approved? Open the invitation link we emailed you, or get a new invitation link.
+
+Account creation requires a current Blueprint invitation.
+
+Already have an account? Sign in
+
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms

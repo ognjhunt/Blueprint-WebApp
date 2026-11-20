@@ -1,0 +1,28 @@
+# job-library__company-approved-unverified
+# route: /contact/robot-team (final URL desktop: /contact/robot-team; phone: /contact/robot-team)
+# source: client/src/components/site/RobotTeamEarlyAccess.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Browse jobs
+Your workspace
+‹ Back
+Apply to see jobs
+You are approved. Verify your email to see jobs.
+
+Open the verification email we sent to operator-qa@tryblueprint.local. Its link takes you back here.
+
+Resend verification email
+
+Nothing is charged today. Have a job to automate? Start a job.
+
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

@@ -5,7 +5,7 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/for-robot-teams": "/contact/robot-team",
   "/robot-team/eval": "/contact/robot-team",
   "/vision": "/",
-  "/faq": "/#how-it-works",
+  "/faq": "/beta",
   "/proof": "/#how-it-works",
   "/governance": "/privacy",
   "/capture-visit": "/contact/site-operator",

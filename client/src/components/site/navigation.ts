@@ -1,42 +1,27 @@
-// Public chrome navigation model (redesign spec: SCREENS.md "Global chrome").
-// Exported names are preserved so Header/Footer imports stay stable; targets are repointed.
-//
-// Sites start a job; deployment companies apply on /partners (frame of 2026-11-12).
-// There is no capturer supply path: the site films its own job (2026-11-11).
+// The public chrome's links, in one place, so both layouts say the same thing: the paper `MinimalSiteLayout` (every
+// public page) and the Runway `Header`/`Footer` (staff operations pages, and a moment on a redirect). Launch copy,
+// 2026-11-20: one name per link, "Find jobs" for the company job list and "Your account" for the signed-in link.
+import { FIND_JOBS, FIND_JOBS_PATH } from "@/lib/publicCopy";
+import { BROWSE_JOBS_PATH } from "@/lib/robotTeamAccess";
 
-export const primaryNavLinks = [
-  { href: "/how-it-works", label: "How it works" },
-  { href: "/jobs", label: "Find jobs" },
-];
+export type NavLink = { href: string; label: string };
 
-// Utility links sit between the primary nav and the auth controls. The capture
-// network is retired for now (sites film their own task), so there are none.
-export const headerUtilityLinks: Array<{ href: string; label: string }> = [];
+/** How it works, and Find jobs: the page with the application when signed out, the job list when signed in. */
+export function primaryNavLinks(signedIn: boolean): NavLink[] {
+  return [
+    { href: "/how-it-works", label: "How it works" },
+    { href: signedIn ? BROWSE_JOBS_PATH : FIND_JOBS_PATH, label: FIND_JOBS },
+  ];
+}
 
-// Primary header CTA.
-export const headerRequestEvaluation = {
-  href: "/contact/site-operator",
-  label: "Start a job",
-};
+/** The signed-in link, the same for every account: /app takes each account to its own place. */
+export const ACCOUNT_LINK: NavLink = { href: "/app", label: "Your account" };
+export const SIGN_IN_LABEL = "Sign in";
 
-// Footer columns for the legacy layout. Every link resolves to a live page.
-export const footerProductLinks = [
-  { href: "/how-it-works", label: "How it works" },
+/** The footer's links; each layout adds "Cookie settings" and the company line. */
+export const footerLinks: NavLink[] = [
   { href: "/beta", label: "Questions" },
-  { href: "/contact/site-operator", label: "Start a job" },
-  { href: "/jobs", label: "Find jobs" },
-];
-
-export const footerEvidenceLinks = [
   { href: "/beta#who-we-are", label: "About" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
-  { href: "/refunds", label: "Refunds" },
 ];
-
-export const footerCompanyLinks = [
-  { href: "mailto:hello@tryblueprint.io", label: "hello@tryblueprint.io" },
-];
-
-// Retained for backward compatibility (legacy Footer import); now points at evidence/legal links.
-export const footerSupportLinks = footerEvidenceLinks;

@@ -96,15 +96,11 @@ test("public routes work with trailing slashes", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("FAQ redirects to the compact method section", async ({ page }) => {
+test("FAQ redirects to the Questions page", async ({ page }) => {
   await page.goto("/faq");
 
-  await expect(page).toHaveURL(/\/#how-it-works$/);
-  await expect(
-    page.getByRole("heading", {
-      name: /Post a job for robots/i,
-    }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/beta$/);
+  await expect(page.getByRole("heading", { name: "Questions", level: 1 })).toBeVisible();
 });
 
 test("robots and sitemap are publicly reachable", async ({ request }) => {

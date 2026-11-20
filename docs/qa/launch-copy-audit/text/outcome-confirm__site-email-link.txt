@@ -1,0 +1,12 @@
+# outcome-confirm__site-email-link
+# route: /api/job-outcomes/eyJraW5kIjoiam9iX291dGNvbWUiLCJyIjoiZTJlLXJlcSIsImMiOiJlMmUtY28iLCJieSI6InNpdGUiLCJzdGF0ZSI6InF1b3RlX2dpdmVuIiwiZXhwIjoxNzk3Nzk0NTA2fQ.kiwmeC6mDcV118ZTLMqKbqH5R43pddZS7tcN1c4N9jk (final URL desktop: /api/job-outcomes/eyJraW5kIjoiam9iX291dGNvbWUiLCJyIjoiZTJlLXJlcSIsImMiOiJlMmUtY28iLCJieSI6InNpdGUiLCJzdGF0ZSI6InF1b3RlX2dpdmVuIiwiZXhwIjoxNzk3Nzk0NTA2fQ.kiwmeC6mDcV118ZTLMqKbqH5R43pddZS7tcN1c4N9jk; phone: /api/job-outcomes/eyJraW5kIjoiam9iX291dGNvbWUiLCJyIjoiZTJlLXJlcSIsImMiOiJlMmUtY28iLCJieSI6InNpdGUiLCJzdGF0ZSI6InF1b3RlX2dpdmVuIiwiZXhwIjoxNzk3Nzk0NTA2fQ.kiwmeC6mDcV118ZTLMqKbqH5R43pddZS7tcN1c4N9jk)
+# source: server/routes (job-outcomes HTML page)
+# state: site answers 'Quote given'
+## Desktop 1280 (document.body.innerText)
+Record your answer
+
+Your answer: Quote given
+
+Record this answer
+
+## Phone 390: same text as desktop

@@ -1,0 +1,26 @@
+# job-library__company-applied
+# route: /contact/robot-team (final URL desktop: /contact/robot-team; phone: /contact/robot-team)
+# source: client/src/components/site/RobotTeamEarlyAccess.tsx
+# state: fake-auth user; server says status applied
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+‹ Back
+Apply to see jobs
+Your application is in review.
+
+We'll email you if your company is approved.
+
+Nothing is charged today. Have a job to automate? Start a job.
+
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

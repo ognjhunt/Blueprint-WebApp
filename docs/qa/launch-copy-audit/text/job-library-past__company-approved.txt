@@ -1,0 +1,49 @@
+# job-library-past__company-approved
+# route: /contact/robot-team?view=past (final URL desktop: /contact/robot-team?view=past; phone: /contact/robot-team?view=past)
+# source: client/src/components/site/TaskBrowse.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Browse jobs
+Your workspace
+Deployment opportunities
+Open jobs
+Past jobs
+All jobs
+Search jobs
+All job types
+Pallet handling
+Palletizing
+Pick and place
+Transport
+All regions
+US Midwest
+Ready to test
+
+1 job
+
+Sort small rigid parts into bins
+Pick and place
+US Midwest
+Past
+Ready to test
+Objects
+Small rigid parts
+Site
+Warehouse
+Cycle target
+12 seconds
+
+On paper, the robot most likely to fit: Universal Robots UR10e.
+
+View job
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

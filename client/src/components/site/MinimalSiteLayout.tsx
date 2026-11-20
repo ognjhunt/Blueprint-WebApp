@@ -2,22 +2,13 @@ import type { PropsWithChildren } from "react";
 import { COMPANY } from "@/data/company";
 import { openCookieSettings } from "@/components/CookieConsent";
 import { useOptionalAuth } from "@/contexts/AuthContext";
-import { FIND_JOBS, FIND_JOBS_PATH } from "@/lib/publicCopy";
-import { BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH } from "@/lib/robotTeamAccess";
 import { LegalUpdateBanner } from "./LegalVersionNotes";
-
-type WorkspaceUser = { role?: string; roles?: string[]; finishedOnboarding?: boolean };
-
-/** Same destinations as the app header: unfinished onboarding, everyone else (the capturer role is retired). */
-function workspaceFor(user: WorkspaceUser | null | undefined) {
-  if (user && !user.finishedOnboarding) return { href: "/onboarding", label: "Finish onboarding" };
-  return { href: "/app", label: "Your workspace" };
-}
+import { ACCOUNT_LINK, footerLinks, primaryNavLinks, SIGN_IN_LABEL } from "./navigation";
 
 export function MinimalSiteLayout({ children, signInHref = "/sign-in", browseCurrent = false }: PropsWithChildren<{ signInHref?: string; browseCurrent?: boolean }>) {
   const auth = useOptionalAuth();
   const signedIn = Boolean(auth?.currentUser);
-  const account = workspaceFor(auth?.userData as WorkspaceUser | null | undefined);
+  const [howItWorks, findJobs] = primaryNavLinks(signedIn);
   return (
     <div className="minimal-site">
       <a className="ms-skip" href="#main-content">Skip to content</a>
@@ -25,23 +16,18 @@ export function MinimalSiteLayout({ children, signInHref = "/sign-in", browseCur
       <header className="bare-site-head">
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
         <nav className="bare-site-nav" aria-label="Main navigation">
-          <a className="bare-site-head-link" href="/how-it-works">How it works</a>
-          {signedIn ? <a className="bare-site-head-link" href={BROWSE_JOBS_PATH} aria-current={browseCurrent ? "page" : undefined}>{BROWSE_JOBS_LABEL}</a>
-            : <a className="bare-site-head-link" href={FIND_JOBS_PATH}>{FIND_JOBS}</a>}
+          <a className="bare-site-head-link" href={howItWorks.href}>{howItWorks.label}</a>
+          <a className="bare-site-head-link" href={findJobs.href} aria-current={signedIn && browseCurrent ? "page" : undefined}>{findJobs.label}</a>
         </nav>
         <nav className="bare-site-account" aria-label="Account">
-          {signedIn ? <a className="bare-site-head-link" href={account.href}>{account.label}</a>
-            : <a className="bare-site-head-link" href={signInHref}>Sign in</a>}
+          {signedIn ? <a className="bare-site-head-link" href={ACCOUNT_LINK.href}>{ACCOUNT_LINK.label}</a>
+            : <a className="bare-site-head-link" href={signInHref}>{SIGN_IN_LABEL}</a>}
         </nav>
       </header>
       <main id="main-content">{children}</main>
       <footer className="bare-site-foot">
         <nav aria-label="Footer navigation" style={{ display: "contents" }}>
-          <a href="/beta">Questions</a>
-          <a href="/beta#who-we-are">About</a>
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
-          <a href="/refunds">Refunds</a>
+          {footerLinks.map(link => <a key={link.href} href={link.href}>{link.label}</a>)}
           <button type="button" onClick={openCookieSettings}>Cookie settings</button>
         </nav>
         <span className="bare-site-copy">© {new Date().getFullYear()} {COMPANY.legalName}</span>

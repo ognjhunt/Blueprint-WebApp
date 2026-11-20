@@ -1,0 +1,52 @@
+# start__site-signed-in
+# route: /contact/site-operator (final URL desktop: /contact/site-operator; phone: /contact/site-operator)
+# source: client/src/components/site/SiteCaptureStart.tsx
+# state: fake-auth user (operator-qa@tryblueprint.local) with workspace role site_operator
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+‹ Back
+Start a job
+VIDEO OF THE JOB
+
+Film or upload a video to post your job.
+
+I have a video ›
+THE JOB IN ONE SENTENCE
+
+What should the robot do? Typing it confirms: “This is the task I want Blueprint to evaluate.”
+
+WHERE IS THE JOB?
+Use my location
+
+This job will be saved to your account.
+
+Add details
+Next: film the job
+
+By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.
+
+What you're agreeing to
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Also present once collapsed sections / tabs are opened (desktop)
+WHAT COUNTS AS SUCCESS?
+HOW OFTEN DOES IT HAPPEN?
+WHERE ARE YOU IN THE PROCESS?
+Not sure yet
+Exploring whether automation makes sense
+Planning a pilot
+Ready to run a pilot
+“This is the task I want Blueprint to evaluate.”
+YOUR DETAILS
+We don't share your name, address or contact details unless you ask for an introduction.
+
+## Phone 390: same text as desktop
