@@ -39,6 +39,7 @@ import { newSiteCaptureRecovery, readSiteCaptureRecovery, hydrateSiteCaptureReco
   type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
 
 const CONTACT_IDENTITY_STORAGE_KEY = "bp-contact-identity";
+type IntakeMethod = Exclude<SiteCaptureRecovery["draft"]["method"], "visit">;
 
 type State =
   | { status: "idle" }
@@ -51,7 +52,7 @@ type State =
       // Set when a signed-in account could not own the site (it is not a site
       // workspace) and the save fell back to the emailed link instead.
       linkOnlyNote: string | null;
-      selfRecording: boolean;
+      method: IntakeMethod;
       email: string;
       regionApproved: boolean;
       hasFootage: boolean;
@@ -253,11 +254,10 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
       } : current);
     } catch { /* A status hint cannot substitute for verified receipt. */ }
   }
-  // One question decides how the site sends its own video: an upload now, or
-  // its own phone right after the form. Blueprint filming visits are retired
-  // (owner, 2026-11-11), so a draft saved with "visit" reopens as "phone".
-  const [method, setMethod] = useState<"upload" | "phone">(initial.draft.method === "visit" ? "phone" : initial.draft.method);
-  const selfRecording = method === "phone";
+  // A draft saved for a retired Blueprint filming visit reopens as phone capture.
+  const [method, setMethod] = useState<IntakeMethod>(initial.draft.method === "visit" ? "phone" : initial.draft.method);
+  const describingJob = method === "description";
+  const [taskMissing, setTaskMissing] = useState(false);
   // A restored draft keeps a country the person chose in the select, or one a place gave while its address is unedited
   // (`restoredPlace`). Anything else is asked for again: an older draft may hold a guess from typed text.
   const [region, setRegion] = useState<CaptureRegion | "">(restoredRegion(initial.draft));
@@ -347,6 +347,14 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         regionFromPlace: place ? place.label : regionPlace! } : {}),
     } });
   }
+  function chooseMethod(next: IntakeMethod) {
+    // The sentence moves out of the optional details when it becomes the input for the job.
+    retainDraft();
+    setMethod(next);
+    setTaskMissing(false);
+    setFootage(null);
+    setFootageError(null);
+  }
   useEffect(() => { retainDraft(); }, [interactive, method, region, regionManuallySet, regionPlace]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
@@ -410,27 +418,25 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
     // Keep the existing capture-region permission without requiring an address
     // from someone who is supplying their own recording. Never guess a country.
     // The email is checked here with the server's own rule, so an address we cannot send to never creates a request.
-    const typedEmail = !retained && !currentUser ? checkEmail(String(new FormData(formRef.current!).get("startEmail") ?? "")) : null;
+    const data = new FormData(formRef.current!);
+    const typedEmail = !retained && !currentUser ? checkEmail(String(data.get("startEmail") ?? "")) : null;
     const emailRefusal = typedEmail && !typedEmail.ok ? typedEmail.reason : null;
     if (typedEmail) setEmailHint(typedEmail.ok && typedEmail.hint ? EMAIL_HINT_SENTENCES[typedEmail.hint] : null);
     // The form does every check itself (`noValidate`: no browser bubble), each said under its own field, and focus
-    // goes to the first field to fix, in page order: the video, the country, the email.
+    // goes to the first field to fix in page order.
     const videoMissing = !retained && footageWanted && !footage;
-    if (!retained && (!region || emailRefusal || videoMissing)) {
+    const descriptionMissing = !retained && describingJob && !String(data.get("startTask") ?? "").trim();
+    if (!retained && (!region || emailRefusal || videoMissing || descriptionMissing)) {
       if (!region) { setCountryMissing(true); setCountryAsked(true); }
       setEmailError(emailRefusal ? EMAIL_REFUSAL_SENTENCES[emailRefusal] : null);
       if (videoMissing) setFootageError(VIDEO_MISSING);
+      if (descriptionMissing) setTaskMissing(true);
       if (state.status === "failed") setState({ status: "idle" });
-      window.setTimeout(() => document.querySelector<HTMLElement>(videoMissing ? "#start-footage" : !region ? "#start-region" : "#start-email")?.focus(), 0);
+      const field = videoMissing ? "#start-footage" : descriptionMissing ? "#start-task" : !region ? "#start-region" : "#start-email";
+      window.setTimeout(() => formRef.current?.querySelector<HTMLElement>(field)?.focus(), 0);
       return;
     }
     setEmailError(null);
-    // No typed task is required on any path: the server accepts a job with no
-    // description under the description authority (film later) or
-    // the recording grant (a video attached now), and drafts it from the video.
-    if (!retained && footageWanted && !footage) return;
-
-    const data = new FormData(formRef.current!);
     const operationRecovery = recovery.current;
     let savedAnswers = retained ? JSON.parse(retained.body) as Record<string, unknown> : null;
     const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email" };
@@ -535,7 +541,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
       savedAnswers = JSON.parse(body); email = String(savedAnswers!.email ?? "");
       savedToWorkspace = endpoint === "/api/workspace/capture-start";
       const submissionRegion = frozen.value.draft.region;
-      const submissionFootageWanted = frozen.value.draft.method === "upload" && submissionRegion !== "non_us";
+      const submissionMethod = frozen.value.draft.method === "visit" ? "phone" : frozen.value.draft.method;
+      const submissionFootageWanted = submissionMethod === "upload" && submissionRegion !== "non_us";
       const post = (url: string) => fetch(url, { method: "POST", credentials: "include", headers, body });
       let response = await post(endpoint);
       if (!active.current) return;
@@ -638,7 +645,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           : null,
         captureUrl,
         claimUrl: typeof result.claimUrl === "string" && /^\/claim\/[A-Za-z0-9_.-]+$/.test(result.claimUrl) ? result.claimUrl : null,
-        selfRecording: true,
+        method: submissionMethod,
         email,
         regionApproved,
         hasFootage: submissionFootageWanted,
@@ -646,7 +653,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         uploadMessage,
         processingRetryAvailable,
       });
-      if (recoveredSubmission && captureUrl) void refreshReceivedVideo(captureUrl);
+      if (recoveredSubmission && captureUrl && submissionMethod !== "description") void refreshReceivedVideo(captureUrl);
     } catch {
       if (!active.current) return;
       setState({
@@ -668,6 +675,19 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
 
   if (state.status === "done") {
     const done = state;
+    if (done.method === "description") return (
+      <BareScreen>
+        <div aria-live="polite" className="ms-intake-confirmation">
+          <BareGroup><h1>Your job is saved.</h1></BareGroup>
+          <BareGroup>
+            {done.captureUrl
+              ? <BareButton href={done.captureUrl} helper="Keep this link private so you can return to your job.">Open my job</BareButton>
+              : <p>If you need your private link, email <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p>}
+          </BareGroup>
+          {savedLinks(done)}
+        </div>
+      </BareScreen>
+    );
     if (!done.regionApproved) return (
       <BareScreen>
         <div aria-live="polite">
@@ -680,7 +700,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         </div>
       </BareScreen>
     );
-    if (done.selfRecording && done.captureUrl && captureReceived) return (
+    if (done.captureUrl && captureReceived) return (
       <BareScreen>
         <div aria-live="polite" className="ms-intake-confirmation">
           <BareGroup><BareLabel>Sent</BareLabel><h1>We have your video.</h1></BareGroup>
@@ -711,7 +731,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         </div>
       </BareScreen>
     );
-    if (done.selfRecording && done.captureUrl) {
+    if (done.captureUrl) {
       const uploaderUrl = `${done.captureUrl}${done.captureUrl.includes("?") ? "&" : "?"}video=existing`;
       return (
         <BareScreen>
@@ -779,7 +799,16 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
 
   const sendsVideo = method === "upload" && region !== "non_us";
   const consentLine = sendsVideo ? SITE_START_CONSENT_WITH_VIDEO_V4 : SITE_START_CONSENT_NO_VIDEO_V5;
-  const submitLabel = region === "non_us" ? "Save my job" : sendsVideo ? "Send video" : "Next: film the job";
+  const submitLabel = describingJob || region === "non_us" ? "Save my job" : sendsVideo ? "Send video" : "Next: film the job";
+  const taskField = (
+    <BareField label="The job in one sentence" htmlFor="start-task" error={taskMissing ? "Describe the job in one sentence." : null}
+      helper={<>{!describingJob && "We write this from your video if you leave it empty. "}Typing here confirms: “{TASK_CONFIRMATION_STATEMENT}”</>}>
+      <BareTextarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2}
+        required={describingJob} aria-describedby={describedBy("start-task", { helper: true, error: taskMissing })}
+        aria-invalid={taskMissing || undefined} onChange={() => { if (taskMissing) setTaskMissing(false); }}
+        placeholder="For example, put each packed carton at the end of the table" />
+    </BareField>
+  );
   // The country select shows once asked (above), while the address has given no country or the person chose one.
   const showCountry = countryAsked && (!region || regionManuallySet);
   const busyLabel = uploadPercent !== null ? `Uploading video… ${uploadPercent}%` : "Working…";
@@ -824,12 +853,13 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           </BareCheck>
         )}
 
-        {method === "upload" ? (
-          <div className="bare-field">
-            <span className="bare-label" id="start-footage-label">Video of the job</span>
-            {region === "non_us" ? (
-              <BareNotice>Hold on to the video for now. Outside the US we set up the data-transfer terms before anything is uploaded, and we will tell you when to send it.</BareNotice>
-            ) : <>
+        <div className="bare-field">
+          <span className="bare-label" id="start-footage-label">{describingJob ? "Job description" : "Video of the job"}</span>
+          {method === "phone" && <p>You film it on your phone, right after this.</p>}
+          {method === "upload" && (region === "non_us" ? (
+            <BareNotice>Hold on to the video for now. Outside the US we set up the data-transfer terms before anything is uploaded, and we will tell you when to send it.</BareNotice>
+          ) : (
+            <>
               <BareFile id="start-footage" name="startFootage" accept={CAPTURE_VIDEO_ACCEPT} required
                 label="Choose a video" hint=".mov or .mp4" describedBy={describedBy("start-footage", { helper: true, error: footageError })}
                 chosen={footage ? `${footage.name} · ${formatBytes(footage.size)}` : null}
@@ -846,16 +876,16 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
                 }} />
               <p className="bare-helper" id="start-footage-help">One full round of the job.</p>
               {footageError && <p role="alert" className="bare-field-error" id="start-footage-error">{footageError}</p>}
-            </>}
-            <button type="button" id="start-method-phone" className="bare-inline-link" onClick={() => { setMethod("phone"); setFootage(null); setFootageError(null); }}>No video yet? Film it next ›</button>
-          </div>
-        ) : (
-          <div className="bare-field">
-            <span className="bare-label">Video of the job</span>
-            <p>You film it on your phone, right after this.</p>
-            <button type="button" id="start-method-upload" className="bare-inline-link" onClick={() => setMethod("upload")}>I have a video ›</button>
-          </div>
-        )}
+            </>
+          ))}
+          {method !== "phone" && <div><button type="button" id="start-method-phone" className="bare-inline-link" onClick={() => chooseMethod("phone")}>
+            {describingJob ? "Film the job next ›" : "No video yet? Film it next ›"}
+          </button></div>}
+          {method !== "upload" && <div><button type="button" id="start-method-upload" className="bare-inline-link" onClick={() => chooseMethod("upload")}>I have a video ›</button></div>}
+          {!describingJob && <div><button type="button" className="bare-inline-link" onClick={() => chooseMethod("description")}>Describe the job without video ›</button></div>}
+        </div>
+
+        {describingJob && taskField}
 
         <BareField label="Where is the job?" htmlFor="start-location">
           <LocationAutocomplete
@@ -885,7 +915,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
 
         {showCountry && (
           <BareField label="Country of the site" htmlFor="start-region" helper="Only if the city or region doesn't say."
-            error={countryMissing && !region ? "Choose the site country so we can check recording permission." : null}>
+            error={countryMissing && !region ? describingJob ? "Choose the site country." : "Choose the site country so we can check recording permission." : null}>
             <BareSelect id="start-region" name="startRegion" required value={region}
               aria-describedby={describedBy("start-region", { helper: true, error: countryMissing && !region })}
               onChange={(event) => {
@@ -900,7 +930,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
             </BareSelect>
           </BareField>
         )}
-        {region === "non_us" && <div className="bare-group"><BareNotice>{captureRegionNotice}</BareNotice></div>}
+        {region === "non_us" && !describingJob && <div className="bare-group"><BareNotice>{captureRegionNotice}</BareNotice></div>}
 
         {!currentUser && (
           <BareField label="Your email" htmlFor="start-email" helper={emailHint ?? "We send your private job link here."} error={emailError}>
@@ -918,11 +948,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
             screen of their own). A closed disclosure still sends its fields, so a restored sentence is never lost. */}
         <details className="bare-disclosure" style={{ marginTop: 16 }}>
           <summary>Add details (optional)</summary>
-          <BareField label="The job in one sentence" htmlFor="start-task"
-            helper={<>We write this from your video if you leave it empty. Typing here confirms: “{TASK_CONFIRMATION_STATEMENT}”</>}>
-            <BareTextarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2}
-              aria-describedby="start-task-help" placeholder="For example, put each packed carton at the end of the table" />
-          </BareField>
+          {!describingJob && taskField}
           <BareField label="What counts as success?" htmlFor="start-success">
             <BareInput id="start-success" name="startSuccess" type="text" maxLength={1000}
               defaultValue={recovery.current.draft.successDefinition ?? ""}

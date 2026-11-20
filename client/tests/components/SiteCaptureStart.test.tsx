@@ -457,8 +457,9 @@ it("clears an inferred country when the address is edited", async () => {
 function signedIn(setup: { ok?: boolean; workspaceType?: string | null; siteSetupAvailable?: boolean }, posts: Array<{ ok: boolean; status?: number; body?: unknown }>) {
   account.user = { uid: "owner-1", email: "owner@example.com", getIdToken: async () => "owner-token" };
   const queue = [...posts];
-  fetchMock.mockImplementation(async (url: string) => {
+  fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
     if (url === "/api/workspace/setup") return { ok: setup.ok !== false, json: async () => ({ workspaceType: setup.workspaceType ?? null, siteSetupAvailable: setup.siteSetupAvailable === true }) };
+    if (init?.method !== "POST") return photon([]);
     const next = queue.shift() ?? { ok: true };
     return { ok: next.ok, status: next.status ?? (next.ok ? 200 : 500), json: async () => next.body ?? {} };
   });
@@ -501,6 +502,37 @@ it("prepares the phone capture with explicit description authority and no record
   expect(upload.send).not.toHaveBeenCalled();
   expect(screen.getByRole("link", { name: "Open my job page ›" })).toHaveAttribute("href", "/capture-upload/tok.signed");
   expect(screen.queryByRole("link", { name: "Open my job" })).not.toBeInTheDocument();
+});
+
+it("keeps the job sentence when changing methods and saves a description without a recording grant", async () => {
+  signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/description.signed" } }]);
+  await renderReady(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace/);
+  openDetails();
+  describeTask("Pack cartons");
+  fireEvent.click(screen.getByRole("button", { name: "Describe the job without video ›" }));
+  const task = screen.getByRole("textbox", { name: "The job in one sentence" });
+  expect(task).toHaveValue("Pack cartons");
+  expect(task).toBeRequired();
+  fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
+  expect(screen.getByLabelText("The job in one sentence")).toHaveValue("Pack cartons");
+  expect(screen.getByLabelText("The job in one sentence")).not.toBeRequired();
+  fireEvent.click(screen.getByRole("button", { name: "Describe the job without video ›" }));
+  expect(screen.getByRole("textbox", { name: "The job in one sentence" })).toHaveValue("Pack cartons");
+
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Toronto" } });
+  chooseCountry("non_us");
+  fireEvent.click(screen.getByRole("button", { name: "Save my job" }));
+  await screen.findByRole("heading", { name: "Your job is saved." });
+  expect(screen.getByRole("link", { name: "Open my job", exact: true })).toHaveAttribute("href", "/capture-upload/description.signed");
+  expect(screen.queryByText(/We are not sending a camera link/)).not.toBeInTheDocument();
+  expect(JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body)).toMatchObject({
+    taskStatement: "Pack cartons", siteLocation: "Toronto", captureRegion: "non_us",
+    taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION },
+    descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" },
+    consentAttestation: null, hasExistingFootage: false,
+  });
+  expect(upload.send).not.toHaveBeenCalled();
 });
 
 // Owner direction 2026-11-11: a site sends an email and a video; Blueprint drafts the job
@@ -1005,6 +1037,8 @@ it("recovers the same intake identity and draft after a lost response and reload
   fillAndSubmit();
   await screen.findByRole("alert");
   const original = postsTo("/api/workspace/capture-start")[0][1].body;
+  // A delayed autocomplete read can finish between the two submissions.
+  await fetch("https://photon.komoot.io/api/?q=Austin");
   first.unmount();
   await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
