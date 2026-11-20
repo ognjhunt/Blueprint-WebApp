@@ -1,13 +1,14 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
-  JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_QUESTIONS, JOB_FACTS_HEADING, sanitizeJobFacts,
+  JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_NUMBERS, JOB_FACT_QUESTIONS, JOB_FACTS_HEADING,
+  isJobFactCode, jobFactKeysForType, sanitizeJobFacts,
   type JobFactKey, type JobFacts as JobFactsValue,
 } from "@/lib/jobFacts";
 
 export const JOB_FACTS_SAVED = "Saved";
 export const JOB_FACTS_NOT_SAVED = "Your answer could not be saved. Try again shortly.";
-/** When all five are answered ("Not sure" and "Just looking" count). */
+/** When the job's questions are answered ("Not sure" and "Just looking" count). */
 export const JOB_FACTS_DONE = "Thanks. Your answers help companies decide.";
 export const JOB_FACTS_CHANGE = "Change";
 export const jobFactsStep = (step: number, total: number) => `${step} of ${total}`;
@@ -23,19 +24,18 @@ const answersOf = (facts: unknown): Answers => {
 
 /**
  * The site's quick questions (PACKAGE_E E1; planner, 2026-11-12: one at a time), on its job page. Its heading and ONE
- * question, a row of tap choices with "Not sure"; a tap saves at once and shows the next unanswered question, with a
- * small "1 of 5". When all five are answered, one line and a "Change" link that walks them again. Taps, never typing.
- * Each question is a radio group with a legend, so it works with a keyboard and a screen reader, and the choices wrap
+ * question, with a small progress indicator and a "Not sure" choice. Choices save on tap. A number is saved when the
+ * site submits it. A "Change" link walks the answers again. The choices wrap
  * at phone width. Saves through its own route with the site's signed link. Blocks of different kinds sit at least
  * 8 px apart (the job page's phone layout check).
  */
-export function JobFacts({ token, facts, onSaved }: {
-  token: string; facts?: Partial<JobFactsValue> | null; onSaved?: (facts: JobFactsValue) => void;
+export function JobFacts({ token, facts, onSaved, taskFamily }: {
+  token: string; facts?: Partial<JobFactsValue> | null; onSaved?: (facts: JobFactsValue) => void; taskFamily?: string;
 }) {
   const [answers, setAnswers] = useState<Answers>(() => answersOf(facts));
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
-  /** While changing earlier answers: which question is shown (walks all five in order); null otherwise. */
+  /** While changing earlier answers: which question is shown; null otherwise. */
   const [changing, setChanging] = useState<number | null>(null);
   const groupId = useId();
 
@@ -43,10 +43,12 @@ export function JobFacts({ token, facts, onSaved }: {
   const factsKey = JSON.stringify(answersOf(facts));
   useEffect(() => { setAnswers(JSON.parse(factsKey) as Answers); }, [factsKey]);
 
-  const total = JOB_FACT_KEYS.length;
-  const current: JobFactKey | null = changing !== null ? JOB_FACT_KEYS[changing] ?? null
-    : JOB_FACT_KEYS.find(key => !answers[key]) ?? null;
-  const step = current ? JOB_FACT_KEYS.indexOf(current) + 1 : total;
+  const keys = jobFactKeysForType(taskFamily);
+  const total = keys.length;
+  const current: JobFactKey | null = changing !== null ? keys[changing] ?? null
+    : keys.find(key => !answers[key]) ?? null;
+  const step = current ? keys.indexOf(current) + 1 : total;
+  const numeric = current ? JOB_FACT_NUMBERS[current] : undefined;
 
   // After each step, focus moves to the new question (or the closing line), so a keyboard or screen-reader user keeps
   // their place in the block (review S5).
@@ -85,12 +87,35 @@ export function JobFacts({ token, facts, onSaved }: {
     }
   }
 
+  function submitNumber(event: FormEvent<HTMLFormElement>, key: JobFactKey) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const value = Number(form.get("value"));
+    const fromPounds = form.get("unit") === "lb";
+    const code = String(fromPounds ? Math.round(value * 0.45359237 * 1000) / 1000 : value);
+    if (!isJobFactCode(key, code)) {
+      setStatus("error"); setError("Enter a positive number with up to three decimal places, or choose Not sure.");
+      return;
+    }
+    void choose(key, code);
+  }
+
   return <section aria-labelledby={`${groupId}-heading`} className="site-job-facts" data-testid="job-facts" style={{ margin: "16px 0 24px" }}>
     <h2 id={`${groupId}-heading`} style={{ fontSize: "1.05rem", margin: "0 0 12px" }}>{JOB_FACTS_HEADING}</h2>
     {current ? <div role="group" aria-labelledby={`${groupId}-question`} key={current}>
       {/* Buttons, not radios: arrow keys never save; Enter or Space on a choice does (review S5). */}
       <p id={`${groupId}-question`} ref={node => { stepRef.current = node; }} tabIndex={-1}
         style={{ fontWeight: 600, margin: "0 0 8px" }}>{JOB_FACT_QUESTIONS[current]}</p>
+      {numeric && <form className="ms-form ms-job-number" onSubmit={event => submitNumber(event, current)}>
+        <label>{current === "maxLoadedWeightKg" ? "Weight" : numeric.unit}
+          <input name="value" type="number" required min={numeric.min} step={numeric.whole ? 1 : "any"} max={numeric.max * (current === "maxLoadedWeightKg" ? 2.21 : 1)}
+            inputMode={numeric.whole ? "numeric" : "decimal"} defaultValue={answers[current] !== "unsure" ? answers[current] : undefined} />
+        </label>
+        {current === "maxLoadedWeightKg" && <label>Unit<select name="unit" defaultValue={answers[current] && answers[current] !== "unsure" ? "kg" : "lb"}>
+          <option value="lb">lb</option><option value="kg">kg</option>
+        </select></label>}
+        <button type="submit" className="ms-button" disabled={status === "saving"}>Save</button>
+      </form>}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
         {JOB_FACT_CHOICES[current].map(choice => {
           const chosen = answers[current] === choice.code;

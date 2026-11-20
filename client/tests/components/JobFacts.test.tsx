@@ -21,6 +21,23 @@ function savingServer(initial: Record<string, string> = {}) {
 describe("JobFacts", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("asks a palletizing job for the heaviest load and then its peak rate", async () => {
+    const fetchMock = savingServer();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<JobFacts token="tok" taskFamily="Palletizing" />);
+    expect(screen.getByText("How heavy is the heaviest loaded item?")).toBeVisible();
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Weight" }), { target: { value: "20" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("How many items arrive per minute at the busiest time?")).toBeVisible();
+    expect(bodyOf(fetchMock, 0)).toEqual({ key: "maxLoadedWeightKg", code: "9.072" });
+  });
+
+  it("opens with the defect to catch for an inspection job", () => {
+    render(<JobFacts token="tok" taskFamily="Quality inspection" />);
+    expect(screen.getByText("What should the inspection catch?")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Surface or appearance defects" })).toBeVisible();
+    expect(screen.queryByText(/heavy/)).toBeNull();
+  });
   // Planner, 2026-11-12: one question at a time, "1 of 5", then one line and a Change link.
   it("asks one question at a time, as a radio group with a legend and Not sure, and no typing", () => {
     render(<JobFacts token="tok" facts={null} />);

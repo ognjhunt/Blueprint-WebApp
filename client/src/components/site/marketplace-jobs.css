@@ -344,6 +344,8 @@
   background: #fafaf4;
 }
 .site-job-status .site-job-facts h2 { font-weight: 650; }
+.ms-form.ms-job-number { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-bottom: 10px; }
+.ms-job-number input { max-width: 10ch; }
 .site-job-status .site-job-facts p[role="status"]:empty { display: none; }
 
 @media (max-width: 720px) {

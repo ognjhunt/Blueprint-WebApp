@@ -181,7 +181,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // not hold (`removeNamesNotHeld`): a company gets the site's name only through an introduction the site asks for.
     sentence: known ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known)) : "",
     ...(successRule ? { successRule } : {}),
-    jobFacts: jobFactsInWords(facts),
+    jobFacts: jobFactsInWords(facts, access.details.taskFamily),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
       : { state: "preparing" },

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  JOB_FACT_CHOICES, JOB_FACT_KEYS, NOT_SURE_LABEL, jobFactsInWords, sanitizeJobFacts, weightLowerBoundKg, weightUpperBoundKg,
+  JOB_FACT_CHOICES, JOB_FACT_KEYS, NOT_SURE_LABEL, isJobFactCode, jobFactKeysForType, jobFactsInWords, sanitizeJobFacts, weightLowerBoundKg, weightUpperBoundKg,
 } from "@/lib/jobFacts";
 import { outcomeThanksSentence } from "@/pages/JobOutcomeThanks";
 
 describe("job facts code lists (PACKAGE_E E1)", () => {
-  it("has exactly the five questions and their codes, each with Not sure", () => {
-    expect(JOB_FACT_KEYS).toEqual(["weight", "size", "perHour", "hours", "timing"]);
-    const codes = Object.fromEntries(JOB_FACT_KEYS.map(key => [key, JOB_FACT_CHOICES[key].map(choice => choice.code)]));
+  it("keeps the general questions and their codes, with Not sure for every question", () => {
+    expect(jobFactKeysForType(undefined)).toEqual(["weight", "size", "perHour", "hours", "timing"]);
+    const codes = Object.fromEntries(jobFactKeysForType(undefined).map(key => [key, JOB_FACT_CHOICES[key].map(choice => choice.code)]));
     expect(codes).toEqual({
       weight: ["under_5kg", "5_15kg", "15_30kg", "over_30kg", "unsure"],
       size: ["under_30cm", "30_60cm", "over_60cm", "unsure"],
@@ -16,6 +16,24 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
       timing: ["asap", "3_months", "this_year", "just_looking", "unsure"],
     });
     for (const key of JOB_FACT_KEYS) expect(JOB_FACT_CHOICES[key].at(-1)?.label).toBe(NOT_SURE_LABEL);
+  });
+
+  it("asks distinct questions by job type and shares only relevant answers plus existing general facts", () => {
+    expect(jobFactKeysForType("Palletizing").slice(0, 3)).toEqual(["maxLoadedWeightKg", "peakPerMinute", "palletPattern"]);
+    expect(jobFactKeysForType("Machine tending")[0]).toBe("machineAccess");
+    expect(jobFactKeysForType("Quality inspection")).not.toContain("weight");
+    expect(jobFactKeysForType("constructor")).toEqual(jobFactKeysForType(undefined));
+    expect(jobFactsInWords({ peakPerMinute: "26.5", palletPattern: "varies", weight: "5_15kg" }, "Quality inspection")).toEqual([
+      "Peak incoming rate: 26.5 items/min", "Weight: 5 to 15 kg (11 to 33 lb)",
+    ]);
+  });
+
+  it("accepts bounded measurements and prioritizes the heaviest loaded item in the first look", () => {
+    expect(isJobFactCode("maxLoadedWeightKg", "7.938")).toBe(true);
+    expect(isJobFactCode("peakPerMinute", "1e4")).toBe(false);
+    expect(isJobFactCode("itemsPerCase", "1.5")).toBe(false);
+    expect(isJobFactCode("machineCycleSeconds", "15 kg")).toBe(false);
+    expect(weightUpperBoundKg({ weight: "5_15kg", maxLoadedWeightKg: "11.25" })).toBe(11.25);
   });
 
   it("labels show both units", () => {

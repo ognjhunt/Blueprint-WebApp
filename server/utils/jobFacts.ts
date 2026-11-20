@@ -2,8 +2,8 @@
  * `job_facts` on a site's job (PACKAGE_E E1): the site's tap answers to a few quick questions.
  *
  * The code lists, labels and words live in `client/src/lib/jobFacts.ts` so both pages read the same
- * ones; this file adds what only the server does: validate one tap, write it, and read the stored
- * value back for a payload. No free text and no typed number is ever accepted or stored.
+ * ones; this file adds what only the server does: validate a choice or bounded measurement, write it,
+ * and read the stored value back for a payload. Free text is never accepted.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
@@ -21,7 +21,7 @@ export const JOB_FACTS_FIELD = "job_facts";
 export type JobFactTap = { key: JobFactKey; code: string };
 export type JobFactTapRefusal = "body_not_object" | "unexpected_field" | "unknown_question" | "unknown_answer";
 
-/** One tap, exactly `{ key, code }` with a known question and one of its codes. Anything else is refused. */
+/** Exactly `{ key, code }` with a known question and a valid answer for it. */
 export function parseJobFactTap(body: unknown): { ok: true; tap: JobFactTap } | { ok: false; reason: JobFactTapRefusal } {
   if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, reason: "body_not_object" };
   const raw = body as Record<string, unknown>;
