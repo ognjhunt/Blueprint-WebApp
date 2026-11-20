@@ -1,0 +1,25 @@
+# job-library__company-error
+# route: /contact/robot-team (final URL desktop: /contact/robot-team; phone: /contact/robot-team)
+# source: client/src/components/site/TaskBrowse.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+Find jobs
+
+Jobs could not be loaded.
+
+Try again
+
+Email us about a job or your application
+
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

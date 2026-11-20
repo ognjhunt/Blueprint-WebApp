@@ -1,0 +1,21 @@
+# company-job-unavailable__company-approved
+# route: /jobs/gone (final URL desktop: /jobs/gone; phone: /jobs/gone)
+# source: client/src/pages/CompanyJob.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+This job is no longer available
+
+Back to jobs
+
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

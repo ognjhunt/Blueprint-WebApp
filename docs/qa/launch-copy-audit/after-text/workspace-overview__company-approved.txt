@@ -1,0 +1,44 @@
+# workspace-overview__company-approved
+# route: /app (final URL desktop: /app; phone: /app)
+# source: client/src/pages/workspace/Overview.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Overview
+Find jobs
+Settings
+Rivera Packaging
+Deployment company account
+Sign out
+
+Rivera Packaging
+
+Overview
+Find jobs
+Jobs from sites
+
+See the jobs sites have sent and answer each one.
+
+Find jobs
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+
+Rivera Packaging
+
+Overview
+Find jobs
+Jobs from sites
+
+See the jobs sites have sent and answer each one.
+
+Find jobs
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings

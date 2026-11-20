@@ -1,0 +1,11 @@
+# email-unsubscribe__email-link
+# route: /api/growth/email/unsubscribe?email=dana%40example.test&scope=lifecycle (final URL desktop: /api/growth/email/unsubscribe?email=dana%40example.test&scope=lifecycle; phone: /api/growth/email/unsubscribe?email=dana%40example.test&scope=lifecycle)
+# source: server/routes/email-preferences.ts (HTML confirm page)
+## Desktop 1280 (document.body.innerText)
+Stop these emails from Blueprint?
+
+We'll stop sending this kind of email to dana@example.test. Nothing has changed yet.
+
+Unsubscribe
+
+## Phone 390: same text as desktop

@@ -1,0 +1,57 @@
+# questions-beta__signed-out
+# route: /beta (final URL desktop: /beta; phone: /beta)
+# source: client/src/pages/Beta.tsx; data/betaTimelines.ts; data/company.ts; lib/publicCopy.ts
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+‹ Back
+Questions
+For sites
+Cost
+Free for sites.
+Jobs
+Any job someone does over and over, like moving boxes, loading a cart or sorting items.
+Where
+We take videos only from sites in the United States.
+Your job packet
+What's in it
+Your video and job description, a first look, and a simulation of your site when ready.
+First look
+An estimate of which robots could fit, based on published specs and prior use.
+Simulation
+A simulation helps companies review your job. It does not certify performance or safety.
+Deployment companies
+Responses
+A company can answer Interested, Not a fit or Need more details. Once the simulation can be downloaded, it can also answer Tested it: can do or Tested it: cannot yet. We can't promise any will say yes.
+Introductions
+Press Introduce us beside a company that answered Interested or Tested it: can do. We email the company your name, address and contact details, and email you theirs.
+Setting it up
+You agree any work and its terms with the company directly.
+Your video
+Who sees it
+We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job. Your name, address and contact details go to a company only if you ask for an introduction.
+Sharing
+Sending a job means we share it. You agree to that once, when you send. If your job page asks you to agree, we share the job only after you do.
+Stopping
+You can stop us using your video at any time, from your job page. Your job then leaves every company's view at once. We ask any company that saved a copy to delete it, but we cannot take that copy back.
+Who we are
+Company
+Blueprint Robotics, Inc.
+Address
+6801 Burnet Rd, Austin, TX 78757
+Email
+hello@tryblueprint.io
+Privacy
+privacy@tryblueprint.io
+Start a job
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

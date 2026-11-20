@@ -1,0 +1,30 @@
+# how-it-works__signed-out
+# route: /how-it-works (final URL desktop: /how-it-works; phone: /how-it-works)
+# source: client/src/pages/HowItWorks.tsx; lib/publicCopy.ts
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+‹ Back
+How it works
+Film the job
+Use your phone to show one full round of a job that repeats.
+Companies review it
+We share your video and job description with approved companies, with a first look and a simulation when ready.
+Choose who to meet
+Responses appear on your job page. If a company is interested, you can ask for an introduction.
+Start a job
+
+Free for sites.
+
+Questions ›
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop
