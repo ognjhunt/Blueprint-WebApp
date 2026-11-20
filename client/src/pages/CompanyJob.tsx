@@ -139,14 +139,17 @@ function CompanyJobBody() {
   </div>;
 }
 
-/** The three answers and the company's words, with the recorded line under it (E5). */
+/**
+ * The answers and the company's words, with the recorded line under it (E5). Nothing is chosen for the company: a
+ * first answer starts empty and the browser asks for one; a later visit shows the answer it gave.
+ */
 function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; page: CompanyJobPage }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const [answer, setAnswer] = useState<CompanyResponseState>(page.myAnswer?.state ?? "interested");
+  const [answer, setAnswer] = useState<CompanyResponseState | null>(page.myAnswer?.state ?? null);
   const [inputs, setInputs] = useState(page.myAnswer?.inputs ?? "");
   async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (saving) return;
+    event.preventDefault(); if (saving || !answer) return;
     setSaving(true); setMessage("");
     try {
       const response = await fetch(`/api/site-worlds/tasks/${encodeURIComponent(jobId)}/interest`, { method: "POST", credentials: "include",
@@ -164,7 +167,7 @@ function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; p
         ? " Answer again below so the site can ask for an introduction." : ""}</p>}
     <form onSubmit={submit} className="ms-form" aria-label="Answer about this job">
       <fieldset><legend>Can you take this job?</legend>
-        {COMPANY_RESPONSE_STATES.filter(state => page.simulationDownload?.state === "ready" || !TESTED_RESPONSE_STATES.includes(state)).map(state => <label key={state}><input type="radio" name="state" value={state}
+        {COMPANY_RESPONSE_STATES.filter(state => page.simulationDownload?.state === "ready" || !TESTED_RESPONSE_STATES.includes(state)).map(state => <label key={state}><input type="radio" name="state" value={state} required
           checked={answer === state} onChange={() => setAnswer(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
       {page.video.state === "none" && <p className="ms-field-hint">{ASK_FOR_VIDEO}</p>}

@@ -12,15 +12,27 @@
  * for sites" and "Nothing is charged today" are the only money sentences.
  */
 
+import { COMPANY_RESPONSE_LABELS as ANSWER } from "./companyResponses";
+
 export const HOME_LABEL = "Free for sites";
 /** The outcome a site wants (owner, 2026-11-12 ~19:15Z: "the goal is ... having repetitive work/jobs done by robots"). */
 export const HOME_TITLE = "Get repetitive work done by robots.";
 /** The line under the title. The home page does not lead with privacy (owner, same message); the rule is said where the site agrees. */
-export const HOME_SUB_LINE = "Film the job once. Robot deployment companies can test it on a simulation of your site and tell you if they can do it.";
+export const HOME_SUB_LINE = "Film the job once. We send it to robot deployment companies, with a simulation of your site, so they can tell you if they can do it.";
+
+/**
+ * The answers the company form offers (`CompanyJob.tsx`), said the same way on every public page: three always, and the
+ * two tested ones only once the job's simulation can be downloaded. Built from the form's own labels so it cannot drift.
+ * No page says a company tests anything: Blueprint runs no company's robot software.
+ */
+export const COMPANY_ANSWERS = `${ANSWER.interested}, ${ANSWER.declined} or ${ANSWER.needs_something}; once the simulation can be `
+  + `downloaded, also ${ANSWER.tested_can_do} or ${ANSWER.tested_cannot_yet}`;
+/** The answers beside which a site may ask for an introduction (`INTRODUCIBLE_RESPONSE_STATES`). */
+export const INTRODUCIBLE_ANSWERS = `${ANSWER.interested} or ${ANSWER.tested_can_do}`;
 
 export const STEP_SEND = "Send a video of one job that repeats.";
-export const STEP_SIMULATE = "We send the job to robot deployment companies we approve and build a simulation of your site for them to test.";
-export const STEP_ANSWER = "Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.";
+export const STEP_SIMULATE = "We send the job to robot deployment companies we approve and build a simulation of your site.";
+export const STEP_ANSWER = `Their answers come back to you: ${COMPANY_ANSWERS}. You pick who to meet.`;
 
 export const START_JOB = "Start a job";
 export const HOME_START_HELPER = "A video, where the job is, and an email.";
@@ -39,7 +51,7 @@ export const HOW_STEPS = [
 export const JOBS_THAT_FIT = "Best for one job that repeats, with known objects, where something is picked up and put down. Other jobs still go to companies; their simulation waits until we can build one.";
 
 export const HOME_SEO_TITLE = "Blueprint | Get repetitive work done by robots.";
-export const HOME_SEO_DESCRIPTION = "Film one job that repeats; we send it to robot deployment companies we approve and build a simulation of your site, so they can test it and tell you if they can do it. Free for sites.";
+export const HOME_SEO_DESCRIPTION = "Film one job that repeats; we send it to robot deployment companies we approve and build a simulation of your site, so they can tell you if they can do it. Free for sites.";
 
 /**
  * The home page's moving example card: what a site sees on its job page once companies answer. Everything on it is
