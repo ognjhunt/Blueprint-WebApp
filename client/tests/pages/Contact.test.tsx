@@ -105,6 +105,18 @@ describe("the robot page", () => {
     expect(screen.getAllByText(/Nothing is charged today\./)).toHaveLength(1);
   });
 
+  it("does not ask a company that already applied to apply again", async () => {
+    mockLocation = "/contact/robot-team";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [], access: { gated: true, status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false } }),
+    }));
+    render(<Contact />);
+    expect(await screen.findByRole("heading", { name: "Your application is in review." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Find jobs" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Apply to see jobs" })).toBeNull();
+  });
+
   it("shows an approved team the job library", async () => {
     mockLocation = "/contact/robot-team";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
