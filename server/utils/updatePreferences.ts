@@ -14,6 +14,15 @@ export function savedUpdatePreferences(value: unknown): UpdatePreferences | null
     || !(UPDATE_PREFERENCES_VERSIONS as readonly string[]).includes(version) || !Number.isFinite(Date.parse(updatedAtIso))) return null;
   return { ...parsed.data, source, updatedAtIso, version };
 }
+/**
+ * What Settings shows: the job-email switch as it actually stands. Job emails are on unless they were turned off in
+ * Settings (`companyWantsJobEmails`, owner 2026-11-20), so a preference saved at application or setup, whose job-email
+ * value came from the old bundled box, shows them on. Settings then saves exactly what the person sees.
+ */
+export function effectiveUpdatePreferences(saved: UpdatePreferences | null): UpdatePreferences | null {
+  if (!saved || saved.source === 'settings') return saved;
+  return { ...saved, newJobAlerts: true };
+}
 /** Bind only a verified account's preferences to its existing contact. A signup cannot claim another email. */
 export async function bindVerifiedPreferenceAccount(uid: string, email: string) {
   if (!db) return;

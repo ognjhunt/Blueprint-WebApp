@@ -1,6 +1,6 @@
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
-import { buildUpdatePreferences, savedUpdatePreferences, bindVerifiedPreferenceAccount } from "../utils/updatePreferences";
+import { buildUpdatePreferences, savedUpdatePreferences, bindVerifiedPreferenceAccount, effectiveUpdatePreferences } from "../utils/updatePreferences";
 import { logger } from "../logger";
 import {
   Router,
@@ -434,7 +434,7 @@ router.get(
             caller.user.organization,
         ) || text(caller.user.name),
       email: caller.email,
-      updatePreferences: savedUpdatePreferences(caller.user.updatePreferences),
+      updatePreferences: effectiveUpdatePreferences(savedUpdatePreferences(caller.user.updatePreferences)),
     };
     return res.json({ role: caller.role, profile, tasks });
   }),
