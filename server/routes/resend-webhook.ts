@@ -4,7 +4,6 @@ import { getConfiguredEnvValue } from "../config/env";
 import { logger } from "../logger";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { recordEmailSuppression } from "../utils/email-suppression";
-import { reconcileVerifiedNotificationEmail } from "../utils/transactional-notifications";
 
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -148,7 +147,6 @@ export async function resendWebhookHandler(req: Request & { rawBody?: string }, 
 
   try {
     await ingestResendWebhook(event, webhookId);
-    await reconcileVerifiedNotificationEmail(event, webhookId);
     return res.status(202).json({ ok: true });
   } catch (error) {
     logger.error({ err: error }, "Failed to ingest Resend webhook");

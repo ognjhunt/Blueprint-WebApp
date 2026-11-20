@@ -709,28 +709,6 @@ describe("pipeline integration routes", () => {
           }),
         ]),
       );
-      expect(findCollectionWrites("transactionalNotifications")).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            payload: expect.objectContaining({
-              event_type: "delivery_ready",
-              channel: "in_app",
-              status: "queued",
-              recipient_user_id: "buyer-123",
-              subject_id: "ent-robot-eval-1",
-            }),
-          }),
-          expect.objectContaining({
-            payload: expect.objectContaining({
-              event_type: "delivery_ready",
-              channel: "email",
-              status: "skipped",
-              skip_reason: "transactional_email_disabled",
-              recipient_email_domain: "example.com",
-            }),
-          }),
-        ]),
-      );
     } finally {
       await stopServer(server);
     }
@@ -859,24 +837,6 @@ describe("pipeline integration routes", () => {
           scene_id: "scene-1",
           capture_id: "cap-1",
         }),
-      );
-      expect(Object.values(state.collectionDocData.transactionalNotifications || {})).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            event_type: "consent_revocation",
-            channel: "in_app",
-            status: "queued",
-            recipient_user_id: "buyer-123",
-            subject_id: "ent-robot-eval-revoked",
-          }),
-          expect.objectContaining({
-            event_type: "consent_revocation",
-            channel: "email",
-            status: "skipped",
-            skip_reason: "transactional_email_disabled",
-            recipient_email_domain: "example.com",
-          }),
-        ]),
       );
 
       const accessRequest = signedPipelineRequest({

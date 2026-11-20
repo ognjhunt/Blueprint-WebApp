@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const env = vi.hoisted(() => ({ values: {} as Record<string, string | undefined> }));
 const verify = vi.hoisted(() => vi.fn());
 const created = vi.hoisted(() => vi.fn(async (_id: string, _value: unknown) => undefined));
-const reconcileVerifiedNotificationEmail = vi.hoisted(() => vi.fn());
 
 vi.mock("../config/env", () => ({
   getConfiguredEnvValue: (...keys: string[]) => keys.map((key) => env.values[key]).find(Boolean),
@@ -14,7 +13,6 @@ vi.mock("resend", () => ({
     webhooks = { verify };
   },
 }));
-vi.mock("../utils/transactional-notifications", () => ({ reconcileVerifiedNotificationEmail }));
 vi.mock("../utils/email-suppression", () => ({ recordEmailSuppression: vi.fn(async () => undefined) }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: { firestore: { FieldValue: { serverTimestamp: () => "now", increment: (value: number) => value } } },
@@ -51,7 +49,6 @@ beforeEach(() => {
   env.values = { RESEND_WEBHOOK_SECRET: "whsec_test" };
   verify.mockReset();
   created.mockReset();
-  reconcileVerifiedNotificationEmail.mockReset();
 });
 
 describe("Resend webhook (kept from the retired growth router)", () => {
@@ -75,16 +72,14 @@ describe("Resend webhook (kept from the retired growth router)", () => {
     const res = await call(signed);
     expect(res.statusCode).toBe(401);
     expect(created).not.toHaveBeenCalled();
-    expect(reconcileVerifiedNotificationEmail).not.toHaveBeenCalled();
   });
 
-  it("records suppressions and delivery receipts from a verified event", async () => {
+  it("records suppressions from a verified event", async () => {
     const event = { type: "email.bounced", data: { to: ["site@example.com"] } };
     verify.mockReturnValue(event);
     const res = await call(signed);
     expect(verify).toHaveBeenCalledWith(expect.objectContaining({ payload: signed.rawBody, webhookSecret: "whsec_test" }));
     expect(created).toHaveBeenCalledWith("msg_1", expect.objectContaining({ event_type: "bounced", recipient: "site@example.com", source: "resend" }));
-    expect(reconcileVerifiedNotificationEmail).toHaveBeenCalledWith(event, "msg_1");
     expect(res.statusCode).toBe(202);
   });
 

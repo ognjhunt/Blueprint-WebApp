@@ -81,8 +81,8 @@ export async function sendFilmLinkHandoff(params: {
     const result = await sendSms({
       to,
       body:
-        `Blueprint: you've been asked to film a site walkthrough${clause}. ` +
-        `Open it on your phone to film — no account needed: ${filmUrl}`,
+        `Blueprint: you've been asked to film a job${clause}. Blueprint turns the video into a job packet for robot ` +
+        `deployment companies. Open this on your phone to film, no account needed: ${filmUrl}`,
     });
     if (result.sent) return { sent: true, filmUrl };
     return {
@@ -95,12 +95,13 @@ export async function sendFilmLinkHandoff(params: {
   if (!EMAIL_RE.test(to)) return { sent: false, code: "invalid_email", filmUrl };
   const result = await sendEmail({
     to,
-    subject: "You've been asked to film a Blueprint site capture",
+    subject: "You've been asked to film a job for Blueprint",
     text:
-      `Someone has asked you to film a short walkthrough of a work area${clause} for a Blueprint robot evaluation.\n\n` +
+      `Someone has asked you to film a job${clause}. Blueprint turns the video into a job packet and shares it, without ` +
+      `sound, with the robot deployment companies it approves, so they can decide whether they can do the job.\n\n` +
       `Open this link on your phone. On an iPhone it opens a small Blueprint camera when that is available; everywhere else the recorder opens in your browser. No account is needed, and about thirty seconds of the actual cycle is enough:\n${filmUrl}\n\n` +
       `${FILM_AROUND_THE_JOB}\n\n` +
-      `You can record and upload from this link. Confirming the task details stays with the site operator who sent it to you.`,
+      `You can record and upload from this link. Confirming the job details stays with the person who sent it to you.`,
     replyTo: "ops@tryblueprint.io",
   });
   if (result.sent) return { sent: true, filmUrl };

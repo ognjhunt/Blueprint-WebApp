@@ -48,7 +48,6 @@ import {
 } from "../utils/pipelineSyncSecurity";
 import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
 import { effectiveEntitlementAccessState } from "../utils/entitlementExpiry";
-import { dispatchTransactionalNotification } from "../utils/transactional-notifications";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -508,26 +507,6 @@ async function syncBuyerEntitlementArtifacts(params: {
         synced_at: admin.firestore.FieldValue.serverTimestamp(),
       },
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    await dispatchTransactionalNotification({
-      eventType: "delivery_ready",
-      recipientType: "buyer",
-      recipientUserId: stringValue(record.data.buyer_user_id || record.data.buyerUserId),
-      recipientEmail: stringValue(record.data.buyer_email || record.data.buyerEmail),
-      subjectId: record.id,
-      sourceEventId: `delivery-ready:${record.id}:${artifactKeys.join(",")}`,
-      sourceCollection: "marketplaceEntitlements",
-      sourceDocId: record.id,
-      title: "Blueprint delivery is ready",
-      body: `${stringValue(record.data.title || record.data.sku) || "Your Blueprint package"} is ready for buyer artifact access.`,
-      emailSubject: "Your Blueprint delivery is ready",
-      emailText: `${stringValue(record.data.title || record.data.sku) || "Your Blueprint package"} is ready for buyer artifact access.`,
-      preferenceKey: "account",
-      data: {
-        entitlement_id: record.id,
-        sku: stringValue(record.data.sku),
-        artifact_keys: artifactKeys.join(","),
-      },
     });
     syncedIds.push(record.id);
   }
@@ -1805,30 +1784,6 @@ router.post(
             pipeline_signal_received_at: now,
           },
           updated_at: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        await dispatchTransactionalNotification({
-          eventType: "consent_revocation",
-          recipientType: "buyer",
-          recipientUserId: stringValue(record.data.buyer_user_id || record.data.buyerUserId),
-          recipientEmail: stringValue(record.data.buyer_email || record.data.buyerEmail),
-          subjectId: record.id,
-          sourceEventId: `consent-revocation:${record.id}:${revokedAt}`,
-          sourceCollection: "marketplaceEntitlements",
-          sourceDocId: record.id,
-          title: "Blueprint access revoked",
-          body:
-            "Access to a Blueprint artifact was revoked because a rights or consent signal changed.",
-          emailSubject: "Blueprint artifact access was revoked",
-          emailText:
-            "Access to a Blueprint artifact was revoked because a rights or consent signal changed.",
-          preferenceKey: "account",
-          data: {
-            entitlement_id: record.id,
-            sku: stringValue(record.data.sku),
-            scene_id: stringValue(body.scene_id || body.sceneId),
-            capture_id: stringValue(body.capture_id || body.captureId),
-            consent_revoked_at: revokedAt,
-          },
         });
         revokedEntitlementIds.push(record.id);
       }

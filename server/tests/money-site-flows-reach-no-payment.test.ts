@@ -102,7 +102,7 @@ describe("no site-facing flow reaches payment code", () => {
   it("finds the site's and the company's routes in server/routes.ts, and leaves out only admin and internal ones", () => {
     for (const route of ["server/routes/site-task-brief.ts", "server/routes/self-capture-uploads.ts", "server/routes/inbound-request.ts",
       "server/routes/site-worlds.ts", "server/routes/robot-team-access.ts", "server/routes/job-outcomes.ts",
-      "server/routes/contact-task-media.ts", "server/routes/workspace.ts", "server/utils/retiredCapturerRoutes.ts"])
+      "server/routes/workspace.ts", "server/utils/retiredCapturerRoutes.ts"])
       expect(entries, route).toContain(route);
     expect(skipped.length).toBeGreaterThan(0);
     for (const route of skipped) expect(route).toMatch(/^server\/routes\/(?:admin|internal)-/);
@@ -138,19 +138,5 @@ describe("no site-facing flow reaches payment code", () => {
       + "db.collection(\"invoices\").add({});";
     expect(PAYMENT_CODE.filter(([, pattern]) => pattern.test(planted)).map(([label]) => label))
       .toEqual(["a payment provider's API", "a payment record", "a charge call"]);
-  });
-
-  it("never sends the retired payout or order emails: only access notices to historical buyers are dispatched", () => {
-    const sources = (dir: string): string[] => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap(entry =>
-      entry.isDirectory() ? (entry.name === "tests" ? [] : sources(`${dir}/${entry.name}`))
-        : /\.ts$/.test(entry.name) && !/\.test\./.test(entry.name) ? [`${dir}/${entry.name}`] : []);
-    const dispatched = new Set<string>();
-    for (const file of sources("server")) {
-      const text = read(file);
-      for (const match of text.matchAll(/dispatchTransactionalNotification\(\{\s*eventType:\s*"([a-z_]+)"/g)) dispatched.add(match[1]);
-      expect(text.includes("dispatchTransactionalNotification({") ? [...text.matchAll(/dispatchTransactionalNotification\(\{/g)].length
-        : 0, file).toBe([...text.matchAll(/dispatchTransactionalNotification\(\{\s*eventType:\s*"[a-z_]+"/g)].length);
-    }
-    expect([...dispatched].sort()).toEqual(["consent_revocation", "delivery_ready"]);
   });
 });

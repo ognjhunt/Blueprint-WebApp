@@ -13,7 +13,6 @@ import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views
 import websiteDestinationPicturesRouter from "./routes/website-destination-pictures";
 import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
-import contactTaskMediaHandler from "./routes/contact-task-media";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
@@ -110,7 +109,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.use("/api/analytics", csrfProtection, analyticsIngestRouter);
   // Public endpoints (no Firebase auth required).
-  app.post("/api/contact", csrfProtection, contactTaskMediaHandler);
   app.post("/api/growth/webhooks/resend", resendWebhookHandler);
   app.use("/api/growth/email", emailPreferencesRouter);
   // Inbound request (lead pipeline) - public submission endpoint

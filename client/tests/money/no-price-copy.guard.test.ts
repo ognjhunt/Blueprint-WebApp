@@ -52,9 +52,6 @@ const ALLOWED: readonly Allowance[] = [
     sentence: /^Blueprint's total liability for all claims .* and \$100\.$/, reason: "the Terms' liability cap, not a price" },
   { file: /^client\/src\/pages\/Privacy\w*\.tsx$/, rule: "a payment element", sentence: /^Stripe$/,
     reason: "the processor the privacy policy names for payment records made before the free beta" },
-  { file: /^server\/utils\/transactional-notifications\.ts$/, rule: "a payment element",
-    sentence: /^Your Blueprint payout was marked paid by Stripe\.$/,
-    reason: "the retired capture app's payout notice: never dispatched (pinned in server/tests/money-site-flows-reach-no-payment.test.ts)" },
 ];
 
 function filesUnder(dir: string): string[] {
