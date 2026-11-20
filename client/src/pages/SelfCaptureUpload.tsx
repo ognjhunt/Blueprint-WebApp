@@ -1113,7 +1113,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     ? "Blueprint will continue from this saved recording and update this job. You can leave this page."
                     : upload.status === "held" || (upload.status === "done" && upload.message)
                     ? upload.message
-                    : "Blueprint handles reconstruction and evaluation. The next update will appear in this job."}{" "}
+                    : "Nothing is needed from you now. This page shows what we find."}{" "}
                 </p>}
               </div>
               {updateVideoSection}
