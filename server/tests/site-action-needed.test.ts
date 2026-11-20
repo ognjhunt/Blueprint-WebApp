@@ -23,7 +23,7 @@ vi.mock("../utils/websiteSceneProgression", async importOriginal => ({ ...await 
 vi.mock("../utils/websitePreparationStatus", async importOriginal => ({ ...await importOriginal<object>(),
   loadCurrentWebsitePreparationStatus: vi.fn(async () => seams.status) }));
 
-const { notifySiteActionNeeded, SITE_ACTION_SUBJECT } = await import("../utils/siteActionNeeded");
+const { notifySiteActionNeeded } = await import("../utils/siteActionNeeded");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { newWebsiteLargeVideoAsk, WEBSITE_LARGE_VIDEO_ASK_FIELD } = await import("../utils/websiteJobWindowEnding");
 const { LARGE_VIDEO_RECAPTURE_SENTENCES, RECAPTURE_SENTENCES, RECAPTURE_TITLE, TASK_NOT_NAMED_REASON, TASK_NOT_NAMED_SENTENCES,
@@ -68,9 +68,9 @@ describe("a job that cannot continue without the site", () => {
     const [[key, row]] = rows();
     // Keyed by the capture and the ask's own words: the same ask is the same key.
     expect(key).toMatch(new RegExp(`^captureOutbox/${ID}:site_action_needed:${CAPTURE}\\.[a-f0-9]{16}$`));
-    expect(row).toMatchObject({ kind: "site_action_needed", to: "owner@site.example", subject: SITE_ACTION_SUBJECT, status: "sent" });
-    // One short line saying what is needed, then the private link.
-    expect(row.body.startsWith(`We need a new video to build the simulation of your site. ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nOpen your job:\nhttps://`)).toBe(true);
+    // The ask's own title is the subject (e-019); the body says what was wrong and what to do, then the private link (e-018).
+    expect(row).toMatchObject({ kind: "site_action_needed", to: "owner@site.example", subject: RECAPTURE_TITLE, status: "sent" });
+    expect(row.body.startsWith(`${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nOpen your job:\nhttps://`)).toBe(true);
     expect(row.body).toMatch(/\/capture-upload\//);
   });
 
@@ -143,7 +143,8 @@ describe("a job that cannot continue without the site", () => {
     expect(await notifySiteActionNeeded(ID)).toEqual({ enqueued: true });
     expect(await notifySiteActionNeeded(ID)).toEqual({ enqueued: false });
     expect(rows()).toHaveLength(1);
-    expect(rows()[0][1].body.startsWith(`${TASK_NOT_NAMED_SENTENCES.title}. ${TASK_NOT_NAMED_SENTENCES.nextStep}`)).toBe(true);
+    expect(rows()[0][1].subject).toBe(TASK_NOT_NAMED_SENTENCES.title);
+    expect(rows()[0][1].body.startsWith(`${TASK_NOT_NAMED_SENTENCES.reason} ${TASK_NOT_NAMED_SENTENCES.nextStep}\n\nOpen your job:\n`)).toBe(true);
     // Once the site names its job, the ask is gone: nothing more, and the queued one would be cancelled.
     state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Move the boxes onto the shelf.", confirmedAtIso: null });
     await deliverOutbox();

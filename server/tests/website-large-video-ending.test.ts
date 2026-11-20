@@ -99,7 +99,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe("a job whose video was too large to process", () => {
-  it("asks for a new video on the page and in one \"your job needs something from you\" email, with no ops page, and keeps the job open", async () => {
+  it("asks for a new video on the page and in one email titled by the ask, with no ops page, and keeps the job open", async () => {
     seedJob();
     expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
     expect(job().website_job_no_grant_clock.waiting_on).toBe("blueprint");
@@ -125,7 +125,9 @@ describe("a job whose video was too large to process", () => {
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     expect(outbox().map(([, row]) => row.kind)).toEqual(["site_action_needed"]);
-    expect(send.mock.calls[0][0].subject).toBe("Your job needs something from you");
+    expect(send.mock.calls[0][0].subject).toBe("We need a new video to build the simulation of your site");
+    expect(send.mock.calls[0][0].text.startsWith("Your video is too large for us to process. Please film a shorter clip, or record at 1080p. "
+      + "Then send us the new video.\n\nOpen your job:\n")).toBe(true);
   });
 
   it("clears the ask once a replacement is active, and the wait is Blueprint's again from the replacement", async () => {

@@ -7,7 +7,9 @@ import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
 export class AccountInvitationError extends Error {
   constructor(public status: number, message: string, public code = "account_invitation_required") { super(message); }
 }
-const deny = () => { throw new AccountInvitationError(403, "Robot-team signup requires a current Blueprint invitation. Apply and wait for approval."); };
+// Shown on the sign-up page under its "get a new invitation link" (RobotTeamSignUpFlow.tsx): the company is approved
+// already, or its link was never one, so it is not told to apply again.
+const deny = () => { throw new AccountInvitationError(403, "This invitation link no longer works. Use the link on this page to get a new one."); };
 
 export function robotTeamAccountInvitation(record: RobotTeamAccessRecord) {
   if (record.status !== "approved" || !record.decidedAtIso || !record.decidedBy) return deny();

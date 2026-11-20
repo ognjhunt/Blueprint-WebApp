@@ -56,17 +56,20 @@ export const outcomeQuestionSubject = (otherSide: string) => `How did it go with
 /** Two presses, not one: the link opens a page whose button records it (review S2). */
 export const outcomeQuestionSentence = (otherSide: string) => `Press one to tell us what happened with ${otherSide}.`;
 
-/** The one email to one side: one sentence, then the five answers as signed links. Nothing else. */
+/**
+ * The one email to one side: one sentence, then the five answers as signed links. Nothing else. Each answer is its
+ * own "Label:" paragraph followed by its link, so the HTML part draws five labelled buttons (`emailLayout.ts`).
+ */
 export function buildOutcomeQuestionEmail(params: { requestId: string; companyId: string; side: OutcomeSide; otherSideName: string;
   nowMs?: number }): { subject: string; body: string } {
   const origin = appOrigin();
   const links = OUTCOME_STATES.map(state => {
     const token = createJobOutcomeToken({ requestId: params.requestId, companyId: params.companyId, by: params.side, state,
       nowMs: params.nowMs });
-    return `${OUTCOME_STATE_LABELS[state]}: ${origin}/api/job-outcomes/${token}`;
+    return `${OUTCOME_STATE_LABELS[state]}:\n${origin}/api/job-outcomes/${token}`;
   });
   return { subject: outcomeQuestionSubject(params.otherSideName),
-    body: `${outcomeQuestionSentence(params.otherSideName)}\n\n${links.join("\n")}` };
+    body: `${outcomeQuestionSentence(params.otherSideName)}\n\n${links.join("\n\n")}` };
 }
 
 async function plain(value: unknown): Promise<string | null> {
@@ -83,12 +86,15 @@ const record = (value: unknown) => (value && typeof value === "object" && !Array
 /** Who gets which question: each side's own address, and the other side's name only. */
 async function recipientsOf(introduction: IntroductionLike): Promise<Array<{ side: OutcomeSide; to: string; otherSideName: string }>> {
   const site = record(introduction.siteShared), company = record(introduction.companyShared);
-  const [siteName, siteEmail, companyName, companyEmail] = await Promise.all([
-    plain(site.name), plain(site.email), plain(company.company), plain(company.email)]);
+  const [siteName, siteEmail, siteLocation, companyName, companyEmail] = await Promise.all([
+    plain(site.name), plain(site.email), plain(site.location), plain(company.company), plain(company.email)]);
   const out: Array<{ side: OutcomeSide; to: string; otherSideName: string }> = [];
   // A side with no address, or whose counterpart has no name to ask about, is not asked: nothing is made up.
   if (isEmail(siteEmail) && companyName) out.push({ side: "site", to: siteEmail, otherSideName: companyName });
-  if (isEmail(companyEmail) && siteName) out.push({ side: "company", to: companyEmail, otherSideName: siteName });
+  // A job from the public start form stores its typed address as the site's name: the company is asked about "the
+  // site at" that address, which the introduction already gave it.
+  if (isEmail(companyEmail) && siteName) out.push({ side: "company", to: companyEmail,
+    otherSideName: siteName === siteLocation ? `the site at ${siteName}` : siteName });
   return out;
 }
 

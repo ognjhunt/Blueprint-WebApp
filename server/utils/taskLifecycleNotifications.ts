@@ -16,44 +16,70 @@ import { enqueueOutbox, type OutboxKind } from "./captureOutbox";
 import { decryptFieldValue } from "./field-encryption";
 import { finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
-import { COMPANY_RESPONSE_LABELS, isCompanyResponseState, type CompanyResponseState } from "../../client/src/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES, isCompanyResponseState,
+  type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL } from "../../client/src/lib/jobOutlook";
+import { isApprovedCaptureRegion, isCaptureRegion } from "../../client/src/data/captureResidency";
 
 export type TaskLifecycleMilestone = Extract<OutboxKind, "task_received" | "job_sent" | "company_answered" | "introduction_made_site">;
 
-/** How a site stops sharing: the withdrawal is on its job page, named as the page names it (`jobOutlook.ts`). */
-export const HOW_TO_WITHDRAW = `To stop, open your job page, choose Job settings, then ${STOP_USING_VIDEO_LABEL}. Your job then leaves every company's view at once.`;
+/**
+ * What a withdrawal does once recorded: every company the job was sent to gets the deletion notice
+ * (`withdrawalCompanyNotice.ts`), in the job page's own words (`OwnerRecordingWithdrawal.tsx`).
+ */
+const WITHDRAWN_COPIES = "Each company it was sent to is asked to delete any copy it saved.";
+/** How a site withdraws its job: the withdrawal is on its job page, named as the page names it (`jobOutlook.ts`). */
+export const HOW_TO_WITHDRAW = `To withdraw your job, open your job page, choose Job settings, then ${STOP_USING_VIDEO_LABEL}. `
+  + `It then leaves every company's view at once. ${WITHDRAWN_COPIES}`;
 /** The same for a job sent with its description only: its page shows the way to withdraw it, by that name. */
-export const HOW_TO_WITHDRAW_DESCRIPTION_ONLY = `To stop, open your job page and choose ${WITHDRAW_JOB_LABEL}. Your job then leaves every company's view at once.`;
+export const HOW_TO_WITHDRAW_DESCRIPTION_ONLY = `To withdraw your job, open your job page and choose ${WITHDRAW_JOB_LABEL}. `
+  + `It then leaves every company's view at once. ${WITHDRAWN_COPIES}`;
 /** The one `job_sent` per job (PACKAGE_E E4): its event id (the company side's `AUTO_SEND_EVENT_ID`). */
 export const JOB_SENT_EVENT_ID = "companies";
 
+/** What the email may say about the site's job page, as the caller read it when it queued the email. */
+type CopyContext = { descriptionOnly: boolean; outsideApprovedRegion: boolean; introductionOffered: boolean; questionOnPage: boolean };
+
+const PRIVATE_LINK = "This link opens your job without a password, so please don't forward it.";
+// A fixed answer label in plain text is quoted: "Tested it: can do" has a colon of its own.
+const answered = (label: string) => `A deployment company answered "${label}" about your job.`;
+
 // Bare bones (2026-11-11): each notice says one thing in at most three short lines, then one button ("Label:\nURL").
-const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, descriptionOnly: boolean) => string }> = {
+const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, context: CopyContext) => string }> = {
   task_received: {
     subject: "Your Blueprint job link",
-    body: (url) => `Your job link is ready.\n\nA video is required to post your job. Use the link to send one or check your upload. This link opens your job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
+    // A site outside the approved region can save its job but may not send a video yet (`captureResidency.ts`): its
+    // link is issued for the job's description alone, so it is not asked for one.
+    body: (url, _detail, { outsideApprovedRegion }) => outsideApprovedRegion
+      ? `Your job is saved.\n\nWe can only take videos from sites in the United States for now, so please don't send a video yet. ${PRIVATE_LINK}\n\nOpen your job:\n${url}`
+      : `Your job link is ready.\n\nA video is required to post your job. Use the link to send one or check your upload. ${PRIVATE_LINK}\n\nOpen your job:\n${url}`,
   },
   // Once per job (PACKAGE_E E4): when the job is first sent to the approved deployment companies. The detail is only
   // the count, a whole number; read again at dispatch: sent only while the job is visible. It says how to stop, in the
   // words of the job's own page: a job sent with its description only is withdrawn, not its video.
   job_sent: {
     subject: "Your job is posted",
-    body: (url, _detail, descriptionOnly) => `Your job is posted for approved deployment companies. We don't share your name, address or contact details with a `
-      + `deployment company unless you ask for an introduction to it. Your job page shows any answer.\n\n${
+    body: (url, _detail, { descriptionOnly }) => `Your job is posted for approved deployment companies. We don't share your name, address or contact details with a `
+      + `deployment company unless you ask for an introduction to it. Your job page shows any responses.\n\n${
         descriptionOnly ? HOW_TO_WITHDRAW_DESCRIPTION_ONLY : HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`,
   },
-  // Only the response label is included. The question and answer stay on the job page.
+  // Only the response label is included. The question and answer stay on the job page. The next step is named only
+  // when the job page offers it for this answer: "Introduce us", or the box to answer the company's question.
   company_answered: {
     subject: "A deployment company answered",
-    body: (url, detail) => `A deployment company answered about your job: ${detail}. Your job page has the details.${
-      detail === COMPANY_RESPONSE_LABELS.needs_something ? " You can answer a company’s question on your job page." : ""}\n\nOpen your job:\n${url}`,
+    body: (url, detail, { introductionOffered, questionOnPage }) => `${
+      detail === COMPANY_RESPONSE_LABELS.needs_something
+        ? `A deployment company needs more details about your job. ${questionOnPage
+          ? "Read their question and answer it on your job page." : "Your job page has the details."}`
+        : `${answered(detail)} ${introductionOffered ? "To meet them, press Introduce us on your job page." : "Your job page has the details."}`
+    }\n\nOpen your job:\n${url}`,
   },
   // The site asked for an introduction (PACKAGE_E E6). Built only by `buildIntroductionMadeSiteNotification`, whose
-  // body is the introduced company's details; this entry is its fallback and never names anyone.
+  // body is the introduced company's details; this entry is its fallback and never names anyone. After an
+  // introduction the job page shows the company's details (`projectSiteCompanyActivity`).
   introduction_made_site: {
     subject: "Meet the deployment company",
-    body: (url) => `We've given them your details. Reply to them directly.\n\nOpen your job:\n${url}`,
+    body: (url) => `We've given them your details. Their contact details are on your job page.\n\nOpen your job:\n${url}`,
   },
 };
 
@@ -71,7 +97,8 @@ export async function enqueueTaskLifecycleNotification(params: { requestId: stri
   if (!(await taskLifecycleNotificationIsCurrent({ requestId, kind: params.milestone }))) return { enqueued: false, reason: "consent_withdrawn" };
   const to = String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { enqueued: false, reason: "contact_missing" };
-  return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to }));
+  return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to,
+    captureRegion: snapshot.data()?.request?.capture_region }));
 }
 
 export function buildTaskLifecycleNotification(params: {
@@ -86,6 +113,15 @@ export function buildTaskLifecycleNotification(params: {
   companyCount?: number;
   /** `job_sent` only: the job was sent with its description only (`descriptionStatementShares`), so it has no video to stop. */
   descriptionOnly?: boolean;
+  /** `task_received` only: the job's saved capture region (`request.capture_region`). */
+  captureRegion?: unknown;
+  /**
+   * `company_answered` only, for "Interested" or "Tested it: can do": the job page offers "Introduce us" beside this
+   * answer (an answer that consents to it, `answerConsentsToIntroduction`, from a company not introduced yet).
+   */
+  introductionOffered?: boolean;
+  /** `company_answered` only, for "Need more details": the job page shows the company's question with a box to answer it. */
+  questionOnPage?: boolean;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (params.milestone === "company_answered" && !isCompanyResponseState(params.companyAnswerState)) {
@@ -102,7 +138,14 @@ export function buildTaskLifecycleNotification(params: {
     kind: params.milestone,
     to: params.to,
     subject: message.subject,
-    body: finePrintLast(message.body(url, detail, params.descriptionOnly === true)),
+    body: finePrintLast(message.body(url, detail, {
+      descriptionOnly: params.descriptionOnly === true,
+      // Only a known region that is not approved: a missing or unreadable one keeps the usual words.
+      outsideApprovedRegion: isCaptureRegion(params.captureRegion) && !isApprovedCaptureRegion(params.captureRegion),
+      introductionOffered: params.introductionOffered === true
+        && INTRODUCIBLE_RESPONSE_STATES.includes(params.companyAnswerState as CompanyResponseState),
+      questionOnPage: params.questionOnPage === true,
+    })),
     replyTo: "hello@tryblueprint.io",
   };
 }
@@ -119,13 +162,14 @@ export function introductionMadeSiteCopy(company: { name: string; contactName?: 
   // The company's own stored answer, in its fixed label (review M2); with none, no answer is claimed.
   const label = detailLine(answerLabel, 60);
   const lines = [
-    label ? `${name} answered ${label} about your job, and you asked us to introduce you.` : `You asked us to introduce you to ${name}.`,
+    label ? `${name} answered "${label}" about your job, and you asked us to introduce you.` : `You asked us to introduce you to ${name}.`,
     "",
     ...(detailLine(company.contactName) ? [`Contact: ${detailLine(company.contactName)}`] : []),
     `Email: ${detailLine(company.email)}`,
     ...(detailLine(company.website) ? [`Website: ${detailLine(company.website)}`] : []),
     "",
-    "We've given them your details. Reply to them directly.",
+    // A reply to this email reaches Blueprint (every outbox row is sent with Reply-To hello@, `captureOutbox.ts`).
+    "We've given them your details. Write to them at the email above.",
     "",
     `Open your job:\n${url}`,
   ];
@@ -148,6 +192,7 @@ export function buildIntroductionMadeSiteNotification(params: { requestId: strin
   const companyEmail = detailLine(params.company.email);
   return { idempotencyKey: `${requestId}:introduction_made_site:${companyId}`, requestId, kind: "introduction_made_site",
     to: params.to, subject, body,
-    // "Reply to them directly": a reply goes to the company.
+    // Recorded on the row; dispatch sends every outbox row with Reply-To hello@ (`captureOutbox.ts`), so the email
+    // says to write to the address it gives, not to reply.
     replyTo: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyEmail) ? companyEmail : "hello@tryblueprint.io" };
 }

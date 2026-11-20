@@ -204,9 +204,9 @@ describe("a week for the site, with one reminder (owner, 2026-11-20)", () => {
     await sweepAt(5 * DAY);
     expect(reminders()).toHaveLength(1);
     const [, row] = reminders()[0];
-    expect(row).toMatchObject({ to: "owner@example.com", subject: "Your job needs something from you", replyTo: "hello@tryblueprint.io" });
-    expect(row.body).toContain("Your job is waiting for its video. Film or upload one full round of the job from this link. "
-      + "Your job stays open until November 19.");
+    // The reminder's title is its subject; it has no reason, so the body is its one next step.
+    expect(row).toMatchObject({ to: "owner@example.com", subject: "Your job is waiting for its video", replyTo: "hello@tryblueprint.io" });
+    expect(row.body.startsWith("Film or upload one full round of the job from this link. Your job stays open until November 19.\n\n")).toBe(true);
     expect(row.body).toMatch(/Open your job:\n\S+/);
     // Dispatch reads the ask again at its own time: still true, so it goes.
     vi.setSystemTime(at(5 * DAY));
