@@ -21,6 +21,37 @@ const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
 describe("a job in the library", () => {
+  it("opens with active jobs and searches the fields on the listing", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
+      card({ region: "United States" }),
+      card({ id: "job-2", title: "Inspect cases", region: "Canada" }),
+      card({ id: "job-3", title: "Move crates", opportunity: "past" }),
+    ] }) });
+    render(<TaskBrowse />);
+    expect(await screen.findByRole("heading", { name: "Palletize cartons" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Move crates" })).toBeNull();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search jobs" }), { target: { value: "cartons united" } });
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.queryByRole("heading", { name: "Inspect cases" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Past jobs" }));
+    expect(screen.getByRole("heading", { name: "Move crates" })).toBeVisible();
+  });
+
+  it("keeps an older email link to a past job usable", async () => {
+    window.history.replaceState({}, "", "/contact/robot-team#job-job-2");
+    try {
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
+        card(), card({ id: "job-2", title: "Move crates", opportunity: "past" }),
+      ] }) });
+      render(<TaskBrowse />);
+      expect(await screen.findByRole("heading", { name: "Move crates" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Past jobs" })).toHaveAttribute("aria-pressed", "true");
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+
   it("filters on a downloadable simulation rather than the legacy evaluation flag", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
       card({ simulationDownloadAvailable: true }),
@@ -29,7 +60,7 @@ describe("a job in the library", () => {
     render(<TaskBrowse />);
     fireEvent.click(await screen.findByRole("checkbox", { name: "Ready to test" }));
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.getByText("Simulation download ready")).toBeVisible();
+    expect(within(screen.getByRole("listitem")).getByText("Ready to test")).toBeVisible();
     expect(screen.queryByText("Scene without a package")).toBeNull();
   });
   it("links the row to the job's own page and carries no answer form of its own", async () => {
@@ -37,8 +68,9 @@ describe("a job in the library", () => {
     render(<TaskBrowse />);
     const row = (await screen.findAllByRole("listitem"))[0];
     expect(row).toHaveAttribute("id", "job-job-1");
-    expect(within(row).getByRole("link", { name: "Carton palletizing opportunity" })).toHaveAttribute("href", "/jobs/job-1");
-    expect(within(row).getByRole("link", { name: "Open the job and answer" })).toHaveAttribute("href", "/jobs/job-1");
+    expect(within(row).getByRole("heading", { name: "Palletize cartons" })).toBeVisible();
+    expect(within(row).getAllByRole("link")).toHaveLength(1);
+    expect(within(row).getByRole("link", { name: "View job" })).toHaveAttribute("href", "/jobs/job-1");
     expect(within(row).queryByRole("form")).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

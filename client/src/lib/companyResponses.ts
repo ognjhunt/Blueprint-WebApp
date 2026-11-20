@@ -20,8 +20,10 @@
 export const COMPANY_RESPONSE_STATES = ["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"] as const;
 /** Answers that need the job's simulation package. */
 export const TESTED_RESPONSE_STATES: readonly CompanyResponseState[] = ["tested_can_do", "tested_cannot_yet"];
+/** Replies a company can give after reviewing the job and its video. */
+export const FIT_RESPONSE_STATES = COMPANY_RESPONSE_STATES.filter(state => !TESTED_RESPONSE_STATES.includes(state));
 /**
- * Answers beside which a site may ask for an introduction (E6, as E9 reads it). Not "Would need something": the Terms a
+ * Answers beside which a site may ask for an introduction (E6, as E9 reads it). Not "Need more details": the Terms a
  * company accepted, and the line under its answer, say a site gets its name and contact details only after it answered
  * Interested or Tested it: can do. Meeting a company that would need something first takes a new line and new Terms
  * the company accepts (owner); until then the site reads why, and the company can change its answer.
@@ -34,13 +36,17 @@ export type CompanyResponseState = (typeof COMPANY_RESPONSE_STATES)[number];
 export const COMPANY_RESPONSE_LABELS: Readonly<Record<CompanyResponseState, string>> = {
   interested: "Interested",
   declined: "Not a fit",
-  needs_something: "Would need something",
+  needs_something: "Need more details",
   tested_can_do: "Tested it: can do",
   tested_cannot_yet: "Tested it: cannot yet",
 };
 
 export function isCompanyResponseState(value: unknown): value is CompanyResponseState {
   return typeof value === "string" && (COMPANY_RESPONSE_STATES as readonly string[]).includes(value);
+}
+
+export function companyResponseNeedsNote(state: CompanyResponseState): boolean {
+  return state === "needs_something" || TESTED_RESPONSE_STATES.includes(state);
 }
 
 /** Under the company's response form in the job library, until 2026-11-12. Kept as the record of the older wording. */

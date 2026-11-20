@@ -22,6 +22,7 @@ vi.mock("@/lib/operatorQaAuth", () => ({ resolveOperatorQaAuth: () => ({ enabled
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   sessionStorage.clear();
   googleSignIn.mockReset();
   googleRedirect.mockReset();
@@ -81,5 +82,24 @@ describe("Google sign-in user gesture", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/app/results/capture-run-123"));
     expect(sessionStorage.getItem("googleRedirectPending")).toBeNull();
     expect(sessionStorage.getItem("redirectAfterAuth")).toBeNull();
+  });
+
+  it.each([
+    { next: null, expectedPath: "/contact/robot-team" },
+    { next: "/jobs/job-1", expectedPath: "/jobs/job-1" },
+  ])("lands an approved company at $expectedPath after Google sign-in", async ({ next, expectedPath }) => {
+    window.history.replaceState({}, "", "/sign-in");
+    sessionStorage.setItem("googleRedirectPending", "1");
+    if (next) sessionStorage.setItem("redirectAfterAuth", next);
+    const fetchAccess = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ access: { status: "approved", emailVerified: true, staff: false } }) });
+    vi.stubGlobal("fetch", fetchAccess);
+    getGoogleRedirectUser.mockResolvedValue({ uid: "google-user", emailVerified: true, getIdToken: async () => "fixture-token",
+      getIdTokenResult: async () => ({ claims: {} }) });
+    getUserData.mockResolvedValue({ uid: "google-user", finishedOnboarding: false });
+    render(<AuthProvider><CompleteRedirectButton /></AuthProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Finish Google sign-in" }));
+    await waitFor(() => expect(window.location.pathname).toBe(expectedPath));
+    if (next) expect(fetchAccess).not.toHaveBeenCalled();
+    else expect(fetchAccess).toHaveBeenCalledWith("/api/robot-team-access/me", expect.objectContaining({ headers: { Authorization: "Bearer fixture-token" } }));
   });
 });

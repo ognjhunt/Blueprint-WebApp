@@ -1,9 +1,15 @@
 import { withCsrfHeader } from "@/lib/csrf";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legalAcceptance";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import type { User } from "firebase/auth";
+
+export const BROWSE_JOBS_PATH = "/contact/robot-team";
+export const BROWSE_JOBS_LABEL = "Browse jobs";
+export const BROWSE_JOBS_TITLE = "Deployment opportunities";
 
 export function jobLibrarySignInHref(): string {
   const hash = typeof window === "undefined" ? "" : window.location.hash;
-  const path = /^#job-[A-Za-z0-9_-]+$/.test(hash) ? `/contact/robot-team${hash}` : "/contact/robot-team";
+  const path = /^#job-[A-Za-z0-9_-]+$/.test(hash) ? `${BROWSE_JOBS_PATH}${hash}` : BROWSE_JOBS_PATH;
   return `/sign-in?next=${encodeURIComponent(path)}`;
 }
 
@@ -17,6 +23,23 @@ export interface LibraryAccess {
   staff: boolean;
   /** An approved deployment company that must agree to the current Terms and Privacy Policy first. */
   termsRequired?: boolean;
+}
+
+/** Approval is based on the verified company email, including for accounts without workspace setup. */
+export async function isApprovedDeploymentCompany(user: User): Promise<boolean> {
+  if (!user.emailVerified) return false;
+  try {
+    const signal = AbortSignal.timeout(2000);
+    const response = await fetch("/api/robot-team-access/me", {
+      headers: await withFirebaseAuthHeaders(user), signal,
+    });
+    if (!response.ok) return false;
+    const { access } = (await response.json()) as { access?: LibraryAccess };
+    return access?.emailVerified === true && access.status === "approved" && !access.staff;
+  } catch {
+    // An unavailable discovery route never blocks sign-in or opens a job.
+    return false;
+  }
 }
 
 export interface EarlyAccessApplication {

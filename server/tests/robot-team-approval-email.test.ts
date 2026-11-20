@@ -12,7 +12,7 @@ describe("the deployment company approval email", () => {
     // Reworded on 2026-11-12 with sharing as the service: a company sees the whole job, not a summary, and answers on the
     // job's own page. It still says how to reach the jobs: sign in, then the job library, with its link.
     expect(email.body).toContain("Once you are signed in, the job library at https://tryblueprint.io/contact/robot-team shows the jobs sites share with approved companies.");
-    expect(email.body).toContain("Open a job to see what the site filmed and what we have found so far, and answer: Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet.");
+    expect(email.body).toContain("Open a job to see what the site filmed and what we have found so far, and answer: Interested, Not a fit or Need more details; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet.");
     expect(email.body).not.toMatch(/summar/i);
     expect(email.body).toContain("Approval does not guarantee a job, an introduction, or a deployment. Nothing is charged today.");
     expect(email.body).not.toMatch(/workspace|want to test at|new-job alerts|in Settings|evaluation|\$\s?\d/i);

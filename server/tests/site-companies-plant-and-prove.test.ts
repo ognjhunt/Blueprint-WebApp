@@ -273,7 +273,7 @@ describe("the emails to the site", () => {
     const answered = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested" });
     expect(answered.body).toBe(`A deployment company answered about your job: Interested. Your job page has the details.\n\nOpen your job:\n${url}`);
     const needs = build("company_answered", { eventId: "B-needs_something", companyAnswerState: "needs_something" });
-    expect(needs.body).toBe("A deployment company answered about your job: Would need something. Your job page has the details. "
+    expect(needs.body).toBe("A deployment company answered about your job: Need more details. Your job page has the details. "
       + `A few quick answers on your job page may be all they need.\n\nOpen your job:\n${url}`);
     for (const row of [sent, answered, needs]) {
       expectNone(row.kind, JSON.stringify(row), [...NORTH_PLANTED, ...SOUTH_PLANTED]);

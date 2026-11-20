@@ -48,7 +48,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
         descriptionOnly ? HOW_TO_WITHDRAW_DESCRIPTION_ONLY : HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`,
   },
   // One per company and answer, never the company's name or words: the detail is only a fixed label, and for
-  // "Would need something" the one nudge toward the job page's quick questions (PACKAGE_E E1).
+  // "Need more details" the one nudge toward the job page's quick questions (PACKAGE_E E1).
   company_answered: {
     subject: "A deployment company answered",
     body: (url, detail) => `A deployment company answered about your job: ${detail}. Your job page has the details.${

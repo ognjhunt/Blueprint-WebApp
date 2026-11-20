@@ -11,7 +11,7 @@
  */
 
 export const JOB_FACTS_HEADING = "A few quick questions help companies answer";
-/** The one nudge, added to the site's email when a company answers "Would need something" (E1). */
+/** The one nudge, added to the site's email when a company answers "Need more details" (E1). */
 export const JOB_FACTS_NUDGE = "A few quick answers on your job page may be all they need.";
 
 export const JOB_FACT_KEYS = ["weight", "size", "perHour", "hours", "timing"] as const;

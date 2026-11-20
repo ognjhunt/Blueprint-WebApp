@@ -20,7 +20,7 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
-import { companyAnswered, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+import { COMPANY_RESPONSE_LABELS, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_ANSWERS_YET, NO_REASON_SHOWN, NOT_SENT_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
@@ -208,14 +208,24 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
   // "Introduce us" is offered beside each answer the server says can be introduced (`interested`, or `tested_can_do`,
   // E9), with no limit per job (owner, 2026-11-12).
   const timeToAnswer = elapsedSince(activity.startedAtIso, activity.firstAnswerAtIso);
+  const hasAnswers = activity.entries.some(entry => entry.kind === "answered");
   return <>
-    {sent && <BareLead>{sentToCompanies(sent.count, dateInWords(sent.firstAtIso))}</BareLead>}
-    {timeToAnswer && <p className="bare-helper">Time to first response: {timeToAnswer}.</p>}
-    {sent && !activity.entries.some(entry => entry.kind === "answered") && <p className="bare-helper">{NO_ANSWERS_YET}</p>}
-    {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Sent and answered" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+    {(sent || timeToAnswer) && <div className="site-company-summary">
+      {sent && <p>{sentToCompanies(sent.count, dateInWords(sent.firstAtIso))}</p>}
+      {timeToAnswer && <p className="bare-helper">Time to first response: {timeToAnswer}.</p>}
+      {sent && !hasAnswers && <p className="bare-helper">{NO_ANSWERS_YET}</p>}
+    </div>}
+    {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Sent and answered">
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
-        <BareLead>{entry.kind === "sent" ? sentToCompany(entry.alias, dateInWords(entry.atIso))
-          : companyAnswered(entry.alias, dateInWords(entry.atIso), entry.state)}</BareLead>
+        {entry.kind === "sent" ? <p className="bare-helper">{sentToCompany(entry.alias, dateInWords(entry.atIso))}</p> : <>
+          <div className="site-company-response-title">
+            <h3>{entry.alias}</h3>
+            <span className={INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) ? "opportunity-label-ready" : undefined}>
+              {COMPANY_RESPONSE_LABELS[entry.state]}
+            </span>
+          </div>
+          <p className="site-company-reply-date">Answered <time dateTime={entry.atIso}>{dateInWords(entry.atIso)}</time></p>
+        </>}
         {entry.kind === "answered" && <AnswerReason entry={entry} />}
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
           && <IntroducedDetails entry={entry} />}
@@ -293,7 +303,10 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
     {error && <p role="alert">{error}</p>}
   </BareGroup>;
   else body = <BareGroup><BareLead>{NOT_SHARED_YET}</BareLead></BareGroup>;
-  return <Section id="site-job-companies" title={SECTION_COMPANIES}>{body}</Section>;
+  return <section className="site-answer-section site-company-panel" aria-labelledby="site-job-companies">
+    <h2 id="site-job-companies">{SECTION_COMPANIES}</h2>
+    {body}
+  </section>;
 }
 
 export interface SiteAnswerProps {
@@ -314,6 +327,8 @@ export interface SiteAnswerProps {
   successRule?: string | null;
   /** The first look as the Pipeline's published table words it; when present it replaces the robot rows. */
   firstLookTable?: FirstLookWords | null;
+  /** Optional job questions below company activity, when a required action is not waiting. */
+  jobFacts?: ReactNode;
 }
 
 /**
@@ -321,7 +336,7 @@ export interface SiteAnswerProps {
  * where it stands. There is no share step: a job is shared because its site accepted recording statement v4.
  */
 export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, firstLookTable = null }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, firstLookTable = null, jobFacts }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
   // worked on (review, 2026-11-11): with no outlook the page says the packet is being built and offers no button.
@@ -414,6 +429,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
 
   return <section className="site-answer-bare" aria-label="Your job">
     {companies}
+    {jobFacts}
     <Section id="site-job-first-look" title={SECTION_FIRST_LOOK}>{firstLook}</Section>
     {simulation}
     <BareLinks links={links} />

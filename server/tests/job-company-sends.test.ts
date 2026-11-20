@@ -264,7 +264,7 @@ describe("what the site receives", () => {
     // Why: the company's own words, with its name, email and website taken out, whoever recorded them (2026-11-20).
     expect(entries.map(entry => entry.reason)).toEqual([undefined, SOUTH_REASON, NORTH_REASON]);
     // An answer an operator recorded from an email is introduced like any Interested answer (2026-11-20): the company's
-    // consent is the current Terms it accepted, which the introduction checks. Would need something is not (E6).
+    // consent is the current Terms it accepted, which the introduction checks. Need more details is not (E6).
     expect(entries.map(entry => entry.canIntroduce)).toEqual([undefined, false, true]);
     expect(entries.map(({ kind, alias, state: answer }) => ({ kind, alias, answer }))).toEqual([
       { kind: "sent", alias: "Company A", answer: undefined },
@@ -281,7 +281,7 @@ describe("what the site receives", () => {
       `captureOutbox/${ID}:company_answered:B-needs_something`, `captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`].sort());
     const bodyOf = (key: string) => rows.find(row => row.key === `captureOutbox/${ID}:${key}`)!.body;
     expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is with deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any answer\.\n\nTo stop, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
-    expect(bodyOf("company_answered:B-needs_something")).toMatch(/^A deployment company answered about your job: Would need something\. Your job page has the details\. A few quick answers on your job page may be all they need\.\n\nOpen your job:\nhttps:\/\/\S+$/);
+    expect(bodyOf("company_answered:B-needs_something")).toMatch(/^A deployment company answered about your job: Need more details\. Your job page has the details\. A few quick answers on your job page may be all they need\.\n\nOpen your job:\nhttps:\/\/\S+$/);
     expect(bodyOf("company_answered:A-interested")).toMatch(/^A deployment company answered about your job: Interested\. Your job page has the details\./);
     expect(rows.every(row => row.status === "sent")).toBe(true);
     expectNoCompanyIn("the site's emails", siteEmailText());

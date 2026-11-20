@@ -104,7 +104,7 @@ describe("where a site's job stands with deployment companies", () => {
 
   // Journey audit, 2026-11-20: a job started with a video alone was shared before its site typed a sentence, so its
   // card and page said "Work assessment opportunity" / "To be determined" for good. Its category now comes from the
-  // sentence on its brief, a closed category only; a stored category is kept; words naming no category read plainly.
+  // sentence on its brief, a closed category only. An unrecognized sentence keeps the stored category.
   it("titles a job shared before its sentence by the category of the sentence it has now", () => {
     const videoOnly = site({ public_task_listing: buildJobSharedListing({ taskStatement: "", atIso: AT }),
       capture_privacy_screen: { proceeded: true, eligibility: "eligible" } }, { consent_attestation: grant("2026-11-12.v4") });
@@ -120,8 +120,10 @@ describe("where a site's job stands with deployment companies", () => {
     // A sentence that names no category: plain words, never "To be determined".
     expect(teamJobAccess(videoOnly, { brief: { summary: "Wipe each table after the lunch rush." } }).details)
       .toMatchObject({ title: "Job opportunity", taskFamily: "Other" });
-    // A category stored from the typed sentence is kept.
+    // A supported category reflects the current job description, including for existing listings.
     expect(teamJobAccess(shared(), { brief: { summary: "Inspect each part before it ships." } }).details)
+      .toMatchObject({ title: "Inspection opportunity", taskFamily: "Quality inspection" });
+    expect(teamJobAccess(shared(), { brief: { summary: "Show the process at the bench." } }).details)
       .toMatchObject({ title: "Material handling opportunity" });
   });
 });

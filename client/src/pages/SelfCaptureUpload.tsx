@@ -927,7 +927,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         <meta name="robots" content="noindex,nofollow" />
       </Helmet>
 
-      <BareScreen>
+      <BareScreen className={saved && view === "main" ? "site-job-status" : undefined}>
       {view === "details" && answer ? <SiteAnswerDetails answer={answer} onBack={closeView} onOpen={screen => openView(`details/${screen}`)} />
         : view.startsWith("details/") && answer ? <SiteAnswerDetail answer={answer} robotCheck={robotCheck} screen={view.slice(8) as DetailScreen} onBack={closeView} />
         : view === "settings" && settingsOpen ? settingsScreen
@@ -941,10 +941,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
       {jobSentence && <p className="bare-job">{answer?.job.drafted ? "We read your job as: " : ""}“{jobSentence.trim().replace(/[.!?]+$/, "")}.”</p>}
-      {/* A few quick questions help companies answer (PACKAGE_E E1; planner, 2026-11-12): right under the job sentence,
-          unless the page has an action waiting on the site; then below that action. */}
-      {jobFacts && !siteActionWaiting && jobFacts}
-
       {/* The status shown is the last good read's while newer reads fail: said, with its time. */}
       {staleStatusNotice}
       {/* A step the site must take comes first; the answer's own button then stays, quiet. */}
@@ -955,7 +951,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined}
         outlook={status?.outlook ?? null} sceneViewUrl={sceneViewUrl}
         successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null}
-        firstLookTable={status?.firstLookTable ?? null} />}
+        firstLookTable={status?.firstLookTable ?? null} jobFacts={siteActionWaiting ? null : jobFacts} />}
       {!answer && companyStatus && companyStatus.sharing.state !== "not_shared" && (
         <JobCompanyResponses token={token} sharing={companyStatus.sharing} activity={companyStatus.companies}
           onChanged={() => setStatusRefresh(value => value + 1)}

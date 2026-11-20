@@ -499,9 +499,9 @@ describe("the deployment companies section, with sends, answers and introduction
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: stray as never }} />);
     expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
     expect(within(companies()).getByText("Sent to 4 deployment companies on November 11, 2026.")).toBeVisible();
-    expect(lines()[0]).toBe("Company B answered on November 12, 2026: Would need something."
-      + "No reason we can show.You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.");
-    expect(lines()[1]).toContain("Company A answered on November 13, 2026: Interested.");
+    expect(lines()[0]).toContain("Company BNeed more detailsAnswered November 12, 2026");
+    expect(lines()[0]).toContain("No reason we can show.You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.");
+    expect(lines()[1]).toContain("Company AInterestedAnswered November 13, 2026");
     expect(lines()[1]).not.toContain("No reason we can show.");
     const buttons = within(companies()).getAllByRole("button", { name: "Introduce us" });
     expect(buttons).toHaveLength(1);
@@ -522,8 +522,8 @@ describe("the deployment companies section, with sends, answers and introduction
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: reasons }} />);
     expect(within(companies()).getByText("In their words: “The company would need a video of the far end; see [removed].”")).toBeVisible();
     expect(within(companies()).getByText("In their words: “We stack cartons like these every day.”")).toBeVisible();
-    expect(lines()[2]).toBe("Company C answered on November 14, 2026: Not a fit.No reason we can show.");
-    // Would need something: no Introduce us (the company agreed to be introduced only after Interested or Tested it: can
+    expect(lines()[2]).toContain("Company CNot a fitAnswered November 14, 2026No reason we can show.");
+    // Need more details: no Introduce us (the company agreed to be introduced only after Interested or Tested it: can
     // do), and the site is told what would make one possible.
     expect(within(companies()).getAllByRole("button", { name: "Introduce us" })).toHaveLength(1);
     expect(within(companies()).getByText("You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.")).toBeVisible();
@@ -535,7 +535,7 @@ describe("the deployment companies section, with sends, answers and introduction
     const tested = { ...activity, entries: [{ kind: "answered" as const, alias: "Company D", atIso: "2026-11-14T09:00:00.000Z",
       state: "tested_cannot_yet" as const, canIntroduce: false }] };
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: tested }} />);
-    expect(within(companies()).getByText("Company D answered on November 14, 2026: Tested it: cannot yet.")).toBeVisible();
+    expect(within(companies()).getByText("Tested it: cannot yet", { exact: true })).toBeVisible();
     expect(within(companies()).getByText("You can ask for an introduction if Company D changes its answer to Interested or Tested it: can do."))
       .toBeVisible();
     expect(within(companies()).queryByRole("button", { name: "Introduce us" })).toBeNull();
@@ -637,7 +637,7 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByRole("link", { name: "https://northwind.example" })).toBeVisible();
     expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
     // Company B, not introduced, stays an alias.
-    expect(lines()[0]).toMatch(/^Company B answered on November 12, 2026: Would need something\./);
+    expect(lines()[0]).toMatch(/^Company BNeed more detailsAnswered November 12, 2026/);
     expect(lines()[0]).not.toMatch(/Northwind|Ada/);
   });
 
@@ -646,7 +646,7 @@ describe("the deployment companies section, with sends, answers and introduction
     const cancelled = { ...activity, entries: [activity.entries[0],
       { ...activity.entries[1], canIntroduce: false, introductionCancelled: true }] };
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: cancelled }} />);
-    expect(lines()[1]).toContain("Company A answered on November 13, 2026: Interested.");
+    expect(lines()[1]).toContain("Company AInterestedAnswered November 13, 2026");
     expect(lines()[1]).toContain(INTRODUCTION_CANCELLED);
     expect(INTRODUCTION_CANCELLED).toBe("This introduction could not go ahead. We did not give them your details.");
     expect(lines()[0]).not.toContain(INTRODUCTION_CANCELLED);

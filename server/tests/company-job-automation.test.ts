@@ -312,6 +312,14 @@ describe("the company's page for one job (E3)", () => {
     expect(await sendJobToApprovedCompanies(ID)).toMatchObject({ sent: true });
   });
 
+  it("accepts a quick fit response and requires details for other responses", async () => {
+    expect((await answer(NORTH, { inputs: "" })).status).toBe(200);
+    expect((await answer(SOUTH, { state: "declined", inputs: "" })).status).toBe(200);
+    expect((await answer(NORTH, { state: "needs_something", inputs: " " })).status).toBe(400);
+    expect((await answer(NORTH, { state: "tested_can_do", inputs: "" })).status).toBe(400);
+    expect((await page()).body.item.myAnswer).toMatchObject({ state: "interested", inputs: "" });
+  });
+
   it("keeps a legacy description-only listing out of the library and closed to responses", async () => {
     patchJob({ request: { ...jobDoc().request, consent_attestation: null,
       description_authority: { granted: true, statement_version: "2026-11-12.v5", recorded_at_iso: "2026-11-12T10:00:00.000Z" } },
@@ -527,7 +535,7 @@ describe("the automatic send (E4)", () => {
     const alerts = outbox().filter(row => row.kind === "robot_team_new_task");
     expect(alerts.map(row => row.to).sort()).toEqual([NORTH, SOUTH, EAST, WEST].map(record => record.email).sort());
     expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint" });
-    expect(alerts[0].body).toMatch(/^A site is looking for a deployment company for one of its jobs\. See the job and answer in a minute: Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet\.\n\nhttps:\/\/\S+\/jobs\/req-e2\n/);
+    expect(alerts[0].body).toMatch(/^A site is looking for a deployment company for one of its jobs\. See the job and answer in a minute: Interested, Not a fit or Need more details; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet\.\n\nhttps:\/\/\S+\/jobs\/req-e2\n/);
     expect(alerts[0].body).toMatch(/Unsubscribe from optional updates emails: /);
     expectNoSiteIn("the new-job emails", JSON.stringify(alerts));
     // The site's one email.

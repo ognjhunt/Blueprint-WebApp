@@ -127,7 +127,7 @@ test("robot teams are pointed to the one application before approval, without se
   await page.goto("/contact/robot-team");
   await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/partners#partner-application");
   await expect(page.getByRole("form", { name: "Early access application" })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Job library" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Browse jobs" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Start a job", exact: true })).toBeVisible();
 });
 

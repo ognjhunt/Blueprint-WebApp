@@ -14,7 +14,7 @@
  * then the writes, so the notice is as durable as the withdrawal itself.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
+import { storedAnonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { listingDetailsForSentence } from "./taskListingDetails";
 
 export const WITHDRAWAL_COMPANY_KIND = "job_withdrawn_company";
@@ -27,13 +27,10 @@ export const withdrawalCompanyBody = (date: string, title: string) =>
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type Tx = FirebaseFirestore.Transaction;
 
-/** The categories the listing record can hold (built only by `anonymizedOpportunityDraft`), by title: never free text. */
-const CATEGORIES = new Map(["dish", "pallet carton", "pallet", "pack", "inspect", "pick", ""]
-  .map(words => anonymizedOpportunityDraft(words)).map(draft => [draft.title, draft]));
-/** The job's category title as companies saw it: the stored category, or for the neutral one, its sentence's category. */
+/** Use the same closed category that companies see on the job. */
 export function categoryTitleOf(record: Record<string, any> | null | undefined, sentence?: string | null): string {
   const title = record?.public_task_listing?.details?.title;
-  const stored = (typeof title === "string" ? CATEGORIES.get(title) : undefined) ?? anonymizedOpportunityDraft("");
+  const stored = storedAnonymizedOpportunityDraft(title);
   return listingDetailsForSentence(stored, sentence).title;
 }
 

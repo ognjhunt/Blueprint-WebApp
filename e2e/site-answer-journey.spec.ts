@@ -274,7 +274,7 @@ test.describe("desktop", () => {
     await companyPage.goto("/contact/robot-team");
     const row = companyPage.locator(`li#job-${requestId}`);
     await expect(row).toBeVisible({ timeout: 30_000 });
-    await row.getByRole("link", { name: "Open the job and answer" }).click();
+    await row.getByRole("link", { name: "View job" }).click();
     await expect(companyPage).toHaveURL(new RegExp(`/jobs/${requestId}$`));
     await expect(companyPage.getByText("Pick up the sealed carton from the end of the conveyor and place it on the cart.")).toBeVisible({ timeout: 30_000 });
     // The approved browser receives a ticket for the published clip. A request without a ticket is refused.
@@ -283,11 +283,11 @@ test.describe("desktop", () => {
     expect((await companyPage.request.get(`${ORIGIN}/api/company-media/jobs/${requestId}/video.mp4`)).status()).toBeGreaterThanOrEqual(400);
 
     // The company answers Interested on the job's page.
-    const form = companyPage.getByRole("form", { name: "Answer about this job" });
+    const form = companyPage.getByRole("form", { name: "Response to opportunity" });
     await form.getByLabel("Interested").check();
     await form.getByRole("textbox").fill("We move cartons like these today.");
     const sent = companyPage.waitForResponse(response => response.url().endsWith(`/api/site-worlds/tasks/${requestId}/interest`));
-    await form.getByRole("button", { name: "Send answer" }).click();
+    await form.getByRole("button", { name: "Send response" }).click();
     expect((await sent).status()).toBe(200);
     await expect(form.getByRole("status")).toContainText(/saved/i);
 
@@ -304,7 +304,8 @@ test.describe("desktop", () => {
     const entries = companies(page);
     await expect(entries).toContainText(/Sent to 1 deployment company on .+\./, { timeout: 30_000 });
     await expect(entries).not.toContainText("Not sent to any deployment company yet.");
-    await expect(entries).toContainText(/Company A answered on .+: Interested\./);
+    const companyReply = entries.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });
+    await expect(companyReply.getByText("Interested", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText(company.name);
     await expect(page.locator("body")).not.toContainText(company.email);
     await expect(entries).toContainText("We give Company A your name, address and contact details, and give you theirs.");

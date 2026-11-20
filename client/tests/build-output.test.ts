@@ -239,7 +239,7 @@ describe("build output", () => {
     expect(llmsFull).not.toMatch(/early trial/i);
     // The answers the company form offers, as the site sees them, and what an introduction gives each side (review, 2026-11-12).
     expect(llmsFull).toContain("Blueprint sends each job automatically to the deployment companies it has approved.");
-    expect(llmsFull).toContain("A company answers \"Interested\", \"Not a fit\" or \"Would need something\"; once the job's simulation can be downloaded, it can also answer \"Tested it: can do\" or \"Tested it: cannot yet\".");
+    expect(llmsFull).toContain("A company answers \"Interested\", \"Not a fit\" or \"Need more details\"; once the job's simulation can be downloaded, it can also answer \"Tested it: can do\" or \"Tested it: cannot yet\".");
     expect(llmsFull).not.toMatch(/so they can test it/);
     expect(llmsFull).toContain("After an introduction the company gets the site's name, address and contact details, and the site gets the company's name and contact details.");
     expect(llmsFull).not.toMatch(/approves by hand\. Each job|Some jobs are held/);

@@ -126,25 +126,22 @@ for (const mobile of [false, true]) {
     await page.goto("/contact/robot-team");
     await expect(page.getByRole("heading", { name: card.title })).toBeVisible();
     // A company the library is shown to is not asked to apply.
-    await expect(page.getByRole("heading", { level: 1, name: "Job library", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Deployment opportunities", exact: true })).toBeVisible();
     await expect(page.getByLabel("Work email", { exact: true }).first()).not.toBeVisible();
-    await expect(page.getByText("Job illustration · not a site photo", { exact: true })).toHaveCount(3);
+    await expect(page.getByRole("button", { name: "Open jobs", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toHaveCount(0);
     expect(mutations).toEqual([]);
     await screenshot(page, `${mobile ? "phone" : "desktop"}-browse`);
-    if (mobile) await page.getByText("Filter jobs", { exact: true }).click();
-    await page.getByLabel("Filter by availability").selectOption("past");
+    await page.getByRole("button", { name: "Past jobs" }).click();
     await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toBeVisible();
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
-    await page.getByLabel("Filter by availability").selectOption("open");
+    await page.getByRole("button", { name: "Open jobs" }).click();
     const selected = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: card.title }) });
     // Running a company's own system on a job is "later" (frame of 2026-11-12): no link into the removed run pages.
     await expect(selected.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
     await expect(selected.getByText("Site's proposed pilot price")).toBeVisible();
     await expect(selected.getByText("Four weeks including setup and provider support")).toBeVisible();
     await expect(selected.getByText("$5,000 per month")).toBeVisible();
-    // Said once on the page, in its fine print (journey audit, 2026-11-20: the library said it a second time).
-    await expect(page.getByText("Nothing is charged today.")).toHaveCount(1);
-    await expect(page.getByText("Nothing is charged today.")).toBeVisible();
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     expect(mutations).toEqual([]);
     expect(errors).toEqual([]); await context.close();
@@ -273,7 +270,7 @@ test("free beta does not restore paid checkout controls after a reload", async (
   const mutations = await fixtures(page);
   await page.goto("/contact/robot-team");
   for (let attempt = 0; attempt < 2; attempt++) {
-    await expect(page.getByText("Nothing is charged today.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Deployment opportunities", level: 1 })).toBeVisible();
     await expect(page.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     await expect(page.locator("#plan-hardware")).toHaveCount(0);

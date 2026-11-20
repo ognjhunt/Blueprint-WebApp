@@ -16,7 +16,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 vi.mock("../utils/email", () => ({ sendEmail }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 const { projectTaskBrowseCard, listTaskBrowseCards } = await import("../utils/taskBrowse");
-const { approvedTaskDetails, taskListingSchema } = await import("../utils/taskListingDetails");
+const { approvedTaskDetails, listingDetailsForSentence, sharedJobListing, taskListingSchema } = await import("../utils/taskListingDetails");
 const { isRunnableTask } = await import("../utils/teamJobAccess");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
@@ -54,11 +54,26 @@ describe("public task disclosure", () => {
       pilotConditions: "PLANTED Four weeks including setup and support", ongoingTarget: "$5,000 per month" };
     const card = projectTaskBrowseCard("req1", record({ public_task_listing: {
       enabled: true, consentVersion: "job-shared-2026-11-12", approvedAtIso: "2026-09-19T00:00:00.000Z", details: proposed } }));
-    expect(card).toMatchObject({ title: "Carton palletizing opportunity", taskFamily: "Pallet handling", objects: "Cartons",
+    expect(card).toMatchObject({ title: "Carton palletizing opportunity", taskFamily: "Palletizing", objects: "Cartons",
       pilotBudget: "", pilotConditions: "", ongoingTarget: "", region: "", siteType: "" });
     expect(JSON.stringify(card)).not.toMatch(/PLANTED|\$20,000|\$5,000|US Midwest|Warehouse/);
     expect(taskListingSchema.parse({ ...proposed, pilotBudget: "" }).pilotBudget).toBe("");
     expect(taskListingSchema.parse({ ...proposed, pilotBudget: undefined }).pilotBudget).toBe("");
+  });
+  it.each([
+    ["Stack cartons onto the pallet", "Palletizing"],
+    ["Depalletize boxes and place them on the conveyor", "Depalletizing"],
+    ["Move empty pallets between stations", "Pallet handling"],
+    ["Pack the finished parts into shipping cases", "Case packing"],
+    ["Load parts into the CNC machine", "Machine tending"],
+    ["Inspect seals for defects", "Quality inspection"],
+  ])("classifies an existing listing for %s, with only allowlisted text", (sentence, family) => {
+    const stored = record({ public_task_listing: { enabled: true, consentVersion: "job-shared-2026-11-12",
+      approvedAtIso: "2026-09-19T00:00:00.000Z", details: { title: "Pallet handling opportunity" } } });
+    const entry = listingDetailsForSentence(sharedJobListing(stored)!.details, `${sentence}. Contact PRIVATE PERSON.`);
+    expect(entry.taskFamily).toBe(family);
+    expect(JSON.stringify(entry)).not.toContain("PRIVATE PERSON");
+    expect(sharedJobListing({ public_task_listing: { ...stored.public_task_listing, details: entry } })?.details).toEqual(entry);
   });
   it.each([
     { public_task_listing: undefined }, { public_task_listing: { enabled: true, details } },
