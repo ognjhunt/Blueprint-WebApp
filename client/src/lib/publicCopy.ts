@@ -63,7 +63,7 @@ export const EXAMPLE_CARD_NAME = "Example of a job page once deployment companie
 export const exampleSentTo = (count: number) => `Sent to ${count} deployment ${count === 1 ? "company" : "companies"}`;
 export const EXAMPLE_FOOT = "Everything in this example is made up.";
 export const HOW_SEO_DESCRIPTION = `A video or description of a recurring job becomes a job packet. ${FIRST_LOOK_WHEN_READY} Free for sites.`;
-export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, how fast we reply, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
+export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, what happens after it sends a job, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
 export const START_SEO_DESCRIPTION = "Start a job with a video or description of the work, where the job is, and an email. Blueprint sends it to approved deployment companies. Free for sites.";
 export const PARTNERS_SEO_DESCRIPTION = "Robot deployment companies can apply to receive job packets with the site's description and a first look when available. Nothing is charged today.";
 export const ROBOT_TEAM_SEO_DESCRIPTION = "Approved deployment companies see the jobs sites send and answer. Blueprint approves each company by hand. Nothing is charged today.";

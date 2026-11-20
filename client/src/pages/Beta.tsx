@@ -1,7 +1,6 @@
 import { BareBack, BareButton, BareGroup, BareRows, BareScreen } from "@/components/bare/Bare";
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
-import { REPLY_TIMELINE } from "@/data/betaTimelines";
 import { COMPANY_ANSWERS, FIRST_LOOK_WHEN_READY, INTRODUCIBLE_ANSWERS, QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -22,7 +21,10 @@ export default function Beta() {
           <h1>Questions</h1>
           <BareRows id="scope" title="For sites" rows={[
             { key: "cost", label: "Cost", value: <>Free for sites. <a href="/refunds">Refunds and cancellations</a></> },
-            { key: "reply", label: "Reply", value: REPLY_TIMELINE },
+            // What happens after a site sends, as the code does it: no reply time is promised, since no person replies to a
+            // job (journey audit, 2026-11-20). The confirmation hands over the private link, and "Your Blueprint job link"
+            // emails it unless the intake's daily email cap withholds it.
+            { key: "after", label: "After you send", value: "You get a private link to your job page, which shows where the job stands." },
             { key: "jobs", label: "Jobs", value: "One job that repeats, with known objects. Pick-up-and-put-down jobs fit best; other jobs still go to companies, and their simulation waits until we can build one." },
           ]} />
           <BareRows title="Your job packet" rows={[

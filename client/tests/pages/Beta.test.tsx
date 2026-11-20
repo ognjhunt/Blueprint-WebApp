@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Beta from "@/pages/Beta";
-import { REPLY_TIMELINE } from "@/data/betaTimelines";
 import { COMPANY } from "@/data/company";
 
 // The Questions page (bare bones; frame of 2026-11-12): the one details screen for the public pages, in short rows.
 describe("the questions page", () => {
-  it("answers cost and reply time without inventing dates or a price", () => {
+  it("answers cost and what happens after sending without inventing a reply time, dates or a price", () => {
     render(<Beta />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Questions");
     const sites = screen.getByRole("region", { name: "For sites" });
-    expect(sites).toHaveTextContent(REPLY_TIMELINE);
+    // No person replies to a job, so no reply time is promised (journey audit, 2026-11-20): only what the code does.
+    expect(sites).toHaveTextContent(/After you send\s*You get a private link to your job page, which shows where the job stands\./);
+    expect(document.body.textContent).not.toMatch(/reply within|within an hour|we (usually )?reply/i);
     expect(sites).toHaveAttribute("id", "scope");
     expect(sites).toHaveTextContent(/Cost\s*Free for sites\./);
     expect(screen.getByRole("link", { name: "Refunds and cancellations" })).toHaveAttribute("href", "/refunds");
