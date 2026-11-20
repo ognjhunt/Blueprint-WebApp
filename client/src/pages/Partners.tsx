@@ -18,7 +18,7 @@ export default function Partners() {
         <BareGroup>
           <BareLabel>{FOR_DEPLOYMENT_COMPANIES}</BareLabel>
           <h1 id="partner-title">Real jobs from real sites.</h1>
-          <p>Each job comes as a job packet: the site's description of the job, its video without sound, a first look at which robots could fit, and the simulation of the site when it is ready. You answer in a minute.</p>
+          <p>Each job packet gives you the site's description and a first look at which robots could fit. It includes what counts as done when available. When the site sends video, you get it without sound. We add the simulation when it is ready.</p>
         </BareGroup>
         <BareRows title="How it works" rows={[
           { key: "approval", label: "How to be approved", value: "Apply below. We approve each company by hand." },

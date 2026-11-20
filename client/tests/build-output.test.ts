@@ -82,7 +82,7 @@ describe("build output", () => {
   it("prerenders How it works with the job packet, and no page for the folded addresses", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
     expect(html).toContain("Your job packet");
-    expect(html).toContain("We share your job, with its video, with deployment companies we approve.");
+    expect(html).toContain("We share your job with deployment companies we approve by hand.");
     expect(html).not.toContain("can see a summary");
     expect(html).not.toMatch(/top AI robots|which did best|Find a company to set it up/);
     expect(html).not.toContain("Warehouse walkthrough contents");
@@ -232,7 +232,7 @@ describe("build output", () => {
     for (const text of [llms, llmsFull]) expect(text).not.toMatch(/agent-access|agent-team|Agent interfaces|paid_evaluations_disabled/);
     expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
     // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
-    expect(llmsFull).toContain("Each job comes as a job packet: the site's description of the job, its video without sound, a first look at which robots could fit, and the simulation of the site.");
+    expect(llmsFull).toContain("The job packet gives the site's description, a first look at which robots could fit, and what counts as done when known. When the site sends video, the packet includes it without sound and adds the simulation when it is ready.");
     expect(llmsFull).not.toMatch(/early trial/i);
     // The answers the company form offers, as the site sees them, and what an introduction gives each side (review, 2026-11-12).
     expect(llmsFull).toContain("Blueprint sends each job automatically to the deployment companies it has approved.");
@@ -259,8 +259,8 @@ describe("build output", () => {
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Get repetitive work done by robots.");
-    expect(homeHtml).toContain("Film the job once. We send it to robot deployment companies, with a simulation of your site, so they can tell you if they can do it.");
-    expect(homeHtml).toContain("We send the job to robot deployment companies we approve and build a simulation of your site.");
+    expect(homeHtml).toContain("Film the job once or describe it. We send it to robot deployment companies so they can tell you if they can do it.");
+    expect(homeHtml).toContain("We send the job to robot deployment companies we approve. With video, we build a simulation of your site when we can.");
     expect(homeHtml).toContain("Their answers come back to you: Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet. You pick who to meet.");
     expect(homeHtml).toContain("Free for sites");
     // The fine line is gone (owner, 2026-11-12: "why do we have this???: We take pick-up-and-put-down jobs best.
@@ -339,7 +339,7 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("We send it to robot deployment companies, with a simulation of your site, so they can tell you if they can do it.");
+    expect(browserJavaScript).toContain("Film the job once or describe it. We send it to robot deployment companies so they can tell you if they can do it.");
     expect(browserJavaScript).toContain("We write this from your video if you leave it empty.");
   });
 

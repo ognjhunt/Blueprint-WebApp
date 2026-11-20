@@ -17,7 +17,7 @@ const definitions = [
   {
     term: "Site sign-up",
     definition:
-      "Sign-up is open for sites: anyone can start a job with an email and a video, and Blueprint also onboards sites by hand. Partner applications are reviewed before access. Starting a job is not a signed order or a commitment to run a pilot; the site confirms the brief and agrees any pilot terms with the deployment company before physical work.",
+      "Sign-up is open for sites: anyone can start a job with an email, where the job is, and a video or description. Partner applications are reviewed before access. Starting a job is not a signed order or a commitment to run a pilot; the site confirms the brief and agrees any pilot terms with the deployment company before physical work.",
   },
   {
     term: "Exact-site world model",
@@ -42,7 +42,7 @@ const definitions = [
   {
     term: "Job packet",
     definition:
-      "Blueprint's one service for a site: the site's description of one recurring job, its video without sound, a simulation of the site with the job's object in it, what counts as done and a first look on paper, sent automatically to the deployment companies Blueprint has approved.",
+      "Blueprint's one service for a site. The job packet gives the site's description of one recurring job and a first look on paper. It includes what counts as done when known, and the sound-free video and simulation when available. Blueprint sends it automatically to the deployment companies it has approved.",
   },
   {
     term: "Evidence routing",

@@ -18,7 +18,7 @@ export const HOME_LABEL = "Free for sites";
 /** The outcome a site wants (owner, 2026-11-12 ~19:15Z: "the goal is ... having repetitive work/jobs done by robots"). */
 export const HOME_TITLE = "Get repetitive work done by robots.";
 /** The line under the title. The home page does not lead with privacy (owner, same message); the rule is said where the site agrees. */
-export const HOME_SUB_LINE = "Film the job once. We send it to robot deployment companies, with a simulation of your site, so they can tell you if they can do it.";
+export const HOME_SUB_LINE = "Film the job once or describe it. We send it to robot deployment companies so they can tell you if they can do it.";
 
 /**
  * The answers the company form offers (`CompanyJob.tsx`), said the same way on every public page: three always, and the
@@ -30,28 +30,28 @@ export const COMPANY_ANSWERS = `${ANSWER.interested}, ${ANSWER.declined} or ${AN
 /** The answers beside which a site may ask for an introduction (`INTRODUCIBLE_RESPONSE_STATES`). */
 export const INTRODUCIBLE_ANSWERS = `${ANSWER.interested} or ${ANSWER.tested_can_do}`;
 
-export const STEP_SEND = "Send a video of one job that repeats.";
-export const STEP_SIMULATE = "We send the job to robot deployment companies we approve and build a simulation of your site.";
+export const STEP_SEND = "Film or describe one job that repeats.";
+export const STEP_SIMULATE = "We send the job to robot deployment companies we approve. With video, we build a simulation of your site when we can.";
 export const STEP_ANSWER = `Their answers come back to you: ${COMPANY_ANSWERS}. You pick who to meet.`;
 
 export const START_JOB = "Start a job";
-export const HOME_START_HELPER = "A video, where the job is, and an email.";
+export const HOME_START_HELPER = "A video or description, where the job is, and an email.";
 /** The home page's link to the page for deployment companies. */
 export const FOR_DEPLOYMENT_COMPANIES_LINK = "Deploy robots? See how jobs reach you";
 /** The page's own name, in the navigation and its label. */
 export const FOR_DEPLOYMENT_COMPANIES = "For deployment companies";
 
 export const HOW_STEPS = [
-  { key: "video", title: "Your video", line: "One job that repeats, filmed on any phone." },
-  { key: "packet", title: "Your job packet", line: "Your sentence for the job, a first look on paper, and a simulation of your site." },
-  { key: "companies", title: "Deployment companies", line: "We share your job, with its video, with deployment companies we approve. We approve each company by hand. They answer, and you choose which to meet." },
+  { key: "video", title: "Your job", line: "Film one recurring job or send a description." },
+  { key: "packet", title: "Your job packet", line: "What the job is, what counts as done, and a first look on paper. If you send video, we add it without sound and build a simulation when we can." },
+  { key: "companies", title: "Deployment companies", line: "We share your job with deployment companies we approve by hand. When they answer, you choose which to meet." },
 ] as const;
 
 /** What used to be the "Jobs we support" page, in one line. */
 export const JOBS_THAT_FIT = "Best for one job that repeats, with known objects, where something is picked up and put down. Other jobs still go to companies; their simulation waits until we can build one.";
 
 export const HOME_SEO_TITLE = "Blueprint | Get repetitive work done by robots.";
-export const HOME_SEO_DESCRIPTION = "Film one job that repeats; we send it to robot deployment companies we approve and build a simulation of your site, so they can tell you if they can do it. Free for sites.";
+export const HOME_SEO_DESCRIPTION = "Film or describe one job that repeats. We send it to robot deployment companies we approve so they can tell you if they can do it. Free for sites.";
 
 /**
  * The home page's moving example card: what a site sees on its job page once companies answer. Everything on it is
@@ -61,8 +61,8 @@ export const EXAMPLE_TAG = "Example";
 export const EXAMPLE_CARD_NAME = "Example of a job page once deployment companies answer";
 export const exampleSentTo = (count: number) => `Sent to ${count} deployment ${count === 1 ? "company" : "companies"}`;
 export const EXAMPLE_FOOT = "Everything in this example is made up.";
-export const HOW_SEO_DESCRIPTION = "One video of a job that repeats becomes a job packet: your sentence for the job, a first look on paper, and a simulation of your site. Approved deployment companies see it and answer. Free for sites.";
+export const HOW_SEO_DESCRIPTION = "A video or description of a recurring job becomes a job packet with a first look on paper. We use video to build a simulation when we can. Free for sites.";
 export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, how fast we reply, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
-export const START_SEO_DESCRIPTION = "Start a job with a video of the work, where the job is, and an email. Blueprint turns it into a job packet: a first look at which robots could fit and a simulation of your site. Free for sites.";
-export const PARTNERS_SEO_DESCRIPTION = "Robot deployment companies can apply to receive real jobs from real sites, each with the site's video, a first look at which robots could fit and the simulation of the site. Nothing is charged today.";
-export const ROBOT_TEAM_SEO_DESCRIPTION = "Approved deployment companies see the jobs sites send, with their videos, and answer. Blueprint approves each company by hand. Nothing is charged today.";
+export const START_SEO_DESCRIPTION = "Start a job with a video or description of the work, where the job is, and an email. Blueprint makes a job packet with a first look at which robots could fit. Free for sites.";
+export const PARTNERS_SEO_DESCRIPTION = "Robot deployment companies can apply to receive job packets with the site's description, a first look, and video and simulation when available. Nothing is charged today.";
+export const ROBOT_TEAM_SEO_DESCRIPTION = "Approved deployment companies see the jobs sites send and answer. Blueprint approves each company by hand. Nothing is charged today.";

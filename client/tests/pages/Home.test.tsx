@@ -12,12 +12,12 @@ describe("Site-led homepage", () => {
   it("says the outcome, shows three steps and offers one button", () => {
     const { container } = render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Get repetitive work done by robots.");
-    expect(container).toHaveTextContent("Film the job once. We send it to robot deployment companies, with a simulation of your site, so they can tell you if they can do it.");
+    expect(container).toHaveTextContent("Film the job once or describe it. We send it to robot deployment companies so they can tell you if they can do it.");
     const starts = screen.getAllByRole("link", { name: "Start a job" });
     expect(starts).toHaveLength(1);
     expect(starts[0]).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByText("Free for sites")).toBeInTheDocument();
-    expect(screen.getByText("A video, where the job is, and an email.")).toBeInTheDocument();
+    expect(screen.getByText("A video or description, where the job is, and an email.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "How it works ›" })).toHaveAttribute("href", "/how-it-works");
     expect(screen.getByRole("link", { name: "Deploy robots? See how jobs reach you ›" })).toHaveAttribute("href", "/partners");
     expect(container.textContent).not.toMatch(/pick-up-and-put-down|safety check|job packet|contact details/i);
@@ -25,12 +25,12 @@ describe("Site-led homepage", () => {
     expect(container.textContent).not.toMatch(/\$\s?\d|beta|did best|AI robot|AI software|how sure|confidence|%/i);
   });
 
-  it("shows three steps from the video through the simulation to the companies' answers", () => {
+  it("shows three steps from the video or description to the companies' answers", () => {
     render(<Home />);
     const steps = within(screen.getByRole("list", { name: "How it works" })).getAllByRole("listitem");
     expect(steps.map(step => step.textContent)).toEqual([
-      "Send a video of one job that repeats.",
-      "We send the job to robot deployment companies we approve and build a simulation of your site.",
+      "Film or describe one job that repeats.",
+      "We send the job to robot deployment companies we approve. With video, we build a simulation of your site when we can.",
       "Their answers come back to you: Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet. You pick who to meet.",
     ]);
     expect(screen.getByRole("list", { name: "How it works" })).toHaveAttribute("id", "how-it-works");
