@@ -3,6 +3,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { listRecentAgentRecords } from "./history";
 import type { PersistedOpsActionLog } from "./types";
 
 const ACTION_LOG_COLLECTION = "opsActionLogs";
@@ -94,10 +95,7 @@ export async function listOpsActionLogs(params?: {
     query = query.where("run_id", "==", params.runId);
   }
 
-  const snapshot = await query
-    .orderBy("created_at", "desc")
-    .limit(Math.max(1, Math.min(params?.limit ?? 100, 200)))
-    .get();
+  const docs = await listRecentAgentRecords(query, Math.max(1, Math.min(params?.limit ?? 100, 200)));
 
-  return snapshot.docs.map((doc) => doc.data() as PersistedOpsActionLog);
+  return docs.map((doc) => doc.data() as PersistedOpsActionLog);
 }

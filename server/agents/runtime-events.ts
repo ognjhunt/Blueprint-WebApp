@@ -4,6 +4,7 @@ import { hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence } from
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { listRecentAgentRecords } from "./history";
 import type { RuntimeEventRecord, RuntimeEventStatus } from "./types";
 
 const RUNTIME_EVENT_COLLECTION = "agentRuntimeEvents";
@@ -95,10 +96,7 @@ export async function listRuntimeEvents(params: {
     query = query.where("run_id", "==", params.runId);
   }
 
-  const snapshot = await query
-    .orderBy("created_at", "desc")
-    .limit(Math.max(1, Math.min(params.limit ?? 200, 400)))
-    .get();
+  const docs = await listRecentAgentRecords(query, Math.max(1, Math.min(params.limit ?? 200, 400)));
 
-  return Promise.all(snapshot.docs.map((doc) => inspectAgentEvidence(doc.data() as RuntimeEventRecord, { collection: "agentRuntimeEvents", id: doc.id })));
+  return Promise.all(docs.map((doc) => inspectAgentEvidence(doc.data() as RuntimeEventRecord, { collection: "agentRuntimeEvents", id: doc.id })));
 }

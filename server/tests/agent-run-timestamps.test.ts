@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const runOpenAIResponsesTask = vi.hoisted(() => vi.fn());
 const fake = vi.hoisted(() => ({
   docs: new Map<string, Map<string, any>>(),
+  createTimes: new Map<string, number>(),
   queries: [] as Array<{ collection: string; filters: unknown[][]; orders: unknown[][]; limit: number | null }>,
 }));
 
@@ -46,7 +47,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
       fake.queries.push({ collection: name, filters, orders, limit });
       let rows = [...coll(name).entries()].filter(([, data]) => filters.every(([field, op, value]) => {
         const actual = fieldAt(data, field);
-        if (op === "==") return actual === value;
+        if (op === "==") {
+          if (plain(value) && Object.keys(value).length === 0) return plain(actual) && Object.keys(actual).length === 0;
+          return actual === value;
+        }
         // A range matches values of its own type only.
         if (actual === undefined || rank(actual) !== rank(value)) return false;
         const order = compare(actual, value);
@@ -61,7 +65,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
         return orders.at(-1)?.[1] === "desc" ? -byName : byName;
       });
       if (limit !== null) rows = rows.slice(0, limit);
-      const docs = rows.map(([id, data]) => ({ id, data: () => data, ref: doc(name, id) }));
+      const docs = rows.map(([id, data]) => ({ id, data: () => data, get: (path: string) => fieldAt(data, path), ref: doc(name, id),
+        createTime: Timestamp.fromMillis(fake.createTimes.get(`${name}/${id}`) ?? 0) }));
       return { docs, size: docs.length, empty: !docs.length };
     },
   });
@@ -120,6 +125,7 @@ beforeEach(async () => {
   vi.resetModules();
   (await import("../agents/provider-funds")).resetProviderFundsStateForTests();
   fake.docs.clear();
+  fake.createTimes.clear();
   fake.queries.length = 0;
   fake.docs.set("agentRuns", new Map());
   fake.docs.set("inboundRequests", new Map([["job-new", { privacy_version_at_submission: "2026-11-13.1" }]]));
@@ -175,6 +181,38 @@ describe("Firestore values in agent records", () => {
       expect(value.on).toBe(on);
       expect(value.requested).toBeInstanceOf(Timestamp);
     }
+  });
+});
+
+describe("recent agent history", () => {
+  const readers = {
+    agentRuntimeEvents: async (limit: number) => (await import("../agents/runtime-events"))
+      .listRuntimeEvents({ sessionId: "s", runId: "r", limit }),
+    agentCheckpoints: async (limit: number) => (await import("../agents/checkpoints"))
+      .listAgentCheckpoints({ sessionId: "s", limit }),
+    opsActionLogs: async (limit: number) => (await import("../agents/ops-action-logs"))
+      .listOpsActionLogs({ sessionId: "s", runId: "r", limit }),
+  };
+
+  it.each(Object.entries(readers))("reads %s by timestamp, using document creation time for empty maps", async (name, read) => {
+    const old = Timestamp.fromMillis(1_763_600_000_000);
+    const now = old.toMillis() + DAY;
+    const rows = new Map<string, Record<string, unknown>>();
+    const add = (id: string, createdAt: unknown, createTime: number, sessionId = "s", runId = "r") => {
+      rows.set(id, { id, session_id: sessionId, run_id: runId, created_at: createdAt });
+      fake.createTimes.set(`${name}/${id}`, createTime);
+    };
+    for (let index = 0; index < 6; index++) add(`z-legacy-${index}`, {}, old.toMillis() - index);
+    add("an-older-timestamp", old, now + 1); // The stored value takes precedence over Firestore's document creation time.
+    add("m-legacy", {}, now - 2);
+    add("a-timestamp", Timestamp.fromMillis(now), now);
+    add("m-iso", new Date(now - 1).toISOString(), now + 2);
+    add("other-session", Timestamp.fromMillis(now + 3), now + 3, "other");
+    if (name !== "agentCheckpoints") add("other-run", {}, now + 3, "s", "other");
+    fake.docs.set(name, rows);
+
+    expect((await read(3)).map((entry) => entry.id)).toEqual(["a-timestamp", "m-iso", "m-legacy"]);
+    expect(rows.get("m-legacy")?.created_at).toEqual({});
   });
 });
 

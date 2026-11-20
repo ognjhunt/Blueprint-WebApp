@@ -4,6 +4,7 @@ import { hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence } from
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { listRecentAgentRecords } from "./history";
 import type { AgentCheckpointRecord } from "./types";
 
 const CHECKPOINT_COLLECTION = "agentCheckpoints";
@@ -83,14 +84,10 @@ export async function listAgentCheckpoints(params: {
     return [];
   }
 
-  const snapshot = await db
-    .collection(CHECKPOINT_COLLECTION)
-    .where("session_id", "==", params.sessionId)
-    .orderBy("created_at", "desc")
-    .limit(Math.max(1, Math.min(params.limit ?? 100, 200)))
-    .get();
+  const query = db.collection(CHECKPOINT_COLLECTION).where("session_id", "==", params.sessionId);
+  const docs = await listRecentAgentRecords(query, Math.max(1, Math.min(params.limit ?? 100, 200)));
 
-  return Promise.all(snapshot.docs.map((doc) => inspectAgentEvidence(doc.data() as AgentCheckpointRecord, { collection: "agentCheckpoints", id: doc.id })));
+  return Promise.all(docs.map((doc) => inspectAgentEvidence(doc.data() as AgentCheckpointRecord, { collection: "agentCheckpoints", id: doc.id })));
 }
 
 export async function getAgentCheckpoint(checkpointId: string) {
