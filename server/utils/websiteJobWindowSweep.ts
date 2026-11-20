@@ -36,6 +36,7 @@ import { logger } from "../logger";
 import { automationBatch } from "./automationBatch";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
 import { CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
+import { notifySiteActionNeeded } from "./siteActionNeeded";
 import { sponsorshipExecutionWindowUntil, sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { earlyTaskHoldOf } from "./taskPreparationOutcome";
@@ -417,6 +418,9 @@ export async function sweepWebsiteJobWindows(options: { limit?: number; now?: ()
   let waiting = await automationBatch(db, sites, NO_GRANT_CURSOR, limit);
   if (!waiting.docs.length) waiting = await automationBatch(db, sites, NO_GRANT_CURSOR, limit);
   for (const row of waiting.docs) {
+    // Whatever the clock says: a job that cannot continue without the site is told once per ask (`siteActionNeeded.ts`).
+    await notifySiteActionNeeded(row.id, row.data())
+      .catch(error => logger.warn({ err: error, requestId: row.id }, "Could not read a site job's ask; the next rotation tries again"));
     if (row.data()?.website_scene_sponsorship) continue;
     summary.examined += 1;
     try {

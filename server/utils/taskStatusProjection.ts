@@ -368,6 +368,32 @@ const CONFIRM_BRIEF_ACTION = "Open your job brief, check the summary and answers
 /**
  * Project the status. Pure, so the two surfaces cannot diverge.
  */
+/**
+ * The outcome the job page states from the Pipeline's verified preparation status, else from the job's own record (a
+ * video too large to process, the Atlas preview), before any processing-failure fallback. The one rule for the page
+ * and for "your job needs something from you" (`siteActionNeeded.ts`): an outcome whose step is the site's is the ask.
+ */
+export function pageAskedOutcome(input: Pick<TaskStatusInput, "preparationStatus" | "preparationOutcome" | "scenePreviewReady"
+  | "sceneProgression" | "siteNamedTask">): TaskOutcome | null {
+  const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
+  const asked = input.preparationStatus?.outcome
+    ?? (!nativeProgress && (!input.scenePreviewReady || isSpendingCapOutcome(input.preparationOutcome)) ? input.preparationOutcome : null)
+    ?? null;
+  // The Pipeline still asks for the job's sentence, but the site has given it (review, 2026-11-12): we have it and are
+  // starting (the Pipeline re-reads the job within the hour). No ask and no form.
+  return asked?.title === TASK_NOT_NAMED_SENTENCES.title && input.siteNamedTask ? taskNamedOutcome() : asked;
+}
+
+/** A world link the page may show: https, with no credentials in it. */
+export function safeSceneViewUrl(value: unknown): string | null {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const base = { stage: input.stage, missingViews: input.missingViews, nextUpdateIso: null };
   // Once footage arrives, reconstruction and evaluation belong to Blueprint.
@@ -441,14 +467,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (sceneEnding && !hasRuns) {
     return { ...base, decision: "footage_received", stage: null, missingViews: [], headline: sceneEnding, operatorAction: null };
   }
-  const asked = input.preparationStatus?.outcome
-    ?? (!nativeProgress && (!input.scenePreviewReady || isSpendingCapOutcome(input.preparationOutcome)) ? input.preparationOutcome : null)
+  const stopped = pageAskedOutcome(input)
     ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
       || input.scenePreparationFailed && !nativeProgress
       || input.sceneProgression?.state === "ended" && !sceneEnding ? processingFailure() : null);
-  // The Pipeline still asks for the job's sentence, but the site has given it (review, 2026-11-12): we have it and are
-  // starting (the Pipeline re-reads the job within the hour). No ask and no form.
-  const stopped = asked?.title === TASK_NOT_NAMED_SENTENCES.title && input.siteNamedTask ? taskNamedOutcome() : asked;
   // A `capacity_blocked` ending is said as ours, with no retry or processing step to speak of (`capacityEnded`).
   const capacityEnd = input.preparationStatus?.state === "failed_terminal" && input.preparationStatus.terminalReason === "capacity_blocked"
     && !input.preparationStatus.outcome && stopped ? capacityEnded() : null;

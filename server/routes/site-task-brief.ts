@@ -72,6 +72,7 @@ import { gateFields } from "../../client/src/data/siteTaskQualification";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import {
   projectTaskStatus,
+  safeSceneViewUrl,
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
@@ -102,7 +103,7 @@ import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
-import { loadJobWaitsForItsSentence } from "../utils/jobSentenceWait";
+import { taskStatementNeeded } from "../utils/jobSentenceWait";
 
 const router = Router();
 
@@ -271,15 +272,6 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
     return res.status(503).json({ ok: false, code: "introduction_unavailable", error: INTRODUCTION_FAILED });
   }
 });
-
-function safeSceneViewUrl(value: unknown): string | null {
-  try {
-    const url = new URL(String(value || ""));
-    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}
 
 /** The job page's link to its scene preview in the vendored viewer, held to the same rule as a world link. */
 function scenePreviewViewUrl(requestId: string, captureId: string): string | null {
@@ -636,9 +628,7 @@ router.get("/:token", async (req: Request, res: Response) => {
       account: payload.scope === "owner" ? await siteAccountFor(payload.requestId) : null,
       // Asked once the footage was read and showed no job to draft, or when the Pipeline says the job has no sentence
       // to prepare from (`website_task_not_named`) and the site has not given one since.
-      ...(payload.scope === "owner" ? { taskStatementNeeded: !brief.confirmedAtIso && (isPlaceholderSummary(brief.summary)
-        && recorded?.capture_task_statement_draft?.state === "none_seen"
-        || await loadJobWaitsForItsSentence(payload.requestId, recorded, brief)) } : {}),
+      ...(payload.scope === "owner" ? { taskStatementNeeded: await taskStatementNeeded(payload.requestId, recorded, brief) } : {}),
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load a task brief");

@@ -20,6 +20,11 @@ export async function taskLifecycleNotificationIsCurrent(
   const {siteIntroductionEmailState}=await import('./jobIntroductionGate');
   return (await siteIntroductionEmailState(entry.requestId,entry.idempotencyKey.slice(prefix.length),transaction)).state==='go';
  }
+ // "Your job needs something from you": only while that exact ask is still the job's (`siteActionNeeded.ts`).
+ if(entry.kind==='site_action_needed'){
+  const {siteActionNoticeIsCurrent}=await import('./siteActionNeeded');
+  return siteActionNoticeIsCurrent(entry,transaction);
+ }
  if(entry.kind!=='task_received'&&entry.kind!=='job_sent'&&entry.kind!=='company_answered')return true;
  if(!db)throw new Error('capture_notification_authority_unavailable');
  const ref=db.collection('inboundRequests').doc(entry.requestId);

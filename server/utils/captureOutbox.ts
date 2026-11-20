@@ -54,7 +54,7 @@ import { attemptIsDue, MAX_UNDELIVERED_AGE_MS, providerIdempotencyKey, RESEND_WI
 export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
 /**
- * What the message is about (owner, 2026-11-19: 43 kinds down to the ones the one job needs). Drives nothing here;
+ * What the message is about (owner, 2026-11-19: 43 kinds down to the 12 the one job needs). Drives nothing here;
  * for the record and metrics.
  */
 export type OutboxKind =
@@ -70,6 +70,9 @@ export type OutboxKind =
   | "company_answered"
   /** Site: it asked to meet a company; the company's details (E6): once per introduction. */
   | "introduction_made_site"
+  /** Site: its job cannot continue without it (a new video, the job's sentence): once per distinct ask
+   * (owner, 2026-11-19; `siteActionNeeded.ts`). Never a status or progress email. */
+  | "site_action_needed"
   /** Company: its application to see jobs was approved. */
   | "robot_team_access_approved"
   /** Company: a new job, to an approved deployment company that asked for job emails (E4): once per job. */

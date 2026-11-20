@@ -574,6 +574,9 @@ export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultD
   await deps.commit(selector, latest, authority);
   // After the commit: a failed commit has alerted no one.
   if (newReceipt) void noteUnknownPipelineCodes(selector.request_id, unknownPreparationCodes(latest));
+  // A status that asks the site for a new video or the job's sentence tells it once (`siteActionNeeded.ts`).
+  if (newReceipt) void import("./siteActionNeeded").then(({ notifySiteActionNeeded }) => notifySiteActionNeeded(selector.request_id))
+    .catch(() => undefined);
   return latest;
 }
 async function fresh(captureId: string, requestId: string, deps: WebsitePreparationDeps) {

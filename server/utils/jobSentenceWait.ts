@@ -47,3 +47,16 @@ export async function loadJobWaitsForItsSentence(requestId: string, record: Reco
   } catch { preparationTaskNotNamed = false; }
   return jobWaitsForItsSentence({ requestId, record, brief, preparationTaskNotNamed, isPlaceholder: isPlaceholderSummary });
 }
+
+/**
+ * The job page's naming form (`taskStatementNeeded`): asked once the footage was read and showed no job to draft, or
+ * when the Pipeline says the job has no sentence to prepare from and the site has not given one since. The one rule for
+ * the page and for "your job needs something from you" (`siteActionNeeded.ts`).
+ */
+export async function taskStatementNeeded(requestId: string, record: Record<string, any> | null | undefined,
+  brief: SentenceBrief): Promise<boolean> {
+  if (!brief || brief.confirmedAtIso) return false;
+  const { isPlaceholderSummary } = await import("./siteTaskBrief");
+  return isPlaceholderSummary(brief.summary) && record?.capture_task_statement_draft?.state === "none_seen"
+    || await loadJobWaitsForItsSentence(requestId, record, brief);
+}
