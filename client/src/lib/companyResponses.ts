@@ -6,8 +6,9 @@
  * ("Company A", "Company B", in the order each company first appeared on that job), a date, one of the fixed labels
  * and why: the company's own words about its answer (2026-11-20), with every name, email, phone number, web address
  * and link of the company's taken out first (`removeIdentifyingDetails`, `jobCompanies.ts`). Only words given under
- * the current line ("The site is told your answer") are shown; words given under the older line ("not your company's
- * name or your words") never are. Never the company's name, email or website, and no note of Blueprint's (a note
+ * the current line ("The site is told your answer"), or recorded by Blueprint from the company's email since the staff
+ * form says the site reads them, are shown; words given under the older line ("not your company's name or your words")
+ * never are. Never the company's name, email or website, and no note of Blueprint's (a note
  * could name the company). The types below are the whole of what the site's job page receives about companies;
  * nothing else is added to them.
  */

@@ -21,6 +21,7 @@ import { sharedFakeFirestore, sharedFakeFirestoreState as state } from "./helper
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { currentTermsAcceptance, sharedJobFields } from "./helpers/sharedJob";
 import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
+import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -82,8 +83,9 @@ const PENDING = companyRecord("PENDX", { status: "applied" });
 /** The companies' words, each naming the company and its contact details: the site reads them only with those taken out. */
 const WORDS = { north: "NORTHXPLANT Robotics would need a second gripper; ask Person NORTHXplant.",
   south: "SOUTHXPLANT Robotics: our UR20 palletizes this today. Write to contact-southx@southx-plant.example or www.southx-plant.example/about." };
-/** South's words as its site reads them (2026-11-20). */
+/** The words as the site reads them (2026-11-20). */
 const SOUTH_REASON = "The company: our UR20 palletizes this today. Write to [removed] or [removed].";
+const NORTH_REASON = "The company would need a second gripper; ask the company.";
 const PLANTED = [
   ...[NORTH, SOUTH].flatMap(record => [record.company, record.email, record.website, record.name, record.robot, record.workWanted,
     record.supportedSystems, record.region, record.decisionNote, sha(record.email),
@@ -256,11 +258,12 @@ describe("what the site receives", () => {
     expect(body.answer.companies.sent).toMatchObject({ count: 1 });
     expect(body.answer.companies.introductions).toEqual({ used: 0 });
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([["alias", "atIso", "kind"],
-      ["alias", "atIso", "canIntroduce", "kind", "reason", "state"], ["alias", "atIso", "canIntroduce", "kind", "state"]]);
-    // Why: the company's own words, with its name, email and website taken out.
-    expect(entries[1].reason).toBe(SOUTH_REASON);
-    // An answer an operator recorded from an email carries no consent to an introduction (E5).
-    expect(entries.map(entry => entry.canIntroduce)).toEqual([undefined, false, false]);
+      ["alias", "atIso", "canIntroduce", "kind", "reason", "state"], ["alias", "atIso", "canIntroduce", "kind", "reason", "state"]]);
+    // Why: the company's own words, with its name, email and website taken out, whoever recorded them (2026-11-20).
+    expect(entries.map(entry => entry.reason)).toEqual([undefined, SOUTH_REASON, NORTH_REASON]);
+    // An answer an operator recorded from an email is introduced like any Interested answer (2026-11-20): the company's
+    // consent is the current Terms it accepted, which the introduction checks. Would need something is not (E6).
+    expect(entries.map(entry => entry.canIntroduce)).toEqual([undefined, false, true]);
     expect(entries.map(({ kind, alias, state: answer }) => ({ kind, alias, answer }))).toEqual([
       { kind: "sent", alias: "Company A", answer: undefined },
       { kind: "answered", alias: "Company B", answer: "needs_something" },
@@ -299,6 +302,37 @@ describe("what the site receives", () => {
     const read = await panel();
     expect(read.responses.map((row: { company: string; inputs: string; recordedBy: string }) => [row.company, row.inputs, row.recordedBy]).sort())
       .toEqual([[NORTH.company, WORDS.north, "operator"], [SOUTH.company, `${WORDS.south} again`, "company"]].sort());
+  });
+
+  // 2026-11-20: an answer Blueprint recorded from a company's email behaves like the company's own: its words (cleared),
+  // and "Introduce us" beside Interested, the company's consent being the current Terms it accepted.
+  it("introduces the site to a company whose Interested answer Blueprint recorded from its email", async () => {
+    // The introduction record is sealed at rest (`introductionShared.ts`).
+    vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY", Buffer.alloc(32, 7).toString("base64"));
+    expect((await adminPost("/sends", { companyId: sha(NORTH.email) })).status).toBe(200);
+    expect((await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north })).status).toBe(200);
+    const before = (await siteStatus()).body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.kind === "answered");
+    expect(before).toMatchObject({ alias: "Company A", state: "interested", canIntroduce: true, reason: NORTH_REASON });
+    const token = createCaptureUploadToken({ requestId: ID, captureId: `walkthrough-${ID}`, sceneId: `site-${ID}`, scope: "owner" });
+    const response = await fetch(`${base}/api/site-task-brief/${token}/introductions`, { method: "POST",
+      body: JSON.stringify({ alias: "A", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }),
+      headers: { "content-type": "application/json", cookie: "csrf_token=c1-test", "x-csrf-token": "c1-test" } });
+    expect(response.status, await response.clone().text()).toBe(200);
+    const after = (await siteStatus()).body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.kind === "answered");
+    expect(after).toMatchObject({ alias: "Company A", canIntroduce: false, introducedAtIso: expect.any(String) });
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toMatchObject({ alias: "A", by: "site" });
+  });
+
+  it("shows no words staff recorded before the form said the site reads them, and still offers the introduction", async () => {
+    expect((await adminPost("/sends", { companyId: sha(NORTH.email) })).status).toBe(200);
+    state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`, { state: "interested", inputs: WORDS.north,
+      email: NORTH.email, company: NORTH.company, recordedBy: "operator", recordedByUid: "ops", recordedByEmail: "ops@example.com",
+      updatedAtIso: "2026-11-13T00:00:00.000Z" });
+    const { raw, body } = await siteStatus();
+    const entry = body.answer.companies.entries.find((row: Record<string, unknown>) => row.kind === "answered");
+    expect(entry).toMatchObject({ alias: "Company A", state: "interested", canIntroduce: true });
+    expect(entry).not.toHaveProperty("reason");
+    expect(raw).not.toContain("second gripper");
   });
 
   it("the projection reads no company field even when one is planted on a send or an answer", () => {

@@ -184,9 +184,11 @@ export async function voidCompanySend(requestId: string, sendId: string, actor: 
 }
 
 /**
- * Record an answer a company gave by email. Their words are kept for Blueprint only. Refused for a withdrawn job, for
- * a company that is not an approved deployment company, and for one with no standing (not voided) send on this job:
- * an answer the operator records is always about a job Blueprint sent that company.
+ * Record an answer a company gave by email. It is shown to the site like any answer (2026-11-20): its words, with the
+ * company's identity taken out (`wordsShownToSite`: the staff form says so since then; words recorded before it, under
+ * "staff only, never shown to the site", never are), and "Introduce us" beside Interested (`answerConsentsToIntroduction`).
+ * Refused for a withdrawn job, for a company that is not an approved deployment company, and for one with no standing
+ * (not voided) send on this job: an answer the operator records is always about a job Blueprint sent that company.
  */
 export async function recordCompanyResponseByOperator(requestId: string, input: { companyId: string;
   state: CompanyResponseState; inputs: string }, actor: OperatorActor,
@@ -214,7 +216,7 @@ now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: stri
     writeAlias(tx, jobRef, input.companyId, plan);
     tx.set(jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(input.companyId), {
       state: input.state, inputs: input.inputs, email: company.email ?? null, company: company.company ?? null,
-      recordedBy: "operator", recordedByUid: actor.uid, recordedByEmail: actor.email, updatedAtIso,
+      recordedBy: "operator", recordedByUid: actor.uid, recordedByEmail: actor.email, updatedAtIso, wordsShownToSite: true,
     });
     notice?.();
     return { alias: plan.alias, updatedAtIso };
@@ -404,11 +406,13 @@ export function knownCompanyIdentity(...records: Array<Data | null | undefined>)
 /**
  * Whether the company's words may be read by the site: an answer the company gave on its job page under the current
  * line, which tells it "The site is told your answer" (and its accepted Terms: "A site sees your answer under an
- * alias"). An answer given under the older line ("The site is told your response, not your company's name or your
- * words") or with no line never shows its words.
+ * alias"), or one Blueprint recorded from the company's email since the staff form says the site reads the words
+ * (`wordsShownToSite`). An answer given under the older line ("The site is told your response, not your company's name
+ * or your words"), with no line, or recorded by staff under "staff only, never shown to the site" never shows its words.
  */
 export function answerWordsMayReachSite(answer: Data | null | undefined): boolean {
-  return answer?.recordedBy === "company" && answer.statementVersion === COMPANY_RESPONSE_STATEMENT_VERSION;
+  return (answer?.recordedBy === "company" && answer.statementVersion === COMPANY_RESPONSE_STATEMENT_VERSION)
+    || (answer?.recordedBy === "operator" && answer.wordsShownToSite === true);
 }
 
 /**
@@ -435,12 +439,16 @@ export function siteReasonOf(answer: Data | null | undefined, identity: KnownSit
 
 /**
  * An answer the site may ask to be introduced to: `interested` or `tested_can_do` (E9), given by the company itself
- * under the current line.
+ * under the current line, or recorded by Blueprint from the company's email (2026-11-20). The company's consent to the
+ * exchange is the current Terms it accepted, which every introduction checks (`companyMaySeeJobs`): "It sees your
+ * company's name and your contact details only when it asks for an introduction after you answered Interested or
+ * Tested it: can do." An answer the company gave under the older line ("not your company's name") stays refused until
+ * it answers again: that line promised the opposite.
  */
 export function answerConsentsToIntroduction(answer: Data | null | undefined): boolean {
-  if (!answer) return false;
-  return INTRODUCIBLE_RESPONSE_STATES.includes(answer.state) && answer.recordedBy === "company"
-    && answer.statementVersion === COMPANY_RESPONSE_STATEMENT_VERSION;
+  if (!answer || !INTRODUCIBLE_RESPONSE_STATES.includes(answer.state)) return false;
+  return (answer.recordedBy === "company" && answer.statementVersion === COMPANY_RESPONSE_STATEMENT_VERSION)
+    || answer.recordedBy === "operator";
 }
 
 /**
