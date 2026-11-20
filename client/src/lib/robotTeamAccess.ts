@@ -57,6 +57,7 @@ export interface EarlyAccessApplication {
   testSite?: string;
   acceptedTerms: true;
   optionalUpdates?: boolean;
+  returnToJob?: string;
 }
 
 export class EarlyAccessApplicationError extends Error {}

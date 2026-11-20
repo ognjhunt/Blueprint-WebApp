@@ -44,7 +44,7 @@ describe("Site-led homepage", () => {
       fireEvent.click(tab);
       const panel = within(card).getByRole("tabpanel");
       expect(within(panel).getByRole("heading", { level: 2 })).toBeVisible();
-      const sent = (panel.textContent ?? "").match(/Sent to (\d) deployment companies/);
+      const sent = (panel.textContent ?? "").match(/(\d) views/);
       expect(sent, tab.textContent!).not.toBeNull();
       const count = Number(sent![1]);
       expect(count).toBeGreaterThanOrEqual(3);
@@ -62,10 +62,10 @@ describe("Site-led homepage", () => {
     expect(counts.size).toBeGreaterThan(1);
     fireEvent.click(within(card).getByRole("tab", { name: "Warehouse" }));
     expect(within(card).getByRole("tabpanel")).toHaveTextContent(
-      /Picking small parcels.*Sent to 6 deployment companies.*Company A.*Tested it: can do.*Company B.*Need more details.*Company C.*Not a fit/);
+      /Picking small parcels.*6 views.*3 replies.*Company A.*Tested it: can do.*Company B.*Need more details.*Company C.*Not a fit/);
     // One example shows the state before any answer.
     fireEvent.click(within(card).getByRole("tab", { name: "Lab" }));
-    expect(within(card).getByRole("tabpanel")).toHaveTextContent(/Sent to 5 deployment companies.*No answers yet\./);
+    expect(within(card).getByRole("tabpanel")).toHaveTextContent(/5 views.*0 replies.*No answers yet\./);
   });
 
   it.each([

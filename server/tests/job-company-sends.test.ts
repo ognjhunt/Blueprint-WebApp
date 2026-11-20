@@ -260,7 +260,7 @@ describe("what the site receives", () => {
     expect(body.answer.companies.sent).toMatchObject({ count: 1 });
     expect(body.answer.companies.introductions).toEqual({ used: 0 });
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([["alias", "atIso", "kind"],
-      ["alias", "atIso", "canIntroduce", "kind", "reason", "state"], ["alias", "atIso", "canIntroduce", "kind", "reason", "state"]]);
+      ["alias", "atIso", "canIntroduce", "kind", "question", "reason", "state"], ["alias", "atIso", "canIntroduce", "kind", "reason", "state"]]);
     // Why: the company's own words, with its name, email and website taken out, whoever recorded them (2026-11-20).
     expect(entries.map(entry => entry.reason)).toEqual([undefined, SOUTH_REASON, NORTH_REASON]);
     // An answer an operator recorded from an email is introduced like any Interested answer (2026-11-20): the company's
@@ -275,13 +275,15 @@ describe("what the site receives", () => {
 
     // The emails: one per send, one per company and answer, each by the fixed words.
     const subjects = sent().map(message => message.subject);
-    expect(subjects.sort()).toEqual(["A deployment company answered", "A deployment company answered", "Your job was sent to deployment companies"].sort());
+    expect(subjects.sort()).toEqual(["A deployment company answered", "A deployment company answered", "Your job is posted"].sort());
     const rows = outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered");
+    expect(entries[1].question).toMatchObject({ id: expect.stringMatching(/^[a-f0-9]{64}$/), text: SOUTH_REASON });
+    const questionEvent = "company_answered:B-needs_something";
     expect(rows.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:A-interested`,
-      `captureOutbox/${ID}:company_answered:B-needs_something`, `captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`].sort());
+      `captureOutbox/${ID}:${questionEvent}`, `captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`].sort());
     const bodyOf = (key: string) => rows.find(row => row.key === `captureOutbox/${ID}:${key}`)!.body;
-    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is with deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any answer\.\n\nTo stop, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
-    expect(bodyOf("company_answered:B-needs_something")).toMatch(/^A deployment company answered about your job: Need more details\. Your job page has the details\. A few quick answers on your job page may be all they need\.\n\nOpen your job:\nhttps:\/\/\S+$/);
+    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any answer\.\n\nTo stop, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
+    expect(bodyOf(questionEvent)).toMatch(/^A deployment company answered about your job: Need more details\. Your job page has the details\. You can answer a company’s question on your job page\.\n\nOpen your job:\nhttps:\/\/\S+$/);
     expect(bodyOf("company_answered:A-interested")).toMatch(/^A deployment company answered about your job: Interested\. Your job page has the details\./);
     expect(rows.every(row => row.status === "sent")).toBe(true);
     expectNoCompanyIn("the site's emails", siteEmailText());
@@ -371,7 +373,7 @@ describe("what the site receives", () => {
     const send = await adminPost("/sends", { companyId: sha(NORTH.email) });
     await adminPost(`/sends/${send.body.send.sendId}/void`, {});
     await deliverOutbox();
-    expect(sent().map(message => message.subject)).not.toContain("Your job was sent to deployment companies");
+    expect(sent().map(message => message.subject)).not.toContain("Your job is posted");
     expect(outbox().find(row => row.kind === "job_sent")).toMatchObject({ status: "cancelled" });
     expect((await siteStatus()).body.answer.companies).toMatchObject({ entries: [], interested: false, sent: null });
   });
@@ -389,7 +391,7 @@ describe("Blueprint's hold", () => {
     // Nothing can be sent, and the queued send email is not delivered while held.
     expect(await adminPost("/sends", { companyId: sha(SOUTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
     await deliverOutbox();
-    expect(sent().map(message => message.subject)).not.toContain("Your job was sent to deployment companies");
+    expect(sent().map(message => message.subject)).not.toContain("Your job is posted");
     expect(outbox().find(row => row.kind === "job_sent")).toMatchObject({ status: "cancelled" });
     // The site's page says the existing "not visible right now" sentence (its state), and still lists the send.
     const held = (await siteStatus()).body.answer;
@@ -415,7 +417,7 @@ describe("a withdrawn job", () => {
       .toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
     await deliverOutbox();
     expect(outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered")).toEqual([]);
-    expect(sent().map(message => message.subject)).not.toEqual(expect.arrayContaining(["Your job was sent to deployment companies"]));
+    expect(sent().map(message => message.subject)).not.toEqual(expect.arrayContaining(["Your job is posted"]));
     expect(sent().map(message => message.subject)).not.toContain("A deployment company answered");
     expect([...state.docs.keys()].filter(key => key.includes("/companySends/") || key.includes("/robotTeamInterest/"))).toEqual([]);
   });

@@ -38,7 +38,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { recordingStatementShares } from "./jobSharedListing";
 import {
-  COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
+  COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
   type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
@@ -50,6 +50,8 @@ export type { AdminJobCompanies };
 import { operatorListingHold } from "./operatorListing";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { REMOVED, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { COMPANY_JOB_VIEWS_COLLECTION } from "./companyJobViews";
+import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 
 export const COMPANY_SENDS_COLLECTION = "companySends";
 export const INTRODUCTIONS_COLLECTION = "introductions";
@@ -229,11 +231,7 @@ now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: stri
   });
 }
 
-/**
- * The answer email's key: one email per company per state, ever. An answer that goes back to an earlier state (a
- * company interested, then not a fit, then interested again) is shown on the site's page as it stands, but is not
- * emailed again: the second "interested" has the key of the first.
- */
+/** One notice per company and response state, including when the company edits its question. */
 const answerEventId = (alias: string, state: CompanyResponseState) => `${alias}-${state}`;
 
 /**
@@ -488,6 +486,7 @@ export function answerConsentsToIntroduction(answer: Data | null | undefined): b
 export function projectSiteCompanyActivity(input: { aliases: Record<string, string>;
   sends: ReadonlyArray<Data>; responses: ReadonlyArray<{ id: string; data: Data }>;
   startedAtIso?: string | null;
+  views?: number | null;
   /** Company records by id (`robotTeamAccess`), only to take each company's identity out of its words. */
   companies?: ReadonlyMap<string, Data> } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
   const entries: SiteCompanyEntry[] = [];
@@ -518,9 +517,22 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const company = intro ? introducedCompany(intro) : undefined;
     const canIntroduce = !intro && !cancelled.has(response.id) && input.listed === true
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
-    const reason = siteReasonOf(response.data, knownCompanyIdentity(input.companies?.get(response.id), response.data));
+    const identity = knownCompanyIdentity(input.companies?.get(response.id), response.data);
+    const reason = siteReasonOf(response.data, identity);
+    const question = questionOnReply(response.data);
+    const questionText = question && siteReasonOf({ ...response.data, inputs: question.text }, identity);
+    const canAnswer = question && questionText && input.listed && input.approvedDeploymentCompanies?.has(response.id);
+    const answer = question ? clarificationOnReply(response.data, question.id) : undefined;
+    const startWindow = response.data.details?.startWindow;
+    const verified = siteReasonOf({ ...response.data, inputs: response.data.details?.verified }, identity);
+    const details = answerWordsMayReachSite(response.data) ? {
+      ...(verified ? { verified } : {}),
+      ...(COMPANY_START_WINDOWS.some(window => window === startWindow) ? { startWindow } : {}),
+    } : {};
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
       ...(reason ? { reason } : {}),
+      ...(Object.keys(details).length ? { details } : {}),
+      ...(canAnswer ? { question: { id: question.id, text: questionText, ...(answer ? { answer } : {}) } } : {}),
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
       // Cancelled before the company's email went (H2), so the site's details were never given to it.
       ...(cancelled.has(response.id) ? { introductionCancelled: true } : {}) });
@@ -530,6 +542,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
   return { entries, interested: entries.some(entry => entry.kind === "answered" && INTRODUCIBLE_RESPONSE_STATES.includes(entry.state)),
     sent: sentTo.size && firstAtIso ? { count: sentTo.size, firstAtIso } : null,
     ...(input.startedAtIso ? { startedAtIso: input.startedAtIso } : {}),
+    ...(input.views || input.views === null ? { views: input.views } : {}),
     ...(firstAnswerAtIso ? { firstAnswerAtIso } : {}),
     introductions: { used } };
 }
@@ -544,9 +557,10 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   const record = (await jobRef.get()).data();
   const empty = { entries: [], interested: false, sent: null, introductions: { used: 0 } };
   if (!record || projectWebsiteCaptureRights(record).consent_revoked) return empty;
-  const [sends, responses, introductions, approved, { access }] = await Promise.all([readAll(jobRef.collection(COMPANY_SENDS_COLLECTION)),
+  const [sends, responses, introductions, approved, views, { access }] = await Promise.all([readAll(jobRef.collection(COMPANY_SENDS_COLLECTION)),
     readAll(jobRef.collection(COMPANY_RESPONSES_COLLECTION)), readAll(jobRef.collection(INTRODUCTIONS_COLLECTION)),
     readAll(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved")),
+    readAll(jobRef.collection(COMPANY_JOB_VIEWS_COLLECTION)).catch(() => null),
     import("./teamJobAccess").then(({ loadCompanyJobAccess }) => loadCompanyJobAccess(requestId, record))]);
   // The introduced companies' details are decrypted here, only for the site's own page (`introductionShared.ts`).
   const { openShared } = await import("./introductionShared");
@@ -559,7 +573,7 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses,
     introductions: opened, listed: access.listed, companies,
     approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)),
-    startedAtIso: jobStartTime(record.createdAt) });
+    startedAtIso: jobStartTime(record.createdAt), views: views?.length ?? null });
 }
 
 /* ------------------------------------------------------------- the operator's panel */

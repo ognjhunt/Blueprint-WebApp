@@ -30,7 +30,7 @@ const v4Job = () => ({ request: { buyerType: "site_operator", consent_attestatio
   summary_shared_notice: { owed: true },
   capture_privacy_screen: { proceeded: true, eligibility: "eligible" } });
 
-describe("P1 (M1): 'Your job was sent to deployment companies' follows the whole rule", () => {
+describe("P1 (M1): 'Your job is posted' follows the whole rule", () => {
   it("is not sent while the job has no sentence, and the page says preparing", async () => {
     sharedFakeFirestoreState.docs.clear();
     sharedFakeFirestoreState.docs.set("inboundRequests/req-p1", v4Job());

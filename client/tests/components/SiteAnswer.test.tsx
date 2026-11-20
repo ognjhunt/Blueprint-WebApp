@@ -1,4 +1,3 @@
-import { NO_ANSWERS_YET, NOT_SENT_YET } from "@/lib/companyResponses";
 import { INTRODUCTION_CANCELLED } from "@/lib/siteIntroductions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -488,17 +487,18 @@ describe("an older job takes the current statement on its page", () => {
 // PACKAGE_E E4 and E6: under the sharing sentence, one line for the automatic send, each answer by alias, and beside each
 // company that can be introduced "Introduce us"; after an introduction, that company's details and only that company's.
 describe("the deployment companies section, with sends, answers and introductions", () => {
-  const activity = { interested: true, sent: { count: 4, firstAtIso: "2026-11-11T10:00:00.000Z" }, introductions: { used: 0 }, entries: [
+  const activity = { interested: true, views: 3, sent: { count: 4, firstAtIso: "2026-11-11T10:00:00.000Z" }, introductions: { used: 0 }, entries: [
     { kind: "answered" as const, alias: "Company B", atIso: "2026-11-12T09:00:00.000Z", state: "needs_something" as const, canIntroduce: false },
     { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const, canIntroduce: true },
   ] };
   const lines = () => within(companies()).getAllByRole("listitem").map(item => item.textContent);
 
-  it("says the one send line and each answer by alias, and offers Introduce us with its sentence only where it can be pressed", () => {
+  it("shows views and replies separately and offers Introduce us only to eligible companies", () => {
     const stray = { ...activity, entries: activity.entries.map(entry => ({ ...entry, noteForSite: "NOTE-PLANT never shown.", words: "WORDS-PLANT" })) };
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: stray as never }} />);
     expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
-    expect(within(companies()).getByText("Sent to 4 deployment companies on November 11, 2026.")).toBeVisible();
+    expect(within(companies()).getByText("3 recorded views")).toBeVisible();
+    expect(within(companies()).getByText("2 replies")).toBeVisible();
     expect(lines()[0]).toContain("Company BNeed more detailsAnswered November 12, 2026");
     expect(lines()[0]).toContain("No reason we can show.You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.");
     expect(lines()[1]).toContain("Company AInterestedAnswered November 13, 2026");
@@ -541,45 +541,24 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).queryByRole("button", { name: "Introduce us" })).toBeNull();
   });
 
-  // "No answers yet." is said only when it is true: sent to at least one company, and no company has answered. The home
-  // page's example card uses the same constant (review, 2026-11-12).
-  it("says No answers yet under the send line while no company has answered", () => {
-    const waiting = { interested: false, sent: { count: 5, firstAtIso: "2026-11-11T10:00:00.000Z" }, entries: [] };
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: waiting }} />);
-    expect(within(companies()).getByText("Sent to 5 deployment companies on November 11, 2026.")).toBeVisible();
-    expect(within(companies()).getByText(NO_ANSWERS_YET)).toBeVisible();
+  it("shows a posted job even if nobody viewed or replied yet", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
+      companies: { interested: false, sent: null, entries: [] } }} />);
+    expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
+    expect(within(companies()).getByText("0 recorded views")).toBeVisible();
+    expect(within(companies()).getByText("0 replies")).toBeVisible();
   });
 
-  it("does not say No answers yet once any company has answered", () => {
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);
-    expect(within(companies()).queryByText(NO_ANSWERS_YET)).toBeNull();
-  });
-
-  it("does not say No answers yet when the job has not been sent", () => {
-    const unsent = { interested: false, sent: null, entries: [] };
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: unsent }} />);
-    expect(screen.queryByText(NO_ANSWERS_YET)).toBeNull();
-  });
-
-  // Where the job stands, said plainly (frame of 2026-11-12): not yet sent, sent and waiting, or the answers.
-  it.each([["visible", VISIBLE], ["preparing", { sharing: { state: "preparing" as const, sharedAtIso: "2026-11-10T09:00:00.000Z" } }],
-    ["not visible", HIDDEN]])("says a shared job (%s) has not been sent to any company yet when the read holds no send", (_, sharing) => {
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...sharing, companies: { interested: false, sent: null, entries: [] } }} />);
-    expect(within(companies()).getByText(sharing.sharing.state === "preparing" ? PREPARING_TO_SHARE_LINE : SHARED_LINE)).toBeVisible();
-    expect(within(companies()).getByText(NOT_SENT_YET)).toBeVisible();
-    expect(NOT_SENT_YET).toBe("Not sent to any deployment company yet.");
-    expect(within(companies()).queryByText(NO_ANSWERS_YET)).toBeNull();
-    expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
-  });
-
-  it("never says Not sent once the job has gone to a company or a company answered", () => {
-    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
-      companies: { interested: false, sent: { count: 2, firstAtIso: "2026-11-11T10:00:00.000Z" }, entries: [] } }} />);
-    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
-    expect(within(companies()).getByText(NO_ANSWERS_YET)).toBeVisible();
-    unmount();
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { ...activity, sent: null } }} />);
-    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
+  it.each([
+    [true, "Video received. We’re preparing your job for posting."],
+    [false, "Send a video to post your job."],
+    [undefined, PREPARING_TO_SHARE_LINE],
+  ])("shows the next posting state when videoReceived is %s", (videoReceived, label) => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, sharing: { state: "preparing",
+      sharedAtIso: null, videoReceived }, companies: { interested: false, entries: [] } }} />);
+    expect(within(companies()).getByText(label)).toBeVisible();
+    expect(within(companies()).queryByText(SHARED_LINE)).toBeNull();
+    expect(within(companies()).queryByText("0 replies")).toBeNull();
   });
 
   it("says nothing about sends without a company read, or for a withdrawn or older job", () => {
@@ -591,12 +570,12 @@ describe("the deployment companies section, with sends, answers and introduction
     const second = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: unsent }} proof={null}
       outlook={{ phase: "ended_by_site", reason: "permission_withdrawn", sentence: "Permission to use your video was withdrawn, so this job has stopped." }} />);
     expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible();
-    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
+    expect(within(companies()).queryByText("0 recorded views")).toBeNull();
     second.unmount();
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, sharing: { state: "not_shared", sharedAtIso: null, olderStatement: true },
       companies: unsent }} />);
     expect(within(companies()).getByText(OLDER_JOB_LINES)).toBeVisible();
-    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
+    expect(within(companies()).queryByText("0 recorded views")).toBeNull();
   });
 
   it("asks for the introduction by alias, then shows what the server reads back", async () => {
@@ -682,7 +661,7 @@ describe("the deployment companies section, with sends, answers and introduction
       companies: { interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "x", state: "maybe" }] } as never }} />);
     expect(within(companies()).queryByRole("list")).toBeNull();
     // A read of the wrong shape holds no fact about sends, so nothing is said about them.
-    expect(within(companies()).queryByText(NOT_SENT_YET)).toBeNull();
+    expect(within(companies()).queryByText("0 recorded views")).toBeNull();
   });
 });
 

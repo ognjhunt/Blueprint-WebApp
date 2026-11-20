@@ -4,6 +4,10 @@ const COMPANY_JOB_PATH = /^\/jobs\/[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;
 
 const JOB_LIBRARY_PATH = /^\/contact\/robot-team(?:#job-[A-Za-z0-9_-]+)?$/;
 
+export function companyJobReturnPath(path: string | null | undefined): string | null {
+  return path && COMPANY_JOB_PATH.exec(path)?.[0] === path ? path : null;
+}
+
 export function authReturnPath(pathname: string | null): string | null {
   if (!pathname) return null;
   // Require the whole string, including any trailing line terminator.
@@ -19,5 +23,10 @@ export function resultSignInHref(pathname: string): string {
 }
 
 export function companyJobSignInHref(jobId: string): string {
-  return signInHref(authReturnPath(`/jobs/${jobId}`));
+  return signInHref(companyJobReturnPath(`/jobs/${jobId}`));
+}
+
+export function companyApplicationHref(jobId: string): string {
+  const path = companyJobReturnPath(`/jobs/${jobId}`);
+  return `/partners${path ? `?next=${encodeURIComponent(path)}` : ""}#partner-application`;
 }

@@ -175,6 +175,8 @@ export interface CompanyJobPage {
   /** The site's own sentence for the job, without its name, address, contact details or any other name-shaped text
    * (`removeIdentifyingDetails`, then `removeNamesNotHeld`). */
   sentence: string;
+  /** The site's stated success criteria with identifying details removed. */
+  successRule?: string;
   /** The site's quick answers in words, one line each (`jobFactsInWords`). */
   jobFacts: string[];
   /** The country only, or null when the site gave none we can read. */
@@ -204,7 +206,8 @@ export interface CompanyJobPage {
   notShown: string[];
   /** This company's own answer on this job, if any. */
   myAnswer: { state: "interested" | "declined" | "needs_something" | "tested_can_do" | "tested_cannot_yet"; inputs: string; updatedAtIso: string;
-    statementVersion: string | null } | null;
+    statementVersion: string | null; details?: import("../lib/companyResponses").CompanyReplyDetails } | null;
+  clarification?: { question: string; answer: string };
   /** The line under the form, and the version recorded with an answer. */
   responseStatement: { version: string; text: string };
 }

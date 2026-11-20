@@ -20,6 +20,6 @@ test("homepage explains the offer and shows both paths and a labeled example", a
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
   await expect(nav.getByRole("link", { name: "For deployment companies" })).toHaveAttribute("href", "/partners");
   await expect(main.getByRole("region", { name: "Example job" })).toBeVisible();
-  await expect(main.getByRole("tabpanel")).toContainText("Sent to 6 deployment companies");
+  await expect(main.getByRole("tabpanel")).toContainText("6 views");
   await expect(main).not.toContainText(/job packet|pick-up-and-put-down|safety check|contact details|which did best|top AI robots/);
 });

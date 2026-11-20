@@ -57,8 +57,8 @@ describe("the site's emails", () => {
     const message = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "job_sent", to: "owner@example.com",
       eventId: "companies", companyCount: 3 });
     expect(message).toMatchObject({ idempotencyKey: "req-1:job_sent:companies", kind: "job_sent",
-      subject: "Your job was sent to deployment companies" });
-    expect(message.body).toMatch(/^Your job is with 3 deployment companies\. We don't share your name, address or contact details/);
+      subject: "Your job is posted" });
+    expect(message.body).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details/);
     expect(message.body).toContain(HOW_TO_WITHDRAW);
   });
 

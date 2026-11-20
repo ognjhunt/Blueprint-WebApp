@@ -5,7 +5,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 const project = process.env.GOOGLE_CLOUD_PROJECT;
-if (!/^demo-blueprint-reliability(?:-a|-b)?$/.test(project ?? '') || process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080'
+if (!/^demo-blueprint-reliability(?:-a|-b)?$/.test(project ?? '') || !/^127\.0\.0\.1:[0-9]{1,5}$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? '')
     || process.env.FIREBASE_STORAGE_EMULATOR_HOST !== '127.0.0.1:9199') throw new Error('Disposable demo project and local emulators are required');
 if (Object.keys(process.env).some(key => /^(OPENAI_API_KEY|DEEPSEEK_API_KEY|ANTHROPIC_API_KEY|RESEND_API_KEY|FIREBASE_SERVICE_ACCOUNT_JSON|GOOGLE_APPLICATION_CREDENTIALS)$/.test(key))) throw new Error('Live credentials prohibited');
 const port = Number(process.env.RELIABILITY_APP_PORT);

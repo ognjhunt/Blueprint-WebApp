@@ -38,6 +38,7 @@ export interface RobotTeamAccessApplication {
   partnerRole?: "deployment" | "technology" | null;
   supportedSystems?: string | null;
   optionalUpdates?: boolean;
+  returnToJob?: string;
   name: string;
   email: string;
   company: string;
@@ -150,8 +151,10 @@ export async function recordAccessApplication(
     if (prior && prior.status !== "applied") {
       return { record: prior, created: false, unchanged: true as const, notification: NO_ACCESS_EMAIL };
     }
+    const returnToJob = application.returnToJob ?? prior?.returnToJob;
     const record: RobotTeamAccessRecord = {
       ...application,
+      ...(returnToJob ? { returnToJob } : {}),
       partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
       supportedSystems: application.supportedSystems === undefined ? prior?.supportedSystems ?? null : application.supportedSystems,
       newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? (!prior && application.optionalUpdates === true),

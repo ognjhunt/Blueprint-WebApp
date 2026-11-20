@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { COMPANY_RESPONSE_LABELS, companyAliasName, NO_ANSWERS_YET, type CompanyResponseState } from "@/lib/companyResponses";
-import { EXAMPLE_TAG, exampleSentTo } from "@/lib/publicCopy";
+import { EXAMPLE_TAG } from "@/lib/publicCopy";
 import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/site/RobotScene";
 
 /**
@@ -11,20 +11,20 @@ import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/sit
  * artwork and motion when revising copy.
  *
  * Each example is a small version of what a site sees on its job page once deployment companies answer: the job, how
- * many companies it went to, and up to three answers, each an alias and one of the real answer labels
+ * many companies opened it, and up to three answers, each an alias and one of the real answer labels
  * (`COMPANY_RESPONSE_LABELS`), as the site sees them. Every site, job, count and answer is made up and the card says
  * "Example" in words at all times. No company names, product or robot names, prices, percentages or "how sure".
  */
-type Example = Illustration & { job: string; sent: number; answers: CompanyResponseState[] };
+type Example = Illustration & { job: string; views: number; answers: CompanyResponseState[] };
 
-const job: Record<string, { job: string; sent: number; answers: CompanyResponseState[] }> = {
-  Warehouse: { job: "Picking small parcels off a shelf into a tote", sent: 6, answers: ["tested_can_do", "needs_something", "declined"] },
-  "Café": { job: "Moving clean cups from the dish rack onto a tray", sent: 4, answers: ["interested", "declined"] },
-  Laundromat: { job: "Stacking folded towels onto a shelf", sent: 3, answers: ["needs_something"] },
-  Factory: { job: "Placing small parts from a conveyor into a fixture", sent: 8, answers: ["tested_can_do", "interested", "declined"] },
-  Hotel: { job: "Placing folded napkins onto a tray", sent: 7, answers: ["interested", "needs_something"] },
+const job: Record<string, { job: string; views: number; answers: CompanyResponseState[] }> = {
+  Warehouse: { job: "Picking small parcels off a shelf into a tote", views: 6, answers: ["tested_can_do", "needs_something", "declined"] },
+  "Café": { job: "Moving clean cups from the dish rack onto a tray", views: 4, answers: ["interested", "declined"] },
+  Laundromat: { job: "Stacking folded towels onto a shelf", views: 3, answers: ["needs_something"] },
+  Factory: { job: "Placing small parts from a conveyor into a fixture", views: 8, answers: ["tested_can_do", "interested", "declined"] },
+  Hotel: { job: "Placing folded napkins onto a tray", views: 7, answers: ["interested", "needs_something"] },
   // The state before any company answers.
-  Lab: { job: "Placing sample tubes into a rack", sent: 5, answers: [] },
+  Lab: { job: "Placing sample tubes into a rack", views: 5, answers: [] },
 };
 
 const examples: Example[] = scenes.map(scene => ({ ...scene, ...job[scene.site] }));
@@ -92,7 +92,7 @@ export function PilotPreview() {
         </div>
         <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel" tabIndex={0}>
           <h2 className="bare-example-name">{example.job}</h2>
-          <p className="bare-example-by">{exampleSentTo(example.sent)}</p>
+          <p className="bare-example-by">{example.views} views · {example.answers.length} {example.answers.length === 1 ? "reply" : "replies"}</p>
           {example.answers.length > 0
             ? <ul className="bare-example-answers" aria-label="Example answers">
               {example.answers.map((state, i) => (

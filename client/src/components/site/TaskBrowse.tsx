@@ -4,7 +4,7 @@ import { TaskFacts } from "./TaskFacts";
 import { useEffect, useRef, useState } from "react";
 import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import { BROWSE_JOBS_LABEL, type LibraryAccess } from "@/lib/robotTeamAccess";
+import { BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
 import { CompanyTermsPrompt } from "./CompanyTermsPrompt";
 import { jobTitleForDisplay, libraryStageLabels, opportunityLabels, type TaskBrowseCard } from "@/types/taskBrowse";
@@ -16,16 +16,20 @@ const JOB_VIEWS = [
 ] as const;
 type JobView = typeof JOB_VIEWS[number]["value"];
 
+function browseParam(key: string) {
+  return typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get(key) ?? "";
+}
+
 /** Report whether the library is visible so the page can show the right heading. */
 export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void }) {
   const [items, setItems] = useState<TaskBrowseCard[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error" | "terms">("loading");
   const [retry, setRetry] = useState(0);
-  const [family, setFamily] = useState("");
-  const [region, setRegion] = useState("");
-  const [view, setView] = useState<JobView | null>(null);
-  const [search, setSearch] = useState("");
-  const [readyToTest, setReadyToTest] = useState(false);
+  const [family, setFamily] = useState(() => browseParam("type").slice(0, 100));
+  const [region, setRegion] = useState(() => browseParam("region").slice(0, 100));
+  const [view, setView] = useState<JobView | null>(() => JOB_VIEWS.find(option => option.value === browseParam("view"))?.value ?? null);
+  const [search, setSearch] = useState(() => browseParam("q").slice(0, 100));
+  const [readyToTest, setReadyToTest] = useState(() => browseParam("test") === "1");
   const [access, setAccess] = useState<LibraryAccess | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const auth = useOptionalAuth();
@@ -65,6 +69,19 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
   useEffect(() => {
     if (state !== "loading") onLibrary?.(state === "ready" ? access === null || access.allowed : Boolean(currentUser));
   }, [state, access, currentUser, onLibrary]);
+  const filterParams = { q: search, type: family, region, view: view ?? "", test: readyToTest ? "1" : "" };
+  const filtersQuery = new URLSearchParams(Object.entries(filterParams).filter(([, value]) => value !== "")).toString();
+  useEffect(() => {
+    if (state !== "ready" || access?.allowed === false || window.location.pathname !== BROWSE_JOBS_PATH) return;
+    const url = new URL(window.location.href);
+    const selected = new URLSearchParams(filtersQuery);
+    for (const key of ["q", "type", "region", "view", "test"]) {
+      const value = selected.get(key);
+      if (value) url.searchParams.set(key, value);
+      else url.searchParams.delete(key);
+    }
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
+  }, [state, access, filtersQuery]);
   const activeView = view ?? (linkedItem?.opportunity === "not_seeking" ? "all" : linkedItem?.opportunity ?? "open");
   const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const filtered = items.filter(item => {
@@ -95,7 +112,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
     <p><a href="mailto:hello@tryblueprint.io">Email us about a job or your application</a></p></div></section>;
   // Anything other than an explicit "allowed" is the early-access page.
   const gated = state === "ready" && access !== null && !access.allowed;
-  if (gated) return <RobotTeamEarlyAccess access={access} email={currentUser?.email ?? null} />;
+  if (gated) return <RobotTeamEarlyAccess access={access} email={currentUser?.email ?? null} onVerified={() => setRetry(value => value + 1)} />;
   // Say why the library shows instead of the way to apply, so a signed-in
   // viewer is never left guessing. The application form is public, on /partners.
   const viewer = currentUser && state === "ready" && access?.staff ? <p className="ms-field-hint" role="note">
@@ -120,7 +137,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
           <label className="opportunities-search">
             <span className="sr-only">Search jobs</span>
             <Search size={18} aria-hidden="true" />
-            <input ref={searchInput} type="search" value={search} placeholder="Search jobs" onChange={event => setSearch(event.currentTarget.value)} />
+            <input ref={searchInput} type="search" value={search} maxLength={100} placeholder="Search jobs" onChange={event => setSearch(event.currentTarget.value)} />
           </label>
           <select aria-label="Job type" value={family} onChange={event => setFamily(event.currentTarget.value)}>
             <option value="">All job types</option>
@@ -165,7 +182,8 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
             <TaskFacts details={item} omitRegion />
             {item.answerHeadline && <p className="opportunity-first-look">{item.answerHeadline}</p>}
           </div>
-          <a className="opportunity-open" aria-describedby={`job-title-${item.id}`} href={item.jobUrl ?? `/jobs/${encodeURIComponent(item.id)}`}>
+          <a className="opportunity-open" aria-describedby={`job-title-${item.id}`}
+            href={`${item.jobUrl ?? `/jobs/${encodeURIComponent(item.id)}`}${filtersQuery ? `?from=${encodeURIComponent(filtersQuery)}` : ""}`}>
             View job<ArrowRight size={17} aria-hidden="true" />
           </a>
         </li>;

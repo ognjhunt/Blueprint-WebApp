@@ -17,7 +17,6 @@ import { decryptFieldValue } from "./field-encryption";
 import { finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { COMPANY_RESPONSE_LABELS, isCompanyResponseState, type CompanyResponseState } from "../../client/src/lib/companyResponses";
-import { JOB_FACTS_NUDGE } from "../../client/src/lib/jobFacts";
 import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL } from "../../client/src/lib/jobOutlook";
 
 export type TaskLifecycleMilestone = Extract<OutboxKind, "task_received" | "job_sent" | "company_answered" | "introduction_made_site">;
@@ -26,9 +25,6 @@ export type TaskLifecycleMilestone = Extract<OutboxKind, "task_received" | "job_
 export const HOW_TO_WITHDRAW = `To stop, open your job page, choose Job settings, then ${STOP_USING_VIDEO_LABEL}. Your job then leaves every company's view at once.`;
 /** The same for a job sent with its description only: its page shows the way to withdraw it, by that name. */
 export const HOW_TO_WITHDRAW_DESCRIPTION_ONLY = `To stop, open your job page and choose ${WITHDRAW_JOB_LABEL}. Your job then leaves every company's view at once.`;
-/** The `job_sent` email's sentence (PACKAGE_E E4): one per job, with the count. */
-export const jobSentSentence = (count: number) => Number.isInteger(count) && count > 0
-  ? `Your job is with ${count} deployment ${count === 1 ? "company" : "companies"}.` : "Your job is with deployment companies.";
 /** The one `job_sent` per job (PACKAGE_E E4): its event id (the company side's `AUTO_SEND_EVENT_ID`). */
 export const JOB_SENT_EVENT_ID = "companies";
 
@@ -42,17 +38,16 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   // the count, a whole number; read again at dispatch: sent only while the job is visible. It says how to stop, in the
   // words of the job's own page: a job sent with its description only is withdrawn, not its video.
   job_sent: {
-    subject: "Your job was sent to deployment companies",
-    body: (url, detail, descriptionOnly) => `${jobSentSentence(Number(detail))} We don't share your name, address or contact details with a `
+    subject: "Your job is posted",
+    body: (url, _detail, descriptionOnly) => `Your job is posted for approved deployment companies. We don't share your name, address or contact details with a `
       + `deployment company unless you ask for an introduction to it. Your job page shows any answer.\n\n${
         descriptionOnly ? HOW_TO_WITHDRAW_DESCRIPTION_ONLY : HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`,
   },
-  // One per company and answer, never the company's name or words: the detail is only a fixed label, and for
-  // "Need more details" the one nudge toward the job page's quick questions (PACKAGE_E E1).
+  // Only the response label is included. The question and answer stay on the job page.
   company_answered: {
     subject: "A deployment company answered",
     body: (url, detail) => `A deployment company answered about your job: ${detail}. Your job page has the details.${
-      detail === COMPANY_RESPONSE_LABELS.needs_something ? ` ${JOB_FACTS_NUDGE}` : ""}\n\nOpen your job:\n${url}`,
+      detail === COMPANY_RESPONSE_LABELS.needs_something ? " You can answer a company’s question on your job page." : ""}\n\nOpen your job:\n${url}`,
   },
   // The site asked for an introduction (PACKAGE_E E6). Built only by `buildIntroductionMadeSiteNotification`, whose
   // body is the introduced company's details; this entry is its fallback and never names anyone.
