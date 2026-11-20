@@ -486,8 +486,8 @@ export function SiteAnswerDetails({ answer, onBack, onOpen }: {
 }
 
 /** One detail screen: short labelled rows; the sourced sentences said word for word. */
-export function SiteAnswerDetail({ answer, proof, screen, onBack }: {
-  answer: SiteAnswerView; proof?: SimulationProofView | null; screen: DetailScreen; onBack: () => void;
+export function SiteAnswerDetail({ answer, robotCheck, screen, onBack }: {
+  answer: SiteAnswerView; robotCheck?: SimulationProofView["robotCheck"]; screen: DetailScreen; onBack: () => void;
 }) {
   const pick = answer.state === "ready" ? answer.pick : null;
   const others = [answer.runnerUp, ...answer.alsoFit.map(robot => ({ ...robot, verdict: "fits_on_paper" as const }))].filter(Boolean) as Array<{ manufacturer: string; name: string; verdict: AnswerRobot["verdict"] }>;
@@ -506,7 +506,7 @@ export function SiteAnswerDetail({ answer, proof, screen, onBack }: {
     ...(pick.evidence.length ? [] : [{ key: "no-evidence", label: "Used for jobs like this", value: "We found no documented use of this robot on this kind of job." }]),
     ...(answer.approach ? [{ key: "approach", label: "How it would be run", value: APPROACH_WORDS[answer.approach.kind] }] : []),
     // What the scene rebuilt from the video showed about this robot.
-    ...(proof?.robotCheck ? [{ key: "scene", label: "In the simulation", value: proof.robotCheck.line }] : []),
+    ...(robotCheck ? [{ key: "scene", label: "In the simulation", value: robotCheck.line }] : []),
     // The server's note when the site's own measurement outranks the scene: on this screen whatever leads.
     ...(answer.sceneNote ? [{ key: "scene-note", value: answer.sceneNote }] : []),
     { key: "robot-not-software", value: ROBOT_NOT_SOFTWARE },

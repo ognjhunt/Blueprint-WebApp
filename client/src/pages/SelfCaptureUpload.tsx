@@ -16,8 +16,7 @@ import { type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type JobSharing, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 import { isSiteCompanyActivity, type SiteCompanyActivity } from "@/lib/companyResponses";
-import { projectSimulationProof } from "@/lib/simulationProof";
-import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
+import { robotCheckOf } from "@/lib/simulationProof";
 /**
  * The page an operator or filmer opens from a private job link.
  *
@@ -649,7 +648,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const saved = upload.status === "processing_pending" || upload.status === "held"
     || upload.status === "done" || status?.captureReceived === true;
   const ownerJob = saved && (link.status === "valid" || link.status === "held") && scope === "owner";
-  const evaluations = useEarlyTrialEvaluations(token, ownerJob);
 
   // The link waits on the account: before a video, or after one that arrived before it.
   const accountHold = link.status === "held"
@@ -671,8 +669,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // What the simulation of the site showed about the answer's robot (its reach in the scene), for the details screen.
   const robotFit = status?.robotFit ?? null;
   const answerPick = answer?.state === "ready" ? answer.pick : null;
-  const proof = useMemo(() => evaluations && (answer || evaluations.length > 0)
-    ? projectSimulationProof({ evaluation: evaluations, robotFit, pick: answerPick }) : null, [evaluations, answer, answerPick, robotFit]);
+  // Blueprint runs no robot software in the simulation (the early trial was dropped on 2026-11-14), so the page reads no
+  // run: the details say only what the scene showed about the pick's reach.
+  const robotCheck = useMemo(() => robotCheckOf(robotFit, answerPick), [robotFit, answerPick]);
   // Under an answer (still reading, or settled) the status card keeps only what the site still has to do or know: a step of its
   // own, a new video, an account, recording permission or a withdrawal, or an ended job. Waits on the
   // simulation are the proof section's to say, so the card does not repeat them as if the job were waiting.
@@ -927,7 +926,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
       <BareScreen>
       {view === "details" && answer ? <SiteAnswerDetails answer={answer} onBack={closeView} onOpen={screen => openView(`details/${screen}`)} />
-        : view.startsWith("details/") && answer ? <SiteAnswerDetail answer={answer} proof={proof} screen={view.slice(8) as DetailScreen} onBack={closeView} />
+        : view.startsWith("details/") && answer ? <SiteAnswerDetail answer={answer} robotCheck={robotCheck} screen={view.slice(8) as DetailScreen} onBack={closeView} />
         : view === "settings" && settingsOpen ? settingsScreen
         : recordingWithdrawn ? <>
           {/* Withdrawn: only what is true now, the withdrawal's own words in small type, and what still does something. */}
@@ -1294,30 +1293,3 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   );
 }
 
-/**
- * The early trial's results for the proof (`GET /api/job-workflow/owner/:token`, its `managedEvidence`), read while the
- * owner's link is open on a saved job and again every 15 seconds. Null until a read answers.
- */
-function useEarlyTrialEvaluations(token: string, enabled: boolean): JobManagedEvidenceSummary[] | null {
-  const [evaluations, setEvaluations] = useState<JobManagedEvidenceSummary[] | null>(null);
-  useEffect(() => {
-    if (!enabled) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const controller = new AbortController();
-    async function load() {
-      try {
-        const response = await fetch(`/api/job-workflow/owner/${encodeURIComponent(token)}`,
-          { cache: "no-store", signal: controller.signal, referrerPolicy: "no-referrer" });
-        const value = await response.json().catch(() => null) as { schemaVersion?: unknown; managedEvidence?: unknown } | null;
-        if (response.ok && value?.schemaVersion === "job_marketplace.v1" && !controller.signal.aborted)
-          setEvaluations(Array.isArray(value.managedEvidence) ? value.managedEvidence as JobManagedEvidenceSummary[] : []);
-      } catch {
-        // The last read stays; the next try is scheduled below.
-      }
-      if (!controller.signal.aborted) timer = setTimeout(load, 15_000);
-    }
-    void load();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [token, enabled]);
-  return evaluations;
-}
