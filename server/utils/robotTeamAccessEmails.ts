@@ -27,13 +27,14 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
   const invited = record.source === "invite";
   const call = founderCallUrl();
   return {
-    subject: "Your Blueprint beta invitation",
+    // The doctrine's words (journey audit, 2026-11-20): an approved deployment company, not a team invited to a beta.
+    subject: "Your company is approved to see jobs on Blueprint",
     body: [
       emailGreeting(firstName(record.name)),
       "",
       invited
-        ? "Following our conversation, your team is invited to the Blueprint beta."
-        : "Your team is approved for the invited Blueprint beta.",
+        ? "Following our conversation, your company is approved as a deployment company on Blueprint."
+        : "Your company is approved as a deployment company on Blueprint.",
       "",
       `Create your account with this email address (${record.email}), or sign in if you already have one:`,
       `${base}/signup/business?invitation=${encodeURIComponent(robotTeamAccountInvitation(record))}`,
