@@ -14,10 +14,11 @@ export type RobotFitHoldView = {
   precheckDigest: string;
 };
 
-const EMBODIMENTS: Record<RobotFitHoldEmbodiment, string> = {
-  droid_franka_panda_robotiq_2f85_v1: "Franka Panda arm with a Robotiq 2F-85 gripper",
-  unitree_g1_dex3_sonic_v1: "Unitree G1 humanoid with Dex3 hands",
-  registered_team_embodiment: "A robot registered by a robot team",
+/** The robots the precheck may name; read to check a hold's shape, never shown (the page names no robot or reason). */
+const EMBODIMENTS: Record<RobotFitHoldEmbodiment, true> = {
+  droid_franka_panda_robotiq_2f85_v1: true,
+  unitree_g1_dex3_sonic_v1: true,
+  registered_team_embodiment: true,
 };
 const VERDICTS: RobotFitHoldVerdict[] = ["fit", "no_fit", "unknown"];
 
@@ -34,62 +35,24 @@ export function isRobotFitHold(value: unknown): value is RobotFitHoldView {
       && VERDICTS.includes(row.verdict) && Array.isArray(row.reasons) && row.reasons.every(code => typeof code === "string"));
 }
 
-const VERDICT_LABELS: Record<RobotFitHoldVerdict, string> = {
-  fit: "Its body fits the room on this check",
-  no_fit: "Ruled out",
-  unknown: "Not decided before the scene is built",
-};
-
-/** Each precheck reason in plain words. An unknown code is shown as itself, never guessed at. */
-const REASONS: Record<string, string> = {
-  reach: "the task is farther than the arm reaches from any place it could be mounted level with the lower work surface",
-  carry_not_checked_before_spend: "its carry path was not checked before paid work",
-  no_clear_station_found: "no clear place to mount it was found in the scene",
-  carry_blocked_from_stations_tried: "its carry path was blocked from the places tried",
-  carry_undecided: "whether it can carry the object was not decided",
-  collider_unavailable: "the room's collision shape was not available for this check",
-  no_clear_stance_found: "no clear place for it to stand was found in the scene",
-  nominal_arm_span_missed_body_motion_may_reach: "standing still, its arms do not span the task; it may still reach by walking, leaning or crouching",
-  stance_reach_unassessed: "its reach from where it stands was not assessed",
-  embodiment_free_base_reach_not_modeled: "it moves on its own base, and this check does not model that reach",
-  declared_reach_misses_own_arm_may_reach: "its declared reach falls short, but its own arm model may still reach",
-  declared_reach_misses_from_stations_found: "its declared reach falls short from the places found",
-  task_geometry_not_modelled_before_authoring: "this check measures only pick-and-place tasks before the scene is built",
-  task_inputs_missing: "a task measurement this check needs is missing",
-};
-
 const TASK_KINDS: Record<string, string> = {
   rigid_pick_place: "picking up one object and putting it down somewhere else",
   articulated_open_close: "opening one door, drawer or lid",
 };
 /** A kind this page has no words for gets a neutral label, never its code. */
 export function taskKindLabel(kind: string): string {
-  return Object.prototype.hasOwnProperty.call(TASK_KINDS, kind) ? TASK_KINDS[kind] : "the task described in your job";
+  return Object.prototype.hasOwnProperty.call(TASK_KINDS, kind) ? TASK_KINDS[kind] : "the job you described";
 }
 
-function reasonText(codes: string[]): string {
-  return codes.map(code => REASONS[code] ?? code.replace(/_/g, " ")).join("; ");
-}
-
-/** Which robots Blueprint checked before any spend, and why none fits: the precheck's own evidence and no more.
- * An estimate from the scene rebuilt from video: never a physical test or a finding that no robot could do it. */
+/**
+ * The robots Blueprint checked, and that none fits: an estimate from the job as rebuilt from its video, never a physical
+ * test or a finding that no robot could do it. The per-robot list and the check's reason codes are engineering detail
+ * (and name robot software Blueprint no longer runs, owner 2026-11-14), so the site is told only the outcome.
+ */
 export function RobotFitHold({ hold }: { hold: RobotFitHoldView }) {
-  const { fit, noFit, unknown, unavailable } = hold.counts;
-  const total = fit + noFit + unknown + unavailable;
-  const parts = [`${noFit} ruled out`, ...(unavailable ? [`${unavailable} not available for this job`] : []),
-    ...(unknown ? [`${unknown} not decided`] : []), ...(fit ? [`${fit} fit`] : [])];
-  return <section aria-label="Robots checked before any spend">
+  return <section aria-label="Robots we checked">
     <h2>Robots we checked</h2>
-    <p className="ms-field-hint">Checked before any paid work, from your scene as rebuilt from your video. It is an
-      estimate: no robot was tried on your job, and it does not show that no robot could ever do it.</p>
-    {hold.taskKind && <p>Task checked: {taskKindLabel(hold.taskKind)}.</p>}
-    <p>{total} robot {total === 1 ? "setup" : "setups"} (a robot and the software that drives it): {parts.join(", ")}.</p>
-    {hold.embodiments.length > 0 && <ul style={{ margin: "6px 0 12px", paddingLeft: "20px" }}>
-      {hold.embodiments.map(row => <li key={row.embodiment}>
-        {EMBODIMENTS[row.embodiment]}: {VERDICT_LABELS[row.verdict]}
-        {row.reasons.length > 0 && <span className="ms-field-hint"> ({reasonText(row.reasons)})</span>}
-      </li>)}
-    </ul>}
-    {hold.embodimentsTruncated && <p className="ms-field-hint">More robots were checked than are listed here.</p>}
+    <p>None of the robots we checked fits this job. This is an estimate from your video; it does not mean no robot could do the job.</p>
+    {hold.taskKind && <p className="ms-field-hint">Job checked: {taskKindLabel(hold.taskKind)}.</p>}
   </section>;
 }

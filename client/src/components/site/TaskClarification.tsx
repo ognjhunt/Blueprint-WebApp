@@ -33,7 +33,7 @@ export function TaskClarification({ token, refreshKey, mode }: { token: string; 
     return () => { window.clearTimeout(timeout); controller.abort(); };
   }, [url, refreshKey, loadAttempt]);
   const saved = request?.response?.revision === request?.revision && Boolean(request?.response);
-  if (!request && !error) return <p className="ms-field-hint" role="status">Loading questions from the video analysis…</p>;
+  if (!request && !error) return <p className="ms-field-hint" role="status">Loading questions…</p>;
   const analysisUnavailable = mode === "assessment" && ["unavailable", "needs_review", "authority_ended"].includes(request?.assessmentState ?? "");
   if (request && !request.needed && !error && !saved && !analysisUnavailable) return mode === "assessment" ? <p className="ms-field-hint">{request.assessmentState === "ready" ? "There are no specific video-analysis questions to answer yet. Updates appear here as the job is reviewed." : "Questions will appear here after the video analysis identifies missing details for this job."}</p> : null;
   return <section className="ms-intake-questions" aria-label="Answer job questions">
@@ -42,7 +42,7 @@ export function TaskClarification({ token, refreshKey, mode }: { token: string; 
       <ul>{request.questions.map(question => <li key={question}>{question}</li>)}</ul>
     </> : null}
     {saved && !editing ? <>
-      <p role="status">Your answer is saved with this job for review.</p>
+      <p role="status">Your answer is saved with your job.</p>
       <details><summary>Your saved answer</summary><p style={{whiteSpace:"pre-wrap"}}>{request!.response!.explanation}</p></details>
       {request?.needed && <button type="button" className="ms-text-link" onClick={() => setEditing(true)}>Edit your answer</button>}
     </> : request?.needed && request.questions.length > 0 ? <>
@@ -64,7 +64,7 @@ export function TaskClarification({ token, refreshKey, mode }: { token: string; 
       }}>{busy ? "Saving…" : "Save answers"}</button>
     </> : request?.needed ? <p className="ms-field-hint">No specific question has been added yet.</p> : null}
     {error && <p role="alert">{error}</p>}
-    {analysisUnavailable && <p role="status">Video-analysis questions are temporarily unavailable.</p>}
+    {analysisUnavailable && <p role="status">These questions are not available right now.</p>}
     {(error || analysisUnavailable || request?.needed && !request.questions.length) && <button type="button" className="ms-text-link" disabled={busy}
       onClick={() => { setError(""); setLoadAttempt(value => value + 1); }}>Retry questions</button>}
   </section>;

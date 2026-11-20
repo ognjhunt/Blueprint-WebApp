@@ -25,7 +25,7 @@ export function isRobotFit(value: unknown): value is RobotFitView {
 }
 
 const GROUPS: Record<RobotFitVerdict, string> = {
-  fits: "Fit, with an arm path checked in your scene",
+  fits: "Fit, with a clear arm path in the simulation of your site",
   fits_spec: "Fit on paper",
   doesnt_fit: "Ruled out",
   unknown: "Need more information",
@@ -37,10 +37,10 @@ const CHECKS: Record<string, string> = {
 };
 
 const NOT_RUN: Record<string, string> = {
-  preparation_blocked: "Blueprint could not check robot fit yet: the scene is missing a measurement the check needs.",
-  task_strategy_not_modelled: "The robot fit check covers picking up and placing one object so far. This task is a different kind.",
-  subject_not_excised: "Blueprint could not separate the object from the rest of your scene, so robot fit was not checked.",
-  task_family_not_modelled: "The robot fit check covers moving one object so far. This task is a different kind.",
+  preparation_blocked: "We could not check which robots fit yet: a measurement we need is missing.",
+  task_strategy_not_modelled: "The first look covers picking up and placing one object so far. This job is a different kind.",
+  subject_not_excised: "We could not pick out the object in your video, so we could not check which robots fit.",
+  task_family_not_modelled: "The first look covers moving one object so far. This job is a different kind.",
 };
 
 function openText(checks: string[]): string {
@@ -52,8 +52,8 @@ function openText(checks: string[]): string {
 export function RobotFit({ fit }: { fit: RobotFitView }) {
   if (fit.status === "not_run") {
     return <section aria-label="Robot fit">
-      <h2>Robot fit</h2>
-      <p className="ms-field-hint">{NOT_RUN[fit.reason ?? ""] ?? "Blueprint could not check robot fit for this job."}</p>
+      <h2>First look</h2>
+      <p className="ms-field-hint">{NOT_RUN[fit.reason ?? ""] ?? "We could not check which robots fit this job."}</p>
     </section>;
   }
   const counts = fit.counts!;
@@ -73,8 +73,8 @@ export function RobotFit({ fit }: { fit: RobotFitView }) {
   };
   return <section aria-label="Robot fit">
     <h2>Robots that may fit this job</h2>
-    <p className="ms-field-hint">An estimate from published robot specs and your scene, sized from your video. It is not a
-      physical test: no robot has been tried on this job for this result.</p>
+    <p className="ms-field-hint">An estimate from published robot specs and your site, sized from your video. It is not a
+      physical test.</p>
     <p>{counts.fits + counts.fitsSpec} of {total} robots checked fit on paper, {counts.doesntFit} {counts.doesntFit === 1
       ? "is" : "are"} ruled out and {counts.unknown} need more information.</p>
     {group("fits", true)}

@@ -127,7 +127,7 @@ const ENDINGS: Readonly<Record<TerminalSceneOutcomeKind, { sentence: string; clo
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
   spending_cap_reached: { sentence: OUTLOOK_SENTENCES.spending_cap_reached,
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
-  stopped: { sentence: "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens.",
+  stopped: { sentence: OUTLOOK_SENTENCES.simulation_stopped,
     closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}` },
 };
 export const isTerminalSceneOutcomeKind = isTerminalKind;

@@ -203,7 +203,7 @@ export function CaptureRecorder(props: {
               const detail = (await response.json().catch(() => ({}))) as { error?: string };
               setState({
                 status: "failed",
-                message: detail.error || "This capture is on hold. Nothing more was uploaded.",
+                message: detail.error || "This job can't take more video right now. Nothing more was uploaded.",
                 recoverable: false,
               });
               return;
@@ -418,7 +418,7 @@ export function CaptureRecorder(props: {
     if (body.state === "held") {
       setState({
         status: "held",
-        message: body.message || "Your capture is saved. Something in it needs checking.",
+        message: body.message || "Your video is saved. We're checking it.",
         retryable: Boolean(body.retryable),
       });
       props.onSaved?.();
@@ -427,7 +427,7 @@ export function CaptureRecorder(props: {
 
     setState({
       status: "saved",
-      message: body.message || "Your capture is saved. You can close this page.",
+      message: body.message || "Your video is saved. You can close this page.",
     });
     props.onSaved?.();
   }, [drainQueue, props, stopStream]);
@@ -473,8 +473,7 @@ export function CaptureRecorder(props: {
   if (state.status === "unsupported") {
     return (
       <p className="ms-field-hint">
-        This browser cannot record in a format our reconstruction accepts. Record in your phone's
-        own camera app and upload the file below — it works exactly as well.
+        This browser can't record here. Film with your phone's camera app, then upload the video below.
       </p>
     );
   }
@@ -525,9 +524,7 @@ export function CaptureRecorder(props: {
             Finish
           </button>
           <p className="ms-field-hint">
-            Recording, and uploading as you go — {state.sentParts} piece
-            {state.sentParts === 1 ? "" : "s"} saved so far. Finish whenever you have shown what
-            you need to; there is no minimum length.
+            Recording. Press Finish after one full round of the job.
           </p>
           {shotLine}
         </>
@@ -557,7 +554,7 @@ export function CaptureRecorder(props: {
           <p className="ms-field-hint">{state.message}</p>
           {state.retryable && (
             <p className="ms-field-hint">
-              Nothing for you to do — this is on our side and we will come back to you.
+              Nothing for you to do. This page shows what happens next.
             </p>
           )}
         </>

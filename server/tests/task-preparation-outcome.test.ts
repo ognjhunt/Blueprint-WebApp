@@ -27,7 +27,8 @@ describe("source-bound preparation closeout", () => {
     const preparationOutcome = projectAtlasPreparationOutcome(current(atlas(state, "spending_cap_reached")));
     const projected = projectTaskStatus({ ...base, preparationOutcome, scenePreviewReady: state === "ready", visualReconstructionReady: state === "ready" });
     expect(projected.outcome).toMatchObject({
-      reason: "We reached our spending cap for this job, so we stopped building the simulation of your site.",
+      // A money word other than "Free for sites." never reaches a site: the cap stays internal (launch copy, 2026-11-20).
+      reason: "We stopped building the simulation of your site before it was finished.",
       nextStep: "Nothing is needed from you.", actionOwner: "none",
     });
   });
@@ -41,7 +42,7 @@ describe("source-bound preparation closeout", () => {
     const projected = projectTaskStatus({ ...base, preparationOutcome: outcome });
     expect(projected).toMatchObject({ decision: "processing_failure", operatorAction: null,
       outcome: { category: "processing_failure", basis: "execution_failure", actionOwner: "blueprint" } });
-    expect(outcome!.nextStep).toMatch(/do not need to record or upload it again/);
+    expect(outcome!.nextStep).toBe("Nothing is needed from you. Your video is saved; you don't need to send it again.");
     expect(JSON.stringify(projected)).not.toMatch(/requires_reconciliation|confirm.*brief|unsuitable for all/i);
   });
   it.each(Object.keys(RECAPTURE_SENTENCES))("asks the site for a new video, saying what to film, for %s", reason => {
@@ -80,9 +81,9 @@ describe("source-bound preparation closeout", () => {
     // Rewritten (review, 2026-11-12): a card with no promise; the preparation status's own outcome takes its place
     // when it has one. Never a robot verdict.
     expect(projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_scene_planner_abstained")))).toMatchObject({
-      category: "insufficient_evidence", title: "We could not confirm the 3D scene covers your job",
-      reason: "The views in your video did not show enough of the scene for this job.",
-      nextStep: "Nothing is needed from you now. Your recording stays saved." });
+      category: "insufficient_evidence", title: "Your video didn't show enough of the job",
+      reason: "The views in your video did not show enough of the work area for this job.",
+      nextStep: "Nothing is needed from you now. Your video stays saved." });
     // A reason this release does not know is read, not refused (review, 2026-11-12), and it is never a robot verdict:
     // it reads as the general "stopped" sentence.
     const desk = preparationOutcomeSchema.safeParse({ category: "robot_incompatibility", reason: "desk_too_high",
@@ -94,7 +95,9 @@ describe("source-bound preparation closeout", () => {
   it("keeps a no-object scene preservation refusal separate from a robot verdict", () => {
     const outcome = projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_scene_requires_preserved_capture")));
     expect(outcome).toMatchObject({category: "insufficient_evidence", basis: "missing_evidence", actionOwner: "blueprint"});
-    expect(outcome!.reason).toMatch(/preserve the captured objects/);
+    // Not a new-video ask, so the reason never blames the video.
+    expect(outcome!.reason).toBe("We could not rebuild the work area and the object clearly enough to build the simulation.");
+    expect(outcome!.scope).toBe("");
     expect(outcome!.evidence[0].digest).toBe(atlas("needs_input", "atlas_scene_requires_preserved_capture").preview_digest);
     expect(projectTaskStatus({...base, preparationOutcome: outcome}).decision).toBe("insufficient_evidence");
     expect(projectAtlasPreparationOutcome(current({...atlas("needs_input", "atlas_scene_requires_preserved_capture"),
@@ -106,30 +109,33 @@ describe("source-bound preparation closeout", () => {
       robot_id: "franka_panda", evidence_digest: sha }));
     const projected = projectTaskStatus({ ...base, preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome } });
     expect(projected.decision).toBe("robot_incompatibility");
-    expect(outcome.scope).toMatch(/Conservative rejection/);
-    expect(outcome.scope).toMatch(/not proof.*impossible.*every robot.*physically/);
+    expect(outcome.title).toBe("The robot arm we checked has no clear path for this job");
+    expect(outcome.reason).not.toMatch(/Franka|collision-free|stations|policy evaluation|Paid construction/);
+    expect(outcome.scope).toBe("This is an estimate. It does not mean no robot could do the job.");
     expect(outcome.evidence[0].digest).toBe(sha);
   });
+  // Blueprint runs no robot software (owner, 2026-11-14): only the reach cause is said; the others name the robots checked.
   it.each([
-    ["reach", /ruled out on reach.*farther than the arm can reach/],
-    ["task_kind", /none of the robot software we run handles this kind of task yet/],
-    ["gpu_memory", /needs more graphics-card \(GPU\) memory than any machine we can rent/],
-    ["no_candidate_available", /none of the robot setups we run is available for this job right now/],
-  ])("holds a job no robot we run fits, in plain words, for cause %s", (cause, sentence) => {
+    ["reach", "None of the 5 robots we checked fits this job. The main reason: the spot where the object is picked up or put down is farther than their arms can reach."],
+    ["task_kind", "None of the 5 robots we checked fits this job."],
+    ["gpu_memory", "None of the 5 robots we checked fits this job."],
+    ["no_candidate_available", "None of the 5 robots we checked fits this job."],
+  ])("holds a job no robot we checked fits, in plain words, for cause %s", (cause, sentence) => {
     const receipt = preparationOutcomeV6Schema.parse({ category: "robot_incompatibility", reason: "robot_fit_none",
       basis: "conservative_pre_spend_fit_check", robot_id: null, evidence_digest: sha });
     const outcome = projectPreparationOutcome(receipt, { holdReason: `website_robot_fit_none:${cause}`, precheckDigest: sha,
       counts: { fit: 0, noFit: 3, unknown: 0, unavailable: 2 } });
-    expect(outcome.title).toBe("The simulation is held: none of the robots we can simulate fits this job yet");
-    expect(outcome.reason).toMatch(/^None of the 5 robot setups we can simulate fits this job\. The main reason: /);
-    expect(outcome.reason).toMatch(sentence);
-    expect(outcome.scope).toMatch(/before any paid work.*no robot was tried.*does not show that no robot could ever do it/);
+    expect(outcome.title).toBe("The simulation is on hold: none of the robots we checked fits this job");
+    expect(outcome.reason).toBe(sentence);
+    expect(outcome.reason).not.toMatch(/software|graphics|GPU|rent|setups|licensed|switched off/i);
+    expect(outcome.scope).toBe("This is an estimate from your video. It does not mean no robot could do the job.");
+    expect(outcome.nextStep).toBe("Nothing is needed from you. Your first look stays on your job page, and your video is saved.");
     const projected = projectTaskStatus({ ...base, preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome } });
     expect(projected).toMatchObject({ decision: "robot_incompatibility", headline: outcome.title, operatorAction: null });
     // A precheck bound to other evidence lends the hold no cause.
     expect(projectPreparationOutcome(receipt, { holdReason: `website_robot_fit_none:${cause}`,
       precheckDigest: `sha256:${"b".repeat(64)}`, counts: { fit: 0, noFit: 3, unknown: 0, unavailable: 2 } }).reason)
-      .toBe("None of the robot setups we can simulate fits this job.");
+      .toBe("None of the robots we checked fits this job.");
   });
   it("keeps the robot fit hold out of the v3-v5 vocabulary", () => {
     const value = { category: "robot_incompatibility", reason: "robot_fit_none", basis: "conservative_pre_spend_fit_check",
@@ -143,7 +149,7 @@ describe("source-bound preparation closeout", () => {
     const receipt = atlas("needs_input", reason);
     const outcome = projectAtlasPreparationOutcome(current(receipt));
     expect(outcome).toMatchObject({category: "insufficient_evidence", actionOwner: "blueprint"});
-    expect(outcome!.reason).toMatch(/registered geometry/);
+    expect(outcome!.reason).toBe("We could not rebuild the work area and the object clearly enough to build the simulation.");
     expect(outcome!.evidence[0].digest).toBe(receipt.preview_digest);
     expect(projectTaskStatus({...base, preparationOutcome: outcome}).decision).toBe("insufficient_evidence");
   });
@@ -151,9 +157,10 @@ describe("source-bound preparation closeout", () => {
     const receipt = atlas("needs_input", "atlas_recorded_source_views_must_be_recovered_before_generation");
     const outcome = projectAtlasPreparationOutcome(current(receipt));
     expect(outcome).toMatchObject({category: "processing_failure", actionOwner: "blueprint"});
-    expect(outcome!.reason).toMatch(/useful views in your saved video/);
-    expect(outcome!.nextStep).toMatch(/no new upload is required/);
-    expect(outcome!.scope).toMatch(/No robot pass, failure or physical-world validation/);
+    expect(outcome!.title).toBe("We haven't finished building the simulation from your video");
+    expect(outcome!.reason).toBe("Part of your video still needs to go into the simulation.");
+    expect(outcome!.nextStep).toBe("Nothing is needed from you. Your video is saved.");
+    expect(outcome!.scope).toBe("");
   });
   it("rejects cross-capture and tampered receipts, and clears a stop on a newer processing state", () => {
     expect(current(atlas("failed", "atlas_preview_expired", "walkthrough-other"))).toBeNull();

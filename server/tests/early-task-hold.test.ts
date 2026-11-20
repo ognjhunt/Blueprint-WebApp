@@ -67,7 +67,7 @@ describe("the Pipeline's early task hold", () => {
     const outcome = projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(
       { website_atlas_previews: { "walkthrough-req-1": atlas("website_native_task_profile_preparation_required") } }, "walkthrough-req-1"));
     expect(projectTaskStatus({ ...base, hasStoredCapture: false, preparationOutcome: outcome }).outcome!.nextStep)
-      .toBe("Nothing is needed from you. Keep your original recording; you do not need to send it again.");
+      .toBe("Nothing is needed from you. Keep your original video; you don't need to send it again.");
   });
 
   it("leaves other needs-input reasons where they were", () => {

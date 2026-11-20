@@ -37,7 +37,7 @@ beforeEach(() => { localStorage.clear(); sessionStorage.clear(); state.rows.clea
             } }; });
         } return action(); } } }); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-async function ready() { await screen.findByRole('form', { name: 'Start a site capture' }); await act(async () => { }); }
+async function ready() { await screen.findByRole('form', { name: 'Start a job' }); await act(async () => { }); }
 it('queued autosave checks mounted account inside the lock before writing', async () => {
     const view = render(<SiteCaptureStart />);
     await ready();
@@ -114,7 +114,7 @@ it('a saved job offers Start a new job, shown only once both stores hold the fre
     await saveJob();
     const key=siteCaptureDraftKey('old-owned-fixture','default'),before=localStorage.getItem(key);
     expect(JSON.parse(before!).pending.acknowledged).toBe(true);
-    expect(screen.getByText('Your job is saved. Return to the same job to check its current status.')).toBeInTheDocument();
+    expect(screen.getByText('Your job is saved. Return to it to see where it stands.')).toBeInTheDocument();
     hold=true;fireEvent.click(screen.getByRole('button',{name:'Start a new job ›'}));
     await vi.waitFor(()=>expect(queued).toBe(1));
     expect(screen.getByRole('button',{name:'Starting a new job…'})).toBeDisabled();
@@ -134,20 +134,20 @@ it('a failed Start a new job keeps the saved job and says this browser could not
     await saveJob();
     const key=siteCaptureDraftKey('old-owned-fixture','default'),before=localStorage.getItem(key);
     state.retireFailure=true;fireEvent.click(screen.getByRole('button',{name:'Start a new job ›'}));
-    await screen.findByText(/cannot safely save or coordinate recovery details/);
+    await screen.findByText(/This browser can't save your progress\. Try another browser/);
     expect(screen.getByRole('button',{name:'Return to saved job'})).toBeEnabled();
     expect(screen.getByRole('button',{name:'Start a new job ›'})).toBeEnabled();
     expect(localStorage.getItem(key)).toBe(before);
     state.retireFailure=false;fireEvent.click(screen.getByRole('button',{name:'Start a new job ›'}));
     await vi.waitFor(()=>expect(document.querySelector('#start-task')).toBeEnabled());
-    expect(screen.queryByText(/cannot safely save or coordinate recovery details/)).toBeNull();
+    expect(screen.queryByText(/This browser can't save your progress\. Try another browser/)).toBeNull();
 });
 it('a Start a new job that fails after the tombstone puts the saved job back, so Return still works', async () => {
     await saveJob();
     const key=siteCaptureDraftKey('old-owned-fixture','default'),saved=JSON.parse(localStorage.getItem(key)!);
     // The old copy is tombstoned and forgotten, then the fresh generation's durable write fails.
     state.failWritesExcept=saved.requestId;fireEvent.click(screen.getByRole('button',{name:'Start a new job ›'}));
-    await screen.findByText(/cannot safely save or coordinate recovery details/);
+    await screen.findByText(/This browser can't save your progress\. Try another browser/);
     expect(screen.getByRole('button',{name:'Return to saved job'})).toBeEnabled();
     expect(JSON.parse(localStorage.getItem(key)!)).toMatchObject({requestId:saved.requestId,retryToken:saved.retryToken,pending:{acknowledged:true}});
     expect(state.rows.get(key)).toMatchObject({retired:false,value:{requestId:saved.requestId,pending:{acknowledged:true}}});
@@ -183,7 +183,7 @@ it('FIFO: a Start a new job queued before switching accounts A to B to A stays d
     expect(screen.getByRole('button',{name:'Starting a new job…'})).toBeDisabled();
     state.user=null;view.rerender(<SiteCaptureStart />);await ready();
     state.user=oldUser;view.rerender(<SiteCaptureStart />);
-    expect(screen.getByText(/Loading your account and saved draft/)).toBeVisible();
+    expect(screen.getByText(/^Loading…$/)).toBeVisible();
     await act(async()=>{unlock();await blocker;});
     await screen.findByRole('button',{name:'Return to saved job'});
     expect(localStorage.getItem(key)).toBe(before);

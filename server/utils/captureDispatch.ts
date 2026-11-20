@@ -146,9 +146,10 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
     return {
       dispatch: false,
       holdReason: "gates_inferred",
+      // The site sees this detail, so it names no field ids (staff read them from `inferredFieldIds`).
       detail:
-        `Still resting on inferred answers: ${inferred.inferredFieldIds.join(", ")}. ` +
-        "The operator has to confirm these before anything is captured.",
+        "Some details about your job still need your confirmation before you film. " +
+        "Check and confirm your job description.",
     };
   }
 
@@ -172,15 +173,15 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
           dispatch: false,
           holdReason: "capture_region_unapproved",
           detail:
-            "The site is outside the region the beta is cleared to collect from. " +
-            "Transfer terms have to be signed before a walkthrough is recorded, not after.",
+            "We can only take videos from sites in the United States for now, " +
+            "so this link can't take a video yet.",
         }
       : {
           dispatch: false,
           holdReason: "capture_region_unknown",
           detail:
-            "No region recorded for this site, so there is no basis to collect a walkthrough " +
-            "against. Ask the operator which country the site is in.",
+            "We don't know which country your site is in, so this link can't take a video yet. " +
+            "Email hello@tryblueprint.io with your site's country.",
         };
   }
 

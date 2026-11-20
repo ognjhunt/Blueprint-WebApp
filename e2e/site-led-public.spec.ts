@@ -33,7 +33,7 @@ test("on a small phone both entry points are visible before scrolling", async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await start.click();
-  await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
+  await expect(page.getByRole("form", { name: "Start a job" })).toBeVisible();
   await companies.click();
   await expect(page.getByRole("heading", { name: "Apply for access" })).toBeInViewport();
   await page.getByRole("link", { name: "See jobs", exact: true }).click();
@@ -66,7 +66,7 @@ test("the site page is the start form alone, on a phone too", async ({ page }) =
   for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.goto("/contact/site-operator");
-    await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
+    await expect(page.getByRole("form", { name: "Start a job" })).toBeVisible();
     await expect(page.getByText("How this works", { exact: true })).toHaveCount(0);
     await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Send inquiry" })).toHaveCount(0);

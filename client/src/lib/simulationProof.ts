@@ -300,7 +300,7 @@ export const COULD_NOT_RUN: Partial<Record<JobScreeningOutcome, string>> = {
   no_match: "None of the robots the simulation can run matched this task; at least one was measured out of reach from the robot position planned in the scene built from your video.",
   held_setup: "A problem on our side stopped the simulation before it finished.",
   held_budget: "The simulation stopped at a limit on our side before it finished.",
-  held_scene_check: "The simulated scene failed the check we run before testing robots, so no robot was tested in it.",
+  held_scene_check: "We couldn't finish the simulation of your site: it didn't pass one of our checks.",
 };
 
 /** Blockers that close a row in favour of a newer run of the same job: it runs there, not "did not run". */
@@ -746,7 +746,7 @@ export const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, s
   no_match: "None of the robots we can try matched this job. At least one couldn't reach it in the simulation of your site.",
   held_setup: "A problem on our side stopped it.",
   held_budget: "It stopped at a limit on our side.",
-  held_scene_check: "The simulation of your site failed our check, so no robot was tested in it.",
+  held_scene_check: "The simulation of your site didn't pass one of our checks.",
 };
 export const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
   awaiting_spend_approval: "The trial is paused on our side.",

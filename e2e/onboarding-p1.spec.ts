@@ -60,28 +60,29 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: retai
   });
   await page.goto("/capture-upload/retained-fixture");
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Start processing again", exact: true })).toBeHidden();
   await expect(page.getByText("Your video is saved.", { exact: true })).toBeVisible();
   await expect(page.getByText("We have your task and are checking your footage.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("img", { name: /phone|device/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Open the camera|Choose or record|Upload a video file/ })).toHaveCount(0);
   expect(retries).toEqual([]); expect(mutations).toEqual([]);
   await page.reload();
-  await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Start processing again", exact: true })).toBeHidden();
   expect(retries).toEqual([]);
+  // "Back to Blueprint" goes home, not to a second Start a job form.
   await page.getByRole("link", { name: "Back to Blueprint", exact: true }).click();
-  await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
   await page.goBack();
-  await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Start processing again", exact: true })).toBeHidden();
   await screenshot(page, `${mobile ? "phone" : "desktop"}-retained-processing-pending`);
-  await page.getByText("Processing details (optional)", { exact: true }).click();
-  await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Retry processing", exact: true }).click();
-  await expect(page.getByRole("button", { name: /Retry.*processing/ })).toHaveCount(0);
+  await page.getByText("Processing status", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "Start processing again", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Start processing again", exact: true }).click();
+  await expect(page.getByRole("button", { name: /Start processing again|Starting…/ })).toHaveCount(0);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   expect(retries).toHaveLength(1); expect(mutations).toEqual([]);
   await page.reload();
-  await expect(page.getByRole("button", { name: /Retry.*processing|Upload a video file|Open the camera/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Start processing again|Upload a video file|Open the camera/ })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await context.close();
 });
@@ -94,7 +95,7 @@ test("a retained video with changed consent shows the current hold without proce
   } }));
   await page.goto("/capture-upload/consent-fixture");
   await expect(page.getByText(/Confirm current consent/)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Retry.*processing|Open the camera|Upload a video file/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Start processing again|Open the camera|Upload a video file/ })).toHaveCount(0);
   await expect(page.getByRole("img", { name: /phone|device/ })).toHaveCount(0);
   expect(mutations).toEqual([]);
 });
@@ -104,14 +105,14 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: exist
   const page = await context.newPage();
   const mutations = await fixtures(page);
   await page.goto("/capture-upload/existing-fixture?video=existing");
-  await expect(page.getByRole("heading", { name: "Upload your existing video" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Upload your video" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload a video file", exact: true })).toBeVisible();
   await expect(page.getByText("Your job is saved.", { exact: true })).toBeVisible();
   await expect(page.getByText("We have your task and are checking your footage.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Open the camera|Choose or record/ })).toHaveCount(0);
   await expect(page.getByText("Ask someone else to film", { exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"][accept=".mov,.mp4"]')).not.toHaveAttribute("capture");
-  const handoff = page.locator("details").filter({ has: page.getByText("Open this job on another device (optional)", { exact: true }) });
+  const handoff = page.locator("details").filter({ has: page.getByText("Video on another device?", { exact: true }) });
   await expect(handoff).not.toHaveAttribute("open");
   await expect(page.getByRole("img", { name: /phone|device/ })).toHaveCount(0);
   expect(mutations).toEqual([]);
@@ -226,7 +227,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, ...(mobile ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true } : {}) });
   const page = await context.newPage(); const mutations = await fixtures(page);
   await page.goto("/contact/site-operator");
-  const form = page.getByRole("form", { name: "Start a site capture" });
+  const form = page.getByRole("form", { name: "Start a job" });
   await expect(form.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
   await expect(form.locator("#start-task")).toHaveValue("");
   await expect(form.locator("#start-task")).toBeAttached();
@@ -239,7 +240,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   await form.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   if (mobile) {
     await expect(page).toHaveURL(/\/capture-upload\/owner-fixture$/);
-    await expect(page.getByRole("heading", { name: "Film the work area" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Film the job" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ }).first()).toBeVisible();
   } else {
     await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
@@ -279,19 +280,20 @@ test("free beta does not restore paid checkout controls after a reload", async (
   }
 });
 
-test("site owner sees results before optional account saving", async ({ page }) => {
+test("site owner sees where the job stands before optional account saving", async ({ page }) => {
   const mutations = await fixtures(page);
+  // Blueprint runs no robot software in the simulation (owner, 2026-11-14): an older run record reads as a ready simulation.
   await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: {
-    ok: true, status: { decision: "results", headline: "Results are in from 2 screening runs. Review each run separately.", operatorAction: null, missingViews: [], nextUpdateIso: null },
+    ok: true, status: { decision: "assessing", headline: "The simulation of your site is ready. Nothing is needed from you.", operatorAction: null, missingViews: [], nextUpdateIso: null },
     claimUrl: "/sign-in?claim=owner-fixture", sceneViewUrl: "https://scene.example.test/view/owner-scene",
   } }));
   await page.goto("/capture-upload/owner-fixture");
-  await expect(page.getByText("Results are in from 2 screening runs. Review each run separately.")).toBeVisible();
-  const optionalAccount = page.getByText("Save this job to an account (optional)", { exact: true });
+  await expect(page.getByText("The simulation of your site is ready. Nothing is needed from you.")).toBeVisible();
+  const optionalAccount = page.locator("summary").getByText("Save to my account", { exact: true });
   await expect(optionalAccount).toBeVisible();
-  await expect(page.getByRole("link", { name: "Save this job to your account", exact: true })).toBeHidden();
+  await expect(page.getByRole("link", { name: "Save to my account", exact: true })).toBeHidden();
   await expect(page.getByRole("link", { name: "View the simulation of your site" })).toHaveAttribute("href", "https://scene.example.test/view/owner-scene");
   await optionalAccount.click();
-  await expect(page.getByRole("link", { name: "Save this job to your account", exact: true })).toHaveAttribute("href", "/sign-in?claim=owner-fixture");
+  await expect(page.getByRole("link", { name: "Save to my account", exact: true })).toHaveAttribute("href", "/sign-in?claim=owner-fixture");
   expect(mutations).toEqual([]);
 });

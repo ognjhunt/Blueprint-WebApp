@@ -13,10 +13,12 @@ test("an outcome link opens a confirm page that names only the answer", async ({
   await expect(page.locator("body")).not.toContainText("e2e-co");
 });
 
-test("a bad outcome link says only that it no longer works", async ({ page }) => {
+test("a bad outcome link says it no longer works, and the one other way to answer", async ({ page }) => {
   const response = await page.goto("/api/job-outcomes/not-a.real-token");
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "This link no longer works." })).toBeVisible();
+  await expect(page.getByText("You can email hello@tryblueprint.io instead.", { exact: true })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("not-a.real-token");
 });
 
 test("the thank-you page says what was recorded", async ({ page }) => {

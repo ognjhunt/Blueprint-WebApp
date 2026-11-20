@@ -11,7 +11,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
-  PREPARATION_ENDED_NEXT } from "../utils/taskPreparationOutcome";
+  PREPARATION_ENDED_NEXT, processingFailure, projectPreparationOutcome } from "../utils/taskPreparationOutcome";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
 import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { ownerClosure } from "./fixtures/website-run-closure";
@@ -19,7 +19,11 @@ import { ownerClosure } from "./fixtures/website-run-closure";
 import {
   projectTaskStatus,
   taskStatusInputFrom,
+  withoutStoredVideo,
 } from "../utils/taskStatusProjection";
+
+/** What an older run record reads as now that no robot software runs in the simulation (owner, 2026-11-14). */
+const READY = "The simulation of your site is ready. Nothing is needed from you.";
 
 function base(overrides: Partial<Parameters<typeof projectTaskStatus>[0]> = {}) {
   return {
@@ -39,17 +43,18 @@ it("keeps a ready visual reconstruction current when native status and advisory 
     capture_coverage: { covers_scene: false, missing_coverage: ["A closer walkthrough along the shelving units"] } });
   const status = projectTaskStatus(input);
   expect(status).toMatchObject({ decision: "preview_ready", operatorAction: null,
-    headline: "Your 3D preview is ready. Blueprint is checking the next processing step." });
+    headline: "A preview of your site is ready. We're working on the next step." });
   expect(status.headline).not.toMatch(/evaluation.*ready|simulation.*ready|record|upload/i);
   expect(status.missingViews).toEqual(["A closer walkthrough along the shelving units"]);
   expect(projectTaskStatus({ ...input, consentRevoked: true }).headline).toMatch(/withdrawn/i);
-  expect(projectTaskStatus({ ...input, preparationStatus: { state: "authority_ended", correlationId: null } }).headline).toMatch(/^This job has ended because Blueprint is no longer authorized/);
+  expect(projectTaskStatus({ ...input, preparationStatus: { state: "authority_ended", correlationId: null } }).headline).toMatch(/^This job has ended because we no longer have permission to work on it\./);
   const ownerStep = { category: "insufficient_evidence", basis: "missing_evidence", title: "Owner decision needed",
     reason: "A current owner permission is required.", scope: "This recording", nextStep: "Review the recording permission.",
     actionOwner: "site", evidence: [] } as const;
   expect(projectTaskStatus({ ...input, preparationStatus: { state: "awaiting_inputs", correlationId: null,
     outcome: { ...ownerStep, evidence: [] } } })).toMatchObject({ decision: "insufficient_evidence", operatorAction: ownerStep.nextStep });
-  expect(projectTaskStatus({ ...input, screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
+  // Blueprint runs no robot software in the simulation (owner, 2026-11-14): an older run record reads as a ready simulation.
+  expect(projectTaskStatus({ ...input, screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).headline).toBe(READY);
 });
 
 it("tells a geometry-only job its robot fit check is its result, never a request for more information", () => {
@@ -57,14 +62,15 @@ it("tells a geometry-only job its robot fit check is its result, never a request
     preparationStatus: { state: "awaiting_inputs", correlationId: null,
       robotFit: { route: "geometry_only", status: "completed" } } });
   const ready = projectTaskStatus(input);
-  expect(ready.headline).toMatch(/^Your robot fit check is ready/);
+  expect(ready.headline).toMatch(/^Your first look is ready/);
   expect(ready.headline).toMatch(/estimate from published specs/);
-  expect(ready.headline).not.toMatch(/needs more information|taking longer/);
+  expect(ready.headline).not.toMatch(/still preparing|taking longer|robot fit|no robot has been tried/);
   expect(projectTaskStatus({ ...input, preparationStatus: { state: "awaiting_inputs", correlationId: null,
-    robotFit: { route: "geometry_only", status: "not_run" } } }).headline).toMatch(/could not check robot fit/);
+    robotFit: { route: "geometry_only", status: "not_run" } } }).headline).toBe("We could not give a first look for this job. The reason is below.");
   // A full-route job awaiting inputs keeps its own wording.
   expect(projectTaskStatus({ ...input, preparationStatus: { state: "awaiting_inputs", correlationId: null,
-    robotFit: { route: "full", status: "completed" } } }).headline).toMatch(/needs more information.*taking longer/);
+    robotFit: { route: "full", status: "completed" } } }).headline)
+    .toBe("We are still preparing your job. Nothing is needed from you now. This is taking longer than usual.");
 });
 
 it("keeps owner closure above stale preparation progress and confirmation while preserving withdrawal", () => {
@@ -82,7 +88,8 @@ describe("a persisted preview preparation failure", () => {
   it("distinguishes failed preview preparation from active assessment", () => {
     const projected = projectTaskStatus(failed());
     expect(projected.decision).toBe("processing_failure");
-    expect(projected.headline).toMatch(/Blueprint could not finish processing/i);
+    expect(projected.headline).toBe("We could not finish preparing your job");
+    expect(projected.outcome?.reason).toBe("A step on our side stopped before it finished.");
     expect(projected.stage).toBeNull();
     expect(projected.operatorAction).toBeNull();
   });
@@ -100,13 +107,12 @@ describe("a persisted preview preparation failure", () => {
     expect(unclaimed.headline).not.toMatch(/start building/i);
     expect(projectTaskStatus({ ...failed(), coversScene: false, missingViews: ["infeed"] }).decision).toBe("processing_failure");
   });
-  it("preserves queued, observed and no-result screening runs", () => {
-    expect(projectTaskStatus({ ...failed(), screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }).decision).toBe("screening");
-    expect(projectTaskStatus({ ...failed(), screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
-    expect(projectTaskStatus({ ...failed(), screening: { teams: 1, queued: 0, running: 0, reported: 0, noResult: 1 } }).decision).toBe("results");
+  it("reads queued, observed and no-result run records as a ready simulation, above the older preview failure", () => {
+    for (const runs of [{ queued: 1, reported: 0, noResult: 0 }, { queued: 0, reported: 1, noResult: 0 }, { queued: 0, reported: 0, noResult: 1 }])
+      expect(projectTaskStatus({ ...failed(), screening: { teams: 1, running: 0, ...runs } })).toMatchObject({ decision: "assessing", headline: READY });
   });
   it("leaves a newer current ready state and account requirement usable", () => {
-    expect(projectTaskStatus({ ...failed(), scenePreparationFailed: false, scenePreviewReady: true }).headline).toMatch(/preview is ready/i);
+    expect(projectTaskStatus({ ...failed(), scenePreparationFailed: false, scenePreviewReady: true }).headline).toMatch(/^A preview of your site is ready\./);
     expect(projectTaskStatus({ ...failed(), scenePreparationFailed: false, disposition: "qualified", claimed: false }).decision).toBe("save_account");
     expect(taskStatusInputFrom({ briefDrafted: true, stage: null }).scenePreparationFailed).toBe(false);
   });
@@ -122,8 +128,8 @@ describe("the decision ladder", () => {
   it("asks for a confirmation once a brief is drafted", () => {
     const status = projectTaskStatus(base({ briefDrafted: true }));
     expect(status.decision).toBe("confirm_brief");
-    // Only a confirmed job is evaluated, so the step is never optional.
-    expect(status.headline).toMatch(/Confirm it so we can evaluate your job/);
+    // The site's own step, never worded as optional.
+    expect(status.headline).toBe("Check your job description and confirm it. You can do this before or after you film.");
     expect(status.headline).not.toMatch(/without confirming|optional/i);
     expect(status.operatorAction).toMatch(/confirm it/i);
   });
@@ -209,7 +215,7 @@ describe("source coverage remains an explicit gap without preempting reconstruct
       coversScene: false, missingViews: ["the rear of the shelves"], ...progress}));
     expect(status.decision).not.toBe("add_views");
     expect(status.operatorAction ?? "").not.toMatch(/new job|additional source views/i);
-    if ("screening" in progress) expect(status.decision).toBe("results");
+    if ("screening" in progress) expect(status.headline).toBe(READY);
   });
 
   it("retains broad coverage uncertainty without claiming ready or requesting another recording", () => {
@@ -296,49 +302,20 @@ describe("pulling inputs off a stored request", () => {
   });
 });
 
-describe("screening and results rungs", () => {
+// Blueprint runs no robot software in the simulation (owner, 2026-11-14). A run record only ever existed against a built,
+// runnable simulation, so an older one reads as that, never as an evaluation, a screening or a result.
+describe("older run records", () => {
   const assessed = { briefDrafted: true, briefConfirmed: true, coversScene: true as const };
-
-  it("reports accepted work as waiting when no screening run has started", () => {
-    const status = projectTaskStatus(base({ ...assessed,
-      screening: { teams: 2, queued: 2, running: 0, reported: 0, noResult: 0 },
-    }));
-    expect(status.decision).toBe("screening");
-    expect(status.headline).toMatch(/screening has not started/i);
-    expect(status.headline).toMatch(/results are not available yet/i);
-    expect(status.headline).not.toMatch(/being screened|is running/i);
-    expect(status.operatorAction).toBeNull();
-  });
-
-  it("reports screening once runs are queued or running against the scene", () => {
-    const status = projectTaskStatus(
-      base({
-        ...assessed,
-        screening: { teams: 2, queued: 1, running: 1, reported: 0, noResult: 0 },
-      }),
-    );
-    expect(status.decision).toBe("screening");
-    expect(status.headline).toContain("Robot screening is in progress");
-    expect(status.operatorAction).toBeNull();
-  });
-
-  it("reports results without comparing observations from different runs", () => {
-    const status = projectTaskStatus(
-      base({
-        ...assessed,
-        screening: { teams: 3, queued: 0, running: 1, reported: 2, noResult: 0 },
-      }),
-    );
-    expect(status.decision).toBe("results");
-    expect(status.headline).toContain("Each run's episodes are shown separately");
-    expect(status.operatorAction).toBe("Review the results.");
-  });
-
-  it("keeps internal team and queue counts out of customer status", () => {
-    const status = projectTaskStatus(
-      base({ ...assessed, screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }),
-    );
-    expect(status.headline).toContain("Robot screening has not started");
+  it.each([
+    { teams: 2, queued: 2, running: 0, reported: 0, noResult: 0 },
+    { teams: 2, queued: 1, running: 1, reported: 0, noResult: 0 },
+    { teams: 3, queued: 0, running: 1, reported: 2, noResult: 0 },
+    { teams: 1, queued: 0, running: 0, reported: 0, noResult: 1 },
+    { teams: 2, queued: 0, running: 0, reported: 2, noResult: 0, passed: 0, ineligible: 2 },
+  ])("say the simulation is ready and nothing is needed: %j", screening => {
+    const status = projectTaskStatus(base({ ...assessed, screening }));
+    expect(status).toMatchObject({ decision: "assessing", headline: READY, operatorAction: null });
+    expect(status.headline).not.toMatch(/screening|evaluation|results|episode|pass|candidate|review/i);
   });
 
   it("stays at assessing when no run exists", () => {
@@ -348,16 +325,10 @@ describe("screening and results rungs", () => {
     expect(status.decision).toBe("assessing");
   });
 
-  it("keeps a coverage shortfall visible without hiding recorded screening activity", () => {
-    const status = projectTaskStatus(
-      base({
-        ...assessed,
-        coversScene: false,
-        missingViews: ["the pallet position"],
-        screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 },
-      }),
-    );
-    expect(status.decision).toBe("screening");
+  it("keeps a coverage shortfall visible beside an older run record", () => {
+    const status = projectTaskStatus(base({ ...assessed, coversScene: false, missingViews: ["the pallet position"],
+      screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }));
+    expect(status.headline).toBe(READY);
     expect(status.missingViews).toEqual(["the pallet position"]);
   });
 
@@ -369,23 +340,14 @@ describe("screening and results rungs", () => {
     });
     expect(input.screening?.reported).toBe(1);
   });
-
-  it("reports a concluded zero-episode run as no result", () => {
-    const status = projectTaskStatus(
-      base({ ...assessed, screening: { teams: 1, queued: 0, running: 0, reported: 0, noResult: 1 } }),
-    );
-    expect(status.decision).toBe("results");
-    expect(status.headline).toContain("ended before any episode was recorded");
-    expect(status.operatorAction).toBe("Review the run status.");
-  });
 });
 
 
 it("shows a completed visual preview while keeping simulation readiness separate", () => {
   const input = base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, scenePreviewReady: true });
   expect(projectTaskStatus(input)).toMatchObject({decision: "assessing", operatorAction: null,
-    headline: "Your scene preview is ready. We are preparing the job for simulation."});
-  expect(projectTaskStatus({...input, screening: {teams: 1, queued: 0, running: 0, reported: 1, noResult: 0}}).decision).toBe("results");
+    headline: "A preview of your site is ready. We're preparing the simulation."});
+  expect(projectTaskStatus({...input, screening: {teams: 1, queued: 0, running: 0, reported: 1, noResult: 0}}).headline).toBe(READY);
 });
 
 describe("what a waiting job is waiting on", () => {
@@ -393,73 +355,17 @@ describe("what a waiting job is waiting on", () => {
   const none = { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0 };
   const open = { evaluationAvailable: true, reason: null };
 
-  it("says the job is open for evaluation while none has started", () => {
+  it("says the job is posted for approved deployment companies while none has started", () => {
     const status = projectTaskStatus({ ...ready, ...taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: open }), screening: none });
     expect(status.decision).toBe("awaiting_teams");
-    expect(status.headline).toBe("Your job is open for evaluation. Next, Blueprint tests robots and policies on it in simulation. "
-      + "Approved partners can also ask to have their systems evaluated.");
-    expect(status.headline).not.toMatch(/robot teams?/i);
-    expect(projectTaskStatus({ ...ready, openForEvaluations: true, screening: { ...none, teams: 1, queued: 1 } }).decision).toBe("screening");
+    // Blueprint tests no robots and no policies (owner, 2026-11-14), and the companies are "deployment companies".
+    expect(status.headline).toBe("Your job is posted for approved deployment companies. Nothing is needed from you.");
+    expect(status.headline).not.toMatch(/robot teams?|partners|evaluat|tests robots/i);
+    expect(projectTaskStatus({ ...ready, openForEvaluations: true, screening: { ...none, teams: 1, queued: 1 } }).headline).toBe(READY);
     // Not told it is open when the caller did not look at the runs.
     expect(projectTaskStatus({ ...ready, openForEvaluations: true }).decision).toBe("assessing");
   });
 
-  it("says plainly when every evaluation finished and none passed", () => {
-    const settled = { ...none, teams: 2, reported: 2, noResult: 0, passed: 0, ineligible: 0 };
-    const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: settled });
-    expect(status.decision).toBe("no_team_passed");
-    expect(status.headline).toMatch(/^No evaluation of your job has passed yet\. 2 evaluation runs/);
-    expect(status.headline).toMatch(/Your job stays open for evaluation, and we email you when another one starts\./);
-    // A pass, a run still in flight, an uncounted pass mark or a recommendation keeps the results rung.
-    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, passed: 1 } }).decision).toBe("results");
-    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, running: 1 } }).decision).toBe("results");
-    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, passed: undefined } }).decision).toBe("results");
-    expect(projectTaskStatus({ ...ready, recommended: true, screening: settled }).decision).toBe("results");
-    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, ineligible: 1 } }).decision).toBe("results");
-    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, noResult: 1 } }).decision).toBe("results");
-  });
-
-  // Audit A (2026-10-18): a diagnostic or unqualified run is never a failure,
-  // and a site whose evaluations all ended that way is still told where it stands.
-  it("says evaluations finished with none able to support a recommendation, never calling them failures", () => {
-    const unqualified = { ...none, teams: 2, reported: 2, noResult: 0, passed: 0, ineligible: 2 };
-    const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: unqualified });
-    expect(status.decision).toBe("no_qualified_evaluation");
-    expect(status.headline).toMatch(/^Evaluations on your job have finished, but none can support a recommendation yet/);
-    expect(status.headline).toMatch(/2 runs could not be scored against your pass mark/);
-    expect(status.headline).toMatch(/We email you when a scored evaluation finishes\.$/);
-    expect(status.headline).not.toMatch(/passed|failed|without passing/i);
-    expect(status.operatorAction).toBeNull();
-    // Runs that ended without an observed episode cannot support one either.
-    const noResult = projectTaskStatus({ ...ready, recommended: false,
-      screening: { ...none, teams: 1, noResult: 1, passed: 0, ineligible: 0 } });
-    expect(noResult.decision).toBe("no_qualified_evaluation");
-    expect(noResult.headline).toMatch(/1 run ended before any episode was recorded/);
-    // Still in flight, a recommendation, or an uncounted pass mark keeps the earlier rungs.
-    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...unqualified, running: 1 } }).decision).toBe("results");
-    expect(projectTaskStatus({ ...ready, recommended: true, screening: unqualified }).decision).toBe("results");
-    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...unqualified, passed: undefined, ineligible: undefined } }).decision)
-      .toBe("results");
-    // A qualified failure next to an unqualified run is neither: the results rung stands (the rule is kept).
-    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...unqualified, ineligible: 1 } }).decision).toBe("results");
-  });
-
-  it("says what would change a qualified evaluation that did not pass", () => {
-    const settled = { ...none, teams: 1, reported: 1, noResult: 0, passed: 0, ineligible: 0,
-      closestQualified: { episodesRun: 200, episodesSucceeded: 172, medianCycleSeconds: 34, passMarkRate: 0.95,
-        cycleTimeSeconds: 30, belowPassMark: true, cycleTimeMissed: true } };
-    const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: settled });
-    expect(status.decision).toBe("no_team_passed");
-    expect(status.headline).toMatch(/The closest scored evaluation succeeded in 172 of 200 episodes \(86%\); your pass mark is 95%/);
-    expect(status.headline).toMatch(/Its median cycle time was 34 s; your target is 30 s/);
-    expect(status.headline).toMatch(/To pass, a candidate needs to reach 95% with a median cycle time of 30 s or less on your job/);
-    const rateOnly = projectTaskStatus({ ...ready, recommended: false, screening: { ...settled,
-      closestQualified: { ...settled.closestQualified, medianCycleSeconds: null, cycleTimeSeconds: null, cycleTimeMissed: false } } });
-    expect(rateOnly.headline).toMatch(/To pass, a candidate needs to reach 95% on your job\./);
-    expect(rateOnly.headline).not.toMatch(/cycle time/);
-  });
-
-  // Sharing is the service (2026-11-12): no status asks a site to publish a job card.
   it("never asks a site to publish a job card, listed or not", () => {
     const input = taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: { evaluationAvailable: false, reason: "not_listed" } });
     expect(input.listed).toBe(false);
@@ -477,11 +383,12 @@ describe("a confirmed site our screen has not cleared", () => {
       base({ briefDrafted: true, briefConfirmed: true, coversScene: true, disposition: "not_now" }),
     );
     expect(status.decision).toBe("not_now");
-    expect(status.headline).toMatch(/aren't building a scene/);
-    expect(status.operatorAction).toMatch(/update the brief/);
+    expect(status.headline).toBe("We aren't building a simulation of your site for now, because of one of your answers.");
+    expect(status.operatorAction).toBe("Your job description shows which one. If it changes, update it there.");
   });
 
-  it("asks for the call for needs_conversation, with the booking link", () => {
+  // No call is offered: no person stands between a site's video and an introduction (launch copy, 2026-11-20).
+  it("asks for written answers for needs_conversation, never a booking link", () => {
     const status = projectTaskStatus(
       base({
         briefDrafted: true,
@@ -493,7 +400,9 @@ describe("a confirmed site our screen has not cleared", () => {
     );
     expect(status.decision).toBe("call_needed");
     expect(status.headline).not.toMatch(/preparing/);
-    expect(status.operatorAction).toContain("https://calendly.example/30min");
+    expect(status.headline).toBe("A few questions about your site are still open. Answer what you know in your job description; you can leave the rest.");
+    expect(status.operatorAction).toBe("Answer the open questions in your job description.");
+    expect(JSON.stringify(status)).not.toContain("calendly");
   });
 
   it("proceeds as before once qualified", () => {
@@ -521,7 +430,8 @@ describe("a cleared site that is not saved to an account yet", () => {
       base({ briefDrafted: true, briefConfirmed: true, coversScene: true, disposition: "qualified", claimed: false }),
     );
     expect(status.decision).toBe("save_account");
-    expect(status.operatorAction).toMatch(/Save this site to your account/);
+    expect(status.headline).toBe("Save this job to your account so we can build the simulation of your site.");
+    expect(status.operatorAction).toBe("Save this job to your account and verify your email.");
   });
 
   it("proceeds once claimed, and is skipped by callers that cannot tell", () => {
@@ -572,7 +482,7 @@ describe("a video that arrived before the job's account", () => {
 
   it("never outranks withdrawn consent", () => {
     expect(projectTaskStatus(base({ hasStoredCapture: true, footageBeforeAccount: true, consentRevoked: true })).headline)
-      .toMatch(/Recording consent was withdrawn/);
+      .toBe("Permission to use your video was withdrawn. Companies can no longer see your job.");
   });
 });
 
@@ -639,7 +549,8 @@ describe("WP-14: a waiting or ended job says what it waits on, and until when", 
     expect(ended(null).startsWith(AUTHORITY_ENDED_SENTENCE)).toBe(true);
     for (const text of [ended({ untilEpoch: null, ended: true }), ended(null)]) {
       expect(text).not.toMatch(/on hold|checks its authorization|taking longer/i);
-      expect(text).toContain("you can start a new job");
+      expect(text).toContain("To try again, start a new job.");
+      expect(text).not.toMatch(/authorized/);
     }
   });
 });
@@ -654,8 +565,8 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
   it("builds on the WP-14 sentences and promises nothing", () => {
     expect(JOB_WINDOW_ENDING_MESSAGE.startsWith(JOB_WINDOW_ENDED_SENTENCE)).toBe(true);
     expect(JOB_WINDOW_ENDING_MESSAGE.endsWith(PREPARATION_ENDED_NEXT)).toBe(true);
-    expect(JOB_WINDOW_ENDING_MESSAGE).toMatch(/did not finish the simulation in that time, and no more simulation work will run on this job\. Your first look stays on your job page\./);
-    expect(JOB_WINDOW_ENDING_MESSAGE).toContain("you can start a new job");
+    expect(JOB_WINDOW_ENDING_MESSAGE).toBe("The simulation of your site has stopped because the time for this job ran out. "
+      + "It was not finished, and no more work will run on this job. Your first look stays on your job page. To try again, start a new job.");
     expect(JOB_WINDOW_ENDING_MESSAGE).not.toMatch(/we will|we'll|our team|review|follow up|email you|on hold|taking longer/i);
   });
 
@@ -679,12 +590,12 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
   });
 
   it("gives way only to a withdrawal, an owner closure and a result", () => {
-    expect(view({ consentRevoked: true }).headline).toMatch(/consent was withdrawn/);
+    expect(view({ consentRevoked: true }).headline).toMatch(/^Permission to use your video was withdrawn\./);
     expect(view({ ownerClosureOutcome: projectWebsiteRunClosure({ website_run_closures: { "walkthrough-req1": ownerClosure() } },
       "req1", "walkthrough-req1") }).headline).toBe("Run closed with a conservative abstention");
     expect(view({ sceneProgression: { state: "held", heldReason: "held_capability" } }).headline)
-      .toMatch(/^The simulation can't model this kind of task yet\./);
-    expect(view({ screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
+      .toMatch(/^We can't simulate this kind of job yet\./);
+    expect(view({ screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).headline).toBe(READY);
     for (const result of [{ consentRevoked: true }, { sceneProgression: { state: "held", heldReason: "held_setup" } }])
       expect(view(result).decision).not.toBe("ended");
     // Rewritten (review, 2026-11-11): the sweep records the ending only when no run can still be live (past the window
@@ -696,5 +607,41 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
   it("is not shown without a recorded ending, or once the window is open again", () => {
     for (const jobWorkWindow of [null, { untilEpoch: null, ended: true }, { untilEpoch: 1_800_000_000, ended: false }])
       expect(view({ jobWorkWindow }).decision).not.toBe("ended");
+  });
+});
+
+/**
+ * A stop's next step says "Your video is saved" only where a finished video is stored. Without one the page asks the
+ * site to keep its original instead: the matchers in `withoutStoredVideo` follow the sentences in
+ * `taskPreparationOutcome.ts`, so a reworded sentence that stopped matching would surface here (launch copy, 2026-11-20).
+ */
+describe("a stop's next step with no stored video", () => {
+  const sha = `sha256:${"d".repeat(64)}`;
+  it.each([
+    ["the processing fallback", processingFailure(), "Nothing is needed from you. Keep your original video; you don't need to send it again."],
+    ["the carry path", projectPreparationOutcome({ reason: "robot_carry_path_rejected", category: "robot_incompatibility",
+      basis: "conservative_configuration_check", robot_id: "franka_panda", evidence_digest: sha }), "Nothing is needed from you. Keep your original video."],
+    ["missing evidence", projectPreparationOutcome({ reason: "task_evidence_incomplete", category: "insufficient_evidence",
+      basis: "missing_evidence", robot_id: null, evidence_digest: sha }), "Nothing is needed from you. Keep your original video."],
+    ["the robot fit hold", projectPreparationOutcome({ reason: "robot_fit_none", category: "robot_incompatibility",
+      basis: "conservative_pre_spend_fit_check", robot_id: null, evidence_digest: sha } as never),
+      "Nothing is needed from you. Your first look stays on your job page. Keep your original video."],
+  ])("rewrites %s", (_name, outcome, expected) => {
+    expect(outcome.nextStep).toMatch(/[Yy]our video is saved/);
+    expect(withoutStoredVideo(outcome.nextStep)).toBe(expected);
+    const stored = projectTaskStatus({ ...base({ briefDrafted: true, hasStoredCapture: true }),
+      preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome } });
+    expect(stored.outcome?.nextStep).toBe(outcome.nextStep);
+    const unstored = projectTaskStatus({ ...base({ briefDrafted: true, hasStoredCapture: false }),
+      preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome } });
+    expect(unstored.outcome?.nextStep).toBe(expected);
+    expect(unstored.outcome?.nextStep).not.toMatch(/[Yy]our video is saved|recording/);
+  });
+  it("adds the ending's reason, and nothing about retries, to a final stop", () => {
+    const status = projectTaskStatus({ ...base({ briefDrafted: true, hasStoredCapture: true }),
+      preparationStatus: { state: "failed_terminal", terminalReason: "out_of_scope", correlationId: "bp-prep-0123456789abcdef" } });
+    expect(status.outcome?.reason).toBe("A step on our side stopped before it finished. We can't simulate this kind of job yet.");
+    expect(status.outcome?.reason).not.toMatch(/retries/);
+    expect(status.headline).not.toMatch(/Reference|bp-prep/);
   });
 });

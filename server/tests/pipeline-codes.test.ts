@@ -35,8 +35,10 @@ describe("scene outcome kinds", () => {
       outcome: sealed("spending_cap_reached") } };
     expect(adoptedSceneOutcome(capped)?.kind).toBe("spending_cap_reached");
     expect(projectWebsiteSceneProgression(capped)).toMatchObject({ state: "ended", sceneOutcome: { kind: "spending_cap_reached" } });
-    expect(sceneOutcomeMessage("spending_cap_reached")).toBe("We reached our spending cap for this job, so we stopped "
-      + "building the simulation of your site. Your first look stays on your job page. Nothing is needed from you.");
+    // The cap is internal: the site is told only that the simulation stopped (launch copy, 2026-11-20).
+    expect(sceneOutcomeMessage("spending_cap_reached")).toBe("We stopped building the simulation of your site before it was "
+      + "finished. Your first look stays on your job page. Nothing is needed from you.");
+    expect(sceneOutcomeMessage("spending_cap_reached")).not.toMatch(/spend|cap\b|budget/i);
     const waiting = { state: "accepted", website_request_id: "job-1", pipeline_status: { status: "blocked",
       outcome: sealed("awaiting_spend_approval", false) } };
     expect(adoptedSceneOutcome(waiting)).toBeNull();
@@ -55,14 +57,13 @@ describe("scene outcome kinds", () => {
     expect(adoptedSceneOutcome(record)?.kind).toBe("stopped");
     const progression = projectWebsiteSceneProgression(record)!;
     expect(progression.state).toBe("ended");
-    const sentence = "The simulation of your job stopped, for a reason this page cannot show yet. Our team is alerted when this happens. "
-      + "Your first look stays on your job page. Nothing is needed from you.";
+    const sentence = "We stopped building the simulation of your site. Your first look stays on your job page. Nothing is needed from you.";
     expect(sceneOutcomeMessage("stopped")).toBe(sentence);
-    expect(sentence).not.toMatch(/time .*ran out|expired|window/i);
+    expect(sentence).not.toMatch(/time .*ran out|expired|window|our team|cannot show/i);
     const outlook = jobOutlook({ consentRevoked: false, closedByOwner: false, answer: { state: "ready", unsized: false, reason: null }, windowEnded: false, noGrantEnded: false,
       preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "ended", endingKind: "stopped" }, proof: null });
     expect(outlook).toMatchObject({ phase: "no_test", reason: "simulation_stopped",
-      sentence: "The simulation of your job stopped, for a reason this page cannot show yet." });
+      sentence: "We stopped building the simulation of your site." });
   });
 });
 
@@ -93,7 +94,7 @@ describe("a capacity_blocked ending in the job outlook", () => {
       answer: { state: "ready", unsized: false, reason: null },
       windowEnded: false, noGrantEnded: false, preparation: { state: "failed_terminal", geometryOnlyEnd: false, terminalReason }, scene: null, proof: null });
     expect(jobOutlook(input("capacity_blocked"))).toEqual({ phase: "no_test", reason: "not_processed_in_time",
-      sentence: "We could not start or finish preparing your job in time, for a reason on our side. Nothing you did caused it." });
+      sentence: "We couldn't finish preparing your job. The problem was on our side, not yours." });
     expect(jobOutlook(input("retry_exhausted")).reason).toBe("preparation_failed");
     expect(jobOutlook(input(null)).reason).toBe("preparation_failed");
   });
@@ -112,7 +113,8 @@ describe("the preparation watch keeps a long reason code", () => {
 describe("the cold-storage hold", () => {
   const holdRun = (detail: string | null) => ({ id: "hold-1", run: { run_kind: "beta_policy_screening_hold", team_namespace: "team",
     state: "blocked", screening_outcome: "held_setup", hold_reason_code: "team_scene_packet_blocked", hold_detail_code: detail } });
-  const COLD = "Held on our side while the saved simulation of your job is restored. Nothing is needed from you.";
+  // The page closes every hold with "Nothing is needed from you.", so the detail does not say it twice.
+  const COLD = "Held on our side while the saved simulation of your job is restored. Your first look stays on your job page. Nothing is needed from you.";
   it("is said by its detail on the page; any other detail keeps the reason's sentence", async () => {
     const { sceneHold } = await import("../utils/websiteSceneProgression");
     const { projectTaskStatus } = await import("../utils/taskStatusProjection");
@@ -142,13 +144,13 @@ describe("the part-6 preparation endings", () => {
   // Rewritten (review, 2026-11-12): nothing says the job is looked at or tried again (no code confirmed does it).
   it.each([
     ["support_surface_not_found_under_subject", "We could not find the surface the object rests on in your video. We cannot prepare the simulation of your job, so it has stopped.",
-      "Nothing is needed from you now. Your recording is saved."],
+      "Nothing is needed from you now. Your video is saved."],
     ["website_assembly_whole_object_coverage_required", "Your video does not show the whole of the object the job assembles. We cannot prepare the simulation of your job, so it has stopped.",
-      "A new video that shows the whole object would let us try again. Your recording is saved."],
+      "A new video that shows the whole object would let us try again. Your video is saved."],
     ["website_registration_scale_conflicts_declared", "The sizes we measured in your video do not match the sizes given for your job. We cannot prepare the simulation of your job, so it has stopped.",
-      "Your recording is saved."],
+      "Your video is saved."],
     ["brand_new_blocker", "Preparing the simulation of your job needs a step we cannot do yet, so it has stopped.",
-      "Nothing is needed from you now. Your recording is saved."],
+      "Nothing is needed from you now. Your video is saved."],
   ])("words a not-possible ending for cause %s, and never promises a later look", async (cause, reason, nextStep) => {
     const outcome = await read({ ...base, cause });
     expect(outcome).toMatchObject({ title: "We cannot prepare the simulation of your job", actionOwner: "blueprint", reason, nextStep });
@@ -161,7 +163,7 @@ describe("the part-6 preparation endings", () => {
       robot_id: null, evidence_digest: sha });
     expect(spent).toMatchObject({ title: "We could not finish preparing your job",
       reason: "We could not finish preparing your job after several tries, for a reason on our side.",
-      nextStep: "Nothing is needed from you now. Your recording is saved." });
+      nextStep: "Nothing is needed from you now. Your video is saved." });
   });
   it("is the whole card on the page: nothing added beside it, in every state it arrives in", async () => {
     const { projectTaskStatus } = await import("../utils/taskStatusProjection");
@@ -203,7 +205,7 @@ describe("a job stopped on a planner abstention", () => {
       supplementWouldFinish: false, preparationOutcome: projectAtlasPreparationOutcome(preview) };
     for (const preparationStatus of [undefined, { state: "unavailable", correlationId: null }, { state: "awaiting_inputs", correlationId: null, outcome: null }]) {
       const status = projectTaskStatus({ ...page, preparationStatus } as never);
-      expect(status.headline).toBe("We could not confirm the 3D scene covers your job");
+      expect(status.headline).toBe("Your video didn't show enough of the job");
       expect(JSON.stringify(status)).not.toMatch(/next update will appear|review/i);
     }
     const own = preparationRetriesSpent(`sha256:${"e".repeat(64)}`);

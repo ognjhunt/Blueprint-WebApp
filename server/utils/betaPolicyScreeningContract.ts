@@ -288,19 +288,16 @@ export const storedScreeningOutcome = (value: unknown): ScreeningOutcome | null 
   (SCREENING_OUTCOMES as readonly unknown[]).includes(value) ? value as ScreeningOutcome : null;
 
 
-const ATTENTION_NEXT = "It won't restart by itself. Our team has been told, and we'll email you if a later run gives a result.";
-/**
- * A failure on our side may run again, but nothing guarantees it, so no rerun is promised, and none is ruled out.
- */
-const SETUP_NEXT = "Our team has been told, and we'll email you if a later run gives a result.";
 /**
  * A scene-stage hold, as the site's job page and its email say it: about the simulation, never "your job is held".
- * The site already has its answer from the fit check; only the simulation waits or stopped.
+ * The site already has its answer from the first look; only the simulation waits or stopped. Every reader closes the
+ * sentence with "Your first look stays on your job page. Nothing is needed from you.", so it is not said here. Nothing
+ * promises a rerun or a later result: Blueprint runs no robot software in the simulation (owner, 2026-11-14).
  */
 const SIMULATION_HOLD_SENTENCE: Readonly<Record<SceneHoldOutcome, string>> = {
-  held_capability: "The simulation can't model this kind of task yet. It counts as demand for what we build next.",
-  held_setup: `A problem on our side stopped the simulation before it finished. ${SETUP_NEXT}`,
-  held_scene_check: `The simulated scene failed the check we run before testing robots, so no robot was tested in it. ${ATTENTION_NEXT}`,
+  held_capability: "We can't simulate this kind of job yet.",
+  held_setup: "A problem on our side stopped the simulation before it finished.",
+  held_scene_check: "We couldn't finish the simulation of your site: it didn't pass one of our checks.",
 };
 /**
  * A hold's detail the site is told in its own words (review, 2026-11-12). The Pipeline sends the cold-storage hold
@@ -310,7 +307,7 @@ const SIMULATION_HOLD_SENTENCE: Readonly<Record<SceneHoldOutcome, string>> = {
 export const SCREENING_HOLD_DETAILS = ["scene_run_in_cold_storage"] as const;
 export type ScreeningHoldDetail = typeof SCREENING_HOLD_DETAILS[number];
 const HOLD_DETAIL_SENTENCE: Readonly<Record<ScreeningHoldDetail, string>> = {
-  scene_run_in_cold_storage: "Held on our side while the saved simulation of your job is restored. Nothing is needed from you.",
+  scene_run_in_cold_storage: "Held on our side while the saved simulation of your job is restored.",
 };
 export const screeningHoldDetail = (reason: unknown, detail: unknown): ScreeningHoldDetail | null =>
   reason === "team_scene_packet_blocked" && detail === "scene_run_in_cold_storage" ? detail : null;

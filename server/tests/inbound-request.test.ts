@@ -432,7 +432,7 @@ describe("inbound request route", () => {
       };
 
       expect(json.ok).toBe(false);
-      expect(json.message).toMatch(/Internal server error/i);
+      expect(json.message).toBe("Something went wrong on our side. Please try again.");
       expect(sendEmail).not.toHaveBeenCalled();
       expect(notifySlackInboundRequest).not.toHaveBeenCalled();
       expect(fs.existsSync(devLogPath)).toBe(false);
@@ -1039,7 +1039,8 @@ describe("inbound request route", () => {
 
       expect(response.status).toBe(400);
       const json = (await response.json()) as { message?: string };
-      expect(json.message).toMatch(/company/);
+      // The form shows this text as is, so it names no field ids (launch copy, 2026-11-20): only this field is missing.
+      expect(json.message).toBe("Some details are missing. Check the form and try again.");
     } finally {
       await stopServer(server);
     }
@@ -1190,7 +1191,7 @@ describe("inbound request: public-form payload contract", () => {
 
       expect(response.status).toBe(400);
       const json = (await response.json()) as { message?: string };
-      expect(json.message).toMatch(/proofPathPreference/);
+      expect(json.message).toBe("Some details are missing. Check the form and try again.");
     } finally {
       await stopServer(server);
     }
@@ -1217,7 +1218,7 @@ describe("inbound request: public-form payload contract", () => {
 
       expect(response.status).toBe(400);
       const json = (await response.json()) as { message?: string };
-      expect(json.message).toMatch(/roleTitle/);
+      expect(json.message).toBe("Some details are missing. Check the form and try again.");
     } finally {
       await stopServer(server);
     }

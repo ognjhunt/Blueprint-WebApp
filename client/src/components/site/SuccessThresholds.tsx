@@ -68,7 +68,7 @@ export function SuccessThresholds({ token, view, onDecided }: {
   return <section aria-label="How success is judged" style={{ marginBottom: "24px" }}>
     <h2>How success is judged</h2>
     <p className="ms-field-hint">These goals are your job's success rule: what counts as done in the simulation of your site.
-      Deployment companies get it with the simulation. Blueprint set them from its standard settings for this kind of task and the scene it built from your video.
+      Deployment companies get it with the simulation. Blueprint set them from its standard settings for this kind of job and the simulation it built from your video.
       Nothing was measured at your site.</p>
     {list(view.rows)}
     {view.otherValues.length > 0 && <details>
@@ -79,8 +79,8 @@ export function SuccessThresholds({ token, view, onDecided }: {
       ? <p role="status">You confirmed these goals.</p>
       : <>
         {decision?.kind === "held" && decision.reason && <p role="status">
-          You said these goals are wrong: {REASONS[decision.reason].toLowerCase()}. Blueprint’s team is alerted with
-          your reason. These numbers stay as they are; if Blueprint proposes new goals, they appear here for you to confirm.</p>}
+          You said these goals are wrong: {REASONS[decision.reason].toLowerCase()}. We've noted your reason. The numbers
+          stay as they are; if new goals are proposed, they appear here for you to confirm.</p>}
         <p className="ms-field-hint" style={{ marginTop: "12px" }}>{decision?.kind === "held"
           ? "If you change your mind, you can still use these goals."
           : "You can confirm these goals, or tell us what is wrong."}</p>
@@ -93,7 +93,7 @@ export function SuccessThresholds({ token, view, onDecided }: {
         </div>
         {wrongOpen && <div id="success-thresholds-wrong">
           <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: "12px 0" }}>
-            <legend className="ms-field-hint">What is wrong? Blueprint’s team reviews your reason; no number changes.</legend>
+            <legend className="ms-field-hint">What is wrong? We note your reason; the numbers stay as they are.</legend>
             {REASON_IDS.map(id => <label key={id} style={{ display: "flex", gap: "10px", alignItems: "flex-start", margin: "6px 0" }}>
               <input type="radio" name="success-thresholds-reason" value={id} checked={reason === id}
                 onChange={() => setReason(id)} style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />

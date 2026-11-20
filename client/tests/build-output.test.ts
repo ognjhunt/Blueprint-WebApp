@@ -112,6 +112,18 @@ describe("build output", () => {
     expect(signup).not.toContain('id="email"');
   });
 
+  // Owner rule: development-only consent boxes never render in production. They exist only behind
+  // `import.meta.env.DEV` (SiteCaptureStart.tsx), so their recorded words are not in any shipped script.
+  it("ships no development consent box in the client bundle, whatever link opens the start form", () => {
+    const assets = distPath("assets");
+    for (const file of fs.readdirSync(assets).filter(name => name.endsWith(".js"))) {
+      const source = fs.readFileSync(path.join(assets, file), "utf8");
+      expect(source, file).not.toContain("For this development test");
+      expect(source, file).not.toContain("managed-agent 3D authoring");
+      expect(source, file).not.toMatch(/start-[a-z0-9-]+-authoring/);
+    }
+  });
+
   it("makes the one company application inspectable without JavaScript, and the job library's page point to it", () => {
     const html = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(html).toContain('href="/partners#partner-application"');
@@ -295,8 +307,8 @@ describe("build output", () => {
     // dedicated browser intake lane checks its task/consent/required fields.
     // Static HTML must expose loading and cannot submit a fresh identity.
     expect(siteHtml).toContain("Start a job");
-    expect(siteHtml).toContain("Loading your account and saved draft");
-    expect(siteHtml).not.toContain('aria-label="Start a site capture"');
+    expect(siteHtml).toContain('role="status">Loading…');
+    expect(siteHtml).not.toContain('aria-label="Start a job"');
     expect(siteHtml).not.toContain('id="start-task"');
     expect(siteHtml).not.toContain("How this works");
     // The country comes from the address; its select opens only to correct it.

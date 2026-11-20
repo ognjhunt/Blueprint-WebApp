@@ -164,7 +164,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByText("What should I record?", {exact: true})).toHaveCount(0);
     // The job was saved to the account from the start, so no account step is offered.
     await expect(page.getByRole("link", {name: "Create an account for this job"})).toHaveCount(0);
-    await expect(page.getByRole("link", {name: "Saved in your workspace"})).toBeVisible();
+    await expect(page.getByRole("link", {name: "Saved to your account"})).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.getByText("How much pull force is required?", {exact: true})).toHaveCount(0);
     await expect(page.getByRole("textbox", {name: "Your answers", exact: true})).toHaveCount(0);
@@ -175,7 +175,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("link", {name: "Open my job", exact: true})).toHaveCSS("background-color", "rgb(32, 61, 46)");
     await page.screenshot({path: info.outputPath(`intake-video-only-${width}-local-fixture.png`), fullPage: true});
     await page.reload();
-    await expect(page.getByText("Your job is saved. Return to the same job to check its current status.", {exact: true})).toBeVisible();
+    await expect(page.getByText("Your job is saved. Return to it to see where it stands.", {exact: true})).toBeVisible();
     await page.getByRole("button", {name: "Return to saved job", exact: true}).click();
     await expect(page.getByRole("heading", {name: "We have your video.", exact: true})).toBeVisible();
     expect(uploads).toBe(1);
@@ -232,7 +232,7 @@ test("UI-CROSS-TAB-004 missing browser coordination still shows the form, says s
   await context.addInitScript(()=>Object.defineProperty(navigator,"locks",{value:undefined,configurable:true}));
   let posts=0;await context.route(`**${create}`,route=>{posts++;return route.abort();});
   await page.goto("/contact/site-operator");
-  await expect(page.getByRole("status").filter({hasText:"cannot safely save or coordinate"})).toContainText("email hello@tryblueprint.io");
+  await expect(page.getByRole("status").filter({hasText:"This browser can't save your progress"})).toContainText("email hello@tryblueprint.io");
   await expect(page.getByText(/could not safely check|clear this browser/i)).toHaveCount(0);
   await fill(page);
   await page.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
@@ -284,7 +284,7 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
     try {
       const returning=await resumed.newPage();await returning.goto(`${siteOrigin}/contact/site-operator`);
       await returning.getByRole("button",{name:"Return to saved job"}).click();
-      await expect(returning.getByRole("link",{name:"Open the uploader"})).toHaveAttribute("href",`${fixtureLink}?video=existing`);
+      await expect(returning.getByRole("link",{name:"Upload the video"})).toHaveAttribute("href",`${fixtureLink}?video=existing`);
       expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);expect(repeatedUploads).toBe(0);
       await expect(returning.getByRole("heading",{name:"We have your video."})).toHaveCount(0);
     } finally {await resumedBrowser.close();}

@@ -216,7 +216,7 @@ describe("the job page's sections, bare bones", () => {
     ["with a trial result", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick }),
       outlook: { phase: "result" as const, reason: null, sentence: null } }, false],
     ["closed by its owner", { answer: readyAnswer, proof: null, outlook: { phase: "ended_by_site" as const, reason: "closed_by_owner" as const,
-      sentence: "You closed this job's simulation run." } }, "closed"],
+      sentence: "You closed this job." } }, "closed"],
     ["withdrawn", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick }),
       outlook: { phase: "ended_by_site" as const, reason: "permission_withdrawn" as const,
         sentence: "Permission to use your video was withdrawn, so this job has stopped." } }, "withdrawn"],
@@ -248,8 +248,8 @@ describe("the job page's sections, bare bones", () => {
   });
   it("says a failed step while building, and the ending's reason with the first look after an ending", () => {
     const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
-      outlook={{ phase: "building", reason: "step_failed", sentence: "A step failed and we're working on it. We'll email you the result." }} />);
-    expect(within(region("Simulation of your site")).getByText("A step failed and we're working on it. We'll email you the result.")).toBeVisible();
+      outlook={{ phase: "building", reason: "step_failed", sentence: "A step on our side failed. Nothing is needed from you." }} />);
+    expect(within(region("Simulation of your site")).getByText("A step on our side failed. Nothing is needed from you.")).toBeVisible();
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
     unmount();
     const { unmount: second } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
@@ -260,8 +260,8 @@ describe("the job page's sections, bare bones", () => {
     second();
     // A run the site closed itself: the first look with the reason, nothing shared and no button.
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
-      outlook={{ phase: "ended_by_site", reason: "closed_by_owner", sentence: "You closed this job's simulation run." }} />);
-    expect(screen.getByText("You closed this job's simulation run.")).toBeVisible();
+      outlook={{ phase: "ended_by_site", reason: "closed_by_owner", sentence: "You closed this job." }} />);
+    expect(screen.getByText("You closed this job.")).toBeVisible();
     expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible();
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
   });
@@ -497,8 +497,8 @@ describe("the deployment companies section, with sends, answers and introduction
     const stray = { ...activity, entries: activity.entries.map(entry => ({ ...entry, noteForSite: "NOTE-PLANT never shown.", words: "WORDS-PLANT" })) };
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: stray as never }} />);
     expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
-    expect(within(companies()).getByText("3 recorded views")).toBeVisible();
-    expect(within(companies()).getByText("2 replies")).toBeVisible();
+    expect(within(companies()).getByText("Viewed by 3 companies")).toBeVisible();
+    expect(within(companies()).getByText("2 responses")).toBeVisible();
     expect(lines()[0]).toContain("Company BNeed more detailsAnswered November 12, 2026");
     expect(lines()[0]).toContain("No reason we can show.You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.");
     expect(lines()[1]).toContain("Company AInterestedAnswered November 13, 2026");
@@ -545,12 +545,12 @@ describe("the deployment companies section, with sends, answers and introduction
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
       companies: { interested: false, sent: null, entries: [] } }} />);
     expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
-    expect(within(companies()).getByText("0 recorded views")).toBeVisible();
-    expect(within(companies()).getByText("0 replies")).toBeVisible();
+    expect(within(companies()).getByText("Viewed by 0 companies")).toBeVisible();
+    expect(within(companies()).getByText("0 responses")).toBeVisible();
   });
 
   it.each([
-    [true, "Video received. We’re preparing your job for posting."],
+    [true, "Video received. We're preparing your job for posting."],
     [false, "Send a video to post your job."],
     [undefined, PREPARING_TO_SHARE_LINE],
   ])("shows the next posting state when videoReceived is %s", (videoReceived, label) => {
@@ -558,7 +558,7 @@ describe("the deployment companies section, with sends, answers and introduction
       sharedAtIso: null, videoReceived }, companies: { interested: false, entries: [] } }} />);
     expect(within(companies()).getByText(label)).toBeVisible();
     expect(within(companies()).queryByText(SHARED_LINE)).toBeNull();
-    expect(within(companies()).queryByText("0 replies")).toBeNull();
+    expect(within(companies()).queryByText("0 responses")).toBeNull();
   });
 
   it("says nothing about sends without a company read, or for a withdrawn or older job", () => {
@@ -570,12 +570,12 @@ describe("the deployment companies section, with sends, answers and introduction
     const second = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: unsent }} proof={null}
       outlook={{ phase: "ended_by_site", reason: "permission_withdrawn", sentence: "Permission to use your video was withdrawn, so this job has stopped." }} />);
     expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible();
-    expect(within(companies()).queryByText("0 recorded views")).toBeNull();
+    expect(within(companies()).queryByText("Viewed by 0 companies")).toBeNull();
     second.unmount();
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, sharing: { state: "not_shared", sharedAtIso: null, olderStatement: true },
       companies: unsent }} />);
     expect(within(companies()).getByText(OLDER_JOB_LINES)).toBeVisible();
-    expect(within(companies()).queryByText("0 recorded views")).toBeNull();
+    expect(within(companies()).queryByText("Viewed by 0 companies")).toBeNull();
   });
 
   it("asks for the introduction by alias, then shows what the server reads back", async () => {
@@ -661,7 +661,7 @@ describe("the deployment companies section, with sends, answers and introduction
       companies: { interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "x", state: "maybe" }] } as never }} />);
     expect(within(companies()).queryByRole("list")).toBeNull();
     // A read of the wrong shape holds no fact about sends, so nothing is said about them.
-    expect(within(companies()).queryByText("0 recorded views")).toBeNull();
+    expect(within(companies()).queryByText("Viewed by 0 companies")).toBeNull();
   });
 });
 

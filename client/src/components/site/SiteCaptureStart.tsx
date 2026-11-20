@@ -41,6 +41,15 @@ import { newSiteCaptureRecovery, readSiteCaptureRecovery, hydrateSiteCaptureReco
 
 const CONTACT_IDENTITY_STORAGE_KEY = "bp-contact-identity";
 
+/**
+ * The two development 3D-authoring consent boxes (recorded statements 2026-09-24.v1) and the consent fields
+ * they send exist only in a development build (owner rule: "development-only consent boxes must never render in
+ * production"). Vite replaces `import.meta.env.DEV` with `false` in a production build, so every place that reads this
+ * folds away there and a public `?authoring=` link shows the ordinary form. The prerender runs outside Vite, where
+ * `import.meta.env` does not exist: that reads as not development too.
+ */
+const DEVELOPMENT_AUTHORING_ENTRY = typeof import.meta.env === "object" && import.meta.env.DEV === true;
+
 type State =
   | { status: "idle" }
   | { status: "working" }
@@ -85,6 +94,8 @@ const restoredCountryAsked = (draft: { location?: string; regionManuallySet: boo
   Boolean(draft.regionManuallySet) || Boolean(draft.location?.trim());
 
 const VIDEO_MISSING = "Choose the video of the job, or film it next.";
+/** The draft store's refusal when another tab changed the draft (`freezeSiteCaptureRecovery`): plain, so shown as is. */
+const DRAFT_CHANGED_IN_ANOTHER_TAB = /^This draft was changed in another tab\./;
 const TASK_MISSING = "Say what the robot should do in one sentence.";
 
 export const STATEMENTS_CHANGED = "The wording on this form has changed since you last pressed the button. Read it, then press the button again.";
@@ -125,7 +136,7 @@ export function SiteCaptureStart({ onSavedChange }: { onSavedChange?: (saved: bo
   useEffect(() => {
     if (loading || hydrated !== storageKey) onSavedChange?.(false);
   }, [loading, hydrated, storageKey, onSavedChange]);
-  if (loading || !storageKey || hydrated !== storageKey) return <BareScreen><h1>Start a job</h1><p role="status">Loading your account and saved draft…</p></BareScreen>;
+  if (loading || !storageKey || hydrated !== storageKey) return <BareScreen><h1>Start a job</h1><p role="status">Loading…</p></BareScreen>;
   // Identity changes discard later UI updates and prevent starting another upload.
   return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} onSavedChange={onSavedChange} />;
 }
@@ -165,13 +176,14 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
   }, [storageKey]);
   const [interactive, setInteractive] = useState(false);
   useEffect(() => setInteractive(true), []);
-  // A scoped development entry link exposes the optional Claude disclosure.
+  // A scoped development entry link exposes the optional Claude disclosure, in a development build only: the
+  // development consent boxes never render in production (owner rule; `DEVELOPMENT_AUTHORING_ENTRY`), whatever the URL.
   // Ordinary site captures keep the existing simple form and OpenAI route.
-  const claudeAuthoringRequested = typeof window !== "undefined"
+  const claudeAuthoringRequested = DEVELOPMENT_AUTHORING_ENTRY && typeof window !== "undefined"
     && new URLSearchParams(window.location.search).get("authoring") === "claude-opus-5-5";
   // Retained development links select the upgraded Sol route too; the
   // disclosure and newly issued sponsorship always name GPT-6.1 Sol.
-  const solAgentsRequested = typeof window !== "undefined"
+  const solAgentsRequested = DEVELOPMENT_AUTHORING_ENTRY && typeof window !== "undefined"
     && ["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"].includes(
       new URLSearchParams(window.location.search).get("authoring") || "",
     );
@@ -507,11 +519,11 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
             granted: true,
             statementVersion: START_FORM_SHORT_CONSENT ? RECORDING_RIGHTS_STATEMENT_V4_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION,
           } : null,
-          ...(claudeAuthoringRequested ? { claudeAuthoringConsent: {
+          ...(DEVELOPMENT_AUTHORING_ENTRY && claudeAuthoringRequested ? { claudeAuthoringConsent: {
             granted: claudeConsent,
             statementVersion: "2026-09-24.v1",
           } } : {}),
-          ...(solAgentsRequested ? { solAgentsApiConsent: {
+          ...(DEVELOPMENT_AUTHORING_ENTRY && solAgentsRequested ? { solAgentsApiConsent: {
             granted: solAgentsConsent,
             statementVersion: "2026-09-24.v1",
           } } : {}),
@@ -533,7 +545,10 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         frozen = await freezeSiteCaptureRecovery(storageKey, {...operationRecovery, pending:{body,endpoint,acknowledged:false}}, () => active.current);
       } catch (error) {
         setStorageAvailable(false);
-        setState({status:"failed",message:error instanceof Error ? error.message : "This browser cannot safely retain your submission. No job was submitted."});
+        // A storage or durability error's own text is never shown: the site gets one plain sentence it can act on.
+        // Only a draft changed in another tab keeps its own words, which say what to do.
+        setState({status:"failed",message: error instanceof Error && DRAFT_CHANGED_IN_ANOTHER_TAB.test(error.message) ? error.message
+          : "This browser can't save your job before sending it, so nothing was sent. Try another browser, or email hello@tryblueprint.io."});
         return;
       }
       if (!active.current) return;
@@ -594,7 +609,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
       const acknowledgementSaved = await retain({ ...frozen.value, pending: { ...recovery.current.pending!, acknowledged: true } });
       if (!active.current) return;
       if (!acknowledgementSaved) {
-        setState({status: "failed", message: "Your job may already be saved, but this browser could not retain its confirmation. Recover the same job here or use your emailed private link before sending the video."});
+        setState({status: "failed", message: "Your job may already be saved. Open the private link we emailed you to check before you send the video."});
         return;
       }
       setPending(recovery.current.pending);
@@ -642,7 +657,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         status: "done",
         workspaceUrl: savedToWorkspace ? "/app" : null,
         linkOnlyNote: currentUser && !savedToWorkspace
-          ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
+          ? `This account isn't set up for sites, so we saved this job to the private link we emailed to ${email}. You can save it to a site account from that link.`
           : null,
         captureUrl,
         claimUrl: typeof result.claimUrl === "string" && /^\/claim\/[A-Za-z0-9_.-]+$/.test(result.claimUrl) ? result.claimUrl : null,
@@ -676,9 +691,9 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
   }
 
   const savedLinks = (done: Extract<State, { status: "done" }>) => <>
-    {done.workspaceUrl && <p className="bare-helper"><a href={done.workspaceUrl}>Saved in your workspace</a></p>}
+    {done.workspaceUrl && <p className="bare-helper"><a href={done.workspaceUrl}>Saved to your account</a></p>}
     {done.linkOnlyNote && <p className="bare-helper">{done.linkOnlyNote}</p>}
-    <BareLinks links={!done.workspaceUrl && done.claimUrl ? [{ key: "account", label: "Save to an account", href: done.claimUrl }] : []} />
+    <BareLinks links={!done.workspaceUrl && done.claimUrl ? [{ key: "account", label: "Save to my account", href: done.claimUrl }] : []} />
   </>;
   const keepLink = (to: string) => `We also emailed this private link to ${to}. Please don't forward it.`;
 
@@ -687,10 +702,10 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
     if (!done.regionApproved) return (
       <BareScreen>
         <div aria-live="polite">
-          <BareGroup><BareLabel>Saved</BareLabel><h1>We have your site.</h1></BareGroup>
+          <BareGroup><BareLabel>Saved</BareLabel><h1>Your job is saved.</h1></BareGroup>
           <BareGroup>
             <BareNotice>{captureRegionHeldNotice}</BareNotice>
-            <p>We will reply to {done.email}. If you already have video, please don't send it yet: we would have to delete it unread.</p>
+            <p>Please don't send a video yet: we would have to delete it unwatched.</p>
           </BareGroup>
           {savedLinks(done)}
         </div>
@@ -706,15 +721,15 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
               { key: "video", state: "yes", text: done.uploaded === "processing_pending" ? "Video saved" : "Video received" },
             ]} />
             {done.uploaded === "processing_pending"
-              ? <p>Blueprint will continue from this saved recording and update your job. You can leave this page.</p>
+              ? <p>We'll continue from your saved video and update your job. You can leave this page.</p>
               : <p>Next, we watch your video. Your job page shows what we find.</p>}
             {done.uploaded !== "done" && done.uploaded !== "processing_pending" && done.uploadMessage && <p className="bare-helper">{done.uploadMessage}</p>}
             {done.uploaded === "processing_pending" && (done.uploadMessage || done.processingRetryAvailable) && (
-              <details aria-label="Processing details">
-                <summary className="bare-inline-link">Processing details (optional)</summary>
+              <details aria-label="Processing status">
+                <summary className="bare-inline-link">Processing status</summary>
                 {done.uploadMessage && <p className="bare-helper">{done.uploadMessage}</p>}
                 {done.processingRetryAvailable && <button type="button" className="bare-inline-link" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
-                  {retryingProcessing ? "Retrying processing…" : "Retry processing"}
+                  {retryingProcessing ? "Starting…" : "Start processing again"}
                 </button>}
               </details>
             )}
@@ -742,20 +757,20 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
                   ? <BareButton onClick={() => void retrySelectedVideo()} disabled={retryingVideo} helper={keepLink(done.email)}>
                     {retryingVideo ? uploadPercent === null ? "Checking selected video…" : `Uploading video… ${uploadPercent}%` : "Try the selected video again"}
                   </BareButton>
-                  : <BareButton href={uploaderUrl} helper={keepLink(done.email)}>Open the uploader</BareButton>}
+                  : <BareButton href={uploaderUrl} helper={keepLink(done.email)}>Upload the video</BareButton>}
               </BareGroup>
-              {footage && <BareLinks links={[{ key: "uploader", label: "Open the uploader", href: uploaderUrl }]} />}
+              {footage && <BareLinks links={[{ key: "uploader", label: "Upload the video", href: uploaderUrl }]} />}
             </> : done.hasFootage ? <>
-              <BareGroup><BareLabel>Saved</BareLabel><h1>Send us what you have.</h1></BareGroup>
+              <BareGroup><BareLabel>Saved</BareLabel><h1>Send us your video.</h1></BareGroup>
               <BareGroup>
-                <p>Upload the video you already have through your job page. If more of the work area is needed, you can send a new video on the same job. Your original video stays saved.</p>
+                <p>Upload your video on your job page.</p>
               </BareGroup>
               <BareGroup>
-                <BareButton href={uploaderUrl} helper={keepLink(done.email)}>Open the uploader</BareButton>
+                <BareButton href={uploaderUrl} helper={keepLink(done.email)}>Upload the video</BareButton>
               </BareGroup>
               {!onAPhone && <details className="bare-group">
-                <summary className="bare-inline-link">Open this job on another device (optional)</summary>
-                <p className="bare-helper">Use this only if your video is on another device.</p>
+                <summary className="bare-inline-link">Video on another device?</summary>
+                <p className="bare-helper">Scan this code with that device to open this job there.</p>
                 <CaptureHandoffQr url={uploaderUrl} label="Open this job on another device" />
               </details>}
             </> : <>
@@ -785,8 +800,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
     return (
       <BareScreen>
         <div aria-live="polite">
-          <BareGroup><BareLabel>Saved</BareLabel><h1>We have your site.</h1></BareGroup>
-          <BareGroup><p>We will reply to {done.email} with the link to film or upload the video.</p></BareGroup>
+          <BareGroup><BareLabel>Saved</BareLabel><h1>Your job is saved.</h1></BareGroup>
+          <BareGroup><p>We'll email the link to film or upload your video to {done.email}.</p></BareGroup>
           {savedLinks(done)}
         </div>
       </BareScreen>
@@ -806,23 +821,22 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
   };
 
   return (
-    <form key={resetVersion} ref={formRef} className="bare-start-form" method="post" noValidate onSubmit={submit} onChange={() => retainDraft()} aria-label="Start a site capture">
+    <form key={resetVersion} ref={formRef} className="bare-start-form" method="post" noValidate onSubmit={submit} onChange={() => retainDraft()} aria-label="Start a job">
       <BareScreen>
         <BareBack href="/" />
         <h1>Start a job</h1>
         {pending && state.status !== "working" && <div className="bare-group" aria-live="polite">
-          <BareNotice>{pending.acknowledged ? "Your job is saved. Return to the same job to check its current status." : "This submission may already be saved. Recover the same job before starting another."}</BareNotice>
+          <BareNotice>{pending.acknowledged ? "Your job is saved. Return to it to see where it stands." : "Your job may already be saved. Recover it before you start another."}</BareNotice>
           <BareButton onClick={() => void submit()} disabled={!interactive || loading || startingNew}>
             {pending.acknowledged ? "Return to saved job" : "Recover saved job"}
           </BareButton>
-          <p className="bare-helper">Job reference: {requestId.current}</p>
           {pending.acknowledged && <button type="button" className="bare-inline-link" disabled={!interactive || startingNew}
             onClick={() => void startNewJob()}>{startingNew ? "Starting a new job…" : "Start a new job ›"}</button>}
         </div>}
         {state.status === "failed" && pending && <p role="alert" className="bare-field-error">{state.message}</p>}
-        {!storageAvailable && <p role="status" className="bare-helper">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
+        {!storageAvailable && <p role="status" className="bare-helper">This browser can't save your progress. Try another browser, or email hello@tryblueprint.io. If your job is already saved, open the private link we emailed you.</p>}
         <fieldset disabled={!interactive || Boolean(pending)} className={pending?.acknowledged && state.status !== "working" ? "contents ms-intake-return-fields" : "contents"} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
-        {claudeAuthoringRequested && (
+        {DEVELOPMENT_AUTHORING_ENTRY && claudeAuthoringRequested && (
           <BareCheck id="start-claude-authoring" name="startClaudeAuthoring" checked={claudeConsent} onChange={setClaudeConsent}>
             For this development test, I authorize Blueprint to send selected frames and task evidence
             from this recording to Anthropic for Claude Opus 5.5 3D authoring. Blueprint pays the
@@ -832,7 +846,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
             </a>.
           </BareCheck>
         )}
-        {solAgentsRequested && (
+        {DEVELOPMENT_AUTHORING_ENTRY && solAgentsRequested && (
           <BareCheck id="start-sol-agents-authoring" name="startSolAgentsAuthoring" checked={solAgentsConsent} onChange={setSolAgentsConsent}>
             For this development test, I authorize Blueprint to send selected frames and task evidence
             to OpenAI for GPT-6.1 Sol managed-agent 3D authoring. The agent session can retain that evidence
@@ -843,9 +857,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         {method === "upload" ? (
           <div className="bare-field">
             <span className="bare-label" id="start-footage-label">Video of the job</span>
-            {region === "non_us" ? (
-              <BareNotice>Hold on to the video for now. Outside the US we set up the data-transfer terms before anything is uploaded, and we will tell you when to send it.</BareNotice>
-            ) : <>
+            {/* Outside the US the notice under the country says it once (`captureRegionNotice`): no video field here. */}
+            {region === "non_us" ? null : <>
               <BareFile id="start-footage" name="startFootage" accept={CAPTURE_VIDEO_ACCEPT} required
                 label="Choose a video" hint=".mov or .mp4" describedBy={describedBy("start-footage", { helper: true, error: footageError })}
                 chosen={footage ? `${footage.name} · ${formatBytes(footage.size)}` : null}
@@ -940,8 +953,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           </BareField>
         )}
         {currentUser && workspaceType !== undefined && <p className="bare-helper bare-group">{siteWorkspace
-          ? `Saving to your workspace as ${currentUser.email}.`
-          : `Signed in as ${currentUser.email}, which is not a site workspace. Use the private job link we email you; saving it to a site account is optional.`}</p>}
+          ? "This job will be saved to your account."
+          : "This account isn't set up for sites. We'll email you a private link to your job instead."}</p>}
 
         {/* The optional details open in place, under the fields they add to (owner, 2026-11-12: a drop-down, not a
             screen of their own). A closed disclosure still sends its fields, so a restored answer is never lost. */}
@@ -957,8 +970,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
               defaultValue={recovery.current.draft.jobFrequency ?? ""}
               placeholder="For example, 200 items per shift" />
           </BareField>
-          <BareField label="Where are you in the process?" htmlFor="start-readiness" helper="Submitting does not authorize spending.">
-            <BareSelect id="start-readiness" name="startReadiness" defaultValue={recovery.current.draft.purchaseReadiness ?? ""} aria-describedby="start-readiness-help">
+          <BareField label="Where are you in the process?" htmlFor="start-readiness">
+            <BareSelect id="start-readiness" name="startReadiness" defaultValue={recovery.current.draft.purchaseReadiness ?? ""}>
               <option value="">Not sure yet</option>
               <option value="exploring">Exploring whether automation makes sense</option>
               <option value="planning">Planning a pilot</option>
@@ -979,7 +992,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         {state.status === "failed" && !pending && <div className="bare-group">
           <p role="alert" className="bare-field-error">{state.message}</p>
           {/* Only where the site can do nothing itself and support would need it. */}
-          {state.reference !== false && <p className="bare-helper">Job reference: {requestId.current}</p>}
+          {state.reference !== false && <p className="bare-helper">If this keeps happening, email hello@tryblueprint.io and include this reference: {requestId.current}</p>}
         </div>}
 
         <div className="bare-group">
@@ -996,10 +1009,10 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
                     <BareLabel>Your video</BareLabel>
                     <p>{FOOTAGE_UPLOAD_NOTICE}</p>
                   </>}
-                  <BareLabel>If you write the job in one sentence</BareLabel>
+                  <BareLabel>The job in one sentence</BareLabel>
                   <blockquote className="bare-quote">“{TASK_CONFIRMATION_STATEMENT}”</blockquote>
-                  <BareLabel>Also</BareLabel>
-                  <p>{consentWithLinks(AGREEING_ALSO_LINE)}</p>
+                  <BareLabel>Your details</BareLabel>
+                  <p>{AGREEING_ALSO_LINE}</p>
                 </div>
               </details>
             </> : <div data-consent-statements>

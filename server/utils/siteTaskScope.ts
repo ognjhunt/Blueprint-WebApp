@@ -365,9 +365,9 @@ export function taskScopeRecord(verdict: SiteTaskScopeVerdict, screenedAtIso: st
  * shape is said nowhere: an accepted job of any kind is told what every accepted job is told.
  */
 export const UNCLEAR_BRIEF_ASK = {
-  headline: "Your job brief needs one sentence about the job before we can evaluate it.",
-  detail: "From your job brief, we could not tell what the job is.",
-  nextStep: "Describe the job in one sentence at the top of your job brief and confirm it again.",
+  headline: "Tell us the job in one sentence.",
+  detail: "We couldn't tell what the job is from your description.",
+  nextStep: "Write it in one sentence in your job description and confirm it.",
 } as const;
 
 /** Whether a stored scope reading asks the site for its job's sentence (`UNCLEAR_BRIEF_ASK`). */
