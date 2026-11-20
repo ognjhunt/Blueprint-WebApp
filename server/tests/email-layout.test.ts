@@ -80,6 +80,7 @@ describe("the request confirmation", () => {
       expect(text.startsWith("Hi,\n")).toBe(true);
       expect(text).toContain("https://tryblueprint.io/how-it-works");
       expect(text).not.toMatch(/\/product|\/proof|provider execution|rights clearance|boundar|there,/i);
+      expect(text).not.toMatch(/cost|price|pay|evaluat/i);
     }
   });
 

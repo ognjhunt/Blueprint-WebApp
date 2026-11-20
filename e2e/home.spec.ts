@@ -11,15 +11,15 @@ test("homepage says the outcome, shows three steps, offers one button and the ex
   const account = page.getByRole("navigation", { name: "Account" });
   await expect(account.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
   const main = page.locator("main");
-  await expect(main).toContainText("Film the job once. Robot deployment companies can test it on a simulation of your site and tell you if they can do it.");
+  await expect(main).toContainText("Film the job once. We send it to robot deployment companies, with a simulation of your site, so they can tell you if they can do it.");
   const starts = main.getByRole("link", { name: "Start a job" });
   await expect(starts).toHaveCount(1);
   await expect(starts).toHaveAttribute("href", "/contact/site-operator");
   const steps = main.getByRole("list", { name: "How it works" }).getByRole("listitem");
   await expect(steps).toHaveCount(3);
   await expect(steps.nth(0)).toContainText("Send a video of one job that repeats.");
-  await expect(steps.nth(1)).toContainText("We send the job to robot deployment companies we approve and build a simulation of your site for them to test.");
-  await expect(steps.nth(2)).toContainText("Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.");
+  await expect(steps.nth(1)).toContainText("We send the job to robot deployment companies we approve and build a simulation of your site.");
+  await expect(steps.nth(2)).toContainText("Their answers come back to you: Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet. You pick who to meet.");
   await expect(main.getByRole("link", { name: "How it works ›" })).toHaveAttribute("href", "/how-it-works");
   await expect(main.getByRole("link", { name: "Deploy robots? See how jobs reach you ›" })).toHaveAttribute("href", "/partners");
   await expect(main.getByRole("tabpanel")).toContainText("Example");

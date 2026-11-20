@@ -27,7 +27,7 @@ const definitions = [
   {
     term: "Site-Task Testbed",
     definition:
-      "The maintained, versioned substrate behind Task Evaluation Runs for one real site-task. Its manifest, version, digest, capture provenance, rights, and evidence history remain attached to every run.",
+      "The maintained, versioned substrate behind a job's simulation for one real site-task. Its manifest, version, digest, capture provenance, rights, and evidence history remain attached to every run.",
   },
   {
     term: "Decision/Evidence Request",
@@ -40,9 +40,9 @@ const definitions = [
       "The Pipeline-owned result projected by WebApp: per-claim outcomes, overall decision or abstention, evidence methods and qualification, validation envelope, uncertainty, disagreements, claim ceiling, next experiment, physical-evidence needs, exact artifact provenance, and permitted evidence uses.",
   },
   {
-    term: "Task Evaluation Run",
+    term: "Job packet",
     definition:
-      "Blueprint's one customer-facing service. It converts a real site-task into a maintained testbed, routes each decision-relevant claim to qualified evidence, and returns a bounded decision or explicit abstention.",
+      "Blueprint's one service for a site: the site's description of one recurring job, its video without sound, a simulation of the site with the job's object in it, what counts as done and a first look on paper, sent automatically to the deployment companies Blueprint has approved.",
   },
   {
     term: "Evidence routing",
@@ -131,7 +131,6 @@ const queryThemes = [
   "free robot pilot recommendation",
   "evaluated robot pilot recommendation",
   "which robot team should pilot my task",
-  "Task Evaluation Run",
   "automate robot site discovery",
   "pre-deployment robot opportunity",
   "controlled digital twin evaluation",

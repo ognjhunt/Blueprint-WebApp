@@ -13,7 +13,7 @@ the early trial on 2026-11-14. A site's name, street address and contact details
 shared without asking the site first. The site asks for an introduction with
 one press for each company it wants to meet; Blueprint then gives each side the other's
 name and contact details by email. No person at Blueprint stands between a
-site's video and an introduction. The website change for this is in build. The
+site's video and an introduction. The website works this way. The
 site pays nothing. Deployment companies will pay; how is not decided, and no
 price is stated anywhere. Each introduction is recorded as a billable event. The only hard stops are
 privacy, rights and money; everything else is flagged and keeps going. Don't

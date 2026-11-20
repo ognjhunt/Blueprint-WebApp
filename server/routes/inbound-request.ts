@@ -1005,12 +1005,12 @@ function validateEmail(email: string): { valid: true } | { valid: false; reason:
 export function requestConfirmationText(params: { firstName: string; buyerType: string }): string {
   const greeting = params.firstName ? `Hi ${params.firstName},` : "Hi,";
   const body = params.buyerType === "site_operator"
-    ? "Thanks for telling us about your site and the job you want a robot to take on. We read every request and will reply by email with the next step."
-    : "Thanks for telling us about your robot and the work you want to evaluate it on. We read every request and will reply by email with the site jobs that fit, or with what we would need to know first.";
+    ? "Thanks for telling us about your site and the job you want a robot to take on. We have your request and will reply by email with the next step."
+    : "Thanks for getting in touch. Deployment companies apply to see the jobs sites send:\nhttps://tryblueprint.io/partners";
   return [
     greeting,
     body,
-    "How an evaluation works and what it costs:\nhttps://tryblueprint.io/how-it-works",
+    "How it works:\nhttps://tryblueprint.io/how-it-works",
     EMAIL_SIGN_OFF,
   ].join("\n\n");
 }

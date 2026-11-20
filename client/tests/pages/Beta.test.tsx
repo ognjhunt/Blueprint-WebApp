@@ -30,9 +30,9 @@ describe("the questions page", () => {
   it("promises no response from a company", () => {
     render(<Beta />);
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("A company can say it is interested, that the job is not a fit, or that it would need something. We can't promise any will say yes.");
+      .toHaveTextContent("A company can answer Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet. We can't promise any will say yes.");
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("Beside each interested company, press Introduce us. We give each of you the other's details.");
+      .toHaveTextContent("Beside each company that answered Interested or Tested it: can do, press Introduce us. We give each of you the other's details.");
   });
 
   it("says who sees the video, what stays with us, how to stop, and who we are", () => {

@@ -36,13 +36,15 @@ describe("site-content route", () => {
         safety: string;
       };
 
-      expect(payload.summary).toContain("Task Evaluation Run");
-      expect(payload.summary).toContain("bounded decision or explicit abstention");
+      // Blueprint runs no robot software in the simulation (owner, 2026-11-14); companies may test the download themselves.
+      expect(payload.summary).toContain("Blueprint runs no robot software in the simulation; a company can test the downloaded simulation in its own tools.");
+      expect(payload.summary).toContain("A simulation is a bounded estimate; it is not physical proof and never certifies physical performance or safety.");
+      expect(payload.summary).not.toContain("Task Evaluation Run");
       expect(payload.definitions).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            term: "Task Evaluation Run",
-            definition: expect.stringContaining("one customer-facing service"),
+            term: "Job packet",
+            definition: expect.stringContaining("Blueprint's one service for a site"),
           }),
           expect.objectContaining({
             term: "Decision/Evidence Request",

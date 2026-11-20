@@ -30,15 +30,13 @@ describe("signed-in state on public pages", () => {
     expect(screen.getAllByRole("link", { name: "Finish onboarding" })[0]).toHaveAttribute("href", "/onboarding");
   });
 
-  it("tells staff why they see the library and lets them preview the application", async () => {
+  it("tells staff why they see the library and where the public application form is", async () => {
     auth.currentUser = { uid: "u1", email: "ops@example.test" };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
       items: [], access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: true },
     }) });
     render(<TaskBrowse />);
     expect(await screen.findByRole("note")).toHaveTextContent(/Signed in as ops@example\.test · staff view/);
-    fireEvent.click(screen.getByRole("button", { name: "Preview the application form" }));
-    expect(screen.getByRole("button", { name: "Back to the job library" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Application form preview" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "See the application form" })).toHaveAttribute("href", "/partners#partner-application");
   });
 });

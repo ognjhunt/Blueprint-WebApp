@@ -12,7 +12,7 @@ describe("Site-led homepage", () => {
   it("says the outcome, shows three steps and offers one button", () => {
     const { container } = render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Get repetitive work done by robots.");
-    expect(container).toHaveTextContent("Film the job once. Robot deployment companies can test it on a simulation of your site and tell you if they can do it.");
+    expect(container).toHaveTextContent("Film the job once. We send it to robot deployment companies, with a simulation of your site, so they can tell you if they can do it.");
     const starts = screen.getAllByRole("link", { name: "Start a job" });
     expect(starts).toHaveLength(1);
     expect(starts[0]).toHaveAttribute("href", "/contact/site-operator");
@@ -30,8 +30,8 @@ describe("Site-led homepage", () => {
     const steps = within(screen.getByRole("list", { name: "How it works" })).getAllByRole("listitem");
     expect(steps.map(step => step.textContent)).toEqual([
       "Send a video of one job that repeats.",
-      "We send the job to robot deployment companies we approve and build a simulation of your site for them to test.",
-      "Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.",
+      "We send the job to robot deployment companies we approve and build a simulation of your site.",
+      "Their answers come back to you: Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet. You pick who to meet.",
     ]);
     expect(screen.getByRole("list", { name: "How it works" })).toHaveAttribute("id", "how-it-works");
   });

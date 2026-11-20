@@ -2,7 +2,7 @@ import { BareBack, BareButton, BareGroup, BareRows, BareScreen } from "@/compone
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
 import { REPLY_TIMELINE } from "@/data/betaTimelines";
-import { QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
+import { COMPANY_ANSWERS, INTRODUCIBLE_ANSWERS, QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 /**
@@ -31,8 +31,8 @@ export default function Beta() {
             { key: "isnt", label: "It isn't", value: "A test at your site. It does not certify performance or safety." },
           ]} />
           <BareRows title="Deployment companies" rows={[
-            { key: "responses", label: "Responses", value: "A company can say it is interested, that the job is not a fit, or that it would need something. We can't promise any will say yes." },
-            { key: "meet", label: "Meeting a company", value: "Beside each interested company, press Introduce us. We give each of you the other's details." },
+            { key: "responses", label: "Responses", value: `A company can answer ${COMPANY_ANSWERS}. We can't promise any will say yes.` },
+            { key: "meet", label: "Meeting a company", value: `Beside each company that answered ${INTRODUCIBLE_ANSWERS}, press Introduce us. We give each of you the other's details.` },
             { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
           ]} />
           <BareRows title="Your video" rows={[

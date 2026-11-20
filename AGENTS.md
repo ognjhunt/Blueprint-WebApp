@@ -40,13 +40,9 @@ and contact details are never shared without asking the site first. A
 withdrawal removes the job from every company's view at once. A copy a company
 already saved cannot be taken back; the company is asked to delete it.
 
-The website does not work this way yet: it still has a share step and the
-older statements. That change is in build; until it ships, no site has
-accepted `2026-11-12.v4`.
-
-No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press for each company it wants to meet; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. The website does not do this yet: the
-automatic sends, the introduction press and the follow-up questions are in
-build.
+No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press for each company it wants to meet; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. The website works this way: a job goes to the
+approved companies on its own, the site presses Introduce us, and the follow-up
+questions are sent.
 
 This repo is the site side: start a job with an email and a video, see the
 first look, the simulation of your site, where the job stands and the

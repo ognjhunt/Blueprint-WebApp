@@ -1,22 +1,14 @@
 /**
- * What a robot team sees before it is in early access.
+ * What a deployment company sees on the job library's page before it is approved.
  *
- * Blueprint opens to robot teams a few at a time, so the library is shown to
- * approved teams only. Every
- * other visitor gets the one thing they can do next: apply, wait for a person
- * to read it, or verify the email that was approved.
+ * The library is shown to approved companies only. Every other visitor gets the
+ * one thing they can do next: apply (on `/partners`, the one application form),
+ * wait for approval, or verify the email that was approved.
  */
 import { useEffect, useState } from "react";
 
-import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { currentAuthUser, sendAccountVerification } from "@/lib/accountAuth";
-import {
-  applyForEarlyAccess,
-  EarlyAccessApplicationError,
-  requestInvitationLink,
-  type AccessNotificationStatus,
-  type LibraryAccess,
-} from "@/lib/robotTeamAccess";
+import { requestInvitationLink, type LibraryAccess } from "@/lib/robotTeamAccess";
 
 /**
  * An approved team creates its account only from its emailed invitation link;
@@ -58,90 +50,13 @@ function ApprovedTeamAccess() {
   );
 }
 
-function ApplicationForm({ email }: { email: string | null }) {
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "approved" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [notificationStatus, setNotificationStatus] = useState<AccessNotificationStatus>("needs_attention");
-  const [interactive, setInteractive] = useState(false);
-  // A link from a job record (/sites/:slug) names the site the team asked
-  // about; carry it into the application rather than dropping it.
-  const [siteHint, setSiteHint] = useState("");
-  useEffect(() => {
-    setInteractive(true);
-    const params = new URLSearchParams(window.location.search);
-    setSiteHint((params.get("site") || params.get("location") || "").trim().slice(0, 300));
-  }, []);
-
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const read = (key: string) => String(data.get(key) ?? "").trim();
-    setState("sending");
-    setError(null);
-    try {
-      const result = await applyForEarlyAccess({
-        name: read("name"),
-        email: email ?? read("email"),
-        company: read("company"),
-        robot: read("robot"),
-        workWanted: read("workWanted"),
-        testSite: read("testSite") || undefined,
-        acceptedTerms: true,
-        optionalUpdates: data.get("optionalUpdates") === "on",
-      });
-      setNotificationStatus(result.notificationStatus);
-      setState(result.status === "approved" ? "approved" : "sent");
-    } catch (failure) {
-      setError(failure instanceof EarlyAccessApplicationError ? failure.message : "The application could not be sent. Try again.");
-      setState("error");
-    }
-  }
-
-  if (state === "approved") {
-    return (
-      <div className="ms-task-empty" role="status">
-        <h2>You are approved.</h2>
-        <p>{notificationStatus === "sent" ? "Your invitation email was sent."
-          : notificationStatus === "queued" ? "Your invitation email is queued."
-            : "Your approval is saved, but we could not confirm delivery of your invitation."} Open the invitation to create your account with that email address; your workspace opens with your team set up and the site jobs open to it.</p>
-        <p>If it does not arrive, <a href="mailto:hello@tryblueprint.io">contact us</a> for help.</p>
-      </div>
-    );
-  }
-
-  if (state === "sent") {
-    return (
-      <div className="ms-task-empty" role="status">
-        <h2>Application received.</h2>
-        <p>Your interest is saved and approval is pending. We review teams manually and invite them when a real site task fits. No account or integration is needed now.</p>
-      </div>
-    );
-  }
-
+/** The application itself lives on the page for deployment companies; this page points there (one form, not two). */
+function ApplyLink() {
   return (
-    <form className="ms-form" method="post" onSubmit={submit} aria-label="Early access application">
-      <label>Your name<input disabled={!interactive} name="name" autoComplete="name" maxLength={120} required /></label>
-      {email && <p className="ms-field-hint">Applying as {email}.</p>}
-      {!email && <label>Work email<input disabled={!interactive} name="email" type="email" autoComplete="email" maxLength={320} required /></label>}
-      <label>Company<input disabled={!interactive} name="company" autoComplete="organization" maxLength={160} required /></label>
-      <label>What does your robot do?
-        <textarea disabled={!interactive} name="robot" rows={3} maxLength={1200} required
-          placeholder="Embodiment, gripper, the policy or policies you run, and how you would connect them" />
-      </label>
-      <label>What work do you want to test it on?
-        <textarea disabled={!interactive} name="workWanted" rows={3} maxLength={1200} required placeholder="e.g. Tote picking in a warehouse, bin to conveyor" />
-      </label>
-      <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
-        <input key={siteHint} disabled={!interactive} name="testSite" defaultValue={siteHint} placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
-      </label>
-      <label className="ms-check-row"><input type="checkbox" name="optionalUpdates" disabled={!interactive} /> Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Application notices are separate.</label>
-      <p className="ms-field-hint">
-        By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.
-      </p>
-      {error && <p role="alert">{error} You can also <a href="mailto:hello@tryblueprint.io">email us your company, robot and the work you want to pursue</a>.</p>}
-      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Sending…" : "Register interest"}</button>
-      <noscript><p>Enable JavaScript to apply here, or email your company, robot and the work you want to pursue to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
-    </form>
+    <div className="ms-task-empty">
+      <p><a className="ms-button" href="/partners#partner-application">Apply</a></p>
+      <p className="ms-field-hint">The application is on the page for deployment companies.</p>
+    </div>
   );
 }
 
@@ -179,7 +94,7 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
     return (
       <div className="ms-task-empty">
         <h2>Your application is in review.</h2>
-        <p>Approval is pending. We review teams manually and email{email ? ` ${email}` : " you"} if a real site task fits. Creating an account does not approve access.</p>
+        <p>Approval is pending. We approve each company by hand and email{email ? ` ${email}` : " you"} if you are approved. Creating an account does not approve access.</p>
       </div>
     );
   }
@@ -195,7 +110,7 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
 
   return (
     <section aria-label="Early access" className="ms-early-access">
-      <ApplicationForm email={email} />
+      <ApplyLink />
       {!access?.signedIn && <ApprovedTeamAccess />}
     </section>
   );

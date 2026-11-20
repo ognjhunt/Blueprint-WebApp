@@ -5,6 +5,7 @@ import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 import { appendCommercialEmailFooter } from "./email-suppression";
 import { robotTeamAccountInvitation } from "./accountInvitations";
 import type { RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
+import { COMPANY_ANSWERS } from "../../client/src/lib/publicCopy";
 
 const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
 
@@ -39,7 +40,7 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
       "This invitation is bound to your approved email and expires in seven days. If it expires, ask for a new link at:",
       `${base}/contact/robot-team`,
       "",
-      `Once you are signed in, the job library at ${base}/contact/robot-team shows the jobs sites share with approved companies. Open a job to see what the site filmed and what we have found so far, and answer: interested, not a fit, or would need something.`,
+      `Once you are signed in, the job library at ${base}/contact/robot-team shows the jobs sites share with approved companies. Open a job to see what the site filmed and what we have found so far, and answer: ${COMPANY_ANSWERS}.`,
       "",
       ...(invited ? [] : [
         call
@@ -141,8 +142,9 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
 /** The new-job email's fixed words (package E, E4). Nothing about the site: no name, place, contact or sentence. */
 export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
 // True of a job sent with its description only as of a filmed one (statement v5 lists both).
+// The answers are the form's own, in the sentence the public pages use (`COMPANY_ANSWERS`).
 export const NEW_JOB_EMAIL_BODY = "A site is looking for a deployment company for one of its jobs. See the job and answer in a minute: "
-  + "interested, not a fit, or would need something.";
+  + `${COMPANY_ANSWERS}.`;
 const NEW_JOB_ALERTS_LINE = "You chose relevant new-job alerts. Change your preferences in Settings or unsubscribe below.";
 
 /** The email an approved deployment company that asked for job emails gets when a job is shared: the job's link only. */

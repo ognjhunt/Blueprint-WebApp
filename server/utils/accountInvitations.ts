@@ -6,7 +6,7 @@ import { createAccountInvitationToken, verifyAccountInvitationToken, type Accoun
 export class AccountInvitationError extends Error {
   constructor(public status: number, message: string, public code = "account_invitation_required") { super(message); }
 }
-const deny = () => { throw new AccountInvitationError(403, "Robot-team signup requires a current Blueprint invitation. Register interest and wait for approval."); };
+const deny = () => { throw new AccountInvitationError(403, "Robot-team signup requires a current Blueprint invitation. Apply and wait for approval."); };
 
 export function robotTeamAccountInvitation(record: RobotTeamAccessRecord) {
   if (record.status !== "approved" || !record.decidedAtIso || !record.decidedBy) return deny();

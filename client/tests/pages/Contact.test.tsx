@@ -10,7 +10,7 @@
  * explanation closed, and each persona pointing at the other.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
 // Explicit unit store contract; native durability is covered by the separate browser lane.
@@ -64,38 +64,33 @@ describe("the site page", () => {
 });
 
 describe("the robot page", () => {
-  it("keeps a visitor's application usable while access is loading, then preserves their input", async () => {
+  const APPLY = "/partners#partner-application";
+
+  it("points a visitor to the one application form while access is loading", async () => {
     mockLocation = "/contact/robot-team";
-    let resolveAccess!: (value: unknown) => void;
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(resolve => { resolveAccess = resolve; })));
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
     render(<Contact />);
-    const name = screen.getByLabelText("Your name");
-    fireEvent.change(name, { target: { value: "Ada" } });
-    await waitFor(() => expect(resolveAccess).toBeDefined());
-    await act(async () => resolveAccess({ ok: true, json: async () => ({ items: [], access: {
-      gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false,
-    } }) }));
-    expect(screen.getByLabelText("Your name")).toHaveValue("Ada");
-    expect(screen.getByRole("form", { name: "Early access application" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Apply" })).toHaveAttribute("href", APPLY);
+    expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
   });
 
-  it("still offers the application when the task lookup fails", async () => {
+  it("still points to the application when the task lookup fails", async () => {
     mockLocation = "/contact/robot-team";
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unavailable")));
     render(<Contact />);
     await act(async () => {});
-    expect(screen.getByRole("form", { name: "Early access application" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Apply" })).toHaveAttribute("href", APPLY);
     expect(screen.queryByText("Loading…")).toBeNull();
   });
 
-  it("shows a visitor outside early access the application, and points back at sites", async () => {
+  it("shows a visitor outside early access the way to apply, and points back at sites", async () => {
     mockLocation = "/contact/robot-team";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } }),
     }));
     render(<Contact />);
-    expect(await screen.findByRole("form", { name: "Early access application" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Apply" })).toHaveAttribute("href", APPLY);
     expect(screen.getByRole("heading", { level: 1, name: "Apply to see jobs" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Job library" })).toBeNull();
     expect(screen.getByRole("link", { name: "Start a job" })).toHaveAttribute(
@@ -117,42 +112,7 @@ describe("the robot page", () => {
     }));
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "The first site jobs are being prepared." })).toBeInTheDocument();
-    expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
-  });
-
-  it.each([
-    ["queued", "Your invitation email is queued."],
-    ["sent", "Your invitation email was sent."],
-    ["needs_attention", "Your approval is saved, but we could not confirm delivery of your invitation."],
-  ])("preserves an existing approval and reports %s invitation delivery truthfully", async (notificationStatus, message) => {
-    mockLocation = "/contact/robot-team";
-    const fetchMock = vi.fn(async (url: string) => ({
-      ok: true,
-      json: async () => url.includes("/apply")
-        ? { status: "approved", notificationStatus }
-        : { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } },
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-    render(<Contact />);
-    const form = await screen.findByRole("form", { name: "Early access application" });
-    const fill = (label: RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
-    fill(/your name/i, "Ada Lovelace");
-    fill(/work email/i, "ada@arm.example");
-    fill(/^company/i, "Arm Co");
-    fill(/what does your robot do/i, "Fixed arm");
-    fill(/what work do you want/i, "Tote picking");
-    // Website, region and the pilot package are asked later, when they decide something.
-    expect(screen.queryByLabelText(/website|region|what would it include/i)).toBeNull();
-    fill(/a site or customer you would want to test at/i, "Our pilot warehouse");
-    fireEvent.submit(form);
-    expect(await screen.findByRole("heading", { name: "You are approved." })).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(message.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeInTheDocument();
-    expect(screen.queryByText(/We emailed you a new invitation link/)).toBeNull();
-    const apply = fetchMock.mock.calls.find(([url]) => String(url).includes("/apply"))!;
-    expect(JSON.parse(String((apply[1] as RequestInit).body))).toMatchObject({
-      testSite: "Our pilot warehouse",
-    });
-    expect(JSON.parse(String((apply[1] as RequestInit).body)).pilotPackage).toBeUndefined();
+    expect(screen.queryByRole("link", { name: "Apply" })).toBeNull();
   });
 });
 

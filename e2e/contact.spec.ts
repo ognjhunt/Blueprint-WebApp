@@ -120,10 +120,10 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
   expect(submissions[0]).not.toHaveProperty("publicTaskListing");
 });
 
-test("robot teams can apply before approval without seeing private jobs", async ({ page }) => {
+test("robot teams are pointed to the one application before approval, without seeing private jobs", async ({ page }) => {
   await page.goto("/contact/robot-team");
-  await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Register interest", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/partners#partner-application");
+  await expect(page.getByRole("form", { name: "Early access application" })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Job library" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Start a job", exact: true })).toBeVisible();
 });

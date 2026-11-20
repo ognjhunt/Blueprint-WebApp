@@ -57,6 +57,8 @@ describe("the company's page for one job", () => {
     expect(within(form).getByText(COMPANY_RESPONSE_STATEMENT)).toBeInTheDocument();
     // Without a simulation package the two tested answers are not offered (E9).
     expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["interested", "declined", "needs_something"]);
+    // Nothing is chosen for the company: a first answer starts empty and the browser asks for one.
+    for (const radio of within(form).getAllByRole("radio")) { expect(radio).not.toBeChecked(); expect(radio).toBeRequired(); }
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Your answer is saved." }) });
     fireEvent.click(within(form).getByLabelText("Would need something"));
     fireEvent.change(within(form).getByRole("textbox"), { target: { value: "A second gripper." } });

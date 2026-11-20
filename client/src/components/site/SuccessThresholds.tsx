@@ -67,8 +67,8 @@ export function SuccessThresholds({ token, view, onDecided }: {
   }
   return <section aria-label="How success is judged" style={{ marginBottom: "24px" }}>
     <h2>How success is judged</h2>
-    <p className="ms-field-hint">Blueprint scores each robot it tests in the simulation of your site against these goals.
-      Blueprint set them from its standard settings for this kind of task and the scene it built from your video.
+    <p className="ms-field-hint">These goals are your job's success rule: what counts as done in the simulation of your site.
+      Deployment companies get it with the simulation. Blueprint set them from its standard settings for this kind of task and the scene it built from your video.
       Nothing was measured at your site.</p>
     {list(view.rows)}
     {view.otherValues.length > 0 && <details>
@@ -76,7 +76,7 @@ export function SuccessThresholds({ token, view, onDecided }: {
       {list(view.otherValues)}
     </details>}
     {decision?.kind === "confirmed"
-      ? <p role="status">You confirmed these goals. Blueprint scores robot candidates against them.</p>
+      ? <p role="status">You confirmed these goals.</p>
       : <>
         {decision?.kind === "held" && decision.reason && <p role="status">
           You said these goals are wrong: {REASONS[decision.reason].toLowerCase()}. Blueprint’s team is alerted with
