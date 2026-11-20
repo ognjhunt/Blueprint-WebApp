@@ -7,7 +7,7 @@ const out = "output/qa/onboarding-p1";
 const card = { id: "task-1", title: "Move sealed cartons from conveyor to pallet", taskFamily: "Palletizing", siteType: "Warehouse", region: "US Midwest", objects: "Sealed cartons", cycleTarget: "12 seconds", pilotTiming: "October", pilotBudget: "$20,000", pilotPriceStatus: "site_offer", pilotConditions: "Four weeks including setup and provider support", ongoingTarget: "$5,000 per month", opportunity: "open", stage: "ready", evaluationAvailable: true, thumbnailUrl: null, publishedAtIso: "2026-09-19T00:00:00Z" };
 /** The job's outlook the status route sends; the card-approval test gives the job its answer part way. */
 let statusOutlook: unknown = null;
-async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, { ...card, id: "task-2", title: "Sort small rigid parts into bins", taskFamily: "Pick and place", objects: "Small rigid parts", cycleTarget: "15 seconds", siteType: "Assembly area", pilotTiming: "Past opportunity", opportunity: "past" }, { ...card, id: "task-3", title: "Transfer trays between two stations", taskFamily: "Transport", objects: "Loaded trays", siteType: "Manufacturing", cycleTarget: "20 seconds", pilotTiming: "November", stage: "capture", evaluationAvailable: false }]) {
+async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, { ...card, id: "task-2", title: "Sort small rigid parts into bins", taskFamily: "Pick and place", objects: "Small rigid parts", cycleTarget: "15 seconds", siteType: "Assembly area", pilotTiming: "December" }, { ...card, id: "task-3", title: "Transfer trays between two stations", taskFamily: "Transport", objects: "Loaded trays", siteType: "Manufacturing", cycleTarget: "20 seconds", pilotTiming: "November", stage: "capture", evaluationAvailable: false }]) {
   const mutations: { path: string; body: any }[] = [];
   await page.addLocatorHandler(page.getByRole("button", { name: "Reject all", exact: true }), async button => { await button.click(); });
   await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1" ? route.continue() : route.fulfill({ status: 204, body: "" }));
@@ -126,16 +126,13 @@ for (const mobile of [false, true]) {
     await page.goto("/contact/robot-team");
     await expect(page.getByRole("heading", { name: card.title })).toBeVisible();
     // A company the library is shown to is not asked to apply.
-    await expect(page.getByRole("heading", { level: 1, name: "Deployment opportunities", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Find jobs", exact: true })).toBeVisible();
     await expect(page.getByLabel("Work email", { exact: true }).first()).not.toBeVisible();
-    await expect(page.getByRole("button", { name: "Open jobs", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toHaveCount(0);
+    // Every listed job is open, so the list has no open/past toggle (launch copy, 2026-11-20).
+    await expect(page.getByRole("group", { name: "Job availability" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toBeVisible();
     expect(mutations).toEqual([]);
     await screenshot(page, `${mobile ? "phone" : "desktop"}-browse`);
-    await page.getByRole("button", { name: "Past jobs" }).click();
-    await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
-    await page.getByRole("button", { name: "Open jobs" }).click();
     const selected = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: card.title }) });
     // Running a company's own system on a job is "later" (frame of 2026-11-12): no link into the removed run pages.
     await expect(selected.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
@@ -148,14 +145,15 @@ for (const mobile of [false, true]) {
   });
 }
 
-test("an approved team's empty library says tasks are coming; an outage is not an empty library", async ({ page }) => {
+test("an approved company's empty library says there are no jobs yet; an outage is not an empty library", async ({ page }) => {
   await fixtures(page, []); await page.goto("/contact/robot-team");
-  await expect(page.getByText("The first site jobs are being prepared.")).toBeVisible();
+  await expect(page.getByText("No jobs yet.")).toBeVisible();
+  await expect(page.getByText("New jobs appear here when their video is ready.")).toBeVisible();
   await expect(page.getByRole("form", { name: "Task preferences" })).toHaveCount(0);
   await screenshot(page, "empty-approved");
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ status: 503, json: { error: "offline" } }));
   await page.reload(); await expect(page.getByRole("link", { name: "Apply", exact: true })).toBeVisible();
-  await expect(page.getByText("The first site jobs are being prepared.")).toHaveCount(0);
+  await expect(page.getByText("No jobs yet.")).toHaveCount(0);
 });
 
 test("a robot team outside early access applies, on the one application form, instead of browsing", async ({ page }) => {
@@ -163,7 +161,7 @@ test("a robot team outside early access applies, on the one application form, in
   await expect(page.getByRole("form", { name: "Early access application" })).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1, name: "Apply to see jobs", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Apply", exact: true }).click();
-  await expect(page).toHaveURL(/\/partners#partner-application$/);
+  await expect(page).toHaveURL(/\/jobs#partner-application$/);
   const form = page.getByRole("form", { name: "Deployment company application" });
   await expect(form).toBeVisible();
   await form.getByLabel("Your name").fill("Ada Lovelace");
@@ -270,7 +268,7 @@ test("free beta does not restore paid checkout controls after a reload", async (
   const mutations = await fixtures(page);
   await page.goto("/contact/robot-team");
   for (let attempt = 0; attempt < 2; attempt++) {
-    await expect(page.getByRole("heading", { name: "Deployment opportunities", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Find jobs", level: 1 })).toBeVisible();
     await expect(page.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     await expect(page.locator("#plan-hardware")).toHaveCount(0);

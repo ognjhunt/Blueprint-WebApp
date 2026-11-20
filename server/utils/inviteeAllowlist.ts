@@ -38,15 +38,15 @@ export function describeInviteeAllowlist(env: NodeJS.ProcessEnv = process.env) {
 export const INVITEE_REFUSALS = {
   invitee_not_on_allowlist: {
     status: 403,
-    message: "Blueprint's beta is invite-only for now, and this email is not on the list.",
+    message: "Blueprint is taking jobs from invited sites only for now, and this email is not on the list.",
   },
   invitee_email_unverified: {
     status: 403,
-    message: "Please verify your email address first; Blueprint's beta is invite-only and checks the verified address.",
+    message: "Verify your email address first, then try again.",
   },
   invitee_allowlist_unavailable: {
     status: 503,
-    message: "Blueprint cannot check its beta invite list right now, so new jobs are paused. Please try again later.",
+    message: "We can't take new jobs right now. Please try again later.",
   },
 } as const;
 

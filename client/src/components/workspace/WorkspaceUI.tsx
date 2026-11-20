@@ -50,7 +50,7 @@ export function Frame({
           <header className="ws-heading">
             <div>
               {!back && (
-                <p>{query.data?.profile.organization || "Your workspace"}</p>
+                <p>{query.data?.profile.organization || "Your account"}</p>
               )}
               <h1>{title}</h1>
             </div>
@@ -58,7 +58,7 @@ export function Frame({
           </header>
           {query.isLoading ? (
             <p className="ws-loading" role="status">
-              Loading your workspace…
+              Loading…
             </p>
           ) : query.error ? (
             <div className="ws-alert" role="alert">

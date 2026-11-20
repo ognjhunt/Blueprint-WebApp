@@ -4,8 +4,9 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { User } from "firebase/auth";
 
 export const BROWSE_JOBS_PATH = "/contact/robot-team";
-export const BROWSE_JOBS_LABEL = "Browse jobs";
-export const BROWSE_JOBS_TITLE = "Deployment opportunities";
+/** One name for the company job list everywhere: header, nav, links and the page itself (owner, 2026-11-20). */
+export const BROWSE_JOBS_LABEL = "Find jobs";
+export const BROWSE_JOBS_TITLE = BROWSE_JOBS_LABEL;
 
 export function jobLibrarySignInHref(): string {
   const hash = typeof window === "undefined" ? "" : window.location.hash;

@@ -37,7 +37,8 @@ describe("invitation-only account creation", () => {
     render(<BusinessSignUpFlow />);
     expect(screen.getByRole("heading", { name: "Access by invitation" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Start a job" })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByRole("link", { name: "Apply for access" })).toHaveAttribute("href", "/jobs#partner-application");
+    expect(screen.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs#partner-application");
+    expect(screen.getByText("Deployment companies apply first. Once we approve your company, we email you a link to create your account.")).toBeVisible();
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
     expect(mocks.invitation).not.toHaveBeenCalled();
@@ -56,7 +57,7 @@ describe("invitation-only account creation", () => {
   });
   it("requires consent before either authentication method", async () => {
     await openInvitation(); fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("accept the Terms");
+    expect(screen.getByRole("alert")).toHaveTextContent("agree to the Terms");
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
     expect(mocks.invitation).toHaveBeenCalledTimes(1); expect(mocks.google).not.toHaveBeenCalled();
   });

@@ -48,12 +48,12 @@ for (const width of [1440, 390]) {
     expect(mutations).toEqual(["/api/inbound-request"]);
     await optionalAccount.click();
     await expect(page.getByRole("heading", { name: "Keep track of Synthetic QA site.", exact: true })).toBeVisible();
-    await expect(page.getByLabel("Work email")).toHaveValue("qa@example.invalid");
-    await expect(page.getByLabel("Work email")).toHaveAttribute("readonly", "");
+    await expect(page.getByRole("textbox", { name: /^Email/ })).toHaveValue("qa@example.invalid");
+    await expect(page.getByRole("textbox", { name: /^Email/ })).toHaveAttribute("readonly", "");
     await expect(page.locator("#claim-password")).toBeVisible();
     await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
     await expect(page.getByRole("checkbox")).toHaveCount(0);
-    await expect(page.getByText(/Set up your workspace|Await approval|Request an invitation/)).toHaveCount(0);
+    await expect(page.getByText(/Set up your (workspace|account)|Await approval|Request an invitation/)).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(errors).toEqual([]);
   });

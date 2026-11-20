@@ -11,7 +11,7 @@ export default async function verifyFirebaseToken(
   const [scheme, token] = authHeader.split(" ");
 
   if (scheme !== "Bearer" || !token) {
-    return res.status(401).json({ error: "Missing or invalid authorization" });
+    return res.status(401).json({ error: "Please sign in again." });
   }
 
   const localRouteProofToken = String(
@@ -39,7 +39,7 @@ export default async function verifyFirebaseToken(
 
   if (!authAdmin) {
     return res.status(503).json({
-      error: "Firebase Admin auth is not configured on this server.",
+      error: "Sign-in isn't working on our side right now. Please try again shortly.",
     });
   }
 
@@ -51,7 +51,7 @@ export default async function verifyFirebaseToken(
     res.locals.firebaseUser = decodedToken;
     return next();
   } catch (error) {
-    return res.status(401).json({ error: "Invalid or expired token" });
+    return res.status(401).json({ error: "Your sign-in has expired." });
   }
 }
 

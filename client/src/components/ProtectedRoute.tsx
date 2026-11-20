@@ -70,7 +70,7 @@ export default function ProtectedRoute({ children, requireRoles }: ProtectedRout
 
   return (
     <ErrorBoundary
-      fallback={<div>Something went wrong. Please try again.</div>}
+      fallback={<div role="alert" className="p-6">Something went wrong. Reload the page to try again. If it keeps happening, email hello@tryblueprint.io.</div>}
     >
       {children}
     </ErrorBoundary>

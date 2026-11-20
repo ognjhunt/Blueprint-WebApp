@@ -60,8 +60,8 @@ export function PartnerApplication() {
 
   return (
     <form className="ms-form ms-partner-form" onSubmit={submit} method="post" aria-label="Deployment company application">
-      <h2>Apply for access</h2>
-      <p>We review each application by hand. Once approved, you get an email for each new job. Nothing is charged today.</p>
+      <h2>Apply to see jobs</h2>
+      <p>We approve each company before it sees jobs. Once approved, you get an email for each new job. Nothing is charged today.</p>
       <fieldset disabled={!interactive || state === "sending"}>
         <legend className="sr-only">Your company</legend>
         <div className="ms-form-row">
@@ -79,7 +79,7 @@ export function PartnerApplication() {
           <input name="region" maxLength={300} required placeholder="Cities, states or countries you cover" />
         </label>
         <details>
-          <summary>Add a website (optional)</summary>
+          <summary>Add your website</summary>
           <label>Company website<input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} placeholder="https://example.com" title="Enter a website beginning with https:// or http://"
             onInvalid={event => { const details = event.currentTarget.closest("details"); if (details) details.open = true; }} /></label>
         </details>

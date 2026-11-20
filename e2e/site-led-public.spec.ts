@@ -35,10 +35,10 @@ test("on a small phone both entry points are visible before scrolling", async ({
   await start.click();
   await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
   await companies.click();
-  await expect(page.getByRole("heading", { name: "Apply for access" })).toBeInViewport();
+  await expect(page.getByRole("heading", { name: "Apply to see jobs" })).toBeInViewport();
   await page.getByRole("link", { name: "Browse jobs" }).click();
   await expect(page.getByRole("heading", { name: "Apply to see jobs", level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/partners#partner-application");
+  await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/jobs#partner-application");
 });
 
 test("on a phone the steps are visible and How it works is one link away", async ({ page }) => {

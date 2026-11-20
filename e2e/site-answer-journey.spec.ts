@@ -246,7 +246,7 @@ test.describe("desktop", () => {
     await companyPage.goto(companyJobPath);
     await expect(companyPage.getByRole("heading", { name: "Sign in to see this job" })).toBeVisible();
     await expect(companyPage.locator("body")).not.toContainText("Pick up the sealed carton");
-    const signInLink = companyPage.getByRole("link", { name: "Sign in to this job" });
+    const signInLink = companyPage.getByRole("main").getByRole("link", { name: "Sign in", exact: true });
     const signInPath = `/sign-in?next=${encodeURIComponent(companyJobPath)}`;
     await expect(signInLink).toHaveAttribute("href", signInPath);
     await expect(companyPage.getByRole("navigation", { name: "Account" }).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInPath);
@@ -299,11 +299,11 @@ test.describe("desktop", () => {
     expect((await companyPage.request.get(`${ORIGIN}/api/company-media/jobs/${requestId}/video.mp4`)).status()).toBeGreaterThanOrEqual(400);
 
     // The company answers Interested on the job's page.
-    const form = companyPage.getByRole("form", { name: "Response to opportunity" });
+    const form = companyPage.getByRole("form", { name: "Your response" });
     await form.getByLabel("Interested").check();
-    await form.getByRole("textbox", { name: "Note to the site (optional)" }).fill("We move cartons like these today.");
-    await form.getByText("Add details (optional)", { exact: true }).click();
-    await form.getByLabel("What you’ve verified").fill("The carton weight is in our payload range.");
+    await form.getByRole("textbox", { name: "Note to the site" }).fill("We move cartons like these today.");
+    await form.getByText("Add details", { exact: true }).click();
+    await form.getByLabel("What you have checked").fill("The carton weight is in our payload range.");
     await form.getByLabel("Question for the site").fill("How many cartons arrive per minute?");
     await form.getByLabel("Earliest start").selectOption("within_month");
     const sent = companyPage.waitForResponse(response => response.url().endsWith(`/api/site-worlds/tasks/${requestId}/interest`));
@@ -407,7 +407,7 @@ test.describe("desktop", () => {
     await expect(page.getByText("Recording permission withdrawn.", { exact: true })).toBeVisible();
     expect((await jobRecord(request, requestId)).access).toEqual({ listed: false, reason: "consent_withdrawn" });
     await companyPage.goto(`/jobs/${requestId}`);
-    await expect(companyPage.getByRole("heading", { name: "This job is not available" })).toBeVisible({ timeout: 30_000 });
+    await expect(companyPage.getByRole("heading", { name: "This job is no longer available" })).toBeVisible({ timeout: 30_000 });
     await companyPage.goto("/contact/robot-team");
     await expect(companyPage.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(companyPage.locator(`li#job-${requestId}`)).toHaveCount(0);

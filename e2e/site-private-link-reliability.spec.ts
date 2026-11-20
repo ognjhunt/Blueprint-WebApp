@@ -386,7 +386,7 @@ test("private claim navigation resets credentials and consent before the next su
   // cross-token transition that full document navigation would hide.
   await page.evaluate(() => history.pushState({}, "", "/claim/second"));
   await expect(page.getByText("Loading…", { exact: true })).toBeVisible();
-  await expect(page.getByRole("form", { name: "Claim this site" })).toHaveCount(0);
+  await expect(page.getByRole("form", { name: "Save this job to your account" })).toHaveCount(0);
   releaseSecond();
   await expect(page.getByRole("heading", { name: "Keep track of Second site." })).toBeVisible();
   await expect(page.getByLabel("Password", { exact: false })).toHaveValue("");
@@ -410,7 +410,7 @@ test("mobile claim link recovers from an offline read and keeps controls accessi
   await retry.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Keep track of Mobile site." })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: /Work email/ })).toHaveValue("operator@example.test");
+  await expect(page.getByRole("textbox", { name: /^Email/ })).toHaveValue("operator@example.test");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
   await page.screenshot({ path: info.outputPath("mobile-claim-recovery.png"), fullPage: true });
 });

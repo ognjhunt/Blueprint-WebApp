@@ -68,22 +68,27 @@ describe("unconfigured account settings", () => {
       </QueryClientProvider>,
     );
     expect(
-      await screen.findByRole("heading", { name: "Set up your workspace" }),
+      await screen.findByRole("heading", { name: "Set up your account" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Your name")).toHaveValue("Capture Owner");
-    expect(screen.getByLabelText("Organization")).toHaveValue("Company");
-    expect(screen.getByLabelText("Workspace type")).toHaveValue("");
-    fireEvent.change(screen.getByLabelText("Workspace type"), { target: { value: "site_operator" } });
+    expect(screen.getByLabelText("Business name")).toHaveValue("Company");
+    expect(screen.getByLabelText("Account type")).toHaveValue("");
+    expect(screen.getByText("Are you a site or a deployment company?")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Account type"), { target: { value: "robot_team" } });
+    expect(screen.getByLabelText("Company")).toHaveValue("Company");
+    expect(screen.getByText("For deployment companies we have approved.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Account type"), { target: { value: "site_operator" } });
     expect(screen.getByRole("heading", { name: "Start with your site and job" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Show us a task/ })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.queryByLabelText("Organization")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Choose another workspace" }));
+    expect(screen.getByRole("link", { name: /Start a job/ })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.queryByLabelText("Business name")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByLabelText("Account type")).toHaveValue("");
     // The capture account is retired (2026-11-11), so nothing links to it.
     expect(screen.queryByRole("link", { name: /Open capture account/ })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Try again" }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Robot-team workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Robot-team|workspace|embodiments|test my robots/i)).not.toBeInTheDocument();
     expect(
       fetch.mock.calls.filter(([path]) => path === "/api/workspace/"),
     ).toHaveLength(1);

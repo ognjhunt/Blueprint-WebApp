@@ -89,10 +89,9 @@ export interface TeamEvaluationTerms {
 export type LibraryJobStage = "no_video" | "video_received" | "simulation_building" | "simulation_built";
 /** The card's label for where the job's simulation stands, true in each state; no label when the state is unknown. */
 export const libraryStageLabels: Readonly<Record<LibraryJobStage, string>> = {
-  no_video: "No video yet", video_received: "Video received", simulation_building: "Simulation being built",
+  no_video: "No video yet", video_received: "Simulation not started yet", simulation_building: "Simulation being built",
   simulation_built: "Simulation built",
 };
-export const opportunityLabels = { open: "Open", past: "Past", not_seeking: "Not looking for a company yet" };
 
 const generatedJobTitles: ReadonlyMap<string, string> = new Map([
   ["Carton palletizing opportunity", "Palletize cartons"],

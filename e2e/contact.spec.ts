@@ -128,9 +128,9 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
 
 test("robot teams are pointed to the one application before approval, without seeing private jobs", async ({ page }) => {
   await page.goto("/contact/robot-team");
-  await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/partners#partner-application");
+  await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/jobs#partner-application");
   await expect(page.getByRole("form", { name: "Early access application" })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Browse jobs" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Find jobs" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Start a job", exact: true })).toBeVisible();
 });
 
