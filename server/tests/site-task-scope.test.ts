@@ -339,15 +339,17 @@ describe("a job we cannot score", () => {
       screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 },
       site_task_next_update_iso: null,
     }));
-    expect(status.decision).toBe("screening");
-    expect(status.headline).toBe("Robot screening has not started. Results are not available yet.");
+    // Blueprint runs no robot software in the simulation (owner, 2026-11-14): an older run record reads as a ready simulation.
+    expect(status.decision).toBe("assessing");
+    expect(status.headline).toBe("The simulation of your site is ready. Nothing is needed from you.");
     expect(status.operatorAction).toBeNull();
   });
 
   it("asks for one sentence when it could not tell what the job is, and names no kind of job and no scored list", () => {
     expect(UNCLEAR_BRIEF_ASK.headline).toMatch(/one sentence/i);
     expect(UNCLEAR_BRIEF_ASK.headline).not.toMatch(/robot teams?/i);
-    expect(UNCLEAR_BRIEF_ASK.nextStep).toMatch(/describe the job in one sentence/i);
+    expect(UNCLEAR_BRIEF_ASK.nextStep).toBe("Write it in one sentence in your job description and confirm it.");
+    expect(Object.values(UNCLEAR_BRIEF_ASK).join(" ")).not.toMatch(/brief|evaluate/i);
     expect(Object.values(UNCLEAR_BRIEF_ASK).join(" ")).not.toMatch(/kind|evaluators? cover|picking up one rigid object/i);
     const page = (extra: Record<string, unknown>) => projectTaskStatus(taskStatusInputFrom({
       briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-11-17", screening: null, ...extra } as never));

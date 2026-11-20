@@ -267,9 +267,9 @@ describe("a site that sends its footage before confirming its brief", () => {
     const duplicate = await sendFootage(token, 409);
     expect(duplicate).toMatchObject({ captureReceived: true,
       uploadState: "processing_ready", code: "capture_already_saved", repairAvailable: true });
-    expect(duplicate.message).toMatch(/original recording stays saved/i);
-    expect(duplicate.message).toMatch(/Update walkthrough on this job/i);
-    expect(duplicate.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
+    expect(duplicate.message).toMatch(/^Your original video is saved\./);
+    expect(duplicate.message).toMatch(/choose Send a new video on your job page/);
+    expect(duplicate.message).not.toMatch(/start a new job|original (recording|video) (was|has been) replaced|walkthrough/i);
     expect(doc(`captureUploadSessions/walkthrough-${jobId}`).browser_pending_delivery).toEqual(original);
     const originalFile = sharedUploadBucket.bucket.file(original.video.object_name);
     expect((await originalFile.getMetadata())[0].generation).toBe(original.video.generation);
@@ -649,7 +649,7 @@ describe("a not_now job created after the screen stopped gating", () => {
     const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     delete doc(`inboundRequests/${jobId}`).scene_screen_gate_ended; // as a job written before the change
     const confirmed = await confirmBrief(token, blocking);
-    expect(confirmed.screening?.headline).toMatch(/not building a scene/);
+    expect(confirmed.screening?.headline).toBe("We aren't building a simulation of your site for now, because of one of your answers.");
     expect((await jobStatus(token)).status.decision).toBe("not_now");
     await claim(jobId);
     await sendFootage(token);

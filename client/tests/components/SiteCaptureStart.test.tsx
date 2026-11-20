@@ -133,7 +133,7 @@ function askCountry() {
 
 // The country is not printed any more. A US location shows neither the country select nor the
 // outside-the-US notice; a non-US one shows the notice.
-const nonUsNotice = /During the beta we can only take walkthroughs/;
+const nonUsNotice = /We can only take videos from sites in the United States for now\. You can save your job/;
 function expectInferredUnitedStates() {
   expect(region()).toBeNull();
   expect(screen.queryByText(nonUsNotice)).toBeNull();
@@ -275,7 +275,7 @@ describe("SiteCaptureStart and the country", () => {
     expect(region()).toHaveValue("");
     chooseCountry("non_us");
     expectInferredOutsideUnitedStates();
-    expect(screen.getByText(/Outside the US we set up the data-transfer terms/)).toBeInTheDocument();
+    expect(screen.getAllByText(nonUsNotice)).toHaveLength(1);
     expect(document.querySelector("#start-footage")).toBeNull();
     expect(upload.send).not.toHaveBeenCalled();
   });
@@ -283,12 +283,12 @@ describe("SiteCaptureStart and the country", () => {
   it("posts a typed Austin TX description on the first Start with the existing country contract", async () => {
     signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
     await renderReady(<SiteCaptureStart />);
-    await screen.findByText(/Saving to your workspace/);
+    await screen.findByText(/This job will be saved to your account\./);
     describeTask("Slide the dishwasher racks");
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
     chooseCountry("us");
     fireEvent.submit(screen.getByRole("form"));
-    await screen.findByRole("link", { name: "Saved in your workspace" });
+    await screen.findByRole("link", { name: "Saved to your account" });
     const calls = postsTo("/api/workspace/capture-start");
     expect(calls).toHaveLength(1);
     expect(JSON.parse(calls[0][1].body)).toMatchObject({ siteLocation: "Austin TX", captureRegion: "us", descriptionOnly: true, consentAttestation: null });
@@ -323,7 +323,7 @@ describe("SiteCaptureStart and the country", () => {
         return previousFetch(url, init);
       });
       await renderReady(<SiteCaptureStart />);
-      await screen.findByText(/Saving to your workspace/);
+      await screen.findByText(/This job will be saved to your account\./);
       describeTask("Slide the racks");
       const location = document.querySelector("#start-location")!;
       fireEvent.change(location, { target: { value: "Austin TX" } });
@@ -490,7 +490,7 @@ function chooseUploadNow() {
 it("prepares the phone capture with explicit description authority and no recording or fee grant", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace/);
+  await screen.findByText(/This job will be saved to your account\./);
   describeTask("Pack cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   chooseCountry("us");
@@ -523,7 +523,7 @@ it("keeps optional details when switching between upload and recording", async (
 it("asks for the sentence on the first screen, required, and sends it as the confirmation", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace/);
+  await screen.findByText(/This job will be saved to your account\./);
   const task = document.querySelector<HTMLTextAreaElement>("#start-task")!;
   expect(task).toBeRequired();
   expect(task.closest("details")).toBeNull();
@@ -599,8 +599,8 @@ it("asks no street address, and says it will reply when no job link comes back",
   chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("heading", { name: "We have your site." });
-  expect(screen.getByText("We will reply to owner@example.test with the link to film or upload the video.")).toBeInTheDocument();
+  await screen.findByRole("heading", { name: "Your job is saved." });
+  expect(screen.getByText("We'll email the link to film or upload your video to owner@example.test.")).toBeInTheDocument();
   const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
   expect(sent).toMatchObject({ taskStatement: "Move sealed cartons to the dock", captureMode: "self_capture", descriptionOnly: true,
     consentAttestation: null, siteLocation: "100 Congress Ave, Austin, TX" });
@@ -662,7 +662,7 @@ it("offers no Blueprint filming visit and sends self-capture (visits retired 202
   const [method, captureMode] = ["phone", "self_capture"];
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace as owner@example.com/);
+  await screen.findByText(/This job will be saved to your account\./);
   expect(document.querySelector("#start-method-visit")).toBeNull();
   expect(screen.queryByText(/Have Blueprint film it|Austin metro only|sending someone to film/i)).toBeNull();
   { const toMethod = document.querySelector(`#start-method-${method}`); if (toMethod) fireEvent.click(toMethod); }
@@ -670,7 +670,7 @@ it("offers no Blueprint filming visit and sends self-capture (visits retired 202
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   chooseCountry("us");
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Saved in your workspace" });
+  await screen.findByRole("link", { name: "Saved to your account" });
   const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
   expect(payload.filmerContact).toBeUndefined();
   expect(payload.captureMode).toBe(captureMode);
@@ -680,11 +680,11 @@ it("offers no Blueprint filming visit and sends self-capture (visits retired 202
 it("saves signed-in captures to the authenticated workspace and reuses the request on retry", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, body: { message: "Try again" } }, { ok: true, body: { captureUrl: null } }]);
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace as owner@example.com/);
+  await screen.findByText(/This job will be saved to your account\./);
   fillAndSubmit();
   await screen.findByRole("alert");
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Saved in your workspace" });
+  await screen.findByRole("link", { name: "Saved to your account" });
   const calls = postsTo("/api/workspace/capture-start");
   expect(calls).toHaveLength(2);
   expect(calls[0][1].headers.Authorization).toBe("Bearer owner-token");
@@ -699,10 +699,10 @@ it("saves signed-in captures to the authenticated workspace and reuses the reque
 it("tells a robot-team account up front that the site goes to the emailed link, and never blocks it", async () => {
   signedIn({ workspaceType: "robot_team" }, [{ ok: true, body: { captureUrl: "https://example.test/capture" } }]);
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Signed in as owner@example.com, which is not a site workspace/);
+  await screen.findByText("This account isn't set up for sites. We'll email you a private link to your job instead.");
   fillAndSubmit();
-  await screen.findByText(/saved to the link we email owner@example.com/);
-  expect(screen.queryByRole("link", { name: "Saved in your workspace" })).toBeNull();
+  await screen.findByText(/we saved this job to the private link we emailed to owner@example\.com\. You can save it to a site account from that link\./);
+  expect(screen.queryByRole("link", { name: "Saved to your account" })).toBeNull();
   expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
   expect(postsTo("/api/inbound-request")).toHaveLength(1);
 });
@@ -712,7 +712,7 @@ it("lets a signed-in account with no workspace type yet send the job and its vid
   upload.send.mockResolvedValue({ status: "done" });
   const file = new File(["frames"], "cycle.mov", { type: "video/quicktime" });
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace as owner@example.com/);
+  await screen.findByText(/This job will be saved to your account\./);
   describeTask("Pack cartons");
   chooseUploadNow();
   fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
@@ -730,7 +730,7 @@ it("lets a signed-in account with no workspace type yet send the job and its vid
 it("lets a legacy-role account send footage through its private job link", async () => {
   signedIn({ workspaceType: null, siteSetupAvailable: false }, [{ ok: true, body: { captureUrl: "https://example.test/capture" } }]);
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Signed in as owner@example.com, which is not a site workspace/);
+  await screen.findByText("This account isn't set up for sites. We'll email you a private link to your job instead.");
   chooseUploadNow();
   expect(document.querySelector("#start-footage")).toBeRequired();
   expect(screen.queryByRole("note", { name: "Save this job to an account first" })).toBeNull();
@@ -740,7 +740,7 @@ it("falls back to the emailed link with the same answers when the workspace refu
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, status: 403, body: { error: "This action requires a site account." } }, { ok: true, body: { captureUrl: null } }]);
   await renderReady(<SiteCaptureStart />);
   fillAndSubmit();
-  await screen.findByText(/saved to the link we email owner@example.com/);
+  await screen.findByText(/we saved this job to the private link we emailed to owner@example\.com\. You can save it to a site account from that link\./);
   expect(screen.queryByRole("alert")).toBeNull();
   const refused = postsTo("/api/workspace/capture-start"), fallback = postsTo("/api/inbound-request");
   expect(refused).toHaveLength(1);
@@ -799,7 +799,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   async function renderAsSiteAccount() {
     await renderReady(<SiteCaptureStart />);
-    await screen.findByText(/Saving to your workspace as owner@example.com/);
+    await screen.findByText(/This job will be saved to your account\./);
   }
 
   function answerPosts(body: Record<string, unknown>) {
@@ -854,7 +854,9 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
     fireEvent.click(await screen.findByText("Munich, Germany"));
 
-    await screen.findByText(/Hold on to the video for now/);
+    // Outside the US the notice under the country says it once; the video field is gone.
+    await screen.findByText(nonUsNotice);
+    expect(screen.queryByText(/Hold on to the video/)).toBeNull();
     expect(document.querySelector("#start-footage")).toBeNull();
     expect(document.querySelector("[data-consent-line]")).not.toHaveTextContent(SITE_START_CONSENT_WITH_VIDEO);
     expect(document.querySelector("details[data-agreeing]")).not.toHaveTextContent(FOOTAGE_UPLOAD_NOTICE);
@@ -940,7 +942,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await screen.findByText("Your job is saved. Check your video upload.", { selector: "h1" });
     expect(screen.getByText(/Keep your original video and open your job page/)).toBeInTheDocument();
     expect(screen.queryByText(/Nothing was lost|Film the work, not the worker/)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open the uploader ›" })).toHaveAttribute("href", `${captureUrl}?video=existing`);
+    expect(screen.getByRole("link", { name: "Upload the video ›" })).toHaveAttribute("href", `${captureUrl}?video=existing`);
     expect(screen.queryByRole("img", { name: "Point your phone's camera at this code to film" })).not.toBeInTheDocument();
   });
 
@@ -963,13 +965,13 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await renderAsSiteAccount();
     fillFor(video());
     await screen.findByRole("heading", { name: "We have your video." });
-    expect(screen.getByText(/Blueprint will continue from this saved recording/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Retry processing" })).not.toBeVisible();
+    expect(screen.getByText(/We'll continue from your saved video/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Start processing again" })).not.toBeVisible();
     expect(upload.retry).not.toHaveBeenCalled();
     expect(screen.queryByText(/The video did not send|Nothing was lost/)).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Processing details (optional)"));
-    const button = screen.getByRole("button", { name: "Retry processing" });
+    fireEvent.click(screen.getByText("Processing status"));
+    const button = screen.getByRole("button", { name: "Start processing again" });
     fireEvent.click(button); fireEvent.click(button);
     expect(upload.retry).toHaveBeenCalledTimes(1);
     expect(upload.retry).toHaveBeenCalledWith("tok.signed");
@@ -983,7 +985,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     upload.send.mockResolvedValue({ status: "held", message: "Processing is on hold until current consent is confirmed." });
     await renderAsSiteAccount(); fillFor(video());
     await screen.findByText(/current consent is confirmed/);
-    expect(screen.queryByRole("button", { name: "Retry processing" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start processing again" })).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
   });
 
@@ -1019,7 +1021,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await renderAsSiteAccount();
     fillFor(video());
 
-    await screen.findByRole("heading", { level: 1, name: "We have your site." });
+    await screen.findByRole("heading", { level: 1, name: "Your job is saved." });
     expect(upload.send).not.toHaveBeenCalled();
   });
 });
@@ -1047,7 +1049,7 @@ describe("SiteCaptureStart identity fields", () => {
 it("recovers the same intake identity and draft after a lost response and reload", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, body: { message: "Connection lost after save" } }, { ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
   const first = await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace/);
+  await screen.findByText(/This job will be saved to your account\./);
   fillAndSubmit();
   await screen.findByRole("alert");
   const original = postsTo("/api/workspace/capture-start")[0][1].body;
@@ -1055,7 +1057,7 @@ it("recovers the same intake identity and draft after a lost response and reload
   await fetch("https://photon.komoot.io/api/?q=Austin");
   first.unmount();
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace/);
+  await screen.findByText(/This job will be saved to your account\./);
   expect(document.querySelector<HTMLTextAreaElement>("#start-task")!.value).toBe("Pack cartons");
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Now film the job." });
@@ -1072,7 +1074,7 @@ it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ metho
     body: outcome === "saved" ? { captureUrl: "/capture-upload/tok.signed" } : { message: "Correct the task description" } }]);
   upload.send.mockResolvedValue({ status: "done" });
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace/);
+  await screen.findByText(/This job will be saved to your account\./);
   { const toMethod = document.querySelector(`#start-method-${method}`); if (toMethod) fireEvent.click(toMethod); }
   describeTask("Move sealed cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
@@ -1082,7 +1084,7 @@ it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ metho
   if (file) fireEvent.change(file, { target: { files: [new File(["synthetic"], "original.mp4", { type: "video/mp4" })] } });
   fireEvent.submit(screen.getByRole("form"));
   if (outcome === "rejected") await screen.findByText("Correct the task description");
-  else await screen.findByRole("link", { name: "Saved in your workspace" });
+  else await screen.findByRole("link", { name: "Saved to your account" });
   const post = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
   expect(post.captureMode).toBe("self_capture");
   expect(post.captureRegion).toBe(location.startsWith("Austin") ? "us" : "non_us");
@@ -1092,12 +1094,12 @@ it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ metho
 it("allows corrected fields after a proven validation rejection", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, status: 422, body: { message: "Correct task" } }, { ok: true, body: { captureUrl: null } }]);
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace/);
+  await screen.findByText(/This job will be saved to your account\./);
   fillAndSubmit();
   await screen.findByText("Correct task");
   describeTask("Corrected task");
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Saved in your workspace" });
+  await screen.findByRole("link", { name: "Saved to your account" });
   const posts = postsTo("/api/workspace/capture-start").map(call => JSON.parse(call[1].body));
   expect(posts[1].taskDescription).toBe("Corrected task");
   expect(posts[1].requestId).toBe(posts[0].requestId);
@@ -1133,12 +1135,13 @@ it("replays uncertain original answers, ignoring later edits", async () => {
 it("isolates account drafts after an authenticated account switch", async () => {
   signedIn({ workspaceType: "site_operator" }, []);
   const view = await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace/);
+  await screen.findByText(/This job will be saved to your account\./);
   describeTask("Account A private task");
   account.user = { uid: "owner-2", email: "other@example.invalid", getIdToken: async () => "other-token" };
   view.rerender(<SiteCaptureStart />);
-  await screen.findByText(/other@example.invalid/);
-  expect(document.querySelector<HTMLTextAreaElement>("#start-task")!.value).toBe("");
+  // The other account's form opens fresh: its own (empty) draft, not account A's.
+  await vi.waitFor(() => expect(document.querySelector<HTMLTextAreaElement>("#start-task")?.value).toBe(""));
+  await screen.findByText(/This job will be saved to your account\./);
 });
 
 
@@ -1150,7 +1153,7 @@ it("waits for auth resolution before reading a private anonymous draft", async (
   }));
   account.loading = true;
   await renderReady(<SiteCaptureStart />);
-  expect(screen.getByRole("status")).toHaveTextContent("Loading your account");
+  expect(screen.getByRole("status")).toHaveTextContent("Loading…");
   expect(screen.queryByRole("link", { name: "Open my job" })).not.toBeInTheDocument();
   expect(fetchMock).not.toHaveBeenCalled();
 });
@@ -1318,21 +1321,21 @@ it("submits under v4 with a video and v3 without one, with no share box and no c
 it("tells a site uploading footage that people seen or heard must know, and that sound is removed", async () => {
   signedIn({ workspaceType: "site_operator" }, []);
   await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace as owner@example.com/);
+  await screen.findByText(/This job will be saved to your account\./);
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   chooseCountry("us");
   expect(screen.queryByText(/People seen or heard in it must know/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
-  expect(screen.getByText("Only upload footage you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.")).toBeInTheDocument();
+  expect(screen.getByText("Only upload a video you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.")).toBeInTheDocument();
 });
 
 it("offers account setup only after the site and job have been saved", async () => {
   fetchMock.mockResolvedValue({ ok: true, json: async () => ({ captureUrl: "/capture-upload/job.saved", claimUrl: "/claim/job.signed" }) });
   await renderReady(<SiteCaptureStart />);
-  expect(screen.queryByRole("link", { name: "Save to an account ›" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Save to my account ›" })).not.toBeInTheDocument();
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } }); fillAndSubmit();
   // The private link already supports this job; an account stays one optional, quiet link.
-  const optional = await screen.findByRole("link", { name: "Save to an account ›" });
+  const optional = await screen.findByRole("link", { name: "Save to my account ›" });
   expect(optional).toHaveAttribute("href", "/claim/job.signed");
   expect(screen.getByText(/We also emailed this private link to owner@example.com/)).toBeInTheDocument();
   expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
@@ -1414,7 +1417,7 @@ describe("guest intake without account ceremony", () => {
       ?{ok:++saves>1,status:saves>1?201:503,json:async()=>saves>1?{captureUrl}:{message:"Uncertain save"}}:photon([]));
     await renderReady(<SiteCaptureStart/>);fillGuest();fireEvent.submit(screen.getByRole("form"));
     await screen.findByText("Uncertain save");fireEvent.click(screen.getByRole("button",{name:"Recover saved job"}));
-    await screen.findByRole("link",{name:/^Open the uploader/});
+    await screen.findByRole("link",{name:/^Upload the video/});
     const posts=postsTo("/api/inbound-request");expect(posts).toHaveLength(2);expect(posts[1][1].body).toBe(posts[0][1].body);
     expect(created.create).not.toHaveBeenCalled();expect(upload.send).not.toHaveBeenCalled();
   });
@@ -1455,7 +1458,7 @@ describe("with the one-line consent switched off", () => {
     expect(block).toHaveTextContent("“I am authorized to share this job description with Blueprint on behalf of the site.”");
     if (withVideo) {
       expect(block).toHaveTextContent(`“${RECORDING_RIGHTS_STATEMENT}”`);
-      expect(block).toHaveTextContent("Only upload footage you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.");
+      expect(block).toHaveTextContent("Only upload a video you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.");
     } else {
       expect(block).not.toHaveTextContent(RECORDING_RIGHTS_STATEMENT);
     }
@@ -1630,7 +1633,7 @@ describe("an email we cannot send to", () => {
     expect(error.closest(".bare-field")).toBe(input.closest(".bare-field"));
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(input.getAttribute("aria-describedby")).toContain("start-email-error");
-    expect(screen.queryByText(/Job reference/)).toBeNull();
+    expect(screen.queryByText(/include this reference/)).toBeNull();
   }
 
   it.each([
@@ -1716,7 +1719,7 @@ describe("an email we cannot send to", () => {
     fillWith("owner@example.test");
     fireEvent.submit(screen.getByRole("form"));
     await screen.findByText(/Recording permission was not confirmed/);
-    expect(screen.getByText(/Job reference: capture-/)).toBeInTheDocument();
+    expect(screen.getByText(/If this keeps happening, email hello@tryblueprint\.io and include this reference: capture-/)).toBeInTheDocument();
     expect(document.querySelector("#start-email-error")).toBeNull();
   });
 });

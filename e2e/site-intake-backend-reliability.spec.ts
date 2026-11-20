@@ -71,7 +71,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     await expect(page.locator("#start-location")).toHaveValue(parameters.location);
     // Typed text is never read for a country (the privacy gate): the site chooses it.
     await page.locator("#start-region").selectOption(parameters.location.startsWith("Austin") ? "us" : "non_us");
-    if (!parameters.location.startsWith("Austin")) await expect(page.getByText(/During the beta we can only take walkthroughs/)).toBeVisible();
+    if (!parameters.location.startsWith("Austin")) await expect(page.getByText(/We can only take videos from sites in the United States for now\. You can save your job/)).toBeVisible();
     await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     if (parameters.boundary === "lost-response") {
       await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
@@ -86,7 +86,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       // page shows the saved job behind "Return to saved job", which replays the
       // same idempotent submission to fetch the link again.
       const returnButton = page.getByRole("button", { name: "Return to saved job", exact: true });
-      const saved = page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "We have your site."
+      const saved = page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "Your job is saved."
         : "Now film the job.", exact: true });
       await expect(returnButton.or(saved)).toBeVisible();
       if (await returnButton.isVisible()) await returnButton.click();

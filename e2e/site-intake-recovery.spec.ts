@@ -109,7 +109,7 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
       await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart");
     } else {
       await expect(page.getByRole("heading", { name: "Your job is saved. Check your video upload." })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Open the uploader", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart?video=existing");
+      await expect(page.getByRole("link", { name: "Upload the video", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart?video=existing");
     }
     expect(posts).toHaveLength(2);
     expect(posts[1]).toBe(posts[0]);
@@ -204,7 +204,7 @@ test.describe("the start form on a phone", () => {
     // Directly under the field, 8 px below it.
     const [field, line] = await Promise.all([page.locator("#start-email").boundingBox(), error.boundingBox()]);
     expect(Math.round(line!.y - (field!.y + field!.height))).toBeGreaterThanOrEqual(8);
-    await expect(page.getByText(/Job reference/)).toHaveCount(0);
+    await expect(page.getByText(/include this reference/)).toHaveCount(0);
     await expect(page.locator("#start-region")).toHaveCount(0);
     expect(posts).toHaveLength(0);
     if (shots && shot) await page.screenshot({ path: `${shots}/${shot}.png`, fullPage: true });

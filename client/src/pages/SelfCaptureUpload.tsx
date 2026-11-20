@@ -318,7 +318,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       if (!statusResponse.ok || !data?.ok) throw new Error("Permission was saved. Reopen this link to check whether footage can be added.");
       if (linkGeneration.current !== generation) return;
       setLink(data.state === "held" ? {
-        status: "held", detail: String(data.detail || "This capture cannot start yet."),
+        status: "held", detail: String(data.detail || "This job can't take a video yet."),
         blockers: Array.isArray(data.blockers) ? data.blockers.map(String) : [],
         openQuestions: Array.isArray(data.openQuestions) ? data.openQuestions.map(String) : [],
         holdReason: data.holdReason, selfCaptureSwitch: data.selfCaptureSwitchAvailable === true,
@@ -439,7 +439,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         if (!response.ok || !data?.ok) {
           setLink({
             status: "invalid",
-            message: data?.error || "This upload link is not valid or has expired.",
+            message: data?.error || "This job link is not valid or has expired.",
           });
           return;
         }
@@ -459,7 +459,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         if (data.state === "held") {
           setLink({
             status: "held",
-            detail: String(data.detail || "This capture cannot start yet."),
+            detail: String(data.detail || "This job can't take a video yet."),
             blockers: Array.isArray(data.blockers) ? data.blockers.map(String) : [],
             openQuestions: Array.isArray(data.openQuestions)
               ? data.openQuestions.map(String)
@@ -657,7 +657,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // bounded outcomes keep their own visible explanation.
   const optionalCorrectionHint = saved && link.status === "valid" && !status?.outcome
     && (status?.decision === "confirm_brief" || status?.decision === "add_views");
-  const preparationUpdate = "Blueprint is preparing your reconstruction.";
+  const preparationUpdate = "We're preparing your job. Nothing is needed from you.";
   // The answer leads the page once there is one. It never waits on the brief, so the brief's
   // forms below become an optional correction of the job we read from the video.
   const answer = saved && scope === "owner" && currentStatusKnown ? status?.answer ?? null : null;
@@ -715,10 +715,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       )}
       {status.claimUrl && !accountHold && (
         <details style={answer ? undefined : { marginTop: "10px" }}>
-          <summary>Save this job to an account (optional)</summary>
-          <p className="ms-field-hint">Your private job link already opens this job and its results. Save it to an account if you want it in your workspace.</p>
+          <summary>Save to my account</summary>
+          <p className="ms-field-hint">Your private link already opens this job. Save it to an account to keep it with your other jobs.</p>
           <a className="ms-text-link" href={status.claimUrl}>
-            Save this job to your account
+            Save to my account
           </a>
         </details>
       )}
@@ -763,40 +763,40 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const onBriefConfirmed = (confirmed: DraftedBrief) => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); };
   const briefSection = scope !== "owner" || !brief || withdrawn ? null : editingBrief ? (
     <details open id="job-brief-editor" style={{ marginBottom: "8px" }}>
-      <summary>Edit your job brief</summary>
-      <p className="ms-field-hint">Changing the task or what counts as success means confirming it again.</p>
+      <summary>{EDIT_JOB_LABEL}</summary>
+      <p className="ms-field-hint">If you change the job or what counts as done, confirm it again.</p>
       <TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount onConfirmed={onBriefConfirmed} />
     </details>
   ) : briefConfirmed && blueprintActionPending ? (
     <details style={{ margin: "16px 0" }}>
-      <summary>Saved job brief</summary>
+      <summary>Your job description</summary>
       <p>{brief.summary}</p>
-      <p className="ms-field-hint">{heldWithoutStep ? "This brief is retained with your job." : "This brief is retained for a future authorized attempt. Blueprint's next step is shown above."}</p>
+      <p className="ms-field-hint">Saved with your job.</p>
     </details>
   ) : briefConfirmed ? (
     <p className="ms-field-hint" style={{ marginBottom: "8px" }}>
-      {brief.confirmedAtSubmission ? "You confirmed this task when you submitted it." : "Your job brief is confirmed."}{" "}
+      {brief.confirmedAtSubmission ? "You confirmed this job when you sent it." : "Your job description is confirmed."}{" "}
       <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
-        Edit your answers
+        {EDIT_JOB_LABEL}
       </button>
     </p>
   ) : answer ? (
-    <details aria-label="Review your job brief" style={{ margin: "16px 0" }}>
-      <summary>Correct the job we read from your video (optional)</summary>
-      <p className="ms-field-hint">Your first look above does not wait on this. If we read the job wrong, correct the task and answers here and confirm them; Blueprint uses your correction from then on.</p>
+    <details aria-label="Your job description" style={{ margin: "16px 0" }}>
+      <summary>Did we read the job wrong?</summary>
+      <p className="ms-field-hint">Your first look doesn't wait on this. Correct the job here and confirm it; we use your correction from then on.</p>
       <TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount onConfirmed={onBriefConfirmed} />
     </details>
   ) : (
-    <details aria-label="Review your job brief" style={{ margin: "16px 0" }}>
-      <summary>Confirm your task: the one step that lets Blueprint run it</summary>
-      <p className="ms-field-hint">Check the task and answers, correct anything we drafted, and confirm it. Blueprint keeps preparing your job from the recording meanwhile, and runs it on the task you confirm.</p>
+    <details aria-label="Your job description" style={{ margin: "16px 0" }}>
+      <summary>Confirm your job description</summary>
+      <p className="ms-field-hint">Check the job and answers, fix anything we got wrong, and confirm. We keep preparing your job from your video meanwhile.</p>
       <TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount onConfirmed={onBriefConfirmed} />
     </details>
   );
 
   // While the job's status cannot be read, the page says so rather than nothing.
   const statusUnknown = ownerJob && !currentStatusKnown
-    ? <p role="status" className="ms-field-hint">Checking the current job status. Your saved job remains available.</p> : null;
+    ? <p role="status" className="ms-field-hint">Checking where your job stands…</p> : null;
   /** Opens the job description editor under "More for this job" and brings it into view. */
   const openBriefEditor = () => {
     setEditingBrief(true);
@@ -808,20 +808,20 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     }, 0);
   };
   const updateVideoSection = scope === "owner" && link.status === "valid" && !withdrawn
-    ? <details aria-label="Update job video" style={answer ? undefined : { margin: "16px 0" }}>
-      <summary>Update video (optional)</summary>
-      <p className="ms-field-hint">If your job or recording has changed, you can send a complete new video. Your job and original video stay saved.</p>
+    ? <details aria-label={NEW_VIDEO_LABEL} style={answer ? undefined : { margin: "16px 0" }}>
+      <summary>{NEW_VIDEO_LABEL}</summary>
+      <p className="ms-field-hint">Your job and first video stay saved.</p>
       <button type="button" className="ms-text-link" disabled={startingVideoUpdate} onClick={() => void updateVideo()}>
-        {startingVideoUpdate ? "Opening video update…" : "Update video"}
+        {startingVideoUpdate ? "Opening…" : NEW_VIDEO_LABEL}
       </button>
       {videoUpdateError && <p role="alert">{videoUpdateError}</p>}
     </details> : null;
   const processingSection = !blueprintActionPending && upload.status === "processing_pending" ? (
-    <details aria-label="Processing details" style={answer ? undefined : { margin: "16px 0" }}>
-      <summary>Processing details (optional)</summary>
+    <details aria-label="Processing status" style={answer ? undefined : { margin: "16px 0" }}>
+      <summary>Processing status</summary>
       <p className="ms-field-hint">{upload.message}</p>
       {upload.processingRetryAvailable && <button type="button" className="ms-text-link" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
-      {retryingProcessing ? "Retrying processing…" : "Retry processing"}
+      {retryingProcessing ? "Starting…" : "Start processing again"}
       </button>}
     </details>
   ) : null;
@@ -900,8 +900,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       ...(editJob ? [{ key: "job", label: EDIT_JOB_LABEL, body: editJob }] : []),
       ...(status?.claimUrl && !accountHold && !withdrawn ? [{ key: "account", label: "Save to my account", href: status.claimUrl }] : []),
       ...(sceneViewUrl ? [{ key: "scene", label: VIEW_SIMULATION_LABEL, href: sceneViewUrl }] : []),
-      ...(processingSection ? [{ key: "processing", label: "Processing", body: processingSection }] : []),
-      ...(advisory ? [{ key: "advisory", label: "Processing details", body: advisory }] : []),
+      ...(processingSection ? [{ key: "processing", label: "Processing status", body: processingSection }] : []),
+      ...(advisory ? [{ key: "advisory", label: "Earlier video notes", body: advisory }] : []),
       { key: "contact", label: "Contact Blueprint about this job", href: "mailto:hello@tryblueprint.io" },
       ...(withdrawal ? [{ key: "stop", label: stopLabel, body: withdrawal }] : []),
     ]} />
@@ -919,7 +919,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     <div className="minimal-site">
       <header className="ms-container ms-capture-header" style={{ maxWidth: "680px" }}>
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
-        <a className="ms-back" href="/contact/site-operator">Back to Blueprint</a>
+        <a className="ms-back" href="/">Back to Blueprint</a>
       </header>
       <div className="ms-container ms-capture-body" style={{ paddingBlock: "24px 48px", maxWidth: "680px" }}>
         <Helmet>
@@ -938,7 +938,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           <BareLinks links={[{ key: "contact", label: "Contact Blueprint about this job", href: "mailto:hello@tryblueprint.io" }]} />
         </> : <>
       <h1>
-        {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
+        {link.status === "invalid" ? "This link doesn't work anymore" : link.status === "held" || saved ? "Your job"
+          : existingVideoOnly ? "Upload your video" : onAPhone ? "Film the job" : "Film or upload the job"}
       </h1>
       {jobSentence && <p className="bare-job">{answer?.job.drafted ? "We read your job as: " : ""}“{jobSentence.trim().replace(/[.!?]+$/, "")}.”</p>}
       {/* The status shown is the last good read's while newer reads fail: said, with its time. */}
@@ -1012,7 +1013,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                arrived before the account is said so, never asked for again. */
             <div style={{ marginBottom: "24px" }}>
               <p style={{ marginBottom: "12px" }}>{link.detail}</p>
-              {scope === "owner" && status?.claimUrl && <section aria-label="Save this job to your account" className="ms-intake-account-links">
+              {/* A video that arrived before the account is never usable, so an account cannot help it (start a new job). */}
+              {scope === "owner" && status?.claimUrl && link.holdReason !== "footage_before_account" && <section aria-label="Save this job to your account" className="ms-intake-account-links">
                 <a className="ms-button" href={status.claimUrl}>Create an account for this job</a>
                 <a className="ms-text-link" href={`${status.claimUrl}?mode=signin`}>Sign in to save this job</a>
               </section>}
@@ -1033,7 +1035,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
           {link.openQuestions.length > 0 && (
             <>
-              <p style={{ marginBottom: "8px" }}>What a short call would settle:</p>
+              <p style={{ marginBottom: "8px" }}>Questions still open:</p>
               <ul style={{ paddingLeft: "20px", marginBottom: "24px", lineHeight: 1.7 }}>
                 {link.openQuestions.map((question) => (
                   <li key={question} style={{ marginBottom: "8px" }}>
@@ -1061,13 +1063,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               disabled={freshLink === "sending"}
               onClick={() => void requestFreshLink()}
             >
-              {freshLink === "sending" ? "Sending…" : "Email me a fresh link"}
+              {freshLink === "sending" ? "Sending…" : "Email me a new link"}
             </button>
           )}
           {freshLink === "sent" && (
             <p role="status">
-              If this link was one of ours, a fresh one is on its way to the email address your
-              job was sent from.
+              If this is a Blueprint job link, a new one is on its way to the email address used for that job.
             </p>
           )}
           {freshLink === "failed" && (
@@ -1101,10 +1102,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 <strong>Video received.</strong>
                 {(!status || !currentStatusKnown || upload.status === "processing_pending" || upload.status === "held") && <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
                   {blueprintActionPending
-                    ? currentStatusKnown ? heldWithoutStep ? "Your recording is saved." : "Your recording is saved. The next step is with Blueprint."
-                      : "Blueprint is checking the current status. Keep your original recording."
+                    ? currentStatusKnown ? heldWithoutStep ? "Your video is saved." : "Your video is saved. Nothing is needed from you."
+                      : "We're checking where your job stands. Keep your original video."
                     : upload.status === "processing_pending"
-                    ? "Blueprint will continue from this saved recording and update this job. You can leave this page."
+                    ? "We'll continue from your saved video and update this job. You can leave this page."
                     : upload.status === "held" || (upload.status === "done" && upload.message)
                     ? upload.message
                     : "Nothing is needed from you now. This page shows what we find."}{" "}
@@ -1171,8 +1172,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               <details className="bare-how-to">
                 <summary>How to film ›</summary>
                 <p className="ms-field-hint">
-                  {FILM_AROUND_THE_JOB} Move slowly and overlap your passes. Cover every surface near where the work
-                  happens, from a few heights. Ideally the scene is still, with nobody in frame; if work is going on, film anyway.
+                  {FILM_AROUND_THE_JOB} Move slowly. Film every surface near the job, from a few heights. If work is going on, film anyway.
                 </p>
               </details>
               </div>
@@ -1248,8 +1248,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               )}
             </div>
               {existingVideoOnly && <details style={{ marginTop: "20px" }}>
-                <summary>Open this job on another device (optional)</summary>
-                <p className="ms-field-hint">Use this if your existing video is on another device. This opens the same job; no new recording is required.</p>
+                <summary>Video on another device?</summary>
+                <p className="ms-field-hint">Scan this code with that device to open this job there.</p>
                 <CaptureHandoffQr url={pageUrl} label="Open this job on another device" />
               </details>}
 

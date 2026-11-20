@@ -123,24 +123,26 @@ async function jobStatus(token: string) {
 }
 
 describe("when every evaluation of a job has finished without a pass", () => {
-  it("says on the job page that none can support a recommendation yet, and emails nothing", async () => {
+  // Blueprint runs no robot software in the simulation (owner, 2026-11-14): older run records read as a ready simulation.
+  it("says on the job page that the simulation is ready, never an evaluation result, and emails nothing", async () => {
     const { jobId, token } = await startJob();
     recordRun(jobId, "run-diagnostic-1", "diagnostic");
     recordRun(jobId, "run-diagnostic-2", "diagnostic");
     const status = await jobStatus(token);
-    expect(status.decision).toBe("no_qualified_evaluation");
-    expect(status.headline).toMatch(/2 runs could not be scored against your pass mark/);
+    expect(status.decision).toBe("assessing");
+    expect(status.headline).toBe("The simulation of your site is ready. Nothing is needed from you.");
     // The team-run emails left the site's journey (2026-11-12).
     expect(queuedKinds(jobId)).not.toContain("no_qualified_evaluation");
     expect(queuedKinds(jobId)).not.toContain("no_team_passed");
   });
 
-  it("says on the job page what would change a qualified evaluation that did not pass", async () => {
+  it("says on the job page that the simulation is ready, never a pass mark, for a qualified run that did not pass", async () => {
     const { jobId, token } = await startJob();
     recordRun(jobId, "run-short", "short");
     const status = await jobStatus(token);
-    expect(status.decision).toBe("no_team_passed");
-    expect(status.headline).toMatch(/172 of 200 episodes \(86%\); your pass mark is 90%/);
+    expect(status.decision).toBe("assessing");
+    expect(status.headline).toBe("The simulation of your site is ready. Nothing is needed from you.");
+    expect(status.headline).not.toMatch(/episodes|pass mark/);
     expect(queuedKinds(jobId)).not.toContain("no_team_passed");
   });
 });

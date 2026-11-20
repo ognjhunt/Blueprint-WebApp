@@ -85,15 +85,13 @@ export type RobotFitHoldEvidence = { holdReason: string | null; precheckDigest: 
   counts: { fit: number; noFit: number; unknown: number; unavailable: number } };
 
 export const ROBOT_FIT_HOLD_PREFIX = "website_robot_fit_none:";
-/** The precheck's hold cause in plain words: why none of the robots fits. Never more than the precheck says. */
+/**
+ * The precheck's hold cause in plain words: why none of the robots fits. Never more than the precheck says. Only the
+ * reach cause is said: the other causes (`task_kind`, `gpu_memory`, `no_candidate_available`) describe running robot
+ * software, which Blueprint no longer does (owner, 2026-11-14), so with them the reason names only the robots checked.
+ */
 const ROBOT_FIT_HOLD_CAUSES: Record<string, string> = {
-  reach: "the robot arms were ruled out on reach. Measured from your scene, the spot where the object is picked up or "
-    + "put down is farther than the arm can reach from any place it could be mounted level with the lower work surface.",
-  task_kind: "none of the robot software we run handles this kind of task yet.",
-  gpu_memory: "the robot software that could do this task needs more graphics-card (GPU) memory than any machine we can "
-    + "rent to test it.",
-  no_candidate_available: "none of the robot setups we run is available for this job right now, for example because it "
-    + "is switched off or not licensed for commercial use.",
+  reach: "the spot where the object is picked up or put down is farther than their arms can reach.",
 };
 export function robotFitHoldCause(holdReason: string | null | undefined): string | null {
   return holdReason?.startsWith(ROBOT_FIT_HOLD_PREFIX)
@@ -105,13 +103,13 @@ function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "rob
   const bound = precheck && precheck.precheckDigest === receipt.evidence_digest ? precheck : null;
   const cause = robotFitHoldCause(bound?.holdReason);
   const total = bound ? bound.counts.fit + bound.counts.noFit + bound.counts.unknown + bound.counts.unavailable : 0;
-  const checked = total > 0 ? `None of the ${total} robot setups we can simulate fits this job` : "None of the robot setups we can simulate fits this job";
+  const checked = total > 0 ? `None of the ${total} robots we checked fits this job` : "None of the robots we checked fits this job";
   return {
     category: "robot_incompatibility", basis: receipt.basis,
-    title: "The simulation is held: none of the robots we can simulate fits this job yet",
+    title: "The simulation is on hold: none of the robots we checked fits this job",
     reason: cause ? `${checked}. The main reason: ${cause}` : `${checked}.`,
-    scope: "A check made before any paid work, from your scene as rebuilt from your video. It is an estimate: no robot was tried on your job, and it does not show that no robot could ever do it.",
-    nextStep: "Nothing is needed from you. Blueprint checks this job again when the robots we run change. Your first look stays on your job page, and your recording is saved; you do not need to send it again.",
+    scope: "This is an estimate from your video. It does not mean no robot could do the job.",
+    nextStep: "Nothing is needed from you. Your first look stays on your job page, and your video is saved.",
     actionOwner: "blueprint", evidence: [{ label: "Robot fit check before any spend", digest: receipt.evidence_digest }],
   };
 }
@@ -125,14 +123,13 @@ export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, pr
   if (!KNOWN_PREPARATION_OUTCOME_REASONS.has(receipt.reason)) return unknownOutcome(receipt.evidence_digest);
   if (receipt.reason === "robot_fit_none") return robotFitHold(receipt as Extract<PreparationOutcomeReceipt, { reason: "robot_fit_none"; basis: "conservative_pre_spend_fit_check" }>, precheck);
   if (receipt.reason === "robot_carry_path_rejected") return {
-    category: "robot_incompatibility", basis: "conservative_configuration_check", title: "The checked robot configuration was rejected",
-    reason: "No collision-free pickup-to-placement path was found for the Franka configuration, top-down grasp and bounded set of stations checked. Paid construction and policy evaluation were not admitted by this check.",
-    scope: "Conservative rejection for this prepared scene estimate and checked configuration. This is not proof that the task is impossible, that every robot would fail, or that it was tested physically.",
-    nextStep: "Nothing is needed from you. Your recording and findings remain saved.",
+    category: "robot_incompatibility", basis: "conservative_configuration_check", title: "The robot arm we checked has no clear path for this job",
+    reason: "In the simulation of your site, the arm we checked could not carry the object from where it starts to where it goes without hitting something.",
+    scope: "This is an estimate. It does not mean no robot could do the job.",
+    nextStep: "Nothing is needed from you. Your video is saved.",
     actionOwner: "blueprint", evidence: [{ label: "Robot configuration check", digest: receipt.evidence_digest }],
   };
-  return evidenceNeeded("The retained task geometry or acceptance evidence is incomplete.", receipt.evidence_digest,
-    "Task preparation finding");
+  return evidenceNeeded(receipt.evidence_digest, "Task preparation finding");
 }
 
 /**
@@ -160,31 +157,31 @@ export const PREPARATION_NOT_POSSIBLE_SENTENCES = {
   withCause: "We cannot prepare the simulation of your job, so it has stopped.",
   /** With no cause, or one without words. */
   general: "Preparing the simulation of your job needs a step we cannot do yet, so it has stopped.",
-  nextStep: "Nothing is needed from you now. Your recording is saved.",
+  nextStep: "Nothing is needed from you now. Your video is saved.",
 } as const;
-/** A next step of its own, by cause. The page offers "Update walkthrough" to the owner in every preparation state. */
+/** A next step of its own, by cause. The page offers "Send a new video" to the owner in every preparation state. */
 const NOT_POSSIBLE_NEXT_STEPS: Readonly<Record<string, string>> = {
-  website_assembly_whole_object_coverage_required: "A new video that shows the whole object would let us try again. Your recording is saved.",
-  website_registration_scale_conflicts_declared: "Your recording is saved.",
+  website_assembly_whole_object_coverage_required: "A new video that shows the whole object would let us try again. Your video is saved.",
+  website_registration_scale_conflicts_declared: "Your video is saved.",
 };
 export function preparationNotPossible(cause: string | undefined, evidenceDigest: string): TaskOutcome {
   const known = cause !== undefined && Object.hasOwn(PREPARATION_NOT_POSSIBLE_CAUSES, cause);
   return { category: "insufficient_evidence", basis: "missing_evidence", title: PREPARATION_NOT_POSSIBLE_SENTENCES.title,
     reason: known ? `${PREPARATION_NOT_POSSIBLE_CAUSES[cause!]} ${PREPARATION_NOT_POSSIBLE_SENTENCES.withCause}`
       : PREPARATION_NOT_POSSIBLE_SENTENCES.general,
-    scope: "This preparation only. It is not a finding about any robot or about your site.",
+    scope: "",
     nextStep: known && Object.hasOwn(NOT_POSSIBLE_NEXT_STEPS, cause!) ? NOT_POSSIBLE_NEXT_STEPS[cause!] : PREPARATION_NOT_POSSIBLE_SENTENCES.nextStep,
     actionOwner: "blueprint", evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
 }
 export const PREPARATION_RETRIES_SPENT_SENTENCES = {
   title: "We could not finish preparing your job",
   reason: "We could not finish preparing your job after several tries, for a reason on our side.",
-  nextStep: "Nothing is needed from you now. Your recording is saved.",
+  nextStep: "Nothing is needed from you now. Your video is saved.",
 } as const;
 export function preparationRetriesSpent(evidenceDigest: string): TaskOutcome {
   return { category: "processing_failure", basis: "execution_failure", title: PREPARATION_RETRIES_SPENT_SENTENCES.title,
     reason: PREPARATION_RETRIES_SPENT_SENTENCES.reason,
-    scope: "This preparation only. It is not a finding about any robot or about your site.",
+    scope: "",
     nextStep: PREPARATION_RETRIES_SPENT_SENTENCES.nextStep, actionOwner: "blueprint",
     evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
 }
@@ -192,22 +189,28 @@ export function preparationRetriesSpent(evidenceDigest: string): TaskOutcome {
 const CAP_OUTCOME_TITLE = "We stopped building the simulation of your site";
 export const isSpendingCapOutcome = (outcome: Pick<TaskOutcome, "title"> | null | undefined) =>
   outcome?.title === CAP_OUTCOME_TITLE;
-export const isCompletePreparationOutcome = (outcome: Pick<TaskOutcome, "title"> | null | undefined) =>
-  outcome?.title === PREPARATION_NOT_POSSIBLE_SENTENCES.title || outcome?.title === PREPARATION_RETRIES_SPENT_SENTENCES.title
+/** Read by title and reason: a processing failure shares the retries-spent title but is not a part-6 ending. */
+export const isCompletePreparationOutcome = (outcome: Pick<TaskOutcome, "title" | "reason"> | null | undefined) =>
+  outcome?.title === PREPARATION_NOT_POSSIBLE_SENTENCES.title
+  || outcome?.title === PREPARATION_RETRIES_SPENT_SENTENCES.title && outcome.reason === PREPARATION_RETRIES_SPENT_SENTENCES.reason
   || isSpendingCapOutcome(outcome);
 
 /** The planner held back and the preparation status names no outcome: said with no promise (review, 2026-11-12). */
 export const PLANNER_ABSTAINED_SENTENCES = {
-  title: "We could not confirm the 3D scene covers your job",
-  reason: "The views in your video did not show enough of the scene for this job.",
-  nextStep: "Nothing is needed from you now. Your recording stays saved.",
+  title: "Your video didn't show enough of the job",
+  reason: "The views in your video did not show enough of the work area for this job.",
+  nextStep: "Nothing is needed from you now. Your video stays saved.",
 } as const;
 
+/** Every stop with no words of its own. Its title is the retries-spent title: the same situation, said the same way. */
+export const PROCESSING_FAILURE_SENTENCES = {
+  title: PREPARATION_RETRIES_SPENT_SENTENCES.title,
+  reason: "A step on our side stopped before it finished.",
+  nextStep: "Nothing is needed from you. Your video is saved; you don't need to send it again.",
+} as const;
 export function processingFailure(evidence?: {label: string; digest: string}): TaskOutcome {
-  return { category: "processing_failure", basis: "execution_failure", title: "Blueprint could not finish processing this attempt",
-    reason: "A processing step stopped before a usable robot evaluation was produced. This does not establish that the robot or your site is unsuitable.",
-    scope: "This preparation attempt only. No robot pass, failure or physical-world validation is established by this outcome.",
-    nextStep: "Blueprint needs to resolve the processing issue and reconcile any unfinished work before an authorized retry. Your recording is saved; you do not need to record or upload it again.",
+  return { category: "processing_failure", basis: "execution_failure", title: PROCESSING_FAILURE_SENTENCES.title,
+    reason: PROCESSING_FAILURE_SENTENCES.reason, scope: "", nextStep: PROCESSING_FAILURE_SENTENCES.nextStep,
     actionOwner: "blueprint", evidence: evidence ? [evidence] : [] };
 }
 
@@ -218,17 +221,26 @@ export function processingFailure(evidence?: {label: string; digest: string}): T
  */
 export function capacityEnded(evidence?: {label: string; digest: string}): TaskOutcome {
   return { category: "processing_failure", basis: "execution_failure", title: "We could not prepare your job in time",
-    reason: "We could not start or finish preparing your job in time, for a reason on our side. Nothing you did caused it, and it says nothing about whether a robot suits your site.",
-    scope: "This preparation attempt only. No robot pass, failure or physical-world validation is established by this outcome.",
-    nextStep: "Nothing is needed from you. Your recording is saved; you do not need to record or upload it again.",
+    reason: "We couldn't finish preparing your job. The problem was on our side, not yours.",
+    scope: "",
+    nextStep: "Nothing is needed from you. Your video is saved; you don't need to send it again.",
     actionOwner: "blueprint", evidence: evidence ? [evidence] : [] };
 }
 
-function evidenceNeeded(reason: string, evidenceDigest: string, label: string): TaskOutcome {
-  return { category: "insufficient_evidence", basis: "missing_evidence", title: "There is not enough evidence for a robot decision",
-    reason, scope: "The current capture and task evidence. No robot incompatibility or qualified evaluation result has been established.",
-    // Rewritten (review, 2026-11-12): nothing reviews this, so nothing promises a review.
-    nextStep: "Nothing is needed from you now. Your recording stays saved; no repeat upload is needed.",
+/**
+ * The work area and the object could not be rebuilt clearly enough. These are not new-video asks (when the video is at
+ * fault the Pipeline asks for a new one), so the reason never blames the video. One reason for every such stop.
+ */
+const EVIDENCE_NEEDED_SENTENCES = {
+  title: "We couldn't build the simulation of your site",
+  reason: "We could not rebuild the work area and the object clearly enough to build the simulation.",
+  // Rewritten (review, 2026-11-12): nothing reviews this, so nothing promises a review.
+  nextStep: "Nothing is needed from you. Your video is saved.",
+} as const;
+function evidenceNeeded(evidenceDigest: string, label: string): TaskOutcome {
+  return { category: "insufficient_evidence", basis: "missing_evidence", title: EVIDENCE_NEEDED_SENTENCES.title,
+    reason: EVIDENCE_NEEDED_SENTENCES.reason, scope: "",
+    nextStep: EVIDENCE_NEEDED_SENTENCES.nextStep,
     actionOwner: "blueprint", evidence: [{ label, digest: evidenceDigest }] };
 }
 
@@ -297,7 +309,7 @@ export const recaptureReasonOf = (preview: WebsiteAtlasPreview | null): Recaptur
 function recaptureOutcome(sentences: { reason: string; nextStep: string }, evidenceDigest: string, label: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: RECAPTURE_TITLE,
     reason: sentences.reason,
-    scope: "This is for the simulation of your site only. It is not a finding about any robot or about your site, and your first look stays on your job page.",
+    scope: "",
     nextStep: sentences.nextStep,
     actionOwner: "site", evidence: [{ label, digest: evidenceDigest }] };
 }
@@ -324,7 +336,7 @@ export function jobAwaitsItsSentence(record: Record<string, any> | null | undefi
 export const TASK_NOT_NAMED_SENTENCES = {
   title: "Tell us the job in one sentence",
   reason: "We need one sentence saying what the robot should do before we can build the simulation of your job.",
-  nextStep: "Write it at the top of your job page, for example \"Pick up each box and put it on the shelf.\" We start as soon as you send it.",
+  nextStep: "Write it in the box on your job page, for example “Pick up each box and put it on the shelf.” Once you send it, we'll start building the simulation of your site.",
 } as const;
 /** The site has given its sentence and the Pipeline has not re-read the job yet. Ours, not the site's. */
 export const TASK_NAMED_SENTENCES = {
@@ -335,26 +347,26 @@ export const TASK_NAMED_SENTENCES = {
 } as const;
 export function taskNamedOutcome(): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: TASK_NAMED_SENTENCES.title,
-    reason: TASK_NAMED_SENTENCES.reason, scope: "This is about your job's description only. It is not a finding about any robot or about your site.",
+    reason: TASK_NAMED_SENTENCES.reason, scope: "",
     nextStep: TASK_NAMED_SENTENCES.nextStep, actionOwner: "blueprint", evidence: [] };
 }
 export function taskNotNamedOutcome(evidenceDigest: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: TASK_NOT_NAMED_SENTENCES.title,
     reason: TASK_NOT_NAMED_SENTENCES.reason,
-    scope: "This is about your job's description only. It is not a finding about any robot or about your site.",
+    scope: "",
     nextStep: TASK_NOT_NAMED_SENTENCES.nextStep, actionOwner: "site", evidence: [{ label: "Job description", digest: evidenceDigest }] };
 }
 
 /** An outcome whose reason this release does not know: one true, general sentence, and no claim about why. */
 export const UNKNOWN_OUTCOME_SENTENCES = {
   title: "The preparation of your simulation stopped",
-  reason: "Preparing the simulation of your site stopped, for a reason this page cannot show yet. Our team is alerted when this happens.",
-  nextStep: "We'll email you if anything is needed from you. Your recording is saved.",
+  reason: "Preparing the simulation of your site stopped on our side.",
+  nextStep: "Nothing is needed from you. Your video is saved.",
 } as const;
 export function unknownOutcome(evidenceDigest: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: UNKNOWN_OUTCOME_SENTENCES.title,
     reason: UNKNOWN_OUTCOME_SENTENCES.reason,
-    scope: "This preparation attempt only. It is not a finding about any robot or about your site.",
+    scope: "",
     nextStep: UNKNOWN_OUTCOME_SENTENCES.nextStep, actionOwner: "blueprint", evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
 }
 
@@ -403,8 +415,7 @@ export const isEarlyTaskHoldReason = (value: unknown): value is EarlyTaskHoldRea
 export const earlyTaskHoldSentence = (reason: unknown): string | null =>
   isEarlyTaskHoldReason(reason) ? EARLY_TASK_HOLD_SENTENCES[reason] : null;
 /** What an early hold adds to its sentence; the job page and the email both read it. */
-export const EARLY_TASK_HOLD_DETAIL = "No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it. "
-  + "Your first look stays on your job page.";
+export const EARLY_TASK_HOLD_DETAIL = "This says nothing about whether a robot could do the job. Your first look stays on your job page.";
 
 /**
  * A job whose preparation authority ended (Pipeline `authority_ended`). It is final, never a hold or a
@@ -412,13 +423,12 @@ export const EARLY_TASK_HOLD_DETAIL = "No robot was tested in a simulation of yo
  * that no longer allow scene building (`source_revoked`); the WebApp reads which from the job's own
  * window. A withdrawn recording says so first, on its own.
  */
-export const PREPARATION_ENDED_NEXT = "Nothing more is needed from you. Keep your original recording; "
-  + "to have Blueprint work on this site again, you can start a new job.";
+export const PREPARATION_ENDED_NEXT = "To try again, start a new job.";
 /** The site has its answer whatever happens to the simulation; a stop of the simulation says so. */
 export const ANSWER_STAYS_ON_JOB_PAGE = "Your first look stays on your job page.";
-/** Said about the simulation: the time Blueprint was authorized to work ran out, and the answer stays. */
-export const JOB_WINDOW_ENDED_SENTENCE = "The simulation of your site has stopped because the time Blueprint was authorized to work on this job ran out.";
-export const AUTHORITY_ENDED_SENTENCE = "This job has ended because Blueprint is no longer authorized to work on it.";
+/** Said about the simulation: the time for the job ran out, and the answer stays. */
+export const JOB_WINDOW_ENDED_SENTENCE = "The simulation of your site has stopped because the time for this job ran out.";
+export const AUTHORITY_ENDED_SENTENCE = "This job has ended because we no longer have permission to work on it.";
 
 /**
  * A job the WebApp's own window sweep ended (`websiteJobWindowSweep`): its work window ran out with no
@@ -427,7 +437,7 @@ export const AUTHORITY_ENDED_SENTENCE = "This job has ended because Blueprint is
  * Pipeline starts nothing more for a job past its window, and a new job is how the site starts again. It
  * promises no follow-up, because nothing schedules one. The job page and the one email both say exactly this.
  */
-export const JOB_WINDOW_UNFINISHED_SENTENCE = "Blueprint did not finish the simulation in that time, and no more simulation work will run on this job.";
+export const JOB_WINDOW_UNFINISHED_SENTENCE = "It was not finished, and no more work will run on this job.";
 export const JOB_WINDOW_ENDING_MESSAGE = `${JOB_WINDOW_ENDED_SENTENCE} ${JOB_WINDOW_UNFINISHED_SENTENCE} ${ANSWER_STAYS_ON_JOB_PAGE} ${PREPARATION_ENDED_NEXT}`;
 /** The subject when the simulation stopped (the window ran out, or Blueprint never started it). */
 export const JOB_WINDOW_ENDING_SUBJECT = "The simulation of your site has stopped";
@@ -442,16 +452,15 @@ export const JOB_NO_GRANT_SITE_ENDING_SUBJECT = "Your Blueprint job has ended";
  * - The site never sent what was needed (a finished recording, or the one step a held job asks of it).
  * - The site did its part and Blueprint never started the simulation: held, with no estimate.
  */
-export const JOB_NO_GRANT_SITE_ENDING_MESSAGE = "This job has ended because we did not receive what was needed to start it "
-  + "while it was open. To have Blueprint work on this site, you can start a new job.";
-export const JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE = "The simulation of your site is held because Blueprint did not start it while "
-  + `your job was open, so there is no simulation result. ${ANSWER_STAYS_ON_JOB_PAGE} ${PREPARATION_ENDED_NEXT}`;
+export const JOB_NO_GRANT_SITE_ENDING_MESSAGE = `This job has ended because we didn't receive what we needed to start it. ${PREPARATION_ENDED_NEXT}`;
+export const JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE = "We didn't start the simulation of your site in time, so there is none for this job. "
+  + `${ANSWER_STAYS_ON_JOB_PAGE} Nothing is needed from you.`;
 /**
  * A no-grant job that was asked for a smaller video (`websiteLargeVideoBlock.ts`) and received none
  * while it was open: the ending for a wait on the site, naming why.
  */
-export const JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE = "This job has ended because the video we received was too large "
-  + "for us to process, and no new video arrived while the job was open. To have Blueprint work on this site, you can start a new job.";
+export const JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE = "This job has ended because your video was too large for us to process "
+  + `and no new video arrived. ${PREPARATION_ENDED_NEXT}`;
 export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint", reason?: "video_over_ingest_limit") =>
   reason === "video_over_ingest_limit" ? JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE
     : waitingOn === "site" ? JOB_NO_GRANT_SITE_ENDING_MESSAGE : JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE;
@@ -461,14 +470,14 @@ export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint", reason?
  * so none is promised. The job page, the upload refusal and the one email all read this sentence.
  */
 export const FOOTAGE_BEFORE_ACCOUNT_SENTENCE = "Your video arrived before this job was saved to an account, so we can't "
-  + "use it to build your scene yet. Blueprint needs to review this older recording. You don't need to send it again.";
+  + "use it. To go ahead, start a new job.";
 
 export function earlyTaskHoldOutcome(reason: EarlyTaskHoldReason, evidenceDigest: string): TaskOutcome {
   return { category: "held", basis: "simulation_not_available", title: EARLY_TASK_HOLD_SENTENCES[reason],
     reason: EARLY_TASK_HOLD_DETAIL,
-    scope: "Decided from what your job asks for, before the simulation of your site was built.",
+    scope: "",
     // The Pipeline keeps the job and its review; the WebApp keeps the recording. No rerun is scheduled.
-    nextStep: "Nothing is needed from you. Your recording is saved; you do not need to send it again.",
+    nextStep: "Nothing is needed from you. Your video is saved; you don't need to send it again.",
     // No step is scheduled for Blueprint or the site, so the card names no owner of a next step.
     actionOwner: "none", evidence: [{ label: "Task check", digest: evidenceDigest }] };
 }
@@ -495,23 +504,20 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
   // card's place on the page; without one, this card says what is true and promises nothing.
   if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? "")) return { category: "insufficient_evidence",
     basis: "missing_evidence", title: PLANNER_ABSTAINED_SENTENCES.title, reason: PLANNER_ABSTAINED_SENTENCES.reason,
-    scope: "The current capture and task evidence. It is not a finding about any robot or about your site.",
+    scope: "",
     nextStep: PLANNER_ABSTAINED_SENTENCES.nextStep, actionOwner: "blueprint",
     evidence: [{ label: "Scene coverage finding", digest: preview.preview_digest }] };
   if (preview.state === "needs_input" && preview.reason === "atlas_scene_requires_preserved_capture")
-    return evidenceNeeded("The scene-preparation plan could not preserve the captured objects required by this task.",
-      preview.preview_digest, "Scene preservation finding");
+    return evidenceNeeded(preview.preview_digest, "Scene preservation finding");
   if (preview.state === "needs_input" && TASK_REASONS.has(preview.reason ?? ""))
-    return evidenceNeeded("The task subject and the captured objects could not be bound consistently without changing the observed scene.",
-      preview.preview_digest, "Task subject finding");
+    return evidenceNeeded(preview.preview_digest, "Task subject finding");
   if (preview.state === "needs_input" && GEOMETRY_REASONS.has(preview.reason ?? ""))
-    return evidenceNeeded("The available scene evidence did not establish usable, consistently registered geometry for this task.",
-      preview.preview_digest, "Scene geometry finding");
+    return evidenceNeeded(preview.preview_digest, "Scene geometry finding");
   if (preview.state === "needs_input"
     && preview.reason === "atlas_recorded_source_views_must_be_recovered_before_generation")
     return { ...processingFailure({label: "Saved scene views", digest: preview.preview_digest}),
-      title: "Blueprint needs to finish reconstructing the saved video",
-      reason: "Blueprint identified useful views in your saved video that still need to be incorporated into the reconstruction.",
-      nextStep: "Blueprint needs to finish using those saved views before proposing generated completion or a robot evaluation. Your recording remains saved; no new upload is required." };
+      title: "We haven't finished building the simulation from your video",
+      reason: "Part of your video still needs to go into the simulation.",
+      nextStep: "Nothing is needed from you. Your video is saved." };
   return processingFailure({ label: "Reconstruction status", digest: preview.preview_digest });
 }

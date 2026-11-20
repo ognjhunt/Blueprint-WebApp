@@ -25,8 +25,8 @@ test("prerendered intake stays inactive while its scripts are unavailable", asyn
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   // Browser-local recovery is unavailable without scripts; preserve inactivity
   // rather than render a fresh, uncontrolled intake identity.
-  await expect(page.getByRole("status")).toHaveText(/Loading your account and saved draft/);
-  await expect(page.getByRole("form", { name: "Start a site capture" })).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText(/^Loading…$/);
+  await expect(page.getByRole("form", { name: "Start a job" })).toHaveCount(0);
   await expect(page.locator("#start-email")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ })).toHaveCount(0);
   expect(intakeRequests).toEqual([]);
@@ -110,7 +110,7 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
   await expect(page.getByRole("checkbox", { name: /share an anonymised summary/ })).toHaveCount(0);
   // The rest of the statements, word for word, open in place under the line (owner, 2026-11-12); the button stays put.
   await page.getByText("What you're agreeing to", { exact: true }).click();
-  await expect(page.getByText("Only upload footage you may share.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Only upload a video you may share.", { exact: false })).toBeVisible();
   await expect(page.getByText("We don't share your name, address or contact details unless you ask for an introduction.", { exact: false })).toBeVisible();
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
   await expect(start).toBeVisible();

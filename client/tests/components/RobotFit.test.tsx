@@ -23,7 +23,7 @@ describe("RobotFit", () => {
     expect(within(section).getByText(/not a\s+physical test/)).toBeTruthy();
     expect(within(section).getByText("2 of 5 robots checked fit on paper, 1 is ruled out and 2 need more information."))
       .toBeTruthy();
-    expect(within(section).getByText("Fit, with an arm path checked in your scene (1)")).toBeTruthy();
+    expect(within(section).getByText("Fit, with a clear arm path in the simulation of your site (1)")).toBeTruthy();
     expect(within(section).getByText("Fit on paper (1)")).toBeTruthy();
     // What stayed open is named in plain words.
     expect(within(section).getByText(/Open: path from the entrance/)).toBeTruthy();

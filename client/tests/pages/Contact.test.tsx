@@ -42,7 +42,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("the site page", () => {
   it("is the start form alone, with no explanations around it", async () => {
     render(<Contact />);
-    const form = await screen.findByRole("form", { name: "Start a site capture" });
+    const form = await screen.findByRole("form", { name: "Start a job" });
     expect(form).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Start a job" })).toBeInTheDocument();
     expect(screen.queryByText("How this works")).toBeNull();

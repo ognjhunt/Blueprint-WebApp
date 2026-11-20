@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { withCsrfHeader } from "@/lib/csrf";
+import { STOP_USING_VIDEO_LABEL } from "@/lib/jobOutlook";
 
 export const OWNER_WITHDRAWAL_CONFIRMATION = "withdraw_recording_permission";
 
@@ -44,8 +45,7 @@ function formatDate(iso: string | null) {
 export const WITHDRAWN_COMPANY_COPIES = "Each company it was sent to is asked to delete any copy it saved.";
 
 const RETAINED = (
-  <>Withdrawal is not deletion: a copy of the recording and any results already produced are retained, and handled
-    as our <a href="/privacy">Privacy Policy</a> describes.</>
+  <>We keep a copy of the video and any results already made, as our <a href="/privacy">Privacy Policy</a> describes.</>
 );
 
 export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalStatus }) {
@@ -56,20 +56,20 @@ export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalSta
   </div>;
   return (
     <div role="status">
-      <p><strong>Recording permission withdrawn.</strong></p>
+      <p><strong>Video withdrawn.</strong></p>
       <p className="ms-field-hint">
-        {requested ? `Withdrawn on ${requested}. ` : ""}Blueprint stops further processing and use of this recording: new uploads are refused
-        and your job has left every deployment company's view. {WITHDRAWN_COMPANY_COPIES}{" "}
+        {requested ? `Withdrawn on ${requested}. ` : ""}We stop using your video, and your job has left every company's view.
+        No new uploads are accepted. {WITHDRAWN_COMPANY_COPIES}{" "}
         {status.pipelineAcknowledged
-          ? "Our processing system has confirmed it will no longer process or serve the recording."
-          : "Our processing system is being told to stop; this page updates when it confirms."}
+          ? "Our systems have stopped using it."
+          : "We're stopping our systems now; this page updates when that's done."}
       </p>
       <p className="ms-field-hint">{RETAINED}</p>
     </div>
   );
 }
 
-export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descriptionOnly = false, summaryLabel = "Withdraw recording permission" }: { token: string; onWithdrawn?: () => void;
+export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descriptionOnly = false, summaryLabel = STOP_USING_VIDEO_LABEL }: { token: string; onWithdrawn?: () => void;
   /** The row's words where it sits in a settings list ("Stop using my video"). */
   summaryLabel?: string;
   descriptionOnly?: boolean;
@@ -131,28 +131,28 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descrip
         <details className="ms-task-interest">
           <summary>{summaryLabel}</summary>
           {descriptionOnly ? <p>Withdrawing removes your job from the deployment companies' view.</p> : <p>
-            Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused and your job
-            leaves every deployment company's view at once. {WITHDRAWN_COMPANY_COPIES} {RETAINED}
+            We stop using your video and take your job out of every company's view at once. No new uploads are accepted.
+            {" "}{WITHDRAWN_COMPANY_COPIES} {RETAINED}
           </p>}
           {!confirming && (
             <button type="button" className="ms-button" onClick={() => { setError(null); setConfirming(true); }}>
-              {descriptionOnly ? "Withdraw job…" : "Withdraw permission…"}
+              {descriptionOnly ? "Withdraw job…" : `${STOP_USING_VIDEO_LABEL}…`}
             </button>
           )}
           {confirming && (
             <div role="alertdialog" aria-modal="false" aria-labelledby="withdraw-confirm-title" aria-describedby="withdraw-confirm-body">
-              <h3 id="withdraw-confirm-title">{descriptionOnly ? "Withdraw your job?" : "Withdraw recording permission?"}</h3>
+              <h3 id="withdraw-confirm-title">{descriptionOnly ? "Withdraw your job?" : "Stop using your video?"}</h3>
               <p id="withdraw-confirm-body">
-                {descriptionOnly ? "Your job comes out of the company library immediately. To share it again later, start a new job."
-                  : "This cannot be undone from this page. Uploads stop now and Blueprint stops processing and using this recording. To add footage later, you would need to start a new job."}
+                {descriptionOnly ? "Companies stop seeing your job at once. To post it again later, start a new job."
+                  : "This cannot be undone from this page. Uploads stop now, and we stop using your video. To send a video later, you would need to start a new job."}
               </p>
               <button ref={confirmButton} type="button" className="ms-button" disabled={submitting} onClick={() => void withdraw()}>
-                {submitting ? "Withdrawing…" : descriptionOnly ? "Yes, withdraw job" : "Yes, withdraw permission"}
+                {submitting ? "Withdrawing…" : descriptionOnly ? "Yes, withdraw job" : "Yes, stop using my video"}
               </button>{" "}
               <button type="button" disabled={submitting} onClick={() => setConfirming(false)}
                 style={{ minHeight: "44px", padding: "12px 23px", background: "transparent", color: "inherit",
                   border: "1px solid currentColor", borderRadius: "3px", fontSize: "14px" }}>
-                {descriptionOnly ? "Keep sharing" : "Keep permission"}
+                Cancel
               </button>
             </div>
           )}

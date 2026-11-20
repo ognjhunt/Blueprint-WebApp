@@ -30,7 +30,7 @@ import { COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, SITE_CLARIFICATION_LIMIT
  */
 /** Sharing is the service (2026-11-12): a shared job's section opens with this. */
 export const SHARED_LINE = "Posted for approved deployment companies";
-export const PREPARING_TO_SHARE_LINE = "Your job will appear when the video and job details are ready.";
+export const PREPARING_TO_SHARE_LINE = "Companies will see your job once the video and job details are ready.";
 /** Shared, but not in front of companies right now: Blueprint's hold, a rights hold, or the site closed it. */
 export const NOT_VISIBLE_LINE = "Your job is not visible to companies right now.";
 /** An older job (agreed to a statement before 2026-11-12): one line, then the v4 sentence and its button (PACKAGE_D D1.3, 17:15Z). */
@@ -205,19 +205,19 @@ function ReplyQuestion({ token, alias, question, onChanged }: { token: string; a
   return <div className="company-question">
     <dl className="company-response-facts">
       <div><dt>What they need to know</dt><dd>{question.text}</dd></div>
-      {shownAnswer && <div><dt>Site reply</dt><dd>{shownAnswer}</dd></div>}
+      {shownAnswer && <div><dt>Your reply</dt><dd>{shownAnswer}</dd></div>}
     </dl>
     {!shownAnswer && <details>
-      <summary className="bare-inline-link">Answer question</summary>
+      <summary className="bare-inline-link">Reply</summary>
       <form className="ms-form" onSubmit={submit}>
-        <label>Reply to the question<textarea rows={2} minLength={2} maxLength={SITE_CLARIFICATION_LIMIT} required value={answer}
+        <label>Your reply<textarea rows={2} minLength={2} maxLength={SITE_CLARIFICATION_LIMIT} required value={answer}
           onChange={event => setAnswer(event.target.value)} /></label>
         <p className="bare-helper">Blueprint shares this reply with {alias} and keeps your contact details private.</p>
-        <button type="submit" className="ms-button" disabled={busy}>{busy ? "Saving…" : "Send answer"}</button>
+        <button type="submit" className="ms-button" disabled={busy}>{busy ? "Saving…" : "Send reply"}</button>
         {error && <p role="alert">{error}</p>}
       </form>
     </details>}
-    {saved && !question.answer && <p className="bare-helper" role="status">Answer shared.</p>}
+    {saved && !question.answer && <p className="bare-helper" role="status">Reply sent.</p>}
   </div>;
 }
 
@@ -259,8 +259,9 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   return <>
     {(posted || timeToAnswer || replies > 0) && <div className="site-company-summary">
       <p className="site-company-metrics">
-        {activity.views !== null && <span>{views} recorded {views === 1 ? "view" : "views"}</span>}
-        <span>{replies} {replies === 1 ? "reply" : "replies"}</span>
+        {/* `views` counts the distinct approved companies that opened the job (`companyJobViews.ts`). */}
+        {activity.views !== null && <span>Viewed by {views} {views === 1 ? "company" : "companies"}</span>}
+        <span>{replies} {replies === 1 ? "response" : "responses"}</span>
       </p>
       {timeToAnswer && <p className="bare-helper">Time to first response: {timeToAnswer}.</p>}
     </div>}
@@ -341,7 +342,7 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
   if (ends) body = <BareGroup><BareLead>{NOTHING_IS_SHARED}</BareLead></BareGroup>;
   else if (sharing.state === "visible" || sharing.state === "preparing" || agreed) body = <BareGroup>
     <BareLead>{sharing.state === "visible" ? SHARED_LINE : sharing.videoReceived
-      ? "Video received. We’re preparing your job for posting."
+      ? "Video received. We're preparing your job for posting."
       : sharing.videoReceived === false ? "Send a video to post your job." : PREPARING_TO_SHARE_LINE}</BareLead>
     <CompanyEntries key={token} token={token} activity={activity} onIntroduced={onChanged} posted={sharing.state === "visible"} />
   </BareGroup>;

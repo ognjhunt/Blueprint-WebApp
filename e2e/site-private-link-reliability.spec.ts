@@ -48,22 +48,22 @@ test("a saved job shows no assessment retry, and processing details only for a f
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toBeVisible();
+  await expect(page.getByText("Confirm your job description", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeHidden();
-  await expect(page.getByText("Processing details", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Earlier video notes", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toHaveCount(0);
   // An older job with a finished assessment keeps it, folded, with no retry.
   advisoryState = "ready";
   await page.reload();
-  await page.getByText("Processing details", { exact: true }).click();
-  await expect(page.getByText("Blueprint reviewed your video and job details.", { exact: true })).toBeVisible();
+  await page.getByText("Earlier video notes", { exact: true }).click();
+  await expect(page.getByText("These notes are from an earlier check of your video and job details.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toHaveCount(0);
   await expect(page.getByText("Add photos of the job items", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/Add measurements/)).toHaveCount(0);
   expect(asks).toEqual([]);
   await page.screenshot({path:info.outputPath("video-only-saved-job-local-fixture.png"),fullPage:true});
   expect(writes).toEqual([]);
-  await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Your job description is confirmed.", { exact: false })).toHaveCount(0);
 });
 
 test("returning owner keeps the received recording and gets same-job update guidance without new writes", async ({ page }, info) => {
@@ -89,10 +89,10 @@ test("returning owner keeps the received recording and gets same-job update guid
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toBeVisible();
+  await expect(page.getByText("Confirm your job description", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeHidden();
   await expect(page.getByText("Next action · You", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Blueprint is preparing your reconstruction.", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("We're preparing your job. Nothing is needed from you.", { exact: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
   expect(writes).toEqual([]);
@@ -101,16 +101,15 @@ test("returning owner keeps the received recording and gets same-job update guid
   await expect(page.getByText("Next action · You", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
-  const update = page.locator("details").filter({ has: page.getByText("Update video (optional)", { exact: true }) });
-  await expect(update).toContainText("If your job or recording has changed, you can send a complete new video.");
-  await expect(update).toContainText("Your job and original video stay saved.");
-  await expect(update.getByRole("button", { name: "Update video", exact: true })).toBeHidden();
-  await page.getByText("Update video (optional)", { exact: true }).click();
-  await expect(update.getByRole("button", { name: "Update video", exact: true })).toBeEnabled();
+  const update = page.locator("details").filter({ has: page.locator("summary").getByText("Send a new video", { exact: true }) });
+  await expect(update).toContainText("Your job and first video stay saved.");
+  await expect(update.getByRole("button", { name: "Send a new video", exact: true })).toBeHidden();
+  await page.locator("summary").getByText("Send a new video", { exact: true }).click();
+  await expect(update.getByRole("button", { name: "Send a new video", exact: true })).toBeEnabled();
   await expect(page.getByRole("link", { name: "contact Blueprint", exact: true })).toHaveCount(0);
   await expect(page.getByText(/starting a new job|new job needs its own review/i)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeHidden();
-  await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Your job description is confirmed.", { exact: false })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("retained-recording-same-job-guidance.png"), fullPage: true });
   // Neither returning nor reloading uploads bytes, grants new permission, or confirms the brief.
   expect(writes).toEqual([]);
@@ -304,7 +303,7 @@ function heldJobRoutes(page: import("@playwright/test").Page, token: string, sum
   });
 }
 
-test("a job no robot we run fits is held, naming the robots checked and why, from the precheck alone", async ({ page }, info) => {
+test("a job no robot we checked fits is on hold, said as an estimate from the precheck alone", async ({ page }, info) => {
   const token = "robot-fit-hold-fixture";
   const digest = `sha256:${"f".repeat(64)}`;
   const counts = { fit: 0, noFit: 8, unknown: 0, unavailable: 128 };
@@ -321,15 +320,13 @@ test("a job no robot we run fits is held, naming the robots checked and why, fro
       embodimentsTruncated: false, precheckDigest: digest },
   }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("The simulation is held: none of the robots we can simulate fits this job yet", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/None of the 136 robot setups we can simulate fits this job\. The main reason: the robot arms were ruled out on reach/).first()).toBeVisible();
-  const checked = page.getByRole("region", { name: "Robots checked before any spend" });
+  await expect(page.getByText("The simulation is on hold: none of the robots we checked fits this job", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/None of the 136 robots we checked fits this job\. The main reason: the spot where the object is picked up or put down is farther than their arms can reach\./).first()).toBeVisible();
+  const checked = page.getByRole("region", { name: "Robots we checked" });
   await expect(checked.getByRole("heading", { name: "Robots we checked" })).toBeVisible();
-  await expect(checked.getByText("136 robot setups (a robot and the software that drives it): 8 ruled out, 128 not available for this job.")).toBeVisible();
-  await expect(checked.getByText(/Franka Panda arm with a Robotiq 2F-85 gripper: Ruled out/)).toBeVisible();
-  await expect(checked.getByText(/no robot was tried on your job/)).toBeVisible();
+  await expect(checked.getByText("None of the robots we checked fits this job. This is an estimate from your video; it does not mean no robot could do the job.")).toBeVisible();
   const text = await checked.textContent();
-  expect(text).not.toMatch(/[a-z]_[a-z]|website_robot_fit|sha256|physical test passed|certif/i);
+  expect(text).not.toMatch(/[a-z]_[a-z]|website_robot_fit|sha256|physical test passed|certif|Franka|setups|software|paid work/i);
   expect(writes).toEqual([]);
   await page.screenshot({ path: info.outputPath("robot-fit-hold.png"), fullPage: true });
 });
@@ -343,7 +340,7 @@ test("a job we can't simulate yet is held in one plain sentence, never as a proc
     status: { decision: outcome.category, headline: outcome.title, operatorAction: null, missingViews: [], outcome } }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("The simulation is held: we can't simulate this kind of job yet.", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it\. Your first look stays on your job page\./).first()).toBeVisible();
+  await expect(page.getByText(/This says nothing about whether a robot could do the job\. Your first look stays on your job page\./).first()).toBeVisible();
   const body = await page.locator("body").textContent();
   expect(body).not.toMatch(/could not finish processing|website_native|preparation_required|we'll run|email you when|Next step|next step is with Blueprint/i);
   expect(writes).toEqual([]);
@@ -448,7 +445,7 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await expect(page.getByText("Your video is retained. Recording permission needs review.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Open my job" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Retry processing" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Start processing again" })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("desktop-held-footage.png"), fullPage: true });
 });
 

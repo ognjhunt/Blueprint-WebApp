@@ -87,6 +87,6 @@ describe("capture status dependency failures", () => {
     const response = responseRecorder();
     await handler("/:token/status")({ params: { token: "invalid" } }, response);
     expect(response.statusCode).toBe(404);
-    expect(response.body).toEqual({ error: "This upload link is not valid or has expired." });
+    expect(response.body).toEqual({ error: "This job link is not valid or has expired." });
   });
 });

@@ -144,7 +144,7 @@ export async function describeBrowserUpload(payload: CaptureIdentity, allowed: b
       if (stored?.probe_failure === "video_unreadable" && manifest !== null && JSON.parse(manifest).media_probe_pending === true
         && currentRights.derived_scene_generation_allowed && originalManifestConsent(manifest)) {
         return { captureReceived: true, uploadState: "retained", processingRetryAvailable: false,
-          processingHold: { code: "video_unreadable", detail: "Your original file is saved, but we could not read its video stream. Update the walkthrough on this job or contact Blueprint for help." } };
+          processingHold: { code: "video_unreadable", detail: "Your original file is saved, but we couldn't read the video in it. Choose Send a new video on your job page, or email hello@tryblueprint.io." } };
       }
       const retryAvailable = allowed && currentRights.derived_scene_generation_allowed === true
         && manifest !== null && originalManifestConsent(manifest);
@@ -153,7 +153,7 @@ export async function describeBrowserUpload(payload: CaptureIdentity, allowed: b
         processingRetryAvailable: retryAvailable && (Boolean(stored) || pending?.state === "held"),
         ...(!currentRights.derived_scene_generation_allowed || (manifest !== null && !originalManifestConsent(manifest))
           ? { processingHold: { code: "capture_processing_not_authorized",
-            detail: "Your video is saved. Processing is on hold until its existing consent can be verified." } } : {}),
+            detail: "Your video is saved, but we can't use it until its recording permission is confirmed. Email hello@tryblueprint.io if this doesn't change." } } : {}),
       };
     }
     // Older uploads have no generation-bound producer receipt. Presence proves
@@ -164,7 +164,7 @@ export async function describeBrowserUpload(payload: CaptureIdentity, allowed: b
       processingRetryAvailable: false,
       ...(rights && !rights.derived_scene_generation_allowed ? {
         processingHold: { code: "capture_processing_not_authorized",
-          detail: "Your video is saved. Processing is on hold until its existing consent can be verified." },
+          detail: "Your video is saved, but we can't use it until its recording permission is confirmed. Email hello@tryblueprint.io if this doesn't change." },
       } : {}),
     };
   } catch {

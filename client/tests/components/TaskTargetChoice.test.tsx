@@ -19,11 +19,11 @@ describe("TaskTargetChoice", () => {
     vi.stubGlobal("fetch", fetchMock);
     const onAnswered = vi.fn();
     render(<TaskTargetChoice token="tok" question={question} onAnswered={onAnswered} />);
-    expect(screen.getByText(/Preparation continues automatically/)).toBeTruthy();
+    expect(screen.getByText("The object we used: Tote 2: right side, center of the view. We keep preparing your job.")).toBeTruthy();
     expect(screen.queryByRole("radio")).toBeNull();
     expect(screen.queryByRole("button", { name: "Save answer" })).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Review or correct object selection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check the object" }));
     expect(screen.getByLabelText(/No, it is Tote 1: left side, center of the view · at 0:04 in your video/)).toBeTruthy();
     expect(screen.queryByRole("img")).toBeNull();
     const save = screen.getByRole("button", { name: "Save answer" }) as HTMLButtonElement;
@@ -38,7 +38,7 @@ describe("TaskTargetChoice", () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true, choice: "other_candidate" }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     render(<TaskTargetChoice token="tok" question={question} onAnswered={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Review or correct object selection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check the object" }));
     fireEvent.click(screen.getByLabelText(/No, it is Tote 1/));
     fireEvent.click(screen.getByRole("button", { name: "Save answer" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -49,7 +49,7 @@ describe("TaskTargetChoice", () => {
     vi.stubGlobal("fetch", fetchMock);
     const onAnswered = vi.fn();
     render(<TaskTargetChoice token="tok" question={question} onAnswered={onAnswered} />);
-    fireEvent.click(screen.getByRole("button", { name: "Review or correct object selection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check the object" }));
     fireEvent.click(screen.getByLabelText(/None of these/));
     fireEvent.click(screen.getByRole("button", { name: "Save answer" }));
     expect((await screen.findByRole("alert")).textContent).toMatch(/question has changed/);

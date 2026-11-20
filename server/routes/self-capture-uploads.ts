@@ -283,13 +283,15 @@ async function beginBrowserCanonicalWrite(
   }
 }
 
-const NEW_CAPTURE_JOB_MESSAGE = "Your original recording stays saved. Use Update walkthrough on this job to send a complete updated recording, including any missing views.";
+/** The page's own control for a second video (`NEW_VIDEO_LABEL`): on the job page, or in Job settings under an answer. */
+const NEW_VIDEO_STEP = "To send a complete new video, choose Send a new video on your job page.";
+const NEW_CAPTURE_JOB_MESSAGE = `Your original video stays saved. ${NEW_VIDEO_STEP}`;
 
 /** The write request carries no source identity; expose its retained receipt without claiming a replay. */
 async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response) {
   const authorization = await authorizeCaptureUpload(payload.requestId);
   const receipt = await describeBrowserUpload(payload, authorization.allowed);
-  const message = `${receipt.captureReceived ? "Your original recording is saved. " : "Keep your original file while its saved status is checked. "}${NEW_CAPTURE_JOB_MESSAGE}`;
+  const message = `${receipt.captureReceived ? "Your original video is saved. " : "Keep your original file while we check it is saved. "}${NEW_VIDEO_STEP}`;
   return res.status(409).json({
     ...receipt, code: "capture_already_saved", retryable: false, repairAvailable: true,
     message, detail: message, error: message,
@@ -493,7 +495,7 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
   try {
     const payload = verifyCaptureUploadToken(String(req.params.token || ""));
     if (!payload) {
-      return res.status(404).json({ error: "This upload link is not valid or has expired." });
+      return res.status(404).json({ error: "This job link is not valid or has expired." });
     }
 
     const authorization = await authorizeCaptureUpload(payload.requestId);
@@ -610,8 +612,8 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
         .catch(() => undefined);
     }
     if (outcome === "internal_test_job") return res.status(409).json({ code: "internal_test_job" });
-    if (outcome === "missing") return res.status(404).json({ error: "This link does not point at a job we hold." });
-    if (outcome === "held") return res.status(409).json({ error: "Recording permission needs review. Contact hello@tryblueprint.io with your job link." });
+    if (outcome === "missing") return res.status(404).json({ error: "We can't find a job for this link." });
+    if (outcome === "held") return res.status(409).json({ error: "We can't take recording permission on this job. Email hello@tryblueprint.io with your job link." });
     // `granted` (a first grant), `upgraded` (v4 replaced an older grant, kept in `consent_attestation_earlier`) or `existing`.
     return res.json({ ok: true, outcome });
   } catch (error) {
@@ -646,7 +648,7 @@ router.get("/:token/withdrawal", async (req: Request, res: Response) => {
   if (!dbAdmin) return res.status(503).json({ error: "We could not check withdrawal status. Try again shortly." });
   try {
     const record = (await dbAdmin.collection("inboundRequests").doc(payload.requestId).get()).data();
-    if (!record) return res.status(404).json({ error: "This link does not point at a job we hold." });
+    if (!record) return res.status(404).json({ error: "We can't find a job for this link." });
     return res.json({ ok: true, withdrawn: Boolean(record.capture_withdrawal),
       withdrawal: record.capture_withdrawal ? projectWebsiteCaptureWithdrawal(record.capture_withdrawal) : null });
   } catch {
@@ -664,13 +666,13 @@ router.post("/:token/withdrawal", async (req: Request, res: Response) => {
   try {
     const outcome = await recordWebsiteCaptureWithdrawal({ requestId: payload.requestId, requestedBy: "signed_owner_link",
       authorize: record => {
-        if (!record) throw Object.assign(new Error("This link does not point at a job we hold."), { status: 404 });
+        if (!record) throw Object.assign(new Error("We can't find a job for this link."), { status: 404 });
       } });
     if (outcome.created) logger.info({ requestId: payload.requestId }, "Owner link withdrew recording permission");
     return res.status(202).json({ ok: true, created: outcome.created,
       withdrawal: projectWebsiteCaptureWithdrawal(outcome.withdrawal) });
   } catch (error) {
-    if ((error as { status?: number }).status === 404) return res.status(404).json({ error: "This link does not point at a job we hold." });
+    if ((error as { status?: number }).status === 404) return res.status(404).json({ error: "We can't find a job for this link." });
     logger.warn({ requestId: payload.requestId }, "Could not record owner-link withdrawal");
     return res.status(503).json({ error: "We could not record your withdrawal. Nothing changed. Try again shortly." });
   }
@@ -687,7 +689,7 @@ router.post("/:token/advisory-retry", (_req: Request, res: Response) => {
 /** Replay a retained producer, never upload bytes or grant a new paid run. */
 router.post("/:token/processing-retry", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-  if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
+  if (!payload) return res.status(404).json({ error: "This job link is not valid or has expired." });
   if (payload.supplement) {
     try { await validateCaptureSupplement(payload); }
     catch { return res.status(409).json({ code: "capture_lineage_unverified", error: "Reopen your job to update its video." }); }
@@ -702,7 +704,7 @@ router.post("/:token/processing-retry", async (req: Request, res: Response) => {
     const rights = await loadWebsiteCaptureRights(payload.requestId);
     if (!rights.derived_scene_generation_allowed) return res.status(409).json({ state: "held",
       processingRetryAvailable: false, code: "capture_processing_not_authorized",
-      error: "Processing is on hold until the existing consent for this video can be verified." });
+      error: "Your video is saved, but we can't use it until its recording permission is confirmed. Email hello@tryblueprint.io if this doesn't change." });
     const stored = await loadBrowserStoredUpload(payload.captureId);
     const pending = stored ? null : await loadBrowserPending(payload.captureId);
     source = stored ?? pending;
@@ -713,7 +715,7 @@ router.post("/:token/processing-retry", async (req: Request, res: Response) => {
     const manifest = stored?.manifest_json ?? (pending ? await verifiedPendingManifest(pending) : null);
     if (!manifest || !originalManifestConsent(manifest)) return res.status(409).json({ state: "held",
       code: "capture_processing_not_authorized", processingRetryAvailable: false,
-      error: "The original consent for this saved video could not be verified. Processing remains on hold." });
+      error: "Your video is saved, but we can't use it until its recording permission is confirmed. Email hello@tryblueprint.io if this doesn't change." });
     if (pending?.state === "published" && !(await verifiedPendingMarker(pending))) {
       return res.status(409).json({ state: "held", captureReceived: true, processingRetryAvailable: false,
         code: "capture_handoff_unverified",
@@ -780,7 +782,7 @@ router.post("/:token/processing-retry", async (req: Request, res: Response) => {
 router.post("/:token/self-capture", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(404).json({ error: "This upload link is not valid or has expired." });
+    return res.status(404).json({ error: "This job link is not valid or has expired." });
   }
   if (payload.scope !== "owner") {
     return res.status(403).json({ error: "Only the site's own link can change how the task is recorded." });
@@ -793,7 +795,7 @@ router.post("/:token/self-capture", async (req: Request, res: Response) => {
     return res.status(503).json({ error: "We could not change this right now. Try again shortly." });
   }
   if (outcome === "not_found" || outcome === "not_a_site_task") {
-    return res.status(404).json({ error: "This link does not point at a site task we hold." });
+    return res.status(404).json({ error: "We can't find a job for this link." });
   }
   const authorization = await authorizeCaptureUpload(payload.requestId);
   return res.json({
@@ -843,7 +845,7 @@ function authorizeBeforeCaptureBody(kind: "walkthrough" | "part" | "item_image")
   return async (req: Request, res: Response, next: (error?: unknown) => void) => {
     try {
       const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-      if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
+      if (!payload) return res.status(404).json({ error: "This job link is not valid or has expired." });
       const authorization = await authorizeCaptureUpload(payload.requestId);
       if (!authorization.allowed) return res.status(409).json({ code: authorization.holdReason, error: authorization.detail });
       if (payload.supplement) {
@@ -860,7 +862,7 @@ function authorizeBeforeCaptureBody(kind: "walkthrough" | "part" | "item_image")
 router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCaptureBody("walkthrough"), upload.single("video"), async (req: UploadRequest, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(404).json({ error: "This upload link is not valid or has expired." });
+    return res.status(404).json({ error: "This job link is not valid or has expired." });
   }
 
   // Before anything else about the file. A token now reaches sites that have
@@ -871,7 +873,7 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
   const authorization = await authorizeCaptureUpload(payload.requestId);
   if (!authorization.allowed) {
     return res.status(409).json({
-      error: authorization.detail || "This capture cannot start yet.",
+      error: authorization.detail || "This job can't take a video yet.",
       code: authorization.holdReason || "capture_held",
       blockers: authorization.blockers,
     });
@@ -921,7 +923,7 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     if ((error as Error).message === "browser_capture_finalized") return finalizedCaptureResponse(payload, res);
     const conflict = (error as Error).message === "browser_pending_conflict";
     return res.status(conflict ? 409 : 503).json({
-      error: conflict ? "Another upload is still writing or awaiting review." : "Uploads are unavailable right now.",
+      error: conflict ? "Another upload for this job is still in progress. Wait a minute, then check this page." : "Uploads are unavailable right now.",
       code: conflict ? "capture_delivery_held" : "capture_delivery_unavailable",
     });
   }
@@ -1008,7 +1010,7 @@ function partsDestination(
 router.get("/:token/parts", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(404).json({ error: "This upload link is not valid or has expired." });
+    return res.status(404).json({ error: "This job link is not valid or has expired." });
   }
   if (!storageAdmin) {
     return res.status(503).json({ error: "Uploads are unavailable right now." });
@@ -1046,7 +1048,7 @@ router.put(
   async (req: PartUploadRequest, res: Response) => {
     const payload = verifyCaptureUploadToken(String(req.params.token || ""));
     if (!payload) {
-      return res.status(404).json({ error: "This upload link is not valid or has expired." });
+      return res.status(404).json({ error: "This job link is not valid or has expired." });
     }
 
     // Re-read permission per part rather than once at the start. A submission
@@ -1122,7 +1124,7 @@ const completeSchema = z
 router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    return res.status(404).json({ error: "This upload link is not valid or has expired." });
+    return res.status(404).json({ error: "This job link is not valid or has expired." });
   }
 
   const authorization = await authorizeCaptureUpload(payload.requestId);
@@ -1170,7 +1172,7 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     if ((error as Error).message === "browser_capture_finalized") return finalizedCaptureResponse(payload, res);
     const conflict = (error as Error).message === "browser_pending_conflict";
     return res.status(conflict ? 409 : 503).json({
-      error: conflict ? "Another upload is still writing or awaiting review." : "Uploads are unavailable right now.",
+      error: conflict ? "Another upload for this job is still in progress. Wait a minute, then check this page." : "Uploads are unavailable right now.",
       code: conflict ? "capture_delivery_held" : "capture_delivery_unavailable",
     });
   }
@@ -1195,7 +1197,7 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     }
     probeVideo = composition.video;
     if (composition.video.size_bytes !== parsed.data.sizeBytes) {
-      return res.status(409).json({ code: "video_identity_mismatch", error: "The uploaded parts do not match this video's size. Check the upload and retry its missing parts." });
+      return res.status(409).json({ code: "video_identity_mismatch", error: "Part of your video didn't arrive. Press Resume upload to send the rest." });
     }
     const videoMetadata = await probeStoredCaptureVideo(composition.video, () =>
       storageAdmin!.bucket(storageBucketName()).file(composition.video.object_name,
@@ -1218,7 +1220,7 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
       const unreadable = error.code === "video_unreadable";
       return res.status(unreadable ? 422 : 503).json({ code: error.code,
         error: unreadable ? "We could not read a complete video stream. Choose the original camera file; you do not need to film the job again."
-          : "Your uploaded parts are saved. We could not inspect them right now. Retry finishing this upload shortly." });
+          : "What you sent is saved. Press Resume upload in a minute to finish." });
     }
     logger.error({ error, captureId: payload.captureId },
       "Could not compose capture parts into the walkthrough");
@@ -1226,7 +1228,7 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
       const outcome = await retainedProcessingFailure(writtenVideo, true, payload);
       return res.status(outcome.status).json(outcome.body);
     }
-    return res.status(503).json({ error: "We could not assemble your upload. Please retry." });
+    return res.status(503).json({ error: "We couldn't finish saving your video. Press Resume upload to try again." });
   } finally {
     // This copy was created solely for local inspection. Original parts remain
     // available on failure, and the canonical video is never removed here.
@@ -1295,7 +1297,7 @@ export async function landInternalTestFootage(payload: CaptureIdentity,
 export async function bundleGate(req: Request, res: Response) {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
-    res.status(404).json({ error: "This upload link is not valid or has expired." });
+    res.status(404).json({ error: "This job link is not valid or has expired." });
     return null;
   }
   const authorization = await authorizeCaptureUpload(payload.requestId);
@@ -1305,7 +1307,7 @@ export async function bundleGate(req: Request, res: Response) {
   }
   if (!authorization.allowed) {
     res.status(409).json({
-      error: authorization.detail || "This capture cannot start yet.",
+      error: authorization.detail || "This job can't take a video yet.",
       code: authorization.holdReason || "capture_held",
       blockers: authorization.blockers,
     });
@@ -1370,7 +1372,7 @@ router.post(
     try {
       const payload = verifyCaptureUploadToken(String(req.params.token || ""));
       if (!payload) {
-        return res.status(404).json({ error: "This upload link is not valid or has expired." });
+        return res.status(404).json({ error: "This job link is not valid or has expired." });
       }
 
       requestId = payload.requestId;
@@ -1380,7 +1382,7 @@ router.post(
       const authorization = await authorizeCaptureUpload(payload.requestId);
       if (!authorization.allowed) {
         return res.status(409).json({
-          error: authorization.detail || "This capture cannot start yet.",
+          error: authorization.detail || "This job can't take a video yet.",
           code: authorization.holdReason || "capture_held",
           blockers: authorization.blockers,
         });

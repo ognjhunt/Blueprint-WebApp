@@ -173,8 +173,10 @@ describe("the job page keeps the job moving", () => {
     expect(status.resultSuperseded).toBe(true);
     expect(status.operatorAction).toBeNull();
     expect(status.outcome?.actionOwner).toBe("blueprint");
-    expect(status.outcome?.nextStep).toMatch(/saved video/);
-    expect(status.outcome?.nextStep).not.toMatch(/must|upload|record|walkthrough/i);
+    // Nothing is asked of the site; describing the object is offered, never required, and no person reviews it.
+    expect(status.outcome?.nextStep).toBe("Nothing is needed from you. If you like, describe the object in your job description.");
+    expect(status.outcome?.title).toBe("None of the suggested objects was right");
+    expect(JSON.stringify(status.outcome)).not.toMatch(/must|upload|record|walkthrough|review|the owner/i);
   });
 });
 

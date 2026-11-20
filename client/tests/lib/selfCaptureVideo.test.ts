@@ -101,7 +101,7 @@ describe("verified receipt versus processing", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("offline"));
     const outcome = await uploadSelfCaptureVideo(token, new File(["synthetic"], "original.mov"));
     expect(outcome.status).toBe("failed");
-    expect("message" in outcome && outcome.message).toMatch(/could not confirm whether your video was received/);
+    expect("message" in outcome && outcome.message).toMatch(/^We couldn't confirm your video arrived\. Keep the original file and check this page before you send it again\.$/);
     expect("message" in outcome && outcome.message).not.toMatch(/Nothing was saved|Nothing was lost/);
   });
 

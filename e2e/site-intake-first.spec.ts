@@ -39,7 +39,7 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#start-password")).toHaveCount(0);
     await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     // An account stays optional: one quiet link after the job is saved (bare bones, 2026-11-11).
-    const optionalAccount = page.getByRole("link", { name: "Save to an account ›", exact: true });
+    const optionalAccount = page.getByRole("link", { name: "Save to my account ›", exact: true });
     await expect(optionalAccount).toBeVisible();
     expect(mutations).toEqual(["/api/inbound-request"]);
     expect(intakeBodies).toEqual([expect.objectContaining({ siteName: "", siteLocation: "", captureRegion: "us", accountSignup: false,

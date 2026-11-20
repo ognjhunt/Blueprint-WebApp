@@ -56,7 +56,7 @@ describe("the sharing promises, in the Terms and the Privacy Policy, word for wo
 describe("name, address and contacts", () => {
   it("go to a company only through an introduction the site asked for, on every page that says what is shared", () => {
     expect(annexRow("Deployment companies")).toContain(PROMISES.contacts);
-    expect(AGREEING_ALSO_LINE).toBe("Our Terms and Privacy Policy. We don't share your name, address or contact details unless you ask for an introduction.");
+    expect(AGREEING_ALSO_LINE).toBe("We don't share your name, address or contact details unless you ask for an introduction.");
     expect(annexRow("Location")).toMatch(/sees the country of the job, not the address you typed/);
   });
 });

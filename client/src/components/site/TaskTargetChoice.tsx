@@ -48,12 +48,12 @@ export function TaskTargetChoice({ token, question, onAnswered }: {
     <span>{text}</span>
   </label>;
   return <section aria-label="Object selection">
-    <p className="ms-field-hint">{question.rejected ? 'The previous object selection was rejected. The saved video and earlier work remain in this job.'
-      : <>Object used: {guess.label}{at(guess.referenceTimeMs)}. Preparation continues automatically.</>}</p>
+    <p className="ms-field-hint">{question.rejected ? 'You said none of these was the object. Your video and earlier work stay saved.'
+      : <>The object we used: {guess.label}. We keep preparing your job.</>}</p>
     <button type="button" className="ms-text-button" aria-expanded={open} aria-controls="task-target-choice-options"
-      onClick={() => setOpen(value => !value)}>{open ? "Close object selection" : "Review or correct object selection"}</button>
+      onClick={() => setOpen(value => !value)}>{open ? "Close" : "Check the object"}</button>
     {open && <div id="task-target-choice-options">
-    <p className="ms-field-hint">This is Blueprint’s best supported selection. A correction updates this same job using your saved video.</p>
+    <p className="ms-field-hint">This is our best guess. If it's wrong, pick the right one and we'll update the job from your saved video.</p>
     <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: "12px 0" }}>
       <legend className="ms-field-hint">Your answer</legend>
       {option("confirm", "Yes, that is the one")}
