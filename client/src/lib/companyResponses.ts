@@ -3,10 +3,13 @@
  *
  * What each side agreed to decides what crosses: a site's summary goes to approved companies "without saying who you
  * are", and a site sees "an alias for each robot team", never a company's name. So the site is told an alias
- * ("Company A", "Company B", in the order each company first appeared on that job), a date and one of three fixed
- * labels. No free text from anyone reaches the site's page: never the company's name, email, website or its own words,
- * and no note of Blueprint's either (a note could name the company). The types below are the whole of what the site's
- * job page receives about companies; nothing else is added to them.
+ * ("Company A", "Company B", in the order each company first appeared on that job), a date, one of the fixed labels
+ * and why: the company's own words about its answer (2026-11-20), with every name, email, phone number, web address
+ * and link of the company's taken out first (`removeIdentifyingDetails`, `jobCompanies.ts`). Only words given under
+ * the current line ("The site is told your answer") are shown; words given under the older line ("not your company's
+ * name or your words") never are. Never the company's name, email or website, and no note of Blueprint's (a note
+ * could name the company). The types below are the whole of what the site's job page receives about companies;
+ * nothing else is added to them.
  */
 
 /**
@@ -16,8 +19,15 @@
 export const COMPANY_RESPONSE_STATES = ["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"] as const;
 /** Answers that need the job's simulation package. */
 export const TESTED_RESPONSE_STATES: readonly CompanyResponseState[] = ["tested_can_do", "tested_cannot_yet"];
-/** Answers beside which a site may ask for an introduction (E6, as E9 reads it). */
+/**
+ * Answers beside which a site may ask for an introduction (E6, as E9 reads it). Not "Would need something": the Terms a
+ * company accepted, and the line under its answer, say a site gets its name and contact details only after it answered
+ * Interested or Tested it: can do. Meeting a company that would need something first takes a new line and new Terms
+ * the company accepts (owner); until then the site reads why, and the company can change its answer.
+ */
 export const INTRODUCIBLE_RESPONSE_STATES: readonly CompanyResponseState[] = ["interested", "tested_can_do"];
+/** Answers that may become an introduction when the company changes its answer: the site is told so. */
+export const MAY_CHANGE_RESPONSE_STATES: readonly CompanyResponseState[] = ["needs_something", "tested_cannot_yet"];
 export type CompanyResponseState = (typeof COMPANY_RESPONSE_STATES)[number];
 
 export const COMPANY_RESPONSE_LABELS: Readonly<Record<CompanyResponseState, string>> = {
@@ -56,12 +66,17 @@ export const companyAliasName = (letter: string) => `Company ${letter}`;
 export interface IntroducedCompany { name: string; contactName: string; email: string; website?: string }
 
 /**
- * One line of the site's "Deployment companies" section. Nothing here comes from a company, except `company` on an
- * answer the site asked to be introduced to.
+ * One line of the site's "Deployment companies" section. Nothing here comes from a company, except `reason` (its words,
+ * with its identity taken out) and `company` on an answer the site asked to be introduced to.
  */
 export type SiteCompanyEntry =
   | { kind: "sent"; alias: string; atIso: string }
   | { kind: "answered"; alias: string; atIso: string; state: CompanyResponseState;
+      /**
+       * Why: the company's words about its answer, with its name, people, email, phone, website and any link taken out.
+       * Absent when there are none the site may read (given under the older line, or nothing left once taken out).
+       */
+      reason?: string;
       /** The site may press "Introduce us" for this company now. */
       canIntroduce?: boolean;
       /** When the site asked for the introduction. */
@@ -103,6 +118,13 @@ export const NOT_SENT_YET = "Not sent to any deployment company yet.";
 export const sentToCompany = (alias: string, date: string) => `Sent to ${alias} on ${date}.`;
 export const companyAnswered = (alias: string, date: string, state: CompanyResponseState) =>
   `${alias} answered on ${date}: ${COMPANY_RESPONSE_LABELS[state]}.`;
+/** Under an answer: the company's words, as the server gives them (its identity already taken out). */
+export const companyReason = (reason: string) => `In their words: “${reason}”`;
+/** Under an answer that is not a yes and carries no words the site may read: said plainly, nothing invented. */
+export const NO_REASON_SHOWN = "No reason we can show.";
+/** Under an answer that may become an introduction when the company changes it (`MAY_CHANGE_RESPONSE_STATES`). */
+export const introductionIfChanged = (alias: string) =>
+  `You can ask for an introduction if ${alias} changes its answer to Interested.`;
 
 /** A cheap shape check for the job page: anything else is dropped, never shown. */
 export function isSiteCompanyActivity(value: unknown): value is SiteCompanyActivity {

@@ -79,7 +79,11 @@ const NORTH = companyRecord("NORTHX");
 const SOUTH = companyRecord("SOUTHX");
 const TECH = companyRecord("TECHX", { partnerRole: "technology" });
 const PENDING = companyRecord("PENDX", { status: "applied" });
-const WORDS = { north: "NORTHX-WORDS: we would need a second gripper", south: "SOUTHX-WORDS: our UR20 palletizes this today" };
+/** The companies' words, each naming the company and its contact details: the site reads them only with those taken out. */
+const WORDS = { north: "NORTHXPLANT Robotics would need a second gripper; ask Person NORTHXplant.",
+  south: "SOUTHXPLANT Robotics: our UR20 palletizes this today. Write to contact-southx@southx-plant.example or www.southx-plant.example/about." };
+/** South's words as its site reads them (2026-11-20). */
+const SOUTH_REASON = "The company: our UR20 palletizes this today. Write to [removed] or [removed].";
 const PLANTED = [
   ...[NORTH, SOUTH].flatMap(record => [record.company, record.email, record.website, record.name, record.robot, record.workWanted,
     record.supportedSystems, record.region, record.decisionNote, sha(record.email),
@@ -232,7 +236,7 @@ describe("the operator's Deployment companies panel", () => {
 });
 
 describe("what the site receives", () => {
-  it("tells the site each send and answer by alias, date and label only: no company field and no company words reach its page or its emails", async () => {
+  it("tells the site each send and answer by alias, date, label and the company's cleared words only: no company field reaches its page, and no company words its emails", async () => {
     // Blueprint sends to North; South answers in the library without a send; North answers by email, recorded by Blueprint.
     const send = await adminPost("/sends", { companyId: sha(NORTH.email) });
     expect(send.status).toBe(200);
@@ -252,7 +256,9 @@ describe("what the site receives", () => {
     expect(body.answer.companies.sent).toMatchObject({ count: 1 });
     expect(body.answer.companies.introductions).toEqual({ used: 0 });
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([["alias", "atIso", "kind"],
-      ["alias", "atIso", "canIntroduce", "kind", "state"], ["alias", "atIso", "canIntroduce", "kind", "state"]]);
+      ["alias", "atIso", "canIntroduce", "kind", "reason", "state"], ["alias", "atIso", "canIntroduce", "kind", "state"]]);
+    // Why: the company's own words, with its name, email and website taken out.
+    expect(entries[1].reason).toBe(SOUTH_REASON);
     // An answer an operator recorded from an email carries no consent to an introduction (E5).
     expect(entries.map(entry => entry.canIntroduce)).toEqual([undefined, false, false]);
     expect(entries.map(({ kind, alias, state: answer }) => ({ kind, alias, answer }))).toEqual([

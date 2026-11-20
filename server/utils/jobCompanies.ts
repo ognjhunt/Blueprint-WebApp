@@ -26,9 +26,12 @@
  *
  * The site agreed its summary goes to approved companies "without saying who you are", and a company that a site
  * sees "an alias for each robot team". `projectSiteCompanyActivity` is the only way company records reach the site:
- * it builds a closed `SiteCompanyActivity` field by field from the alias letter, the dates and the state, and reads no
- * other field. No free text from anyone reaches the site's page: not the company's name, email, website or words,
- * and no note of Blueprint's (a note could name the company; an operator with something to say writes to the site).
+ * it builds a closed `SiteCompanyActivity` field by field from the alias letter, the dates, the state and the
+ * company's reason (`siteReasonOf`), and reads no other field. The reason is the company's own words about its answer,
+ * only when given under the current line, with the company's known identity (its name, its person's name, email,
+ * website and their domains) and any other email, phone number or link taken out by `removeIdentifyingDetails`. Never
+ * the company's name, email or website, and no note of Blueprint's (a note could name the company; an operator with
+ * something to say writes to the site).
  */
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -45,6 +48,7 @@ import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 export type { AdminJobCompanies };
 import { operatorListingHold } from "./operatorListing";
 import { captureUploadUrlFor } from "./captureUploadToken";
+import { REMOVED, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 
 export const COMPANY_SENDS_COLLECTION = "companySends";
 export const INTRODUCTIONS_COLLECTION = "introductions";
@@ -368,6 +372,67 @@ function introducedCompany(intro: Data | undefined): IntroducedCompany | undefin
   return { name, contactName: text(shared?.contactName) ?? "", email, ...(website ? { website } : {}) };
 }
 
+/* ------------------------------------------------------------- the company's reason, for the site */
+
+/** The longest reason the site is shown: the answer form's own limit. */
+const REASON_MAX = 2000;
+
+/**
+ * What Blueprint holds about a company, as the identity to take out of its words: its name (also each distinctive
+ * capitalised word of it), its person's name, its email and the email's domain, its website and the website's host
+ * (with and without "www."). From every record given (the approved access record, and the answer's own copy of the
+ * company's name and email), so a company no longer approved is taken out of its words all the same.
+ */
+export function knownCompanyIdentity(...records: Array<Data | null | undefined>): KnownSiteIdentity {
+  const organisations: string[] = [], people: string[] = [], contacts: string[] = [];
+  for (const record of records) {
+    const company = text(record?.company), person = text(record?.name), email = text(record?.email), website = text(record?.website);
+    if (company) organisations.push(company);
+    if (person) people.push(person);
+    if (email) contacts.push(email, ...(email.includes("@") ? [email.slice(email.lastIndexOf("@") + 1)] : []));
+    if (website) {
+      contacts.push(website, website.replace(/^[a-z][a-z0-9+.-]*:\/\//i, ""));
+      try {
+        const host = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(website) ? website : `https://${website}`).hostname;
+        if (host) contacts.push(host, host.replace(/^www\./i, ""));
+      } catch { /* not a web address: the typed value alone */ }
+    }
+  }
+  return { names: [...organisations, ...people], organisations, addresses: [], contacts };
+}
+
+/**
+ * Whether the company's words may be read by the site: an answer the company gave on its job page under the current
+ * line, which tells it "The site is told your answer" (and its accepted Terms: "A site sees your answer under an
+ * alias"). An answer given under the older line ("The site is told your response, not your company's name or your
+ * words") or with no line never shows its words.
+ */
+export function answerWordsMayReachSite(answer: Data | null | undefined): boolean {
+  return answer?.recordedBy === "company" && answer.statementVersion === COMPANY_RESPONSE_STATEMENT_VERSION;
+}
+
+/**
+ * The company's reason as the site may read it, or null: its words about its answer with its known identity taken out
+ * (each name becomes "the company"; emails, phone numbers, websites and links become "[removed]"). Null when the words
+ * may not reach the site (`answerWordsMayReachSite`), when there are none, when nothing worth reading is left once the
+ * details are out, or when the removal fails: the site's page then says so plainly (`NO_REASON_SHOWN`).
+ */
+export function siteReasonOf(answer: Data | null | undefined, identity: KnownSiteIdentity): string | null {
+  if (!answerWordsMayReachSite(answer)) return null;
+  const words = typeof answer!.inputs === "string" ? answer!.inputs.trim().slice(0, REASON_MAX) : "";
+  if (!words) return null;
+  try {
+    // A web address whose host was taken out leaves no path behind ("[removed]/contact" is "[removed]").
+    const shown = removeIdentifyingDetails(words, identity, { nameAs: "company" })
+      .replace(/\[removed\]\/\S*?(?=[.,;:!?)]*(?:\s|$))/g, REMOVED).trim();
+    const left = shown.split(REMOVED).join(" ").replace(/\bthe company\b/gi, " ").replace(/[^\p{L}\p{N}]+/gu, "");
+    return left.length >= 3 ? shown : null;
+  } catch (error) {
+    logger.warn({ err: error }, "A company's words could not be cleared for the site; the site is told no reason is shown");
+    return null;
+  }
+}
+
 /**
  * An answer the site may ask to be introduced to: `interested` or `tested_can_do` (E9), given by the company itself
  * under the current line.
@@ -379,14 +444,18 @@ export function answerConsentsToIntroduction(answer: Data | null | undefined): b
 }
 
 /**
- * The site's view of company activity on its job: built field by field from the alias letter, the dates and the state.
- * It reads no other field of a send or an answer, so no free text (a company's name, email, website or words, or any
- * note) can reach the site, except a company's details on an answer the site asked to be introduced to (E6). A voided
- * send, a record without an alias, and an answer recorded before C1 (no `recordedBy`) are not shown. The automatic send
- * is one count line (`sent`), not one entry per company. In date order; a send before an answer at the same instant.
+ * The site's view of company activity on its job: built field by field from the alias letter, the dates, the state and
+ * the company's reason with its identity taken out (`siteReasonOf`, from the company records in `companies` and the
+ * answer's own copy of its name and email). It reads no other field of a send or an answer, so no company's name,
+ * email or website, and no note, can reach the site, except a company's details on an answer the site asked to be
+ * introduced to (E6). A voided send, a record without an alias, and an answer recorded before C1 (no `recordedBy`) are
+ * not shown. The automatic send is one count line (`sent`), not one entry per company. In date order; a send before an
+ * answer at the same instant.
  */
 export function projectSiteCompanyActivity(input: { aliases: Record<string, string>;
-  sends: ReadonlyArray<Data>; responses: ReadonlyArray<{ id: string; data: Data }> } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
+  sends: ReadonlyArray<Data>; responses: ReadonlyArray<{ id: string; data: Data }>;
+  /** Company records by id (`robotTeamAccess`), only to take each company's identity out of its words. */
+  companies?: ReadonlyMap<string, Data> } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
   const entries: SiteCompanyEntry[] = [];
   const sentTo = new Set<string>();
   let firstAtIso: string | null = null;
@@ -415,7 +484,9 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const company = intro ? introducedCompany(intro) : undefined;
     const canIntroduce = !intro && !cancelled.has(response.id) && input.listed === true
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
+    const reason = siteReasonOf(response.data, knownCompanyIdentity(input.companies?.get(response.id), response.data));
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
+      ...(reason ? { reason } : {}),
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
       // Cancelled before the company's email went (H2), so the site's details were never given to it.
       ...(cancelled.has(response.id) ? { introductionCancelled: true } : {}) });
@@ -445,8 +516,11 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   const opened = await Promise.all(introductions.map(async row => ({ id: row.id,
     data: typeof row.data.cancelledAtIso === "string" ? { cancelledAtIso: row.data.cancelledAtIso }
       : { ...row.data, companyShared: await openShared(row.data.companyShared) } })));
+  // Every company that answered, approved or not, so its identity is taken out of its words.
+  const answered = await Promise.all(responses.map(row => store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(row.id).get()));
+  const companies = new Map(answered.filter(snap => snap.exists).map(snap => [snap.id, (snap.data() ?? {}) as Data]));
   return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses,
-    introductions: opened, listed: access.listed,
+    introductions: opened, listed: access.listed, companies,
     approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)) });
 }
 

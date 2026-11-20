@@ -20,7 +20,8 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
-import { companyAnswered, isSiteCompanyActivity, NO_ANSWERS_YET, NOT_SENT_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
+import { companyAnswered, companyReason, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+  NO_ANSWERS_YET, NO_REASON_SHOWN, NOT_SENT_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
  * The site's job page below its title, bare bones (frame of 2026-11-12). Three sections, in order: where the job
@@ -153,10 +154,23 @@ function IntroducedDetails({ entry }: { entry: AnsweredEntry }) {
 
 /**
  * Under the section's sentence: the one line for the automatic send, each send recorded by hand and each answer, by
- * alias only ("Company A"), in the order they came. Beside each company that answered Interested and can be introduced,
- * "Introduce us" and the sentence saying what it shares; after an introduction, that company's name and contact
- * details, and only that company's. No free text from a company is shown here: the server sends none.
+ * alias only ("Company A"), in the order they came, with why: the company's words as the server gives them (its name,
+ * email, website and any link already taken out), or, for an answer that is not a yes with no words to show, that no
+ * reason can be shown. Beside each company that answered Interested and can be introduced, "Introduce us" and the
+ * sentence saying what it shares; beside one that would need something, that an introduction follows a change of its
+ * answer. After an introduction, that company's name and contact details, and only that company's.
  */
+function AnswerReason({ entry }: { entry: AnsweredEntry }) {
+  const reason = typeof entry.reason === "string" && entry.reason.trim() ? entry.reason.trim() : null;
+  return <>
+    {reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
+      : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>}
+    {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.company && !entry.introducedAtIso
+      && <p className="bare-helper">{introductionIfChanged(entry.alias)}</p>}
+  </>;
+}
+
+/** The section's lines (see `AnswerReason` for each answer's why). */
 function CompanyEntries({ token, activity, onIntroduced }: { token: string; activity: SiteCompanyActivity | undefined;
   onIntroduced?: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -197,6 +211,7 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
         <BareLead>{entry.kind === "sent" ? sentToCompany(entry.alias, dateInWords(entry.atIso))
           : companyAnswered(entry.alias, dateInWords(entry.atIso), entry.state)}</BareLead>
+        {entry.kind === "answered" && <AnswerReason entry={entry} />}
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
           && <IntroducedDetails entry={entry} />}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true

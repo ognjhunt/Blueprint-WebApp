@@ -499,14 +499,34 @@ describe("the deployment companies section, with sends, answers and introduction
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: stray as never }} />);
     expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
     expect(within(companies()).getByText("Sent to 4 deployment companies on November 11, 2026.")).toBeVisible();
-    expect(lines()[0]).toBe("Company B answered on November 12, 2026: Would need something.");
+    expect(lines()[0]).toBe("Company B answered on November 12, 2026: Would need something."
+      + "No reason we can show.You can ask for an introduction if Company B changes its answer to Interested.");
     expect(lines()[1]).toContain("Company A answered on November 13, 2026: Interested.");
+    expect(lines()[1]).not.toContain("No reason we can show.");
     const buttons = within(companies()).getAllByRole("button", { name: "Introduce us" });
     expect(buttons).toHaveLength(1);
     expect(within(companies()).getByText("We give Company A your name, address and contact details, and give you theirs."))
       .toHaveAttribute("id", buttons[0].getAttribute("aria-describedby"));
     expect(companies().textContent).not.toMatch(/NOTE-PLANT|WORDS-PLANT|We will write to you/);
     expect(companies().textContent).not.toMatch(BANNED);
+  });
+
+  // 2026-11-20: the site reads why each company answered as it did, in the company's words as the server gives them (its
+  // identity already taken out); an answer that is not a yes with no words says that no reason can be shown.
+  it("shows each company's reason, and says plainly when none can be shown", () => {
+    const reasons = { ...activity, entries: [
+      { ...activity.entries[0], reason: "The company would need a video of the far end; see [removed]." },
+      { ...activity.entries[1], reason: "We stack cartons like these every day." },
+      { kind: "answered" as const, alias: "Company C", atIso: "2026-11-14T09:00:00.000Z", state: "declined" as const, canIntroduce: false },
+    ] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: reasons }} />);
+    expect(within(companies()).getByText("In their words: “The company would need a video of the far end; see [removed].”")).toBeVisible();
+    expect(within(companies()).getByText("In their words: “We stack cartons like these every day.”")).toBeVisible();
+    expect(lines()[2]).toBe("Company C answered on November 14, 2026: Not a fit.No reason we can show.");
+    // Would need something: no Introduce us (the company agreed to be introduced only after Interested or Tested it: can
+    // do), and the site is told what would make one possible.
+    expect(within(companies()).getAllByRole("button", { name: "Introduce us" })).toHaveLength(1);
+    expect(within(companies()).getByText("You can ask for an introduction if Company B changes its answer to Interested.")).toBeVisible();
   });
 
   // "No answers yet." is said only when it is true: sent to at least one company, and no company has answered. The home
@@ -605,7 +625,8 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByRole("link", { name: "https://northwind.example" })).toBeVisible();
     expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
     // Company B, not introduced, stays an alias.
-    expect(lines()[0]).toBe("Company B answered on November 12, 2026: Would need something.");
+    expect(lines()[0]).toMatch(/^Company B answered on November 12, 2026: Would need something\./);
+    expect(lines()[0]).not.toMatch(/Northwind|Ada/);
   });
 
   // Planner, 20:35Z, H2: an introduction cancelled before the company's email went says so, beside that answer only.
