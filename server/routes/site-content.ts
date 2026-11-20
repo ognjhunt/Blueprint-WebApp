@@ -113,7 +113,7 @@ const pages = [
   },
   { path: "/contact/site-operator", title: "Start a job", description: START_SEO_DESCRIPTION },
   { path: "/contact/robot-team", title: "Apply to see jobs", description: ROBOT_TEAM_SEO_DESCRIPTION },
-  { path: "/partners", title: "For deployment companies", description: PARTNERS_SEO_DESCRIPTION },
+  { path: "/jobs", title: "Find jobs", description: PARTNERS_SEO_DESCRIPTION },
   {
     path: "/privacy",
     title: "Privacy",

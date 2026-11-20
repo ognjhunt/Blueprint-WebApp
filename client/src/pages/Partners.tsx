@@ -1,15 +1,21 @@
 import { BareBig, BareScreen } from "@/components/bare/Bare";
 import { SEO } from "@/components/SEO";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
-import { FOR_DEPLOYMENT_COMPANIES, PARTNERS_SEO_DESCRIPTION, PARTNERS_TITLE } from "@/lib/publicCopy";
+import { SampleJob } from "@/components/site/SampleJob";
+import { FIND_JOBS, FIND_JOBS_PATH, PARTNERS_SEO_DESCRIPTION, PARTNERS_TITLE } from "@/lib/publicCopy";
 
+/**
+ * Find jobs (/jobs; /partners shows the same page): what an approved deployment company gets, shown with one sample
+ * job, and the one application. The header's "Find jobs" link lands here (owner, 2026-11-20).
+ */
 export default function Partners() {
   return <>
-    <SEO title={`${FOR_DEPLOYMENT_COMPANIES} | Blueprint`} description={PARTNERS_SEO_DESCRIPTION} canonical="/partners" />
+    <SEO title={`${FIND_JOBS} | Blueprint`} description={PARTNERS_SEO_DESCRIPTION} canonical={FIND_JOBS_PATH} />
     <div className="bare-page bare-forms">
       <div className="bare-company">
         <BareScreen className="bare-company-intro">
           <BareBig as="h1" sub="Review real jobs with site videos and details. When a site asks to meet, we introduce you.">{PARTNERS_TITLE}</BareBig>
+          <p className="bare-company-access"><a href="#sample-job">See a sample job</a></p>
           <p className="bare-company-access">Already approved? <a href="/contact/robot-team">Browse jobs</a></p>
         </BareScreen>
         <BareScreen className="bare-company-application">
@@ -17,6 +23,7 @@ export default function Partners() {
             <PartnerApplication />
           </div>
         </BareScreen>
+        <SampleJob />
       </div>
     </div>
   </>;

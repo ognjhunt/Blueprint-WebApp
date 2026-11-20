@@ -31,7 +31,32 @@ export const START_JOB = "Start a job";
 export const FIRST_LOOK_WHEN_READY = "We add a first look at which robots could fit when we have enough detail.";
 export const FREE_FOR_SITES = "Free for sites.";
 export const FOR_DEPLOYMENT_COMPANIES = "For deployment companies";
+/** The header link and page for deployment companies (owner, 2026-11-20): one page, a sample job, the application. */
+export const FIND_JOBS = "Find jobs";
+export const FIND_JOBS_PATH = "/jobs";
 export const PARTNERS_TITLE = "Find jobs for the robots you deploy.";
+
+/**
+ * The Find jobs page's sample job (`SampleJob.tsx`). Stock footage (Mixkit, free license), never a site's job, and said
+ * so where it starts. Its facts are only what the video shows; what a live job adds names features that exist.
+ */
+export const SAMPLE_JOB = {
+  tag: "Sample job",
+  notLive: "Stock footage, not a live job. No site posted it.",
+  title: "Load parcels onto a hand truck",
+  sentence: "Pick up each parcel and stack it on the hand truck.",
+  done: "Every parcel is on the hand truck, stacked so none falls.",
+  facts: ["Cardboard parcels in two sizes", "Stacked on a two-wheel hand truck, the larger parcel at the bottom", "Outdoors, on a paved path"],
+  credit: "Video: Mixkit, free license. Sound removed, as on every job.",
+  liveAlso: [
+    "The site's answers to a few questions for its kind of job, such as the heaviest item and the busiest rate.",
+    "A first look on paper at which kinds of robot most likely fit, from published specifications.",
+    "A simulation of the site with the job's object in it, to download and open in your own tools.",
+    "No site name, address or contact details until the site asks to meet you.",
+  ],
+  introduction: "If the site wants to meet you, we email you both each other's details.",
+  cta: "Apply to see live jobs",
+} as const;
 
 export const HOW_STEPS = [
   { key: "video", title: "Film the job", line: "Use your phone to show one full round of a job that repeats." },

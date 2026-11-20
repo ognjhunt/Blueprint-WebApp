@@ -2,7 +2,7 @@ import type { PropsWithChildren } from "react";
 import { COMPANY } from "@/data/company";
 import { openCookieSettings } from "@/components/CookieConsent";
 import { useOptionalAuth } from "@/contexts/AuthContext";
-import { FOR_DEPLOYMENT_COMPANIES } from "@/lib/publicCopy";
+import { FIND_JOBS, FIND_JOBS_PATH } from "@/lib/publicCopy";
 import { BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH } from "@/lib/robotTeamAccess";
 import { LegalUpdateBanner } from "./LegalVersionNotes";
 
@@ -27,7 +27,7 @@ export function MinimalSiteLayout({ children, signInHref = "/sign-in", browseCur
         <nav className="bare-site-nav" aria-label="Main navigation">
           <a className="bare-site-head-link" href="/how-it-works">How it works</a>
           {signedIn ? <a className="bare-site-head-link" href={BROWSE_JOBS_PATH} aria-current={browseCurrent ? "page" : undefined}>{BROWSE_JOBS_LABEL}</a>
-            : <a className="bare-site-head-link" href="/partners">{FOR_DEPLOYMENT_COMPANIES}</a>}
+            : <a className="bare-site-head-link" href={FIND_JOBS_PATH}>{FIND_JOBS}</a>}
         </nav>
         <nav className="bare-site-account" aria-label="Account">
           {signedIn ? <a className="bare-site-head-link" href={account.href}>{account.label}</a>

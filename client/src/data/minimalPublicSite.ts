@@ -11,8 +11,6 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/capture-visit": "/contact/site-operator",
   "/site-task": "/contact/site-operator",
   "/robot-intake": "/contact/robot-team",
-  // A job's page is /jobs/:jobId, so /jobs is where a company looks for the rest: the job library.
-  "/jobs": "/contact/robot-team",
   // The capturer network and Blueprint filming visits are retired: sites film their own job.
   "/beta/capturer-guide": "/contact/site-operator",
   // Bare bones (2026-11-11): "Jobs we support" folded into How it works, "About" into the Questions page.
@@ -77,7 +75,7 @@ export const queryDroppingRedirects: ReadonlySet<string> = new Set([
   "/requests/:requestId/preview",
 ]);
 
-export const minimalPublicPaths = ["/", "/how-it-works", "/partners", "/beta", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds", "/privacy/previous", "/terms/previous"] as const;
+export const minimalPublicPaths = ["/", "/how-it-works", "/jobs", "/partners", "/beta", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds", "/privacy/previous", "/terms/previous"] as const;
 
 /**
  * True when a pathname renders on the minimal public shell. Trailing slashes

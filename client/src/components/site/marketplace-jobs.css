@@ -366,3 +366,16 @@
   .company-job-ready .company-job-actions a { padding-inline: 10px; font-size: 13px; }
   .bare-screen.site-job-status h1 { font-size: 34px; }
 }
+
+/* The Find jobs page's sample job (`SampleJob.tsx`): the live job page's card, full width under the application. */
+.bare-company > .sample-job { grid-column: 1 / -1; width: 100%; max-width: none; margin: 8px 0 0; padding: 0; }
+.sample-job > h2 { margin: 6px 0 4px; font-size: clamp(26px, 3.6vw, 36px); font-weight: 650; letter-spacing: -.04em; line-height: 1.12; }
+.sample-job .opportunity-meta { margin: 0 0 18px; }
+.sample-job h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: -.02em; }
+.sample-job .company-job-success h3 { font-size: 14px; }
+.sample-job video { display: block; width: 100%; height: auto; background: #1f241f; }
+.sample-job .company-job-overview ul { margin: 12px 0 0; padding-left: 20px; }
+.sample-job .company-job-overview li + li { margin-top: 4px; }
+.sample-job-live p { margin: 8px 0 0; }
+.sample-job-live ul + h3 { margin-top: 18px; }
+.sample-job-live .ms-button { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; border-radius: 8px; text-decoration: none; }

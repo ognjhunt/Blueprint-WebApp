@@ -27,7 +27,7 @@ test("on a small phone both entry points are visible before scrolling", async ({
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/");
   const start = page.getByRole("link", { name: "Start a job", exact: true });
-  const companies = page.getByRole("link", { name: "For deployment companies", exact: true });
+  const companies = page.getByRole("link", { name: "Find jobs", exact: true });
   await expect(start).toBeInViewport({ ratio: 1 });
   await expect(companies).toBeInViewport({ ratio: 1 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

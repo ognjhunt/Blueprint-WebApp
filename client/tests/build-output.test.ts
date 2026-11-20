@@ -180,7 +180,7 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/beta", "/partners", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds"].forEach((route) => {
+    ["/", "/how-it-works", "/beta", "/jobs", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
     expect((sitemap.match(/<loc>/g) || []).length).toBe(9);
