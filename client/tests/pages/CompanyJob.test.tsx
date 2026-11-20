@@ -35,6 +35,9 @@ describe("the company's page for one job", () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
     render(<CompanyJob />);
     expect(await screen.findByRole("heading", { name: "Carton palletizing opportunity" })).toBeInTheDocument();
+    const account = within(screen.getByRole("navigation", { name: "Account" }));
+    expect(account.queryByRole("link", { name: "Sign in" })).toBeNull();
+    expect(account.getByRole("link", { name: "Your workspace" })).toHaveAttribute("href", "/app");
     expect(fetchMock.mock.calls[0][0]).toBe("/api/site-worlds/jobs/job-1");
     expect(screen.getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
     expect(screen.getByText("Weight: 5 to 15 kg (11 to 33 lb)")).toBeInTheDocument();
@@ -115,10 +118,15 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
   });
 
-  it("asks a signed-out visitor to sign in and fetches nothing", async () => {
+  it("signs a visitor back into this job and fetches nothing while signed out", async () => {
     auth.currentUser = null;
     render(<CompanyJob />);
     expect(await screen.findByRole("heading", { name: "Sign in to see this job" })).toBeInTheDocument();
+    const main = within(screen.getByRole("main"));
+    const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
+    expect(main.getByRole("link", { name: "Sign in to this job" })).toHaveAttribute("href", signInHref);
+    expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
+    expect(main.getByRole("link", { name: "Apply as a deployment company" })).toHaveAttribute("href", "/partners#partner-application");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

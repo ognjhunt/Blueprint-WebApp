@@ -73,6 +73,18 @@ describe("Minimal sign in", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     expect(sessionStorage.getItem("redirectAfterAuth")).toBe("/app/results/capture-run-123");
   });
+  it("keeps the emailed company job path for sign-in", async () => {
+    window.history.replaceState({}, "", "/sign-in?next=%2Fjobs%2Fcapture-run-123");
+    render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
+    expect(sessionStorage.getItem("redirectAfterAuth")).toBe("/jobs/capture-run-123");
+  });
+  it("rejects a company job path with a trailing newline", async () => {
+    window.history.replaceState({}, "", "/sign-in?next=%2Fjobs%2Fcapture-run-123%0A");
+    render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
+    expect(sessionStorage.getItem("redirectAfterAuth")).toBeNull();
+  });
   it("rejects an external sign-in return path", async () => {
     window.history.replaceState({}, "", "/sign-in?next=https%3A%2F%2Foutside.example");
     render(<Login />);
@@ -88,6 +100,16 @@ describe("Minimal sign in", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
     expect(await screen.findByRole("button", { name: "Copy result link" })).toBeInTheDocument();
     expect(screen.getByLabelText("Result link to open in Safari")).toHaveValue(`${window.location.origin}/app/results/capture-run-123`);
+  });
+  it("offers the company job link when a browser blocks the popup", async () => {
+    window.history.replaceState({}, "", "/sign-in?next=%2Fjobs%2Fjob-1");
+    signInWithGoogle.mockRejectedValueOnce(Object.assign(new Error("Google sign-in was blocked here."), { code: "auth/popup-blocked" }));
+    render(<Login />);
+    const google = screen.getByRole("button", { name: "Continue with Google" });
+    await waitFor(() => expect(google).toBeEnabled());
+    fireEvent.click(google);
+    expect(await screen.findByRole("button", { name: "Copy job link" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Job link to open in Safari")).toHaveValue(`${window.location.origin}/jobs/job-1`);
   });
   it("shows an accessible generic error after credential rejection and retains input", async () => {
     signIn.mockRejectedValueOnce(new Error("auth/user-not-found"));

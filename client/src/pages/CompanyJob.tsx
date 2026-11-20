@@ -4,6 +4,7 @@ import type { User } from "firebase/auth";
 import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { withCsrfHeader } from "@/lib/csrf";
+import { companyJobSignInHref } from "@/lib/authReturnPath";
 import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
 import { JobCardAnswer } from "@/components/site/JobCardAnswer";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
@@ -40,12 +41,13 @@ function dateInWords(value: string): string {
  * prevent it).
  */
 export default function CompanyJob() {
+  const { jobId = "" } = useParams();
+  const signInHref = companyJobSignInHref(jobId);
   // The bare route shell with the minimal public frame (paper), as the job library's own page has.
-  return <MinimalSiteLayout><CompanyJobBody /></MinimalSiteLayout>;
+  return <MinimalSiteLayout signInHref={signInHref}><CompanyJobBody jobId={jobId} signInHref={signInHref} /></MinimalSiteLayout>;
 }
 
-function CompanyJobBody() {
-  const { jobId = "" } = useParams();
+function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: string }) {
   const auth = useOptionalAuth();
   const user = auth?.currentUser ?? null;
   const [state, setState] = useState<"loading" | "ready" | "missing" | "signed_out" | "error" | "terms">("loading");
@@ -74,7 +76,9 @@ function CompanyJobBody() {
   if (state === "loading") return <div className="ms-page"><p role="status">Loading…</p></div>;
   if (state === "terms" && user) return <div className="ms-page"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
   if (state === "signed_out") return <div className="ms-page"><h1>Sign in to see this job</h1>
-    <p>Jobs are shown to deployment companies Blueprint has approved. <a href="/contact/robot-team">Sign in or apply</a>.</p></div>;
+    <p>Blueprint shares jobs with deployment companies it has approved.</p>
+    <p><a className="ms-button" href={signInHref}>Sign in to this job</a></p>
+    <p><a href="/partners#partner-application">Apply as a deployment company</a></p></div>;
   if (state === "missing") return <div className="ms-page"><h1>This job is not available</h1>
     <p>It may no longer be shared, or your account may not be approved. <a href={JOB_LIBRARY_URL}>Back to the job library</a></p></div>;
   if (state === "error" || !page) return <div className="ms-page"><div role="alert"><p>This job could not be loaded.</p>
