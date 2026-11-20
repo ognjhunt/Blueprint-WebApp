@@ -1586,7 +1586,9 @@ describe("the site's answer leads its job page", () => {
     expect(screen.queryByText(/Your video is saved|Video received\.|Planning details/)).toBeNull();
   });
 
-  it("shows no early trial on the job page, and reads the workspace's workflow once", async () => {
+  // The early trial was dropped (2026-11-14): even with a trial run on record, the page never reads one, and the scene's
+  // line about the pick still comes from the robot fit alone.
+  it("shows no early trial on the job page, and never reads the trial's runs", async () => {
     setUserAgent(DESKTOP_UA);
     const fetchMock = answerFetch({ answer: readyAnswer, workflow: jobWorkflow([winnerEvaluation]) });
     vi.stubGlobal("fetch", fetchMock);
@@ -1603,7 +1605,7 @@ describe("the site's answer leads its job page", () => {
     window.history.replaceState(null, "", "/capture-upload/test");
     expect(document.body.textContent).not.toMatch(/early trial|openly available/i);
     const reads = fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/job-workflow/owner/"));
-    expect(reads).toHaveLength(1);
+    expect(reads).toHaveLength(0);
   });
 
   it("shows no early trial for an older job with no answer", async () => {

@@ -337,8 +337,8 @@ describe("the details screens", () => {
     { ...readyAnswer.pick!.checks[0], need: "about 0.9–1.2 m", has: "1.3 m", text: `${readyAnswer.pick!.checks[0].text} This is a tight fit.` },
     { ...readyAnswer.pick!.checks[1], need: "about 9–12 kg", has: "12.5 kg" }] } };
   const words = (text: string | null) => (text?.match(/[^\s]+/g) ?? []).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
-  const detail = (screen: DetailScreen, answer = withFigures, proof: Parameters<typeof SiteAnswerDetail>[0]["proof"] = winnerProof) =>
-    render(<SiteAnswerDetail answer={answer} proof={proof} screen={screen} onBack={vi.fn()} />);
+  const detail = (screen: DetailScreen, answer = withFigures, robotCheck: Parameters<typeof SiteAnswerDetail>[0]["robotCheck"] = winnerProof.robotCheck) =>
+    render(<SiteAnswerDetail answer={answer} robotCheck={robotCheck} screen={screen} onBack={vi.fn()} />);
 
   it("is a short menu of small screens, each only when it has something to say", () => {
     const onOpen = vi.fn(), onBack = vi.fn();
