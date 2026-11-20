@@ -44,7 +44,7 @@ describe("public task disclosure", () => {
   it("publishes only the closed category of the job, with no contact, intake, storage, footage or stored free text", () => {
     const card = projectTaskBrowseCard("req1", record());
     // The stored title is free text, so the card shows the neutral category (2026-11-12: never trust stored text).
-    expect(card).toMatchObject({ title: "Work assessment opportunity", opportunity: "open", evaluationAvailable: true, stage: "ready" });
+    expect(card).toMatchObject({ title: "Job opportunity", opportunity: "open", evaluationAvailable: true, stage: "ready" });
     expect(card).not.toHaveProperty("costUsd");
     expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs|Move cartons|US Midwest|Warehouse|Sealed cartons/);
   });

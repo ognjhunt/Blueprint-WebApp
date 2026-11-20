@@ -31,8 +31,8 @@ const BANNED = /episode|candidate|screening|embodiment|checkpoint|payload|anonym
 const YOUR_ANSWER = /Your answer/;
 const FIND = "Share my job";
 /** The recorded statement, word for word: the share step's own words around it changed, it did not. */
-/** The job page's one limits line, in every state. */
-const LIMITS = "Nothing here is a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/** The job page's one limits line, in every state: what the first look checks, never that only that kind of job is taken. */
+const LIMITS = "Nothing here is a test at your site. The first look checks only picking up and putting down. It does not certify performance or safety.";
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
 const SOURCE = "From published specifications and where it has been used.";
 const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";

@@ -47,7 +47,9 @@ describe("Blueprint's answer on a job card", () => {
     expect(block).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(block).getByText(ANSWER.confidence.reason!)).toBeVisible();
     expect(within(block).getByText(JOB_CARD_LIMITS)).toBeVisible();
-    expect(JOB_CARD_LIMITS).toBe("A first look on paper, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.");
+    // It says what the first look checks, never that only that kind of job is taken: no job is refused by its kind.
+    expect(JOB_CARD_LIMITS).toBe("A first look on paper, not a test at the site. It checks only picking up and putting down. It does not certify performance or safety.");
+    expect(block).not.toHaveTextContent(/jobs only/i);
     expect(container.textContent).not.toMatch(/Yaskawa|1\.75 m|source|The UR20 palletizes here/);
   });
 

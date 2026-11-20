@@ -16,5 +16,11 @@ describe("the deployment company approval email", () => {
     expect(email.body).not.toMatch(/summar/i);
     expect(email.body).toContain("Approval does not guarantee a job, an introduction, or a deployment. Nothing is charged today.");
     expect(email.body).not.toMatch(/workspace|want to test at|new-job alerts|in Settings|evaluation|\$\s?\d/i);
+    // The doctrine's words: an approved deployment company, never a "team" invited to a "beta" (journey audit, 2026-11-20).
+    expect(email.subject).toBe("Your company is approved to see jobs on Blueprint");
+    expect(email.body).toContain(source === "invite"
+      ? "Following our conversation, your company is approved as a deployment company on Blueprint."
+      : "Your company is approved as a deployment company on Blueprint.");
+    expect(`${email.subject}\n${email.body}`).not.toMatch(/\bbeta\b|your team/i);
   });
 });

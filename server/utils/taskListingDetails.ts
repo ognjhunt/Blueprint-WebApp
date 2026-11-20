@@ -51,6 +51,18 @@ export const JOB_SHARED_LISTING_VERSION = "job-shared-2026-11-12";
 /** Every category draft `anonymizedOpportunityDraft` can produce: the only details a shared listing is ever shown with. */
 const CATEGORY_DRAFTS: readonly TaskListingDetails[] = ["dish", "pallet carton", "pallet", "pack", "inspect", "pick", ""]
   .map(phrase => anonymizedOpportunityDraft(phrase));
+/** The neutral category: the listing of a job whose sentence, when it was shared, named no category (or had none). */
+const NEUTRAL_DRAFT = anonymizedOpportunityDraft("");
+
+/**
+ * The listing's category as companies see it. A job shared before its site typed a sentence (one started with a video
+ * alone) holds the neutral category; once the site's sentence exists, the category is read from that sentence as it
+ * stands now. Only a closed category is ever returned (`anonymizedOpportunityDraft`), never the sentence's words.
+ */
+export function listingDetailsForSentence(details: TaskListingDetails, sentence: string | null | undefined): TaskListingDetails {
+  return details.title === NEUTRAL_DRAFT.title && typeof sentence === "string" && sentence.trim()
+    ? anonymizedOpportunityDraft(sentence) : details;
+}
 /** Every listing version a card may be listed under: only the current one. */
 export const LISTING_CONSENT_VERSIONS: readonly string[] = [JOB_SHARED_LISTING_VERSION];
 
@@ -64,6 +76,6 @@ export function sharedJobListing(record: unknown): { details: TaskListingDetails
       || typeof grant.approvedAtIso !== "string" || !Number.isFinite(Date.parse(grant.approvedAtIso))) return null;
   // Never trust stored text: the details are rebuilt from the closed category the stored title names, else the neutral one.
   const title = (grant.details as { title?: unknown } | undefined)?.title;
-  return { details: CATEGORY_DRAFTS.find(draft => draft.title === title) ?? anonymizedOpportunityDraft(""),
+  return { details: CATEGORY_DRAFTS.find(draft => draft.title === title) ?? NEUTRAL_DRAFT,
     approvedAtIso: grant.approvedAtIso };
 }
