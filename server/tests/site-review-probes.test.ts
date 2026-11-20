@@ -50,9 +50,9 @@ describe("P1 (M1): 'Your job is posted' follows the whole rule", () => {
 describe("P2 (M2): the site's 'Meet {company}' email never claims an answer it was not given", () => {
   it("says the stored answer's label, or no answer", () => {
     expect(introductionMadeSiteCopy({ name: "Robo Co", contactName: "Casey", email: "c@robo.example" }, "https://x/job", "Tested it: can do").body)
-      .toContain("Robo Co answered Tested it: can do about your job");
+      .toContain('Robo Co answered "Tested it: can do" about your job');
     expect(introductionMadeSiteCopy({ name: "Robo Co", contactName: "Casey", email: "c@robo.example" }, "https://x/job").body)
-      .not.toContain("answered Interested");
+      .not.toMatch(/answered "?Interested/);
   });
 });
 
