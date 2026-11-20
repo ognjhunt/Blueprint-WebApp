@@ -51,7 +51,7 @@ describe("account deletion request boundary", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     const payload = await response.json();
     expect(payload.request).toMatchObject({ id: accountDeletionId("owner-user"), status: "requested" });
-    expect(payload.request.message).toContain("does not confirm deletion");
+    expect(payload.request.message).toContain("Nothing is deleted yet");
     expect(payload.request).not.toHaveProperty("accountUid"); expect(payload.request).not.toHaveProperty("accountEmail");
     expect(state.docs.get(`accountDeletionRequests/${payload.request.id}`)).toMatchObject({ accountUid: "owner-user", accountEmail: "owner@example.com" });
   });
@@ -80,6 +80,6 @@ describe("account deletion request boundary", () => {
     const saved = structuredClone(state.docs.get(`accountDeletionRequests/${request.id}`));
     await post({}, "staff", `/admin/${request.id}/review`);
     expect(state.docs.get(`accountDeletionRequests/${request.id}`)).toEqual(saved);
-    expect((await (await fetch(base, { headers: headers() })).json()).request.message).toContain("does not confirm deletion");
+    expect((await (await fetch(base, { headers: headers() })).json()).request.message).toContain("Nothing is deleted yet");
   });
 });

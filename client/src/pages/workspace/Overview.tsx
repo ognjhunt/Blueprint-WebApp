@@ -41,7 +41,7 @@ export function TaskRows({ tasks, request }: {
               {task.location ? ` · ${task.location}` : ""}
             </p>
             {task.recordingPermissionWithdrawn ? (
-              <p><Tag>Recording permission withdrawn</Tag></p>
+              <p><Tag>Video withdrawn</Tag></p>
             ) : null}
             {error?.id === task.id ? <p role="alert">{error.message}</p> : null}
           </div>

@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react";
+import { openCookieSettings } from "@/components/CookieConsent";
 import { RobotScene } from "@/components/site/RobotScene";
 
 export function AuthLayout({ children, wide = false }: PropsWithChildren<{ wide?: boolean }>) {
@@ -16,7 +17,7 @@ export function AuthLayout({ children, wide = false }: PropsWithChildren<{ wide?
           <span>Illustrative scene</span>
         </aside>
       </div>
-      <footer className="auth-footer"><span>© {new Date().getFullYear()} Blueprint Robotics, Inc.</span><nav aria-label="Legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav></footer>
+      <footer className="auth-footer"><span>© {new Date().getFullYear()} Blueprint Robotics, Inc.</span><nav aria-label="Legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><button type="button" onClick={openCookieSettings}>Cookie settings</button></nav></footer>
     </div>
   );
 }

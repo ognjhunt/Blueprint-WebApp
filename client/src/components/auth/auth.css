@@ -11,6 +11,7 @@
 .auth-footer { border-top: 1px solid #d7dbd0; padding-block: 21px; display: flex; align-items: center; justify-content: space-between; gap: 24px; font-size: 11px; color: var(--ms-muted); }
 .auth-footer nav { display: flex; gap: 24px; }
 .auth-footer a { padding-block: 12px; }
+.auth-footer button { padding-block: 12px; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
 .auth-google, .auth-primary { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 52px; border-radius: 3px; padding: 13px 20px; font: inherit; font-size: 15px; font-weight: 500; transition: background 160ms ease; }
 .auth-google { margin-top: 32px; border: 1px solid #bac0b2; background: transparent; color: var(--ms-ink); }
 .auth-google:hover { background: #edf0e6; }

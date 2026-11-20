@@ -126,7 +126,7 @@ describe("the company's page for one job", () => {
     const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
     expect(main.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
     expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
-    expect(main.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/partners?next=%2Fjobs%2Fjob-1#partner-application");
+    expect(main.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -152,7 +152,7 @@ describe("the company's page for one job", () => {
     render(<CompanyJob />);
     expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
     expect(screen.getByText(/Only approved deployment companies can see jobs\./)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/partners?next=%2Fjobs%2Fjob-1#partner-application");
+    expect(screen.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
   });
 
   it("shows a conditional first-look row and the count of the rest, from the shared first look", async () => {
