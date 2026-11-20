@@ -14,7 +14,7 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async (_u
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 vi.mock("wouter", () => ({ useParams: () => ({ jobId: "job-1" }) }));
 
-const { default: CompanyJob, SITE_ANSWERS_HINT } = await import("@/pages/CompanyJob");
+const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK } = await import("@/pages/CompanyJob");
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
@@ -116,6 +116,7 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("Need a video to decide? Choose Need more details.")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Need more details/ })).toBeInTheDocument();
     expect(screen.getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
+    expect(screen.getByText(NO_FIRST_LOOK)).toBeInTheDocument();
   });
 
   it("signs a visitor back into this job and fetches nothing while signed out", async () => {
@@ -163,6 +164,8 @@ describe("the company's page for one job", () => {
     expect(await screen.findByText("Fits if the item weighs under 11.6 kg.")).toBeInTheDocument();
     expect(screen.getByText("Universal Robots UR10e:")).toBeInTheDocument();
     expect(screen.getByText("And 27 more.")).toBeInTheDocument();
+    // Rows of robots on paper are a first look: the page does not also say the first look is not ready.
+    expect(screen.queryByText(NO_FIRST_LOOK)).not.toBeInTheDocument();
   });
 
   it("offers a separate simulation result action once the job has a simulation package", async () => {
