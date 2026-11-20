@@ -171,7 +171,9 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
           {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
             <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
           {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
-          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} /> : <p>{NO_FIRST_LOOK}</p>}
+          {/* "Not ready" only when nothing at all is shown: rows of robots on paper are a first look already. */}
+          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} />
+            : page.firstLookRows.length === 0 ? <p>{NO_FIRST_LOOK}</p> : null}
         </section>
 
         <section aria-label="Simulation of the site">

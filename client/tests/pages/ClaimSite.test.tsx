@@ -96,8 +96,10 @@ describe("ClaimSite", () => {
     render(<ClaimSite />);
 
     expect(await screen.findByRole("heading", { name: "This link doesn't work." })).toBeInTheDocument();
-    expect(screen.getByText(/This link has expired or is not valid\. For a new one, open your job page and choose Job settings › Save to my account/))
+    expect(screen.getByText(/It may have expired\. For a new one, open your job page and choose Job settings › Save to my account/))
       .toBeInTheDocument();
+    // The heading says the link doesn't work; the line under it does not say so again.
+    expect(screen.queryByText(/This link has expired or is not valid/)).not.toBeInTheDocument();
     expect(screen.queryByText(/workspace/i)).not.toBeInTheDocument();
   });
 

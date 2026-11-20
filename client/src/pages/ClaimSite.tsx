@@ -65,6 +65,8 @@ function accountContext(summary: ClaimSummary) {
 const verificationActionUrl = claimVerificationUrl;
 
 const LOAD_ERROR_MESSAGE = "Check your connection and try again.";
+/** The server's and our own words for a refused link: under "This link doesn't work." they are said more briefly. */
+const INVALID_LINK = "This link has expired or is not valid.";
 
 /**
  * A refused link (4xx) cannot work, whatever the reason; a server failure (5xx) says nothing about the link, so it gets
@@ -72,7 +74,7 @@ const LOAD_ERROR_MESSAGE = "Check your connection and try again.";
  */
 function refusedStage(status: number, error: string | undefined): Stage {
   if (status >= 500) return { status: "load-error", message: error || "Please try again." };
-  return { status: "invalid", message: error || "This link has expired or is not valid." };
+  return { status: "invalid", message: error || INVALID_LINK };
 }
 
 /** Set by the verification email the brief confirmation sends. */
@@ -282,7 +284,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
       <Shell>
         <h1>This link doesn't work.</h1>
         <p className="ms-field-hint">
-          {stage.message} For a new one, open your job page and choose Job settings › Save to my account, or write to
+          {stage.message === INVALID_LINK ? "It may have expired." : stage.message} For a new one, open your job page and choose Job settings › Save to my account, or write to
           hello@tryblueprint.io.
         </p>
       </Shell>
