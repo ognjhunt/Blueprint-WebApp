@@ -100,7 +100,7 @@ import { createSiteClaimToken } from "../utils/request-review-auth";
 import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
-import { emailGreeting } from "../utils/emailLayout";
+import { CUSTOMER_JOB_EMAIL_IDENTITY, emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 import { taskStatementNeeded } from "../utils/jobSentenceWait";
@@ -919,7 +919,8 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
         "Here is a fresh private link to your job. It opens your job without a password, so please don't forward it.",
         `Open your job:\n${captureUploadUrlFor(requestId, "owner")}`,
       ].join("\n\n"),
-      replyTo: "ops@tryblueprint.io",
+      // The same reply address as every other email to a site (hello@), not the operators' inbox.
+      replyTo: CUSTOMER_JOB_EMAIL_IDENTITY.replyTo,
     });
     void deliverOutbox({ limit: 5 }).catch(() => undefined);
   } catch (error) {

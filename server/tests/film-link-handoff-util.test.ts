@@ -72,6 +72,8 @@ describe("sending composes a film-scoped link and reports honestly", () => {
     expect(result.filmUrl).toMatch(/\/capture-upload\//);
     const text = (sendEmailMock.mock.calls[0][0] as { text: string }).text;
     expect(text).toContain(result.filmUrl);
+    // Replies go where every other email to a site sends them (journey audit, 2026-11-20), not to ops@.
+    expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ replyTo: "hello@tryblueprint.io" });
     // Says what opens: the browser recorder, on every phone. No capture app is in use (owner, 2026-11-11), so
     // nothing promises a Blueprint camera that the link never opens.
     expect(text).toContain("Open this link on your phone. The recorder opens in your browser. No account is needed");
