@@ -43,8 +43,8 @@ describe("site-content route", () => {
       expect(payload.definitions).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            term: "Task Evaluation Run",
-            definition: expect.stringContaining("one customer-facing service"),
+            term: "Job packet",
+            definition: expect.stringContaining("Blueprint's one service for a site"),
           }),
           expect.objectContaining({
             term: "Decision/Evidence Request",

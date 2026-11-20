@@ -6,12 +6,12 @@ Owner direction, 2026-11-12: a site films a job once. Blueprint turns the
 video into a job packet that any robot deployment company can evaluate without
 visiting, sends it to deployment companies Blueprint has approved, and tells
 the site who will take the job and on what evidence. The simulation of the
-site is a means, not the product; Blueprint's own test of openly available
-robot software is an early trial inside the packet, not the site's answer.
+site is a means, not the product; Blueprint runs no robot software in the
+simulation (the owner dropped the early trial on 2026-11-14).
 Sharing is the service: a site agrees once, when it sends a job, that Blueprint
 shares the job with the deployment companies it has approved, and there is no
-share button, no share setting and no pause. The website change for this is in
-build. The site pays nothing. Deployment companies will pay; how is not
+share button, no share setting and no pause. The website works this way. The
+site pays nothing. Deployment companies will pay; how is not
 decided, and no price is stated anywhere. The only hard stops are privacy, rights and money; everything else is flagged and
 keeps going.
 
@@ -26,7 +26,7 @@ Website notes:
 - Say **job** to customers; keep **task** for the technical robot action and
   its contract.
 - Say **deployment company**, **job packet**, **first look**, **simulation of
-  your site**, **early trial** and **responses**.
+  your site** and **responses**.
 - Public figures come with their source and grade in
   `client/src/data/deploymentMarket.ts`; a figure without a source is dropped.
 - Illustrations show example robots of any form; they never imply a completed
