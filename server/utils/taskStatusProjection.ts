@@ -303,8 +303,6 @@ interface TaskStatusInput {
   jobNoGrantWaitingOn?: "site" | "blueprint";
   /** With `jobNoGrantWaitingOn`: why the sweep ended it early (`websiteJobWorkWindow.noGrantReason`). */
   jobNoGrantReason?: "video_over_ingest_limit";
-  /** False when no automated footage review runs, so a person reviews it. */
-  footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   /** Verified, current-capture visual output only; never runnable or evaluated. */
   visualReconstructionReady?: boolean;
@@ -803,11 +801,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "footage_received",
-      // Only claim an automated check that runs. With the footage review lane
-      // off, a person reviews it, and that is what the site is told.
-      headline: input.footageReviewAutomated === false
-        ? "We have your recording. Our team reviews it and emails you with the next step."
-        : "We have your video. Nothing is needed from you now.",
+      // The same words whether or not the footage reader runs: with it off the job still goes on without the site,
+      // and no person is set to email the site (journey audit, 2026-11-20).
+      headline: "We have your video. Nothing is needed from you now.",
       operatorAction: null,
     };
   }
@@ -854,7 +850,6 @@ export function taskStatusInputFrom(record: {
   /** `websiteJobWorkWindow(record)`, when the caller read it. */
   jobWorkWindow?: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean;
     noGrantWaitingOn?: "site" | "blueprint"; noGrantReason?: "video_over_ingest_limit" } | null;
-  footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   visualReconstructionReady?: boolean;
   scenePreparationFailed?: boolean;
@@ -895,7 +890,6 @@ export function taskStatusInputFrom(record: {
         ? { jobNoGrantWaitingOn: record.jobWorkWindow.noGrantWaitingOn,
           ...(record.jobWorkWindow.noGrantReason === "video_over_ingest_limit"
             ? { jobNoGrantReason: "video_over_ingest_limit" as const } : {}) } : {}) } : {}),
-    ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     ...(record.siteNamedTask ? { siteNamedTask: true } : {}),
     visualReconstructionReady: record.visualReconstructionReady === true,
