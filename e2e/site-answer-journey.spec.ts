@@ -214,28 +214,37 @@ test.describe("desktop", () => {
     const companyContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const companySaw: string[] = [];
     await localOnly(companyContext, missing);
+    // The Firebase browser SDK uses this default for its own profile reads and writes during sign-in.
+    await companyContext.addInitScript(() => {
+      Object.assign(globalThis, { __FIREBASE_DEFAULTS__: { emulatorHosts: { firestore: "127.0.0.1:8080" } } });
+    });
     companyContext.on("response", async response => {
       if (new URL(response.url()).origin !== ORIGIN || !new URL(response.url()).pathname.startsWith("/api/")) return;
       if (/^(video|image)\//.test(response.headers()["content-type"] ?? "")) return;
       companySaw.push(await response.text().catch(() => ""));
     });
     const companyPage = await companyContext.newPage();
-    await companyPage.goto("/login", { waitUntil: "networkidle" });
+    const companyJobPath = `/jobs/${requestId}`;
+    const companyJobLink = new URL(companyJobPath, ORIGIN).href;
+    await companyPage.goto(companyJobPath);
+    await expect(companyPage.getByRole("heading", { name: "Sign in to see this job" })).toBeVisible();
+    await expect(companyPage.locator("body")).not.toContainText("Pick up the sealed carton");
+    const signInLink = companyPage.getByRole("link", { name: "Sign in to this job" });
+    const signInPath = `/sign-in?next=${encodeURIComponent(companyJobPath)}`;
+    await expect(signInLink).toHaveAttribute("href", signInPath);
+    await expect(companyPage.getByRole("navigation", { name: "Account" }).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInPath);
+    await signInLink.click();
+    await expect(companyPage).toHaveURL(new URL(signInPath, ORIGIN).href);
     await companyPage.locator("#email").fill(company.email);
     await companyPage.locator("#password").fill(company.password);
-    // The sign-in is answered by the Auth emulator; the page's own profile reads after it are not part of this journey.
     const signedIn = companyPage.waitForResponse(response => response.url().includes("accounts:signInWithPassword"));
-    const lookedUp = companyPage.waitForResponse(response => response.url().includes("accounts:lookup"));
-    await companyPage.getByRole("button", { name: /^Sign in/ }).click();
+    await companyPage.getByRole("button", { name: "Sign in", exact: true }).click();
     expect((await signedIn).status()).toBe(200);
-    expect((await lookedUp).status()).toBe(200);
 
-    // The job page asks for the current Terms first, and shows nothing of the job until they are accepted.
-    // (The session is persisted by the Firebase client a moment after its sign-in response.)
-    await expect(async () => {
-      await companyPage.goto(`/jobs/${requestId}`);
-      await expect(companyPage.getByText("Before you see jobs, read and agree to our Terms and Privacy Policy.")).toBeVisible({ timeout: 5_000 });
-    }).toPass({ timeout: 60_000 });
+    // Sign-in returns to the original job, where the current Terms still have to be accepted.
+    await expect(companyPage).toHaveURL(companyJobLink, { timeout: 30_000 });
+    await expect(companyPage.getByText("Before you see jobs, read and agree to our Terms and Privacy Policy.")).toBeVisible();
+    await expect(companyPage.getByRole("link", { name: "Sign in", exact: true })).toHaveCount(0);
     await expect(companyPage.locator("body")).not.toContainText("Pick up the sealed carton");
     // The acceptance must be recorded before the sweep below: the automatic send goes only to a company that has accepted.
     const accepted = companyPage.waitForResponse(response =>
@@ -251,6 +260,7 @@ test.describe("desktop", () => {
     const afterSend = await outbox(request, requestId);
     const newJob = afterSend.filter(row => row.kind === "robot_team_new_task");
     expect(newJob.map(row => row.to)).toEqual([company.email]);
+    expect(newJob[0].body).toContain(companyJobLink);
 
     // The company sees the job in its library and on the job's page, under no site name, address or contact.
     await companyPage.goto("/contact/robot-team");
