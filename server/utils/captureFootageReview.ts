@@ -159,6 +159,16 @@ function toMillis(value: unknown): number | null {
 }
 
 /**
+ * When a run started. Most runs saved before 2026-11-20 hold `started_at` and
+ * `created_at` as `{}`; a run with a cost record keeps its start time there.
+ */
+function runStartedAtMs(run: Record<string, unknown>): number {
+  const recorded = (run.metadata as { cost_telemetry?: { created_at_ms?: unknown } } | null | undefined)?.cost_telemetry?.created_at_ms;
+  return toMillis(run.started_at) ?? toMillis(run.created_at)
+    ?? (typeof recorded === "number" && Number.isFinite(recorded) ? recorded : 0);
+}
+
+/**
  * The newest footage review this capture already has, if it is still worth
  * waiting for or already answered.
  *
@@ -177,7 +187,7 @@ export async function findPriorFootageReview(
   for (const doc of snapshot.docs) {
     const run = doc.data() as Record<string, unknown>;
     if (run.task_kind !== "site_video_evidence") continue;
-    const at = toMillis(run.started_at) ?? toMillis(run.created_at) ?? 0;
+    const at = runStartedAtMs(run);
     if (!latest || at > latest.at) latest = { id: doc.id, at, run };
   }
   if (!latest) return { state: "none" };
