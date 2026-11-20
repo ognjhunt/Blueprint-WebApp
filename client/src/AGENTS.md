@@ -32,10 +32,6 @@ Public copy:
   no share setting and no pause. A job under an older statement is not shown to
   any company until its site accepts the current one. A site's name, street
   address and contact details are never shared without asking the site first.
-- The screens do not say this yet: they still have a share step and the older
-  statements. That change is in build, with new statement versions; until it
-  ships, no copy may say a company sees a site's video or simulation, because
-  no site has accepted `2026-11-12.v4`.
 - A simulation never certifies physical performance or safety.
 - Do not edit Terms, Privacy, their previous versions or any recorded consent
   statement: they record what a person agreed to and change only with a new

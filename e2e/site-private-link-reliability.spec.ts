@@ -157,7 +157,7 @@ test("the owner confirms how success is judged, in plain words, with no number t
   await expect(section.getByLabel("The goal area is in the wrong place")).toBeVisible();
   await page.screenshot({ path: info.outputPath("success-thresholds-proposed.png"), fullPage: true });
   await section.getByRole("button", { name: "Use these goals" }).click();
-  await expect(section.getByText("You confirmed these goals. Blueprint scores robot candidates against them.")).toBeVisible();
+  await expect(section.getByText("You confirmed these goals.")).toBeVisible();
   expect(decisions).toEqual([{ proposalDigest, decision: "confirm" }]);
   await page.screenshot({ path: info.outputPath("success-thresholds-confirmed.png"), fullPage: true });
 });

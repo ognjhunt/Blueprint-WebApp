@@ -25,6 +25,9 @@ describe("SuccessThresholds", () => {
     expect(screen.getByRole("heading", { name: "How success is judged" })).toBeTruthy();
     expect(screen.getByText(/a circle 30 cm across/)).toBeTruthy();
     expect(screen.getByText(/Nothing was measured at your site/)).toBeTruthy();
+    // The goals are the success rule companies get with the simulation; Blueprint tests no robot against them.
+    expect(screen.getByText(/These goals are your job's success rule: what counts as done in the simulation of your site\./)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/robot it tests|scores robot/i);
     expect(screen.getByText("You can confirm these goals, or tell us what is wrong.")).toBeTruthy();
     // Nothing to edit: no number inputs, and the technical values stay folded.
     expect(screen.queryByRole("spinbutton")).toBeNull();
@@ -62,7 +65,7 @@ describe("SuccessThresholds", () => {
     expect((await screen.findByRole("alert")).textContent).toMatch(/goals have changed/);
     rerender(<SuccessThresholds token="tok"
       view={{ ...view, decision: { kind: "confirmed", reason: null, decidedAt: "2026-11-03T18:00:00.000Z" } }} onDecided={vi.fn()} />);
-    expect(screen.getByRole("status").textContent).toBe("You confirmed these goals. Blueprint scores robot candidates against them.");
+    expect(screen.getByRole("status").textContent).toBe("You confirmed these goals.");
     expect(screen.queryByRole("button", { name: "Use these goals" })).toBeNull();
   });
 

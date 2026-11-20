@@ -70,10 +70,8 @@ function openLibraryLine(library: Library | undefined) {
 function libraryLine(library: Library | undefined) {
   if (!library) return null;
   const listed = library.listedTaskCount === null ? "The task library could not be read" : `${library.listedTaskCount} site task${library.listedTaskCount === 1 ? "" : "s"} listed`;
-  if (library.autoApproveMinimumTasks === null) return `${listed}. Auto-approval is off; every application is decided here.`;
-  return library.listedTaskCount !== null && library.listedTaskCount >= library.autoApproveMinimumTasks
-    ? `${listed}. Clear fits (work email, website on the same domain) are approved automatically; the rest wait here.`
-    : `${listed}. Auto-approval starts at ${library.autoApproveMinimumTasks}; until then every application is decided here and each team gets a personal reply.`;
+  // No application is approved automatically: the server's `autoApproveMinimumTasks()` is always null.
+  return `${listed}. No application is approved automatically; each is decided here.`;
 }
 
 /**

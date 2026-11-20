@@ -502,7 +502,7 @@ describe("the automatic send (E4)", () => {
     const alerts = outbox().filter(row => row.kind === "robot_team_new_task");
     expect(alerts.map(row => row.to).sort()).toEqual([NORTH, SOUTH, EAST, WEST].map(record => record.email).sort());
     expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint" });
-    expect(alerts[0].body).toMatch(/^A site is looking for a deployment company for one of its jobs\. See the job and answer in a minute: interested, not a fit, or would need something\.\n\nhttps:\/\/\S+\/jobs\/req-e2\n/);
+    expect(alerts[0].body).toMatch(/^A site is looking for a deployment company for one of its jobs\. See the job and answer in a minute: Interested, Not a fit or Would need something; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet\.\n\nhttps:\/\/\S+\/jobs\/req-e2\n/);
     expect(alerts[0].body).toMatch(/Unsubscribe from optional updates emails: /);
     expectNoSiteIn("the new-job emails", JSON.stringify(alerts));
     // The site's one email.
