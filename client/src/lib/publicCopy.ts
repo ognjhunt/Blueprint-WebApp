@@ -51,7 +51,7 @@ export const HOME_SEO_DESCRIPTION = `${HOME_SUB_LINE} See responses and choose w
  */
 export const EXAMPLE_TAG = "Example job";
 export const HOW_SEO_DESCRIPTION = HOME_SEO_DESCRIPTION;
-export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, how fast we reply, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
+export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, what happens after it sends a job, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
 export const START_SEO_DESCRIPTION = "Upload a video of a repetitive job, or start now and film it on your phone. Free for sites.";
 export const PARTNERS_SEO_DESCRIPTION = "Apply to review real robotics jobs with site videos and details. When a site asks to meet, Blueprint introduces you.";
 export const ROBOT_TEAM_SEO_DESCRIPTION = "Approved robot deployment companies can browse site jobs, watch videos and respond.";
