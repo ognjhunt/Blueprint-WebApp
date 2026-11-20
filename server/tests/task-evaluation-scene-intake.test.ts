@@ -2223,6 +2223,29 @@ it("releases the unused image-edit quote only after every covered request comple
   expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
 });
 
+it("settles a Gemini call at its reported usage, one request, never above its quote (2026-11-20)", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, google: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("7"),
+    resource_class: "evaluator_api" as const, provider: "google" as const, maximum_cost_usd: 0.12, request_count: 1 };
+  await reserveWebsitePreparationSpend("req1", spend);
+  const settlement = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("7"),
+    provider: "google" as const, completed_request_count: 1 as const, provider_charge_amount_usd: 0.004211,
+    usage_receipt_digest: sha("c") };
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, provider_charge_amount_usd: 0.13 }))
+    .rejects.toThrow("settlement_invalid");
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, task_context_digest: sha("b") }))
+    .rejects.toThrow("settlement_invalid");
+  expect(await settleWebsitePreparationSpend("req1", settlement)).toMatchObject({ status: "settled", actual_cost_usd: 0.004211 });
+  // The job's cap now counts the call at what it cost, not its quote.
+  const record = (await (dbAdmin as any).collection("inboundRequests").doc("req1").get()).data();
+  expect(record.website_preparation_reservations[sha("7").slice(7)].settlement.actual_cost_usd).toBe(0.004211);
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, provider_charge_amount_usd: 0.001 }))
+    .rejects.toThrow("idempotency_conflict");
+});
+
 it("cannot release a reservation using missing, mismatched or excessive provider billing", async () => {
   sponsoredCapture();
   const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);

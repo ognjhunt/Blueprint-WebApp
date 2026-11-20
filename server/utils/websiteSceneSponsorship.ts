@@ -705,6 +705,16 @@ const openaiImageSettlementRequest = z.object({
   provider_charge_amount_usd: z.number().finite().min(0).max(100),
   usage_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict();
+// A Gemini call is billed from the usage its answer reports. The Pipeline settles its one request at what that
+// usage costs at the quote's own rates (owner decision 2026-11-20, every paid call counted exactly on its job), never
+// above the quote; a call with no reported usage sends nothing and keeps its full hold.
+const googleUsageSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("google"), completed_request_count: z.literal(1),
+  provider_charge_amount_usd: z.number().finite().min(0).max(100),
+  usage_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict();
 // World Labs exposes no per-operation bill for Atlas. The Pipeline reports each
 // closed attempt's outcome from its retained provider record: a completed
 // operation settles at the reviewed price it was reserved at, and a failed
@@ -720,13 +730,14 @@ const atlasSettlementRequest = z.object({
   "website_atlas_settlement_operation_invalid");
 export const preparationSettlementRequest = z.union([
   completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, vastEstimatedSettlementRequest,
-  vastNoAllocationSettlementRequest, openaiImageSettlementRequest, atlasSettlementRequest,
+  vastNoAllocationSettlementRequest, openaiImageSettlementRequest, atlasSettlementRequest, googleUsageSettlementRequest,
 ]);
 type PreparationSettlement = z.infer<typeof preparationSettlementRequest>;
 
 /** The debit a settlement records against its reservation's quote. */
 export function preparationSettlementCost(command: PreparationSettlement, reservedMaximumUsd: number) {
-  if (command.provider === "vast" || command.provider === "openai") return command.provider_charge_amount_usd;
+  if (command.provider === "vast" || command.provider === "openai" || command.provider === "google")
+    return command.provider_charge_amount_usd;
   if (command.provider === "world_labs_atlas") return command.outcome === "completed" ? reservedMaximumUsd : 0;
   return "total_credits" in command ? command.total_credits / 1250 : 0;
 }
@@ -742,11 +753,12 @@ export async function settleWebsitePreparationSpend(requestId: string, input: z.
     const key = command.allocation_binding_digest.slice(7);
     const row = record?.website_preparation_reservations?.[key];
     const resourceClass = { vast: "gpu_render", openai: "openai_api_candidate", world_labs: "provider_reconstruction_api",
-      world_labs_atlas: "provider_reconstruction_api" }[command.provider];
+      world_labs_atlas: "provider_reconstruction_api", google: "evaluator_api" }[command.provider];
     if (!row || row.admission.provider !== command.provider
       || row.admission.resource_class !== resourceClass
       || row.admission.task_context_digest !== command.task_context_digest
-      || (command.provider === "openai" && command.completed_request_count !== row.admission.request_count))
+      || ((command.provider === "openai" || command.provider === "google")
+        && command.completed_request_count !== row.admission.request_count))
       throw new Error("website_scene_preparation_settlement_invalid");
     const actualCost = preparationSettlementCost(command, row.admission.maximum_cost_usd);
     if (!(actualCost <= row.admission.maximum_cost_usd)) throw new Error("website_scene_preparation_settlement_invalid");
