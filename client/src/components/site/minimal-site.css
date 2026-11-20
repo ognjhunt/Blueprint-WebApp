@@ -368,7 +368,7 @@
 .ms-pilot-contents a:hover { color: var(--ms-green); text-decoration: underline; }
 .ms-pilot-next { margin-top: 17px; border-top: 1px solid var(--ms-rule); }
 .ms-pilot-story { min-width: 0; }
-.ms-pilot-story section, #job-fit { scroll-margin-top: 32px; }
+.ms-pilot-story section { scroll-margin-top: 32px; }
 .ms-pilot-story h2 { margin-top: 13px; font-size: clamp(30px, 3.1vw, 43px); line-height: 1.15; letter-spacing: -.04em; }
 .ms-pilot-story h3 { margin-top: 12px; font-size: 29px; line-height: 1.25; letter-spacing: -.035em; }
 .ms-pilot-story section > p:not(.ms-eyebrow) { margin-top: 18px; color: var(--ms-muted); font-size: 16px; line-height: 1.75; max-width: 66ch; }

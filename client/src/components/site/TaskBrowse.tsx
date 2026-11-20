@@ -14,7 +14,7 @@ function browseParam(key: string) {
 }
 
 /** Report whether the library is visible so the page can show the right heading. */
-export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void }) {
+export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied?: boolean) => void }) {
   const [items, setItems] = useState<TaskBrowseCard[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error" | "terms">("loading");
   const [retry, setRetry] = useState(0);
@@ -59,7 +59,9 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean) => void
     if (state === "ready" && linkedItem) document.getElementById(`job-${linkedItem.id}`)?.scrollIntoView?.({ block: "start" });
   }, [state, linkedItem]);
   useEffect(() => {
-    if (state !== "loading") onLibrary?.(state === "ready" ? access === null || access.allowed : Boolean(currentUser));
+    // `applied`: a company that has applied (in review, declined, or approved and verifying) is not asked to apply again.
+    const applied = Boolean(access && ["applied", "declined", "approved"].includes(access.status));
+    if (state !== "loading") onLibrary?.(state === "ready" ? access === null || access.allowed : Boolean(currentUser), applied);
   }, [state, access, currentUser, onLibrary]);
   const filterParams = { q: search, type: family, region, test: readyToTest ? "1" : "" };
   const filtersQuery = new URLSearchParams(Object.entries(filterParams).filter(([, value]) => value !== "")).toString();

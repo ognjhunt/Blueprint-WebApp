@@ -98,7 +98,7 @@ describe("build output", () => {
       const html = fs.readFileSync(distPath(route, "index.html"), "utf8");
       expect(html).toContain("auth-shell");
       expect(html).toContain('class="robot-scene"');
-      expect(html).toContain("Illustrative scene");
+      expect(html).toContain("<span>Illustration</span>");
       expect((html.match(/id="main-content"/g) || []).length).toBe(1);
       expect(html).not.toContain("Access Control Suite");
       expect(html).not.toContain("Why Exact-Site Context Matters");
