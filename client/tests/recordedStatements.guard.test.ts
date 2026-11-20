@@ -61,8 +61,6 @@ const CONSTANT_STATEMENTS = [
 const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; text: string }> = [
   { version: "optional-updates-v1", file: "client/src/components/site/PartnerApplication.tsx", tag: "label",
     text: "Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime." },
-  { version: "optional-updates-v1", file: "client/src/components/site/RobotTeamEarlyAccess.tsx", tag: "label",
-    text: "Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Application notices are separate." },
   { version: "optional-updates-v1", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
     text: "Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime." },
   { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
@@ -73,8 +71,6 @@ const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; tex
     text: "For this development test, I authorize Blueprint to send selected frames and task evidence to OpenAI for GPT-6.1 Sol managed-agent 3D authoring. The agent session can retain that evidence until it is deleted under the configured provider policy. Blueprint pays the bounded provider cost." },
   { version: "terms and privacy acceptance", file: "client/src/components/site/PartnerApplication.tsx", tag: "p",
     text: "By applying, you agree to our Terms of Service and Privacy Policy. Application notices are separate from optional updates." },
-  { version: "terms and privacy acceptance", file: "client/src/components/site/RobotTeamEarlyAccess.tsx", tag: "p",
-    text: "By applying, you agree to our Terms of Service and Privacy Policy." },
   { version: "terms and privacy acceptance", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
     text: "I agree to the Terms and Privacy Policy and am authorized to create this organization’s account." },
 ];
@@ -211,8 +207,8 @@ describe("recorded statements keep their exact text under their version", () => 
   });
 
   it("knows every optional-updates surface: a new one must be added to the table above", () => {
-    const surfaces = ["client/src/components/site/PartnerApplication.tsx", "client/src/components/site/RobotTeamEarlyAccess.tsx",
-      "client/src/pages/RobotTeamSignUpFlow.tsx"];
+    // RobotTeamEarlyAccess.tsx carried its own application until 2026-11-20; it now points to the one on /partners.
+    const surfaces = ["client/src/components/site/PartnerApplication.tsx", "client/src/pages/RobotTeamSignUpFlow.tsx"];
     for (const file of surfaces) expect(sourceText(file)).toMatch(/optionalUpdates/);
     const pinned = new Set(INLINE_STATEMENTS.filter(row => row.version === "optional-updates-v1").map(row => row.file));
     for (const file of surfaces) expect(pinned.has(file), file).toBe(true);

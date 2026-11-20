@@ -1,8 +1,7 @@
 /**
  * Two public entry points, bare bones (2026-11-11). Sites start a job (the start form owns its screens); companies
  * apply to see the jobs sites send (sharing is the service, 2026-11-12: a site does not choose to share), and approved,
- * signed-in companies see the job library here. Blueprint runs the
- * evaluations itself; everything in the beta is free.
+ * signed-in companies see the job library here. The application form itself is on `/partners`; this page points there.
  */
 import { useLocation } from "wouter";
 

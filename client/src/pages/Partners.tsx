@@ -27,7 +27,7 @@ export default function Partners() {
           { key: "cost", label: "Cost", value: "Nothing is charged today." },
         ]} />
         <div id="partner-application" className="bare-group">
-          <PartnerApplication role="deployment" />
+          <PartnerApplication />
         </div>
         <BareFine>A job packet is not a site visit or a safety check. Any work is agreed between you and the site.</BareFine>
       </BareScreen>

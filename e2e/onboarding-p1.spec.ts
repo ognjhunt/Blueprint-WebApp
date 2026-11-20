@@ -153,23 +153,27 @@ test("an approved team's empty library says tasks are coming; an outage is not a
   await expect(page.getByRole("form", { name: "Task preferences" })).toHaveCount(0);
   await screenshot(page, "empty-approved");
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ status: 503, json: { error: "offline" } }));
-  await page.reload(); await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
+  await page.reload(); await expect(page.getByRole("link", { name: "Apply", exact: true })).toBeVisible();
   await expect(page.getByText("The first site jobs are being prepared.")).toHaveCount(0);
 });
 
-test("a robot team outside early access applies instead of browsing", async ({ page }) => {
+test("a robot team outside early access applies, on the one application form, instead of browsing", async ({ page }) => {
   const mutations = await fixtures(page, { gated: true }); await page.goto("/contact/robot-team");
-  const form = page.getByRole("form", { name: "Early access application" });
+  await expect(page.getByRole("form", { name: "Early access application" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Apply", exact: true }).click();
+  await expect(page).toHaveURL(/\/partners#partner-application$/);
+  const form = page.getByRole("form", { name: "Deployment company application" });
   await expect(form).toBeVisible();
-  await expect(page.getByText("Already have a robot policy to evaluate? Register it and see a plan", { exact: true })).toHaveCount(0);
   await form.getByLabel("Your name").fill("Ada Lovelace");
   await form.getByLabel("Work email").fill("ada@arm.example");
-  await form.getByLabel("Company").fill("Arm Co");
-  await form.getByLabel("What does your robot do?").fill("Fixed arm with a parallel gripper");
-  await form.getByLabel("What work do you want to test it on?").fill("Tote picking");
-  await form.getByRole("button", { name: "Register interest" }).click();
-  await expect(page.getByRole("heading", { name: "Application received." })).toBeVisible();
-  expect(mutations.at(-1)).toMatchObject({ path: "/api/robot-team-access/apply", body: { name: "Ada Lovelace", email: "ada@arm.example", acceptedTerms: true } });
+  await form.getByLabel("Company", { exact: true }).fill("Arm Co");
+  await form.getByLabel("What jobs can you deliver?").fill("Tote picking");
+  await form.getByLabel("Which robots do you deploy?").fill("Fixed arm with a parallel gripper");
+  await form.getByLabel("Where can you deploy?").fill("Ohio");
+  await form.getByRole("button", { name: "Apply" }).click();
+  await expect(page.getByRole("heading", { name: "Your application is saved." })).toBeVisible();
+  expect(mutations.at(-1)).toMatchObject({ path: "/api/robot-team-access/apply", body: { name: "Ada Lovelace", email: "ada@arm.example",
+    partnerRole: "deployment", region: "Ohio", acceptedTerms: true } });
   await screenshot(page, "early-access-applied");
 });
 

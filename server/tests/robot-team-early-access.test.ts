@@ -78,6 +78,16 @@ describe("partner application roles", () => {
     expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`)).toMatchObject({ partnerRole: "deployment", supportedSystems: "Franka and YAM", status: "applied" });
   });
 
+  it("keeps the site and pilot notes an older form stored when a pending company applies again with the one form", async () => {
+    const post = (body: unknown) => fetch(`${base}/api/robot-team-access/apply`, { method: "POST",
+      headers: { ...CSRF, "content-type": "application/json" }, body: JSON.stringify(body) });
+    expect((await post({ ...form, testSite: "Our pilot warehouse in Ohio" })).status).toBe(202);
+    const { pilotPackage: _pilot, ...oneForm } = form;
+    expect((await post({ ...oneForm, partnerRole: "deployment" })).status).toBe(202);
+    expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${early.accessRecordId(application.email)}`)).toMatchObject({
+      testSite: "Our pilot warehouse in Ohio", pilotPackage: application.pilotPackage, partnerRole: "deployment", status: "applied" });
+  });
+
   it("rejects unsafe website schemes rather than storing clickable script links", async () => {
     const response = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { ...CSRF, "content-type": "application/json" },
       body: JSON.stringify({ ...form, website: "javascript:alert(1)", partnerRole: "technology" }) });

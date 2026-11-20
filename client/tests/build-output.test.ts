@@ -112,16 +112,17 @@ describe("build output", () => {
     expect(signup).not.toContain('id="email"');
   });
 
-  it("makes robot-team intake inspectable without waiting for JavaScript or a task lookup", () => {
+  it("makes the one company application inspectable without JavaScript, and the job library's page point to it", () => {
     const html = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(html).toContain('aria-label="Early access application"');
-    // Static markup is replaced on mount; accepting input beforehand loses it.
-    expect(html).toMatch(/<input[^>]*disabled=""[^>]*name="name"/);
-    expect(html).toMatch(/<textarea[^>]*disabled=""[^>]*name="robot"/);
-    expect(html).toContain('name="robot"');
-    expect(html).toContain('name="workWanted"');
-    expect(html).toContain("mailto:hello@tryblueprint.io");
+    expect(html).toContain('href="/partners#partner-application"');
+    expect(html).not.toContain('aria-label="Early access application"');
     expect(html).not.toContain('role="status">Loading…');
+    const partners = fs.readFileSync(distPath("partners/index.html"), "utf8");
+    expect(partners).toContain('aria-label="Deployment company application"');
+    // Static markup is replaced on mount; accepting input beforehand loses it.
+    expect(partners).toMatch(/<fieldset disabled=""/);
+    for (const name of ["name", "email", "company", "website", "workWanted", "robot", "region"]) expect(partners).toContain(`name="${name}"`);
+    expect(partners).toContain("mailto:hello@tryblueprint.io");
   });
 
   it("does not prerender retired aliases or protected operations routes", () => {

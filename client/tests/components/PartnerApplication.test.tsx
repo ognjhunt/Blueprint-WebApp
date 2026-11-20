@@ -9,29 +9,32 @@ vi.mock("@/lib/robotTeamAccess", async importOriginal => ({
 }));
 import { PartnerApplication } from "@/components/site/PartnerApplication";
 
-function completeRequiredFields(role: "deployment" | "technology") {
+function completeRequiredFields() {
   fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Alex Example" } });
   fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "alex@example.com" } });
   fireEvent.change(screen.getByLabelText("Company"), { target: { value: "Example Robotics" } });
-  fireEvent.change(screen.getByLabelText(role === "deployment" ? "What jobs can you deliver?" : "What work should your system be assessed on?"), { target: { value: "Move sealed cases from totes into trays" } });
-  fireEvent.change(screen.getByLabelText(role === "deployment" ? "Your delivery capabilities" : "What does your system do?"), { target: { value: "Fixed arm systems with parallel grippers" } });
+  fireEvent.change(screen.getByLabelText("What jobs can you deliver?"), { target: { value: "Move sealed cases from totes into trays" } });
+  fireEvent.change(screen.getByLabelText("Which robots do you deploy?"), { target: { value: "Fixed arm systems with parallel grippers" } });
+  fireEvent.change(screen.getByLabelText("Where can you deploy?"), { target: { value: "Central Texas" } });
 }
 
-describe("partner applications", () => {
+describe("the one company application", () => {
   beforeEach(() => application.save.mockReset());
   afterEach(cleanup);
 
-  it("saves a deployment role and delivery region through the reviewed application path", async () => {
+  it("asks only what approval needs and saves it through the reviewed application path", async () => {
     application.save.mockResolvedValue({ status: "applied", notificationStatus: "queued" });
-    render(<PartnerApplication role="deployment" />);
-    completeRequiredFields("deployment");
-    fireEvent.change(screen.getByLabelText("Where can you install and support systems?"), { target: { value: "Central Texas" } });
-    fireEvent.change(screen.getByLabelText("Supported robots and software"), { target: { value: "Franka with a supported policy stack" } });
+    render(<PartnerApplication />);
+    const form = screen.getByRole("form", { name: "Deployment company application" });
+    expect([...form.querySelectorAll("input, textarea")].map(field => field.getAttribute("name")))
+      .toEqual(["name", "email", "company", "website", "workWanted", "robot", "region", "optionalUpdates"]);
+    completeRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-    await waitFor(() => expect(application.save).toHaveBeenCalledWith(expect.objectContaining({
-      partnerRole: "deployment", region: "Central Texas", supportedSystems: "Franka with a supported policy stack",
-      name: "Alex Example", email: "alex@example.com", company: "Example Robotics", acceptedTerms: true, optionalUpdates: false,
-    })));
+    await waitFor(() => expect(application.save).toHaveBeenCalledWith({
+      partnerRole: "deployment", name: "Alex Example", email: "alex@example.com", company: "Example Robotics", website: undefined,
+      workWanted: "Move sealed cases from totes into trays", robot: "Fixed arm systems with parallel grippers", region: "Central Texas",
+      acceptedTerms: true, optionalUpdates: false,
+    }));
     expect(screen.getByRole("heading", { name: "Your application is saved." })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Applying does not approve access");
     // Approval is once; after it every job sites send is shown, with no person matching jobs to companies (2026-11-12).
@@ -39,26 +42,25 @@ describe("partner applications", () => {
     expect(screen.getByRole("status").textContent).not.toMatch(/contact you when|when a job and what you do fit/i);
   });
 
-  it("retains a technology application when saving fails, and permits a retry", async () => {
+  it("keeps the entries when saving fails, and permits a retry", async () => {
     application.save.mockRejectedValueOnce(new Error("network unavailable"));
-    render(<PartnerApplication role="technology" />);
-    completeRequiredFields("technology");
-    fireEvent.click(screen.getByRole("button", { name: "Make your system available" }));
+    render(<PartnerApplication />);
+    completeRequiredFields();
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("We could not confirm"));
     expect(screen.getByLabelText("Company")).toHaveValue("Example Robotics");
     expect(screen.queryByRole("heading", { name: "Your application is saved." })).not.toBeInTheDocument();
     application.save.mockResolvedValueOnce({ status: "applied", notificationStatus: "queued" });
-    fireEvent.click(screen.getByRole("button", { name: "Make your system available" }));
-    await waitFor(() => expect(application.save).toHaveBeenLastCalledWith(expect.objectContaining({ partnerRole: "technology" })));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Your application is saved." })).toBeInTheDocument());
   });
 
   it("suppresses repeated submission while the first application is saving", async () => {
     let finish!: (value: unknown) => void;
     application.save.mockReturnValue(new Promise(resolve => { finish = resolve; }));
-    render(<PartnerApplication role="technology" />);
-    completeRequiredFields("technology");
-    const form = screen.getByRole("form", { name: "Technology provider application" });
+    render(<PartnerApplication />);
+    completeRequiredFields();
+    const form = screen.getByRole("form", { name: "Deployment company application" });
     fireEvent.submit(form);
     fireEvent.submit(form);
     expect(application.save).toHaveBeenCalledTimes(1);

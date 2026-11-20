@@ -3,11 +3,13 @@ import { ArrowRight } from "lucide-react";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { applyForEarlyAccess, EarlyAccessApplicationError } from "@/lib/robotTeamAccess";
 
-export type PartnerRole = "deployment" | "technology";
-
-/** Both partner roles use the existing reviewed, durable application path. */
-export function PartnerApplication({ role }: { role: PartnerRole }) {
-  const deployment = role === "deployment";
+/**
+ * The one application a deployment company sends to see jobs (on `/partners`; `/contact/robot-team` points here). It
+ * asks only what approval by hand needs: who you are, what jobs you deliver with which robots, and where. Fields the
+ * older forms asked (supported systems, pilot terms, a test site) stay on the records that hold them; the server keeps
+ * them when a pending company applies again.
+ */
+export function PartnerApplication() {
   const [interactive, setInteractive] = useState(false);
   const [state, setState] = useState<"idle" | "sending" | "saved" | "error">("idle");
   const [error, setError] = useState("");
@@ -26,16 +28,14 @@ export function PartnerApplication({ role }: { role: PartnerRole }) {
     setError("");
     try {
       await applyForEarlyAccess({
-        partnerRole: role,
+        partnerRole: "deployment",
         name: read("name"),
         email: read("email"),
         company: read("company"),
         website: read("website") || undefined,
         robot: read("robot"),
         workWanted: read("workWanted"),
-        region: read("region") || undefined,
-        supportedSystems: read("supportedSystems") || undefined,
-        pilotPackage: read("pilotPackage") || undefined,
+        region: read("region"),
         acceptedTerms: true,
         optionalUpdates: data.get("optionalUpdates") === "on",
       });
@@ -51,47 +51,38 @@ export function PartnerApplication({ role }: { role: PartnerRole }) {
   if (state === "saved") return (
     <div className="ms-partner-receipt" role="status">
       <h2 ref={savedHeading} tabIndex={-1}>Your application is saved.</h2>
-      <p>{deployment ? "We approve each company by hand before we share any job with it. Once approved, you see the jobs sites send us, and if you asked for job emails, we email you when a new one arrives."
-        : "We review each partner before sharing site opportunities or arranging an evaluation. We will contact you when a job and your capabilities fit."}</p>
+      <p>We approve each company by hand before we share any job with it. Once approved, you see the jobs sites send us, and if you asked for job emails, we email you when a new one arrives.</p>
       <p>Applying does not approve access, commit you to a job, or guarantee work. No account or integration is needed now.</p>
-      {!deployment && <a className="ms-text-link" href="/partners">Back to partners <ArrowRight size={17} aria-hidden="true" /></a>}
     </div>
   );
 
   return (
-    <form className="ms-form ms-partner-form" onSubmit={submit} method="post" aria-label={deployment ? "Deployment company application" : "Technology provider application"}>
+    <form className="ms-form ms-partner-form" onSubmit={submit} method="post" aria-label="Deployment company application">
       <fieldset disabled={!interactive || state === "sending"}>
-        <legend className="sr-only">Your company and capabilities</legend>
+        <legend className="sr-only">Your company</legend>
         <div className="ms-form-row">
           <label>Your name<input name="name" autoComplete="name" maxLength={120} required /></label>
           <label>Work email<input name="email" type="email" autoComplete="email" maxLength={320} required /></label>
         </div>
-        <label>Company<input name="company" autoComplete="organization" maxLength={160} required /></label>
-        <label>{deployment ? "What jobs can you deliver?" : "What work should your system be assessed on?"}
-          <textarea name="workWanted" rows={3} maxLength={1200} required placeholder={deployment ? "The recurring work you install or operate systems for, and the limits of a good fit" : "The tasks your system handles and the conditions it needs"} />
+        <div className="ms-form-row">
+          <label>Company<input name="company" autoComplete="organization" maxLength={160} required /></label>
+          <label>Company website <span className="ms-optional">(optional)</span><input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} placeholder="https://example.com" title="Enter a website beginning with https:// or http://" /></label>
+        </div>
+        <label>What jobs can you deliver?
+          <textarea name="workWanted" rows={3} maxLength={1200} required placeholder="The recurring work you install or operate robots for" />
         </label>
-        <label>{deployment ? "Your delivery capabilities" : "What does your system do?"}
-          <textarea name="robot" rows={3} maxLength={1200} required placeholder={deployment ? "Integration, commissioning, training and support your team provides" : "Hardware, policies or model APIs; what exists today and how it is used"} />
+        <label>Which robots do you deploy?
+          <textarea name="robot" rows={3} maxLength={1200} required placeholder="The robots and software you supply, install and support" />
         </label>
-        <label>{deployment ? "Where can you install and support systems?" : "Where is your system available?"}
-          <input name="region" maxLength={300} required={deployment} placeholder={deployment ? "Cities, states or countries you cover" : "Regions or access restrictions, if any (optional)"} />
+        <label>Where can you deploy?
+          <input name="region" maxLength={300} required placeholder="Cities, states or countries you cover" />
         </label>
-        <details className="ms-partner-more">
-          <summary>Equipment, access and other details <span className="ms-optional">(optional)</span></summary>
-          <label>{deployment ? "Supported robots and software" : "Supported robot configurations"}
-            <textarea name="supportedSystems" rows={3} maxLength={1200} placeholder={deployment ? "Equipment and software you can supply, integrate and maintain" : "Robots, grippers, cameras and control interfaces you support"} />
-          </label>
-          <label>{deployment ? "Availability and support arrangements" : "How could we assess your system?"}
-            <textarea name="pilotPackage" rows={3} maxLength={1200} placeholder={deployment ? "Typical lead time, installation responsibilities and ongoing support" : "API or hosted access, existing evaluation evidence, or integration work needed. Do not include keys or credentials."} />
-          </label>
-          <label>Company website<input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} placeholder="https://example.com" title="Enter a website beginning with https:// or http://" /></label>
-        </details>
         <label className="ms-check-row"><input name="optionalUpdates" type="checkbox" />Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime.</label>
       </fieldset>
       <p className="ms-form-note">By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>. Application notices are separate from optional updates.</p>
       {error && <p role="alert">{error} Your entries are still here. You can also <a href="mailto:hello@tryblueprint.io">contact us</a>.</p>}
-      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Saving…" : deployment ? "Apply" : "Make your system available"}<ArrowRight size={18} aria-hidden="true" /></button>
-      <noscript><p>Enable JavaScript to apply, or email your company, capabilities and the work you would like to pursue to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
+      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Saving…" : "Apply"}<ArrowRight size={18} aria-hidden="true" /></button>
+      <noscript><p>Enable JavaScript to apply, or email your company, the robots you deploy and the jobs you deliver to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
     </form>
   );
 }

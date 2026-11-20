@@ -23,10 +23,17 @@ describe("robot-team verification from the job library", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/verification email sent/i);
   });
 
-  it("carries the site a team asked about from a job record into the application", async () => {
-    window.history.pushState({}, "", "/contact/robot-team?site=Owner-backed%20warehouse&source=site-detail-live-record");
+  it("points a company that has not applied to the one application form, on the page for deployment companies", () => {
     render(<RobotTeamEarlyAccess access={null} email={null} />);
-    await waitFor(() => expect(screen.getByLabelText(/A site or customer you would want to test at/)).toHaveValue("Owner-backed warehouse"));
-    window.history.pushState({}, "", "/");
+    expect(screen.getByRole("link", { name: "Apply" })).toHaveAttribute("href", "/partners#partner-application");
+    expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: /Your name/ })).toBeNull();
+  });
+
+  it("says approval is by hand and promises no job match while an application is pending", () => {
+    render(<RobotTeamEarlyAccess access={{ gated: true, status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false }}
+      email="eng@robot.example" />);
+    expect(screen.getByText(/We approve each company by hand and email eng@robot\.example if you are approved\./)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/task fits/i);
   });
 });
