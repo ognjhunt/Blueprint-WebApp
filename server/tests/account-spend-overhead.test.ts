@@ -76,6 +76,20 @@ describe("named overhead for the WebApp's own agent runs", () => {
     expect(month.complete).toBe(true);
   });
 
+  it("finds a run by its cost record's start time when its created_at was lost, and by an ISO created_at", async () => {
+    // 2026-11-20: most stored runs carry created_at as an empty map; their cost record still has its start time.
+    const atMs = Date.parse("2026-11-12T08:00:00Z");
+    run("lost", { task_kind: "site_assessment", provider: "openai_responses", created_at: {},
+      metadata: { cost_telemetry: { cost_estimate_usd: 1.25, created_at_ms: atMs } } });
+    run("iso", { task_kind: "site_assessment", provider: "openai_responses", created_at: "2026-11-03T10:00:00.000Z",
+      metadata: priced(0.5) });
+    run("october", { task_kind: "site_assessment", provider: "openai_responses", created_at: {},
+      metadata: { cost_telemetry: { cost_estimate_usd: 9, created_at_ms: Date.parse("2026-10-31T23:00:00Z") } } });
+    const month = await overhead.accountSpendOverheadMonth(sharedFakeFirestore, "2026-11", NOW);
+    expect(month).toMatchObject({ complete: true, rows: [
+      { name: "webapp.site_assessment", provider: "openai", runs: 2, unpriced_runs: 0, usd: 1.75 }] });
+  });
+
   it("says the month is incomplete when a run's record cannot be read", async () => {
     run("run-6", { task_kind: "site_task_brief_reading", provider: "openai_responses", metadata: priced(0.3),
       agent_accounting_incomplete: true });
