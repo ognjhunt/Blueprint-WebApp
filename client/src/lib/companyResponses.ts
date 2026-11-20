@@ -138,7 +138,6 @@ export function elapsedSince(start: string | null | undefined, end: string | nul
 }
 
 /** The example's empty state before any company replies. */
-export const NO_ANSWERS_YET = "No answers yet.";
 
 /** The site's sentences. */
 export const sentToCompany = (alias: string, date: string) => `Sent to ${alias} on ${date}.`;
