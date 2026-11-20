@@ -8,6 +8,53 @@ for (const device of ["desktop", "mobile"] as const) {
       test.use(mobile);
     } else test.use({ viewport: { width: 1440, height: 1000 } });
 
+    test("saves a description-only job and returns to its private page", async ({ page, context, baseURL }) => {
+      const token = "synthetic-description-only";
+      const bodies: string[] = [];
+      await context.route("**/*", async route => {
+        const request = route.request();
+        const url = new URL(request.url());
+        const send = (json: object, status = 200) => route.fulfill({ status, json });
+        if (url.origin !== new URL(baseURL!).origin) return send({});
+        if (url.pathname === "/api/csrf") return send({ csrfToken: "synthetic-csrf" });
+        if (url.pathname === "/api/inbound-request" && request.method() === "POST") {
+          bodies.push(request.postData()!);
+          if (bodies.length === 1) return send({ message: "The response was lost." }, 503);
+          return send({ ok: true, captureUrl: `/capture-upload/${token}` }, 201);
+        }
+        if (url.pathname.startsWith("/api/")) return send({});
+        return route.continue();
+      });
+
+      await page.goto("/contact/site-operator");
+      await page.getByRole("button", { name: "Describe the job without video ›" }).click();
+      const save = page.getByRole("button", { name: "Save my job" });
+      await expect(page.getByLabel("The job in one sentence")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Next: film the job" })).toHaveCount(0);
+      await page.locator("#start-location").fill("Austin");
+      await page.locator("#start-region").selectOption("us");
+      await page.getByRole("textbox", { name: "Your email" }).fill("qa@example.invalid");
+      await save.click();
+      await expect(page.getByText("Describe the job in one sentence.", { exact: true })).toBeVisible();
+      expect(bodies).toHaveLength(0);
+      await page.getByLabel("The job in one sentence").fill("Move cartons from a conveyor onto a pallet.");
+      await save.click();
+      await expect(page.getByText("The response was lost.", { exact: true })).toBeVisible();
+      await page.reload();
+      await page.getByRole("button", { name: "Recover saved job" }).click();
+
+      await expect(page.getByRole("heading", { name: "Your job is saved.", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveAttribute("href", `/capture-upload/${token}`);
+      await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
+      expect(bodies).toHaveLength(2);
+      expect(bodies[1]).toBe(bodies[0]);
+      expect(JSON.parse(bodies[0])).toMatchObject({
+        taskStatement: "Move cartons from a conveyor onto a pallet.", taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" },
+        siteLocation: "Austin", captureRegion: "us", descriptionOnly: true,
+        descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null, hasExistingFootage: false,
+      });
+    });
+
     // Owner direction 2026-11-11: the sentence is optional; a typed one, in the
     // site's words, confirms the brief when it is submitted.
     test("capture setup takes an optional typed task, then continues to required video", async ({ page, context, baseURL }, testInfo) => {

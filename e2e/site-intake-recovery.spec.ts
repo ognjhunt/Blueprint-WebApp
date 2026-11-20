@@ -130,7 +130,7 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
 test.describe("the start form on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
     geolocation: { latitude: 30.4417, longitude: -97.7206 }, permissions: ["geolocation"] });
-  const FILLED = "4201 West Parmer Lane, Austin, Texas, United States";
+  const FILLED = "Austin, Texas, United States";
   const shots = process.env.BLUEPRINT_SHOTS;
   async function open(page: import("@playwright/test").Page, posts: string[], answer: (body: string) => { status: number; json: unknown } = () => ({ status: 201, json: { captureUrl: null } })) {
     await page.context().route("**/*", async route => {
@@ -149,7 +149,7 @@ test.describe("the start form on a phone", () => {
   async function useMyLocation(page: import("@playwright/test").Page) {
     await page.getByRole("button", { name: "Use my location" }).click();
     await expect(page.locator("#start-location")).toHaveValue(FILLED);
-    await expect(page.getByText("Current address filled. Check it before continuing.")).toBeVisible();
+    await expect(page.getByText("Filled in your city or region. Check it before continuing.")).toBeVisible();
   }
 
   test("takes the country from \"Use my location\" and keeps it after a refusal", async ({ page }) => {

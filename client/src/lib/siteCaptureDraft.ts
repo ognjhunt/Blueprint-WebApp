@@ -11,7 +11,7 @@ export type SiteCaptureDraft = {
   /** Optional buying context. Empty answers never block a first assessment. */
   jobFrequency?: string;
   purchaseReadiness?: "" | "exploring" | "planning" | "ready_for_proposals" | "unsure";
-  method: "phone" | "upload" | "visit"; region: "" | "us" | "non_us";
+  method: "phone" | "upload" | "description" | "visit"; region: "" | "us" | "non_us";
   regionManuallySet: boolean;
   /**
    * The label of the place (a chosen suggestion or "Use my location") whose country set `region`. A restored draft
@@ -57,7 +57,7 @@ function validSiteCaptureRecovery(input: unknown): SiteCaptureRecovery | null {
       || (draft.successDefinition !== undefined && (typeof draft.successDefinition !== "string" || draft.successDefinition.length > 1000))
       || (draft.regionFromPlace !== undefined && (typeof draft.regionFromPlace !== "string" || draft.regionFromPlace.length > 300))
       || (draft.purchaseReadiness !== undefined && !["", "exploring", "planning", "ready_for_proposals", "unsure"].includes(draft.purchaseReadiness))
-      || !draft || !["phone", "upload", "visit"].includes(draft.method)
+      || !draft || !["phone", "upload", "description", "visit"].includes(draft.method)
       || !["", "us", "non_us"].includes(draft.region) || typeof draft.regionManuallySet !== "boolean"
       || !([[draft.task, 2000], [draft.location, 300], [draft.email, 320]] as const)
         .every(([field, limit]) => typeof field === "string" && field.length <= limit)) return null;
