@@ -62,9 +62,11 @@ test("the public pages explain how a job starts without a video", async ({ page 
 
   await page.goto("/how-it-works");
   await expect(page.getByRole("list", { name: "Steps" })).toContainText("Film one recurring job or send a description.");
+  await expect(page.getByRole("list", { name: "Steps" })).toContainText("We add a first look at which robots could fit when we have enough detail.");
 
   await page.goto("/partners");
   await expect(page.locator("main")).toContainText("When the site sends video, you get it without sound.");
+  await expect(page.locator("main")).toContainText("We add a first look at which robots could fit when we have enough detail.");
   await expect(page.locator("main")).not.toContainText("You answer in a minute.");
 });
 
