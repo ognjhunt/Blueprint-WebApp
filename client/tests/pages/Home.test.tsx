@@ -10,7 +10,7 @@ describe("Site-led homepage", () => {
   it("says the outcome, shows three steps and offers one button", () => {
     const { container } = render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Post a job for robots.");
-    expect(container).toHaveTextContent("Film one repetitive job. We turn it into a job packet and a simulation of your site, so approved robot deployment companies can review it without a visit.");
+    expect(container).toHaveTextContent("Film one repetitive job and find out who wants to deploy robots for it.");
     const starts = screen.getAllByRole("link", { name: "Start a job" });
     expect(starts).toHaveLength(1);
     expect(starts[0]).toHaveAttribute("href", "/contact/site-operator");
