@@ -1,0 +1,17 @@
+# site-job-withdrawn__site-token
+# route: /capture-upload/site-answer-fixture?video=existing (final URL desktop: /capture-upload/site-answer-fixture?video=existing; phone: /capture-upload/site-answer-fixture?video=existing)
+# source: client/src/pages/SelfCaptureUpload.tsx; components/site/OwnerRecordingWithdrawal.tsx
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+Your job
+
+Recording permission withdrawn.
+
+Withdrawn on November 11, 2026. Blueprint stops further processing and use of this recording: new uploads are refused and your job has left every deployment company's view. Each company it was sent to is asked to delete any copy it saved. Our processing system has confirmed it will no longer process or serve the recording.
+
+Withdrawal is not deletion: a copy of the recording and any results already produced are retained, and handled as our Privacy Policy describes.
+
+Contact Blueprint about this job ›
+
+## Phone 390: same text as desktop

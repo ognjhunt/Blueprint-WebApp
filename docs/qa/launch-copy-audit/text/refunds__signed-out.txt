@@ -1,0 +1,46 @@
+# refunds__signed-out
+# route: /refunds (final URL desktop: /refunds; phone: /refunds)
+# source: client/src/pages/Refunds.tsx (legal, audit-only)
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Sign in
+Refunds and cancellations
+
+This page explains the refund commitments in our applicable Terms of Service. It does not replace the terms of a prior purchase or a signed agreement.
+
+The beta is free
+
+Blueprint charges sites and partners nothing for submitting a job, building the simulation, the evaluation or its result. There are no paid private evaluations, top-ups or checkout during the beta, so there is no new Blueprint fee to refund.
+
+Purchases made before the free beta
+
+You can request a refund of any unused balance bought before the free beta. Existing refund and settlement terms continue to apply to those purchases. If we end the Service for a reason other than your breach of the Terms, we refund any unused balance bought before the free beta.
+
+Email hello@tryblueprint.io from your account email. Include the receipt or purchase reference, if you have it, and what you would like us to review. Do not send card numbers, passwords or API keys.
+
+We review the purchase and its applicable terms and tell you the outcome. A request is not confirmation that a refund has been issued. Any confirmed refund and expected processing time will be explained in our reply.
+
+Physical pilots and cancellations
+
+The site and the deployment company agree the physical pilot’s scope, dates, price and cancellation terms directly. Blueprint takes no cut. Contact the party you contracted with about those payments; Blueprint cannot refund money paid directly to a deployment company.
+
+If a deployment company withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund. Contact hello@tryblueprint.io with your job link to discuss a replacement or a cancellation.
+
+Your rights and contact
+
+This page does not limit any refund or consumer rights that cannot be waived under applicable law.
+
+Blueprint Robotics, Inc., 6801 Burnet Rd, Austin, TX 78757. Legal questions: legal@tryblueprint.io.
+
+Questions
+About
+Privacy
+Terms
+Refunds
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

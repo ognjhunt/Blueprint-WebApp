@@ -1,0 +1,32 @@
+# job-library-no-match__company-approved
+# route: /contact/robot-team?q=zzzz (final URL desktop: /contact/robot-team?q=zzzz; phone: /contact/robot-team?q=zzzz)
+# source: client/src/components/site/TaskBrowse.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+Find jobs
+Search jobs
+All job types
+Pallet handling
+Palletizing
+Pick and place
+Transport
+All regions
+US Midwest
+Ready to test
+
+0 jobs
+
+Clear filters
+No jobs match these filters.
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Phone 390: same text as desktop

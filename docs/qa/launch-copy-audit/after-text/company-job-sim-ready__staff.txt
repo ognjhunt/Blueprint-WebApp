@@ -1,0 +1,80 @@
+# company-job-sim-ready__staff
+# route: /jobs/task-1 (final URL desktop: /jobs/task-1; phone: /jobs/task-1)
+# source: client/src/pages/CompanyJob.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+How it works
+Find jobs
+Your account
+Back to jobs
+Palletize cartons
+United States
+Shared November 12, 2026
+Respond
+Download the simulation
+Report simulation result
+The job, in the site's words
+Stack 12 kg cartons onto the pallet. Call [removed]
+What counts as done
+
+Every carton ends up on the pallet, label facing out.
+
+Weight: 5 to 15 kg (11 to 33 lb)
+
+The site's own answers. Blueprint has not checked them.
+
+The video
+Your response
+
+You answered “Need more details” on November 12, 2026.
+
+Is this job a fit for your company?
+Interested
+Not a fit
+Need more details
+What details would help you decide?
+
+The site reads these words, with your company's name and contact details taken out.
+
+Add details
+Send response
+
+The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.
+
+The object, and how sure we are
+Starts: about 54 cm above the floor.
+Measured
+Registration residual: 8 cm.
+Estimated
+Weight: about 3.1 kg (0.34 to 28 kg). An estimate, not weighed.
+What this job packet does not show
+No safety assessment of any robot at this site.
+First look
+Universal Robots UR20: Fits.
+FANUC CRX-10iA: Fits if the item weighs under 20 kg.
+
+And 12 more.
+
+Simulation of the site
+
+A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.
+
+View the simulation of the site
+
+Questions
+About
+Privacy
+Terms
+Cookie settings
+© 2026 Blueprint Robotics, Inc.
+
+## Also present once collapsed sections / tabs are opened (desktop)
+What you have checked
+Earliest start
+Not specified
+Within a month
+In 1–3 months
+More than 3 months
+
+## Phone 390: same text as desktop

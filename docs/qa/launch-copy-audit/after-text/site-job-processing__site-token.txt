@@ -1,0 +1,28 @@
+# site-job-processing__site-token
+# route: /capture-upload/retained-fixture (final URL desktop: /capture-upload/retained-fixture; phone: /capture-upload/retained-fixture)
+# source: client/src/pages/SelfCaptureUpload.tsx; components/site/CaptureLiveStatus.tsx
+# state: video uploaded, processing pending
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+Your job
+Your video is saved.
+
+Blueprint will update this job as the work progresses.
+
+Video received.
+
+We'll continue from your saved video and update this job. You can leave this page.
+
+Send a new video
+Processing status
+Stop using my video
+
+## Also present once collapsed sections / tabs are opened (desktop)
+Your job and first video stay saved.
+Your video is saved. We could not confirm that processing started. You do not need to upload or record it again.
+Start processing again
+We stop using your video and take your job out of every company's view at once. No new uploads are accepted. Each company it was sent to is asked to delete any copy it saved. We keep a copy of the video and any results already made, as our Privacy Policy describes.
+Stop using my video…
+
+## Phone 390: same text as desktop

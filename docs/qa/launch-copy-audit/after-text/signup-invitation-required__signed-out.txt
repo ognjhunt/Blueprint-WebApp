@@ -1,0 +1,41 @@
+# signup-invitation-required__signed-out
+# route: /signup/business?buyerType=robot_team (final URL desktop: /signup/business?buyerType=robot_team; phone: /signup/business?buyerType=robot_team)
+# source: client/src/pages/BusinessSignUpFlow.tsx
+## Desktop 1280 (document.body.innerText)
+Skip to content
+Blueprint
+Access by invitation
+
+Deployment companies apply first. Once we approve your company, we email you a link to create your account.
+
+Apply to see jobs
+Start a job
+
+Already approved? Open the invitation link we emailed you, or get a new invitation link.
+
+Already have an account? Sign in
+
+Illustrative scene
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings
+
+## Phone 390 (differs from desktop)
+Skip to content
+Blueprint
+Access by invitation
+
+Deployment companies apply first. Once we approve your company, we email you a link to create your account.
+
+Apply to see jobs
+Start a job
+
+Already approved? Open the invitation link we emailed you, or get a new invitation link.
+
+Already have an account? Sign in
+
+© 2026 Blueprint Robotics, Inc.
+Privacy
+Terms
+Cookie settings

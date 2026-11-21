@@ -26,8 +26,6 @@ export const HOME_SUB_LINE = "Share a video of one repetitive job with approved 
  */
 export const EVERYDAY_ANSWERS = `${ANSWER.interested}, ${ANSWER.declined} or ${ANSWER.needs_something}`;
 export const TESTED_ANSWERS = `${ANSWER.tested_can_do} or ${ANSWER.tested_cannot_yet}`;
-/** The same answers as one clause, for the approval email until it builds its own sentence from `COMPANY_RESPONSE_LABELS`. */
-export const COMPANY_ANSWERS = `${EVERYDAY_ANSWERS}; once the simulation can be downloaded, also ${TESTED_ANSWERS}`;
 /** The answers beside which a site may ask for an introduction (`INTRODUCIBLE_RESPONSE_STATES`). */
 export const INTRODUCIBLE_ANSWERS = `${ANSWER.interested} or ${ANSWER.tested_can_do}`;
 

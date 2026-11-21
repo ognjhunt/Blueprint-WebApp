@@ -1,0 +1,17 @@
+# site-job-details-others__site-token
+# route: /capture-upload/site-answer-fixture?video=existing#details (final URL desktop: /capture-upload/site-answer-fixture?video=existing#details/others; phone: /capture-upload/site-answer-fixture?video=existing#details/others)
+# source: client/src/components/site/SiteAnswer.tsx (details sub-screens); RobotFit.tsx
+# state: Details > Other robots
+## Desktop 1280 (document.body.innerText)
+Blueprint
+Back to Blueprint
+‹ Back
+Other robots that fit
+Robots
+Yaskawa HC20DTP
+Universal Robots UR20
+Universal Robots UR30
+ABB GoFa CRB 15000-12/1.27
+We checked 22 robots from 13 makers, using their published figures from November 11, 2026.
+
+## Phone 390: same text as desktop
