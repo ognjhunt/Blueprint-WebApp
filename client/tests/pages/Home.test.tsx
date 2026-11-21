@@ -10,12 +10,12 @@ describe("Site-led homepage", () => {
   it("says the outcome, shows three steps and offers one button", () => {
     const { container } = render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Post a job for robots.");
-    expect(container).toHaveTextContent("Share a video of one repetitive job with approved robot deployment companies.");
+    expect(container).toHaveTextContent("Film one repetitive job. We turn it into a job packet and a simulation of your site, so approved robot deployment companies can review it without a visit.");
     const starts = screen.getAllByRole("link", { name: "Start a job" });
     expect(starts).toHaveLength(1);
     expect(starts[0]).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByText("Free for sites.")).toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/pick-up-and-put-down|safety check|job packet|contact details/i);
+    expect(container.textContent).not.toMatch(/pick-up-and-put-down|safety check|contact details/i);
     // No price, no invented test result, no model or product names.
     expect(container.textContent).not.toMatch(/\$\s?\d|beta|did best|AI robot|AI software|how sure|confidence|%/i);
   });
