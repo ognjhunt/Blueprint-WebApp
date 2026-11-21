@@ -4,7 +4,8 @@
  *
  * The Terms, the Privacy Policy and the site's page for its own agreement say the same thing:
  * - a site's name, address and contact details go to a deployment company only through an introduction the site asked for;
- * - the video goes without its sound, only to the deployment companies Blueprint approves, only so they can judge the job;
+ * - the video goes without its sound, only to the deployment companies Blueprint approves, only so they can decide
+ *   whether they can do the job;
  * - a company's name reaches a site only through an introduction;
  * - a site can withdraw, and the job then leaves every company's view at once.
  * A change to any of these needs a new Terms and Privacy version, and this test changed with it on purpose.
@@ -18,6 +19,7 @@ import { termsSections } from "@/pages/Terms";
 import { siteAssessment } from "@/lib/evaluationPricing";
 import { FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { AGREEING_ALSO_LINE } from "@/lib/siteStartConsent";
+import { COMPANY_RESPONSE_LABELS } from "@/lib/companyResponses";
 
 const termsText = termsSections.flatMap(section => [...(section.paragraphs ?? []), ...(section.items ?? [])]).join("\n");
 const privacyText = [...privacyPolicySections.map(section => section.body), ...capturePrivacyAnnex.map(row => row[1]),
@@ -31,13 +33,18 @@ function annexRow(label: string): string {
 
 // Terms and Privacy 2026-11-19.1 (owner: the early trial dropped): the sharing sentence no longer names an early trial
 // result, the one item that left what a company receives. Nothing a company receives was added.
+// Terms and Privacy 2026-11-21.1 (owner approval of 2026-11-21, launch copy): the same promises, clearer and no weaker.
+// Sharing says when a job is shared (once it has its video) and why ("decide whether they can do it", not "judge"),
+// with every item a company receives still listed; withdrawal says where (the job's page) and still says a saved copy is
+// asked to be deleted and cannot be taken back; the older-job sentence uses a US date and says what the site does; the
+// company's sentence adds that a site reads its reason, with its name and contact details taken out.
 const PROMISES = {
-  sharing: "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.",
+  sharing: "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.",
   contacts: "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.",
   companyUse: "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.",
-  withdrawal: "You can withdraw your job at any time. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.",
-  olderJob: "A job started before 12 November 2026 is not shown to companies unless you accept the current statement on its page.",
-  companyAlias: "A site sees your answer under an alias. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.",
+  withdrawal: "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.",
+  olderJob: "A job started before November 12, 2026 is shared with companies only after you agree to share it on the job's page.",
+  companyAlias: "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.",
 };
 
 describe("the sharing promises, in the Terms and the Privacy Policy, word for word", () => {
@@ -62,9 +69,9 @@ describe("name, address and contacts", () => {
 });
 
 describe("the video", () => {
-  it("is shared without its sound, only with approved deployment companies, only for judging the job", () => {
+  it("is shared without its sound, only with approved deployment companies, only to decide whether they can do the job", () => {
     const video = annexRow("Your video");
-    expect(video).toMatch(/shared, without its sound, only with the robot deployment companies we approve, and only so they can judge the job/);
+    expect(video).toMatch(/shared, without its sound, only with the robot deployment companies we approve, and only so they can decide whether they can do the job/);
     expect(video).toContain(PROMISES.companyUse);
     expect(annexRow("Sound")).toMatch(/remove the sound before any automated review, before sending footage to an AI or 3D-processing provider and before a deployment company sees it/);
     expect(termsText).toMatch(/We remove its sound before any automated review, before sending footage to an AI or 3D-processing provider, and before a deployment company sees it/);
@@ -114,9 +121,13 @@ describe("what an introduction gives, and the answers a company can give", () =>
     expect(termsText).not.toMatch(/we give it your name and contact details/);
   });
 
-  it("lists the five answers", () => {
-    const five = "interested, not a fit, would need something, tested it: can do, or tested it: cannot yet";
-    expect(termsText.split(five).length - 1).toBe(2);
-    expect(termsText).not.toMatch(/interested, not a fit, or would need something/);
+  // Terms 2026-11-21.1: the answers by the labels a company picks (`COMPANY_RESPONSE_LABELS`), the two tested answers
+  // once the simulation can be downloaded, in the Service section and the deployment companies' section.
+  it("lists the five answers by their labels", () => {
+    expect(termsText.split("can answer Interested, Not a fit or Need more details.").length - 1).toBe(1);
+    expect(termsText.split("can answer each one: Interested, Not a fit or Need more details.").length - 1).toBe(1);
+    expect(termsText.split("can also answer Tested it: can do or Tested it: cannot yet.").length - 1).toBe(2);
+    for (const label of Object.values(COMPANY_RESPONSE_LABELS)) expect(termsText).toContain(label);
+    expect(termsText).not.toMatch(/would need something|interested, not a fit/);
   });
 });

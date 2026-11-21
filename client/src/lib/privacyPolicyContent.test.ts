@@ -24,8 +24,9 @@ describe("privacy policy content", () => {
           record: "Temporary processing files",
           defaultWindow: "14 days after they are created",
         }),
+        // Privacy 2026-11-21.1 (launch copy): Blueprint no longer makes evaluation results; the row names what it keeps.
         expect.objectContaining({
-          record: "Scenes, evaluation results, pilot records and reports",
+          record: "Simulations, company answers, introductions and reports",
           defaultWindow: "365 days after the job closes or the contract ends",
         }),
         expect.objectContaining({

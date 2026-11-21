@@ -23,11 +23,13 @@
 export const betaFeeUsd = 0;
 
 /**
- * Owner-approved remedy for a robot team changing its confirmed scope. There
- * is no Blueprint fee during the beta, so there is nothing to refund.
+ * What a site can do when a company it was introduced to drops out (Terms 2026-11-21.1, owner approval of 2026-11-21).
+ * No person at Blueprint reviews a replacement: the site presses "Introduce us" beside any company that answered
+ * Interested or Tested it: can do, with no limit per job (`server/utils/jobIntroductions.ts`). The Terms write this
+ * sentence out as `REPLACEMENT_SENTENCE`, so their digest covers it; a test keeps the two the same.
  */
 export const pilotReplacementPolicy =
-  "If a deployment company withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund.";
+  "If a company you were introduced to drops out, you can ask for an introduction to another company that answered Interested or Tested it: can do.";
 
 /** What a site pays for the simulation, the evaluation and its result: nothing. */
 export const siteAssessment = {

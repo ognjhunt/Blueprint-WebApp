@@ -57,17 +57,18 @@ describe("recording-rights statement", () => {
   it("restates the recording-authority clause of the Terms in force and adds no promise of its own", () => {
     const terms = termsSections.flatMap(section => [...(section.paragraphs ?? []), ...(section.items ?? [])]).join("\n");
     // The clause the sentence comes from, and the uses the Terms describe.
-    expect(terms).toContain("When you start a capture with footage, you confirm that you are authorized to record the site "
+    // Since Terms 2026-11-21.1 (launch copy) the clause says "send a video" and the uses say "job description" for "job
+    // brief"; the uses are the same.
+    expect(terms).toContain("When you send a video, you confirm that you are authorized to record the site "
       + "and to let Blueprint use the recording as these Terms describe.");
-    expect(terms).toContain("to draft the job brief");
-    expect(terms).toContain("We rebuild the work area as a simulated scene.");
+    expect(terms).toContain("may process the recording and derived frames to draft the job description and build the simulation.");
     // Since Terms 2026-11-19.1 (owner: the early trial dropped) the Terms no longer say Blueprint runs robot software in
     // the simulation. The v2 sentence, which lets Blueprint "run candidate robot policies in it", is a permission a site
     // gave, kept word for word for the records made under it; it is shown only by the long start form, which is off.
     expect(terms).not.toMatch(/early trial|robot software/i);
     expect(START_FORM_SHORT_CONSENT).toBe(true);
     // The sharing has its own clause in the Terms (and its own statement, v4); the older sentence names none.
-    expect(terms).toContain("Starting a job means we share it with robot deployment companies we've approved");
+    expect(terms).toContain("Starting a job means that, once it has its video, we share it with robot deployment companies we've approved");
     expect(RECORDING_RIGHTS_STATEMENT).not.toMatch(/robot teams?|job card|anonymi[sz]ed|partner|listing/i);
   });
 });

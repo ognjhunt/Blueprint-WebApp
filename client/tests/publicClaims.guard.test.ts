@@ -95,7 +95,6 @@ const FRAME_FILES = [
   "client/src/pages/ForgotPassword.tsx",
   "client/src/pages/BusinessSignUpFlow.tsx",
   "client/src/pages/NotFound.tsx",
-  "client/src/pages/Refunds.tsx",
   "client/src/pages/RobotTeamSignUpFlow.tsx",
   "client/src/lib/jobOutlook.ts",
   "client/src/lib/captureGroundedLanguage.ts",
