@@ -261,13 +261,13 @@ describe("applying", () => {
     expect(response.status).toBe(400);
   });
 
-  it("refuses a form that does not send the versions it showed, or sends stale ones, with the accept route's error", async () => {
+  it("refuses a form that does not send the versions it showed, or sends stale ones, and asks for a reload", async () => {
     for (const body of [application, { ...form, termsVersion: "2026-11-02.1" }, { ...form, privacyVersion: "2026-11-02.1" },
       { ...form, termsVersion: undefined }]) {
       const response = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST",
         headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify(body) });
       expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({ error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" });
+      expect(await response.json()).toEqual({ error: "Our Terms or Privacy Policy changed. Reload the page and apply again.", code: "terms_acceptance_invalid" });
     }
     expect([...state.docs.keys()].some(key => key.startsWith("robotTeamAccess/"))).toBe(false);
   });

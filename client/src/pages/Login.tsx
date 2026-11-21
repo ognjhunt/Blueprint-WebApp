@@ -6,6 +6,7 @@ import { SEO } from "@/components/SEO";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { authReturnPath } from "@/lib/authReturnPath";
+import { friendlyAuthError } from "@/lib/siteClaim";
 
 interface ValidationErrors {
   email?: string;
@@ -13,12 +14,12 @@ interface ValidationErrors {
 }
 
 function validateEmail(email: string): string | undefined {
-  if (!email) return "Email is required";
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? undefined : "Please enter a valid email address";
+  if (!email) return "Enter your email.";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? undefined : "Enter a valid email address.";
 }
 
 function validatePassword(password: string): string | undefined {
-  if (!password) return "Password is required";
+  if (!password) return "Enter your password.";
   return undefined;
 }
 
@@ -125,8 +126,10 @@ export default function Login() {
     setAuthErrorCode(null);
     try {
       await signIn(formData.email, formData.password);
-    } catch {
-      setAuthError("Invalid email or password.");
+    } catch (error) {
+      // The account layer has already put credential, network and account errors into words; anything still raw gets
+      // the fallback.
+      setAuthError(friendlyAuthError(error, "We could not sign you in. Please try again."));
     } finally {
       setIsLoading(false);
     }
@@ -159,7 +162,7 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account to follow your site jobs and their results." canonical="/sign-in" noIndex />
+      <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account." canonical="/sign-in" noIndex />
       <h1>Sign in</h1>
       <button type="button" className="auth-google" onClick={handleGoogleSignIn} disabled={isLoading || !googleReady}><GoogleMark />Continue with Google</button>
       <div className="auth-divider"><span>or</span></div>
@@ -167,9 +170,9 @@ export default function Login() {
         {authError && <p className="auth-error" role="alert">{authError}</p>}
         {authErrorCode === "auth/popup-blocked" && (
           <div className="auth-browser-handoff">
-            <p>Tap the browser menu and choose <strong>Open in Safari</strong>. If that option is unavailable, copy this link and paste it into Safari. {isCompanyJob ? "You’ll return to the job page after sign-in." : "Your result will open after sign-in."}</p>
-            <button type="button" onClick={copyReturnLink}>{linkCopied ? "Link copied" : isCompanyJob ? "Copy job link" : "Copy result link"}</button>
-            <input aria-label={isCompanyJob ? "Job link to open in Safari" : "Result link to open in Safari"} readOnly value={returnLink} onFocus={(event) => event.currentTarget.select()} />
+            <p>Copy this link and open it in Safari or Chrome, then sign in there.</p>
+            <button type="button" onClick={copyReturnLink}>{linkCopied ? "Link copied" : "Copy link"}</button>
+            <input aria-label="Link to open in Safari or Chrome" readOnly value={returnLink} onFocus={(event) => event.currentTarget.select()} />
           </div>
         )}
         <div><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" inputMode="email" value={formData.email} onChange={handleInputChange} onBlur={handleBlur} placeholder="you@company.com" disabled={isLoading} aria-invalid={Boolean(errors.email && touched.email)} aria-describedby={errors.email && touched.email ? "email-error" : undefined} />{errors.email && touched.email && <p id="email-error" className="auth-field-error">{errors.email}</p>}</div>
@@ -177,7 +180,12 @@ export default function Login() {
         <a className="auth-forgot" href="/forgot-password">Forgot password?</a>
         <button type="submit" className="auth-primary" disabled={isLoading}>{isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" />Signing in…</> : <>Sign in<ArrowRight size={18} aria-hidden="true" /></>}</button>
       </form>
-      <p className="auth-account-link">New to Blueprint? <a href="/contact/site-operator?source=sign-in">Start a job</a></p>
+      {isCompanyJob
+        ? <p className="auth-account-link">New deployment company? <a href="/jobs#partner-application">Apply to see jobs</a></p>
+        : <>
+          <p className="auth-account-link">New to Blueprint? <a href="/contact/site-operator?source=sign-in">Start a job</a></p>
+          <p className="auth-account-link">Lost your job link? Email <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a> from the address you used.</p>
+        </>}
     </AuthLayout>
   );
 }

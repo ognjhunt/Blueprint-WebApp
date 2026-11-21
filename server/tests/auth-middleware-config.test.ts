@@ -36,7 +36,7 @@ describe("verifyFirebaseToken configuration guard", () => {
     expect(next).not.toHaveBeenCalled();
     expect(response.status).toHaveBeenCalledWith(503);
     expect(response.json).toHaveBeenCalledWith({
-      error: expect.stringMatching(/Firebase Admin auth is not configured/i),
+      error: expect.stringMatching(/Sign-in isn't working on our side/i),
     });
   });
 

@@ -33,7 +33,7 @@ async function account(page: Page, configured = false) {
         if (state.failSave)
           return route.fulfill({
             status: 503,
-            json: { error: "Could not save your workspace. Please try again." },
+            json: { error: "Could not save your account. Please try again." },
           });
         const body = request.postDataJSON();
         state.workspaceType = body.workspaceType;
@@ -61,7 +61,7 @@ async function account(page: Page, configured = false) {
         return route.fulfill({
           status: 403,
           json: {
-            error: "Choose a workspace type to get started.",
+            error: "Choose an account type to get started.",
             code: "workspace_setup_required",
           },
         });
@@ -89,32 +89,32 @@ for (const type of ["site_operator", "robot_team"] as const) {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/app");
     await expect(
-      page.getByRole("heading", { name: "Set up your workspace" }),
+      page.getByRole("heading", { name: "Set up your account" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Try again", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("link", { name: "Browse jobs", exact: true }),
+      page.getByRole("link", { name: "Find jobs", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByText("Robot-team workspace", { exact: true }),
+      page.getByText("Deployment company account", { exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: "Open operations →" }),
     ).toHaveCount(0);
     await page
-      .getByLabel("Organization", { exact: true })
+      .getByLabel("Business name", { exact: true })
       .fill("Workspace Company");
-    await page.getByLabel("Workspace type", { exact: true }).selectOption(type);
+    await page.getByLabel("Account type", { exact: true }).selectOption(type);
     if (type === "site_operator") {
       await expect(page.getByRole("heading", { name: "Start with your site and job" })).toBeVisible();
-      await expect(page.getByLabel("Organization", { exact: true })).toHaveCount(0);
-      await page.getByRole("link", { name: "Show us a task →" }).click();
+      await expect(page.getByLabel("Business name", { exact: true })).toHaveCount(0);
+      await page.getByRole("link", { name: "Start a job →" }).click();
     } else {
       await page.getByRole("checkbox").check();
       await page.screenshot({ path: info.outputPath("account-setup.png"), fullPage: true });
-      await page.getByRole("button", { name: "Continue to robot setup →" }).click();
+      await page.getByRole("button", { name: "Continue →" }).click();
     }
     await expect(page).toHaveURL(
       type === "site_operator"
@@ -144,46 +144,49 @@ test("Settings offers setup and a failed save keeps editable values", async ({
   const state = await account(page);
   await page.goto("/settings");
   await expect(
-    page.getByRole("heading", { name: "Set up your workspace" }),
+    page.getByRole("heading", { name: "Set up your account" }),
   ).toBeVisible();
   await page
-    .getByLabel("Workspace type", { exact: true })
+    .getByLabel("Account type", { exact: true })
     .selectOption("robot_team");
-  await page.getByLabel("Organization", { exact: true }).fill("Retry Company");
+  await page.getByLabel("Company", { exact: true }).fill("Retry Company");
   await page.getByRole("checkbox").check();
   state.failSave = true;
-  await page.getByRole("button", { name: "Continue to robot setup →" }).click();
+  await page.getByRole("button", { name: "Continue →" }).click();
   await expect(page.getByRole("alert")).toContainText(
-    "Could not save your workspace",
+    "Could not save your account",
   );
-  await expect(page.getByLabel("Organization", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Company", { exact: true })).toHaveValue(
     "Retry Company",
   );
   await expect(
-    page.getByRole("button", { name: "Continue to robot setup →" }),
+    page.getByRole("button", { name: "Continue →" }),
   ).toBeEnabled();
   await expect(page).toHaveURL(/\/settings$/);
   expect(state.workspaceType).toBeNull();
 });
-test("Settings can change workspace type without losing saved records", async ({
+test("the account type can still change at /settings?setup=1 without losing saved records", async ({
   page,
 }) => {
   const state = await account(page, true),
     saved = JSON.stringify(state.savedRecords);
   await page.goto("/settings");
-  await page.getByRole("link", { name: "Change workspace type →" }).click();
+  // Settings itself no longer offers the switch (launch copy d-036): a site never needs it.
+  await expect(page.getByRole("heading", { name: "Account type", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Change workspace type/ })).toHaveCount(0);
+  await page.goto("/settings?setup=1");
   await expect(
-    page.getByRole("heading", { name: "Workspace setup" }),
+    page.getByRole("heading", { name: "Account type", exact: true }),
   ).toBeVisible();
   await page
-    .getByLabel("Workspace type", { exact: true })
+    .getByLabel("Account type", { exact: true })
     .selectOption("robot_team");
   await page
-    .getByRole("button", { name: "Save workspace", exact: true })
+    .getByRole("button", { name: "Save", exact: true })
     .click();
   await expect(page).toHaveURL(/\/settings$/);
-  // A robot team's settings have no robots-and-policies tab any more (2026-11-12); its workspace line says what it is.
-  await expect(page.locator("p.ws-section", { hasText: "Robot-team workspace" })).toBeVisible();
+  // A company's settings have no robots-and-policies tab any more (2026-11-12); its account line says what it is.
+  await expect(page.locator("p.ws-section", { hasText: "Deployment company account" })).toBeVisible();
   expect(state.workspaceType).toBe("robot_team");
   expect(JSON.stringify(state.savedRecords)).toBe(saved);
 });
@@ -192,10 +195,10 @@ test("workspace setup is usable on mobile", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 1000 });
   await page.goto("/settings");
   await expect(
-    page.getByRole("heading", { name: "Set up your workspace" }),
+    page.getByRole("heading", { name: "Set up your account" }),
   ).toBeVisible();
   await expect(
-    page.getByLabel("Workspace type", { exact: true }),
+    page.getByLabel("Account type", { exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -215,21 +218,24 @@ for (const role of ["site_operator", "robot_team"] as const) {
     await page.goto("/settings");
     await expect(page.locator('a[href^="/admin/"]')).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Open operations →" })).toHaveCount(0);
+    // Settings repeats none of the sidebar's links (launch copy d-039); the sidebar is the way round.
+    await expect(page.getByRole("link", { name: /Your jobs →|Open overview →|Find jobs →|Browse jobs →/ })).toHaveCount(0);
+    const nav = page.getByRole("navigation", { name: role === "site_operator" ? "Site account" : "Deployment company account" });
     // A site's overview is its one jobs list (2026-11-12).
-    await page.getByRole("link", { name: role === "site_operator" ? "Your jobs →" : "Open overview →", exact: true }).click();
+    await nav.getByRole("link", { name: role === "site_operator" ? "Your jobs" : "Overview", exact: true }).click();
     await expect(page).toHaveURL(/\/app$/);
     await expect(page.getByRole("heading", { name: role === "site_operator" ? "Your jobs" : "Overview", exact: true })).toBeVisible();
     await page.goto("/settings");
     if (role === "robot_team") {
-      await page.getByRole("link", { name: "Browse jobs →", exact: true }).click();
+      await nav.getByRole("link", { name: "Find jobs", exact: true }).click();
       // The robot-team library pages under /app are gone (2026-11-12); the job library is the robot-team page.
       await expect(page).toHaveURL(/\/contact\/robot-team$/);
       await expect(page.locator("#robot-team-title")).toBeVisible();
     } else {
-      await expect(page.getByRole("link", { name: "Browse jobs →", exact: true })).toHaveCount(0);
+      await expect(nav.getByRole("link", { name: "Find jobs", exact: true })).toHaveCount(0);
     }
     await page.goto("/settings?setup=1");
-    await expect(page.getByRole("heading", { name: "Workspace setup", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Account type", exact: true })).toBeVisible();
     await expect(page.locator('a[href^="/admin/"]')).toHaveCount(0);
   });
 }

@@ -7,6 +7,7 @@ import { resolveOperatorQaAuth } from "@/lib/operatorQaAuth";
 import { onFirebaseClientLoaded } from "@/lib/firebaseLoadSignal";
 import { clearSiteCaptureRecoveryForAccount } from "@/lib/siteCaptureDraft";
 import { BROWSE_JOBS_PATH, isApprovedDeploymentCompany } from "@/lib/robotTeamAccess";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -22,6 +23,15 @@ interface AuthContextType {
 }
 
 const AuthContext = React.createContext<AuthContextType | null>(null);
+
+/** Said when the account's profile cannot be read (a permission error), which is a failure, not an access rule. */
+const ACCOUNT_NOT_OPENED = "We couldn't open your account. Please try again, or write to hello@tryblueprint.io.";
+/** Said when Google sign-in fails with nothing more specific to say. */
+const GOOGLE_SIGN_IN_UNFINISHED = "Google sign-in didn't finish. Please try again.";
+/** A message a person can read, or "" when it is a raw code or SDK text such as "Firebase: Error (auth/internal-error)." */
+function readableMessage(message: unknown): string {
+  return typeof message === "string" && message && !/firebase|auth\/|\(|\bError\b/i.test(message) ? message : "";
+}
 
 const viteEnv =
   typeof import.meta !== "undefined" && import.meta.env
@@ -271,9 +281,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resolveRedirectPath = React.useCallback(
     async (data: UserData | null, user?: FirebaseUser): Promise<string> => {
-      const marketingDestination =
-        (viteEnv.VITE_MARKETING_DESTINATION as string | undefined)?.trim() ||
-        "/onboarding";
       const isCapturer =
         data?.role === "capturer" || data?.roles?.includes("capturer") === true;
       let storedRedirect: string | null = null;
@@ -300,11 +307,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (storedRedirect) {
-        // Allow redirect to onboarding if user hasn't completed it
-        const normalizedRedirect =
-          storedRedirect === "/onboarding" && data?.onboardingStep === "completed"
-            ? marketingDestination
-            : storedRedirect;
         try {
           sessionStorage.removeItem("redirectAfterAuth");
         } catch (storageError) {
@@ -313,21 +315,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             storageError,
           );
         }
-        return normalizedRedirect;
+        // The setup checklist at /onboarding is retired (2026-11-20): it only forwards, so it is not a place to return to.
+        if (!/^\/onboarding(?:[/?#]|$)/.test(storedRedirect)) return storedRedirect;
       }
 
+      // An approved deployment company goes to Find jobs; every other account to its jobs, finished setup or not.
       if (user && await isApprovedDeploymentCompany(user)) return BROWSE_JOBS_PATH;
-
-      // If user just signed up (has onboardingStep set but not completed)
-      if (data?.onboardingStep && data.onboardingStep !== "completed") {
-        return "/onboarding";
-      }
-
-      // If user hasn't finished the intake-first onboarding flow
-      if (data && data.finishedOnboarding !== true) {
-        return "/onboarding";
-      }
-
       return "/app";
     },
     [],
@@ -366,7 +359,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const createAccessDeniedError = () => {
     const accessError: any = new Error(
-      "Access to Blueprint is currently invite-only. Please request an invitation to continue.",
+      ACCOUNT_NOT_OPENED,
     );
     accessError.code = ACCESS_DENIED_CODE;
     return accessError;
@@ -679,7 +672,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error("Google sign in error:", { code: error.code, message: error.message });
-      const mapped = new Error(getAuthErrorMessage(error.code) || error.message || "Google sign-in failed.");
+      const mapped = new Error(getAuthErrorMessage(error.code) || readableMessage(error.message) || GOOGLE_SIGN_IN_UNFINISHED);
       (mapped as Error & { code?: string }).code = error.code;
       throw mapped;
     }
@@ -696,7 +689,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await finishGoogleSignIn(user);
     } catch (error: any) {
       console.error("Google redirect sign in error:", { code: error.code, message: error.message });
-      const mapped = new Error(getAuthErrorMessage(error.code) || error.message || "Google sign-in failed.");
+      const mapped = new Error(getAuthErrorMessage(error.code) || readableMessage(error.message) || GOOGLE_SIGN_IN_UNFINISHED);
       (mapped as Error & { code?: string }).code = error.code;
       throw mapped;
     } finally {
@@ -750,26 +743,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       case "auth/email-already-in-use":
         return "An account with this email already exists";
       case "auth/invalid-email":
-        return "Invalid email address";
+        return "That email address does not look right.";
       case "auth/operation-not-allowed":
-        return "Operation not allowed";
+        return "Google sign-in isn't available here. Use your email and password.";
       case "auth/weak-password":
-        return "Password is too weak";
+        return `Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.`;
       case "auth/user-disabled":
-        return "This account has been disabled";
+        return "This account is disabled. Write to hello@tryblueprint.io and we will help.";
+      // One sentence for every credential failure, so the page never says which half was wrong.
       case "auth/user-not-found":
-        return "No account found with this email";
       case "auth/wrong-password":
-        return "Invalid password";
+      case "auth/invalid-credential":
+        return "That email and password do not match an account.";
+      case "auth/too-many-requests":
+        return "Too many attempts in a row. Wait a few minutes, then try again.";
       case "auth/popup-closed-by-user":
         return "Google sign-in was cancelled";
       case "auth/popup-blocked":
-        return "Google sign-in was blocked by this browser. Open the result link in Safari or Chrome, then try again.";
+        return "This browser blocked Google sign-in.";
       case "auth/network-request-failed":
-        return "Network error occurred. Please check your connection";
+        return "We could not reach Blueprint. Check your connection and try again.";
       case ACCESS_DENIED_CODE:
       case "permission-denied":
-        return "Blueprint access is currently invite-only. Please request an invitation to continue.";
+        return ACCOUNT_NOT_OPENED;
       case USER_DATA_MISSING_CODE:
         return "We created your account but couldn't finish loading it. Please try signing in again.";
       default:

@@ -500,9 +500,9 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByText("Viewed by 3 companies")).toBeVisible();
     expect(within(companies()).getByText("2 responses")).toBeVisible();
     expect(lines()[0]).toContain("Company BNeed more detailsAnswered November 12, 2026");
-    expect(lines()[0]).toContain("No reason we can show.You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.");
+    expect(lines()[0]).toContain("No reason shared.You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.");
     expect(lines()[1]).toContain("Company AInterestedAnswered November 13, 2026");
-    expect(lines()[1]).not.toContain("No reason we can show.");
+    expect(lines()[1]).not.toContain("No reason shared.");
     const buttons = within(companies()).getAllByRole("button", { name: "Introduce us" });
     expect(buttons).toHaveLength(1);
     expect(within(companies()).getByText("We give Company A your name, address and contact details, and give you theirs."))
@@ -522,7 +522,7 @@ describe("the deployment companies section, with sends, answers and introduction
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: reasons }} />);
     expect(within(companies()).getByText("In their words: “The company would need a video of the far end; see [removed].”")).toBeVisible();
     expect(within(companies()).getByText("In their words: “We stack cartons like these every day.”")).toBeVisible();
-    expect(lines()[2]).toContain("Company CNot a fitAnswered November 14, 2026No reason we can show.");
+    expect(lines()[2]).toContain("Company CNot a fitAnswered November 14, 2026No reason shared.");
     // Need more details: no Introduce us (the company agreed to be introduced only after Interested or Tested it: can
     // do), and the site is told what would make one possible.
     expect(within(companies()).getAllByRole("button", { name: "Introduce us" })).toHaveLength(1);

@@ -46,7 +46,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
     return res.status(400).json({ error: "Add a few words about what you need or what you tested." });
   }
   if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your approved company's verified account." });
-  if (!db) return res.status(503).json({ error: "Job unavailable" });
+  if (!db) return res.status(503).json({ error: "Your response could not be saved just now. Try again." });
   try {
     const access = await getAccessRecordForEmail(user.email);
     if (access?.status !== "approved" || access.partnerRole === "technology")
@@ -56,7 +56,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       return res.status(403).json({ error: TERMS_PROMPT, code: TERMS_ACCEPTANCE_REQUIRED });
     const taskId = String(req.params.taskId), ref = db.collection("inboundRequests").doc(taskId);
     const before = await loadCompanyJobAccess(taskId);
-    if (!before.record || !before.access.listed) return res.status(409).json({ error: "This job is not open to answers." });
+    if (!before.record || !before.access.listed) return res.status(409).json({ error: "This job is no longer shared, so it can't take responses." });
     const source = before.record;
     // The two tested answers need the job's simulation package (E9).
     if (TESTED_RESPONSE_STATES.includes(input.data.state)) {
@@ -93,7 +93,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       tx.set(interestRef, next);
     });
     return res.json({ ok: true, state: input.data.state,
-      nextAction: "Saved. The site is told this answer under an alias. Answering commits nobody." });
+      nextAction: "Saved. The site sees this answer, without your company's name." });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
 });
 

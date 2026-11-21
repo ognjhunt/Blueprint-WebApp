@@ -25,15 +25,17 @@ describe("robot-team verification from the job library", () => {
 
   it("points a company that has not applied to the one application form, on the page for deployment companies", () => {
     render(<RobotTeamEarlyAccess access={null} email={null} />);
-    expect(screen.getByRole("link", { name: "Apply" })).toHaveAttribute("href", "/partners#partner-application");
+    expect(screen.getByRole("region", { name: "Apply to see jobs" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Apply" })).toHaveAttribute("href", "/jobs#partner-application");
     expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
     expect(screen.queryByRole("textbox", { name: /Your name/ })).toBeNull();
   });
 
-  it("shows where approval will be sent while an application is pending", () => {
+  it("says approval will be emailed while an application is pending, without printing the viewer's address", () => {
     render(<RobotTeamEarlyAccess access={{ gated: true, status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false }}
       email="eng@robot.example" />);
-    expect(screen.getByText("We'll email eng@robot.example if your company is approved.")).toBeInTheDocument();
+    expect(screen.getByText("We'll email you if your company is approved.")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("eng@robot.example");
     expect(document.body.textContent).not.toMatch(/task fits/i);
   });
 });

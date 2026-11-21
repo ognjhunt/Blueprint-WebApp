@@ -30,7 +30,7 @@ async function privacyFixture(page: Page) {
         state.posts.push(request.postDataJSON());
         if (state.failSubmit) return route.fulfill({ status: 503, json: { error: "Privacy requests are temporarily unavailable. Please try again." } });
         state.request ||= { id: `deletion_${"a".repeat(64)}`, status: "requested", requestedAtIso: "2026-10-19T12:00:00.000Z",
-          updatedAtIso: "2026-10-19T12:00:00.000Z", message: "Your request is recorded for privacy review. Your account remains active until we process it. This receipt does not confirm deletion." };
+          updatedAtIso: "2026-10-19T12:00:00.000Z", message: "We have your request. Nothing is deleted yet, and your account stays open until we finish. We'll tell you what we deleted and anything we must keep." };
         return route.fulfill({ status: 202, json: { request: state.request, created: true } });
       }
       return route.fulfill({ json: { request: state.request } });
@@ -50,7 +50,7 @@ test("deletion request works before workspace setup and restores its receipt and
   await page.getByLabel("Type DELETE to confirm the request").fill("DELETE");
   await submit.click();
   await expect(page.getByRole("heading", { name: "Deletion requested", exact: true })).toBeVisible();
-  await expect(page.getByText(/This receipt does not confirm deletion/)).toBeVisible();
+  await expect(page.getByText(/Nothing is deleted yet/)).toBeVisible();
   expect(state.posts).toEqual([{ confirmation: "DELETE" }]);
   await page.reload();
   await expect(page.getByRole("heading", { name: "Deletion requested", exact: true })).toBeVisible();

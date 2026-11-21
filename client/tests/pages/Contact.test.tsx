@@ -64,7 +64,7 @@ describe("the site page", () => {
 });
 
 describe("the robot page", () => {
-  const APPLY = "/partners#partner-application";
+  const APPLY = "/jobs#partner-application";
 
   it("points a visitor to the one application form while access is loading", async () => {
     mockLocation = "/contact/robot-team";
@@ -92,17 +92,29 @@ describe("the robot page", () => {
     render(<Contact />);
     expect(await screen.findByRole("link", { name: "Apply" })).toHaveAttribute("href", APPLY);
     expect(screen.getByRole("heading", { level: 1, name: "Apply to see jobs" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Browse jobs" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Find jobs" })).toBeNull();
     expect(screen.getByRole("link", { name: "Start a job" })).toHaveAttribute(
       "href",
       "/contact/site-operator",
     );
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
     // Sharing is the service (2026-11-12): a company sees the jobs sites send; no site chooses whether to share.
-    expect(screen.getByText("Approved deployment companies can browse jobs and respond."))
+    expect(screen.getByText("Approved deployment companies can see jobs and respond."))
       .toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/choose to share|chooses to share/i);
     expect(screen.getAllByText(/Nothing is charged today\./)).toHaveLength(1);
+  });
+
+  it("does not ask a company that already applied to apply again", async () => {
+    mockLocation = "/contact/robot-team";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [], access: { gated: true, status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false } }),
+    }));
+    render(<Contact />);
+    expect(await screen.findByRole("heading", { name: "Your application is in review." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Find jobs" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Apply to see jobs" })).toBeNull();
   });
 
   it("shows an approved team the job library", async () => {
@@ -112,11 +124,11 @@ describe("the robot page", () => {
       json: async () => ({ items: [], access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false } }),
     }));
     render(<Contact />);
-    expect(await screen.findByRole("heading", { name: "The first site jobs are being prepared." })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Deployment opportunities" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "No jobs yet." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Find jobs" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Apply" })).toBeNull();
     // An approved company is not asked to apply (journey audit, 2026-11-20), and the page says no price once.
-    expect(screen.getByRole("heading", { level: 1, name: "Deployment opportunities" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Find jobs" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Apply to see jobs" })).toBeNull();
     expect(screen.queryByText(/Nothing is charged today\./)).toBeNull();
   });

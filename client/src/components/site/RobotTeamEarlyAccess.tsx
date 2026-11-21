@@ -2,7 +2,7 @@
  * What a deployment company sees on the job library's page before it is approved.
  *
  * The library is shown to approved companies only. Every other visitor gets the
- * one thing they can do next: apply (on `/partners`, the one application form),
+ * one thing they can do next: apply (on `/jobs`, the one application form),
  * wait for approval, or verify the email that was approved.
  */
 import { useEffect, useState } from "react";
@@ -54,8 +54,8 @@ function ApprovedTeamAccess() {
 function ApplyLink() {
   return (
     <div className="ms-task-empty">
-      <p>Approved deployment companies can browse jobs and respond.</p>
-      <p><a className="ms-button" href="/partners#partner-application">Apply</a></p>
+      <p>Approved deployment companies can see jobs and respond.</p>
+      <p><a className="ms-button" href="/jobs#partner-application">Apply</a></p>
     </div>
   );
 }
@@ -116,7 +116,7 @@ export function RobotTeamEarlyAccess({ access, email, returnTo = "/contact/robot
     return (
       <div className="ms-task-empty">
         <h2>Your application is in review.</h2>
-        <p>We'll email {email ?? "you"} if your company is approved.</p>
+        <p>We'll email you if your company is approved.</p>
       </div>
     );
   }
@@ -131,7 +131,7 @@ export function RobotTeamEarlyAccess({ access, email, returnTo = "/contact/robot
   }
 
   return (
-    <section aria-label="Early access" className="ms-early-access">
+    <section aria-label="Apply to see jobs" className="ms-early-access">
       <ApplyLink />
       {!access?.signedIn && <ApprovedTeamAccess />}
     </section>

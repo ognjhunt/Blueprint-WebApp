@@ -13,7 +13,7 @@ function renderFlow() {
   return client;
 }
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
-const receipt = { id: "deletion_reference", status: "requested", requestedAtIso: "2026-10-19T12:00:00Z", updatedAtIso: "2026-10-19T12:00:00Z", message: "Your request is recorded. This receipt does not confirm deletion." };
+const receipt = { id: "deletion_reference", status: "requested", requestedAtIso: "2026-10-19T12:00:00Z", updatedAtIso: "2026-10-19T12:00:00Z", message: "We have your request. Nothing is deleted yet, and your account stays open until we finish." };
 beforeEach(() => {
   vi.clearAllMocks(); state.user.getIdToken.mockResolvedValue("auth-token");
   state.user.providerData = [{ providerId: "password" }];
@@ -28,7 +28,7 @@ describe("account deletion request", () => {
     fireEvent.change(screen.getByLabelText("Type DELETE to confirm the request"), { target: { value: "DELETE" } });
     fireEvent.click(submit);
     expect(await screen.findByRole("heading", { name: "Deletion requested" })).toBeInTheDocument();
-    expect(screen.getByText(/This receipt does not confirm deletion/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is deleted yet/)).toBeInTheDocument();
     const call = fetch.mock.calls.find(([, init]) => init?.method === "POST");
     expect(call?.[1]).toMatchObject({ body: JSON.stringify({ confirmation: "DELETE" }), headers: { Authorization: "Bearer auth-token", "X-CSRF-Token": "proof" } });
     expect(state.reauthenticate).not.toHaveBeenCalled(); client.clear();

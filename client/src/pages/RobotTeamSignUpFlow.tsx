@@ -49,7 +49,7 @@ export default function RobotTeamSignUpFlow() {
   async function submit(google: boolean) {
     if (pending.current || !invitation) return;
     setError("");
-    if (!terms || !name.trim() || !organization.trim()) { setError("Enter your name and organization, and accept the Terms and Privacy Policy."); return; }
+    if (!terms || !name.trim() || !organization.trim()) { setError("Enter your name and company, and agree to the Terms and Privacy Policy."); return; }
     if (!google && !account.current && password.length < 8) { setError("Use at least 8 characters for your password."); return; }
     pending.current = true; setBusy(true);
     try {
@@ -79,18 +79,18 @@ export default function RobotTeamSignUpFlow() {
   }
   return <>
     <Helmet><meta name="referrer" content="no-referrer" /></Helmet>
-    <SEO noIndex title={`${invitation ? "Create your account" : "Request access"} | Blueprint`} description="Robot-team accounts are available by invitation after review and approval." canonical="/signup/business" />
+    <SEO noIndex title={`${invitation ? "Create your account" : "Access by invitation"} | Blueprint`} description="Accounts for deployment companies Blueprint has approved." canonical="/signup/business" />
     <AuthLayout>
       <h1>{checking ? "Checking your invitation" : invitation ? "Create your account" : "Access by invitation"}</h1>
       {!invitation ? <>
-        <p className="auth-description">{checking ? "We’re checking the approval for this email address." : "Register your robot team. We’ll invite you after the required review and approval."}</p>
+        {!checking && <p className="auth-description">Deployment companies apply first. Once we approve your company, we email you a link to create your account.</p>}
         {!checking && <div className="auth-form">
-          <a className="auth-primary" href="/jobs#partner-application">Apply for access <ArrowRight size={18} aria-hidden="true" /></a>
+          <a className="auth-primary" href="/jobs#partner-application">Apply to see jobs <ArrowRight size={18} aria-hidden="true" /></a>
           <a className="auth-google" href="/contact/site-operator">Start a job</a>
         </div>}
         {!checking && <p className="auth-description">Already approved? Open the invitation link we emailed you, or <a href="/contact/robot-team#approved-team">get a new invitation link</a>.</p>}
       </> : <>
-        <p className="auth-description">Your robot team is approved. Use the email address on your invitation.</p>
+        <p className="auth-description">Your company is approved. Use the email address on your invitation.</p>
         <form className="auth-form auth-simple-signup" onSubmit={event => { event.preventDefault(); void submit(false); }} aria-busy={busy}>
           <div><label htmlFor="email">Work email</label><input id="email" type="email" value={invitation.email} readOnly autoComplete="email" /></div>
           <details open={!invitation.name || !invitation.organization ? true : undefined}>

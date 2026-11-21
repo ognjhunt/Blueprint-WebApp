@@ -67,7 +67,7 @@ export function claimVerificationUrl(token: string) {
 }
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  "auth/email-already-in-use": "An account already uses this email. Choose “I already have an account” and sign in.",
+  "auth/email-already-in-use": "An account already uses this email. Sign in instead.",
   "auth/wrong-password": "That password does not match this account.",
   "auth/invalid-credential": "That email and password do not match an account.",
   "auth/user-not-found": "There is no account with this email yet. Create one instead.",

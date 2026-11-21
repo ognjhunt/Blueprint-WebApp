@@ -164,7 +164,9 @@ const RULES: Rule[] = [
   // Sharing is the service (owner, 2026-11-12): agreed once when the site sends the job, with no share button, no share
   // setting and no pause. No sentence offers a site the choice, the button or a way to pause or keep a sent job private.
   { name: "a share step, share setting or pause", test: sentence =>
-    /\bshare my job\b|\b(choose|chooses|choosing)\s+(whether\s+)?to\s+share\b|\byou can share\b|\bthen you can share\b|\b(pause|resume|stop)\s+sharing\b|\bkeep\s+(it|your job|this job)\s+private\b/i.test(sentence) },
+    /\bshare my job\b|\b(choose|chooses|choosing)\s+(whether\s+)?to\s+share\b|\byou can share\b|\bthen you can share\b|\b(pause|resume|stop)\s+sharing\b|\bkeep\s+(it|your job|this job)\s+private\b/i.test(sentence)
+    // Launch copy (2026-11-20, d-001, f-093): the save-to-account page offered to pause the job and hide its card.
+    || /\bpause\s+(it|your job|this job|the listing)\b|\bcontrol\s+the\s+listing\b|\bhide\s+(its|the|your)\s+card\b/i.test(sentence) },
 ];
 
 /** A rule a file may break because the file holds a recorded statement that must stay word for word. */
@@ -259,5 +261,14 @@ describe("public words claim only what the code does", () => {
       "the old frame's \"paper check\"", "the old frame's \"your answer\"",
       "deployment companies judging the job", "a price",
       "a share step, share setting or pause", "a share step, share setting or pause", "a share step, share setting or pause"]);
+  });
+
+  it("catches an offer to pause a sent job, control its listing or hide its card", () => {
+    const sample = [
+      "export const A = \"You can review results, control the listing, and pause it anytime.\";",
+      "export const B = \"On your job page you can hide its card from the job library at any time.\";",
+    ].join("\n");
+    expect(publicClaimFindings(file => (file === "client/src/pages/ClaimSite.tsx" ? sample : "")).map(finding => finding.split(": ")[1]))
+      .toEqual(["a share step, share setting or pause", "a share step, share setting or pause"]);
   });
 });

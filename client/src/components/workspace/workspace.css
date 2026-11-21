@@ -1120,8 +1120,16 @@
     width: 80px;
   }
 }
-.ws-footer a {
+.ws-footer a,
+.ws-footer button {
   color: var(--ws-muted);
+}
+.ws-footer button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
 }
 .workspace-shell .uppercase {
   letter-spacing: 0;

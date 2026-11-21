@@ -136,7 +136,7 @@ test("a signed-in company opens a job from the library, watches the video and an
     }
     if (url.pathname === `/api/site-worlds/tasks/${JOB}/interest` && request.method() === "POST") {
       answers.push(request.postDataJSON());
-      return route.fulfill({ json: { ok: true, nextAction: "Your answer is saved. The site is told your answer. Answering commits nobody." } });
+      return route.fulfill({ json: { ok: true, nextAction: "Saved. The site sees this answer, without your company's name." } });
     }
     return route.fulfill({ status: 503, json: { error: "No live API calls in browser fixture" } });
   });
@@ -158,17 +158,17 @@ test("a signed-in company opens a job from the library, watches the video and an
   await expect.poll(() => videoRequests.length).toBeGreaterThan(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  const answerLink = page.getByRole("link", { name: "Respond to opportunity" });
+  const answerLink = page.getByRole("link", { name: "Respond", exact: true });
   await expect(answerLink).toBeInViewport();
   await answerLink.click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const form = page.getByRole("form", { name: "Response to opportunity" });
+  const form = page.getByRole("form", { name: "Your response" });
   await expect(form).toBeInViewport();
   await expect(form.getByText(statement, { exact: true })).toBeVisible();
   await form.getByLabel("Interested").check();
   await form.getByRole("textbox").fill("We palletize cartons like these today.");
   await form.getByRole("button", { name: "Send response" }).click();
-  await expect(form.getByRole("status")).toHaveText(/^Your answer is saved\./);
+  await expect(form.getByRole("status")).toHaveText(/^Saved\. The site sees this answer/);
   expect(answers).toEqual([{ state: "interested", inputs: "We palletize cartons like these today.", statementVersion: "company-response-2026-11-12" }]);
   expect(errors).toEqual([]);
 });

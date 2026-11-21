@@ -26,8 +26,8 @@ describe("Minimal sign in", () => {
     render(<Login />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
-    expect(screen.getByText("Email is required")).toBeInTheDocument();
-    expect(screen.getByText("Password is required")).toBeInTheDocument();
+    expect(screen.getByText("Enter your email.")).toBeInTheDocument();
+    expect(screen.getByText("Enter your password.")).toBeInTheDocument();
     expect(signIn).not.toHaveBeenCalled();
   });
   it("retains the essential account and recovery links", async () => {
@@ -35,6 +35,8 @@ describe("Minimal sign in", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     expect(screen.getByRole("link", { name: "Start a job" })).toHaveAttribute("href", "/contact/site-operator?source=sign-in");
     expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
+    expect(screen.getByText(/Lost your job link\? Email/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "hello@tryblueprint.io" })).toHaveAttribute("href", "mailto:hello@tryblueprint.io");
     expect(screen.queryByRole("link", { name: "Capture app access" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Secure Access Portal|Scope before signup/)).not.toBeInTheDocument();
   });
@@ -97,15 +99,24 @@ describe("Minimal sign in", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     expect(sessionStorage.getItem("redirectAfterAuth")).toBeNull();
   });
-  it("offers a copyable result link when a browser blocks the popup", async () => {
+  it("offers a company the application instead of a site's start link", async () => {
+    window.history.replaceState({}, "", "/sign-in?next=%2Fjobs%2Fjob-1");
+    render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
+    expect(screen.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs#partner-application");
+    expect(screen.queryByRole("link", { name: "Start a job" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lost your job link/)).not.toBeInTheDocument();
+  });
+  it("offers a copyable link when a browser blocks the popup", async () => {
     window.history.replaceState({}, "", "/sign-in?next=%2Fapp%2Fresults%2Fcapture-run-123");
     const blocked = Object.assign(new Error("Google sign-in was blocked here."), { code: "auth/popup-blocked" });
     signInWithGoogle.mockRejectedValueOnce(blocked);
     render(<Login />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    expect(await screen.findByRole("button", { name: "Copy result link" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Result link to open in Safari")).toHaveValue(`${window.location.origin}/app/results/capture-run-123`);
+    expect(await screen.findByRole("button", { name: "Copy link" })).toBeInTheDocument();
+    expect(screen.getByText("Copy this link and open it in Safari or Chrome, then sign in there.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Link to open in Safari or Chrome")).toHaveValue(`${window.location.origin}/app/results/capture-run-123`);
   });
   it("offers the company job link when a browser blocks the popup", async () => {
     window.history.replaceState({}, "", "/sign-in?next=%2Fjobs%2Fjob-1");
@@ -114,16 +125,22 @@ describe("Minimal sign in", () => {
     const google = screen.getByRole("button", { name: "Continue with Google" });
     await waitFor(() => expect(google).toBeEnabled());
     fireEvent.click(google);
-    expect(await screen.findByRole("button", { name: "Copy job link" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Job link to open in Safari")).toHaveValue(`${window.location.origin}/jobs/job-1`);
+    expect(await screen.findByRole("button", { name: "Copy link" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Link to open in Safari or Chrome")).toHaveValue(`${window.location.origin}/jobs/job-1`);
   });
-  it("shows an accessible generic error after credential rejection and retains input", async () => {
-    signIn.mockRejectedValueOnce(new Error("auth/user-not-found"));
+  it("shows the account layer's words after credential rejection and retains input", async () => {
+    signIn.mockRejectedValueOnce(new Error("That email and password do not match an account."));
     render(<Login />); fillCredentials();
     fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email or password.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("That email and password do not match an account.");
     expect(screen.getByLabelText("Email")).toHaveValue("person@example.com");
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeEnabled();
+  });
+  it.each(["auth/user-not-found", "Firebase: Error (auth/internal-error)."])("never shows a raw sign-in error (%s)", async (raw) => {
+    signIn.mockRejectedValueOnce(new Error(raw));
+    render(<Login />); fillCredentials();
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not sign you in. Please try again.");
   });
   it("disables both authentication actions while a request is pending", async () => {
     let finish!: () => void;

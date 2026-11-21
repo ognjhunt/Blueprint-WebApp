@@ -18,7 +18,7 @@ describe('production revocation and account state checks',()=>{
   });
   const response=await fetch(`${base}/private`,{headers:{Authorization:'Bearer old-valid-token'}});
   expect(response.status).toBe(401);
-  expect(await response.json()).toEqual({error:'Invalid or expired token'});
+  expect(await response.json()).toEqual({error:'Your sign-in has expired.'});
  });
  it('keeps active credentials admitted and fails safely when account state is unavailable',async()=>{
   sdk.verifyIdToken.mockResolvedValueOnce({uid:'active-account'}).mockRejectedValueOnce(new Error('account lookup unavailable'));

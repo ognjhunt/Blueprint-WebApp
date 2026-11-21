@@ -31,13 +31,15 @@ describe("signed-in state on public pages", () => {
     expect(screen.queryByRole("link", { name: /onboarding|workspace/i })).toBeNull();
   });
 
-  it("tells staff why they see the library and where the public application form is", async () => {
+  // Decision 3 (launch copy, 2026-11-20): staff see exactly what an approved company sees, with no hint of their own.
+  it("shows staff the library exactly as an approved company sees it", async () => {
     auth.currentUser = { uid: "u1", email: "ops@example.test" };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
       items: [], access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: true },
     }) });
     render(<TaskBrowse />);
-    expect(await screen.findByRole("note")).toHaveTextContent(/Signed in as ops@example\.test · staff view/);
-    expect(screen.getByRole("link", { name: "See the application form" })).toHaveAttribute("href", "/partners#partner-application");
+    expect(await screen.findByRole("heading", { name: "No jobs yet." })).toBeInTheDocument();
+    expect(screen.queryByRole("note")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/ops@example\.test|staff view|Signed in as/);
   });
 });
