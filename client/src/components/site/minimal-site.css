@@ -594,6 +594,9 @@
 .legal-update-banner button { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; margin-block: -6px; padding: 0; background: none; border: 0; border-radius: 2px; color: inherit; cursor: pointer; }
 .legal-update-banner :focus-visible { outline: 2px solid #f6f5ef; outline-offset: 2px; }
 .ms-legal .ms-legal-version { color: var(--ms-ink); }
+.ms-legal .ms-legal-versions { margin-top: 8px; font-size: 14px; color: var(--ms-muted); }
+.ms-legal .ms-legal-versions summary { cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+.ms-legal .ms-legal-versions ul { margin-block: 8px; }
 .ws-content > .legal-update-banner { justify-content: space-between; margin-bottom: 24px; border-radius: 3px; }
 
 /* Blueprint's four screening questions: the full set on How it works, the short set beside the start form. */

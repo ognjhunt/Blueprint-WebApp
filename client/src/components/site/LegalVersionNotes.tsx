@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { COMPANY } from "@/data/company";
 import {
+  EARLIER_PRIVACY_VERSION,
+  EARLIER_TERMS_VERSION,
+  FORMER_PRIVACY_VERSION,
+  FORMER_TERMS_VERSION,
+  OLDER_PRIVACY_VERSION,
+  OLDER_TERMS_VERSION,
   PREVIOUS_PRIVACY_URL,
   PREVIOUS_PRIVACY_VERSION,
   PREVIOUS_TERMS_URL,
   PREVIOUS_TERMS_VERSION,
+  PRIOR_PRIVACY_VERSION,
+  PRIOR_TERMS_VERSION,
   PRIVACY_URL,
   PRIVACY_VERSION,
   TERMS_URL,
@@ -29,29 +38,78 @@ const documents = {
     verb: { future: "take", past: "took" },
     current: { version: TERMS_VERSION, url: TERMS_URL },
     previous: { version: PREVIOUS_TERMS_VERSION, url: PREVIOUS_TERMS_URL },
+    email: COMPANY.emails.legal,
   },
   privacy: {
     name: "Privacy Policy",
     verb: { future: "takes", past: "took" },
     current: { version: PRIVACY_VERSION, url: PRIVACY_URL },
     previous: { version: PREVIOUS_PRIVACY_VERSION, url: PREVIOUS_PRIVACY_URL },
+    email: COMPANY.emails.privacy,
   },
 } as const;
+
+/**
+ * Every version before the current one that this repository keeps, newest first (launch copy g-047, Terms and Privacy
+ * 2026-11-21.1): a site's job keeps the Privacy version it was started under, so a site can see which version was in
+ * force when. Only the previous version is routed; the older pages are kept byte for byte and their page shells print
+ * the previous slot's date, so they are listed by date, not linked. Versions before 2026-11-02.1 are not kept here.
+ */
+const pastVersions: Record<LegalDocument, ReadonlyArray<{ version: string; url?: string; replacedSameDay?: true }>> = {
+  terms: [
+    { version: PREVIOUS_TERMS_VERSION, url: PREVIOUS_TERMS_URL },
+    { version: OLDER_TERMS_VERSION },
+    { version: FORMER_TERMS_VERSION },
+    // 2026-11-12.1 was replaced by 2026-11-12.2 on the day it took effect.
+    { version: PRIOR_TERMS_VERSION, replacedSameDay: true },
+    { version: EARLIER_TERMS_VERSION },
+  ],
+  privacy: [
+    { version: PREVIOUS_PRIVACY_VERSION, url: PREVIOUS_PRIVACY_URL },
+    { version: OLDER_PRIVACY_VERSION },
+    { version: FORMER_PRIVACY_VERSION },
+    // 2026-11-12.2 has the same words as 2026-11-12.1, in force from the same day: one entry.
+    { version: PRIOR_PRIVACY_VERSION },
+    { version: EARLIER_PRIVACY_VERSION },
+  ],
+};
+
+function PastLegalVersions({ document }: { document: LegalDocument }) {
+  const doc = documents[document];
+  return (
+    <details className="ms-legal-versions">
+      <summary>Past versions</summary>
+      <ul>
+        {pastVersions[document].map(({ version, url, replacedSameDay }) => {
+          const label = `Effective ${legalEffectiveDate(version)}${replacedSameDay ? ", replaced the same day" : ""}`;
+          return <li key={version}>{url ? <a href={url}>{label}</a> : label}</li>;
+        })}
+      </ul>
+      <p>
+        Only the previous version is online. To ask for another, or for one from before November 2, 2026, email{" "}
+        <a href={`mailto:${doc.email}`}>{doc.email}</a>.
+      </p>
+    </details>
+  );
+}
 
 /** Under the effective date of the current version. */
 export function CurrentLegalVersionNote({ document }: { document: LegalDocument }) {
   const doc = documents[document];
   const previous = <a href={doc.previous.url}>previous version</a>;
-  return legalUpdatePending() ? (
-    <p className="ms-legal-version">
-      This version takes effect on {legalEffectiveDate(doc.current.version)}. Until then, the {previous} (effective{" "}
-      {legalEffectiveDate(doc.previous.version)}) applies.
-    </p>
-  ) : (
-    <p className="ms-legal-version">
-      This version replaced the {previous} (effective {legalEffectiveDate(doc.previous.version)}).
-    </p>
-  );
+  return <>
+    {legalUpdatePending() ? (
+      <p className="ms-legal-version">
+        This version takes effect on {legalEffectiveDate(doc.current.version)}. Until then, the {previous} (effective{" "}
+        {legalEffectiveDate(doc.previous.version)}) applies.
+      </p>
+    ) : (
+      <p className="ms-legal-version">
+        This version replaced the {previous} (effective {legalEffectiveDate(doc.previous.version)}).
+      </p>
+    )}
+    <PastLegalVersions document={document} />
+  </>;
 }
 
 /** Under the effective date of the frozen previous version. */

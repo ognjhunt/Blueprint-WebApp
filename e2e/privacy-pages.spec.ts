@@ -9,9 +9,10 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-// Refunds left the product copy (launch copy, 2026-11-20): the cost row says only "Free for sites.", and the page stays
-// at its address, unlinked, for purchases made before the free beta.
-test("the cost row links no refunds, and refund information stays at its address on mobile", async ({ page }) => {
+// Refunds left the product copy (launch copy, 2026-11-20): the cost row says only "Free for sites.". The page itself left
+// with Terms 2026-11-21.1 (owner, 2026-11-21: no outside customer ever bought a pre-beta balance); its address lands on
+// the Terms, which hold no refund clause.
+test("the cost row links no refunds, and the old refunds address lands on the Terms on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/beta");
   await page.getByRole("button", { name: "Reject all", exact: true }).click();
@@ -19,10 +20,9 @@ test("the cost row links no refunds, and refund information stays at its address
   await expect(cost).toContainText("Free for sites.");
   await expect(cost.getByRole("link", { name: /Refunds/ })).toHaveCount(0);
   await page.goto("/refunds");
-  await expect(page.getByRole("heading", { name: "Refunds and cancellations", exact: true })).toBeVisible();
-  await expect(page.getByText("Purchases made before the free beta", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "applicable Terms of Service" })).toHaveAttribute("href", /\/terms(?:\/previous)?$/);
-  await expect(page.getByRole("link", { name: "hello@tryblueprint.io", exact: true }).first()).toHaveAttribute("href", /^mailto:/);
+  await expect(page).toHaveURL(/\/terms$/);
+  await expect(page.getByRole("heading", { name: "Terms of Service", exact: true, level: 1 })).toBeVisible();
+  await expect(page.locator("article")).not.toContainText(/refund|unused balance/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

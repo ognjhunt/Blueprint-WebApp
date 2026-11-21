@@ -61,6 +61,9 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/app/tasks/new": "/contact/site-operator",
   "/app/tasks/:taskId": "/app",
   "/readiness-brief/:briefToken": "/",
+  // Terms 2026-11-21.1 (owner, 2026-11-21: no outside customer ever bought a pre-beta balance): the refunds page and the
+  // Terms' refund clauses are gone; the old address lands on the Terms.
+  "/refunds": "/terms",
 };
 
 /**
@@ -75,7 +78,7 @@ export const queryDroppingRedirects: ReadonlySet<string> = new Set([
   "/requests/:requestId/preview",
 ]);
 
-export const minimalPublicPaths = ["/", "/how-it-works", "/jobs", "/partners", "/beta", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds", "/privacy/previous", "/terms/previous"] as const;
+export const minimalPublicPaths = ["/", "/how-it-works", "/jobs", "/partners", "/beta", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/privacy/previous", "/terms/previous"] as const;
 
 /**
  * True when a pathname renders on the minimal public shell. Trailing slashes

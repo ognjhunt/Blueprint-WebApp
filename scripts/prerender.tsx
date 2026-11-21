@@ -21,7 +21,6 @@ import Partners from "../client/src/pages/Partners";
 import Contact from "../client/src/pages/Contact";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
-import Refunds from "../client/src/pages/Refunds";
 import Login from "../client/src/pages/Login";
 import BusinessSignUpFlow from "../client/src/pages/BusinessSignUpFlow";
 import ForgotPassword from "../client/src/pages/ForgotPassword";
@@ -101,7 +100,6 @@ const staticRoutes: StaticRoute[] = [
   { path: "/forgot-password", component: ForgotPassword, shell: "bare" },
   { path: "/privacy", component: Privacy },
   { path: "/terms", component: Terms },
-  { path: "/refunds", component: Refunds },
   { path: "/__blueprint-performance-fallback__", component: PrerenderFallbackSummary, shell: "bare" },
 ];
 

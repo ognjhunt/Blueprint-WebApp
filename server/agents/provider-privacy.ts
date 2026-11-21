@@ -1,4 +1,5 @@
-import { ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, FORMER_PRIVACY_VERSION, OLDER_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
+import { ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, FORMER_PRIVACY_VERSION, OLDER_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, PRIOR_PRIVACY_VERSION,
+  PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
 import type { AgentProvider, AgentTaskKind } from "./types";
 
 /**
@@ -190,6 +191,33 @@ const AI_ROWS_2026_11_17: Record<string, PolicyRow> = {
 };
 
 /**
+ * The provider rows of version 2026-11-21.1 (owner, 2026-11-21: the launch-copy legal edits). The words say "job
+ * description", "video" and "simulation" for "job brief", "capture" and "simulated scene", the site's own words are
+ * "what the site wrote about the job", and Anthropic's row is split into short sentences; Vast.ai's row no longer says
+ * "simulated evaluations". Every row names the same kinds of data as in 2026-11-17.1 and 2026-11-19.1: it permits
+ * exactly what they permit. (The rows that left the policy in this version, ElevenLabs and Twilio's phone line, are
+ * in "Email and communication", which this table does not hold.)
+ */
+const AI_ROWS_2026_11_21: Record<string, PolicyRow> = {
+  OpenAI: {
+    words: "Reading what the site wrote about the job and frames from its video to draft the job description and prepare the simulation, drafting replies, and sorting incoming requests",
+    classes: AI_ROWS_2026_11_17.OpenAI.classes,
+  },
+  "Google Gemini": {
+    words: "Watching site footage, with its sound removed, and frames from it, together with what the site wrote about the job, to draft and check the job description and to find what the simulation needs",
+    classes: AI_ROWS_2026_11_17["Google Gemini"].classes,
+  },
+  Meta: { words: "Outlining objects and areas in site footage, with its sound removed, to prepare the simulation", classes: AI_ROWS_2026_11_17.Meta.classes },
+  Anthropic: {
+    words: "May read what the site wrote about the job and frames from its video to draft the job description and prepare the simulation, draft replies, and sort incoming requests, for jobs started and requests sent under the version of this policy effective November 13, 2026, or a later one. For earlier jobs: only drafting the job description from video frames, when the site chose that option. Also drafting and sorting internal work where we configure it",
+    classes: AI_ROWS_2026_11_17.Anthropic.classes,
+  },
+  DeepSeek: AI_ROWS_2026_11_17.DeepSeek,
+  "World Labs": AI_ROWS_2026_11_17["World Labs"],
+  "Vast.ai": { words: "Cloud GPU servers that build and check simulations", classes: AI_ROWS_2026_11_17["Vast.ai"].classes },
+};
+
+/**
  * Rows the Privacy Policy states for a company no lane of this website's agent
  * runtime can route to: no provider id here names the row, so it permits
  * nothing (its classes are empty). Each is named with the reason the page keeps
@@ -214,15 +242,17 @@ export const PAGE_ROWS_WITHOUT_A_ROUTE: Record<string, string> = {
 export const PRIVACY_POLICY_PROVIDER_ROWS: Record<string, { page: string; rows: Record<string, PolicyRow>; same_text_as?: string }> = {
   [EARLIER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyEarlier.tsx", rows: AI_ROWS_2026_11 },
   // 2026-11-12.1 and 2026-11-12.2 are the same words; acceptances were recorded under both.
-  "2026-11-12.1": { page: "client/src/pages/PrivacyFormer.tsx", rows: AI_ROWS_2026_11, same_text_as: FORMER_PRIVACY_VERSION },
-  [FORMER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyFormer.tsx", rows: AI_ROWS_2026_11 },
+  "2026-11-12.1": { page: "client/src/pages/PrivacyPrior.tsx", rows: AI_ROWS_2026_11, same_text_as: PRIOR_PRIVACY_VERSION },
+  [PRIOR_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrior.tsx", rows: AI_ROWS_2026_11 },
   [ANNOUNCED_SUPERSEDED_VERSION]: { page: "client/src/pages/PrivacyAnnounced.tsx", rows: AI_ROWS_2026_11 },
-  [OLDER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyOlder.tsx", rows: AI_ROWS_2026_11_13 },
+  [FORMER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyFormer.tsx", rows: AI_ROWS_2026_11_13 },
   // 2026-11-17.1 permits what 2026-11-13.1 does (owner, 2026-11-17: only the face blurring leaves); Anthropic's row
   // names the version it means instead of "this version".
-  [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11_17 },
+  [OLDER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyOlder.tsx", rows: AI_ROWS_2026_11_17 },
   // 2026-11-19.1 (no early trial) changes no provider row: it permits exactly what 2026-11-17.1 does.
-  [PRIVACY_VERSION]: { page: "client/src/pages/Privacy.tsx", rows: AI_ROWS_2026_11_17 },
+  [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11_17 },
+  // 2026-11-21.1 (launch copy) rewords the rows in plain words and permits exactly what 2026-11-19.1 does.
+  [PRIVACY_VERSION]: { page: "client/src/pages/Privacy.tsx", rows: AI_ROWS_2026_11_21 },
 };
 
 /**

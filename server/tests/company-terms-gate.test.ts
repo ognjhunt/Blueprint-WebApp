@@ -8,7 +8,7 @@
  * reads are fakes. (The viewer gate itself, unmocked, is pinned in `robot-team-early-access.test.ts`.)
  */
 import express from "express";
-import { NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
+import { LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -341,6 +341,23 @@ describe("the no-early-trial Terms and Privacy ask no approved company to agree 
   it("a company that was already asked again is still asked", () => {
     expect(companyMaySeeJobs(record("2026-11-12.1", NO_EARLY_TRIAL_VERSION) as never)).toBe(false);
     expect(companyMaySeeJobs(record(NO_EARLY_TRIAL_VERSION, "2026-11-02.1") as never)).toBe(false);
+  });
+});
+
+describe("the launch-copy Terms and Privacy ask no approved company to agree again", () => {
+  // Owner, 2026-11-21: Terms and Privacy 2026-11-21.1 correct both documents to what the Service already does and ask
+  // nothing new, so every acceptance that let a company see jobs before still does. (A company's reason reaches a site
+  // under the line it answered under, `company-response-2026-11-12`, not under the Terms.)
+  const record = (termsVersion: string, privacyVersion: string) => ({ status: "approved", partnerRole: "deployment",
+    termsAcceptedByUid: "uid-company", termsAcceptance: { ...currentTermsAcceptance(), terms_version: termsVersion, privacy_version: privacyVersion } });
+  it("a company holding any acceptance that counted under 2026-11-19.1 keeps seeing jobs", () => {
+    for (const terms of ["2026-11-12.2", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION])
+      for (const privacy of ["2026-11-12.2", "2026-11-13.1", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION])
+        expect(companyMaySeeJobs(record(terms, privacy) as never), `${terms} ${privacy}`).toBe(true);
+  });
+  it("a company that was already asked again is still asked", () => {
+    expect(companyMaySeeJobs(record("2026-11-12.1", LAUNCH_COPY_VERSION) as never)).toBe(false);
+    expect(companyMaySeeJobs(record(LAUNCH_COPY_VERSION, "2026-11-02.1") as never)).toBe(false);
   });
 });
 

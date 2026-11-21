@@ -67,6 +67,8 @@ test("legacy proof, docs and help URLs reach their destination in one hop", asyn
     // Bare bones (2026-11-11): "Jobs we support" folded into How it works, "About" into the Questions page.
     ["/jobs-we-support", "/how-it-works"],
     ["/about", "/beta#who-we-are"],
+    // Terms 2026-11-21.1 (owner, 2026-11-21): the refunds page is gone; its address lands on the Terms.
+    ["/refunds", "/terms"],
   ]) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status(), path).toBe(301);

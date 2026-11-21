@@ -6,12 +6,11 @@ import { COMPANY } from "@/data/company";
 import { PREVIOUS_PRIVACY_URL, PREVIOUS_PRIVACY_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Privacy Policy of version 2026-11-17.1, in force from 2026-11-17 until the next version replaced it
- * (owner: the early trial dropped on 2026-11-14; the Privacy Policy and Terms updated with permission given on
- * 2026-11-19). Its sections are copied word for word from `Privacy.tsx` as it stood at 2026-11-17.1. Do not edit the
- * sections: they are the policy as it stood. Change Privacy.tsx instead.
+ * FROZEN: the Privacy Policy of version 2026-11-19.1, in force from 2026-11-19 until the next version replaced it
+ * (owner, 2026-11-21: the launch-copy legal edits approved). Its sections are copied word for word from `Privacy.tsx`
+ * as it stood at 2026-11-19.1. Do not edit the sections: they are the policy as it stood. Change Privacy.tsx instead.
  */
-const SHARING_SENTENCE = "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, our first look at which robots fit, and the result of any early trial we run.";
+const SHARING_SENTENCE = "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.";
 const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
 const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
@@ -28,13 +27,13 @@ const privacyPolicySections = [
   {
     title: "Site footage",
     body:
-      `When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage, before sending it to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run our early trial. ${SHARING_SENTENCE} We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound. We ask sites to avoid screens and paperwork.`,
+      `When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage, before sending it to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, and rebuild the work area as a simulated scene. ${SHARING_SENTENCE} We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under a version of this policy published before November 17, 2026, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound. We ask sites to avoid screens and paperwork.`,
     icon: Waypoints,
   },
   {
     title: "How we use it",
     body:
-      "To run the Service: to reply to you, set up your job or account, draft the job brief, rebuild scenes, run our early trial, share each job with the deployment companies we approve, make the introductions a site asks for, record physical-pilot outcomes only under the parties' agreed permissions, send the emails you need (such as a job update or a company's answer), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information, and we do not use your footage to train AI models without your written agreement. The only use that California law could treat as sharing for cross-context behavioral advertising is the optional marketing cookies described below, which are off unless you turn them on.",
+      "To run the Service: to reply to you, set up your job or account, draft the job brief, rebuild scenes, share each job with the deployment companies we approve, make the introductions a site asks for, record physical-pilot outcomes only under the parties' agreed permissions, send the emails you need (such as a job update or a company's answer), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information, and we do not use your footage to train AI models without your written agreement. The only use that California law could treat as sharing for cross-context behavioral advertising is the optional marketing cookies described below, which are off unless you turn them on.",
     icon: Shield,
   },
   {
@@ -49,7 +48,7 @@ const capturePrivacyAnnex = [
   // Sharing is the service (owner, 2026-11-12): the video goes, without its sound, to the deployment companies Blueprint
   // approves, only so they can judge the job. Name, address and contacts go only through an introduction the site asks for.
   ["Your video", `Your recording is used inside Blueprint to draft the job brief, review the job and rebuild the work area. It is shared, without its sound, only with the robot deployment companies we approve, and only so they can judge the job. ${COMPANY_USE_SENTENCE}`],
-  ["People in job footage", "We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint and with the robot deployment companies we approve, and obtain any permission the law requires from people who can be seen or heard."],
+  ["People in job footage", "We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under a version of this policy published before November 17, 2026, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint and with the robot deployment companies we approve, and obtain any permission the law requires from people who can be seen or heard."],
   ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review, before sending footage to an AI or 3D-processing provider and before a deployment company sees it, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
   ["Screens and paperwork", "Avoid them when filming where practical: companies see your video as you filmed it."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene. A deployment company sees the country of the job, not the address you typed."],
@@ -96,7 +95,7 @@ const betaRetentionSchedule = [
   {
     record: "Scenes, evaluation results, pilot records and reports",
     defaultWindow: "365 days after the job closes or the contract ends",
-    notes: "The rebuilt scene, early trial results, the answers deployment companies gave, introductions and reports. Physical pilot measurements are included only under a separate agreement, which may set a different retention period and permitted use.",
+    notes: "The rebuilt scene, the answers deployment companies gave, introductions and reports. Physical pilot measurements are included only under a separate agreement, which may set a different retention period and permitted use.",
   },
   {
     record: "Account and contact details",
@@ -261,7 +260,7 @@ export default function PrivacyPrevious() {
           We share personal information with the providers below, only for the function listed and under contract.
           We also share each job with the robot deployment companies we approve. They receive it as the job&rsquo;s
           recipients, not as our providers: the site&rsquo;s description of the job, its video without its sound, the
-          simulation, what counts as the job done, our first look and any early trial result, only so they can judge
+          simulation, what counts as the job done and our first look, only so they can judge
           the job. A site&rsquo;s name, address and contact details go to a company only when the site asks for an introduction
           to it, and the site then receives the company&rsquo;s name and contact details.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or

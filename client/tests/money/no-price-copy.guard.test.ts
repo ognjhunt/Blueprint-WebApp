@@ -45,7 +45,7 @@ const ALLOWED: readonly Allowance[] = [
   { file: /^client\/src\/components\/site\/TaskFacts\.tsx$/, rule: "a fee or a price",
     sentence: /^(?:Site's proposed pilot price|Ongoing price target)$/,
     reason: "labels for the pilot figure the site itself typed, shown to companies; not a Blueprint price (an owner decision is listed)" },
-  { file: /^client\/src\/pages\/(?:Terms\w*|Refunds)\.tsx$/, rule: "a fee or a price",
+  { file: /^client\/src\/pages\/Terms\w*\.tsx$/, rule: "a fee or a price",
     sentence: /the site and the deployment company agree the physical pilot.{0,30}\bprice\b/i,
     reason: "a pilot's price is agreed between the site and the company; Blueprint states none" },
   { file: /^client\/src\/pages\/Terms\w*\.tsx$/, rule: "an amount of money",
@@ -107,7 +107,8 @@ describe("no price anywhere a site or a deployment company reads", () => {
   it("reads the pages, the job page, every email to a site or a company, and the routes that answer them", () => {
     for (const file of [
       "client/src/pages/Home.tsx", "client/src/pages/Partners.tsx", "client/src/pages/Beta.tsx", "client/src/pages/Terms.tsx",
-      "client/src/pages/Refunds.tsx", "client/src/pages/CompanyJob.tsx", "client/src/pages/SelfCaptureUpload.tsx",
+      // The refunds page left with Terms 2026-11-21.1 (/refunds redirects to /terms).
+      "client/src/pages/CompanyJob.tsx", "client/src/pages/SelfCaptureUpload.tsx",
       "client/src/components/site/TaskBrowse.tsx",
       "client/src/lib/siteIntroductions.ts", "client/src/lib/companyResponses.ts", "client/src/lib/evaluationPricing.ts",
       // The emails the hand-kept list of `publicClaims.guard.test.ts` did not read (2026-11-19).

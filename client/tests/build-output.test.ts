@@ -61,10 +61,12 @@ describe("build output", () => {
       "forgot-password/index.html",
       "privacy/index.html",
       "terms/index.html",
-      "refunds/index.html",
     ].forEach((file) => {
       expect(fs.existsSync(distPath(file))).toBe(true);
     });
+    // Terms 2026-11-21.1 (owner, 2026-11-21: no outside customer bought a pre-beta balance): the refunds page is gone and
+    // /refunds redirects to /terms, so no page is prerendered for it.
+    expect(fs.existsSync(distPath("refunds/index.html"))).toBe(false);
   });
 
   it("ships the retired capture-app pages no more, and the current brand's icons and share image", () => {
@@ -200,7 +202,7 @@ describe("build output", () => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
     expect((sitemap.match(/<loc>/g) || []).length).toBe(8);
-    // Refunds left the product copy (launch copy, 2026-11-20): the page stays routed for earlier purchases, unlisted.
+    // Refunds left the product copy (launch copy, 2026-11-20), and the page itself left with Terms 2026-11-21.1.
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/refunds</loc>");
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/jobs-we-support</loc>");
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/about</loc>");

@@ -56,7 +56,6 @@ const Login = lazyRoute(() => import("../pages/Login"));
 const ForgotPassword = lazyRoute(() => import("../pages/ForgotPassword"));
 const Privacy = lazyRoute(() => import("../pages/Privacy"));
 const Terms = lazyRoute(() => import("../pages/Terms"));
-const Refunds = lazyRoute(() => import("../pages/Refunds"));
 const PrivacyPrevious = lazyRoute(() => import("../pages/PrivacyPrevious"));
 const TermsPrevious = lazyRoute(() => import("../pages/TermsPrevious"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
@@ -305,7 +304,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },
   { path: "/terms", layout: "public", component: Terms },
-  { path: "/refunds", layout: "public", component: Refunds },
   // The versions in force until an announced update takes effect.
   { path: "/privacy/previous", layout: "public", component: PrivacyPrevious },
   { path: "/terms/previous", layout: "public", component: TermsPrevious },
