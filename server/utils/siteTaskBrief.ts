@@ -56,7 +56,7 @@ import {
 } from "../../client/src/lib/siteTaskReadiness";
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
-import { TASK_CONFIRMATION_VERSION } from "../../client/src/lib/taskConfirmationStatement";
+import { isTaskConfirmationVersion } from "../../client/src/lib/taskConfirmationStatement";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
 import { projectWebsiteTaskContext, taskContextSiteIdentity } from "./websiteTaskContext";
@@ -248,7 +248,9 @@ export function briefConfirmedAtSubmission(params: {
 }): SiteTaskBriefRecord | null {
   const consent = params.consent as { granted?: unknown; statementVersion?: unknown } | null | undefined;
   if (!consent || typeof consent !== "object" || consent.granted !== true
-    || consent.statementVersion !== TASK_CONFIRMATION_VERSION) return null;
+    || !isTaskConfirmationVersion(consent.statementVersion)) return null;
+  // Recorded under the version the site saw, never a newer one it did not.
+  const statementVersion = consent.statementVersion;
   const summary = params.summary.trim();
   if (isPlaceholderSummary(summary) || !params.confirmedBy.trim()
     || !Number.isFinite(Date.parse(params.submittedAtIso))) return null;
@@ -272,7 +274,7 @@ export function briefConfirmedAtSubmission(params: {
     operatorUnknown: [],
     successCriteria: params.successCriteria,
     unresolved: draft.unresolved.filter((fieldId) => !answers[fieldId]),
-    submissionConsent: { statementVersion: TASK_CONFIRMATION_VERSION, recordedAtIso: params.submittedAtIso },
+    submissionConsent: { statementVersion, recordedAtIso: params.submittedAtIso },
   };
 }
 

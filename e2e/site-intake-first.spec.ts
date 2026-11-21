@@ -43,7 +43,7 @@ for (const width of [1440, 390]) {
     await expect(optionalAccount).toBeVisible();
     expect(mutations).toEqual(["/api/inbound-request"]);
     expect(intakeBodies).toEqual([expect.objectContaining({ siteName: "", siteLocation: "", captureRegion: "us", accountSignup: false,
-      taskStatement: "Pack cartons", taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } })]);
+      taskStatement: "Pack cartons", taskConfirmation: { granted: true, statementVersion: "2026-11-21.v2" } })]);
     await expect(optionalAccount).toHaveAttribute("href", "/claim/fixture.claim");
     expect(mutations).toEqual(["/api/inbound-request"]);
     await optionalAccount.click();

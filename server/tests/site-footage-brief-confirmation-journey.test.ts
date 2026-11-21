@@ -496,6 +496,16 @@ describe("a site that confirms its task when it submits it", () => {
     expect(brief(requestId).confirmedAtIso).toBe(record(requestId).site_task_brief_confirmed_at);
   });
 
+  it("still confirms from a page loaded before the new wording, recorded under the version that page showed", async () => {
+    const requestId = `site-footage-v1-${++sequence}`;
+    await postStart({ ...siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),
+      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${requestId}@example.test`,
+      withoutTaskConfirmation: true }), taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } });
+    const saved = brief(requestId);
+    expect(saved.confirmedAtIso).toBeTruthy();
+    expect(saved.submissionConsent).toEqual({ statementVersion: "2026-11-07.v1", recordedAtIso: saved.confirmedAtIso });
+  });
+
   // Chosen behaviour: a submission without the box is accepted and stays unconfirmed. The job keeps
   // going (only privacy, rights and money stop a job), and its brief still needs the site's own click.
   it.each([
