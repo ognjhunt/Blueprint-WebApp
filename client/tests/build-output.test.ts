@@ -129,6 +129,16 @@ describe("build output", () => {
     }
   });
 
+  // DEMO PR only: invented launch content renders only in a build made with VITE_BLUEPRINT_DEMO_CONTENT=1.
+  it("ships no demo content in a production build", () => {
+    const assets = distPath("assets");
+    for (const file of fs.readdirSync(assets).filter(name => name.endsWith(".js"))) {
+      const source = fs.readFileSync(path.join(assets, file), "utf8");
+      for (const demo of ["carton line on my phone", "42 open jobs", "within 5 business days", "What people say"])
+        expect(source, file).not.toContain(demo);
+    }
+  });
+
   it("makes the one company application inspectable without JavaScript, and the job library's page point to it", () => {
     const html = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(html).toContain('href="/jobs#partner-application"');
