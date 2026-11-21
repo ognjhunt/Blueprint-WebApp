@@ -103,6 +103,17 @@ const FRAME_FILES = [
   "server/utils/robotTeamAccessEmails.ts",
   "server/utils/accountNotice.ts",
   "server/utils/filmLinkHandoff.ts",
+  // Launch copy (2026-11-20): the other files that build an email a site or a company reads, or the page an email
+  // link opens (the emails audit's guard coverage gap).
+  "server/utils/jobClarifications.ts",
+  "server/utils/withdrawalCompanyNotice.ts",
+  "server/utils/siteActionNeeded.ts",
+  "server/utils/jobOutcomes.ts",
+  "server/utils/introductionSiteEmail.ts",
+  "server/utils/passwordResetEmail.ts",
+  "server/utils/emailLayout.ts",
+  "server/utils/email-suppression.ts",
+  "server/routes/email-preferences.ts",
   "server/utils/sceneIntentOutcome.ts",
   "server/utils/taskPreparationOutcome.ts",
   "server/utils/taskUpdateCommitment.ts",
@@ -199,7 +210,8 @@ describe("public words claim only what the code does", () => {
 
   // Review, 2026-11-12: planted phrases in these files gave no findings, because the guard did not scan them.
   it.each(["server/utils/robotTeamAccessEmails.ts", "client/src/lib/captureGroundedLanguage.ts",
-    "client/src/components/site/PartnerApplication.tsx"])("scans %s for the frame's bans", planted => {
+    "client/src/components/site/PartnerApplication.tsx", "server/utils/withdrawalCompanyNotice.ts",
+    "server/routes/email-preferences.ts"])("scans %s for the frame's bans", planted => {
     const sample = "export const P = \"We test the top AI robots on your job.\"; export const Q = \"Your answer is ready: the paper check.\";";
     expect(publicClaimFindings(file => (file === planted ? sample : "")).map(finding => finding.split(": ")[1])).toEqual([
       "the old frame's \"top AI robots\"", "the old frame's \"AI robot\"", "the old frame's \"paper check\"", "the old frame's \"your answer\""]);

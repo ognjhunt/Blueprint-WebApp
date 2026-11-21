@@ -35,7 +35,10 @@ function ensureBuildOutput() {
     stdio: "inherit",
     // Compile-only: this build is read off disk to assert on prerendered
     // output and is never served, so it needs no Firebase client config.
-    env: { ...process.env, BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD: "1" },
+    // NODE_ENV is production because that is what ships: under vitest it is
+    // "test", which makes Vite build in development mode (import.meta.env.DEV,
+    // jsxDEV) and puts development-only screens in the bundle being checked.
+    env: { ...process.env, NODE_ENV: "production", BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD: "1" },
   });
 }
 

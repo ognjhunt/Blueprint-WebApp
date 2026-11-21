@@ -40,6 +40,25 @@ describe("the branded email layout", () => {
     expect(links).toEqual([url.replace(/&/g, "&amp;"), url.replace(/&/g, "&amp;")]);
   });
 
+  // e-031: under each button, the address itself, which a reader can copy when the button does not work.
+  it("puts the address itself under each button", () => {
+    const html = textToEmailHtml("Open your job:\nhttps://tryblueprint.io/capture-upload/abc");
+    expect(html).toContain("If the button doesn't work, copy this link: ");
+    expect(html).toMatch(/copy this link: <a [^>]*href="https:\/\/tryblueprint\.io\/capture-upload\/abc"[^>]*>https:\/\/tryblueprint\.io\/capture-upload\/abc<\/a><\/p>/);
+    expect(html).not.toContain("use this link: ");
+  });
+
+  // e-008: a footer the template carries (the new-job email's commercial footer) stays in the text part only.
+  it("keeps a template's own text footer out of the HTML part", () => {
+    const text = "A site has posted a new job.\n\n--\nBlueprint Robotics, Inc. · 6801 Burnet Rd, Austin, TX 78757\n"
+      + "Privacy: https://tryblueprint.io/privacy\nUnsubscribe from new-job emails and Blueprint updates: https://tryblueprint.io/api/growth/email/unsubscribe?email=a%40b.co";
+    const message = brandedEmail({ subject: "New job on Blueprint", text, unsubscribeUrl: "https://tryblueprint.io/api/growth/email/unsubscribe?email=a%40b.co" });
+    expect(message.text).toBe(text);
+    expect(message.html).toContain("A site has posted a new job.");
+    expect(message.html).not.toMatch(/Privacy: |Unsubscribe from |a%40b\.co<\/a>/);
+    expect(message.html).toContain(">Unsubscribe</a>");
+  });
+
   it("escapes the visible heading and footer and preserves optional unsubscribe", () => {
     const message = brandedEmail({
       subject: 'Received <script>alert("x")</script>',

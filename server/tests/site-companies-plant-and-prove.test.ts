@@ -244,7 +244,7 @@ describe("the introductions route", () => {
     const intro = state.docs.get(`inboundRequests/${ID}/introductions/${north}`) as Record<string, any>;
     expect(intro.statementVersion).toBe("introduction-request-2026-11-12");
     const row = state.docs.get(`captureOutbox/${ID}:introduction_made_site:${north}`) as Record<string, any>;
-    expect(row.body.split("\n")[0]).toBe(`${NORTH.company} answered Tested it: can do about your job, and you asked us to introduce you.`);
+    expect(row.body.split("\n")[0]).toBe(`${NORTH.company} answered "Tested it: can do" about your job, and you asked us to introduce you.`);
     expect(JSON.stringify(row)).not.toContain(WORDS.north);
     expect(state.docs.has(`inboundRequests/${ID}/introductions/${south}`)).toBe(false);
     vi.unstubAllEnvs();
@@ -268,14 +268,28 @@ describe("the emails to the site", () => {
     const sent = build("job_sent", { eventId: "companies", companyCount: 4 });
     expect(sent.idempotencyKey).toBe(`${ID}:job_sent:companies`);
     expect(sent.body).toBe("Your job is posted for approved deployment companies. We don't share your name, address or contact details with a "
-      + `deployment company unless you ask for an introduction to it. Your job page shows any answer.\n\n${HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`);
+      + `deployment company unless you ask for an introduction to it. Your job page shows any responses.\n\n${HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`);
+    // The withdrawal promise is whole: how to withdraw, that the job leaves every company's view, and the deletion ask.
+    expect(HOW_TO_WITHDRAW).toBe("To withdraw your job, open your job page, choose Job settings, then Stop using my video. It then leaves "
+      + "every company's view at once. Each company it was sent to is asked to delete any copy it saved.");
     expect(build("job_sent", { eventId: "companies", companyCount: 1 }).body).toMatch(/^Your job is posted for approved deployment companies\./);
-    const answered = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested" });
-    expect(answered.body).toBe(`A deployment company answered about your job: Interested. Your job page has the details.\n\nOpen your job:\n${url}`);
-    const needs = build("company_answered", { eventId: "B-needs_something", companyAnswerState: "needs_something" });
-    expect(needs.body).toBe("A deployment company answered about your job: Need more details. Your job page has the details. "
-      + `You can answer a company’s question on your job page.\n\nOpen your job:\n${url}`);
-    for (const row of [sent, answered, needs]) {
+    // The next step is named only when the job page offers it (e-028, e-029); fixed labels are quoted.
+    const answered = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested", introductionOffered: true });
+    expect(answered.body).toBe(`A deployment company answered "Interested" about your job. To meet them, press Introduce us on your job page.\n\nOpen your job:\n${url}`);
+    const canDo = build("company_answered", { eventId: "A-tested_can_do", companyAnswerState: "tested_can_do", introductionOffered: true });
+    expect(canDo.body).toBe(`A deployment company answered "Tested it: can do" about your job. To meet them, press Introduce us on your job page.\n\nOpen your job:\n${url}`);
+    // Already introduced (or an answer under the older line): no button to press, so none is named.
+    const introduced = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested", introductionOffered: false });
+    expect(introduced.body).toBe(`A deployment company answered "Interested" about your job. Your job page has the details.\n\nOpen your job:\n${url}`);
+    // An answer no introduction follows is never told how to meet the company, whatever the caller says.
+    const declined = build("company_answered", { eventId: "A-declined", companyAnswerState: "declined", introductionOffered: true });
+    expect(declined.body).toBe(`A deployment company answered "Not a fit" about your job. Your job page has the details.\n\nOpen your job:\n${url}`);
+    const needs = build("company_answered", { eventId: "B-needs_something", companyAnswerState: "needs_something", questionOnPage: true });
+    expect(needs.body).toBe(`A deployment company needs more details about your job. Read their question and answer it on your job page.\n\nOpen your job:\n${url}`);
+    // Recorded by Blueprint from the company's email: no question box on the page, so none is promised.
+    const recorded = build("company_answered", { eventId: "B-needs_something", companyAnswerState: "needs_something", questionOnPage: false });
+    expect(recorded.body).toBe(`A deployment company needs more details about your job. Your job page has the details.\n\nOpen your job:\n${url}`);
+    for (const row of [sent, answered, canDo, introduced, declined, needs, recorded]) {
       expectNone(row.kind, JSON.stringify(row), [...NORTH_PLANTED, ...SOUTH_PLANTED]);
       expect(`${row.subject} ${row.body}`).not.toMatch(/summary/i);
     }
@@ -286,9 +300,10 @@ describe("the emails to the site", () => {
       company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website }, answerLabel: "Interested" });
     expect(row).toMatchObject({ idempotencyKey: `${ID}:introduction_made_site:${sha(NORTH.email)}`, kind: "introduction_made_site",
       to: "owner@site.example", subject: `Meet ${NORTH.company}`, replyTo: NORTH.email });
-    expect(row.body).toBe([`${NORTH.company} answered Interested about your job, and you asked us to introduce you.`, "",
+    // A reply reaches Blueprint (dispatch sends Reply-To hello@), so it says where to write instead (decision 9).
+    expect(row.body).toBe([`${NORTH.company} answered "Interested" about your job, and you asked us to introduce you.`, "",
       `Contact: ${NORTH.name}`, `Email: ${NORTH.email}`, `Website: ${NORTH.website}`, "",
-      "We've given them your details. Reply to them directly.", "", `Open your job:\n${url}`].join("\n"));
+      "We've given them your details. Write to them at the email above.", "", `Open your job:\n${url}`].join("\n"));
     expectNone("introduction email", JSON.stringify(row), [WORDS.north, NORTH.robot, NORTH.region, NORTH.decisionNote, ...SOUTH_PLANTED]);
   });
 
@@ -297,9 +312,9 @@ describe("the emails to the site", () => {
     const { introductionMadeSiteEmail } = await import("../utils/introductionSiteEmail");
     const company = { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: null };
     expect(introductionMadeSiteEmail({ jobUrl: url, company, answerLabel: "Tested it: can do" }).body.split("\n")[0])
-      .toBe(`${NORTH.company} answered Tested it: can do about your job, and you asked us to introduce you.`);
+      .toBe(`${NORTH.company} answered "Tested it: can do" about your job, and you asked us to introduce you.`);
     expect(introductionMadeSiteEmail({ jobUrl: url, company, answerLabel: "Interested" }).body.split("\n")[0])
-      .toBe(`${NORTH.company} answered Interested about your job, and you asked us to introduce you.`);
+      .toBe(`${NORTH.company} answered "Interested" about your job, and you asked us to introduce you.`);
     const none = introductionMadeSiteEmail({ jobUrl: url, company });
     expect(none.body.split("\n")[0]).toBe(`You asked us to introduce you to ${NORTH.company}.`);
     expect(none.body).not.toMatch(/answered/);

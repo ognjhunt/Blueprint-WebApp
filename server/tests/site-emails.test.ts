@@ -40,6 +40,20 @@ describe("the site's emails", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  // Decision 12 (launch copy, v-B-005): a site outside the US can save its job but may not send a video yet, so its
+  // first email does not ask for one. A missing or unreadable region keeps the usual words.
+  it("does not ask a site outside the US for a video, and says so the way its done screen does", async () => {
+    (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).request.capture_region = "non_us";
+    expect((await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received" })).enqueued).toBe(true);
+    const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, string>;
+    expect(row.body).toMatch(/^Your job is saved\.\n\nWe can only take videos from sites in the United States for now, so please don't send a video yet\. This link opens your job without a password, so please don't forward it\.\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\//);
+    expect(row.body).not.toMatch(/A video is required/);
+    for (const captureRegion of ["us", null, "encrypted:abc"]) {
+      expect(buildTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received", to: "owner@example.com", captureRegion })
+        .body).toMatch(/^Your job link is ready\.\n\nA video is required to post your job\./);
+    }
+  });
+
   it("queues nothing without an owner contact, or once the site withdrew, and cancels a queued one after a withdrawal", async () => {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-2", { contact: {} });
     await expect(enqueueTaskLifecycleNotification({ requestId: "req-2", milestone: "task_received" }))
@@ -53,13 +67,19 @@ describe("the site's emails", () => {
       .resolves.toEqual({ enqueued: false, reason: "consent_withdrawn" });
   });
 
-  it("says the job went to the companies, what is never shared and how to stop", () => {
+  it("says the job went to the companies, what is never shared and how to withdraw it", () => {
     const message = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "job_sent", to: "owner@example.com",
       eventId: "companies", companyCount: 3 });
     expect(message).toMatchObject({ idempotencyKey: "req-1:job_sent:companies", kind: "job_sent",
       subject: "Your job is posted" });
     expect(message.body).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details/);
     expect(message.body).toContain(HOW_TO_WITHDRAW);
+    // Shorter never weaker: what a withdrawal does for a copy a company already saved is said too.
+    expect(message.body).toContain("Each company it was sent to is asked to delete any copy it saved.");
+    const descriptionOnly = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "job_sent", to: "owner@example.com",
+      eventId: "companies", companyCount: 3, descriptionOnly: true });
+    expect(descriptionOnly.body).toContain("To withdraw your job, open your job page and choose Withdraw my job. It then leaves every "
+      + "company's view at once. Each company it was sent to is asked to delete any copy it saved.");
   });
 
   it("names a company's answer by its label only, never the company", () => {

@@ -14,15 +14,16 @@
  * then the writes, so the notice is as durable as the withdrawal itself.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { storedAnonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
+import { jobTitleForDisplay, storedAnonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { listingDetailsForSentence } from "./taskListingDetails";
 
 export const WITHDRAWAL_COMPANY_KIND = "job_withdrawn_company";
 export const withdrawalCompanyKey = (requestId: string, companyId: string) => `${requestId}:${WITHDRAWAL_COMPANY_KIND}:${companyId}`;
 export const WITHDRAWAL_COMPANY_SUBJECT = "A job you were sent has been withdrawn";
+/** The job is named as Find jobs and its page name it (`jobTitleForDisplay`), never by a stored "… opportunity" title. */
 export const withdrawalCompanyBody = (date: string, title: string) =>
-  `A site has withdrawn a job you were sent on ${date}: ${title}. It has left your job library. If you saved its video or `
-  + "its simulation, delete your copy now.";
+  `A site has withdrawn a job you were sent on ${date}: ${jobTitleForDisplay(title)}. It is no longer listed in Find jobs. `
+  + "If you saved its video or its simulation, delete your copy now.";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type Tx = FirebaseFirestore.Transaction;

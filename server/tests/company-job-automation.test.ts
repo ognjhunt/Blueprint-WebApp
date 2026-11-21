@@ -591,8 +591,11 @@ describe("the automatic send (E4)", () => {
     const alerts = outbox().filter(row => row.kind === "robot_team_new_task");
     expect(alerts.map(row => row.to).sort()).toEqual([NORTH, SOUTH, EAST, WEST].map(record => record.email).sort());
     expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint" });
-    expect(alerts[0].body).toMatch(/^A site is looking for a deployment company for one of its jobs\. See the job and answer in a minute: Interested, Not a fit or Need more details; once the simulation can be downloaded, also Tested it: can do or Tested it: cannot yet\.\n\nhttps:\/\/\S+\/jobs\/req-e2\n/);
-    expect(alerts[0].body).toMatch(/Unsubscribe from optional updates emails: /);
+    // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
+    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    // The unsubscribe line names the emails it stops, never the scope's internal name.
+    expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+scope=optional_updates$/);
+    expect(alerts[0].body).not.toMatch(/optional updates/i);
     expectNoSiteIn("the new-job emails", JSON.stringify(alerts));
     // The site's one email.
     expect(outbox().filter(row => row.kind === "job_sent").map(row => row.key)).toEqual([`${ID}:job_sent:companies`]);
@@ -614,6 +617,15 @@ describe("the automatic send (E4)", () => {
     await deliverOutbox({ limit: 50 });
     expect(seams.sendEmail.mock.calls.map(([message]) => String(message.to)).filter(to => to !== "" && [NORTH, SOUTH, EAST, WEST]
       .some(record => record.email === to)).sort()).toEqual([NORTH, SOUTH, EAST].map(record => record.email).sort());
+    // e-004, e-008: the job is the company's button ("Open the job"); the commercial footer stays in the text part, and the
+    // HTML part shows the layout's own footer with its "Unsubscribe" link, not a raw link carrying the reader's address.
+    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint")!;
+    const html = String(alert.html), text = String(alert.text);
+    expect(text).toMatch(/\n\n--\n.+\nPrivacy: https:\/\/\S+\/privacy\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+$/);
+    expect(html).toContain(">Open the job</a>");
+    expect(html).not.toContain("Open your job page");
+    expect(html).not.toMatch(/Privacy: |Unsubscribe from |scope=optional_updates&quot;|>--</);
+    expect(html).toMatch(/href="https:\/\/\S+\/api\/growth\/email\/unsubscribe\?email=[^"]+scope=optional_updates"[^>]*>Unsubscribe<\/a>/);
   });
 
   it("tells sites with shared video how to withdraw and sends no notice for a legacy description draft", async () => {
@@ -695,7 +707,12 @@ describe("introductions (E6) and money (E7)", () => {
       subject: "A site wants to talk about its job", replyTo: SITE.email });
     for (const detail of [SITE.name, `${SITE.first} ${SITE.last}`, SITE.email, SITE.address, `/jobs/${ID}`]) expect(toCompany.body).toContain(detail);
     // The company's email goes first (H2), so it says the site's email is on its way, not that it has gone (J2).
-    expect(toCompany.body).toContain("We are sending the site your company's name and your contact details now. Reply to them directly.");
+    // A reply reaches Blueprint (dispatch sends Reply-To hello@), so it says where to write instead (decision 9).
+    expect(toCompany.body).toContain("We are sending the site your company's name and your contact details now. Write to them at the email above.");
+    expect(toCompany.body).not.toMatch(/Reply to them/);
+    expect(toCompany.body).toContain(`\nOpen the job:\nhttps://`);
+    expect(toCompany.body).toContain(`\nSite: ${SITE.name}\n`);
+    expect(toCompany.body).toContain(`\nAddress: ${SITE.address}\n`);
     expect(toCompany.body).not.toMatch(/We have given the site/);
     expect(outbox().find(row => row.kind === "introduction_made_site")).toMatchObject({ key: `${ID}:introduction_made_site:${companyId}`,
       to: SITE.email, subject: "Meet the company", replyTo: NORTH.email });
@@ -967,8 +984,8 @@ describe("review findings (must-fix and should-fix)", () => {
     await interested(SOUTH);
     for (const alias of ["A", "B"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     const bodyTo = (email: string) => outbox().find(row => row.kind === "introduction_made_company" && row.to === email)!.body as string;
-    expect(bodyTo(NORTH.email)).toContain("You answered Tested it: can do to a job on Blueprint");
-    expect(bodyTo(SOUTH.email)).toContain("You answered Interested to a job on Blueprint");
+    expect(bodyTo(NORTH.email)).toContain('You answered "Tested it: can do" to a job on Blueprint');
+    expect(bodyTo(SOUTH.email)).toContain('You answered "Interested" to a job on Blueprint');
   });
 
   it("must-fix 6: both media routes refuse an answer without the stored digest, and the download refuses another size", async () => {

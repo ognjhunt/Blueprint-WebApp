@@ -70,13 +70,20 @@ describe("sending composes a film-scoped link and reports honestly", () => {
     });
     expect(result.sent).toBe(true);
     expect(result.filmUrl).toMatch(/\/capture-upload\//);
-    const text = (sendEmailMock.mock.calls[0][0] as { text: string }).text;
+    const { text, html } = sendEmailMock.mock.calls[0][0] as { text: string; html: string };
     expect(text).toContain(result.filmUrl);
-    // Replies go where every other email to a site sends them (journey audit, 2026-11-20), not to ops@.
-    expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ replyTo: "hello@tryblueprint.io" });
+    // Replies go where every other email to a site sends them (journey audit, 2026-11-20), not to ops@, and it comes
+    // from the same address, in the same layout (e-021): a stranger's first email from Blueprint should not look like spam.
+    expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ replyTo: "hello@tryblueprint.io", fromEmail: "hello@tryblueprint.io",
+      fromName: "Blueprint" });
+    expect(text).toContain("\n\n--\nBlueprint Robotics, Inc.");
+    expect(html).toContain(">Film the job</a>");
+    expect(text).toContain(`\n\nFilm the job:\n${result.filmUrl}\n\n`);
     // Says what opens: the browser recorder, on every phone. No capture app is in use (owner, 2026-11-11), so
-    // nothing promises a Blueprint camera that the link never opens.
-    expect(text).toContain("Open this link on your phone. The recorder opens in your browser. No account is needed");
+    // nothing promises a Blueprint camera that the link never opens. The length is the start form's own words.
+    expect(text).toContain("Open this link on your phone. The recorder opens in your browser, and no account is needed. "
+      + "One full round of the job, about 30 seconds, is enough.");
+    expect(text).not.toMatch(/actual cycle|Confirming the job details/);
     expect(text).not.toMatch(/iPhone|Blueprint camera|App Clip/i);
     expect(text).not.toMatch(/no app|app to install|app needed/i);
     // How to film the job, in the job page's own words: an arc around it, not a walk straight past.

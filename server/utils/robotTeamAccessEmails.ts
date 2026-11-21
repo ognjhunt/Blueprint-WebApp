@@ -5,7 +5,6 @@ import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 import { appendCommercialEmailFooter } from "./email-suppression";
 import { robotTeamAccountInvitation } from "./accountInvitations";
 import type { RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
-import { COMPANY_ANSWERS } from "../../client/src/lib/publicCopy";
 
 const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
 
@@ -36,12 +35,19 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
         ? "Following our conversation, your company is approved as a deployment company on Blueprint."
         : "Your company is approved as a deployment company on Blueprint.",
       "",
-      `Create your account with this email address (${record.email}), or sign in if you already have one:`,
-      `${base}/signup/business?invitation=${encodeURIComponent(robotTeamAccountInvitation(record))}`,
-      "This invitation is bound to your approved email and expires in seven days. If it expires, ask for a new link at:",
-      `${base}/contact/robot-team`,
+      // The reader's own address is said here: the invitation works for it alone (`resolveAccountInvitation`).
+      `Use this email address (${record.email}) to create your account, or sign in if you already have one.`,
       "",
-      `Once you are signed in, the job library at ${base}/contact/robot-team shows the jobs sites share with approved companies. Open a job to see what the site filmed and what we have found so far, and answer: ${COMPANY_ANSWERS}.`,
+      "Set up your account:",
+      `${base}/signup/business?invitation=${encodeURIComponent(robotTeamAccountInvitation(record))}`,
+      "",
+      // The invitation's lifetime (`createAccountInvitationToken`); a new link is asked for on Find jobs (`RobotTeamEarlyAccess`).
+      `The link works only for this email address and expires in 7 days. If it expires, get a new one at ${base}/contact/robot-team.`,
+      "",
+      "Once you are signed in, open Find jobs to see the jobs sites have posted. Open a job to see its job packet and respond.",
+      "",
+      "Find jobs:",
+      `${base}/contact/robot-team`,
       "",
       ...(invited ? [] : [
         call
@@ -49,7 +55,7 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
           : "If a call would help, say so in your reply and we will find a time.",
         "",
       ]),
-      "Approval does not guarantee a job, an introduction, or a deployment. Nothing is charged today.",
+      "Nothing is charged today.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
@@ -142,17 +148,16 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
 
 /** The new-job email's fixed words (package E, E4). Nothing about the site: no name, place, contact or sentence. */
 export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
-// True of a job sent with its description only as of a filmed one (statement v5 lists both).
-// The answers are the form's own, in the sentence the public pages use (`COMPANY_ANSWERS`).
-export const NEW_JOB_EMAIL_BODY = "A site is looking for a deployment company for one of its jobs. See the job and answer in a minute: "
-  + `${COMPANY_ANSWERS}.`;
-const NEW_JOB_ALERTS_LINE = "Approved deployment companies get an email for each new job. Turn these off in Settings or unsubscribe below.";
+// True of a job sent with its description only as of a filmed one (statement v5 lists both). The answers themselves
+// are on the job's page.
+export const NEW_JOB_EMAIL_BODY = "A site has posted a new job. Open it to see the job packet and respond.";
+const NEW_JOB_ALERTS_LINE = "You get an email like this for each new job. Turn them off in Settings or unsubscribe below.";
 
 /** The email an approved deployment company that asked for job emails gets when a job is shared: the job's link only. */
 export function newJobEmail(params: { to: string; jobUrl: string }) {
   return {
     subject: NEW_JOB_EMAIL_SUBJECT,
-    body: appendCommercialEmailFooter({ text: [NEW_JOB_EMAIL_BODY, "", params.jobUrl, "", NEW_JOB_ALERTS_LINE].join("\n"),
+    body: appendCommercialEmailFooter({ text: [NEW_JOB_EMAIL_BODY, "", "Open the job:", params.jobUrl, "", NEW_JOB_ALERTS_LINE].join("\n"),
       email: params.to, scope: "optional_updates" }),
   };
 }
@@ -165,24 +170,29 @@ export function introductionCompanyEmail(params: { site: IntroductionSiteDetails
   /** The company's stored answer the introduction followed, worded by its fixed label. */
   answerLabel: string }) {
   const { site } = params;
-  // The typed location is said once: a workspace job may store it as the site's name too.
-  const location = site.location && site.location !== site.name ? site.location : null;
+  // The typed location is said once: a job from the public start form stores it as the site's name too, so the site
+  // has no name of its own to give.
+  const nameIsAddress = Boolean(site.location) && site.location === site.name;
   return {
     subject: "A site wants to talk about its job",
     body: [
       emailGreeting(params.contactName ? firstName(params.contactName) : null),
       "",
-      `You answered ${params.answerLabel} to a job on Blueprint, and the site has asked for an introduction. Here are its details:`,
+      // A fixed answer label in plain text is quoted: "Tested it: can do" has a colon of its own.
+      `You answered "${params.answerLabel}" to a job on Blueprint, and the site has asked for an introduction. Here are its details:`,
       "",
-      `Site: ${site.name}`,
+      ...(nameIsAddress ? [] : [`Site: ${site.name}`]),
       ...(site.contactName ? [`Contact: ${site.contactName}`] : []),
       `Email: ${site.email}`,
       ...(site.phone ? [`Phone: ${site.phone}`] : []),
-      ...(location ? [`Where it is: ${location}`] : []),
+      // "Address", the word of the statement the site agreed to beside Introduce us.
+      ...(site.location ? [`Address: ${site.location}`] : []),
       "",
-      `The job: ${params.jobUrl}`,
+      "Open the job:",
+      params.jobUrl,
       "",
-      "We are sending the site your company's name and your contact details now. Reply to them directly.",
+      // A reply to this email reaches Blueprint (every outbox row is sent with Reply-To hello@, `captureOutbox.ts`).
+      "We are sending the site your company's name and your contact details now. Write to them at the email above.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),

@@ -158,4 +158,23 @@ describe("the first event email", () => {
       await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     }
   });
+
+  it("tells a site outside the US that saves its description not to send a video yet", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...payload("abroad-description", "abroad-description@example.com"), captureRegion: "non_us",
+          consentAttestation: null, descriptionOnly: true, acceptedTerms: true,
+          descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" } }),
+      });
+      expect(response.status).toBe(201);
+      const row = sharedFakeFirestoreState.docs.get("captureOutbox/abroad-description:task_received") as Record<string, string>;
+      expect(row.body).toContain("We can only take videos from sites in the United States for now, so please don't send a video yet.");
+      expect(row.body).not.toContain("A video is required");
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  });
 });

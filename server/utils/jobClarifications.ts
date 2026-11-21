@@ -30,6 +30,10 @@ export function clarificationOnReply(reply: Data | undefined, questionId: string
   return saved?.questionId === questionId && typeof saved.text === "string" ? saved.text : undefined;
 }
 
+/** The company's email when the site answers its question: the answer stays on the job page. */
+export const CLARIFICATION_SUBJECT = "The site answered your question";
+export const clarificationEmailBody = (jobUrl: string) => `Read it on the job page.\n\nOpen the job:\n${jobUrl}`;
+
 const noticeKey = (jobId: string, companyId: string, questionId: string) =>
   `job_clarification:${jobId}:${companyId}:${questionId}`;
 
@@ -64,8 +68,7 @@ export async function answerCompanyQuestion(input: { jobId: string; alias: strin
     tx.update(replyRef, { siteClarification: { questionId: question.id, text: sanitized, answeredAtIso: new Date().toISOString() } });
     if (!alreadyQueued && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       tx.create(outboxRef, buildOutboxEntry({ idempotencyKey: key, requestId: input.jobId, kind: "job_clarification",
-        to: email, subject: "The site answered your question",
-        body: `The site added an answer to your question.\n\nView the job:\n${companyJobUrl(input.jobId)}` }));
+        to: email, subject: CLARIFICATION_SUBJECT, body: clarificationEmailBody(companyJobUrl(input.jobId)) }));
     }
     return { status: "saved", answer: sanitized } as const;
   });

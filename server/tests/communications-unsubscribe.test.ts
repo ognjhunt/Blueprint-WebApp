@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const ports = vi.hoisted(() => ({ get: null as any, post: null as any, record: vi.fn() }));
 vi.mock("express", () => ({ Router: () => ({ get: (_path: string, handler: any) => { ports.get = handler; }, post: (_path: string, handler: any) => { ports.post = handler; } }) }));
-vi.mock("../utils/email-suppression", () => ({ normalizeSuppressionEmail: (value: string) => value.trim().toLowerCase(), recordEmailSuppression: ports.record }));
+vi.mock("../utils/email-suppression", () => ({ normalizeSuppressionEmail: (value: string) => value.trim().toLowerCase(), recordEmailSuppression: ports.record,
+  OPTIONAL_UPDATES_EMAILS: "new-job emails and Blueprint updates" }));
 import "../routes/email-preferences";
 const response = () => { const res: any = { status: vi.fn(() => res), json: vi.fn(() => res), type: vi.fn(() => res), set: vi.fn(() => res), send: vi.fn(() => res) }; return res; };
 beforeEach(() => { vi.clearAllMocks(); ports.record.mockResolvedValue({ persisted: true }); });
@@ -39,6 +40,38 @@ describe("explicit public email opt-out", () => {
     const query = kind === "email_mismatch" ? { email: "another@business.co" } : kind === "scope_mismatch" ? { scope: "lifecycle" } : {};
     const res = response(); await ports.post({ method: "POST", query, body, accepts: () => "json" }, res);
     expect(res.status).toHaveBeenCalledWith(400); expect(ports.record).not.toHaveBeenCalled();
+  });
+  // Launch copy (e-032 to e-035, f-104 to f-106): the page names the emails the link stops, never a scope's internal name,
+  // and a browser is answered with a page, never raw JSON.
+  it("names what the new-job email's link stops, and says it is done in the same words", async () => {
+    const get = response(); await ports.get({ method: "GET", query: { email: "dana@northwind.example", scope: "optional_updates" }, accepts: () => "html" }, get);
+    const page = get.send.mock.calls[0][0];
+    expect(page).toContain("<h1>Unsubscribe from new-job emails and Blueprint updates?</h1><p>We'll stop sending them to dana@northwind.example.</p>");
+    expect(page).toContain('value="unsubscribe">Unsubscribe</button>');
+    expect(page).not.toMatch(/optional updates|opt-out|Confirm the preference/i);
+    const post = response();
+    await ports.post({ method: "POST", query: {}, body: { email: "dana@northwind.example", scope: "optional_updates", confirmation: "unsubscribe" }, accepts: () => "html" }, post);
+    expect(post.type).toHaveBeenCalledWith("html");
+    expect(post.send).toHaveBeenCalledWith(expect.stringContaining("<h1>You're unsubscribed. We won't send you new-job emails or Blueprint updates.</h1>"));
+  });
+  it.each(["all", "growth_campaign", "lifecycle"])("names a %s link plainly, by no internal name", async scope => {
+    const res = response(); await ports.get({ method: "GET", query: { email: "ops@business.co", scope }, accepts: () => "html" }, res);
+    const page = res.send.mock.calls[0][0], shown = page.slice(page.indexOf("<main>"), page.indexOf("<form"));
+    expect(shown).toBe("<main><h1>Stop these emails from Blueprint?</h1><p>We'll stop sending this kind of email to ops@business.co. Nothing has changed yet.</p>\n      ");
+    expect(shown).not.toContain(scope.replace("_", " "));
+  });
+  it("answers a browser with a page, not JSON, when the link is incomplete, changed or cannot be saved", async () => {
+    const incomplete = response(); await ports.get({ method: "GET", query: { email: "not-an-email" }, accepts: () => "html" }, incomplete);
+    expect(incomplete.status).toHaveBeenCalledWith(400); expect(incomplete.json).not.toHaveBeenCalled();
+    expect(incomplete.send).toHaveBeenCalledWith(expect.stringContaining("This unsubscribe link is incomplete. Use the link in your latest Blueprint email, or write to hello@tryblueprint.io."));
+    const changed = response();
+    await ports.post({ method: "POST", query: { scope: "lifecycle" }, body: { email: "ops@business.co", scope: "all", confirmation: "unsubscribe" }, accepts: () => "html" }, changed);
+    expect(changed.status).toHaveBeenCalledWith(400); expect(changed.json).not.toHaveBeenCalled();
+    expect(changed.send).toHaveBeenCalledWith(expect.stringContaining("This link changed. Open it again from the email."));
+    ports.record.mockResolvedValue({ persisted: false }); const unsaved = response();
+    await ports.post({ method: "POST", query: {}, body: { email: "ops@business.co", scope: "all", confirmation: "unsubscribe" }, accepts: () => "html" }, unsaved);
+    expect(unsaved.status).toHaveBeenCalledWith(503); expect(unsaved.json).not.toHaveBeenCalled();
+    expect(unsaved.send).toHaveBeenCalledWith(expect.stringContaining("We couldn't save that just now. Open the link again shortly."));
   });
   it("reports unavailable persistence instead of claiming a confirmed opt-out succeeded", async () => {
     ports.record.mockResolvedValue({ persisted: false }); const res = response();

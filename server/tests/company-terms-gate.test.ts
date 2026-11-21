@@ -772,7 +772,7 @@ describe("T5 the withdrawal notice goes to every company the job was sent to, wh
     const planned = await sharedFakeFirestore.runTransaction(async (tx: any) => planWithdrawalCompanyNotices(tx, ID, jobDoc()));
     const to = planned.map(p => String(p.data.to)).sort();
     expect(to).toEqual([NORTH, SOUTH, EAST, WEST, QUIET, MUTED].map(record => record.email).sort());
-    expect(String(planned[0].data.body)).toMatch(/^A site has withdrawn a job you were sent on [A-Z][a-z]+ \d{1,2}, \d{4}: [A-Za-z ]+\. It has left your job library\. If you saved its video or its simulation, delete your copy now\.$/);
+    expect(String(planned[0].data.body)).toMatch(/^A site has withdrawn a job you were sent on [A-Z][a-z]+ \d{1,2}, \d{4}: [A-Za-z ]+\. It is no longer listed in Find jobs\. If you saved its video or its simulation, delete your copy now\.$/);
     const notice = (record: { email: string }) => ({ kind: WITHDRAWAL_COMPANY_KIND, requestId: ID,
       idempotencyKey: withdrawalCompanyKey(ID, sha(record.email)) });
     expect(await withdrawalNoticeIsCurrent(notice(NORTH))).toBe(true);

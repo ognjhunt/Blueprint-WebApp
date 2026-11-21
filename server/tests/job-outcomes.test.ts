@@ -170,11 +170,12 @@ describe("the two emails", () => {
     // Two presses (the link, then the button on its page): never "one click" (review S2).
     expect(lines(site.body)[0]).toBe(`Press one to tell us what happened with ${PLANT.company}.`);
     expect(lines(company.body)[0]).toBe(`Press one to tell us what happened with ${PLANT.siteName}.`);
+    // Each answer is its own "Label:" paragraph and link, which the HTML part draws as five labelled buttons (e-012).
+    const answers = (body: string) => body.split("\n\n").slice(1);
     for (const row of [site, company]) {
-      const body = lines(row.body);
-      expect(body[1]).toBe("");
-      expect(body.slice(2).map(line => line.split(": ")[0])).toEqual(["Still talking", "Quote given", "Going ahead", "Installed", "Not going ahead"]);
-      for (const line of body.slice(2)) expect(line).toMatch(/^[A-Za-z ]+: https:\/\/app\.example\/api\/job-outcomes\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+      expect(lines(row.body)[1]).toBe("");
+      expect(answers(row.body).map(paragraph => paragraph.split(":\n")[0])).toEqual(["Still talking", "Quote given", "Going ahead", "Installed", "Not going ahead"]);
+      for (const paragraph of answers(row.body)) expect(paragraph).toMatch(/^[A-Za-z ]+:\nhttps:\/\/app\.example\/api\/job-outcomes\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     }
     const forbiddenInSite = [PLANT.contactName, PLANT.companyEmail, PLANT.website, PLANT.siteEmail, PLANT.sitePhone, PLANT.address,
       PLANT.submitter, PLANT.jobSentence, PLANT.siteName, "co-1", "Company A"];
@@ -183,11 +184,23 @@ describe("the two emails", () => {
     for (const value of forbiddenInSite) expect(`${site.subject}\n${site.body}`).not.toContain(value);
     for (const value of forbiddenInCompany) expect(`${company.subject}\n${company.body}`).not.toContain(value);
     // The links themselves carry no name or address: only ids, a side and an answer.
-    for (const row of [site, company]) for (const line of lines(row.body).slice(2)) {
-      const token = line.split("/api/job-outcomes/")[1];
+    for (const row of [site, company]) for (const paragraph of answers(row.body)) {
+      const token = paragraph.split("/api/job-outcomes/")[1];
       const decoded = Buffer.from(token.split(".")[0], "base64url").toString();
       for (const value of Object.values(PLANT)) expect(decoded).not.toContain(value);
     }
+  });
+});
+
+describe("a job from the public start form", () => {
+  // Its typed address is stored as the site's name (e-015): the company is asked about "the site at" it.
+  it("asks the company about the site at its address, which the introduction already gave it", async () => {
+    seedJob(); seedIntro("req-1", "co-1", { siteShared: { name: PLANT.address, email: PLANT.siteEmail, location: PLANT.address } });
+    await sweepOutcomeQuestions({ now: at(14) });
+    const company = outbox().find(row => row.id.endsWith(":company:d14"))!;
+    expect(company.subject).toBe(`How did it go with the site at ${PLANT.address}?`);
+    expect(company.body.split("\n")[0]).toBe(`Press one to tell us what happened with the site at ${PLANT.address}.`);
+    expect(outbox().find(row => row.id.endsWith(":site:d14"))!.subject).toBe(`How did it go with ${PLANT.company}?`);
   });
 });
 
@@ -344,6 +357,6 @@ describe("GET and POST /api/job-outcomes/:token", () => {
   it("builds the same email text the sweep queues", () => {
     const email = buildOutcomeQuestionEmail({ requestId: "r", companyId: "c", side: "site", otherSideName: "Robo" });
     expect(email.subject).toBe("How did it go with Robo?");
-    expect(email.body.split("\n")).toHaveLength(7);
+    expect(email.body.split("\n\n")).toHaveLength(6);
   });
 });
