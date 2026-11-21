@@ -9,7 +9,7 @@ test("homepage explains the offer and shows both paths and a labeled example", a
   const account = page.getByRole("navigation", { name: "Account" });
   await expect(account.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
   const main = page.locator("main");
-  await expect(main).toContainText("Film one repetitive job. We turn it into a job packet and a simulation of your site, so approved robot deployment companies can review it without a visit.");
+  await expect(main).toContainText("Film one repetitive job and find out who wants to deploy robots for it.");
   const starts = main.getByRole("link", { name: "Start a job" });
   await expect(starts).toHaveCount(1);
   await expect(starts).toHaveAttribute("href", "/contact/site-operator");

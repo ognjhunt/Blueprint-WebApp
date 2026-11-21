@@ -284,7 +284,7 @@ describe("build output", () => {
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Post a job for robots.");
-    expect(homeHtml).toContain("Film one repetitive job. We turn it into a job packet and a simulation of your site, so approved robot deployment companies can review it without a visit.");
+    expect(homeHtml).toContain("Film one repetitive job and find out who wants to deploy robots for it.");
     expect(homeHtml).toContain("Companies review it");
     expect(homeHtml).toContain("Choose who to meet");
     expect(homeHtml).toContain("Free for sites");
@@ -366,7 +366,7 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("Film one repetitive job. We turn it into a job packet and a simulation of your site, so approved robot deployment companies can review it without a visit.");
+    expect(browserJavaScript).toContain("Film one repetitive job and find out who wants to deploy robots for it.");
     // The start form asks for the job's sentence on its first screen (owner, 2026-11-20).
     expect(browserJavaScript).toContain("Say what the robot should do in one sentence.");
   });
