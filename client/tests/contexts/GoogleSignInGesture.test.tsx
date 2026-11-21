@@ -102,4 +102,20 @@ describe("Google sign-in user gesture", () => {
     if (next) expect(fetchAccess).not.toHaveBeenCalled();
     else expect(fetchAccess).toHaveBeenCalledWith("/api/robot-team-access/me", expect.objectContaining({ headers: { Authorization: "Bearer fixture-token" } }));
   });
+
+  // The setup checklist at /onboarding is retired (2026-11-20): an unfinished account lands on its jobs, and a stored
+  // return to /onboarding is not followed.
+  it.each([null, "/onboarding"])("lands an account that never finished setup on /app (stored return: %s)", async (next) => {
+    window.history.replaceState({}, "", "/sign-in");
+    sessionStorage.setItem("googleRedirectPending", "1");
+    if (next) sessionStorage.setItem("redirectAfterAuth", next);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ access: { status: "none", emailVerified: true, staff: false } }) }));
+    getGoogleRedirectUser.mockResolvedValue({ uid: "google-user", emailVerified: true, getIdToken: async () => "fixture-token",
+      getIdTokenResult: async () => ({ claims: {} }) });
+    getUserData.mockResolvedValue({ uid: "google-user", buyerType: "site_operator", finishedOnboarding: false, onboardingStep: "intake" });
+    render(<AuthProvider><CompleteRedirectButton /></AuthProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Finish Google sign-in" }));
+    await waitFor(() => expect(window.location.pathname).toBe("/app"));
+    expect(sessionStorage.getItem("redirectAfterAuth")).toBeNull();
+  });
 });

@@ -1,4 +1,3 @@
-import { BROWSE_JOBS_LABEL, BROWSE_JOBS_PATH } from "@/lib/robotTeamAccess";
 import { UpdatePreferencesForm } from "@/components/workspace/UpdatePreferencesForm";
 import AccountDeletion from "@/components/AccountDeletion";
 import { Link, useSearch } from "wouter";
@@ -49,7 +48,7 @@ function WorkspaceSettings() {
                 defaultValue={query.data?.profile.name}
               />
             </Field>
-            <Field label="Organization">
+            <Field label={robot ? "Company" : "Business name"}>
               <input
                 name="organization"
                 autoComplete="organization"
@@ -71,7 +70,7 @@ function WorkspaceSettings() {
               </button>
             </div>
           </form>
-          <UpdatePreferencesForm preferences={query.data?.profile.updatePreferences} pending={action.pending} save={input => { void action.perform("/update-preferences", input, undefined, "PATCH"); }} />
+          <UpdatePreferencesForm preferences={query.data?.profile.updatePreferences} pending={action.pending} jobEmails={robot} save={input => { void action.perform("/update-preferences", input, undefined, "PATCH"); }} />
           <section className="ws-section">
             <h2>Security</h2>
             <p className="ws-note"><Link className="ws-link" href="/settings?privacy=1">Delete my account and data →</Link></p>
@@ -116,30 +115,10 @@ function WorkspaceSettings() {
             </dl>
           </section>
           <section className="ws-section">
-            <div className="ws-section-title">
-              <h2>Workspace</h2>
-              <Link className="ws-link" href="/settings?setup=1">
-                Change workspace type →
-              </Link>
-            </div>
+            <h2>Account type</h2>
             <p className="ws-section">
-              {robot ? "Robot-team workspace" : "Site workspace"}
+              {robot ? "Deployment company account" : "Site account"}
             </p>
-            <p className="ws-muted">
-              {robot
-                ? "Read the job summaries shared with you and answer them."
-                : "Open each of your jobs on its job page."}
-            </p>
-            <div className="ws-form-actions">
-              <Link className="ws-link" href="/app">
-                {robot ? "Open overview →" : "Your jobs →"}
-              </Link>
-              {robot && (
-                <Link className="ws-link" href={BROWSE_JOBS_PATH}>
-                  {BROWSE_JOBS_LABEL} →
-                </Link>
-              )}
-            </div>
           </section>
       </>
     </Frame>
@@ -153,7 +132,7 @@ export default function Settings() {
   const manage = new URLSearchParams(search).get("setup") === "1";
   if (manage)
     return (
-      <AppShell active="settings" breadcrumb="Workspace setup">
+      <AppShell active="settings" breadcrumb="Account setup">
         <WorkspaceSetup manage />
         <p className="ws-note"><Link className="ws-link" href="/settings?privacy=1">Delete my account and data →</Link></p>
       </AppShell>

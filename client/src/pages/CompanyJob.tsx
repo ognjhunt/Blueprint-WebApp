@@ -29,7 +29,7 @@ export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finish
 export const NO_FIRST_LOOK = "Our first look is not ready yet.";
 export const NO_PACKET_FACTS = "Nothing about the object is measured or estimated yet.";
 /** Under the site's quick answers: they are its own statements. */
-export const SITE_ANSWERS_HINT = "The site's own answers on its job page; not checked.";
+export const SITE_ANSWERS_HINT = "The site's own answers. Blueprint has not checked them.";
 
 function dateInWords(value: string): string {
   const date = new Date(value);
@@ -97,11 +97,17 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
   if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
   if (state === "signed_out") return <div className="bare-screen company-job"><h1>Sign in to see this job</h1>
-    <p><a className="ms-button" href={signInHref}>Sign in to this job</a></p>
-    <p><a href={companyApplicationHref(jobId)}>Apply as a deployment company</a></p></div>;
+    <p><a className="ms-button" href={signInHref}>Sign in</a></p>
+    <p><a href={companyApplicationHref(jobId)}>Apply to see jobs</a></p></div>;
   if (state === "missing" && access && (access.status === "applied" || (access.status === "approved" && !access.emailVerified)))
     return <div className="bare-screen company-job"><RobotTeamEarlyAccess access={access} email={user?.email ?? null}
       returnTo={companyJobReturnPath(`/jobs/${jobId}`) ?? JOB_LIBRARY_URL} onVerified={() => setRetry(value => value + 1)} /></div>;
+  // The page knows the account's access, so it says which case this is instead of guessing.
+  if (state === "missing" && (access?.status === "approved" || access?.staff))
+    return <div className="bare-screen company-job"><h1>This job is no longer available</h1>
+      <p><a href={backHref}>Back to jobs</a></p></div>;
+  if (state === "missing" && access?.status === "none") return <div className="bare-screen company-job"><h1>This job is not available</h1>
+    <p>Only approved deployment companies can see jobs. <a href={companyApplicationHref(jobId)}>Apply to see jobs</a></p></div>;
   if (state === "missing") return <div className="bare-screen company-job"><h1>This job is not available</h1>
     <p>It may no longer be shared, or your account may not be approved. <a href={backHref}>Back to jobs</a></p></div>;
   if (state === "error" || !page) return <div className="bare-screen company-job"><div role="alert"><p>This job could not be loaded.</p>
@@ -116,7 +122,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {dateInWords(page.publishedAtIso) && <span>Shared {dateInWords(page.publishedAtIso)}</span>}
     </div>
     <div className="company-job-actions">
-      {user && <a className="ms-button" href="#answer-this-job" onClick={() => setResponseMode("fit")}>Respond to opportunity<ArrowDown size={16} aria-hidden="true" /></a>}
+      {user && <a className="ms-button" href="#answer-this-job" onClick={() => setResponseMode("fit")}>Respond<ArrowDown size={16} aria-hidden="true" /></a>}
       {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url} download><Download size={16} aria-hidden="true" />Download the simulation</a>}
       {simulationReady && user && <a className="company-job-download" href="#answer-this-job" onClick={() => setResponseMode("simulation")}>Report simulation result<ArrowDown size={16} aria-hidden="true" /></a>}
     </div>
@@ -125,7 +131,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       <div className="company-job-overview">
         <section aria-label="The job">
           <h2>The job, in the site's words</h2>
-          {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site has not described the job in its own words.</p>}
+          {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site's description can't be shown right now.</p>}
           {page.successRule && <div className="company-job-success"><h3>What counts as done</h3><p>{page.successRule}</p></div>}
           {page.jobFacts.length > 0 && <>
             <ul aria-label="The site's answers">{page.jobFacts.map(line => <li key={line}>{line}</li>)}</ul>
@@ -165,15 +171,16 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
           {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
             <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
           {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
-          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} /> : <p>{NO_FIRST_LOOK}</p>}
+          {/* "Not ready" only when nothing at all is shown: rows of robots on paper are a first look already. */}
+          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} />
+            : page.firstLookRows.length === 0 ? <p>{NO_FIRST_LOOK}</p> : null}
         </section>
 
         <section aria-label="Simulation of the site">
           <h2>Simulation of the site</h2>
-          {page.simulationDownload?.state === "ready" ? <>
-            <p className="ms-field-hint">The site's scene for this job. The README inside says what it holds. Test in your own tools.</p>
-            <p className="ms-field-hint">Open scene.usda. The room's look is a Gaussian splat that some tools cannot show; the collision mesh is in the file too.</p>
-          </> : null}
+          {page.simulationDownload?.state === "ready"
+            ? <p className="ms-field-hint">A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.</p>
+            : null}
           {page.simulation.state === "ready"
             ? <p><a className="ms-button" href={page.simulation.viewerUrl} target="_blank" rel="noreferrer">View the simulation of the site</a></p>
             : page.simulationDownload?.state !== "ready" ? <p>{SIMULATION_NOT_FINISHED}</p> : null}
@@ -205,8 +212,8 @@ function CompanyAnswerForm({ jobId, user, page, mode }: { jobId: string; user: U
   const { answer, inputs, details } = drafts[mode];
   const simulation = mode === "simulation";
   const noteRequired = simulation || (answer !== null && companyResponseNeedsNote(answer));
-  const noteLabel = simulation ? "What did you test?" : noteRequired ? "What details would help you decide?" : "Note to the site (optional)";
-  const formLabel = simulation ? "Simulation result" : "Response to opportunity";
+  const noteLabel = simulation ? "What did you test?" : noteRequired ? "What details would help you decide?" : "Note to the site";
+  const formLabel = simulation ? "Simulation result" : "Your response";
 
   function editDraft(change: Partial<ResponseDraft>) {
     setDrafts(current => ({ ...current, [mode]: { ...current[mode], ...change } }));
@@ -228,12 +235,12 @@ function CompanyAnswerForm({ jobId, user, page, mode }: { jobId: string; user: U
       const body = await response.json();
       setMessage(response.ok ? body.nextAction : body.error || "Your answer was not saved.");
       if (response.ok) setMine({ state: answer, inputs, details, updatedAtIso: new Date().toISOString(), statementVersion: page.responseStatement.version });
-    } catch { setMessage("Your answer was not confirmed. Try again."); }
+    } catch { setMessage("We could not reach Blueprint. Check your connection and try again."); }
     finally { setSaving(false); }
   }
   return <section id="answer-this-job" aria-label={formLabel} tabIndex={-1}>
     <h2>{simulation ? "Simulation result" : "Your response"}</h2>
-    {mine && <p className="ms-field-hint">You answered {COMPANY_RESPONSE_LABELS[mine.state]}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
+    {mine && <p className="ms-field-hint">You answered “{COMPANY_RESPONSE_LABELS[mine.state]}”{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
         ? " Answer again below so the site can ask for an introduction." : ""}</p>}
     {page.clarification && <div className="company-question" role="region" aria-label="Answer from the site">
@@ -243,7 +250,7 @@ function CompanyAnswerForm({ jobId, user, page, mode }: { jobId: string; user: U
       </dl>
     </div>}
     <form onSubmit={submit} className="ms-form" aria-label={formLabel}>
-      <fieldset className="company-answer-options"><legend>{simulation ? "What was the result in simulation?" : "Is this a fit for your team?"}</legend>
+      <fieldset className="company-answer-options"><legend>{simulation ? "What was the result in simulation?" : "Is this job a fit for your company?"}</legend>
         {(simulation ? TESTED_RESPONSE_STATES : FIT_RESPONSE_STATES).map(state => <label key={state}><input type="radio" name="state" value={state} required
           checked={answer === state} onChange={() => editDraft({ answer: state })} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
@@ -254,8 +261,8 @@ function CompanyAnswerForm({ jobId, user, page, mode }: { jobId: string; user: U
           aria-describedby="company-answer-words-hint" /></label>
       <p className="ms-field-hint" id="company-answer-words-hint">{WORDS_REACH_SITE}</p>
       {answer && answer !== "declined" && <details className="company-reply-optional">
-        <summary className="ms-inline-link">Add details (optional)</summary>
-        {!simulation && <label>What you’ve verified<input maxLength={COMPANY_QUESTION_LIMIT} value={details.verified ?? ""}
+        <summary className="ms-inline-link">Add details</summary>
+        {!simulation && <label>What you have checked<input maxLength={COMPANY_QUESTION_LIMIT} value={details.verified ?? ""}
           onChange={event => editDraft({ details: { ...details, verified: event.target.value } })} /></label>}
         {answer !== "needs_something" && <label>Question for the site<input minLength={4} maxLength={COMPANY_QUESTION_LIMIT}
           value={details.question ?? ""} onChange={event => editDraft({ details: { ...details, question: event.target.value } })} /></label>}

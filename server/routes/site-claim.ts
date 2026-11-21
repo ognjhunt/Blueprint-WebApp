@@ -24,13 +24,13 @@ router.get(
     res.setHeader("Cache-Control", "no-store");
     const payload = verifySiteClaimToken(String(req.params.token || ""));
     if (!payload || !db) {
-      return res.status(404).json({ error: "This claim link is not valid or has expired." });
+      return res.status(404).json({ error: "This link has expired or is not valid." });
     }
 
     try {
       const snap = await db.collection("inboundRequests").doc(payload.requestId).get();
       if (!snap.exists) {
-        return res.status(404).json({ error: "This claim link is not valid or has expired." });
+        return res.status(404).json({ error: "This link has expired or is not valid." });
       }
       const record = (await decryptInboundRequestForAdmin(
         snap.data() as never,

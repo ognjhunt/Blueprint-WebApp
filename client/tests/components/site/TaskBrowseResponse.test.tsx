@@ -21,35 +21,52 @@ const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
 describe("a job in the library", () => {
-  it("opens with active jobs and searches the fields on the listing", async () => {
+  // Every listed job is open (`categoryDraft`), so the list has no open/past toggle (launch copy c-028).
+  it("lists every job and searches the fields on the listing", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
       card({ region: "United States" }),
       card({ id: "job-2", title: "Inspect cases", region: "Canada" }),
-      card({ id: "job-3", title: "Move crates", opportunity: "past" }),
     ] }) });
     render(<TaskBrowse />);
     expect(await screen.findByRole("heading", { name: "Palletize cartons" })).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Move crates" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Inspect cases" })).toBeVisible();
+    expect(screen.queryByRole("group", { name: "Job availability" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^(Open|Past|All) jobs$/ })).toBeNull();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search jobs" }), { target: { value: "cartons united" } });
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(screen.queryByRole("heading", { name: "Inspect cases" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
-    fireEvent.click(screen.getByRole("button", { name: "Past jobs" }));
-    expect(screen.getByRole("heading", { name: "Move crates" })).toBeVisible();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
-  it("keeps an older email link to a past job usable", async () => {
-    window.history.replaceState({}, "", "/contact/robot-team#job-job-2");
+  it("keeps an older email link to one job usable, and drops the retired view from it", async () => {
+    window.history.replaceState({}, "", "/contact/robot-team?view=past#job-job-2");
     try {
       fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
-        card(), card({ id: "job-2", title: "Move crates", opportunity: "past" }),
+        card(), card({ id: "job-2", title: "Move crates" }),
       ] }) });
       render(<TaskBrowse />);
       expect(await screen.findByRole("heading", { name: "Move crates" })).toBeVisible();
-      expect(screen.getByRole("button", { name: "Past jobs" })).toHaveAttribute("aria-pressed", "true");
+      expect(window.location.search).not.toContain("view=");
+      expect(window.location.hash).toBe("#job-job-2");
     } finally {
       window.history.replaceState({}, "", "/");
     }
+  });
+
+  it("labels where a job's simulation stands only when that is known", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
+      card({ id: "job-1", title: "Inspect cases", simulationStage: "video_received" }),
+      card({ id: "job-2", title: "Move crates", simulationStage: "simulation_built" }),
+      card({ id: "job-3", title: "Load trays", simulationStage: null }),
+    ] }) });
+    render(<TaskBrowse />);
+    const rows = await screen.findAllByRole("listitem");
+    const row = (title: string) => rows.find(item => within(item).queryByRole("heading", { name: title }))!;
+    expect(within(row("Inspect cases")).getByText("Simulation not started yet")).toBeVisible();
+    expect(row("Move crates").querySelector(".opportunity-labels")).toBeNull();
+    expect(row("Load trays").querySelector(".opportunity-labels")).toBeNull();
+    expect(screen.queryByText("No simulation download")).toBeNull();
   });
 
   it("filters on a downloadable simulation rather than the legacy evaluation flag", async () => {

@@ -64,6 +64,19 @@ function accountContext(summary: ClaimSummary) {
 
 const verificationActionUrl = claimVerificationUrl;
 
+const LOAD_ERROR_MESSAGE = "Check your connection and try again.";
+/** The server's and our own words for a refused link: under "This link doesn't work." they are said more briefly. */
+const INVALID_LINK = "This link has expired or is not valid.";
+
+/**
+ * A refused link (4xx) cannot work, whatever the reason; a server failure (5xx) says nothing about the link, so it gets
+ * the retry screen instead of "This link doesn't work".
+ */
+function refusedStage(status: number, error: string | undefined): Stage {
+  if (status >= 500) return { status: "load-error", message: error || "Please try again." };
+  return { status: "invalid", message: error || INVALID_LINK };
+}
+
 /** Set by the verification email the brief confirmation sends. */
 function autoClaimRequested() {
   return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auto") === "1";
@@ -115,7 +128,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
       const response = await fetch(`/api/site-claim/${encodeURIComponent(token)}`);
       const body = (await response.json().catch(() => ({}))) as ClaimSummary & { error?: string };
       if (!response.ok) {
-        setStage({ status: "invalid", message: body?.error || "This claim link is not valid or has expired." });
+        setStage(refusedStage(response.status, body?.error));
         return;
       }
       setStage({ status: "ready", summary: body });
@@ -124,7 +137,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
     } catch {
       setStage({
         status: "load-error",
-        message: "We could not check this claim link. Check your connection and try again.",
+        message: LOAD_ERROR_MESSAGE,
       });
     }
   }
@@ -137,7 +150,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
         const body = (await response.json().catch(() => ({}))) as ClaimSummary & { error?: string };
         if (!live) return;
         if (!response.ok) {
-          setStage({ status: "invalid", message: body?.error || "This claim link is not valid or has expired." });
+          setStage(refusedStage(response.status, body?.error));
           return;
         }
         setStage({ status: "ready", summary: body });
@@ -147,7 +160,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
         if (live) {
           setStage({
             status: "load-error",
-            message: "We could not check this claim link. Check your connection and try again.",
+            message: LOAD_ERROR_MESSAGE,
           });
         }
       }
@@ -222,7 +235,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
       await attachClaim(token, user, summary, terms);
       setStage({ status: "claimed", summary });
     } catch (submitError) {
-      setError(friendlyAuthError(submitError, "We could not complete the claim. Please try again."));
+      setError(friendlyAuthError(submitError, "We could not save this job to your account. Please try again."));
     } finally {
       pending.current = false;
       setBusy(false);
@@ -269,9 +282,10 @@ function ClaimSiteForToken({ token }: { token: string }) {
   if (stage.status === "invalid") {
     return (
       <Shell>
-        <h1>That link has expired.</h1>
+        <h1>This link doesn't work.</h1>
         <p className="ms-field-hint">
-          {stage.message} Request a fresh one from your workspace, or email hello@tryblueprint.io.
+          {stage.message === INVALID_LINK ? "It may have expired." : stage.message} For a new one, open your job page and choose Job settings › Save to my account, or write to
+          hello@tryblueprint.io.
         </p>
       </Shell>
     );
@@ -295,8 +309,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
         <p className="ms-eyebrow">Verify your email</p>
         <h1>Check your inbox.</h1>
         <p className="ms-field-hint">
-          We sent a verification link to {stage.user.email}. Return here after verifying to attach
-          this site to your workspace.
+          We sent a link to {stage.user.email}. Open it to finish saving this job to your account.
         </p>
         {error && <p className="ms-error" role="alert">{error}</p>}
         <button className="ms-button ms-button-large" type="button" disabled={busy} onClick={confirmVerification}>
@@ -313,11 +326,10 @@ function ClaimSiteForToken({ token }: { token: string }) {
     return (
       <Shell>
         <Check size={30} aria-hidden="true" />
-        <h1>This site is yours.</h1>
+        <h1>Saved to your account.</h1>
         <p className="ms-field-hint">
-          {stage.summary.site.siteName || "Your site"} is now in your account. Your jobs open from your
-          account. On your job page you can hide its card from the job library at any time; your footage
-          and rights are unchanged.
+          {stage.summary.site.siteName || "Your site"} is now in your account. Open it from Your jobs any time.
+          You can still withdraw your job or video from its job page.
         </p>
         <a className="ms-button ms-button-large" href="/app">
           Open your jobs <ArrowRight size={18} aria-hidden="true" />
@@ -331,10 +343,10 @@ function ClaimSiteForToken({ token }: { token: string }) {
     return (
       <Shell>
         <Check size={30} aria-hidden="true" />
-        <h1>This site is already in a workspace.</h1>
-        <p className="ms-field-hint">Open your workspace to review the job, progress, and available results.</p>
+        <h1>This job is already saved to an account.</h1>
+        <p className="ms-field-hint">Sign in to open it.</p>
         <a className="ms-button ms-button-large" href="/app">
-          Open your workspace <ArrowRight size={18} aria-hidden="true" />
+          Open your jobs <ArrowRight size={18} aria-hidden="true" />
         </a>
       </Shell>
     );
@@ -351,20 +363,14 @@ function ClaimSiteForToken({ token }: { token: string }) {
       <h1>Keep track of {site.siteName || "your site"}.</h1>
       <p className="ms-field-hint">
         {site.taskStatement
-          ? `Claim the workspace for “${site.taskStatement}” to follow its progress and review results when they are available.`
-          : "Create an account or sign in to follow job progress and review results when they are available."}
-      </p>
-      <p className="ms-field-hint">
-        We’ll attach this site and job to your account using the details you already supplied.
-        You can review results, control the listing, and pause it anytime.
+          ? `Save “${site.taskStatement}” to an account so you can open it any time.`
+          : "Create an account or sign in so you can open this job any time."}
       </p>
 
-      <form className="ms-form" onSubmit={claim} aria-label="Claim this site">
+      <form className="ms-form" onSubmit={claim} aria-label="Save this job to your account">
         <label htmlFor="claim-email">
-          <span>Work email</span>
-          <span className="ms-field-hint">
-            The email you submitted with this job. Use the same address to save it to your account.
-          </span>
+          <span>Email</span>
+          <span className="ms-field-hint">The email you used for this job.</span>
           <input
             id="claim-email"
             name="claimEmail"
@@ -427,7 +433,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
               setMode(mode === "create" ? "signin" : "create");
             }}
           >
-            {mode === "create" ? "Sign in instead" : "Create one"}
+            {mode === "create" ? "Sign in instead" : "Create an account"}
           </a>
         </p>
       </form>

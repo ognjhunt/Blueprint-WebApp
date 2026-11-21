@@ -47,7 +47,7 @@ const { sendEmail } = await import("../utils/email");
 const { logGrowthEvent } = await import("../utils/growth-events");
 const { inviteeDecision, inviteeDecisionForToken, parseInviteeAllowlist } = await import("../utils/inviteeAllowlist");
 
-const NOT_INVITED = "Blueprint's beta is invite-only for now, and this email is not on the list.";
+const NOT_INVITED = "Blueprint is taking jobs from invited sites only for now, and this email is not on the list.";
 
 function site(requestId: string, email: string) {
   return {

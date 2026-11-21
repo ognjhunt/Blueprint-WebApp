@@ -61,13 +61,13 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
   const parsed = applicationSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
-      error: "Check the application: name, work email, company, what your robot does and the work you want to test it on are required.",
+      error: "Check the form. Every field is needed except the website, which must start with https:// or http://.",
       code: "application_invalid",
     });
   }
   // What the form showed, recorded exactly when it still counts as current; refused otherwise.
   const shown = shownVersionsCount(parsed.data.termsVersion, parsed.data.privacyVersion);
-  if (!shown) return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
+  if (!shown) return res.status(400).json(APPLICATION_TERMS_CHANGED);
   const { acceptedTerms: _accepted, termsVersion: _terms, privacyVersion: _privacy, returnToJob, ...fields } = parsed.data;
   // The one application form (/partners) no longer asks these; a field the request leaves out keeps what the record
   // already holds (the older forms stored them), so a pending company that applies again loses nothing.
@@ -109,7 +109,7 @@ const invitationRequestSchema = z.object({ email: z.string().trim().email().max(
 router.post("/invitation", applyLimiter, async (req: Request, res: Response) => {
   const parsed = invitationRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Enter the email address your team was approved with.", code: "invitation_request_invalid" });
+    return res.status(400).json({ error: "Enter the email address your company was approved with.", code: "invitation_request_invalid" });
   }
   try {
     await requestAccessInvitation(parsed.data.email);
@@ -125,6 +125,9 @@ router.post("/invitation", applyLimiter, async (req: Request, res: Response) => 
  * account and its access record (`companyTerms.ts`), with the versions taken from the server, never the client.
  */
 const TERMS_ACCEPTANCE_INVALID = { error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" };
+/** The same refusal on the application, which has no box to tick: agreement is by applying, so the page must reload. */
+const APPLICATION_TERMS_CHANGED = { ...TERMS_ACCEPTANCE_INVALID,
+  error: "Our Terms or Privacy Policy changed. Reload the page and apply again." };
 const acceptTermsSchema = z.object({ acceptedTerms: z.literal(true), termsVersion: z.string().max(40),
   privacyVersion: z.string().max(40) }).strict();
 router.post("/accept-terms", applyLimiter, verifyFirebaseToken, async (req: Request, res: Response) => {

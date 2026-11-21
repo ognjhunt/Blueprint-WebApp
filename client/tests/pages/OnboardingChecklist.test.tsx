@@ -1,114 +1,51 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OnboardingChecklist from "@/pages/OnboardingChecklist";
 
-vi.mock("@/components/blueprint/app/AppShell", () => ({
-  AppShell: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-}));
-
 const setLocationMock = vi.hoisted(() => vi.fn());
-const mockUserData = vi.hoisted(() => ({
-  buyerType: "site_operator",
-  siteName: "Brightleaf Books",
-  siteLocation: "Durham, NC",
-  taskStatement: "Claim this facility for controlled robot-team review.",
-  captureRights: "Owner approval required before release.",
-  privacySecurityConstraints: "Redact faces and skip employee-only rooms.",
-  derivedScenePermission: "Keep private until owner review.",
-  structuredIntakeRecommendedPath: "site_operator_partnership_review",
-  calendarDisposition: "required_before_next_step",
-  siteOperatorClaimOutcome: "site_claim_access_boundary_ready",
-  accessBoundaryOutcome: "access_boundary_defined",
-  siteClaimReadinessScore: 100,
-  siteClaimCriteria: [
-    "facility_name",
-    "site_location",
-    "operator_intent",
-    "access_rules",
-    "privacy_security_boundary",
-  ],
-  missingSiteClaimFields: [],
-  onboardingProgress: {
-    profileComplete: true,
-    defineSiteSubmission: true,
-    completeIntakeReview: false,
-    reviewQualifiedOpportunities: false,
-    inviteTeam: false,
-    siteClaimConfirmed: true,
-    accessBoundariesDefined: true,
-    privacyRulesConfirmed: true,
-    commercializationPreferenceSet: true,
-    teamContactConfirmed: false,
-  },
-}));
+const account = vi.hoisted(() => ({ userData: { buyerType: "site_operator" } as { buyerType?: string } | null }));
+const approved = vi.hoisted(() => vi.fn());
 
 vi.mock("wouter", () => ({
   useLocation: () => ["/onboarding", setLocationMock],
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    currentUser: { uid: "operator-user" },
-    userData: mockUserData,
-  }),
+  useAuth: () => ({ currentUser: { uid: "account-user" }, userData: account.userData }),
 }));
 
-vi.mock("@/lib/firebase", () => ({
-  db: {},
+vi.mock("@/lib/robotTeamAccess", () => ({
+  BROWSE_JOBS_PATH: "/contact/robot-team",
+  isApprovedDeploymentCompany: approved,
 }));
 
-vi.mock("firebase/firestore", () => ({
-  doc: vi.fn(),
-  serverTimestamp: vi.fn(),
-  updateDoc: vi.fn(),
-}));
-
-describe("OnboardingChecklist", () => {
+// The setup checklist is retired (2026-11-20): /onboarding only forwards, and says nothing in intake terms.
+describe("/onboarding forwards to where the account works", () => {
   beforeEach(() => {
     setLocationMock.mockReset();
-  });
-  it("opens the workspace only after account setup is durably saved", async () => {
-    const { updateDoc } = await import("firebase/firestore");
-    vi.mocked(updateDoc).mockResolvedValueOnce(undefined);
-    render(<OnboardingChecklist />);
-    fireEvent.click(screen.getByRole("button", { name: "Open workspace →" }));
-    await waitFor(() => expect(setLocationMock).toHaveBeenCalledWith("/app"));
-    expect(updateDoc).toHaveBeenCalledWith(
-      undefined,
-      expect.objectContaining({
-        finishedOnboarding: true,
-        onboardingStep: "completed",
-      }),
-    );
-  });
-  it("shows a failed save without claiming setup is complete", async () => {
-    const { updateDoc } = await import("firebase/firestore");
-    vi.mocked(updateDoc).mockRejectedValueOnce(new Error("write failed"));
-    render(<OnboardingChecklist />);
-    fireEvent.click(screen.getByRole("button", { name: "Open workspace →" }));
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "Could not finish setup",
-      ),
-    );
-    expect(setLocationMock).not.toHaveBeenCalled();
+    approved.mockReset().mockResolvedValue(false);
   });
 
-  it("shows site-operator rights, privacy, access, and commercial control status", () => {
+  it("sends a site to its jobs without asking whether it is a company", async () => {
+    account.userData = { buyerType: "site_operator" };
     render(<OnboardingChecklist />);
+    await waitFor(() => expect(setLocationMock).toHaveBeenCalledWith("/app", { replace: true }));
+    expect(approved).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+    expect(screen.queryByText(/intake|proof|buyer|review queue|workspace|Finish setup/i)).not.toBeInTheDocument();
+  });
 
-    expect(screen.getByText(/Site access & review/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Rights$/i)).toBeInTheDocument();
-    expect(screen.getByText(/Rights note captured/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Privacy$/i)).toBeInTheDocument();
-    expect(screen.getByText(/Privacy boundary captured/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Access$/i)).toBeInTheDocument();
-    expect(screen.getByText(/Access rules defined/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Commercial control$/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Commercial posture captured/i),
-    ).toBeInTheDocument();
+  it("sends an approved deployment company to Find jobs", async () => {
+    account.userData = { buyerType: "robot_team" };
+    approved.mockResolvedValue(true);
+    render(<OnboardingChecklist />);
+    await waitFor(() => expect(setLocationMock).toHaveBeenCalledWith("/contact/robot-team", { replace: true }));
+  });
+
+  it("sends an account with no type, or a company not yet approved, to /app", async () => {
+    account.userData = {};
+    render(<OnboardingChecklist />);
+    await waitFor(() => expect(setLocationMock).toHaveBeenCalledWith("/app", { replace: true }));
+    expect(approved).toHaveBeenCalledTimes(1);
   });
 });

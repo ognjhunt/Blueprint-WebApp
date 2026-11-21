@@ -56,7 +56,7 @@ const handle =
         error:
           status < 500
             ? error.message
-            : "The workspace could not be updated. Please try again.",
+            : "Your account could not be updated. Please try again.",
         ...(status < 500 && typeof error?.code === "string"
           ? { code: error.code }
           : {}),
@@ -79,7 +79,7 @@ function requireRole(res: Response, role: "site_operator" | "robot_team") {
   if (identity(res).role !== role)
     refuse(
       403,
-      `This action requires a ${role === "site_operator" ? "site" : "robot-team"} account.`,
+      `This needs a ${role === "site_operator" ? "site" : "deployment company"} account.`,
     );
 }
 
@@ -145,7 +145,7 @@ router.use(
   handle(async (_req, res, next) => {
     const auth = object(res.locals.firebaseUser);
     if (!text(auth.uid)) refuse(401, "Sign in to continue.");
-    if (!db) refuse(503, "Workspace storage is unavailable. Please try again.");
+    if (!db) refuse(503, "We could not load your account. Please try again.");
     const snapshot = await db!.collection("users").doc(auth.uid).get();
     res.locals.workspaceAccount = { auth, user: object(snapshot.data()) };
     next();
@@ -174,7 +174,7 @@ router.post(
     const { auth } = res.locals.workspaceAccount;
     const staff = await resolveAccessContext(res);
     if (input.workspaceType === "robot_team" && !staff.isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), "robot_team"))
-      refuse(403, "Complete intake and wait for Blueprint to approve your account invitation.", "account_invitation_required");
+      refuse(403, "Apply first. Once we approve your company, we email you a link to set up your account.", "account_invitation_required");
     // Existing owners can edit settings without recovering an old link. This
     // proof comes from server-owned jobs, never a client-writable profile.
     const existingSite = input.workspaceType === "site_operator" && !staff.isOps && !input.siteClaimToken
@@ -197,7 +197,7 @@ router.post(
         if (siteIntake.account_owner_uid !== auth.uid && (!text(auth.email) || text(object(siteIntake.contact).email).toLowerCase() !== text(auth.email).toLowerCase()))
           refuse(403, "Use the email address you submitted with this job.", "claim_email_mismatch");
         if (text(siteIntake.account_owner_uid) && siteIntake.account_owner_uid !== auth.uid)
-          refuse(409, "Someone has already claimed this site.", "site_already_claimed");
+          refuse(409, "This job is already saved to another account.", "site_already_claimed");
       }
       const needsTerms = !currentTermsAccepted(user);
       const intakeTermsApply = Boolean(auth.email_verified === true && siteIntake && isCurrentLegalAcceptance(siteIntake.terms_acceptance));
@@ -214,7 +214,7 @@ router.post(
       if (needsTerms && !intakeTermsApply && !acceptsDisplayedTerms)
         refuse(
           400,
-          "Accept the Terms and Privacy Policy to set up your workspace.",
+          "Accept the Terms and Privacy Policy to set up your account.",
           "workspace_terms_required",
         );
       const now = admin.firestore.FieldValue.serverTimestamp();
@@ -310,11 +310,11 @@ router.use(
     if (!["site_operator", "robot_team"].includes(user.buyerType))
       refuse(
         403,
-        "Choose a workspace type to get started.",
+        "Choose an account type to get started.",
         "workspace_setup_required",
       );
     if (user.buyerType === "robot_team" && !(await resolveAccessContext(res)).isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), "robot_team"))
-      refuse(403, "Robot-team access requires Blueprint approval.", "account_invitation_required");
+      refuse(403, "Only approved deployment companies can use this account. Write to hello@tryblueprint.io if you think this is wrong.", "account_invitation_required");
     res.locals.workspaceIdentity = {
       uid: auth.uid,
       email: text(auth.email).toLowerCase(),
@@ -482,11 +482,11 @@ router.post(
   handle(async (req, res) => {
     const caller = identity(res);
     if (!caller.verified)
-      refuse(403, "Verify your email before claiming a site.", "claim_email_unverified");
+      refuse(403, "Verify your email first, then try again.", "claim_email_unverified");
     const token = text(String(object(req.body).token ?? ""));
     const payload = verifySiteClaimToken(token);
     if (!payload)
-      refuse(400, "That claim link is not valid any more.", "claim_token_invalid");
+      refuse(400, "This link has expired. Press Save to my account on your job page for a new one.", "claim_token_invalid");
 
     const item = await readRequest(payload.requestId);
     if (object(item.record.request).buyerType !== "site_operator")
@@ -500,15 +500,15 @@ router.post(
       const user = object(profileSnapshot.data());
       const owner = text(site.account_owner_uid);
       if (owner && owner !== caller.uid)
-        refuse(409, "Someone has already claimed this site.", "site_already_claimed");
+        refuse(409, "This job is already saved to another account.", "site_already_claimed");
       const operatorEmail = text(object(site.contact).email).toLowerCase();
       if (!operatorEmail || operatorEmail !== caller.email)
-        refuse(403, "Sign in with the submission email to claim this site.", "claim_email_mismatch");
+        refuse(403, "Sign in with the email you used for this job.", "claim_email_mismatch");
       const sourceTerms = site.terms_acceptance;
       const needsTerms = !currentTermsAccepted(user);
       const intakeTermsApply = isCurrentLegalAcceptance(sourceTerms);
       if (needsTerms && !intakeTermsApply && object(req.body).acceptedTerms !== true)
-        refuse(400, "Accept the Terms and Privacy Policy to claim this site.", "workspace_terms_required");
+        refuse(400, "Accept the Terms and Privacy Policy to save this job.", "workspace_terms_required");
       const now = admin.firestore.FieldValue.serverTimestamp();
       const termsAcceptance = needsTerms
         ? intakeTermsApply ? sourceTerms : buildLegalAcceptanceRecord({ acceptedAt: now })
@@ -612,7 +612,7 @@ router.post(
 );
 router.patch("/update-preferences", handle(async (req, res) => {
   const caller = identity(res);
-  if (!caller.verified) refuse(403, "Verify your email to save update preferences.");
+  if (!caller.verified) refuse(403, "Verify your email first, then save your email choices.");
   const preferences = buildUpdatePreferences(updatePreferencesInputSchema.parse(req.body), "settings");
   const userRef = db!.collection("users").doc(caller.uid);
   await db!.runTransaction(async tx => {
