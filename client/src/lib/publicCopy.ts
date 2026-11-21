@@ -15,7 +15,7 @@
 import { COMPANY_RESPONSE_LABELS as ANSWER } from "./companyResponses";
 
 export const HOME_TITLE = "Post a job for robots.";
-export const HOME_SUB_LINE = "Share a video of one repetitive job with approved robot deployment companies.";
+export const HOME_SUB_LINE = "Film one repetitive job. We turn it into a job packet and a simulation of your site, so approved robot deployment companies can review it without a visit.";
 
 /**
  * The answers the company form offers (`CompanyJob.tsx`), said the same way on every public page, built from the form's

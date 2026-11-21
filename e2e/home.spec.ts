@@ -9,7 +9,7 @@ test("homepage explains the offer and shows both paths and a labeled example", a
   const account = page.getByRole("navigation", { name: "Account" });
   await expect(account.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
   const main = page.locator("main");
-  await expect(main).toContainText("Share a video of one repetitive job with approved robot deployment companies.");
+  await expect(main).toContainText("Film one repetitive job. We turn it into a job packet and a simulation of your site, so approved robot deployment companies can review it without a visit.");
   const starts = main.getByRole("link", { name: "Start a job" });
   await expect(starts).toHaveCount(1);
   await expect(starts).toHaveAttribute("href", "/contact/site-operator");
@@ -21,5 +21,5 @@ test("homepage explains the offer and shows both paths and a labeled example", a
   await expect(nav.getByRole("link", { name: "Find jobs" })).toHaveAttribute("href", "/jobs");
   await expect(main.getByRole("region", { name: "Example job" })).toBeVisible();
   await expect(main.getByRole("tabpanel")).toContainText("6 views");
-  await expect(main).not.toContainText(/job packet|pick-up-and-put-down|safety check|contact details|which did best|top AI robots/);
+  await expect(main).not.toContainText(/pick-up-and-put-down|safety check|contact details|which did best|top AI robots/);
 });
