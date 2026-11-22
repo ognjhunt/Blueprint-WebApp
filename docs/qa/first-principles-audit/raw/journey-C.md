@@ -80,7 +80,7 @@ Deletions I expect might come back, and why:
 - The scene intent hand-shake, if the WebApp needs a signed record of what the Pipeline will spend on a
   later upgrade. Today the job ledger and the $40 cap already carry that.
 
-## 3. Requirements ledger
+## Requirements ledger
 
 | thing | where (file:line or screen) | who asked for it | what breaks if it is gone | verdict | if KEEP: the one-sentence reason |
 |---|---|---|---|---|---|
@@ -143,7 +143,7 @@ false`; Atlas reuses retained receipts), but in October the same churn left 9 of
 (cost model section 3). Removal: the door refuses a non-fix deploy outside the window; then let the old
 release drain its own attempts (retry doc section 5.1).
 
-**C-03 (P0, money): a launch that rented nothing keeps an $18 hold.** `task_evaluation_terminal_scene_attempt_settlement.py:242-244`:
+**C-03 (P0, broken, money): a launch that rented nothing keeps an $18 hold.** `task_evaluation_terminal_scene_attempt_settlement.py:242-244`:
 a scene-configuration launch with status `blocked` falls to `terminal_launch_unreconciled` with
 `retained_spend_usd = cap`. Seven such rows on the real job, each `provider_mutation_performed: false`,
 `retained_spend_usd: 18.0` = $126 held for $0 spent. The job hit `scene_intake_spend_cap_exhausted`
@@ -176,7 +176,7 @@ World Labs $52.31 vs $11.85; DigitalOcean $63.43 unattributed. Forecast reaches 
 $34.52 of the metered amount is Vast screening for the dropped trial (captures 447 and 5b067498). With one
 real job this month, the $40 cap governs a small slice of what a job really costs.
 
-**C-08 (P1, slow): the sound-free video waits for normalisation inside the preparation stage.** Built 55 and
+**C-08 (P2, slow): the sound-free video waits for normalisation inside the preparation stage.** Built 55 and
 65 min after hand-off on the two test jobs (`company_clip.json` `built_at_epoch`); the module says "a new
 capture waits for normalization" (`website_company_clip.py:12-15`). A 10-15 s clip encodes in seconds to
 minutes (unverified exact time). Make it first.

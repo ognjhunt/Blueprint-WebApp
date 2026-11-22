@@ -1,0 +1,484 @@
+{
+ "agent": "journey-C",
+ "summary": "No website job has ever produced a simulation a deployment company can open, and no packet has been sent to a company: the company package is built only from the trial-era robot-team scene, behind a GPU object build that has never finished. The one real job this month lost its 7-day window there, held by $18 phantom holds on launches that rented nothing, 26 release supersessions and disk gates, after a 10.5-hour hold that only an operator replay cleared. Deploys ran 146 times in 20 days against a once-a-day policy, and the per-job meter sees $60 of $297 spent this month. The room (about 6 hours) and the sound-free video (about an hour) already work; building the company package straight from the room package would take the pipeline from 14 steps to 5.",
+ "findings": [
+  {
+   "id": "C-01",
+   "title": "No website job has ever produced a simulation a company can open",
+   "dimension": "broken",
+   "severity": "P0",
+   "effort": "M",
+   "journey_step": "C.12 Company simulation package",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/website_company_simulation.py:7-8",
+    "cmd: door journal blueprint-website-atlas-preview.service (2026-11-22T15:30Z) -> company_simulation_no_source: 4, company_simulation_not_permitted: 2, no current package",
+    "door-ro: cat scene-8ae57e.../cancelled-unstarted-controls/*.json -> 8 of 8 build attempts failed (7 blocked, 1 never queued)",
+    "door-ro: ls .../site-capture-39ecdc97.../pipeline/website_scene_preparation -> scene_preview.ply, collider/, base_scene.json, task_masks.geometry.json present 2026-11-12",
+    "cmd: pytest tests/test_website_company_simulation.py tests/test_atlas_preview_replay.py tests/test_website_company_clip.py -> 495 passed",
+    "baseline firestore-collection-counts.json -> companySends 0"
+   ],
+   "today": "The company package is built only from the trial-era team scene half, which needs the Vast GPU and ARTISAN object build first. That build has never finished for a website job, so no company has ever had a simulation to open, and no packet has been sent.",
+   "should": "A company opens the simulation of the site a few hours after the video lands.",
+   "change": "DELETE",
+   "proposal": "Delete the dependency on the team scene half: write scene.usda and success_rule.json from the room package scene preparation already makes (Atlas mesh and splat, the isolated object's points or box, the success rule), flagging what is missing. Keep the GPU and ARTISAN build as an optional later upgrade that replaces the object, never as the gate.",
+   "user_result": "Companies get the fourth thing they decide on; upload to simulation goes from never to about 6 to 7 hours.",
+   "risk": "Objects that move in parts (drawers, doors) may be too crude as a scanned shape; ARTISAN may have to come back for those jobs. The package builder's outbound scan must also cover the new sources.",
+   "hard_stop": "rights",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "owner decision 2026-11-12 (simulation is core) asks for a package; the team-scene-half source is the trial's ('the simulation the trial itself runs'): nobody",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "C-02",
+   "title": "Deploys run four to seven times a day and throw away in-flight work",
+   "dimension": "slow",
+   "severity": "P0",
+   "effort": "S",
+   "journey_step": "C.8 Scene preparation",
+   "evidence": [
+    "pipeline:AGENTS.md:138-153",
+    "door-ro: ls /var/lib/blueprint/pipeline-control-plane/deploy-receipts + cat 153 iteration_<sha>_door.json -> 146 deployed 2026-11-01..20; 30 from 11-14 to 11-21; 31 of 146 between 15:00Z and 18:00Z; no deploy since 2026-11-20 17:49Z",
+    "door-ro: cat scene-8ae57e.../progression.json -> release_predecessors 26, recovery_predecessors 1 (28 preparation attempts)",
+    "door-ro: cancelled-unstarted-controls: 8 launch attempts on 7 source commits in 26 h",
+    "deploy receipts: trigger_pause_seconds.all_triggers median 425 s, max 757 s; stage_timings total median 813 s",
+    "pipeline:docs/launch-readiness/2026-11-cost-model.md section 3 (9 of 18 rows superseded by a newer release)"
+   ],
+   "today": "29 deploys landed inside the only real job's 7-day window. Each paused every job trigger for about 7 minutes and retired its preparation; 26 of 28 preparations were redone for a release. In October the same churn kept $17-30 of a job's ceiling blocked for up to 6 h 47 min per row.",
+   "should": "One deploy a day, and a deploy that does not retire work in flight.",
+   "change": "FIX",
+   "proposal": "Make the door refuse a deploy request outside the 15:00Z window unless it names a money, privacy, rights or stuck-paid-stage fix (the policy already says so; the door does not enforce it). Then build the old-release drain described in retry doc section 5.1 so a release never retires a $0 preparation.",
+   "user_result": "The site's job keeps moving instead of restarting several times a day.",
+   "risk": "Fixes wait up to a day; an urgent fix still goes out with its named reason.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "owner delegation D-08 2026-11-02 (once a day)",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "C-03",
+   "title": "A launch that rented nothing keeps an $18 hold and ends the job at its cap",
+   "dimension": "broken",
+   "severity": "P0",
+   "effort": "S",
+   "journey_step": "C.9 Simulation build",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/task_evaluation_terminal_scene_attempt_settlement.py:242-244",
+    "pipeline:src/blueprint_pipeline/task_evaluation_scene_intake.py:222-236",
+    "door-ro: cat scene-8ae57e.../cancelled-unstarted-controls/*.json -> 7 rows basis terminal_launch_unreconciled, retained_spend_usd 18.0, provider_mutation_performed false",
+    "door-ro: progression-events/000373.json -> blocker scene_intake_spend_cap_exhausted 2026-11-16T07:27Z",
+    "door-ro: status spend_guard.account_monthly_spend.jobs -> capture-39ecdc97 metered 8.456467",
+    "door-ro: standing-budget-extensions/*.json -> ceiling raised 5 times by standing_policy, 20 -> 89.60"
+   ],
+   "today": "Seven blocked launches that created no machine each kept their full $18 hold: $126 held for $0 spent. The job's build stopped at 'spend cap exhausted' with $8.46 actually spent. Since 2026-11-19 nothing raises the ceiling, so one such row now uses $18 of a $20 scene figure.",
+   "should": "A launch whose own records prove no machine and no paid call settles at $0.",
+   "change": "FIX",
+   "proposal": "In _derive_settled_spend, return retained_spend_usd 0.0 for a scene_configuration launch with status blocked when its terminal receipt records provider_mutation_performed false and no allocator result (the same proof the capacity recovery already uses for $0 successors). Add a test from the 39ecdc97 rows.",
+   "user_result": "A job's money goes to work instead of to phantom holds; builds stop ending at the cap with $8 spent.",
+   "risk": "If a blocked launch did rent something the receipt missed, the ledger would undercount until the provider bill arrives; the spend guard and reconciler remain the backstop.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "nobody: a conservative default; owner decision 2026-11-19 asks for spent plus held to be real",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "C-04",
+   "title": "A 'film it again' hold parked the real job until a person replayed it",
+   "dimension": "over-gated",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "C.3 Operator replay",
+   "evidence": [
+    "pipeline:docs/architecture/job-retry-and-deadlines.md:239-248",
+    "door-ro: cat .../website_scene_preparation/held_handoff_replay.json -> recapture_code website_registration_ambiguous, operator true, replayed 2026-11-12T11:04Z on release 92775024",
+    "door-ro: cat .../atlas/preview_job.json -> Atlas ready 2026-11-12T00:36Z (10.5 h before the replay)",
+    "cmd: door requests -> 4 selected-handoff requests on 2026-11-20"
+   ],
+   "today": "A registration code that 'only a new video can clear' held the job 10.5 hours. An operator then replayed the same video on new code and it went through. A person stood between the video and the packet.",
+   "should": "The job takes the best registration fit, flags it, and keeps going.",
+   "change": "DELETE",
+   "proposal": "Remove website_registration_ambiguous and the other four registration fit codes from the recapture hold list in website_scene_handoff; route them to the section 8 'ship flagged' rule. Delete the held-handoff replay path once no job can be held this way.",
+   "user_result": "The site's job reaches its room package about 10 hours sooner with no one at Blueprint touching it.",
+   "risk": "A truly bad registration ships a misaligned room; the flag tells the company, and the site can still upload a new video.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "guard in website_scene_handoff (retry doc section 7, 2026-11-11); protects none of privacy, rights or money",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "C-05",
+   "title": "Paid room reconstruction waits on a per-call 'release admitted' check",
+   "dimension": "over-gated",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "C.5 Reconstruction",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/paid_resource_allocator.py:350-352",
+    "pipeline:src/blueprint_pipeline/website_atlas_pose.py:1159-1161",
+    "door-ro: cat site-itest-314bd.../atlas/preview_job.json -> state needs_input, reason website_atlas_pose_release_not_admitted since 2026-11-19T17:18Z",
+    "door-ro: cat site-itest-917ca.../atlas/preview_job.json -> retries [website_atlas_pose_release_not_admitted], ready after 26.74 h",
+    "webapp:docs/runbooks/cloud-scene-runs.md (step 6.3: the door only deploys commits on origin/main)"
+   ],
+   "today": "Before every paid Atlas call the host checks its own checkout is a clean pushed commit. On two test jobs that check cost 26.7 hours and, for the other, three days and counting.",
+   "should": "Reconstruction starts as soon as the job's money and rights allow it.",
+   "change": "SIMPLIFY",
+   "proposal": "Check release provenance once at deploy (the door already refuses commits not on origin/main) and drop _website_atlas_release_blockers from the per-call path, or turn its finding into a flag on the job.",
+   "user_result": "The site sees its simulation preview up to a day sooner.",
+   "risk": "Code run by hand on the host outside a deploy could spend; the job's $40 ledger and the account limit still bound any such spend.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "guard in paid_resource_allocator; no owner line found",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "C-06",
+   "title": "Anthropic object modelling cannot run for any website job",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "C.9 Simulation build",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/artisan_provider_choice.py:39",
+    "pipeline:src/blueprint_pipeline/artisan_provider_choice.py:58-61",
+    "pipeline:src/blueprint_pipeline/artisan_provider_choice.py:114-115",
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:51",
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:522",
+    "webapp:server/utils/websiteSceneSponsorship.ts:351-352",
+    "cmd: grep -rn authoring_providers (WebApp *.ts, *.json) -> no hits"
+   ],
+   "today": "The host chooses Anthropic only for a grant listing both providers, a field the WebApp never sends; the single-provider Claude path needs a consent box that renders only in development builds. So the Privacy version list stopping at 2026-11-18.1 changes nothing: every job uses OpenAI ARTISAN under the $12 object cap.",
+   "should": "Either one provider path, or a decision to offer Anthropic that the WebApp actually sends.",
+   "change": "DELETE",
+   "proposal": "Delete artisan_provider_choice.py (284 lines) and its call sites, and the WebApp's development-only Claude consent branch, keeping OpenAI ARTISAN; or, if the owner wants Anthropic, add authoring_providers to the grant and list the current Privacy versions in one shared rule.",
+   "user_result": "Less code on the money path; no change for sites.",
+   "risk": "If the owner later wants Anthropic for cost or quality, it must be rebuilt; quality difference is unmeasured.",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "owner consent design 2026-09-24 (typed Claude consent); retired in production by the dev-only box",
+   "live_in_production": "no",
+   "needs_owner": true
+  },
+  {
+   "id": "C-07",
+   "title": "The per-job meter sees a fifth of what the month costs",
+   "dimension": "unseen",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "Cost of a job",
+   "evidence": [
+    "door-ro: status spend_guard.account_monthly_spend -> counted_usd 296.58, meter_totals.metered_usd 59.75",
+    "door-ro: status ... reconciliation -> openai billing 85.25 vs ledger 13.25; gcp 61.07 vs 0.12; digitalocean 63.43 unattributed; world_labs counted 52.31 vs metered 11.85",
+    "door-ro: status ... forecast -> reaches_limit_on 2026-11-30",
+    "door-ro: status ... jobs -> capture-447ae4f4 26.63 and capture-5b067498 7.89, source beta_policy_screening (dropped trial)"
+   ],
+   "today": "The month has counted $296.58 of the $400 limit, but jobs account for $59.75. $72 of OpenAI and $61 of Google Cloud cannot be tied to any job, and $34.52 went to screening for the dropped trial. With one real job this month, the $40 per-job cap watches a small slice of what a job costs.",
+   "should": "The owner can see what each job really cost and what is fixed overhead.",
+   "change": "FIX",
+   "proposal": "Tag every OpenAI and Gemini call with the job id (project key or metadata) so the reconciliation attributes it; show unattributed spend per provider per day in door status beside the forecast.",
+   "user_result": "The owner sees the real cost per job before any price is discussed.",
+   "risk": "Attribution work touches every paid call site (71 in scripts/paid_api_call_sites.json).",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "owner decisions 2026-11-07 (meter + monthly cap) and 2026-11-19 ($40 per job)",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "C-08",
+   "title": "The sound-free video waits about an hour for the preparation stage",
+   "dimension": "slow",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "C.4 Sound-free video",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/website_company_clip.py:12-15",
+    "door-ro: cat site-itest-314bd.../company_clip/company_clip.json -> built 65 min after hand-off",
+    "door-ro: cat site-itest-917ca.../company_clip/company_clip.json -> built 55 min after hand-off"
+   ],
+   "today": "A new capture's clip waits for normalisation inside the preparation run, then for the next 60-second Atlas pass.",
+   "should": "The clip is ready minutes after upload.",
+   "change": "SIMPLIFY",
+   "proposal": "Run normalisation as the first step of the listener and build the clip right after it, before masks and clean plate.",
+   "user_result": "Companies can watch the job about 50 minutes sooner.",
+   "risk": "Low; the clip's rights checks are unchanged.",
+   "hard_stop": "rights",
+   "verified": "unverified",
+   "verify_how": "Time the normalisation and encode of one test clip on the host; the split of the 55-65 min is not recorded.",
+   "requirement_source": "owner decision 2026-11-12 (the clip); the wait: nobody",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "C-09",
+   "title": "Two hand-kept Privacy version lists drift from the live Privacy Policy",
+   "dimension": "fragile",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "C.5 Reconstruction",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/atlas_privacy_screen.py:49-50",
+    "cmd: git show cbff06b:src/blueprint_pipeline/atlas_privacy_screen.py -> list ends 2026-11-20.1",
+    "pipeline:src/blueprint_pipeline/artisan_provider_choice.py:39",
+    "webapp:client/src/lib/legalAcceptance.ts:175-180"
+   ],
+   "today": "The live release blurs faces for jobs under today's Privacy 2026-11-21.1 because its list stops at 20.1; HEAD fixes it but is not deployed. The Anthropic list stops at 18.1. Every legal edit needs a Pipeline commit and a deploy.",
+   "should": "One rule decides blur and provider by version, written once.",
+   "change": "SIMPLIFY",
+   "proposal": "Replace both frozensets with one rule in a shared contract file mirrored from the WebApp (for example: versions on or after 2026-11-17.1 are not blurred), read by both repos.",
+   "user_result": "No job is treated by the wrong Privacy version after a legal edit.",
+   "risk": "A future Privacy version that re-adds blurring would need the rule changed; that is a deliberate owner act anyway.",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "owner decision 2026-11-17 (no blur from 2026-11-17.1)",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "C-10",
+   "title": "The real job's sound-free video was built and refused",
+   "dimension": "broken",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "C.4 Sound-free video",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/sharing_statement.py:5",
+    "webapp:server/utils/websiteCompanyClip.ts:92-93",
+    "door-ro: cat .../company_clip/company_clip.json -> permission_basis blueprint_owned_capture; refused_by_webapp 409 website_company_clip_not_permitted at 2026-11-22T10:59Z",
+    "door-ro: cat .../company_clip/statement_check.json -> outcome not_sharing, checked 2026-11-22T15:24Z"
+   ],
+   "today": "The Pipeline treats Blueprint's own captures as shareable; the WebApp does not know that basis and refuses. The Pipeline keeps re-checking every window.",
+   "should": "One authority decides sharing: the WebApp.",
+   "change": "DELETE",
+   "proposal": "Delete the Pipeline's blueprint_owned_capture basis and config/blueprint_owned_captures.v1.json; use the WebApp's answer only. If the owner wants own captures shared, add the basis in the WebApp instead.",
+   "user_result": "No wasted encodes and no false 'shareable' state.",
+   "risk": "Demo jobs on Blueprint's own footage would show no clip until the WebApp grants it.",
+   "hard_stop": "rights",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "nobody on the WebApp side",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "C-11",
+   "title": "Three spend figures are still sealed in every grant beside the one $40 cap",
+   "dimension": "over-gated",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "C.7 Scene intent",
+   "evidence": [
+    "webapp:server/utils/websiteSceneSponsorship.ts:382-385",
+    "door-ro: cat site-itest-917ca.../website_scene_sponsorship.json -> preparation 25, upstream 5, max_total 20",
+    "pipeline:src/blueprint_pipeline/task_evaluation_scene_intake.py:235"
+   ],
+   "today": "Each grant carries $25 for preparation, $5 upstream and $20 for the scene, $50 in all, while the rule is one $40 cap. The scene stage is limited to $20, which one $18 phantom hold uses up.",
+   "should": "One number per job: $40.",
+   "change": "MERGE",
+   "proposal": "Seal only per_job_cap_usd in new grants; have scene_spend_budget read the job ledger's remaining room against $40.",
+   "user_result": "Fewer ways for a job to stop short of its cap.",
+   "risk": "Old grants still carry the figures; read them as before until they expire.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "retired multi-cap design; owner decision 2026-11-19 replaced it with one cap",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "C-12",
+   "title": "Disk gates stopped the real job twice while retired lanes hold 67 GiB",
+   "dimension": "fragile",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "C.8 Scene preparation",
+   "evidence": [
+    "door-ro: progression-events sampled -> preallocation_capacity_not_recovered 2026-11-12T20:42Z-22:42Z; control_plane_disk_budget_exceeded 2026-11-18T15:32Z until window end",
+    "door-ro: cat .../capacity-recovery/7c1051c2...json -> successor_requires_new_sealed_bundle true, next_bundle_overhead_bytes 6084009787",
+    "raw/inventory-pipeline.md section 9.2 (67.5 GiB retired-lane data)"
+   ],
+   "today": "The job could not prepare its next attempt because the host was short of disk; each new attempt needs a fresh 6 GB bundle while retired lanes keep tens of GiB.",
+   "should": "Disk is never why a job waits.",
+   "change": "DELETE",
+   "proposal": "With the owner's approval, delete the retired-lane trees listed in the inventory; stop re-sealing a 6 GB bundle per attempt when inputs are unchanged.",
+   "user_result": "Jobs stop waiting on disk.",
+   "risk": "Deleting retained data is irreversible; withdrawal and money records must be kept.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "guard: host disk floor (keep); the data filling it: retired lanes, nobody",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "C-13",
+   "title": "Robot-fit tables and the rigid probe still ride the website job path",
+   "dimension": "vestigial",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "C.6 Object isolation",
+   "evidence": [
+    "door-ro: cat .../website_scene_preparation/handoff.json -> robot_fit_table counts fits 0, doesnt_fit 4, unknown 29; robot_fit_precheck unavailable 124",
+    "pipeline:deploy/systemd/blueprint-rigid-robot-free-probe-runner.timer (OnUnitInactiveSec=5min)",
+    "door-ro: status capacity.stall.checks.rigid_probes -> pending 0"
+   ],
+   "today": "Every hand-off computes a robot-fit table, mostly 'unknown', and a probe timer fires every five minutes with nothing to do.",
+   "should": "Only what a site or company reads is computed.",
+   "change": "DELETE",
+   "proposal": "Confirm whether the first look shows the robot-fit table; if not, delete website_robot_fit and its precheck from the hand-off, and disarm and delete the rigid probe lane.",
+   "user_result": "Less work per job; no change a user sees if unread.",
+   "risk": "If the first look does show robot fit, deleting it removes a line from the site's page.",
+   "hard_stop": "none",
+   "verified": "unverified",
+   "verify_how": "Check WebApp first-look rendering for robot_fit fields (journey A/B) and the probe queue history.",
+   "requirement_source": "commit 05acac655 (first look says what each robot can do); rigid probe: trial era",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "C-14",
+   "title": "The GPU spend guard has been blind since 2026-11-13",
+   "dimension": "fragile",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "Money guards",
+   "evidence": [
+    "door-ro: status spend_guard -> status blocked, blockers [runpod_inventory_query_failed], provider_zero_verified false",
+    "pipeline:scripts/gpu_spend_guard.py:2322-2337",
+    "raw/inventory-pipeline.md section 2.2 (failure_count 4844)"
+   ],
+   "today": "The guard that proves no GPU runs unpaid-for fails every minute because a retired RunPod key file is still on the host.",
+   "should": "The guard reports provider zero.",
+   "change": "FIX",
+   "proposal": "Owner closes the RunPod account and deletes the key file (AGENTS.md owner step).",
+   "user_result": "The owner can trust that no GPU is running.",
+   "risk": "None known.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "Whether paid admission refuses while the guard is blocked was not traced.",
+   "requirement_source": "money hard stop",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "C-15",
+   "title": "The cloud scene runbook still walks the dropped trial and a manual cap raise",
+   "dimension": "vestigial",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "Operator procedure",
+   "evidence": [
+    "webapp:docs/runbooks/cloud-scene-runs.md:285-296",
+    "webapp:docs/runbooks/cloud-scene-runs.md:199-220"
+   ],
+   "today": "Agents following the 14-step runbook are told to have a robot team pick a saved setup and start an evaluation, and to raise each job's preparation cap by hand.",
+   "should": "The runbook describes the job as it runs: no trial step, no manual nudge.",
+   "change": "DELETE",
+   "proposal": "Delete steps 7 and 8 and the preparation-cap amendment from the runbook.",
+   "user_result": "Fewer wrong moves by agents on live jobs.",
+   "risk": "None.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "retired trial (owner 2026-11-14); manual amendment: nobody",
+   "live_in_production": "yes",
+   "needs_owner": false
+  }
+ ],
+ "good_things": [
+  {
+   "what": "One retry policy with timed retries and the job window as the deadline",
+   "why": "Jobs heal and end by themselves; the real job ended at its window without anyone acting",
+   "evidence": "pipeline:src/blueprint_pipeline/job_retry_policy.py; pipeline:docs/architecture/job-retry-and-deadlines.md:13-27"
+  },
+  {
+   "what": "Retained receipts for paid calls",
+   "why": "Across 26 release supersessions the real job bought nothing twice",
+   "evidence": "door cancelled-unstarted-controls/*.json provider_mutation_performed false"
+  },
+  {
+   "what": "Room reconstruction",
+   "why": "Ready in 5.9 h for $6.02 on the real job, one SAM retry handled by itself",
+   "evidence": "door .../atlas/preview_job.json"
+  },
+  {
+   "what": "Sound-free clip builder",
+   "why": "Video only, metadata and side data stripped, every frame checked",
+   "evidence": "pipeline:src/blueprint_pipeline/website_company_clip.py:17-22"
+  },
+  {
+   "what": "Deploy receipts with timings and paused triggers",
+   "why": "They make deploy cost measurable",
+   "evidence": "door deploy-receipts/iteration_cbff06b4409c_door.json stage_timings_seconds"
+  },
+  {
+   "what": "Company package builder: outbound scan and deterministic zip",
+   "why": "Safe to point at a new source; 495 fixture tests pass",
+   "evidence": "pipeline:src/blueprint_pipeline/website_company_simulation.py:31-37"
+  }
+ ],
+ "owner_questions": [
+  {
+   "question": "May the company simulation package be built from the room package (scanned room plus isolated object plus success rule) without the ARTISAN-modelled object?",
+   "recommendation": "Yes; keep ARTISAN as a later upgrade for objects that move in parts.",
+   "unblocks": "C-01: the first simulation any company can open"
+  },
+  {
+   "question": "Should website jobs ever use Anthropic for object modelling?",
+   "recommendation": "No for now; delete the unreachable path and keep OpenAI ARTISAN.",
+   "unblocks": "C-06"
+  },
+  {
+   "question": "Should Blueprint's own captures be shareable with companies?",
+   "recommendation": "Decide in the WebApp only; delete the Pipeline's separate basis.",
+   "unblocks": "C-10"
+  },
+  {
+   "question": "May the retired-lane trees on the host (about 67 GiB) be deleted, keeping withdrawal and money records?",
+   "recommendation": "Yes.",
+   "unblocks": "C-12"
+  },
+  {
+   "question": "Close the RunPod account and delete its key file?",
+   "recommendation": "Yes, today.",
+   "unblocks": "C-14"
+  }
+ ],
+ "open_cost_questions": [
+  {
+   "question": "Does an Anthropic-modelled object cost less or look better than OpenAI ARTISAN for a website job?",
+   "estimated_cost_usd": "about 12 to 25 per object per provider (ARTISAN cap 12 on OpenAI; capture-447 used 17.02)",
+   "basis": "AGENTS.md Spend limits; cost model section 2"
+  },
+  {
+   "question": "Is a scanned-shape object in the room package good enough for a company to judge a job?",
+   "estimated_cost_usd": "0 extra if built from an existing room package; one new reconstruction is about 6 to 9",
+   "basis": "real job World Labs 6.02; cost model Atlas 5.50 completed operations"
+  },
+  {
+   "question": "What does one GPU scene-configuration attempt really cost today when it rents a machine?",
+   "estimated_cost_usd": "0.16 to 0.60 Vast billed plus up to 12 ARTISAN",
+   "basis": "cost model section 3, n=5 GPU attempts (October)"
+  }
+ ],
+ "not_covered": [
+  "The six test scenes retired on 2026-11-21 and captures 447ae4f4 and 5b067498: the door refused their retirement receipts (secret scan), so they are not in any timing.",
+  "First look timing and packet publication timing: WebApp Firestore; aggregates listed in raw/pipeline-timing.md.",
+  "Per-job Gemini and Meta SAM spend: lives in the WebApp ledger (Firestore), not read.",
+  "The blockers of the seven blocked launches: their launch folders are offloaded; door pull was not used.",
+  "No real-job replay was run: replaying needs the job's raw video pulled, which the privacy rule forbids. Fixture tests only.",
+  "Whether the first look renders the robot-fit table (C-13).",
+  "No screenshots: this journey has no screen of its own; the site and company screens are journeys A and B."
+ ]
+}
