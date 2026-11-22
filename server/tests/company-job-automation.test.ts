@@ -56,14 +56,14 @@ vi.mock("../utils/robotTeamLibraryAccess", async () => {
   const viewerFor = async (req: express.Request) => {
     const token = String(req.headers.authorization ?? "").replace(/^Bearer /, "");
     const account = seams.tokens.get(token);
-    if (!account) return { access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
+    if (!account) return { access: { status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
     const companyId = accessRecordId(account.email);
     const record = (await sharedFakeFirestore.collection("robotTeamAccess").doc(companyId).get()).data();
     // As the real gate (`resolveViewerAccess`): approved, and a deployment company, never a technology partner.
     const { companyMaySeeJobs } = await import("../utils/companyTerms");
     const deployment = record?.status === "approved" && record.partnerRole !== "technology";
     const allowed = companyMaySeeJobs(record);
-    return { access: { gated: true, status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false,
+    return { access: { status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false,
       ...(deployment && !allowed ? { termsRequired: true } : {}) },
       viewer: { uid: account.uid, email: account.email, companyId, staff: false } };
   };

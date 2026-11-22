@@ -15,8 +15,8 @@
  * application stays approved. Approvals given before this binding existed are
  * bound to the account's teams the first time they are used.
  *
- * `BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS` no longer opens anything: since jobs are shared in full (2026-11-12), the
- * library, a job's page and its media need a signed-in, verified, approved account whatever the setting says.
+ * Since jobs are shared in full (2026-11-12), the library, a job's page and its media need a signed-in, verified,
+ * approved account. There is no switch that opens them.
  */
 import { createHash } from "node:crypto";
 
@@ -81,8 +81,6 @@ export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
 
 /** What a viewer of the task library is allowed to see, and why. */
 export interface LibraryAccess {
-  /** False once the library is opened to everyone. */
-  gated: boolean;
   /** "approved" is the only status that sees tasks. */
   status: RobotTeamAccessStatus | "none";
   signedIn: boolean;
@@ -105,14 +103,6 @@ export const EARLY_ACCESS_REQUIRED = {
     return `${APP_URL()}/contact/robot-team`;
   },
 } as const;
-
-const OPEN_VALUES = new Set(["0", "false", "no", "off", "open"]);
-
-/** On unless explicitly opened, so a missing variable never exposes sites. */
-export function isRobotTeamEarlyAccessGated(): boolean {
-  const value = String(process.env.BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS ?? "").trim().toLowerCase();
-  return !OPEN_VALUES.has(value);
-}
 
 export function normalizeAccessEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -449,14 +439,13 @@ async function ensureApprovedTeamOnce(holder: AccountHolder): Promise<string | n
  * first use.
  */
 export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<LibraryAccess> {
-  const gated = isRobotTeamEarlyAccessGated();
   const signedIn = Boolean(viewer);
   const emailVerified = Boolean(viewer?.emailVerified);
   const staff = Boolean(viewer?.isOps);
-  if (staff) return { gated, status: "approved", signedIn, emailVerified, allowed: true, staff };
-  // Jobs are shared in full with approved deployment companies (2026-11-12), so the open value of
-  // BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS never admits anyone: every viewer must be signed in, verified and approved.
-  if (!viewer) return { gated, status: "none", signedIn, emailVerified, allowed: false, staff };
+  if (staff) return { status: "approved", signedIn, emailVerified, allowed: true, staff };
+  // Jobs are shared in full with approved deployment companies (2026-11-12): every viewer must be signed in, verified
+  // and approved.
+  if (!viewer) return { status: "none", signedIn, emailVerified, allowed: false, staff };
 
   let record: RobotTeamAccessRecord | null = null;
   try {
@@ -486,7 +475,7 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
       }
     }
   }
-  return { gated, status, signedIn, emailVerified, allowed, staff, ...(termsRequired ? { termsRequired } : {}) };
+  return { status, signedIn, emailVerified, allowed, staff, ...(termsRequired ? { termsRequired } : {}) };
 }
 
 /**

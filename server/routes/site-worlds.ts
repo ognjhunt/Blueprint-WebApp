@@ -25,9 +25,9 @@ const router = Router();
  * An approved deployment company that has not accepted the current Terms and Privacy Policy: 403 with its own code and
  * the prompt, and nothing of any job (not even a count).
  */
-function termsRequired(res: Response, access: { gated: boolean; status: string; signedIn: boolean; emailVerified: boolean; staff: boolean }) {
+function termsRequired(res: Response, access: { status: string; signedIn: boolean; emailVerified: boolean; staff: boolean }) {
   return res.status(403).json({ code: TERMS_ACCEPTANCE_REQUIRED, error: TERMS_PROMPT,
-    access: { gated: access.gated, status: access.status, signedIn: access.signedIn, emailVerified: access.emailVerified,
+    access: { status: access.status, signedIn: access.signedIn, emailVerified: access.emailVerified,
       allowed: false, staff: access.staff, termsRequired: true } });
 }
 const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),

@@ -25,7 +25,7 @@ const seams = vi.hoisted(() => ({
   managed: vi.fn(async (): Promise<{ managedEvidence: unknown[] }> => ({ managedEvidence: [] })),
 }));
 vi.mock("../utils/robotTeamLibraryAccess", () => ({ libraryAccessForRequest: vi.fn(async () => ({
-  gated: true, status: seams.allowed ? "approved" : "none", signedIn: seams.allowed, emailVerified: seams.allowed,
+  status: seams.allowed ? "approved" : "none", signedIn: seams.allowed, emailVerified: seams.allowed,
   allowed: seams.allowed, staff: false })) }));
 vi.mock("../utils/siteAnswer", async importOriginal => {
   const actual = await importOriginal<typeof import("../utils/siteAnswer")>();

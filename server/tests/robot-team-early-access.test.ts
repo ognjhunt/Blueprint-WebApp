@@ -151,15 +151,6 @@ afterEach(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
-describe("the switch", () => {
-  it("is on unless explicitly opened, so a missing variable never exposes sites", () => {
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", "");
-    expect(early.isRobotTeamEarlyAccessGated()).toBe(true);
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", "0");
-    expect(early.isRobotTeamEarlyAccessGated()).toBe(false);
-  });
-});
-
 describe("who sees the job library", () => {
   beforeEach(() => listedSite("site-1"));
 
@@ -213,15 +204,6 @@ describe("who sees the job library", () => {
   it("treats a token that does not verify as anonymous rather than an error", async () => {
     const body = await tasks("forged");
     expect(body.items).toEqual([]);
-  });
-
-  // Jobs are shared in full since 2026-11-12, so the open value of the switch admits nobody who is not approved.
-  it.each(["0", "false", "no", "off", "open"])("admits no anonymous viewer when the switch is set to %s", async value => {
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", value);
-    const body = await tasks();
-    expect(body.items).toEqual([]);
-    expect(body.access).toMatchObject({ allowed: false, signedIn: false });
-    expect(JSON.stringify(body)).not.toMatch(/PRIVATE|Move totes|Material handling/);
   });
 });
 
@@ -375,7 +357,7 @@ describe("the review queue", () => {
     listedSite("site-1");
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer ops", ...CSRF } });
     expect(await response.json()).toMatchObject({
-      library: { listedTaskCount: 1, autoApproveMinimumTasks: null, gated: true, openSuggestedAtTasks: 10 },
+      library: { listedTaskCount: 1, autoApproveMinimumTasks: null, openSuggestedAtTasks: 10 },
     });
   });
 });

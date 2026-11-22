@@ -93,13 +93,11 @@ export default function RobotTeamSignUpFlow() {
         <p className="auth-description">Your company is approved. Use the email address on your invitation.</p>
         <form className="auth-form auth-simple-signup" onSubmit={event => { event.preventDefault(); void submit(false); }} aria-busy={busy}>
           <div><label htmlFor="email">Work email</label><input id="email" type="email" value={invitation.email} readOnly autoComplete="email" /></div>
-          <details open={!invitation.name || !invitation.organization ? true : undefined}>
-            <summary>Review account details</summary>
-            <div><label htmlFor="contactName">Your name</label><input id="contactName" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={160} disabled={busy} /></div>
-            <div><label htmlFor="organizationName">Company</label><input id="organizationName" value={organization} onChange={e => setOrganization(e.target.value)} autoComplete="organization" maxLength={160} disabled={busy} /></div>
-            <p className="auth-signup-note">You get an email for each new job. You can turn these off in Settings.</p>
-            <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={busy} /><span>Also email me Blueprint updates. Optional; unsubscribe anytime.</span></label>
-          </details>
+          {/* The name and company come from the application; asked only when the invitation lacks them. */}
+          {!invitation.name && <div><label htmlFor="contactName">Your name</label><input id="contactName" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={160} disabled={busy} /></div>}
+          {!invitation.organization && <div><label htmlFor="organizationName">Company</label><input id="organizationName" value={organization} onChange={e => setOrganization(e.target.value)} autoComplete="organization" maxLength={160} disabled={busy} /></div>}
+          <p className="auth-signup-note">You get an email for each new job. You can turn these off in Settings.</p>
+          <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={busy} /><span>Also email me Blueprint updates. Optional; unsubscribe anytime.</span></label>
           {!account.current && <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} minLength={8} autoComplete="new-password" disabled={busy} /><button type="button" disabled={busy} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p className="auth-signup-note">At least 8 characters. Skip this field to use Google.</p></div>}
           <label className="auth-signup-consent"><input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)} disabled={busy} /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this company’s account.</span></label>
           <button className="auth-primary" type="submit" disabled={busy}>{busy ? "Saving…" : account.current ? "Finish setup" : "Create account"}<ArrowRight size={18} aria-hidden="true" /></button>

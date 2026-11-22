@@ -139,7 +139,7 @@ describe("the company's page for one job", () => {
 
   // The page knows the account's access, so it says which case a refusal is.
   it("tells an approved company the job is no longer available, and links back to the jobs", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { gated: true, status: "approved", signedIn: true,
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { status: "approved", signedIn: true,
       emailVerified: true, allowed: true, staff: false } }) });
     render(<CompanyJob />);
     expect(await screen.findByRole("heading", { name: "This job is no longer available" })).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe("the company's page for one job", () => {
   });
 
   it("tells an account that never applied that only approved companies see jobs, and how to apply", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { gated: true, status: "none", signedIn: true,
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { status: "none", signedIn: true,
       emailVerified: true, allowed: false, staff: false } }) });
     render(<CompanyJob />);
     expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
