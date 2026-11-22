@@ -141,6 +141,10 @@ router.post("/accept-terms", applyLimiter, verifyFirebaseToken, async (req: Requ
   try {
     const recorded = await recordCompanyTermsAcceptance({ uid: user.uid, email: user.email }, accessRecordId(user.email), shown);
     if (!recorded) return res.status(403).json({ error: "Only an approved deployment company can accept here.", code: "terms_acceptance_not_approved" });
+    // Jobs sent before this company could see them: one email about them, once (audit B-03). Best effort.
+    const companyId = accessRecordId(user.email);
+    await import("../utils/jobAutoSend").then(({ emailOpenJobsToCompany }) => emailOpenJobsToCompany(companyId))
+      .catch(() => false);
     return res.json({ ok: true, termsVersion: shown.terms_version, privacyVersion: shown.privacy_version });
   } catch (error) {
     logger.warn({ error }, "Could not record a company's Terms acceptance");

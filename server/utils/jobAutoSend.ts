@@ -7,8 +7,9 @@
  *   off and is not suppressed (`companyWantsJobEmails`, owner 2026-11-20); the dispatch gate (`jobAlertIsCurrent`) re-checks listing, approval, preference and suppression;
  * - queues the site's one `job_sent` email ("Your job is with {n} deployment companies.");
  * - writes `company_auto_send = { schemaVersion: 1, sentAtIso, count }` on the job, so it happens once.
- * A job with no approved deployment company yet is left for a later pass. A company approved later sees listed jobs in
- * its library; it is not emailed about them. A worker sweep catches any moment that was missed.
+ * A job with no approved deployment company yet is left for a later pass. A company that accepts the Terms after a job
+ * was sent sees it in its library and gets ONE email about the jobs open to it (`emailOpenJobsToCompany`, audit B-03).
+ * A worker sweep catches any moment that was missed.
  *
  * Nothing identifying the site is read or written here: the email carries the job's link only.
  */
@@ -17,7 +18,7 @@ import { logger } from "../logger";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { AUTO_SEND_EVENT_ID, COMPANY_SENDS_COLLECTION, companyJobUrl, prepareSiteNotice } from "./jobCompanies";
 import { companyMaySeeJobs } from "./companyTerms";
-import { newJobEmail } from "./robotTeamAccessEmails";
+import { newJobEmail, openJobsEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
@@ -92,6 +93,44 @@ export async function sendJobToCompaniesIfListed(requestId: string): Promise<Aut
   catch (error) {
     logger.warn({ error, requestId }, "Automatic send did not run; the sweep will try again");
     return null;
+  }
+}
+
+export const openJobsKey = (companyId: string) => `robot_team_open_jobs:${companyId}`;
+
+/**
+ * Once per company, right after it accepts the Terms (audit B-03): when a listed job was already sent before it could
+ * see jobs, one email points it to Find jobs. It goes through the new-job email's own dispatch gate (`jobAlertIsCurrent`:
+ * that job still listed, the company approved with the Terms accepted, job emails not turned off, not suppressed).
+ * A job not yet sent is left to the send itself, which now includes this company. Best effort: never throws.
+ */
+export async function emailOpenJobsToCompany(companyId: string): Promise<boolean> {
+  if (!db || isPullRequestPreview() || !/^[a-f0-9]{64}$/.test(companyId)) return false;
+  const store = db;
+  try {
+    const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(openJobsKey(companyId));
+    if ((await ref.get()).exists) return false;
+    const company = (await store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId).get()).data() as RobotTeamAccessRecord | undefined;
+    const email = String(company?.email ?? "").trim().toLowerCase();
+    if (!company || !companyMaySeeJobs(company) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
+    const jobs = await store.collection("inboundRequests")
+      .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).limit(200).get();
+    let jobId: string | null = null;
+    for (const doc of jobs.docs) {
+      if (!doc.data()?.[AUTO_SEND_FIELD]?.sentAtIso) continue;
+      const sent = await doc.ref.collection(COMPANY_SENDS_COLLECTION).where("companyId", "==", companyId).limit(1).get();
+      if (!sent.empty) continue;
+      if ((await loadCompanyJobAccess(doc.id, doc.data())).access.listed) { jobId = doc.id; break; }
+    }
+    if (!jobId) return false;
+    const message = openJobsEmail({ to: email });
+    await ref.create(buildOutboxEntry({ idempotencyKey: ref.id, requestId: jobId, kind: "robot_team_new_task", to: email,
+      subject: message.subject, body: message.body, replyTo: "hello@tryblueprint.io",
+      jobAlert: { schema: NEW_JOB_ALERT_SCHEMA, jobId, companyId } }));
+    return true;
+  } catch (error) {
+    logger.warn({ error }, "Could not queue the open-jobs email for a company");
+    return false;
   }
 }
 
