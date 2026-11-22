@@ -354,10 +354,23 @@ describe("before the site asks for an introduction, nothing a company receives n
     expect(item.jobFacts).toContain("Weight: 5 to 15 kg (11 to 33 lb)");
   });
 
+  it("the job's card in the list carries the same sentence as the job page, and the country only", async () => {
+    const auth = signIn(NORTH);
+    const page = JSON.parse((await get(`/api/site-worlds/jobs/${ID}`, auth)).text).item;
+    const list = JSON.parse((await get("/api/site-worlds/tasks", auth)).text).items;
+    const card = list.find((entry: { id: string }) => entry.id === ID);
+    expect(card.sentence).toBe(page.sentence);
+    expect(card.sentence).toMatch(/^Stack 12 kg cartons onto the pallet at the site/);
+    expect(card.region).toBe("United States");
+    expect(JSON.parse((await get(`/api/site-worlds/tasks/${ID}`, auth)).text).item.sentence).toBe(page.sentence);
+  });
+
   it("the answer route's reply, and the email it queues (to the site, under an alias)", async () => {
     const reply = await answer(NORTH);
     expect(reply.status).toBe(200);
     expectNothingOfTheSite("the answer route's reply", reply.text);
+    // One sentence saying what happens next.
+    expect(JSON.parse(reply.text).nextAction).toBe("Saved. If the site asks to meet you, we email you both each other's name and contact details.");
     const { rows } = emailsToCompanies();
     expect(rows).toEqual([]);
   });
