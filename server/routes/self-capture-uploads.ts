@@ -44,7 +44,8 @@ import {
   taskItemImagePath,
 } from "../utils/taskItemInventory";
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
-import { canGrantInitialRecordingConsent } from "../utils/descriptionAuthority";
+import { canGrantInitialRecordingConsent, jobOutsideApprovedRegion } from "../utils/descriptionAuthority";
+import { CAPTURE_REGION_UNAPPROVED_DETAIL } from "../utils/captureDispatch";
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
 import { RECORDING_RIGHTS_STATEMENT_VERSIONS, isSharingRecordingStatementVersion } from "../../client/src/lib/recordingRightsStatement";
 import { recordingConsentWrite } from "../utils/jobSharedListing";
@@ -587,6 +588,8 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
       if (!snap.exists || !record) return "missing";
       // An internal test job's grant is Blueprint's own (`internal_test.v1`); no statement on its page replaces it.
       if (isInternalTestJob(record)) return "internal_test_job";
+      // Outside the approved region nothing is recorded: no grant, no listing record (finding A-02).
+      if (jobOutsideApprovedRegion(record)) return "outside_region";
       // Whether the job already has a capture: then the Pipeline is told at once (below).
       captureExists = (await tx.get(dbAdmin!.collection("captureUploadSessions").doc(payload.captureId))).exists;
       let taskStatement: string | null = null;
@@ -613,6 +616,7 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
     }
     if (outcome === "internal_test_job") return res.status(409).json({ code: "internal_test_job" });
     if (outcome === "missing") return res.status(404).json({ error: "We can't find a job for this link." });
+    if (outcome === "outside_region") return res.status(409).json({ code: "capture_region_unapproved", error: CAPTURE_REGION_UNAPPROVED_DETAIL });
     if (outcome === "held") return res.status(409).json({ error: "We can't take recording permission on this job. Email hello@tryblueprint.io with your job link." });
     // `granted` (a first grant), `upgraded` (v4 replaced an older grant, kept in `consent_attestation_earlier`) or `existing`.
     return res.json({ ok: true, outcome });
