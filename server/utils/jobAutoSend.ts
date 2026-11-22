@@ -10,7 +10,7 @@
  * A job with no approved deployment company yet is left for a later pass. A company approved later sees listed jobs in
  * its library; it is not emailed about them. A worker sweep catches any moment that was missed.
  *
- * Nothing identifying the site is read or written here: the email carries the job's link only.
+ * Nothing identifying the site is written here: the email carries the kind of job, the country and the job's link.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -20,6 +20,7 @@ import { companyMaySeeJobs } from "./companyTerms";
 import { newJobEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
+import { countryOf } from "./companyJobPage";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
@@ -68,12 +69,13 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
       { milestone: "job_sent", eventId: AUTO_SEND_EVENT_ID, companyCount: companies.length }, captureUrl);
     const sentAtIso = now().toISOString();
     const jobUrl = companyJobUrl(requestId);
+    const country = await countryOf(record);
     for (const company of companies) {
       tx.set(jobRef.collection(COMPANY_SENDS_COLLECTION).doc(`system-${company.id}`), { schemaVersion: 1, companyId: company.id,
         sentAtIso, sentBy: "system", sentByEmail: null });
     }
     for (const company of emailed) {
-      const message = newJobEmail({ to: company.email, jobUrl });
+      const message = newJobEmail({ to: company.email, jobUrl, kind: access.details.taskFamily, country });
       tx.create(store.collection(CAPTURE_OUTBOX_COLLECTION).doc(newJobAlertKey(requestId, company.id)), buildOutboxEntry({
         idempotencyKey: newJobAlertKey(requestId, company.id), requestId, kind: "robot_team_new_task", to: company.email,
         subject: message.subject, body: message.body, replyTo: "hello@tryblueprint.io",
