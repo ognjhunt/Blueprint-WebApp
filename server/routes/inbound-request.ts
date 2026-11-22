@@ -1338,9 +1338,12 @@ export async function submitInboundRequest(req: Request, res: Response) {
     const captureRegion = isCaptureRegion(payload.captureRegion)
       ? payload.captureRegion
       : null;
-    const claudeAuthoringConsent = payload.claudeAuthoringConsent == null
+    // The two development authoring consents: the start form shows their boxes only in a development build, so
+    // production ignores them from a hand-made request (finding A-04). Development builds keep them.
+    const developmentAuthoring = !isProduction();
+    const claudeAuthoringConsent = !developmentAuthoring || payload.claudeAuthoringConsent == null
       ? null : buildConsentAttestation(payload.claudeAuthoringConsent);
-    const solAgentsApiConsent = payload.solAgentsApiConsent == null
+    const solAgentsApiConsent = !developmentAuthoring || payload.solAgentsApiConsent == null
       ? null : buildConsentAttestation(payload.solAgentsApiConsent);
     if (claudeAuthoringConsent === "refused"
       || (claudeAuthoringConsent && (claudeAuthoringConsent.statement_version !== "2026-09-24.v1"
