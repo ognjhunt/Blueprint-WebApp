@@ -1,0 +1,542 @@
+{
+ "inboundRequests": {
+  "total": 76,
+  "by_buyerType": {
+   "site_operator": 69,
+   "(absent)": 6,
+   "robot_team": 1
+  },
+  "by_month_created": {
+   "2026-03": 7,
+   "2026-04": 6,
+   "2026-05": 3,
+   "2026-09": 32,
+   "2026-10": 14,
+   "2026-11": 14
+  },
+  "site_operator_total": 69,
+  "site_operator_internal_test": 8,
+  "site_operator_not_internal": 61
+ },
+ "site_jobs_not_internal": {
+  "n": 61,
+  "by_month_created": {
+   "2026-04": 6,
+   "2026-05": 3,
+   "2026-09": 32,
+   "2026-10": 14,
+   "2026-11": 6
+  },
+  "capture_region": {
+   "us": 43,
+   "(absent)": 13,
+   "non_us": 5
+  },
+  "descriptionOnly": {
+   "(absent)": 61
+  },
+  "recording_statement_version": {
+   "(absent)": 28,
+   "2026-09-18.v1": 28,
+   "2026-11-02.v2": 3,
+   "2026-11-12.v4": 2
+  },
+  "recording_statement_granted": {
+   "true": 33,
+   "(absent)": 28
+  },
+  "listing_enabled": {
+   "(absent)": 44,
+   "true": 17
+  },
+  "listing_consentVersion": {
+   "(absent)": 44,
+   "public-task-card-v1": 14,
+   "job-shared-2026-11-12": 3
+  },
+  "listed_with_approvedAt": 17,
+  "withdrawn": 0,
+  "window_ended": 20,
+  "no_grant_ending_waiting_on": {
+   "(absent)": 38,
+   "site": 18,
+   "blueprint": 5
+  },
+  "claude_authoring_consent_granted": {
+   "(absent)": 60,
+   "true": 1
+  },
+  "sol_agents_api_consent_granted": {
+   "(absent)": 60,
+   "true": 1
+  },
+  "created_to_listed_hours": {
+   "n": 3,
+   "median_h": 0.03,
+   "p90_h": 0.84,
+   "min_h": 0.01,
+   "max_h": 0.84
+  }
+ },
+ "site_jobs_internal_test": {
+  "n": 8,
+  "by_month_created": {
+   "2026-11": 8
+  }
+ },
+ "non_us_site_jobs_not_internal": {
+  "n": 5,
+  "by_month_created": {
+   "2026-09": 2,
+   "2026-11": 3
+  },
+  "capture_region": {
+   "non_us": 5
+  },
+  "descriptionOnly": {
+   "(absent)": 5
+  },
+  "recording_statement_version": {
+   "2026-09-18.v1": 2,
+   "2026-11-12.v4": 2,
+   "(absent)": 1
+  },
+  "recording_statement_granted": {
+   "true": 4,
+   "(absent)": 1
+  },
+  "listing_enabled": {
+   "true": 3,
+   "(absent)": 2
+  },
+  "listing_consentVersion": {
+   "job-shared-2026-11-12": 3,
+   "(absent)": 2
+  },
+  "listed_with_approvedAt": 3,
+  "withdrawn": 0,
+  "window_ended": 0,
+  "no_grant_ending_waiting_on": {
+   "site": 3,
+   "(absent)": 2
+  },
+  "claude_authoring_consent_granted": {
+   "(absent)": 5
+  },
+  "sol_agents_api_consent_granted": {
+   "(absent)": 5
+  },
+  "created_to_listed_hours": {
+   "n": 2,
+   "median_h": 0.03,
+   "p90_h": 0.03,
+   "min_h": 0.01,
+   "max_h": 0.03
+  }
+ },
+ "captureUploadSessions": {
+  "n": 34,
+  "status": {
+   "(absent)": 32,
+   "uploaded_verification_pending": 2
+  },
+  "by_month_created": {
+   "(no time)": 32,
+   "2026-10": 2
+  },
+  "with_company_simulation": 6,
+  "company_simulation_permission_basis": {
+   "internal_test": 6
+  },
+  "company_simulation_latest": "2026-11-18",
+  "created_to_company_simulation_hours": {
+   "n": 0
+  },
+  "created_to_upload_complete_hours": {
+   "n": 0
+  }
+ },
+ "captureOutbox": {
+  "n": 143,
+  "kind_and_status": {
+   "answer_ready / sent": 1,
+   "brief_confirmed / sent": 3,
+   "coverage_shortfall / sent": 2,
+   "evaluation_outcome / sent": 10,
+   "footage_before_account / sent": 5,
+   "input_needed / sent": 3,
+   "listing_live / sent": 1,
+   "preparation_needs_attention / sent": 7,
+   "progress_update / failed": 4,
+   "scene_outcome / cancelled": 1,
+   "scene_outcome / sent": 3,
+   "scene_ready / failed": 2,
+   "scene_ready / sent": 9,
+   "scene_tests_started / sent": 2,
+   "screening_not_now / sent": 1,
+   "site_action_needed / sent": 1,
+   "task_received / sent": 25,
+   "team_run_no_result / sent": 23,
+   "team_run_result / sent": 14,
+   "video_received / failed": 4,
+   "video_received / sent": 22
+  },
+  "by_month_created": {
+   "2026-09": 73,
+   "2026-10": 30,
+   "2026-11": 40
+  },
+  "queued_to_sent_hours": {
+   "n": 132,
+   "median_h": 0,
+   "p90_h": 0.02,
+   "min_h": 0,
+   "max_h": 25.35
+  },
+  "latest_sent": "2026-11-20"
+ },
+ "robotTeamAccess": {
+  "n": 1,
+  "status": {
+   "approved": 1
+  },
+  "terms_version": {
+   "(absent)": 1
+  },
+  "latest": "2026-09-28"
+ },
+ "users": {
+  "n": 456,
+  "role": {
+   "(absent)": 354,
+   "guest": 94,
+   "capturer": 7,
+   "admin": 1
+  },
+  "workspaceType": {
+   "(absent)": 456
+  },
+  "accountType": {
+   "(absent)": 456
+  },
+  "buyerType": {
+   "(absent)": 451,
+   "site_operator": 4,
+   "robot_team": 1
+  },
+  "onboardingStep": {
+   "(absent)": 447,
+   "completed": 7,
+   "welcome": 2
+  },
+  "by_month_created": {
+   "(no time)": 28,
+   "2023-10": 4,
+   "2023-11": 17,
+   "2023-12": 26,
+   "2024-01": 57,
+   "2024-02": 27,
+   "2024-03": 5,
+   "2024-04": 1,
+   "2024-10": 2,
+   "2024-11": 2,
+   "2025-02": 28,
+   "2025-03": 3,
+   "2025-04": 13,
+   "2025-05": 32,
+   "2025-06": 26,
+   "2025-07": 23,
+   "2025-08": 17,
+   "2025-09": 24,
+   "2025-10": 3,
+   "2026-01": 3,
+   "2026-03": 12,
+   "2026-04": 45,
+   "2026-05": 1,
+   "2026-06": 4,
+   "2026-07": 39,
+   "2026-08": 2,
+   "2026-09": 3,
+   "2026-10": 3,
+   "2026-11": 6
+  }
+ },
+ "taskEvaluationLaunches": {
+  "n": 524,
+  "latest": "2026-11-16",
+  "by_month": {
+   "2026-08": 402,
+   "2026-09": 101,
+   "2026-10": 1,
+   "2026-11": 20
+  },
+  "status": {
+   "(absent)": 524
+  },
+  "state": {
+   "blocked": 453,
+   "completed": 34,
+   "dry_run_completed": 16,
+   "queued_dispatch_blocked": 13,
+   "control_plane_terminal_blocked": 7,
+   "forward_terminal_blocked": 1
+  }
+ },
+ "taskEvaluationPolicyRuns": {
+  "n": 121,
+  "latest": "2026-11-10",
+  "by_month": {
+   "2026-09": 73,
+   "2026-10": 1,
+   "2026-11": 47
+  },
+  "status": {
+   "(absent)": 121
+  },
+  "state": {
+   "blocked": 79,
+   "queued": 26,
+   "completed": 13,
+   "results_ready": 2,
+   "released": 1
+  }
+ },
+ "taskEvaluationSceneIntakes": {
+  "n": 23,
+  "latest": "2026-11-16",
+  "by_month": {
+   "2026-09": 10,
+   "2026-10": 2,
+   "2026-11": 11
+  },
+  "status": {
+   "(absent)": 23
+  },
+  "state": {
+   "completed": 13,
+   "blocked": 9,
+   "expired": 1
+  }
+ },
+ "captureTaskEvaluationRuns": {
+  "n": 95,
+  "latest": "2026-11-10",
+  "by_month": {
+   "2026-09": 48,
+   "2026-10": 1,
+   "2026-11": 46
+  },
+  "status": {
+   "(absent)": 95
+  },
+  "state": {
+   "(absent)": 95
+  }
+ },
+ "agentRuns": {
+  "n": 2478,
+  "latest": "2026-11-12",
+  "by_month": {
+   "(no time)": 2375,
+   "2026-04": 1,
+   "2026-08": 8,
+   "2026-09": 61,
+   "2026-10": 6,
+   "2026-11": 27
+  },
+  "task": {
+   "(absent)": 2478
+  },
+  "kind": {
+   "(absent)": 2478
+  },
+  "status": {
+   "failed": 2183,
+   "completed": 272,
+   "running": 12,
+   "cancelled": 11
+  },
+  "provider": {
+   "codex_local": 2148,
+   "deepseek_chat": 104,
+   "openai_agents_sdk": 85,
+   "gemini_video": 76,
+   "openai_responses": 48,
+   "openai": 15,
+   "openai_agents_api": 2
+  },
+  "model": {
+   "gpt-5.4-mini": 2148,
+   "gpt-5.6-terra": 87,
+   "gemini-3.8-flash": 76,
+   "deepseek-v4-pro": 58,
+   "deepseek-v4-flash": 46,
+   "gpt-6.1-sol": 26,
+   "gpt-6-luna": 18,
+   "gpt-5.6-sol": 13,
+   "gpt-5.4": 4,
+   "gpt-6-sol": 2
+  }
+ },
+ "opsActionLogs": {
+  "n": 4834,
+  "latest": "2026-04-08",
+  "by_month": {
+   "(no time)": 4832,
+   "2026-04": 2
+  },
+  "action": {
+   "(absent)": 4834
+  },
+  "type": {
+   "(absent)": 4834
+  },
+  "status": {
+   "started": 2376,
+   "failed": 2216,
+   "completed": 242
+  }
+ },
+ "growth_events": {
+  "n": 1247,
+  "latest": "2026-11-18",
+  "by_month": {
+   "2026-04": 697,
+   "2026-05": 182,
+   "2026-06": 17,
+   "2026-07": 95,
+   "2026-08": 136,
+   "2026-09": 64,
+   "2026-10": 50,
+   "2026-11": 6
+  },
+  "event": {
+   "distinct": 13,
+   "shown": false
+  },
+  "type": {
+   "(absent)": 1247
+  }
+ },
+ "growth_campaign_events": {
+  "n": 403,
+  "latest": null,
+  "by_month": {
+   "(no time)": 403
+  },
+  "event": {
+   "(absent)": 403
+  },
+  "type": {
+   "(absent)": 403
+  }
+ },
+ "growthCampaigns": {
+  "n": 58,
+  "latest": "2026-06-25",
+  "by_month": {
+   "(no time)": 2,
+   "2026-04": 14,
+   "2026-05": 20,
+   "2026-06": 22
+  },
+  "status": {
+   "(absent)": 58
+  }
+ },
+ "marketplaceEntitlements": {
+  "n": 39,
+  "latest": null,
+  "by_month": {
+   "(no time)": 39
+  },
+  "status": {
+   "(absent)": 39
+  }
+ },
+ "betaCohortAdmissions": {
+  "n": 41,
+  "latest": null,
+  "by_month": {
+   "(no time)": 41
+  },
+  "status": {
+   "(absent)": 41
+  }
+ },
+ "siteAssessmentJobs": {
+  "n": 21,
+  "latest": null,
+  "by_month": {
+   "(no time)": 21
+  },
+  "status": {
+   "(absent)": 21
+  },
+  "state": {
+   "completed": 19,
+   "needs_review": 1,
+   "authority_ended": 1
+  }
+ },
+ "siteTaskFollowups": {
+  "n": 7,
+  "latest": "2026-10-12",
+  "by_month": {
+   "2026-09": 4,
+   "2026-10": 3
+  },
+  "status": {
+   "(absent)": 7
+  },
+  "kind": {
+   "(absent)": 7
+  }
+ },
+ "evaluationRuns": {
+  "n": 37,
+  "latest": null,
+  "by_month": {
+   "(no time)": 37
+  },
+  "status": {
+   "(absent)": 37
+  }
+ },
+ "progressEvents_all_jobs": {
+  "n": 2292,
+  "latest": null,
+  "by_month": {
+   "(no time)": 2292
+  },
+  "stage": {
+   "(absent)": 2292
+  },
+  "type": {
+   "(absent)": 2292
+  },
+  "kind": {
+   "(absent)": 2292
+  },
+  "status": {
+   "(absent)": 2292
+  }
+ },
+ "calls_all_parents": {
+  "n": 179,
+  "latest": null,
+  "by_month": {
+   "(no time)": 179
+  },
+  "kind": {
+   "(absent)": 179
+  },
+  "provider": {
+   "openai": 124,
+   "gemini": 55
+  },
+  "status": {
+   "(absent)": 179
+  }
+ }
+}
