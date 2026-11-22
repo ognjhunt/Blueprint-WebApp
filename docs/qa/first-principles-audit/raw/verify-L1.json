@@ -1,6 +1,6 @@
 {
  "lane": "L1",
- "summary": "In progress.",
+ "summary": "Of 22 candidates, 6 were confirmed, 15 corrected, 0 refuted and 1 unverified (A-05: the deployed frame-extraction limit lives outside both repositories). The most important corrections are to severity: A-01 is friction, not untrue, because the introduction emails say to write to the address shown; E-03 and E-04 drop to P1, since E-03 needs a site's private owner link and a company answer (neither exists in production) and PR 1369 is unmerged and behind a flag that is off. G-01 is real but hits jobs whose simulation was never made, not finished jobs; the count is 3 upload sessions, not 6; and removing the authority_ended close outright would also drop source-revoked and owner-closed endings. Several proposals would break something: A-09 would remove the success definition the task context and company page read, G-06 would let introductions go out under a rights hold, and M-03 and O-12 miss that the cookie banner gates a live first-party analytics ingest.",
  "verdicts": [
   {
    "id": "A-01",
@@ -438,8 +438,140 @@
     "server/utils/companyTerms.ts:37-41",
     "server/utils/teamJobAccess.ts:226-236"
    ]
+  },
+  {
+   "id": "M-02",
+   "verdict": "confirmed",
+   "checks": [
+    "Privacy.tsx:72-73 defines job close; lines 84-105 set 180 days after close for recordings under the 2026-10-13 policy, 365 days for simulations and answers, contact details 'while your account or job is open', and line 88 itself says storage does not delete originals on a schedule and that a longer period for new recordings needs legal review.",
+    "server/utils/websiteCaptureRetention.ts:1-30 only records which policy applies ('neither authorizes deletion'); grep finds no 180/365-day sweep in server. Whether any site-closed job's contact details are already past due was not counted."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Reusing the withdrawal deletion path keeps its receipts, legal-hold and money checks; a wrong deletion is irreversible, hence report-only first. Legal text is the owner's.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "server/utils/websiteCaptureRetention.ts:10-30"
+   ]
+  },
+  {
+   "id": "M-03",
+   "verdict": "corrected",
+   "checks": [
+    "CookieConsent.tsx:198-199 labels Marketing 'Personalized ads and content'; Privacy.tsx:236-239 says marketing cookies let Google Analytics measure outreach; analytics.ts:245-248 grants ad_storage, ad_user_data and ad_personalization when marketing and analytics are both allowed.",
+    "Live bundle /assets/index-IUZGgzws.js (curl): env keys are only Firebase and Maps, GA id is the placeholder G-XXXXXXXXXX, no PostHog token; but it calls /api/analytics/ingest, which analytics.ts:203-216 sends only when analytics is allowed, so the banner does gate a live first-party ingest."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "Hiding the banner while no GA id is set is safe for privacy (the ingest then never fires) but silently ends the first-party event ingest the Analytics choice gates; that is the owner's call with O-13. Removing the Marketing toggle and ad grants touches nothing else.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "The banner does not ask consent for nothing: its Analytics choice gates first-party events sent to /api/analytics/ingest on the live site. Only the Marketing choice controls nothing today. Keep the banner question tied to the ingest decision.",
+   "corrected_title": "",
+   "corrected_today": "A visitor is asked to allow 'Personalized ads and content'. The Privacy Policy never mentions personalized ads; it says marketing cookies only measure outreach. With a GA id the code would grant ad personalization. The live build has no GA, PostHog or Sentry, so Marketing controls nothing; Analytics still controls Blueprint's own first-party event ingest.",
+   "corrected_proposal": "Delete the Marketing toggle and the three ad_* grants (keep them denied). Keep the banner only while the first-party ingest needs consent; if the owner drops that ingest (O-13), remove the banner too. The Privacy marketing sentences need the owner's edit.",
+   "extra_evidence": [
+    "live https://tryblueprint.io/assets/index-IUZGgzws.js contains '/api/analytics/ingest' and 'G-XXXXXXXXXX'",
+    "client/src/lib/analytics.ts:203-216"
+   ]
+  },
+  {
+   "id": "M-04",
+   "verdict": "corrected",
+   "checks": [
+    "publicCopy.ts:55-59 SAMPLE_JOB.liveAlso includes the downloadable simulation, shown under 'A live job can also include' (SampleJob.tsx:34-36); SampleJob.tsx:38 and Terms.tsx:26 say the tested answers come 'once' the simulation can be downloaded, which is hedged.",
+    "Production counts: 6 upload sessions carry a company simulation, all internal tests; companySends 0 and robotTeamInterest 0. So the package exists in the system but has never been on a real job."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "One public string; check client/tests/publicClaims.guard.test.ts. No privacy, rights or money path reads it.",
+   "already_built": "yes",
+   "already_built_where": "company simulation package exists for internal test jobs only (production counts: 6 upload sessions, all internal tests)",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The copy says a live job 'can also include' the download and the Terms say 'once' it can be downloaded: hedged, not a promise. The package has been made for internal test jobs, just never for a real one. P2 wording fix.",
+   "corrected_title": "The sample job lists a downloadable simulation among what a live job can include; no real job has had one yet",
+   "corrected_today": "A company reading Find jobs sees the downloadable simulation listed under 'A live job can also include'. It has only ever been made for internal test jobs, so no real job has offered it and no company could give a 'Tested it' answer.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "client/src/components/site/SampleJob.tsx:34-38",
+    "client/src/pages/Terms.tsx:26"
+   ]
+  },
+  {
+   "id": "O-12",
+   "verdict": "corrected",
+   "checks": [
+    "curl of the live bundle /assets/index-IUZGgzws.js: env object holds only BASE_URL/DEV/MODE/PROD/SSR, six VITE_FIREBASE_* and VITE_GOOGLE_MAPS_API_KEY; GA id is the placeholder G-XXXXXXXXXX, no 'phc_' token, no sentry ingest host; grep finds no @sentry/node or Sentry.init in server.",
+    "Privacy.tsx:159-164 lists Google Analytics, PostHog and Sentry; analytics.ts:70-76 leaves GA and PostHog off without keys."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Removing the loaders and rows changes no data flow (none runs); a legal page change needs a new policy version and notice, which is the owner's.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Naming processors that do not run over-discloses; no visitor's data goes anywhere unannounced, so P2 not P1. The cookie banner cannot simply go: its Analytics choice gates the live first-party ingest (/api/analytics/ingest).",
+   "corrected_title": "",
+   "corrected_today": "The live build has no GA measurement id, no PostHog token and no Sentry (client or server), so none of the three runs, while the Privacy Policy lists them as processors. The banner still gates Blueprint's own first-party analytics events.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "live bundle contains '/api/analytics/ingest'"
+   ]
   }
  ],
- "new_findings": [],
- "not_checked": []
+ "new_findings": [
+  {
+   "id": "L1-N1",
+   "title": "A site's job page says 'Posted for approved deployment companies' while no company can see any job",
+   "dimension": "untrue",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.4 Waiting",
+   "evidence": [
+    "webapp:client/src/components/site/SiteAnswer.tsx:32,344 (SHARED_LINE shown when sharing.state is visible)",
+    "webapp:server/utils/siteAnswer.ts:735 (visible = access.listed, which does not check whether any company may see jobs)",
+    "webapp:server/utils/companyTerms.ts:37-41 (companyMaySeeJobs needs current Terms and a signed-in acceptance)",
+    "webapp:server/utils/jobAutoSend.ts:47-54 (returns no_companies when none qualify)",
+    "evidence/production-counts/firestore-second-pass.json: robotTeamAccess n 1, with_signed_in_terms_acceptance 0; firestore-funnel.json captureOutbox has no job_sent row"
+   ],
+   "today": "Once a job is listed, the site reads 'Posted for approved deployment companies'. In production the only approved company has no signed-in Terms acceptance, so companyMaySeeJobs is false, auto-send finds no company and no company can open the job. The site waits for responses that cannot come.",
+   "should": "The job page says the job is posted only when at least one approved company can see it; otherwise it says the job is ready and Blueprint is still approving companies.",
+   "change": "FIX",
+   "proposal": "Make sharing.state 'visible' also require at least one robotTeamAccess record for which companyMaySeeJobs holds (the same filter jobAutoSend uses); otherwise show a 'ready, no company can see it yet' line. Separately, the owner asks the approved company to sign in and accept the Terms.",
+   "user_result": "A site is never told its job is in front of companies when it is not.",
+   "risk": "A count query per page view; cache it. No privacy, rights or money record changes.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "Code read plus production aggregate counts; did not open a real job page.",
+   "requirement_source": "nobody (the line was written for the case with approved companies)",
+   "live_in_production": "yes",
+   "needs_owner": true
+  }
+ ],
+ "not_checked": [
+  "A-03 and E-06: did not rerun the Playwright walks; verdicts rest on code reads.",
+  "A-05: the deployed BlueprintCapture extractFrames limit is not in either repository.",
+  "G-02: door journal clip counts were not re-read through the operator door.",
+  "M-02: how many site-closed jobs exist (contact details due for deletion at close) is not in the production count files.",
+  "E-04: did not rerun git apply --check of PR 1369 against HEAD."
+ ]
 }

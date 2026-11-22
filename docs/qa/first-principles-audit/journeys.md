@@ -24,6 +24,23 @@ deployment company, no company has answered, and no introduction has been made
 (`evidence/production-counts/`). Journeys A and B describe what the code does,
 proven by tests and the emulator run, not by a real company.
 
+## Corrections after checking
+
+A second agent tried to refute every P0 and P1 finding. Where it corrected a
+number or a fact in a journey table below, this list is right and the table
+is as the walking agent wrote it:
+
+- **A, step 7.** The job page has 35 status headlines, about 70 sentences in all, not 74. The dropped trial's phases show to a site as "simulation ready", not in trial words.
+- **A, step 6b.** There is no separate reminder email; the four-email list was the owner's choice on 2026-11-19.
+- **A, step 12, and B, step 15.** The introduction emails say to write to the address shown. A reply still goes to Blueprint. Friction, not an untrue sentence.
+- **B, step 3.** The approver does read the application's robot, jobs and region answers. The narrower defects: the website field is optional and hidden, and the region check cannot match a state or city.
+- **B, step 7.** The password is optional (Google sign-in is offered) and the application's Terms line is a notice, not a second tick. The one approved company in production stopped at this step.
+- **B, step 17.** Jobs sent to nobody, because no company had accepted the Terms, wait and go out when the first one does. A company that accepts after a job's send is never emailed about it.
+- **C, steps C.3 and C.9 to C.12.** The operator replay is history: such a hold now re-runs once per release. A fallback from the built scene to the room already exists and did not fire.
+- **C, deploys.** 153 deploy receipts in November; about 4 a day after 11-13; none since 11-20.
+- **D, manual steps.** The deploy count is 153, not 129. The worker runs six loops, not seven. The staff hold must stay as a privacy and rights stop.
+- **E.** Introduce us on a real job needs a company answer first, and none exists. PR 1369 is unmerged and behind a flag that is off.
+
 ## A. The site: from landing to an introduction
 
 Full report, requirements ledger and evidence: [`raw/journey-A.md`](raw/journey-A.md).

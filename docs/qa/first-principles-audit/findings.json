@@ -514,7 +514,7 @@
     "webapp:server/utils/jobAutoSend.ts:50",
     "jobAutoSend.ts:107-123 sweepAutomaticSends re-examines every listed job without company_auto_send.sentAtIso"
    ],
-   "today": "The send happens once, when a job is first listed, only to companies that have already accepted the Terms signed in. An approved company not yet signed up is skipped for that job forever. Nothing tells anyone when the simulation package appears.",
+   "today": "A company is emailed about a job once, when the job is first sent. A company that accepts the Terms after that send is never emailed about the job; it only finds it in its list. Nothing tells any company when a job's simulation becomes ready to test. Jobs sent to nobody (no company had accepted the Terms yet) wait and go out when the first company accepts.",
    "should": "One email when a job becomes Ready to test; a newly signed-in company sees a one-line 'N open jobs' on its first visit (it already sees the list).",
    "change": "BUILD",
    "proposal": "Add a second idempotent outbox row per company (key robot_team_job_ready:<job>:<company>) queued when storedCompanySimulation first exists; reuse the same dispatch gate.",
@@ -681,7 +681,7 @@
    "today": "29 deploys landed inside the only real job's 7-day window. Each paused every job trigger for about 7 minutes and retired its preparation; 26 of 28 preparations were redone for a release. In October the same churn kept $17-30 of a job's ceiling blocked for up to 6 h 47 min per row.",
    "should": "One deploy a day, and a deploy that does not retire work in flight.",
    "change": "FIX",
-   "proposal": "Make the door refuse a deploy outside the 15:00Z window unless the request names a money, privacy, rights or stuck-paid-stage fix, and widen the existing activation hold so it also covers a $0 preparation in flight.",
+   "proposal": "Make a deploy stop retiring work in flight: a preparation finishes on the release that started it. Until that lands, widen the door's existing hold so it also covers a preparation in flight. Then delete the once-a-day window rule from AGENTS.md, which November's 153 deploys show nobody follows. (The checking agent proposed the opposite, having the door enforce the window; the orchestrator chose the option that removes a rule instead of adding a gate.)",
    "user_result": "The site's job keeps moving instead of restarting several times a day.",
    "risk": "Fixes wait up to a day; an urgent fix still goes out with its named reason.",
    "hard_stop": "money",
@@ -689,7 +689,7 @@
    "verify_how": "",
    "requirement_source": "owner delegation D-08 2026-11-02 (once a day)",
    "live_in_production": "yes",
-   "needs_owner": false,
+   "needs_owner": true,
    "agent": "journey-C",
    "lane": "L3",
    "also_reported": [
@@ -1211,7 +1211,7 @@
    "evidence": [
     "baseline firestore-collection-counts.json: inboundRequests 76, robotTeamAccess 1, companySends 0, introductions 0 (group count 0)"
    ],
-   "today": "61 site jobs (17 listed) and one approved company record that never accepted the Terms signed in, so no job has been sent, viewed, answered or introduced, and no billable event exists.",
+   "today": "Production holds 61 site job records that are not internal tests, one deployment company record and nothing after that: 0 jobs sent to a company, 0 company views, 0 answers, 0 introductions, 0 billable events, 0 outcome answers. The one approved company (approved 2026-09-28) never accepted the Terms while signed in, so by the code's own rule it can see no job. Only 2 job records carry the sharing statement that lets a job reach companies, and both are marked non-US. The loop is built and passes its tests; it has never run with a real company.",
    "should": "At least a handful of approved companies before more machinery is built for them.",
    "change": "BUILD",
    "proposal": "Owner decision: approve or invite the first companies (outreach needs the owner's word). Nothing else in this report matters for revenue until then.",
@@ -1600,7 +1600,8 @@
     "cmd: grep -rn '180.*day|RETENTION_DAYS|12 months|inactiv' server/utils -> only durableDailyCaps.ts:34 (8-day counter cleanup); no job-close or retention sweep",
     "cmd: grep -rln 'lifecycle|retention' --include=*.json --include=*.yaml . -> test fixtures only; no bucket lifecycle rule in the repo",
     "pipeline:src/blueprint_pipeline/website_scene_workspace_retention.py:1-36 (disk reclaim that archives and keeps everything, not deletion)",
-    "door-status.json capacity.website_withdrawal_deletion.approval_status = absent (D-14): even the withdrawal deletion path waits for a person"
+    "door-status.json capacity.website_withdrawal_deletion.approval_status = absent (D-14): even the withdrawal deletion path waits for a person",
+    "server/utils/websiteCaptureRetention.ts:10-30"
    ],
    "today": "Nothing computes when a job closes, nothing deletes a video 180 days later, nothing removes contact details when a job closes, and nothing deletes simulations or answers after 365 days. For videos collected under every policy since 2026-10-13 the policy names no period at all. No deadline has passed yet: the oldest possible 180-day deletion falls in April 2027 at the earliest (unverified; see the Firestore aggregate).",
    "should": "Each period the policy states is kept by one daily sweep, and every recording has a stated period.",
@@ -1613,8 +1614,15 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P1",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "confirmed",
+   "verifier_checks": [
+    "Privacy.tsx:72-73 defines job close; lines 84-105 set 180 days after close for recordings under the 2026-10-13 policy, 365 days for simulations and answers, contact details 'while your account or job is open', and line 88 itself says storage does not delete originals on a schedule and that a longer period for new recordings needs legal review.",
+    "server/utils/websiteCaptureRetention.ts:1-30 only records which policy applies ('neither authorizes deletion'); grep finds no 180/365-day sweep in server. Whether any site-closed job's contact details are already past due was not counted."
+   ],
+   "verifier_corrections": "",
+   "change_safe": "yes",
+   "change_safe_why": "Reusing the withdrawal deletion path keeps its receipts, legal-hold and money checks; a wrong deletion is irreversible, hence report-only first. Legal text is the owner's.",
+   "verified_note": "yes"
   },
   {
    "verified": "yes",
@@ -1633,12 +1641,14 @@
     "webapp:client/src/components/CookieConsent.tsx:198-199 banner label 'Marketing' with 'Personalized ads and content'",
     "webapp:client/src/lib/analytics.ts:245-248 marketing (only together with analytics) grants ad_storage, ad_user_data and ad_personalization; marketing ticked without analytics grants nothing",
     "screenshots/M-03-cookie-banner-390.png (live site, Customize opened, nothing saved)",
-    "cmd: node agents/dim-missing/cookie.cjs on https://tryblueprint.io -> hosts requested: tryblueprint.io, fonts.googleapis.com, fonts.gstatic.com; GA/PostHog/Sentry requests: 0 (agrees with O-12)"
+    "cmd: node agents/dim-missing/cookie.cjs on https://tryblueprint.io -> hosts requested: tryblueprint.io, fonts.googleapis.com, fonts.gstatic.com; GA/PostHog/Sentry requests: 0 (agrees with O-12)",
+    "live https://tryblueprint.io/assets/index-IUZGgzws.js contains '/api/analytics/ingest' and 'G-XXXXXXXXXX'",
+    "client/src/lib/analytics.ts:203-216"
    ],
-   "today": "A visitor is asked to allow 'Personalized ads and content'. The Privacy Policy never mentions personalized ads; it says marketing cookies only measure outreach. If a measurement id were configured, the code would grant Google's ad personalization signal, which neither text describes. Today the live build has no analytics at all, so the banner asks for consent to nothing.",
+   "today": "A visitor is asked to allow 'Personalized ads and content'. The Privacy Policy never mentions personalized ads; it says marketing cookies only measure outreach. With a GA id the code would grant ad personalization. The live build has no GA, PostHog or Sentry, so Marketing controls nothing; Analytics still controls Blueprint's own first-party event ingest.",
    "should": "One description, the same in the policy, the banner and the code; or no Marketing choice at all while nothing uses it.",
    "change": "DELETE",
-   "proposal": "Delete the Marketing toggle and the three ad_* grants (keep them 'denied'); while no analytics id is configured, do not show the banner at all. The Privacy Policy's marketing sentences and California row then need the owner's edit (legal text: flagged, not edited here).",
+   "proposal": "Delete the Marketing toggle and the three ad_* grants (keep them denied). Keep the banner only while the first-party ingest needs consent; if the owner drops that ingest (O-13), remove the banner too. The Privacy marketing sentences need the owner's edit.",
    "user_result": "One fewer choice on the first screen of every visit (the banner covers about a quarter of the phone screen, A-16), and no consent asked for something that does not run.",
    "risk": "If the owner later turns Google Ads measurement on, both the policy and the banner must be rewritten together.",
    "requirement_source": "nobody for the ad_personalization grant; Privacy text is the owner's",
@@ -1646,57 +1656,15 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P1",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
-  },
-  {
-   "verified": "yes",
-   "verify_how": "",
-   "live_in_production": "yes",
-   "needs_owner": false,
-   "hard_stop": "none",
-   "id": "M-04",
-   "title": "The packet's simulation is promised on public pages and in the Terms as downloadable, and no live job has ever had one",
-   "dimension": "untrue",
-   "severity": "P1",
-   "effort": "S",
-   "journey_step": "Find jobs sample job; Terms 1",
-   "evidence": [
-    "webapp:client/src/lib/publicCopy.ts:58 SAMPLE_JOB.liveAlso: 'A simulation of the site with the job's object in it, to download and open in your own tools.' (shown as what a live job also has, SampleJob.tsx:36)",
-    "webapp:client/src/lib/publicCopy.ts:68 HOW_STEPS: 'with a first look and a simulation when ready' (hedged, fine)",
-    "journey C finding C-01 and inventory IP-01: no company simulation package exists for any capture; door journal company_simulation_no_source",
-    "baseline firestore-group-counts.json: companySends 0, robotTeamInterest 0"
+   "verdict": "corrected",
+   "verifier_checks": [
+    "CookieConsent.tsx:198-199 labels Marketing 'Personalized ads and content'; Privacy.tsx:236-239 says marketing cookies let Google Analytics measure outreach; analytics.ts:245-248 grants ad_storage, ad_user_data and ad_personalization when marketing and analytics are both allowed.",
+    "Live bundle /assets/index-IUZGgzws.js (curl): env keys are only Firebase and Maps, GA id is the placeholder G-XXXXXXXXXX, no PostHog token; but it calls /api/analytics/ingest, which analytics.ts:203-216 sends only when analytics is allowed, so the banner does gate a live first-party ingest."
    ],
-   "today": "A deployment company reading Find jobs is told a live job also has a simulation to download. None has ever had one, so the two 'Tested it' answers have never been offered on any job.",
-   "should": "The page says only what a live job has today, or the package exists.",
-   "change": "FIX",
-   "proposal": "Change the sample job's third liveAlso line to 'When it is ready, a simulation of the site with the job's object in it, to download and open in your own tools.' (one string; check client/tests/publicClaims.guard.test.ts first and ask the owner if it is pinned). Building the package is the real fix and is tracked by C-01.",
-   "user_result": "A company is not promised a file it cannot get.",
-   "risk": "None; the How it works line already hedges the same way.",
-   "requirement_source": "owner direction 2026-11-20 (Find jobs page with a sample job); doctrine 'once a job's simulation exists a company downloads it'",
-   "agent": "dim-missing",
-   "lane": "L1",
-   "also_reported": [
-    {
-     "id": "E-13",
-     "agent": "journey-E",
-     "title": "The home example card leads with 'Tested it: can do', an answer no company can give today",
-     "severity": "P2",
-     "dimension": "untrue",
-     "evidence": [
-      "webapp:client/src/components/site/PilotPreview.tsx:21,24 (Warehouse and Factory examples start with tested_can_do)",
-      "screenshots/E-01-home-1280.png ('Company A  Tested it: can do')",
-      "webapp:client/src/lib/publicCopy.ts:25-28 (tested answers only once the simulation can be downloaded)",
-      "scratchpad/baseline/firestore-funnel.json: company simulations exist only for internal test jobs"
-     ],
-     "today": "Right after the presenter says Blueprint runs no robot software, the hero card shows 'Tested it: can do'. It is labelled Example and is a company's answer, but no live job offers a download, so no company can give it yet.",
-     "proposal": "Replace tested_can_do with interested in the Warehouse and Factory examples until a real job has a downloadable simulation.",
-     "hard_stop": "none"
-    }
-   ],
-   "original_severity": "P1",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verifier_corrections": "The banner does not ask consent for nothing: its Analytics choice gates first-party events sent to /api/analytics/ingest on the live site. Only the Marketing choice controls nothing today. Keep the banner question tied to the ingest decision.",
+   "change_safe": "no",
+   "change_safe_why": "Hiding the banner while no GA id is set is safe for privacy (the ingest then never fires) but silently ends the first-party event ingest the Analytics choice gates; that is the owner's call with O-13. Removing the Marketing toggle and ad grants touches nothing else.",
+   "verified_note": "yes (corrected by the verifier)"
   },
   {
    "id": "F-01",
@@ -2335,69 +2303,6 @@
   },
   {
    "effort": "S",
-   "change": "FIX",
-   "hard_stop": "privacy",
-   "verified": "yes",
-   "verify_how": "",
-   "live_in_production": "yes",
-   "needs_owner": true,
-   "journey_step": "O.4 The public funnel",
-   "id": "O-12",
-   "title": "The Privacy Policy names Google Analytics, PostHog and Sentry, but the live site runs none of them",
-   "dimension": "untrue",
-   "severity": "P1",
-   "evidence": [
-    "cmd: curl -s https://tryblueprint.io/assets/index-IUZGgzws.js | grep -oE '_n=\\{BASE_URL[^}]*\\}' -> keys BASE_URL, DEV, MODE, PROD, SSR, VITE_FIREBASE_* (6), VITE_GOOGLE_MAPS_API_KEY only",
-    "webapp:client/src/lib/analytics.ts:70-76 (hasConfiguredGa / hasConfiguredPostHog false without keys)",
-    "webapp:client/src/pages/Privacy.tsx:161-163,237-239",
-    "related: IW-09 (Notion named but unused)"
-   ],
-   "today": "The live build has no measurement id, no PostHog token and no Sentry DSN, so none of the three runs. The Privacy Policy lists them as processors, and the cookie banner asks visitors to allow them.",
-   "should": "The policy names only processors that run. If no analytics cookies are set, the cookie banner can go (Journey A-16: it covers the start button).",
-   "proposal": "Owner decision: either configure them on purpose, or remove the three rows from Privacy.tsx (legal page, owner edits) and delete the loaders. Then decide whether the banner is still needed for the first-party ingest (O-13 proposes deleting that too).",
-   "user_result": "The policy is true, and a site sees one less banner over the start button.",
-   "risk": "A legal page changes, so it needs a new policy version and the account notice.",
-   "requirement_source": "law (a policy must be accurate); nobody asked for unused processors",
-   "agent": "dim-observe",
-   "lane": "L1",
-   "also_reported": [
-    {
-     "id": "IW-09",
-     "agent": "inventory-webapp",
-     "title": "The live Privacy Policy names Notion as a processor, but no code sends anything to Notion",
-     "severity": "P2",
-     "dimension": "untrue",
-     "evidence": [
-      "webapp:client/src/pages/Privacy.tsx:154 ['Notion', 'Internal operations and support records']",
-      "cmd: grep -rnE '[Nn]otion' client/src server --include=*.ts* (excluding legal pages) -> no runtime code; only server/AGENTS.md and scripts/qa/brand-polish.ts"
-     ],
-     "today": "A site reading the Privacy Policy is told its records may go to Notion. The website has no Notion integration; Notion sync is retired. Whether staff still paste records into Notion by hand is not in the code.",
-     "proposal": "Owner confirms whether Notion still holds any site or company records. If not, remove the row in the next announced policy version (legalAcceptance.ts versioning), leaving the frozen versions untouched.",
-     "hard_stop": "privacy"
-    },
-    {
-     "id": "M-06",
-     "agent": "dim-missing",
-     "title": "The Privacy Policy names Notion as a processor; the only Notion code builds a spend summary and never calls Notion",
-     "severity": "P2",
-     "dimension": "untrue",
-     "evidence": [
-      "webapp:client/src/pages/Privacy.tsx privacySubprocessorCategories: ['Notion', 'Internal operations and support records']",
-      "cmd: grep -rn 'api.notion.com|NOTION_' server client/src scripts -> env names only (server/config/env.ts:85-88, scripts/launch-smoke-env.mjs:53-54); no sender",
-      "pipeline:src/blueprint_pipeline/notion_spend_projection.py:1-4 ('This module never calls Notion'); it shapes provider spend rows, no personal data",
-      "builds on inventory finding IW-09"
-     ],
-     "today": "No code sends personal information to Notion. Whether a person pastes support records into Notion by hand cannot be seen from the code.",
-     "proposal": "Owner answers one question: does anyone put a site's or company's details into Notion by hand? If no, remove the Notion row at the next policy edit (legal text: owner edits) and delete the unused NOTION_* env names.",
-     "hard_stop": "privacy"
-    }
-   ],
-   "original_severity": "P1",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
-  },
-  {
-   "effort": "S",
    "journey_step": "inventory",
    "change": "DELETE",
    "hard_stop": "money",
@@ -2509,6 +2414,39 @@
    "change_safe": "yes",
    "change_safe_why": "reset-failed on transient units removes only systemd failure state; journals stay. No privacy, rights or money record touched. The guard itself must not be removed; only its exit code for a retired provider changes.",
    "verified_note": "yes (corrected by the verifier)"
+  },
+  {
+   "id": "L1-N1",
+   "title": "A site's job page says 'Posted for approved deployment companies' while no company can see any job",
+   "dimension": "untrue",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.4 Waiting",
+   "evidence": [
+    "webapp:client/src/components/site/SiteAnswer.tsx:32,344 (SHARED_LINE shown when sharing.state is visible)",
+    "webapp:server/utils/siteAnswer.ts:735 (visible = access.listed, which does not check whether any company may see jobs)",
+    "webapp:server/utils/companyTerms.ts:37-41 (companyMaySeeJobs needs current Terms and a signed-in acceptance)",
+    "webapp:server/utils/jobAutoSend.ts:47-54 (returns no_companies when none qualify)",
+    "evidence/production-counts/firestore-second-pass.json: robotTeamAccess n 1, with_signed_in_terms_acceptance 0; firestore-funnel.json captureOutbox has no job_sent row"
+   ],
+   "today": "Once a job is listed, the site reads 'Posted for approved deployment companies'. In production the only approved company has no signed-in Terms acceptance, so companyMaySeeJobs is false, auto-send finds no company and no company can open the job. The site waits for responses that cannot come.",
+   "should": "The job page says the job is posted only when at least one approved company can see it; otherwise it says the job is ready and Blueprint is still approving companies.",
+   "change": "FIX",
+   "proposal": "Make sharing.state 'visible' also require at least one robotTeamAccess record for which companyMaySeeJobs holds (the same filter jobAutoSend uses); otherwise show a 'ready, no company can see it yet' line. Separately, the owner asks the approved company to sign in and accept the Terms.",
+   "user_result": "A site is never told its job is in front of companies when it is not.",
+   "risk": "A count query per page view; cache it. No privacy, rights or money record changes.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "Code read plus production aggregate counts; did not open a real job page.",
+   "requirement_source": "nobody (the line was written for the case with approved companies)",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "agent": "verify-L1",
+   "lane": "L1",
+   "also_reported": [],
+   "original_severity": "P1",
+   "verdict": "found by a verifier",
+   "verified_note": "yes (found during verification)"
   },
   {
    "verified": "yes",
@@ -2625,8 +2563,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verified": "yes",
@@ -2655,8 +2593,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verified": "yes",
@@ -2724,8 +2662,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verified": "unverified",
@@ -2757,8 +2695,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "unverified: Which geocoder runs in production depends on the Google Maps key in the client build; check the deployed bundle's env."
   },
   {
    "verified": "yes",
@@ -2789,8 +2727,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verified": "yes",
@@ -2820,8 +2758,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "B-02",
@@ -3041,8 +2979,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "B-12",
@@ -3072,8 +3010,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "B-13",
@@ -3139,8 +3077,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "B-15",
@@ -3169,8 +3107,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "B-16",
@@ -3199,8 +3137,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "B-17",
@@ -3229,8 +3167,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "B-18",
@@ -3260,8 +3198,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "C-05",
@@ -3375,8 +3313,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "unverified: Time the normalisation and encode of one test clip on the host; the split of the 55-65 min is not recorded."
   },
   {
    "id": "C-10",
@@ -3407,8 +3345,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "C-13",
@@ -3438,8 +3376,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "unverified: Check WebApp first-look rendering for robot_fit fields (journey A/B) and the probe queue history."
   },
   {
    "id": "D-05",
@@ -3565,8 +3503,8 @@
     }
    ],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "D-13",
@@ -3595,8 +3533,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "D-15",
@@ -3627,8 +3565,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "E-07",
@@ -3699,8 +3637,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "E-10",
@@ -3730,8 +3668,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "E-11",
@@ -3761,8 +3699,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "E-12",
@@ -3792,8 +3730,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "E-14",
@@ -3822,8 +3760,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "E-15",
@@ -3853,8 +3791,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "E-16",
@@ -3884,8 +3822,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "E-17",
@@ -3914,8 +3852,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "unverified: Open the viewer on the presenting laptop in its browser, with and without &webgl=1."
   },
   {
    "effort": "S",
@@ -4091,8 +4029,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "M",
@@ -4124,8 +4062,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -4157,8 +4095,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -4189,8 +4127,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -4221,8 +4159,66 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "M-04",
+   "title": "The sample job lists a downloadable simulation among what a live job can include; no real job has had one yet",
+   "dimension": "untrue",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "Find jobs sample job; Terms 1",
+   "evidence": [
+    "webapp:client/src/lib/publicCopy.ts:58 SAMPLE_JOB.liveAlso: 'A simulation of the site with the job's object in it, to download and open in your own tools.' (shown as what a live job also has, SampleJob.tsx:36)",
+    "webapp:client/src/lib/publicCopy.ts:68 HOW_STEPS: 'with a first look and a simulation when ready' (hedged, fine)",
+    "journey C finding C-01 and inventory IP-01: no company simulation package exists for any capture; door journal company_simulation_no_source",
+    "baseline firestore-group-counts.json: companySends 0, robotTeamInterest 0",
+    "client/src/components/site/SampleJob.tsx:34-38",
+    "client/src/pages/Terms.tsx:26"
+   ],
+   "today": "A company reading Find jobs sees the downloadable simulation listed under 'A live job can also include'. It has only ever been made for internal test jobs, so no real job has offered it and no company could give a 'Tested it' answer.",
+   "should": "The page says only what a live job has today, or the package exists.",
+   "change": "FIX",
+   "proposal": "Change the sample job's third liveAlso line to 'When it is ready, a simulation of the site with the job's object in it, to download and open in your own tools.' (one string; check client/tests/publicClaims.guard.test.ts first and ask the owner if it is pinned). Building the package is the real fix and is tracked by C-01.",
+   "user_result": "A company is not promised a file it cannot get.",
+   "risk": "None; the How it works line already hedges the same way.",
+   "requirement_source": "owner direction 2026-11-20 (Find jobs page with a sample job); doctrine 'once a job's simulation exists a company downloads it'",
+   "agent": "dim-missing",
+   "lane": "L1",
+   "also_reported": [
+    {
+     "id": "E-13",
+     "agent": "journey-E",
+     "title": "The home example card leads with 'Tested it: can do', an answer no company can give today",
+     "severity": "P2",
+     "dimension": "untrue",
+     "evidence": [
+      "webapp:client/src/components/site/PilotPreview.tsx:21,24 (Warehouse and Factory examples start with tested_can_do)",
+      "screenshots/E-01-home-1280.png ('Company A  Tested it: can do')",
+      "webapp:client/src/lib/publicCopy.ts:25-28 (tested answers only once the simulation can be downloaded)",
+      "scratchpad/baseline/firestore-funnel.json: company simulations exist only for internal test jobs"
+     ],
+     "today": "Right after the presenter says Blueprint runs no robot software, the hero card shows 'Tested it: can do'. It is labelled Example and is a company's answer, but no live job offers a download, so no company can give it yet.",
+     "proposal": "Replace tested_can_do with interested in the Warehouse and Factory examples until a real job has a downloadable simulation.",
+     "hard_stop": "none"
+    }
+   ],
+   "original_severity": "P1",
+   "verdict": "corrected",
+   "verifier_checks": [
+    "publicCopy.ts:55-59 SAMPLE_JOB.liveAlso includes the downloadable simulation, shown under 'A live job can also include' (SampleJob.tsx:34-36); SampleJob.tsx:38 and Terms.tsx:26 say the tested answers come 'once' the simulation can be downloaded, which is hedged.",
+    "Production counts: 6 upload sessions carry a company simulation, all internal tests; companySends 0 and robotTeamInterest 0. So the package exists in the system but has never been on a real job."
+   ],
+   "verifier_corrections": "The copy says a live job 'can also include' the download and the Terms say 'once' it can be downloaded: hedged, not a promise. The package has been made for internal test jobs, just never for a real one. P2 wording fix.",
+   "change_safe": "yes",
+   "change_safe_why": "One public string; check client/tests/publicClaims.guard.test.ts. No privacy, rights or money path reads it.",
+   "verified_note": "yes (corrected by the verifier)"
   },
   {
    "verified": "yes",
@@ -4253,8 +4249,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verified": "yes",
@@ -4284,8 +4280,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verified": "unverified",
@@ -4315,8 +4311,8 @@
    "lane": "L1",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "unverified: Firestore aggregate: captureOutbox where kind == 'account_notice', count by status and by createdAt day since 2026-11-17."
   },
   {
    "id": "F-06",
@@ -4347,8 +4343,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "unverified: Code reading only; a real iOS Safari and Android Chrome session that locks the screen mid-recording would show the exact browser behaviour."
   },
   {
    "id": "F-13",
@@ -4379,8 +4375,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "F-14",
@@ -4411,8 +4407,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "F-15",
@@ -4481,8 +4477,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "id": "F-18",
@@ -4513,8 +4509,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "unverified: Read BlueprintCapture's extractFrames source and the Pipeline listener's required inputs."
   },
   {
    "effort": "S",
@@ -4582,8 +4578,79 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
+  },
+  {
+   "effort": "S",
+   "change": "FIX",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.4 The public funnel",
+   "id": "O-12",
+   "title": "The Privacy Policy names Google Analytics, PostHog and Sentry, but the live site runs none of them",
+   "dimension": "untrue",
+   "severity": "P2",
+   "evidence": [
+    "cmd: curl -s https://tryblueprint.io/assets/index-IUZGgzws.js | grep -oE '_n=\\{BASE_URL[^}]*\\}' -> keys BASE_URL, DEV, MODE, PROD, SSR, VITE_FIREBASE_* (6), VITE_GOOGLE_MAPS_API_KEY only",
+    "webapp:client/src/lib/analytics.ts:70-76 (hasConfiguredGa / hasConfiguredPostHog false without keys)",
+    "webapp:client/src/pages/Privacy.tsx:161-163,237-239",
+    "related: IW-09 (Notion named but unused)",
+    "live bundle contains '/api/analytics/ingest'"
+   ],
+   "today": "The live build has no GA measurement id, no PostHog token and no Sentry (client or server), so none of the three runs, while the Privacy Policy lists them as processors. The banner still gates Blueprint's own first-party analytics events.",
+   "should": "The policy names only processors that run. If no analytics cookies are set, the cookie banner can go (Journey A-16: it covers the start button).",
+   "proposal": "Owner decision: either configure them on purpose, or remove the three rows from Privacy.tsx (legal page, owner edits) and delete the loaders. Then decide whether the banner is still needed for the first-party ingest (O-13 proposes deleting that too).",
+   "user_result": "The policy is true, and a site sees one less banner over the start button.",
+   "risk": "A legal page changes, so it needs a new policy version and the account notice.",
+   "requirement_source": "law (a policy must be accurate); nobody asked for unused processors",
+   "agent": "dim-observe",
+   "lane": "L1",
+   "also_reported": [
+    {
+     "id": "IW-09",
+     "agent": "inventory-webapp",
+     "title": "The live Privacy Policy names Notion as a processor, but no code sends anything to Notion",
+     "severity": "P2",
+     "dimension": "untrue",
+     "evidence": [
+      "webapp:client/src/pages/Privacy.tsx:154 ['Notion', 'Internal operations and support records']",
+      "cmd: grep -rnE '[Nn]otion' client/src server --include=*.ts* (excluding legal pages) -> no runtime code; only server/AGENTS.md and scripts/qa/brand-polish.ts"
+     ],
+     "today": "A site reading the Privacy Policy is told its records may go to Notion. The website has no Notion integration; Notion sync is retired. Whether staff still paste records into Notion by hand is not in the code.",
+     "proposal": "Owner confirms whether Notion still holds any site or company records. If not, remove the row in the next announced policy version (legalAcceptance.ts versioning), leaving the frozen versions untouched.",
+     "hard_stop": "privacy"
+    },
+    {
+     "id": "M-06",
+     "agent": "dim-missing",
+     "title": "The Privacy Policy names Notion as a processor; the only Notion code builds a spend summary and never calls Notion",
+     "severity": "P2",
+     "dimension": "untrue",
+     "evidence": [
+      "webapp:client/src/pages/Privacy.tsx privacySubprocessorCategories: ['Notion', 'Internal operations and support records']",
+      "cmd: grep -rn 'api.notion.com|NOTION_' server client/src scripts -> env names only (server/config/env.ts:85-88, scripts/launch-smoke-env.mjs:53-54); no sender",
+      "pipeline:src/blueprint_pipeline/notion_spend_projection.py:1-4 ('This module never calls Notion'); it shapes provider spend rows, no personal data",
+      "builds on inventory finding IW-09"
+     ],
+     "today": "No code sends personal information to Notion. Whether a person pastes support records into Notion by hand cannot be seen from the code.",
+     "proposal": "Owner answers one question: does anyone put a site's or company's details into Notion by hand? If no, remove the Notion row at the next policy edit (legal text: owner edits) and delete the unused NOTION_* env names.",
+     "hard_stop": "privacy"
+    }
+   ],
+   "original_severity": "P1",
+   "verdict": "corrected",
+   "verifier_checks": [
+    "curl of the live bundle /assets/index-IUZGgzws.js: env object holds only BASE_URL/DEV/MODE/PROD/SSR, six VITE_FIREBASE_* and VITE_GOOGLE_MAPS_API_KEY; GA id is the placeholder G-XXXXXXXXXX, no 'phc_' token, no sentry ingest host; grep finds no @sentry/node or Sentry.init in server.",
+    "Privacy.tsx:159-164 lists Google Analytics, PostHog and Sentry; analytics.ts:70-76 leaves GA and PostHog off without keys."
+   ],
+   "verifier_corrections": "Naming processors that do not run over-discloses; no visitor's data goes anywhere unannounced, so P2 not P1. The cookie banner cannot simply go: its Analytics choice gates the live first-party ingest (/api/analytics/ingest).",
+   "change_safe": "yes",
+   "change_safe_why": "Removing the loaders and rows changes no data flow (none runs); a legal page change needs a new policy version and notice, which is the owner's.",
+   "verified_note": "yes (corrected by the verifier)"
   },
   {
    "effort": "S",
@@ -4653,8 +4720,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -4683,8 +4750,8 @@
    "lane": "L2",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -4848,8 +4915,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -4881,8 +4948,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -4913,8 +4980,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -4944,8 +5011,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "L",
@@ -4976,8 +5043,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "M",
@@ -5195,8 +5262,8 @@
     }
    ],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -5285,8 +5352,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "M",
@@ -5317,8 +5384,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "M",
@@ -5364,8 +5431,8 @@
     }
    ],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "effort": "S",
@@ -5396,8 +5463,8 @@
    "lane": "L4",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verify_how": "",
@@ -5541,8 +5608,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verify_how": "",
@@ -5692,8 +5759,8 @@
     }
    ],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verify_how": "",
@@ -5741,8 +5808,8 @@
     }
    ],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verify_how": "",
@@ -5829,8 +5896,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verify_how": "",
@@ -5877,8 +5944,8 @@
     }
    ],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   },
   {
    "verify_how": "",
@@ -5908,8 +5975,8 @@
    "lane": "L3",
    "also_reported": [],
    "original_severity": "P2",
-   "verdict": "not verified",
-   "verified_note": "unverified: no verifier reached it"
+   "verdict": "not re-checked (P2)",
+   "verified_note": "yes, by the agent that found it; not re-checked by a second agent (P2)"
   }
  ],
  "dropped": []
