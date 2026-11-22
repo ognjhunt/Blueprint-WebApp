@@ -35,10 +35,15 @@ export function createRequestBodyDeadline(
       }
     }, requestBodyTimeoutMs(req.method, req.path, limits));
     timer.unref();
-    const clear = () => clearTimeout(timer);
+    // An early response (e.g. 404 for a bad upload token) must not cancel the deadline: with requestTimeout off it is
+    // the only bound on a body still trickling in, so it lasts until the body ends or the connection closes.
+    const socket = req.socket;
+    const clear = () => {
+      clearTimeout(timer);
+      socket.off("close", clear);
+    };
     req.once("end", clear);
-    res.once("finish", clear);
-    res.once("close", clear);
+    socket.once("close", clear);
     next();
   };
 }
