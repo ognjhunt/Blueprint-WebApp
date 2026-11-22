@@ -11,7 +11,6 @@ import captureUploadsRouter from "./routes/capture-uploads";
 import websiteAtlasPreviewDownloadsRouter from "./routes/website-atlas-preview-downloads";
 import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views";
 import websiteDestinationPicturesRouter from "./routes/website-destination-pictures";
-import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
@@ -142,5 +141,4 @@ export function registerRoutes(app: Express) {
     captureUploadsRouter,
   );
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
-  app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
 }

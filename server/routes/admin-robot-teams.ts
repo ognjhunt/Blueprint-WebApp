@@ -1,13 +1,10 @@
 /**
- * The review queue.
+ * The robot-team registry for operators: job decisions, the registry list and
+ * supply agreements.
  *
- * A proposal nobody can act on is just a log line. This is the surface where a
- * person turns a model's reading of a public page into a registry value — or
- * declines it, which is the more common and more valuable outcome.
- *
- * Every route here is behind `verifyFirebaseToken` at registration. The accept
- * path records who accepted, because "a person reviewed this" is only a real
- * guarantee if the person is named.
+ * Every route here is behind `verifyFirebaseToken` at registration and the
+ * admin role below. Writes record the signed-in operator, because "a person
+ * recorded this" is only a real guarantee if the person is named.
  */
 import { Router, type Request, type Response } from "express";
 
@@ -16,10 +13,8 @@ import { logger } from "../logger";
 import { z } from "zod";
 
 import {
-  applyProposal,
   getRobotTeam,
   listMatchableRobotTeams,
-  listPendingProposals,
   recordSupplyAgreement,
   withdrawTeamSupplyAgreement,
 } from "../utils/robotTeamRegistry";
@@ -98,63 +93,6 @@ router.get("/recommendations/:requestId", async (req, res) => {
       assessment: assessment.customerAdvisory,
       interests: interests.docs.map(doc => doc.data()) });
   } catch (error) { logger.error({ err: error, requestId }, "Job review unavailable"); return res.status(503).json({ error: "Job review unavailable" }); }
-});
-
-/** The queue, oldest proposals first so nothing rots at the bottom. */
-router.get("/proposals", async (_req: Request, res: Response) => {
-  try {
-    const proposals = await listPendingProposals();
-    return res.json({
-      ok: true,
-      proposals: proposals.sort((left, right) =>
-        left.proposedAt.localeCompare(right.proposedAt),
-      ),
-    });
-  } catch (error) {
-    logger.error({ err: error }, "Failed to list capability proposals");
-    return res
-      .status(HTTP_STATUS.SERVICE_UNAVAILABLE)
-      .json({ ok: false, error: "Unable to list proposals" });
-  }
-});
-
-/**
- * Accept or decline one proposal.
- *
- * `accept` is required rather than defaulted. A missing field should not mean
- * "yes" on the one route in this system that turns an inferred figure into
- * something a site operator may eventually read.
- */
-router.post("/proposals/:proposalId", async (req: Request, res: Response) => {
-  const { proposalId } = req.params;
-  const accept = req.body?.accept;
-  if (typeof accept !== "boolean") {
-    return res
-      .status(HTTP_STATUS.BAD_REQUEST)
-      .json({ ok: false, error: "accept must be true or false" });
-  }
-
-  // The auth middleware sets `firebaseUser`; this read `res.locals.user`,
-  // which nothing sets, so every review was refused as anonymous.
-  const reviewedBy =
-    (res.locals?.firebaseUser?.email as string | undefined) ||
-    (res.locals?.firebaseUser?.uid as string | undefined) ||
-    null;
-  if (!reviewedBy) {
-    return res
-      .status(401)
-      .json({ ok: false, error: "A named reviewer is required" });
-  }
-
-  try {
-    const record = await applyProposal({ proposalId, reviewedBy, accept });
-    return res.json({ ok: true, accepted: accept, robotTeam: record });
-  } catch (error) {
-    logger.error({ err: error, proposalId }, "Failed to apply a capability proposal");
-    return res
-      .status(HTTP_STATUS.SERVICE_UNAVAILABLE)
-      .json({ ok: false, error: "Unable to apply proposal" });
-  }
 });
 
 const REGISTRY_LIST_STATUSES: RobotTeamRecord["status"][] = ["applied", "engaged", "prospect", "declined", "self_registered"];
