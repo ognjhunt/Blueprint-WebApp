@@ -44,6 +44,7 @@ import {
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { teamJobAccess, type TeamJobClosedReason } from "./teamJobAccess";
 import { companyMaySeeJobs } from "./companyTerms";
+import { RETRYABLE_CANCEL_REASONS } from "./jobIntroductionGate";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 export type { AdminJobCompanies };
@@ -514,8 +515,10 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     entries.push({ kind: "sent", alias: companyAliasName(letter), atIso });
   }
   // An introduction cancelled at dispatch (G3) is as if it was never made: it does not count among those made and the
-  // answer shows without it. It is not offered again for that company (its emails' keys are spent).
-  const cancelled = new Set((input.introductions ?? []).filter(row => typeof row.data.cancelledAtIso === "string").map(row => row.id));
+  // answer shows without it. It is offered again only when Blueprint's own email to the company failed or was never sent.
+  const cancelledRows = (input.introductions ?? []).filter(row => typeof row.data.cancelledAtIso === "string");
+  const cancelled = new Set(cancelledRows.map(row => row.id));
+  const retryable = new Set(cancelledRows.filter(row => RETRYABLE_CANCEL_REASONS.has(String(row.data.cancelReason))).map(row => row.id));
   const introductions = new Map((input.introductions ?? []).filter(row => !cancelled.has(row.id)).map(row => [row.id, row.data]));
   const used = introductions.size;
   for (const response of input.responses) {
@@ -527,7 +530,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const intro = introductions.get(response.id);
     const introducedAtIso = intro ? instant(intro.requestedAtIso) : null;
     const company = intro ? introducedCompany(intro) : undefined;
-    const canIntroduce = !intro && !cancelled.has(response.id) && input.listed === true
+    const canIntroduce = !intro && (!cancelled.has(response.id) || retryable.has(response.id)) && input.listed === true
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
     const identity = knownCompanyIdentity(input.companies?.get(response.id), response.data);
     const reason = siteReasonOf(response.data, identity);
@@ -577,7 +580,7 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   // The introduced companies' details are decrypted here, only for the site's own page (`introductionShared.ts`).
   const { openShared } = await import("./introductionShared");
   const opened = await Promise.all(introductions.map(async row => ({ id: row.id,
-    data: typeof row.data.cancelledAtIso === "string" ? { cancelledAtIso: row.data.cancelledAtIso }
+    data: typeof row.data.cancelledAtIso === "string" ? { cancelledAtIso: row.data.cancelledAtIso, cancelReason: row.data.cancelReason ?? null }
       : { ...row.data, companyShared: await openShared(row.data.companyShared) } })));
   // Every company that answered, approved or not, so its identity is taken out of its words.
   const answered = await Promise.all(responses.map(row => store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(row.id).get()));
