@@ -45,6 +45,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
 import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
+import { isValidEmailAddress } from "./validation";
 import { commercialUnsubscribeUrl } from "./email-suppression";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 import { accountNoticeDigest, accountNoticeDispatchBlocker, type AccountNoticeContext } from "./accountNotice";
@@ -142,6 +143,16 @@ const DELIVERY_LEASE_MS = 5 * 60 * 1000;
  * because the sender needs it.
  */
 const INTRODUCTION_KINDS: ReadonlySet<string> = new Set(["introduction_made_company", "introduction_made_site"]);
+
+/**
+ * Who a message is from and where a reply goes. An introduction email's reply goes to the other side, whose address the
+ * row stores (and the body already gives); every other message, or a row without a valid address, replies to Blueprint.
+ */
+export function outboxSendIdentity(entry: { kind: string; replyTo?: string | null }) {
+  const replyTo = INTRODUCTION_KINDS.has(entry.kind) && typeof entry.replyTo === "string" && isValidEmailAddress(entry.replyTo)
+    ? entry.replyTo : CUSTOMER_JOB_EMAIL_IDENTITY.replyTo;
+  return { ...CUSTOMER_JOB_EMAIL_IDENTITY, replyTo };
+}
 function clearedIntroductionDetails(entry: Pick<OutboxEntry, "kind">): Row {
   // The subject goes too: the site's one names the company ("Meet {company}").
   return INTRODUCTION_KINDS.has(entry.kind) ? { subject: "", body: "", replyTo: null, detailsClearedAtIso: nowIso() } : {};
@@ -490,7 +501,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
   let result: Awaited<ReturnType<typeof sendEmail>>;
   try {
     result = await sendEmail({ to: entry.to, subject: entry.subject,
-      text: message.text, html: message.html, ...CUSTOMER_JOB_EMAIL_IDENTITY, idempotencyKey });
+      text: message.text, html: message.html, ...outboxSendIdentity(entry), idempotencyKey });
     // Provider adapters cross an untrusted response boundary. A truthy
     // acceptance without a usable provider receipt is not a completed send.
     // Keep that possible effect unknown rather than allowing malformed/null
