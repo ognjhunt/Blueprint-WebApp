@@ -470,8 +470,9 @@ const STOPS: Array<[string, () => void]> = [
     consent_attestation: { ...sharedRecordingGrant(), granted: false, revoked_at_iso: "2026-11-12T12:00:00.000Z" } } })],
   ["Blueprint's operator hold", () => patchJob({ operator_listing_hold: { held: true, atIso: "2026-11-12T12:00:00.000Z", by: "ops" } })],
   ["a rights hold", () => patchJob({ evaluation_readiness: { rights_review_status: "blocked" } })],
-  ["an authority end", () => state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
-    website_preparation: { selector: { request_id: ID, capture_id: CAPTURE }, status: { state: "authority_ended" } } })],
+  ["an authority end for a revoked source", () => { patchJob({ request: { ...jobDoc().request,
+    consent_attestation: { ...sharedRecordingGrant(), granted: false } } }); state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+    website_preparation: { selector: { request_id: ID, capture_id: CAPTURE }, status: { state: "authority_ended" } } }); }],
   ["the site closing its job", () => patchJob({ website_run_closures: { [CAPTURE]: { closed_at_iso: "2026-11-12T12:00:00.000Z" } } })],
   ["the company's approval withdrawn", () => state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, { ...NORTH, status: "declined" })],
 ];
@@ -489,6 +490,15 @@ describe("every stop closes everything a company can see (E2)", () => {
     const result = await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail: () => ({ subject: "s", body: "b" }) });
     expect(result.ok).toBe(false);
     expect(state.docs.has(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toBe(false);
+  });
+});
+
+describe("Blueprint's own work window ending is not a stop (G-01)", () => {
+  it("keeps the job's page and its answer route open when the window ends its authority", async () => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+      website_preparation: { selector: { request_id: ID, capture_id: CAPTURE }, status: { state: "authority_ended" } } });
+    expect((await page()).status).toBe(200);
+    expect((await answer(NORTH)).status).toBe(200);
   });
 });
 
