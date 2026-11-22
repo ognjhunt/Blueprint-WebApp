@@ -13,6 +13,7 @@ import { BareBack, BareButton, BareLead, BareMenu, BareNotice, BareRows, BareScr
 import { JobCompaniesConsole } from "@/components/admin/JobCompaniesConsole";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
 import { JobWorkflowPanel } from "@/components/admin/JobWorkflowPanel";
+import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
 import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -288,12 +289,14 @@ function JobPage({ requestId, onBack }: { requestId: string; onBack: () => void 
       <BareMenu label="Staff tools" items={[
         ...(job.internalTest ? [] : [{ key: "companies", label: "Deployment companies", body:
           <StaffTool id={`${requestId}:companies`} label="Deployment companies">{() => <JobCompaniesConsole requestId={requestId} currentUser={api.currentUser}
-            // A hold, a send or an answer changes the sharing line, the stops and the events above: read them again.
+            // A hold changes the sharing line, the stops and the events above: read them again.
             onChanged={() => void queryClient.invalidateQueries({ queryKey: ["admin-job-console", "detail", requestId] })} />}</StaffTool> }]),
         { key: "measurements", label: "Site measurements", body:
           <StaffTool id={`${requestId}:measurements`} label="Site measurements">{() => <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />}</StaffTool> },
         { key: "evidence", label: "Evidence questions", body:
           <StaffTool id={`${requestId}:evidence`} label="Evidence questions">{() => <JobWorkflowPanel requestId={requestId} currentUser={api.currentUser} />}</StaffTool> },
+        { key: "robot-fit", label: "Robot fit", body:
+          <StaffTool id={`${requestId}:robot-fit`} label="Robot fit">{() => <RobotFitConsole requestId={requestId} currentUser={api.currentUser} />}</StaffTool> },
       ]} />
     </BareRows>
   </>;

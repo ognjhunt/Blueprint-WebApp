@@ -5,8 +5,9 @@
  * ## What happens (automatic since 2026-11-12, package E)
  *
  * When a job first becomes listed, `jobAutoSend.ts` records one send per approved deployment company (`sentBy:
- * "system"`) and emails the companies that asked for job emails. A company answers on the job's own page. An operator
- * may still record a send by hand and an answer a company gave by email. Introductions are `jobIntroductions.ts`.
+ * "system"`) and emails the companies that asked for job emails. A company answers on the job's own page. Staff no
+ * longer record a send or an answer by hand (2026-11-22); rows they recorded before are still read. Introductions are
+ * `jobIntroductions.ts`.
  *
  * ## Records (Admin SDK only; the rules stay default-deny)
  *
@@ -33,10 +34,8 @@
  * the company's name, email or website, and no note of Blueprint's (a note could name the company; an operator with
  * something to say writes to the site).
  */
-import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { recordingStatementShares } from "./jobSharedListing";
 import {
   COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
   type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
@@ -48,7 +47,6 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 export type { AdminJobCompanies };
 import { operatorListingHold } from "./operatorListing";
-import { captureUploadUrlFor } from "./captureUploadToken";
 import { REMOVED, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { COMPANY_JOB_VIEWS_COLLECTION } from "./companyJobViews";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
@@ -60,8 +58,7 @@ export const AUTO_SEND_EVENT_ID = "companies";
 export const COMPANY_RESPONSES_COLLECTION = "robotTeamInterest";
 const JOBS = "inboundRequests";
 
-export type JobCompaniesErrorCode = "job_not_found" | "not_visible" | "company_not_approved" | "send_not_found"
-  | "consent_withdrawn" | "not_sent" | "store_unavailable";
+export type JobCompaniesErrorCode = "job_not_found" | "store_unavailable";
 
 export class JobCompaniesError extends Error {
   constructor(readonly code: JobCompaniesErrorCode, message: string) {
@@ -135,104 +132,6 @@ function requireDb() {
 }
 
 /* --------------------------------------------------------------- writes */
-
-/**
- * Record that an operator sent the job to an approved deployment company. Refused unless the job is shared and
- * visible to companies at this moment (`teamJobAccess(record).listed`), and for a company that is not approved.
- */
-export async function recordCompanySend(requestId: string, companyId: string, actor: OperatorActor,
-  now: () => Date = () => new Date()): Promise<{ sendId: string; alias: string; sentAtIso: string }> {
-  const store = requireDb();
-  const jobRef = store.collection(JOBS).doc(requestId);
-  const companyRef = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId);
-  const sendId = randomUUID();
-  const captureUrl = captureUploadUrlFor(requestId, "owner");
-  return store.runTransaction(async tx => {
-    const [jobSnap, companySnap] = [await tx.get(jobRef), await tx.get(companyRef)];
-    const record = jobSnap.data();
-    if (!jobSnap.exists || !record) throw new JobCompaniesError("job_not_found", "Site job not found.");
-    if (projectWebsiteCaptureRights(record).consent_revoked)
-      throw new JobCompaniesError("consent_withdrawn", "The site withdrew its permission, so this job is not sent to anyone.");
-    // The whole rule (the sentence and the authority end too), as every company-facing read uses it.
-    const { loadCompanyJobAccess } = await import("./teamJobAccess");
-    if (!(await loadCompanyJobAccess(requestId, record, tx)).access.listed)
-      throw new JobCompaniesError("not_visible", "This job is not shared and visible to companies right now, so it cannot be sent.");
-    if (!companySnap.exists || !companyMaySeeJobs(companySnap.data()))
-      throw new JobCompaniesError("company_not_approved", "Only an approved deployment company that has accepted the current Terms can be sent a job.");
-    const plan = planAlias(record, companyId);
-    // The site's email, written in this same transaction: it exists if and only if the send is recorded.
-    const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "job_sent", eventId: `send-${sendId}` }, captureUrl);
-    const sentAtIso = now().toISOString();
-    writeAlias(tx, jobRef, companyId, plan);
-    tx.set(jobRef.collection(COMPANY_SENDS_COLLECTION).doc(sendId), { schemaVersion: 1, companyId, sentAtIso,
-      sentBy: actor.uid, sentByEmail: actor.email });
-    notice?.();
-    return { sendId, alias: plan.alias, sentAtIso };
-  });
-}
-
-/** Void a mistaken send. It stays on record; the site no longer sees it. */
-export async function voidCompanySend(requestId: string, sendId: string, actor: OperatorActor,
-  now: () => Date = () => new Date()): Promise<{ voidedAtIso: string }> {
-  const store = requireDb();
-  const ref = store.collection(JOBS).doc(requestId).collection(COMPANY_SENDS_COLLECTION).doc(sendId);
-  return store.runTransaction(async tx => {
-    const send = (await tx.get(ref)).data();
-    if (!send) throw new JobCompaniesError("send_not_found", "That send is not recorded on this job.");
-    if (text(send.voidedAtIso)) return { voidedAtIso: send.voidedAtIso as string };
-    const voidedAtIso = now().toISOString();
-    tx.set(ref, { voidedAtIso, voidedBy: actor.email ?? actor.uid }, { merge: true });
-    return { voidedAtIso };
-  });
-}
-
-/**
- * Record an answer a company gave by email. It is shown to the site like any answer (2026-11-20): its words, with the
- * company's identity taken out (`wordsShownToSite`: the staff form says so since then; words recorded before it, under
- * "staff only, never shown to the site", never are), and "Introduce us" beside Interested (`answerConsentsToIntroduction`).
- * Refused for a withdrawn job, for a company that is not an approved deployment company, and for one with no standing
- * (not voided) send on this job: an answer the operator records is always about a job Blueprint sent that company.
- */
-export async function recordCompanyResponseByOperator(requestId: string, input: { companyId: string;
-  state: CompanyResponseState; inputs: string }, actor: OperatorActor,
-now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: string }> {
-  const store = requireDb();
-  const jobRef = store.collection(JOBS).doc(requestId);
-  const companyRef = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(input.companyId);
-  const captureUrl = captureUploadUrlFor(requestId, "owner");
-  return store.runTransaction(async tx => {
-    const [jobSnap, companySnap, sendRows] = [await tx.get(jobRef), await tx.get(companyRef),
-      await tx.get(jobRef.collection(COMPANY_SENDS_COLLECTION).where("companyId", "==", input.companyId))];
-    const record = jobSnap.data();
-    if (!jobSnap.exists || !record) throw new JobCompaniesError("job_not_found", "Site job not found.");
-    if (projectWebsiteCaptureRights(record).consent_revoked)
-      throw new JobCompaniesError("consent_withdrawn", "The site withdrew its permission, so nothing new is recorded for it.");
-    if (!recordingStatementShares(record))
-      throw new JobCompaniesError("not_visible", "This job needs a video before company answers can be recorded.");
-    const company = companySnap.data() as RobotTeamAccessRecord | undefined;
-    if (!company || !isApprovedDeploymentCompany(company))
-      throw new JobCompaniesError("company_not_approved", "Only an approved deployment company's answer can be recorded.");
-    if (!sendRows.docs.some(doc => !text(doc.data()?.voidedAtIso)))
-      throw new JobCompaniesError("not_sent", "This job was not sent to that company (or the send was voided), so its answer cannot be recorded here.");
-    const responseRef = jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(input.companyId);
-    const prior = (await tx.get(responseRef)).data();
-    const plan = planAlias(record, input.companyId);
-    // An answer Blueprint records consents to an introduction (`answerConsentsToIntroduction`) but carries no question
-    // the site can answer (`questionOnReply`): the email names only what the job page offers.
-    const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "company_answered",
-      eventId: answerEventId(plan.alias, input.state), companyAnswerState: input.state,
-      introductionOffered: !(await introductionOnRecord(tx, jobRef, input.companyId)), questionOnPage: false }, captureUrl);
-    const updatedAtIso = now().toISOString();
-    writeAlias(tx, jobRef, input.companyId, plan);
-    tx.set(responseRef, {
-      state: input.state, inputs: input.inputs, email: company.email ?? null, company: company.company ?? null,
-      recordedBy: "operator", recordedByUid: actor.uid, recordedByEmail: actor.email, updatedAtIso, wordsShownToSite: true,
-      firstAnsweredAtIso: firstAnswerTimestamp(prior, updatedAtIso),
-    });
-    notice?.();
-    return { alias: plan.alias, updatedAtIso };
-  });
-}
 
 /** One notice per company and response state, including when the company edits its question. */
 const answerEventId = (alias: string, state: CompanyResponseState) => `${alias}-${state}`;

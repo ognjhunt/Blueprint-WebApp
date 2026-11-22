@@ -913,7 +913,6 @@ describe("the simulation download and the tested answers (E9)", () => {
 /* ----------------------------------------------------------------- the independent review's findings, as assertions */
 
 const { teamJobAccess, loadCompanyJobAccess } = await import("../utils/teamJobAccess");
-const { recordCompanySend } = await import("../utils/jobCompanies");
 
 describe("review findings (must-fix and should-fix)", () => {
   it("must-fix 1: a technology partner gets no page, no video, no download, no answer and no introduction", async () => {
@@ -1050,12 +1049,6 @@ describe("review findings (must-fix and should-fix)", () => {
     expect((await list()).raw).not.toContain(PL);
     patchJob({ request: { ...jobDoc().request, siteLocationMetadata: { country: "encrypted:GB" } } });
     expect((await page()).body.item.country).toBe("United Kingdom");
-  });
-
-  it("should-fix: an operator send uses the whole rule (no sentence: refused)", async () => {
-    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Your site task", confirmedAtIso: null });
-    expect((await loadCompanyJobAccess(ID)).access.listed).toBe(false);
-    await expect(recordCompanySend(ID, sha(NORTH.email), { uid: "ops", email: "ops@example.com" })).rejects.toMatchObject({ code: "not_visible" });
   });
 
   it("the introduction email names no contact when the site typed no name: never the intake's placeholders", async () => {

@@ -30,13 +30,16 @@ async function blockOutside(page: Page): Promise<string[]> {
   return errors;
 }
 
-test("the operator records a send, an emailed answer and a hold on the job's Deployment companies panel", async ({ page }) => {
+test("the operator sees the sends and answers on record and stops showing the job with a reason, on the job's Deployment companies panel", async ({ page }) => {
   const errors = await blockOutside(page);
   const panel = {
     sharing: { state: "shared_visible", words: "Shared and visible to approved companies.", reason: null }, hold: null as null | object,
     consentRevoked: false, libraryUrl: `http://127.0.0.1/contact/robot-team#job-${JOB}`,
     companies: [{ id: NORTH, company: "North Robotics", email: "sales@north.example" }],
-    sends: [] as object[], responses: [] as object[],
+    sends: [{ sendId: `system-${NORTH}`, companyId: NORTH, company: "North Robotics", alias: "A", sentAtIso: "2026-11-12T10:00:00.000Z",
+      sentBy: "system", voidedAtIso: null, voidedBy: null }],
+    responses: [{ companyId: NORTH, company: "North Robotics", email: "sales@north.example", alias: "A", state: "needs_something",
+      inputs: "We would need a second gripper.", updatedAtIso: "2026-11-12T11:00:00.000Z", recordedBy: "company" }],
   };
   const posts: Array<{ path: string; body: unknown }> = [];
   await page.route("**/api/**", async route => {
@@ -52,12 +55,8 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
     if (path.startsWith(base) && request.method() === "POST") {
       const body = request.postDataJSON();
       posts.push({ path: path.slice(base.length), body });
-      if (path === `${base}/sends`) panel.sends.push({ sendId: "send-1", companyId: NORTH, company: "North Robotics", alias: "A",
-        sentAtIso: "2026-11-12T10:00:00.000Z", sentBy: "operator-qa@tryblueprint.local", voidedAtIso: null, voidedBy: null });
-      if (path === `${base}/responses`) panel.responses.push({ companyId: NORTH, company: "North Robotics", email: "sales@north.example",
-        alias: "A", state: body.state, inputs: body.inputs, updatedAtIso: "2026-11-12T11:00:00.000Z", recordedBy: "operator" });
       if (path === `${base}/hold`) {
-        panel.hold = body.held ? { atIso: "2026-11-12T12:00:00.000Z", by: "operator-qa@tryblueprint.local", reason: null } : null;
+        panel.hold = body.held ? { atIso: "2026-11-12T12:00:00.000Z", by: "operator-qa@tryblueprint.local", reason: body.reason } : null;
         panel.sharing = body.held ? { state: "shared_not_visible", reason: "blueprint_hold",
           words: "Shared, but not visible to companies right now: Blueprint stopped showing it." }
           : { state: "shared_visible", words: "Shared and visible to approved companies.", reason: null };
@@ -73,33 +72,26 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
   await page.getByText("Deployment companies", { exact: true }).click();
   const section = page.getByRole("region", { name: "Deployment companies" });
   await expect(section.getByText("Shared and visible to approved companies.", { exact: true })).toBeVisible();
-  await expect(section.getByLabel("Job library address")).toHaveText(`http://127.0.0.1/contact/robot-team#job-${JOB}`);
-
-  const sendForm = section.getByRole("form", { name: "Record a send" });
-  await sendForm.getByRole("combobox").selectOption(NORTH);
-  await sendForm.getByRole("button", { name: "Record the send" }).click();
   await expect(section.getByRole("region", { name: "Sends" })).toContainText("North Robotics (Company A to the site)");
-
-  const responseForm = section.getByRole("form", { name: "Record a response" });
-  await responseForm.getByRole("combobox", { name: /^Company/ }).selectOption(NORTH);
-  await responseForm.getByRole("combobox", { name: /^Answer/ }).selectOption("needs_something");
-  await responseForm.getByLabel(/Their words/).fill("We would need a second gripper.");
-  await responseForm.getByRole("button", { name: "Record the answer" }).click();
   const responses = section.getByRole("region", { name: "Responses" });
   await expect(responses).toContainText("Need more details");
   await expect(responses).toContainText("“We would need a second gripper.”");
-  await expect(responseForm.getByRole("textbox", { name: /Note/ })).toHaveCount(0);
+  await expect(section.getByRole("form", { name: "Record a send" })).toHaveCount(0);
+  await expect(section.getByRole("form", { name: "Record a response" })).toHaveCount(0);
+  await expect(section.getByRole("button", { name: "Void" })).toHaveCount(0);
 
-  await section.getByRole("button", { name: "Stop showing this job to companies" }).click();
+  const holdForm = section.getByRole("form", { name: "Stop showing this job to companies" });
+  await holdForm.getByRole("button", { name: "Stop showing this job to companies" }).click();
+  // No reason, no hold: the browser keeps the form until one is given.
+  expect(posts).toEqual([]);
+  await holdForm.getByRole("textbox").fill("Checking the summary");
+  await holdForm.getByRole("button", { name: "Stop showing this job to companies" }).click();
   await expect(section.getByText("Shared, but not visible to companies right now: Blueprint stopped showing it.", { exact: true })).toBeVisible();
-  await expect(sendForm.getByRole("button", { name: "Record the send" })).toBeDisabled();
   await section.getByRole("button", { name: "Show again" }).click();
   await expect(section.getByText("Shared and visible to approved companies.", { exact: true })).toBeVisible();
 
   expect(posts).toEqual([
-    { path: "/sends", body: { companyId: NORTH } },
-    { path: "/responses", body: { companyId: NORTH, state: "needs_something", inputs: "We would need a second gripper." } },
-    { path: "/hold", body: { held: true } },
+    { path: "/hold", body: { held: true, reason: "Checking the summary" } },
     { path: "/hold", body: { held: false } },
   ]);
   expect(errors).toEqual([]);

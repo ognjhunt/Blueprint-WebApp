@@ -137,6 +137,7 @@ describe("a job's page", () => {
     const tool = await screen.findByRole("region", { name: "Deployment companies" });
     const reads = () => fetchMock.mock.calls.filter(([url]) => String(url) === "/api/admin/jobs/job-a").length;
     const before = reads();
+    fireEvent.change(await within(tool).findByLabelText(/^Why/), { target: { value: "Checking the summary" } });
     fireEvent.click(await within(tool).findByRole("button", { name: "Stop showing this job to companies" }));
     await waitFor(() => expect(reads()).toBe(before + 1));
     expect(await screen.findByText(/Blueprint stopped showing this job to companies\./)).toBeInTheDocument();
