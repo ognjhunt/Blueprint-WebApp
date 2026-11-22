@@ -79,10 +79,10 @@
   },
   {
    "id": "C-03",
-   "title": "A launch that rented nothing keeps an $18 hold and ends the job at its cap",
+   "title": "Seven launches each kept a full $18 hold, two of them for nothing, and the job ended at its cap having spent $8.46",
    "dimension": "broken",
    "severity": "P0",
-   "effort": "S",
+   "effort": "M",
    "journey_step": "C.9 Simulation build",
    "evidence": [
     "pipeline:src/blueprint_pipeline/task_evaluation_terminal_scene_attempt_settlement.py:242-244",
@@ -93,10 +93,10 @@
     "door-ro: standing-budget-extensions/*.json -> ceiling raised 5 times by standing_policy, 20 -> 89.60",
     "cbff06b:src/blueprint_pipeline/task_evaluation_scene_intake.py:222-236 (owner decision 2026-11-19: nothing raises the budget)"
    ],
-   "today": "Seven blocked launches that created no machine each kept their full $18 hold: $126 held for $0 spent. The job's build stopped at 'spend cap exhausted' with $8.46 actually spent. Since 2026-11-19 nothing raises the ceiling, so one such row now uses $18 of a $20 scene figure.",
-   "should": "A launch whose own records prove no machine and no paid call settles at $0.",
+   "today": "On the one real job, seven launches ended blocked and each kept its full $18 hold: $126 held while the job's metered spend was $8.46, so its build stopped at 'spend cap exhausted'. The audit first said none of the seven had rented anything. That was wrong: the field it read is written by the settlement code itself and proves nothing. The launch records show five did create a machine and tore it down, and two rented nothing. For those two, a rule that settles at $0 already exists, but it cannot find its proof once the run's folder has been moved off the host.",
+   "should": "A launch holds what its own records prove it spent: nothing when it rented nothing, and no more than its real cost once its machine is proven gone.",
    "change": "FIX",
-   "proposal": "In _derive_settled_spend, return retained_spend_usd 0.0 for a scene_configuration launch with status blocked when its terminal receipt records provider_mutation_performed false and no allocator result (the same proof the capacity recovery already uses for $0 successors). Add a test from the 39ecdc97 rows.",
+   "proposal": "(1) Let the existing $0 rule read its proof from where an offloaded run keeps it. (2) For a launch that did rent and was torn down, settle the hold at the amount an existing record proves, where there is one; otherwise keep the full hold. This is a money path: its own reviewed pull request.",
    "user_result": "A job's money goes to work instead of to phantom holds; builds stop ending at the cap with $8 spent.",
    "risk": "If a blocked launch did rent something the receipt missed, the ledger would undercount until the provider bill arrives; the spend guard and reconciler remain the backstop.",
    "hard_stop": "money",
@@ -104,7 +104,7 @@
    "verify_how": "",
    "requirement_source": "nobody: a conservative default; owner decision 2026-11-19 asks for spent plus held to be real",
    "live_in_production": "yes",
-   "needs_owner": false,
+   "needs_owner": true,
    "agent": "journey-C",
    "lane": "L3",
    "also_reported": [],
@@ -117,7 +117,7 @@
    "verifier_corrections": "",
    "change_safe": "yes",
    "change_safe_why": "Only rows with a terminal receipt proving no provider mutation and no allocator result would drop to 0; any row lacking that proof keeps the conservative hold, so no real rental is hidden from the cap.",
-   "verified_note": "yes"
+   "verified_note": "corrected on 2026-11-22 by the worker sent to fix it, who read the launch records; the second check had confirmed the first version wrongly"
   },
   {
    "id": "E-02",

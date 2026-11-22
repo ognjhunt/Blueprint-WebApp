@@ -11,10 +11,10 @@ are the owner's to write; nothing is written to production.
 
 | Status | Rows |
 |---|---|
-| In a pull request now | 30 |
+| In a pull request now | 29 |
 | Done | 3 |
 | Partly done | 1 |
-| Ledger lane, started | 53 |
+| Ledger lane, started | 54 |
 | Ledger lane, queued | 123 |
 | Owner writes it | 4 |
 | Owner step on the host | 5 |
@@ -24,7 +24,7 @@ are the owner's to write; nothing is written to production.
 | Demo practice, no code | 8 |
 | **All** | **254** |
 
-## In a pull request now (30)
+## In a pull request now (29)
 
 | Row | Verdict | Thing | Where it goes |
 |---|---|---|---|
@@ -37,7 +37,6 @@ are the owner's to write; nothing is written to production.
 | CL15 | DELETE | Scene intent intake (signed intent per job) | Pipeline: $0 settlement and room as simulation (taken off the path to a company; the code itself leaves with the retired lanes) |
 | CL16 | DELETE | $0 scene preparation bound to the release commit | Pipeline: $0 settlement and room as simulation (taken off the path to a company; the code itself leaves with the retired lanes) |
 | CL17 | DELETE | Simulation build on Vast + ARTISAN (OpenAI) | Pipeline: $0 settlement and room as simulation (taken off the path to a company; the code itself leaves with the retired lanes) |
-| CL18 | DELETE | Full $18 hold for a launch that rented nothing | Pipeline: $0 settlement and room as simulation (taken off the path to a company; the code itself leaves with the retired lanes) |
 | CL22 | DELETE | Team scene half (robot-team packet) | Pipeline: $0 settlement and room as simulation (taken off the path to a company; the code itself leaves with the retired lanes) |
 | DL01 | SIMPLIFY | Admin job list | owner totals lane |
 | DL03 | SIMPLIFY | 25-row pages and "Show older jobs" | owner totals lane |
@@ -73,7 +72,7 @@ are the owner's to write; nothing is written to production.
 |---|---|---|---|
 | VL25 | DELETE | Host failed transient units and hold-expiry units | the 206 failed units are cleared; the 22 hold-expiry units and the expired hold are not |
 
-## Ledger lane, started (53)
+## Ledger lane, started (54)
 
 | Row | Verdict | Thing | Where it goes |
 |---|---|---|---|
@@ -103,6 +102,7 @@ are the owner's to write; nothing is written to production.
 | BL49 | SIMPLIFY | New-job email body with no job type or place | company way in: Find jobs, application, sign-up, job page |
 | BL52 | DELETE | Stored targeting fields (interests, categories, requirements) | company way in: Find jobs, application, sign-up, job page |
 | BL53 | DELETE | Legacy application fields kept (supportedSystems, pilotPackage, testSite) | approving a company, and staff tools and bells |
+| CL18 | DELETE | Full $18 hold for a launch that rented nothing | the first fix was wrong (five of the seven launches did rent a machine); a corrected money fix is in progress (C-03) |
 | DL08 | DELETE | Record a send made by hand | approving a company, and staff tools and bells |
 | DL09 | DELETE | Void a send | approving a company, and staff tools and bells |
 | DL10 | DELETE | Record an answer a company emailed | approving a company, and staff tools and bells |

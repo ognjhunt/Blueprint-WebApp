@@ -36,8 +36,9 @@ corrected, one could not be settled, and most severities came down.
    simulation package then waits for a GPU object build that has never
    finished for a website job. A fallback to the room alone exists and did
    not fire. The only real website job, Blueprint's own capture, spent 6.3
-   of its 7 days there. Its launches rented nothing,
-   yet each kept an $18 hold, so the job hit its cap having spent $8.46.
+   of its 7 days there. Its seven launches each kept
+   a full $18 hold, two of them for nothing and five for a machine rented only
+   briefly, so the job hit its cap having spent $8.46.
    [C-01, C-03, C-02]
 3. **Blueprint's own waits keep a job from companies.** The sound-free video
    is made only after paid preparation is admitted. When Blueprint's 7-day

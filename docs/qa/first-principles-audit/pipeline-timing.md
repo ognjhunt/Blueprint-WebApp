@@ -29,7 +29,7 @@ could be read.
 last 6.3 of 7 days and produced nothing.
 
 **What would shorten it most:** ship the room as the simulation as soon as the
-room is ready, and settle a launch that rented nothing at $0. Expected time
+room is ready, and make a launch's hold match what it spent. Expected time
 from upload to a simulation a company can open: about 6 to 7 hours. That is
 an estimate from one job's room time, not a measurement.
 
@@ -37,6 +37,7 @@ an estimate from one job's room time, not a measurement.
 
 A second agent tried to refute each claim. These changed:
 
+- **The $18 holds (corrected again when the fix began).** The report below says seven launches "rented nothing". The launch records show five did create a machine and tore it down; two rented nothing. All seven kept a full $18 hold. For the two, a $0 rule exists but cannot read its proof after the run's folder is moved off the host. [C-03]
 - **A fallback already exists.** The package builder already falls back from the built scene to the room, and to the room's floor. It still produced nothing for the four captures with no source. So the first step is to find out why, by replay, not to write a new source.
 - **Deploys.** 146 deploys in November, all from 11-01 to 11-20 (153 deploy receipts). About 12 a day early in the month, about 4 a day after 11-13, none since 2026-11-20 17:49Z. The door already holds a deploy while paid work is in flight.
 - **The money guard.** Its failure count reached 4,984. The rented-machine checks for the providers in use still run and show zero machines. Deleting the retired RunPod key turns it green; no code change is needed.
