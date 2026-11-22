@@ -220,7 +220,7 @@ test.describe("desktop", () => {
     const companyId = (await import("node:crypto")).createHash("sha256").update(company.email).digest("hex");
     const staffToken = await account(request, `core-journey-staff-${stamp}@example.invalid`, "core-journey-staff-pass", { admin: true });
     const decided = await request.post(`${ORIGIN}/api/admin/robot-team-access/${companyId}/decision`, {
-      headers: { ...applyHeaders, Authorization: `Bearer ${staffToken}` }, data: { status: "approved", prerequisitesReviewed: true } });
+      headers: { ...applyHeaders, Authorization: `Bearer ${staffToken}` }, data: { status: "approved" } });
     expect(decided.status(), await decided.text()).toBe(200);
     await account(request, company.email, company.password);
 
