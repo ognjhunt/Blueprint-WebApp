@@ -340,9 +340,10 @@ function JobTotals() {
       setError((caught as Error).message);
     }
   }
-  if (!totals.data) return null;
+  // The CSV reads only the billable events, so it stays available while the totals load or fail.
+  const line = totals.data ? totalsLine(totals.data) : totals.error ? "The totals are unavailable." : "Loading totals…";
   return <p className="bare-helper" aria-label="Totals">
-    {totalsLine(totals.data)} · <button type="button" className="bare-quiet-button" onClick={() => void downloadCsv()}>Billable events (CSV)</button>
+    {line} · <button type="button" className="bare-quiet-button" onClick={() => void downloadCsv()}>Billable events (CSV)</button>
     {error ? <span role="alert"> {error}</span> : null}
   </p>;
 }

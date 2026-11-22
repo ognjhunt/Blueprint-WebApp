@@ -101,13 +101,26 @@ describe("the job list", () => {
     });
     renderPage();
     const line = await screen.findByLabelText("Totals");
-    expect(line).toHaveTextContent("12 site jobs (3 in the last 7 days) · 10 with a video · 8 shown to companies · 5 with an answer"
-      + " · 4 introductions asked · ? made · 1 outcome answers · 4 billable events");
+    await waitFor(() => expect(line).toHaveTextContent("12 site jobs (3 in the last 7 days) · 10 with a video · 8 shown to companies · 5 with an answer"
+      + " · 4 introductions asked · ? made · 1 outcome answers · 4 billable events"));
     expect(line).not.toHaveTextContent(/\$|price/i);
     fireEvent.click(within(line).getByRole("button", { name: "Billable events (CSV)" }));
     await waitFor(() => expect(clicked).toHaveBeenCalled());
     const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === csv)!;
     expect(init).toMatchObject({ credentials: "include" });
+  });
+
+  it("keeps the billable events CSV when the totals cannot be read", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/jobs") return json({ jobs: [siteRow], nextCursor: null });
+      if (url === "/api/admin/jobs/totals") return json({ error: "The totals are unavailable. Try again." }, 503);
+      return json({ error: "unexpected" }, 500);
+    });
+    renderPage();
+    const line = await screen.findByLabelText("Totals");
+    await waitFor(() => expect(line).toHaveTextContent("The totals are unavailable."));
+    expect(within(line).getByRole("button", { name: "Billable events (CSV)" })).toBeTruthy();
   });
 
   it("keeps the privacy request queue, closed until opened", async () => {
