@@ -1350,6 +1350,29 @@ describe("inbound request: public-form payload contract", () => {
     }
   });
 
+  it("ignores both development authoring consents in production, so a hand-made request cannot set them (A-04)", async () => {
+    process.env.NODE_ENV = "production";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `site-dev-consent-prod-${Date.now()}`;
+      // In a development build each of these is refused with its own 400 (above); production never reads the fields.
+      for (const [suffix, changes] of [
+        ["claude-unticked", { claudeAuthoringConsent: { granted: false, statementVersion: "2026-09-24.v1" } }],
+        ["mixed", { claudeAuthoringConsent: { granted: true, statementVersion: "2026-09-24.v1" },
+          solAgentsApiConsent: { granted: true, statementVersion: "2026-09-24.v1" } }],
+      ] as const) {
+        const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...buildSiteScreeningPayload(`${requestId}-${suffix}`, `ada+${suffix}@example.com`), ...changes }) });
+        const json = await response.json() as { message?: string };
+        expect(json.message ?? "").not.toMatch(/authoring needs/);
+        expect(response.status).not.toBe(400);
+      }
+    } finally {
+      await stopServer(server);
+    }
+  }, 60_000);
+
   it("retains explicit Sol managed-agent disclosure and refuses mixed or non-US grants", async () => {
     process.env.NODE_ENV = "development";
     vi.resetModules();

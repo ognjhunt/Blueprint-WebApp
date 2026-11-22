@@ -138,6 +138,7 @@ export function registerRoutes(app: Express) {
     "/api/capture-uploads",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     captureUploadsRouter,
   );
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);

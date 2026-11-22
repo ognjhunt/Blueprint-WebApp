@@ -89,6 +89,13 @@ describe("where a site's job stands with deployment companies", () => {
     expect(teamJobAccess(after).listed).toBe(true);
   });
 
+  it("stays listed when Blueprint's own work window ends its authority, and closes for a revoked source (G-01)", () => {
+    expect(teamJobAccess(shared(), { preparationState: "authority_ended" })).toMatchObject({ listed: true });
+    const revoked = shared();
+    revoked.request = { ...revoked.request, consent_attestation: { ...grant("2026-11-12.v4"), granted: false } };
+    expect(teamJobAccess(revoked, { preparationState: "authority_ended" })).toMatchObject({ listed: false, reason: "authority_ended" });
+  });
+
   it("accepting v4 on an older job's page makes it shared like any other", () => {
     const record = site({ public_task_listing: listedTaskCard() }, { consent_attestation: grant("2026-11-11.v3") });
     const write = recordingConsentWrite({ record, statementVersion: "2026-11-12.v4", atIso: AT, taskStatement: "Move totes",
