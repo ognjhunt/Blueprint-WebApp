@@ -18,6 +18,7 @@ import { z } from "zod";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { logger } from "../logger";
 import { getJobConsoleDetail, jobScenePreview, jobSimulationPackage, listJobConsoleRows, loadSiteJobRecord, PAGE_LIMIT_MAX } from "../utils/jobConsoleData";
+import { billableEventsCsv, loadJobTotals } from "../utils/ownerTotals";
 import { websiteScenePreviewAdminViewerUrl } from "../utils/websiteScenePreview";
 import { fetchCompanySimulation, forwardableRange } from "../utils/websiteCompanySimulation";
 import { sendThrough } from "./company-media";
@@ -58,6 +59,32 @@ router.get("/", async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ err: error }, "Job console list failed");
     return res.status(503).json({ error: "The job console is unavailable. Try again." });
+  }
+});
+
+/** The owner's one line of totals (`server/utils/ownerTotals.ts`). Registered before `/:requestId`. */
+router.get("/totals", async (_req: Request, res: Response) => {
+  try {
+    const totals = await loadJobTotals();
+    res.set("Cache-Control", "no-store");
+    return res.json(totals);
+  } catch (error) {
+    logger.error({ err: error }, "Job console totals failed");
+    return res.status(503).json({ error: "The totals are unavailable. Try again." });
+  }
+});
+
+/** Every billable event as CSV: ids, times and status; no site identity, no price. */
+router.get("/billable-events.csv", async (_req: Request, res: Response) => {
+  try {
+    const csv = await billableEventsCsv();
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Content-Type-Options", "nosniff");
+    res.set("Content-Disposition", 'attachment; filename="billable-events.csv"');
+    return res.type("text/csv; charset=utf-8").send(csv);
+  } catch (error) {
+    logger.error({ err: error }, "Billable events export failed");
+    return res.status(503).json({ error: "The billable events are unavailable. Try again." });
   }
 });
 

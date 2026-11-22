@@ -17,7 +17,7 @@ import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import type { AdminJobDetail, AdminJobListResponse, AdminJobRow, AdminJobStop } from "@/types/jobConsole";
+import type { AdminJobDetail, AdminJobListResponse, AdminJobRow, AdminJobStop, AdminJobTotals } from "@/types/jobConsole";
 
 /** A time in words, in the viewer's own zone; null when the record holds none that reads. */
 export function timeInWords(value: string | null | undefined, withTime = true): string | null {
@@ -299,6 +299,54 @@ function JobPage({ requestId, onBack }: { requestId: string; onBack: () => void 
   </>;
 }
 
+/** The owner's totals in one line; a number that could not be read says so. */
+export function totalsLine(totals: AdminJobTotals): string {
+  const n = (value: number | null) => value == null ? "?" : String(value);
+  return [
+    `${totals.siteJobs} site jobs (${totals.siteJobsThisWeek} in the last 7 days)`,
+    `${n(totals.withVideo)} with a video`,
+    `${n(totals.shownToCompanies)} shown to companies`,
+    `${n(totals.answered)} with an answer`,
+    `${n(totals.introductionsAsked)} introductions asked`,
+    `${n(totals.introductionsMade)} made`,
+    `${n(totals.outcomeAnswers)} outcome answers`,
+    `${n(totals.billableEvents)} billable events`,
+  ].join(" · ");
+}
+
+/** The totals strip and the billable events CSV, fetched with the admin's sign-in (an address alone cannot carry it). */
+function JobTotals() {
+  const api = useAdminFetch();
+  const [error, setError] = useState<string | null>(null);
+  const totals = useQuery({ queryKey: ["admin-job-console", "totals"], enabled: Boolean(api.currentUser),
+    queryFn: () => api.get<AdminJobTotals>("/api/admin/jobs/totals") });
+  async function downloadCsv() {
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/jobs/billable-events.csv", {
+        credentials: "include",
+        headers: await withFirebaseAuthHeaders(api.currentUser, await withCsrfHeader({})),
+      });
+      if (!response.ok) throw new Error(`Download failed (${response.status})`);
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = "billable-events.csv";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), PACKAGE_URL_REVOKE_DELAY_MS);
+    } catch (caught) {
+      setError((caught as Error).message);
+    }
+  }
+  if (!totals.data) return null;
+  return <p className="bare-helper" aria-label="Totals">
+    {totalsLine(totals.data)} · <button type="button" className="bare-quiet-button" onClick={() => void downloadCsv()}>Billable events (CSV)</button>
+    {error ? <span role="alert"> {error}</span> : null}
+  </p>;
+}
+
 function JobList({ onOpen }: { onOpen: (requestId: string) => void }) {
   const api = useAdminFetch();
   const jobs = useInfiniteQuery({
@@ -317,6 +365,7 @@ function JobList({ onOpen }: { onOpen: (requestId: string) => void }) {
 
   return <>
     <h1>Jobs</h1>
+    <JobTotals />
     {jobs.isLoading ? <p className="bare-helper" role="status">Loading jobs…</p> : null}
     {jobs.error ? <BareNotice role="alert">{(jobs.error as Error).message}</BareNotice> : null}
     {!jobs.isLoading && !jobs.error && !rows.length ? <p className="bare-helper">No jobs yet.</p> : null}
