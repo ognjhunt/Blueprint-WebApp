@@ -7,6 +7,8 @@
  * - Before that point, the one predicate `introductionMayProceed` decides for both: the introduction is on record and not
  *   cancelled, the job is not withdrawn and is still shared under the whole rule (`loadCompanyJobAccess`), and the
  *   company is an approved deployment company with a current signed-in acceptance of the Terms (`companyMaySeeJobs`).
+ *   Blueprint's own work window ending (the preparation's `authority_ended` once the window has passed) stops paid
+ *   work only: it does not cancel an introduction the site pressed (audit G-06), while every other stop still does.
  *   When it fails, the introduction is cancelled as a whole (`introductionEmailCheck`'s `cancel`, applied by the outbox
  *   in the same transaction after all its reads): both rows not yet sent are cancelled and cleared of both sides'
  *   details; the introduction record is marked cancelled with the reason and time and its sealed details are removed;
@@ -53,10 +55,24 @@ export async function introductionMayProceed(requestId: string, companyId: strin
     return { ok: false, reason: "job_withdrawn", introductionOnRecord: true };
   // Approved, a deployment company, and the current Terms accepted, signed in (`companyMaySeeJobs`).
   if (!companyMaySeeJobs(company.data())) return { ok: false, reason: "company_not_approved", introductionOnRecord: true };
-  const { loadCompanyJobAccess } = await import("./teamJobAccess");
-  if (!(await loadCompanyJobAccess(requestId, record as Record<string, any>, tx)).access.listed)
+  const { loadCompanyJobAccess, teamJobAccess } = await import("./teamJobAccess");
+  const { access } = await loadCompanyJobAccess(requestId, record as Record<string, any>, tx);
+  if (!access.listed && !(await onlyWorkWindowEnded(access.reason, record as Record<string, any>, teamJobAccess)))
     return { ok: false, reason: "job_not_shared", introductionOnRecord: true };
   return { ok: true };
+}
+
+/**
+ * The job left the list only because Blueprint's own work window ended: the preparation ended `authority_ended`, the
+ * window has passed while the rights still allow the work (`websiteJobWorkWindow`'s `ended`), and every stop the record
+ * holds (withdrawal, Blueprint's hold, each rights hold, the site's close, the statement and the listing record) still
+ * lets the job through.
+ */
+async function onlyWorkWindowEnded(reason: string | null, record: Record<string, any>,
+  teamJobAccess: typeof import("./teamJobAccess").teamJobAccess): Promise<boolean> {
+  if (reason !== "authority_ended" || !teamJobAccess(record).listed) return false;
+  const { websiteJobWorkWindow } = await import("./websiteSceneSponsorship");
+  return (await websiteJobWorkWindow(record).catch(() => null))?.ended === true;
 }
 
 /** The company an introduction email's key names, or null for a key of any other shape. */
