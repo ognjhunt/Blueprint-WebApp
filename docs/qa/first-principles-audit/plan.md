@@ -20,12 +20,13 @@ page or a guard without it.
 
 | # | Step | Why | Finding |
 |---|---|---|---|
-| O1 | Ask the one approved company to sign in and accept the Terms. Approve or invite three to five more. | Today no company can see a job. This is outreach only to companies Blueprint has approved or the owner chooses. | D-17 |
+| O1 | Ask the one approved company to sign in and accept the Terms. Approve or invite three to five more. Post one US job under the current sharing statement. | Today no company can see a job, and no existing US job could be shown to one: every US job is under an older statement. Outreach only to companies Blueprint has approved or the owner chooses. | D-17 |
 | O2 | Close the RunPod account and delete its key file on the host. | The money guard turns green by itself. No code change. | D-01 |
 | O3 | Install the standing approval for deletion after a withdrawal. | Privacy: today nothing is deleted on the Pipeline side after a withdrawal. | A-08 |
 | O4 | Set up the backup bucket and key for the control plane. | Money and job records on the one host have no backup. | F-01 |
 | O5 | Close PR 1369 unmerged. | It holds invented quotes and counts. | E-04 |
-| O6 | Answer the questions in `owner-questions.md`. | They unblock waves 1 to 3. | |
+| O6 | Decide December's account limit before the outreach. | It returns to $300 on 1 December. Costs with no job behind them ran about $9.30 a day in November, about $288 a month. That leaves about $12 for jobs; one job used $8.46. Once the limit is reached every paid step is refused until January. | K-01 |
+| O7 | Answer the questions in `owner-questions.md`. | They unblock waves 1 to 3. | |
 
 ## Wave 1: this week. Make the loop able to run once, safely
 
@@ -54,7 +55,7 @@ dated fact sheet (`demo-script.md`). No repository change.
 |---|---|---|---|---|---|
 | 2.1 Find out why the room fallback did not fire | Pipeline | For the captures with `company_simulation_no_source`, trace which rule returned nothing. Replay only. Write down the cause before changing code. | replay; `tests/test_website_company_simulation.py` | no | C-01 |
 | 2.2 Ship the room as the simulation, flagged | Pipeline | Make the room package the source as soon as the room is ready. The GPU object build no longer gates it. | replay; the 495 package tests | yes (what a company is given changes) | C-01 |
-| 2.3 Sound-free video first | Pipeline | Build the clip right after hand-off, before paid preparation is admitted, with the same rights check. | `tests/test_website_company_clip.py`; replay | no | G-02 |
+| 2.3 Sound-free video first (do this first in wave 2) | Pipeline | Build the clip right after hand-off, before paid preparation is admitted, with the same rights check. A wait for money then holds back only the simulation, not the listing. | `tests/test_website_company_clip.py`; replay | no | G-02 |
 | 2.4 No "film it again" for a fit code | Pipeline | Ship the room flagged instead of asking for a new video. | `website_scene_handoff` tests; replay | no | C-04 |
 | 2.5 Ship flagged after one failed retry cycle | Pipeline | Replace "wait until two hours before the window ends". | same | no | G-04 |
 | 2.6 Parked jobs retry by themselves | Pipeline | Retry parked room builds after a deploy; keep retrying a preparation until its grant ends; page on a lost dispatcher. Money that cannot be proven stays a hand settlement. | retry policy tests; replay | no | F-10, F-02 |

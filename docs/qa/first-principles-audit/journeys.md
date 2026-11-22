@@ -37,8 +37,8 @@ is as the walking agent wrote it:
 - **B, step 7.** The password is optional (Google sign-in is offered) and the application's Terms line is a notice, not a second tick. The one approved company in production stopped at this step.
 - **B, step 17.** Jobs sent to nobody, because no company had accepted the Terms, wait and go out when the first one does. A company that accepts after a job's send is never emailed about it.
 - **C, steps C.3 and C.9 to C.12.** The operator replay is history: such a hold now re-runs once per release. A fallback from the built scene to the room already exists and did not fire.
-- **C, deploys.** 153 deploy receipts in November; about 4 a day after 11-13; none since 11-20.
-- **D, manual steps.** The deploy count is 153, not 129. The worker runs six loops, not seven. The staff hold must stay as a privacy and rights stop.
+- **C, deploys.** 146 deploys in November (153 deploy receipts); about 4 a day after 11-13; none since 11-20.
+- **D, manual steps.** The deploy count is 146 (153 receipts), not 129. The worker runs six loops, not seven. The staff hold must stay as a privacy and rights stop.
 - **E.** Introduce us on a real job needs a company answer first, and none exists. PR 1369 is unmerged and behind a flag that is off.
 
 ## A. The site: from landing to an introduction

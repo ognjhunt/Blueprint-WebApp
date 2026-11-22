@@ -38,12 +38,13 @@ an estimate from one job's room time, not a measurement.
 A second agent tried to refute each claim. These changed:
 
 - **A fallback already exists.** The package builder already falls back from the built scene to the room, and to the room's floor. It still produced nothing for the four captures with no source. So the first step is to find out why, by replay, not to write a new source.
-- **Deploys.** 153 deploy receipts in November, 146 of them from 11-01 to 11-20. About 12 a day early in the month, about 4 a day after 11-13, none since 2026-11-20 17:49Z. The door already holds a deploy while paid work is in flight.
+- **Deploys.** 146 deploys in November, all from 11-01 to 11-20 (153 deploy receipts). About 12 a day early in the month, about 4 a day after 11-13, none since 2026-11-20 17:49Z. The door already holds a deploy while paid work is in flight.
 - **The money guard.** Its failure count reached 4,984. The rented-machine checks for the providers in use still run and show zero machines. Deleting the retired RunPod key turns it green; no code change is needed.
 - **The 10.5-hour hold.** An operator cleared it on 2026-11-12. Since then such a hold is re-run automatically once per release. It still asks the site to film again.
 - **The "release admitted" check** is shown to have stopped only the two test jobs.
 - **The disk gate** did hold the real job for the last three hours of its window. Nothing records which data caused it.
 - **Cost.** The account counted $296.58 of its $400 November limit. Only $59.75 of that is tied to a job.
+- **December.** The limit returns to $300 on 1 December. Costs with no job behind them ran about $9.30 a day in November. At that rate about $12 a month is left for jobs. [K-01]
 
 ## Stage by stage
 

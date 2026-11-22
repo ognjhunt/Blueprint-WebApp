@@ -2,7 +2,7 @@
 
 2026-11-22. Each has a recommendation and what it unblocks. Ids are in
 `findings.md`; PR numbers are in `plan.md`. The agents raised 53 questions;
-duplicates are merged here into 27.
+duplicates are merged here into 27. The completeness check added one (28).
 
 ## Answer these first
 
@@ -15,6 +15,7 @@ duplicates are merged here into 27.
 | 5 | Should a reply to an introduction email go to the other side? | Yes. The email already gives the address. | A-01, PR 1.1. |
 | 6 | May the simulation a company downloads be the room with the job's object as filmed, without the modelled object? | Yes. Keep the modelled object as a later upgrade for objects that move in parts. | C-01, PR 2.2: the first simulation any company can open, hours after upload. |
 | 7 | Close PR 1369 unmerged? | Yes. | E-04. |
+| 28 | What is December's account limit? It returns to $300 on 1 December. Costs with no job behind them (the host, Google Cloud, OpenAI) ran about $9.30 a day in November, about $288 for a month. That leaves about $12 for every job in December, and one job used $8.46. | Either keep $400, or count only job spend against the limit and watch the fixed costs with alerts. Decide before inviting companies. Deleting the idle lanes should lower the fixed costs. | K-01: without it the loop stops after one or two jobs a month. |
 
 ## Privacy and rights
 
@@ -37,7 +38,7 @@ duplicates are merged here into 27.
 |---|---|---|---|
 | 18 | May Blueprint ask each approved company once for its legal name and a billing email, and freeze them with the Terms version on each billable event? | Yes, at the Terms step. No price is stated. | O-05, PR 2.18: the first invoice, whenever you decide how to charge. |
 | 19 | Which spend limits do you want besides the $40 job cap, the monthly limit, the GPU rate and fleet limits, the Google Cloud stop and the Vast credit check? | None. Delete the limits of retired lanes and the two alert lines set above the account limit. | G-07, series 3.10. |
-| 20 | Drop the once-a-day deploy rule once a deploy no longer retires work in flight? | Yes. November had 153 deploys. A rule nobody follows protects nothing; the door's hold protects paid work. | C-02, PR 2.7. |
+| 20 | Drop the once-a-day deploy rule once a deploy no longer retires work in flight? | Yes. November had 146 deploys (153 deploy receipts). A rule nobody follows protects nothing; the door's hold protects paid work. | C-02, PR 2.7. |
 | 21 | When a scene's work window expires, should the job end with what it has, with no extension to approve? | Yes, the same as the spending cap. | G-10. |
 
 ## Product
@@ -49,7 +50,7 @@ duplicates are merged here into 27.
 | 24 | May the Introduce us wording name only what Blueprint holds (an email and a city), not "name, address and contact details"? | Yes, in a new version of that statement, which only you write. | A-15. |
 | 25 | Is one line of numbers on the staff job page enough, or do you want a daily email as well? | The line first. It answers "how many" in one look. | O-06, PR 2.8. |
 | 26 | May the Astra authoring backend and the rigid probe lane go with the other retired lanes? | Yes. Website jobs use neither. | Series 3.3. |
-| 27 | Which real job may investors see, and is a company willing to answer it before the showing? | Film one job where Blueprint may film, post it as a normal job, and ask one approved company to answer it honestly. Never script the answer. | E-02: demo readiness from amber to green. |
+| 27 | Which real job may investors see, and is a company willing to answer it before the showing? | Film one job in the US where Blueprint may film, post it as a normal job under the current sharing statement, and ask one approved company to answer it honestly. Never script the answer. | E-02: demo readiness from amber to green. |
 
 ## Questions that would cost money to answer
 

@@ -16,23 +16,27 @@ company, no company has answered, and no introduction has been made. There
 are no billable events. (Counts only, read on 2026-11-22:
 `evidence/production-counts/`.)
 
-140 findings survived checking: 3 P0, 46 P1, 91 P2. Every P0 and P1 was
-checked a second time by a separate agent that tried to refute it. None was
-refuted, 58 were corrected, and most severities came down.
+141 findings survived checking: 3 P0, 47 P1, 91 P2. Every P0 and P1 went to
+a separate agent that tried to refute it. None was refuted, 58 were
+corrected, one could not be settled, and most severities came down.
 
 ## The five things between today and "it just works"
 
 1. **No deployment company can see a job.** One company is approved. It never
    accepted the Terms while signed in, so the code shows it nothing. Only 2
-   job records carry the sharing statement, and both are marked non-US. Three
-   site jobs have been started since 2026-11-12. The first need is not code.
-   It is three to five real companies, approved and signed in. [D-17, L1-N1,
+   job records carry the sharing statement, and both are marked non-US. No
+   existing US job could be shown even to a signed-in company. Three site
+   jobs have been started since 2026-11-12. The first need is not code. It
+   is three to five real companies, approved and signed in, and one US job
+   posted under the current statement. [D-17, L1-N1,
    D-08, B-07, B-08]
-2. **No real job has a simulation a company can open.** The room is ready in
-   about 6 hours and the sound-free video in about 1 hour. The simulation
-   package then waits for a GPU object build that has never finished for a
-   website job. A fallback to the room alone exists and did not fire. The
-   only real job spent 6.3 of its 7 days there. Its launches rented nothing,
+2. **No real job has a simulation a company can open.** The room was ready
+   in 5.9 hours on one job and 26.7 hours on another; a third was not ready
+   after 70. The sound-free video took about an hour on two test jobs. The
+   simulation package then waits for a GPU object build that has never
+   finished for a website job. A fallback to the room alone exists and did
+   not fire. The only real website job, Blueprint's own capture, spent 6.3
+   of its 7 days there. Its launches rented nothing,
    yet each kept an $18 hold, so the job hit its cap having spent $8.46.
    [C-01, C-03, C-02]
 3. **Blueprint's own waits keep a job from companies.** The sound-free video
@@ -53,7 +57,10 @@ refuted, 58 were corrected, and most severities came down.
    tied to no job. The money guard has been red on every run since
    2026-11-13 because of a retired provider's key. The host's status lists
    207 failed units, 206 of them old experiments. Job state and money
-   records on the one host have no backup. [O-06, D-04, D-01, IP-03, F-01]
+   records on the one host have no backup. From 1 December the monthly limit
+   returns to $300, and costs with no job behind them already run close to
+   that, which would leave room for one or two jobs a month. [O-06, D-04,
+   D-01, IP-03, F-01, K-01]
 
 ## The three biggest deletions
 
@@ -61,7 +68,8 @@ refuted, 58 were corrected, and most severities came down.
    package as the simulation as soon as the room is ready, flagged. The GPU
    build becomes a later upgrade, not a gate. The Pipeline path goes from 14
    steps to 5. The dropped trial's code can then leave in the ordered cut in
-   `delete-list.md`: about 80,700 Pipeline lines and 21,000 WebApp lines.
+   `delete-list.md`. The whole delete list is about 80,700 Pipeline lines
+   and 21,000 WebApp lines; about 10,500 of the WebApp lines are the trial.
    [C-01, IP-05, IW-02]
 2. **Clear the retired lanes off the host.** 206 stale failed units, 229
    units the repository does not ship, timers that fire about 1,180 times a
@@ -112,7 +120,9 @@ the billable event exactly once. Reasons are in each journey's report.
 
 ## What was not covered
 
-Real phones. The frame-extraction function in the third repository. Values
-set only in the Render dashboard or on the host. The 59 P2 findings were not
-checked a second time. Pipeline timings rest on three jobs.
+Real phones. Sign-in, password reset and the site claim page. Emails as
+rendered. The frame-extraction function in the third repository. Values set
+only in the Render dashboard or on the host, and the rules actually
+deployed. 59 of the 91 P2 findings were not checked a second time. Pipeline
+timings rest on three jobs. The full list is in `README.md`.
 `owner-questions.md` lists what only the owner can decide.
