@@ -49,13 +49,10 @@ export interface EarlyAccessApplication {
   name: string;
   email: string;
   company: string;
-  website?: string;
+  website: string;
   robot: string;
   workWanted: string;
   region?: string;
-  supportedSystems?: string;
-  pilotPackage?: string;
-  testSite?: string;
   acceptedTerms: true;
   optionalUpdates?: boolean;
   returnToJob?: string;

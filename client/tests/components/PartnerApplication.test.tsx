@@ -13,6 +13,7 @@ function completeRequiredFields() {
   fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Alex Example" } });
   fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "alex@example.com" } });
   fireEvent.change(screen.getByLabelText("Company"), { target: { value: "Example Robotics" } });
+  fireEvent.change(screen.getByLabelText("Company website"), { target: { value: "https://example.com" } });
   fireEvent.change(screen.getByLabelText("What jobs can you deliver?"), { target: { value: "Move sealed cases from totes into trays" } });
   fireEvent.change(screen.getByLabelText("Which robots do you deploy?"), { target: { value: "Fixed arm systems with parallel grippers" } });
   fireEvent.change(screen.getByLabelText("Where can you deploy?"), { target: { value: "Central Texas" } });
@@ -27,11 +28,15 @@ describe("the one company application", () => {
     render(<PartnerApplication />);
     const form = screen.getByRole("form", { name: "Deployment company application" });
     expect([...form.querySelectorAll("input, textarea")].map(field => field.getAttribute("name")))
-      .toEqual(["name", "email", "company", "workWanted", "robot", "region", "website", "optionalUpdates"]);
+      .toEqual(["name", "email", "company", "website", "workWanted", "robot", "region", "optionalUpdates"]);
+    // The website is shown and required: the approver's one automatic sign that the company is real.
+    expect(screen.getByLabelText("Company website")).toBeVisible();
+    expect(screen.getByLabelText("Company website")).toBeRequired();
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
     completeRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(application.save).toHaveBeenCalledWith({
-      partnerRole: "deployment", name: "Alex Example", email: "alex@example.com", company: "Example Robotics", website: undefined,
+      partnerRole: "deployment", name: "Alex Example", email: "alex@example.com", company: "Example Robotics", website: "https://example.com",
       workWanted: "Move sealed cases from totes into trays", robot: "Fixed arm systems with parallel grippers", region: "Central Texas",
       acceptedTerms: true, optionalUpdates: false,
     }));
