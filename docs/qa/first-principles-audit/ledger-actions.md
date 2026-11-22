@@ -14,13 +14,13 @@ are the owner's to write; nothing is written to production.
 | In a pull request now | 29 |
 | Done | 3 |
 | Partly done | 1 |
-| Ledger lane, started | 54 |
-| Ledger lane, queued | 123 |
+| Ledger lane, started | 80 |
+| Ledger lane, queued | 90 |
 | Owner writes it | 4 |
 | Owner step on the host | 5 |
 | Owner step | 2 |
-| Kept: checking overturned the verdict | 13 |
-| Waits for a decision or an earlier step | 12 |
+| Kept: checking overturned the verdict | 17 |
+| Waits for a decision or an earlier step | 15 |
 | Demo practice, no code | 8 |
 | **All** | **254** |
 
@@ -72,10 +72,20 @@ are the owner's to write; nothing is written to production.
 |---|---|---|---|
 | VL25 | DELETE | Host failed transient units and hold-expiry units | the 206 failed units are cleared; the 22 hold-expiry units and the expired hold are not |
 
-## Ledger lane, started (54)
+## Ledger lane, started (80)
 
 | Row | Verdict | Thing | Where it goes |
 |---|---|---|---|
+| AL02 | SIMPLIFY | Moving example card with 6 category buttons | site: start form, job page, emails |
+| AL04 | MERGE | How it works page | site: start form, job page, emails |
+| AL13 | DELETE | "Add details": How often does it happen? | site: start form, job page, emails |
+| AL14 | DELETE | "Add details": Where are you in the process? (Planning a pilot / Ready to run a pilot) | site: start form, job page, emails |
+| AL28 | SIMPLIFY | Status headlines (39 strings, 13 decisions) | site: start form, job page, emails |
+| AL29 | DELETE | Outlook phases "testing" and "result" (an AI robot scored) | site: start form, job page, emails |
+| AL30 | DELETE | "Check your job description and confirm it" state | site: start form, job page, emails |
+| AL31 | DELETE | "Blueprint will update this job as the work progresses." | site: start form, job page, emails |
+| AL38 | MERGE | Email: "Your job is posted" (`job_sent`) | site: start form, job page, emails |
+| AL43 | SIMPLIFY | Withdrawal path (4 taps behind Job settings) | site: start form, job page, emails |
 | BL02 | SIMPLIFY | Order: application above the sample job | company way in: Find jobs, application, sign-up, job page |
 | BL07 | DELETE | Application field: "What jobs can you deliver?" | company way in: Find jobs, application, sign-up, job page |
 | BL08 | DELETE | Application field: "Which robots do you deploy?" | company way in: Find jobs, application, sign-up, job page |
@@ -119,9 +129,25 @@ are the owner's to write; nothing is written to production.
 | DL25 | DELETE | Slack bell: screening call | approving a company, and staff tools and bells |
 | DL26 | DELETE | Slack bell: footage review by hand | approving a company, and staff tools and bells |
 | DL43 | DELETE | `/admin/company-metrics` redirect to `/` | approving a company, and staff tools and bells |
+| EL03 | SIMPLIFY | Tested answers on the example card | site: start form, job page, emails |
 | EL09 | SIMPLIFY | `/jobs#sample-job` deep link | company way in: Find jobs, application, sign-up, job page |
 | EL12 | DELETE | Viewer opening in a new tab | company way in: Find jobs, application, sign-up, job page |
+| EL19 | SIMPLIFY | "Introduction requested." line | site: start form, job page, emails |
+| GL11 | MERGE | Shared listing record | gates in the WebApp |
+| GL14 | DELETE | Brief confirmation step | site: start form, job page, emails |
+| GL15 | DELETE | `website_task_context_not_confirmed` as a revoking code | site: start form, job page, emails |
+| GL16 | DELETE | `/follow-up` success_target re-confirmation | site: start form, job page, emails |
+| GL23 | DELETE | `website_scene_site_unclaimed` | gates in the WebApp |
+| GL27 | DELETE | Card "Ready" from runnable proof | gates in the WebApp |
+| GL31 | SIMPLIFY | Re-acceptance on every new version by default | gates in the WebApp |
+| GL32 | SIMPLIFY | Introduction dispatch re-check of Terms and listing | gates in the WebApp |
+| ML02 | DELETE | `isRunnableTask` and `scene_not_runnable` in the listing answer | gates in the WebApp |
+| ML03 | DELETE | Legacy dossier restriction (`kept_private`, `restricted_to_named_teams`) | gates in the WebApp |
+| ML05 | DELETE | No email to companies approved later | gates in the WebApp |
+| ML06 | SIMPLIFY | Withdrawal notice only to companies with a send row | gates in the WebApp |
 | ML12 | SIMPLIFY | Library read capped at 200, unordered | company way in: Find jobs, application, sign-up, job page |
+| ML23 | SIMPLIFY | Sample job line "to download and open in your own tools" | site: start form, job page, emails |
+| ML24 | DELETE | `out_of_scope` site sentence "We can't simulate this kind of job yet." | site: start form, job page, emails |
 | OL25 | MERGE | Intake ops notice | approving a company, and staff tools and bells |
 | OL28 | MERGE | Beta monitor: preparation quiet | approving a company, and staff tools and bells |
 | OL29 | DELETE | Beta monitor: no-grant wait, over-budget extension | approving a company, and staff tools and bells |
@@ -131,23 +157,10 @@ are the owner's to write; nothing is written to production.
 | OL41 | SIMPLIFY | Admin `/admin/leads/:id` links in alerts | approving a company, and staff tools and bells |
 | VL42 | DELETE | Job-evidence panel link to /app/captures | approving a company, and staff tools and bells |
 
-## Ledger lane, queued (123)
+## Ledger lane, queued (90)
 
 | Row | Verdict | Thing | Where it goes |
 |---|---|---|---|
-| AL02 | SIMPLIFY | Moving example card with 6 category buttons | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL03 | SIMPLIFY | Header "Sign in" on public pages | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL04 | MERGE | How it works page | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL13 | DELETE | "Add details": How often does it happen? | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL14 | DELETE | "Add details": Where are you in the process? (Planning a pilot / Ready to run a pilot) | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL20 | SIMPLIFY | "Start a new job" only after acknowledgement | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL28 | SIMPLIFY | Status headlines (39 strings, 13 decisions) | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL29 | DELETE | Outlook phases "testing" and "result" (an AI robot scored) | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL30 | DELETE | "Check your job description and confirm it" state | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL31 | DELETE | "Blueprint will update this job as the work progresses." | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL32 | SIMPLIFY | Quick questions on the job page (up to 5 of 15) | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL38 | MERGE | Email: "Your job is posted" (`job_sent`) | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| AL43 | SIMPLIFY | Withdrawal path (4 taps behind Job settings) | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
 | BL56 | DELETE | Package: `timing` (physics 120 Hz, control 15 Hz) | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
 | CL03 | SIMPLIFY | Face blur of frames sent to World Labs, by Privacy version | Pipeline: alarms that mean something, and one rule for face blur |
 | CL07 | DELETE | Recapture-coded hold (`website_registration_*`) | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
@@ -167,24 +180,10 @@ are the owner's to write; nothing is written to production.
 | DL36 | SIMPLIFY | Disk usage warnings posted to the alert route | Pipeline: alarms that mean something, and one rule for face blur |
 | DL38 | DELETE | Success-threshold confirmation | Pipeline: retired lanes, their timers, limits and documents |
 | DL40 | DELETE | Scene execution window extension | Pipeline: retired lanes, their timers, limits and documents |
-| EL03 | SIMPLIFY | Tested answers on the example card | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| EL19 | SIMPLIFY | "Introduction requested." line | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
 | EL23 | DELETE | Retired sample files and proof reel | worker, tests and retired WebApp lanes |
 | EL24 | DELETE | Live rehearsal script | worker, tests and retired WebApp lanes |
-| GL02 | MERGE | 15-minute intake limiter | gates in the WebApp (after the listing pull request) |
-| GL04 | DELETE | Daily intake cap per IP (20) and per email (5) | gates in the WebApp (after the listing pull request) |
-| GL06 | MERGE | Upload cap per job | gates in the WebApp (after the listing pull request) |
-| GL11 | MERGE | Shared listing record | gates in the WebApp (after the listing pull request) |
-| GL14 | DELETE | Brief confirmation step | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| GL15 | DELETE | `website_task_context_not_confirmed` as a revoking code | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| GL16 | DELETE | `/follow-up` success_target re-confirmation | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
 | GL21 | DELETE | Window extension with owner approval | Pipeline: retired lanes, their timers, limits and documents |
 | GL22 | DELETE | Expired grant renewal by the owner | Pipeline: retired lanes, their timers, limits and documents |
-| GL23 | DELETE | `website_scene_site_unclaimed` | gates in the WebApp (after the listing pull request) |
-| GL26 | SIMPLIFY | Rights hold `needs_review` | gates in the WebApp (after the listing pull request) |
-| GL27 | DELETE | Card "Ready" from runnable proof | gates in the WebApp (after the listing pull request) |
-| GL31 | SIMPLIFY | Re-acceptance on every new version by default | gates in the WebApp (after the listing pull request) |
-| GL32 | SIMPLIFY | Introduction dispatch re-check of Terms and listing | gates in the WebApp (after the listing pull request) |
 | GL39 | DELETE | Recapture stops (8 codes) | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
 | GL40 | SIMPLIFY | Hold until 2 h before window end | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
 | GL41 | SIMPLIFY | KEEP_HOLDING integrity suffixes | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
@@ -197,15 +196,9 @@ are the owner's to write; nothing is written to production.
 | GL55 | DELETE | OpenAI $560 and World Labs $450 month pages | Pipeline: retired lanes, their timers, limits and documents |
 | GL59 | DELETE | Chain preflight | Pipeline: retired lanes, their timers, limits and documents |
 | GL60 | DELETE | Owner success contract | Pipeline: retired lanes, their timers, limits and documents |
-| ML02 | DELETE | `isRunnableTask` and `scene_not_runnable` in the listing answer | gates in the WebApp (after the listing pull request) |
-| ML03 | DELETE | Legacy dossier restriction (`kept_private`, `restricted_to_named_teams`) | gates in the WebApp (after the listing pull request) |
-| ML05 | DELETE | No email to companies approved later | gates in the WebApp (after the listing pull request) |
-| ML06 | SIMPLIFY | Withdrawal notice only to companies with a send row | gates in the WebApp (after the listing pull request) |
 | ML11 | SIMPLIFY | Hand-kept Privacy versions for no-blur | Pipeline: alarms that mean something, and one rule for face blur |
 | ML13 | DELETE | Marketing cookie category and ad grants | analytics, cookies and stored copies |
 | ML14 | DELETE | Cookie banner while no analytics is configured | analytics, cookies and stored copies |
-| ML23 | SIMPLIFY | Sample job line "to download and open in your own tools" | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
-| ML24 | DELETE | `out_of_scope` site sentence "We can't simulate this kind of job yet." | site: start form, job page, emails (after the wave 1 pull requests that touch the same files) |
 | ML25 | SIMPLIFY | Package source limited to rigid or articulated team scene | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
 | FL08 | SIMPLIFY | One worker heartbeat | worker, tests and retired WebApp lanes |
 | FL09 | DELETE | `BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER` | worker, tests and retired WebApp lanes |
@@ -285,15 +278,19 @@ are the owner's to write; nothing is written to production.
 | VL26 | DELETE | Retired-lane disk roots | deletes stored data in production; needs the owner's word and a production write |
 | VL58 | DELETE | Retired Firestore collections | deletes stored data in production; needs the owner's word and a production write |
 
-## Kept: checking overturned the verdict (13)
+## Kept: checking overturned the verdict (17)
 
 | Row | Verdict | Thing | Where it goes |
 |---|---|---|---|
 | AL12 | DELETE | "Add details": What counts as success? | the job and the company page read this field |
 | CL14 | DELETE | Robot-fit table and precheck in the hand-off | the robot-fit table is the first look on paper |
 | DL11 | DELETE | Stop showing this job to companies | the only staff stop for a privacy or rights problem; it will require a reason |
+| GL02 | MERGE | 15-minute intake limiter | these per-address and per-email caps become the real protection for money the day the daily cap is raised |
+| GL04 | DELETE | Daily intake cap per IP (20) and per email (5) | these per-address and per-email caps become the real protection for money the day the daily cap is raised |
+| GL06 | MERGE | Upload cap per job | these per-address and per-email caps become the real protection for money the day the daily cap is raised |
 | GL20 | SIMPLIFY | `consent_expired` code name for a time limit | a rename with no effect for a user |
 | GL24 | DELETE | Operator listing hold | the only staff stop for a privacy or rights problem; it will require a reason |
+| GL26 | SIMPLIFY | Rights hold `needs_review` | a rights hold; never weakened |
 | GL48 | DELETE | GPU fleet dollar caps | these limits do real work protecting money |
 | GL52 | MERGE | ARTISAN $12, GPU attempt $6 / $0.80/h, Atlas review $5 | these limits do real work protecting money |
 | GL54 | MERGE | GCP $100 guard | these limits do real work protecting money |
@@ -303,12 +300,15 @@ are the owner's to write; nothing is written to production.
 | VL48 | SIMPLIFY | beta-policy-screening-holds route (name) | a rename with no effect for a user |
 | VL49 | SIMPLIFY | betaPolicyScreeningContract.ts (name) | a rename with no effect for a user |
 
-## Waits for a decision or an earlier step (12)
+## Waits for a decision or an earlier step (15)
 
 | Row | Verdict | Thing | Where it goes |
 |---|---|---|---|
+| AL03 | SIMPLIFY | Header "Sign in" on public pages | the ledger does not say how; needs a concrete proposal |
 | AL09 | SIMPLIFY | "Where is the job?" free text with autocomplete | what a company may see of the site's place (owner question 11) |
 | AL10 | MERGE | Country select (shown when typed text has no suggestion) | what a company may see of the site's place (owner question 11) |
+| AL20 | SIMPLIFY | "Start a new job" only after acknowledgement | the ledger does not say how; needs a concrete proposal |
+| AL32 | SIMPLIFY | Quick questions on the job page (up to 5 of 15) | the ledger does not say how; needs a concrete proposal |
 | BL35 | SIMPLIFY | Job page: country only | what a company may see of the site's place (owner question 11) |
 | CL05 | SIMPLIFY | Clean plate (Gemini object removal analysis) | its value to a company is not measured; needs one paid job to tell |
 | CL19 | MERGE | Three dollar figures per grant ($25 + $5 + $20) beside the one $40 cap | the grants' dollar figures are sealed in digests in both repositories; a money change (owner question 19) |
