@@ -1,0 +1,463 @@
+{
+ "agent": "dim-gates",
+ "summary": "Most stops in both repositories trace to privacy, rights or money, but several of the ones that matter most do not. Blueprint's own 7-day work window, labelled consent_expired, hides a slow job from every company and cancels Introduce us, and the free sound-free clip that listing needs waits behind the paid-preparation grant and the host's queue. Quality and bookkeeping blockers still stop or hold jobs for up to a week instead of shipping the room flagged, and the alarm's 30 'rights' holds are September revocations that record no cause. Money is guarded by about 25 limits of which four are load-bearing, and a person at Blueprint must still act in at least nine places, only one of which (approving companies) doctrine asks for.",
+ "findings": [
+  {
+   "effort": "S",
+   "verify_how": "Firestore aggregate 6 counts jobs closed today for authority_ended.",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-01",
+   "title": "Blueprint's own 7-day work window hides a finished job from every company and cancels Introduce us",
+   "dimension": "over-gated",
+   "severity": "P0",
+   "journey_step": "Job listing and introduction",
+   "evidence": [
+    "webapp:server/utils/websiteSceneSponsorship.ts:327",
+    "webapp:server/utils/websiteJobWindow.ts:17",
+    "pipeline:src/blueprint_pipeline/pubsub_handoff_listener.py:577",
+    "pipeline:src/blueprint_pipeline/website_preparation_terminal.py:9",
+    "webapp:server/utils/teamJobAccess.ts:237",
+    "webapp:server/utils/teamJobAccess.ts:242",
+    "webapp:server/utils/jobIntroductionGate.ts:56",
+    "webapp:server/utils/jobIntroductions.ts:109",
+    "door status 2026-11-22T15:01Z capacity.stall.checks.scene_progression: execution_window 9",
+    "door ls/cat aggregate of task-evaluation-scene-intents: 7 intents blocked scene_intake_authority_expired (scratchpad agents/dim-gates/intents.json)"
+   ],
+   "today": "When the 7-day grant window passes while preparation is still retrying, the grant read answers consent_expired, the Pipeline ends the job authority_ended, and teamJobAccess closes it for every company; the introduction transaction and its dispatch gate re-check the same rule, so Introduce us is refused. The window file itself says only time is set there, and the comment two lines below the stop says a wait on Blueprint keeps the job listed.",
+   "should": "A window ending stops further paid work only. The job stays listed and introductions go ahead; only withdrawal, rights and the $40 cap stop anything.",
+   "change": "DELETE",
+   "proposal": "Remove the authority_ended line from teamJobAccess (keep consent_withdrawn and the rights holds). Rename the window code consent_expired to job_window_ended in both repositories so a time limit never reads as consent; keep the Pipeline treating it as the end of paid work.",
+   "user_result": "A slow job stays in front of companies; a site's Introduce us is never refused because Blueprint was slow.",
+   "risk": "Readers that treat consent_expired as consent must be renamed together; check the Pipeline's AUTHORITY_ENDING_CODES and the WebApp intake worker in one PR pair. No money risk: the $40 cap is untouched.",
+   "hard_stop": "none",
+   "requirement_source": "nobody (window length: owner 2026-11-03; listing effect: not requested)"
+  },
+  {
+   "effort": "M",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-02",
+   "title": "A job reaches companies only after Blueprint admits paid preparation",
+   "dimension": "over-gated",
+   "severity": "P1",
+   "journey_step": "Video to listing",
+   "evidence": [
+    "webapp:server/utils/teamJobAccess.ts:253",
+    "webapp:server/utils/teamJobAccess.ts:286",
+    "pipeline:src/blueprint_pipeline/website_assessment_resume.py:154",
+    "pipeline:src/blueprint_pipeline/pubsub_handoff_scene_operations.py:355",
+    "pipeline:src/blueprint_pipeline/site_package_orchestrator.py:238",
+    "pipeline:src/blueprint_pipeline/website_company_clip.py:10",
+    "pipeline:src/blueprint_pipeline/website_company_clip.py:57",
+    "webapp:server/utils/websiteSceneSponsorship.ts:138",
+    "door journal blueprint-website-atlas-preview.service 2026-11-22T08:01Z: company_clip_current 2, company_clip_no_source 1, company_clip_not_permitted 2, company_clip_refused 1"
+   ],
+   "today": "The free sound-free clip, required for listing, waits for normalization inside the preparation run; that run starts only after the WebApp issues the paid-preparation grant (which needs a readable grant policy and a matching task context) and after the next Atlas timer pass. A money admission, a config read and the host queue stand between the video and the companies.",
+   "should": "The clip is made from the upload as soon as it lands, under the rights check only, and the job is listed then.",
+   "change": "SIMPLIFY",
+   "proposal": "Build the clip in the listener (or the storage Cloud Function) right after hand-off, before admit_browser_preparation, with the same rights check; keep normalization for preparation as is. Extends C-08.",
+   "user_result": "Companies see the job within minutes of upload, whatever the paid stages do.",
+   "risk": "The clip step must keep its rights check and its take-back; a raw-upload clip for a capture handed off before normalization already exists, so the code path is known.",
+   "hard_stop": "none",
+   "requirement_source": "nobody for the coupling (clip: owner 2026-11-12; grant: metered spend design)"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-03",
+   "title": "Three more recapture codes throw away a room that was already built",
+   "dimension": "over-gated",
+   "severity": "P1",
+   "journey_step": "Preparation",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/website_recapture_required.py:14",
+    "pipeline:src/blueprint_pipeline/website_recapture_required.py:39",
+    "pipeline:src/blueprint_pipeline/website_scene_handoff.py:530",
+    "pipeline:AGENTS.md:29",
+    "journey-C C-04"
+   ],
+   "today": "Besides the five registration codes C-04 names, website_front_normal_undetermined, website_task_object_not_observed and website_capture_frames_unusable end preparation at once and ask the site to film again, though the module says nothing is bought and the scene is already built.",
+   "should": "The room ships as filmed, flagged with the reason, and the new-video request is an optional line on the job page.",
+   "change": "DELETE",
+   "proposal": "Route every code in website_recapture_required.CODES to the ship-flagged branch of goes_on; keep only frames_unusable as a request because nothing usable exists, and keep the job listed meanwhile.",
+   "user_result": "Companies get a room to look at instead of a dead end; the site is not made to refilm for a quality judgment.",
+   "risk": "Some shipped rooms will have a poorly placed object; the flag must say so in the package README. Might come back for frames_unusable.",
+   "hard_stop": "none",
+   "requirement_source": "nobody (review 2026-11-12)"
+  },
+  {
+   "effort": "M",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-04",
+   "title": "Unknown and bookkeeping blockers hold the job until two hours before its 7-day window ends",
+   "dimension": "slow",
+   "severity": "P1",
+   "journey_step": "Preparation",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/website_scene_handoff.py:464",
+    "pipeline:src/blueprint_pipeline/website_scene_handoff.py:512",
+    "pipeline:src/blueprint_pipeline/website_scene_handoff.py:362",
+    "pipeline:tests/test_website_scene_handoff.py:1441",
+    "door journal blueprint-task-evaluation-scene-progression.service 2026-11-22T06:35Z: installed_source_holds 9 intents, blockers installed_source_installation_receipt_unavailable / scene_configuration_submission_input_file_invalid"
+   ],
+   "today": "goes_on ships at once only for scene or wording facts; any other code (configuration fault, missing key, website refusal, outage, defect) waits until the window ends within LAST_CALL_SECONDS (2 h), and integrity suffixes hold for good. Nine intents sit on an internal receipt code today.",
+   "should": "After one failed retry cycle the job ships what it has, flagged, Blueprint is paged, and a later fix rebuilds it.",
+   "change": "SIMPLIFY",
+   "proposal": "Replace the window-end wait with 'ship flagged after the first exhausted job_retry_policy cycle'; keep the page; move the LAST_CALL_SECONDS pin.",
+   "user_result": "A company sees a room days sooner when Blueprint has a fault.",
+   "risk": "A fix that lands later needs a rebuild path (the held-handoff replay already exists). Integrity faults could ship a wrong binding: keep holding only codes that name the wrong job or capture.",
+   "hard_stop": "none",
+   "requirement_source": "owner 2026-11-17 (goes on); the wait itself: nobody"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-05",
+   "title": "The alarm's 30 'rights' holds are September revocations, and no revocation records why",
+   "dimension": "unseen",
+   "severity": "P1",
+   "journey_step": "Owner visibility",
+   "evidence": [
+    "door status capacity.stall.checks.scene_progression: rights 30, execution_window 9, terminal 13",
+    "door ls of each scene intent: revoked.json dates 2026-09-07 x18, 09-08 x7, 09-09, 09-12 x2, 09-16, 11-02 (scratchpad agents/dim-gates/ext_dates.txt)",
+    "pipeline:src/blueprint_pipeline/control_plane_stall_alarm.py:160",
+    "pipeline:src/blueprint_pipeline/control_plane_stall_alarm.py:547",
+    "webapp:server/utils/taskEvaluationSceneIntake.ts:343",
+    "webapp:server/utils/taskEvaluationSceneIntake.ts:819",
+    "pipeline:src/blueprint_pipeline/task_evaluation_scene_intake.py:542",
+    "door journal scene-progression 7 days: scene_intake_authority_revoked 3694 occurrences in 2000 lines"
+   ],
+   "today": "Every revoked intent counts as a rights hold. The WebApp also revokes for its own reasons (brief not confirmed, brief missing, capture mismatch, binding failure, confirmed grant change), and neither side records the cause. 29 of the 30 date from 2026-09-07 to 09-16.",
+   "should": "The owner sees how many jobs a site withdrew, separately from Blueprint's own bookkeeping revocations, and dead September intents are gone.",
+   "change": "FIX",
+   "proposal": "Send revocation_cause with the revoke and store it in revoked.json; count only source_revoked as rights in the stall check; retire intents past their window.",
+   "user_result": "The owner's rights count is true.",
+   "risk": "Low; old receipts have no cause and should read 'unknown', not rights.",
+   "hard_stop": "none",
+   "requirement_source": "nobody"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-06",
+   "title": "An introduction the site pressed is cancelled if the company's Terms went stale or the job left the list for a non-privacy reason",
+   "dimension": "over-gated",
+   "severity": "P1",
+   "journey_step": "Introduce us",
+   "evidence": [
+    "webapp:server/utils/jobIntroductionGate.ts:52",
+    "webapp:server/utils/jobIntroductionGate.ts:54",
+    "webapp:server/utils/jobIntroductionGate.ts:56",
+    "webapp:client/src/lib/legalAcceptance.ts:339",
+    "webapp:server/utils/companyResponses.ts:72"
+   ],
+   "today": "At dispatch the introduction stops with company_not_approved when the company's acceptance is no longer current (every new Terms or Privacy version by default), and with job_not_shared when the listing dropped (window end, clip take-back, needs_review).",
+   "should": "Once a company answered and the site pressed Introduce us, only a withdrawal or a revoked approval stops the emails.",
+   "change": "SIMPLIFY",
+   "proposal": "In introductionMayProceed keep the withdrawal and approval-status checks; drop the Terms-currency and listing re-checks at dispatch (they were satisfied when the company answered and when the site pressed).",
+   "user_result": "An introduction the site asked for always arrives unless the site withdrew.",
+   "risk": "A company whose Terms acceptance lapsed receives contact details; it agreed when it answered (response statement). The Terms promise to the site rests on that answer.",
+   "hard_stop": "privacy",
+   "requirement_source": "planner H2 (one commit point); Terms currency: planner 18:50Z"
+  },
+  {
+   "effort": "M",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "verified": "yes",
+   "id": "G-07",
+   "title": "About 25 spend limits guard the same dollars; four are load-bearing",
+   "dimension": "business",
+   "severity": "P1",
+   "journey_step": "Money",
+   "evidence": [
+    "pipeline:AGENTS.md:87",
+    "pipeline:config/account_monthly_spend_limit.v1.json",
+    "webapp:server/utils/websiteJobCeiling.ts:42",
+    "webapp:server/utils/betaAbuseCaps.ts:219",
+    "pipeline:src/blueprint_pipeline/provider_spend_alerts.py:92",
+    "pipeline:src/blueprint_pipeline/screening_retained_ledger.py:33",
+    "pipeline:src/blueprint_pipeline/task_evaluation_scene_configuration_runtime_budget.py:62",
+    "pipeline:src/blueprint_pipeline/rigid_robot_free_probe_lane.py:77",
+    "journey-C C-11"
+   ],
+   "today": "AGENTS.md lists 21 rows and the WebApp adds intake, email, upload and first-look caps; grants still seal their own figures. Only the $40 job ledger, the account monthly limit, the GPU orphan reaper and the first-look caps (that spend is not on the job ledger) bound anything; the OpenAI $560 and World Labs $450 month pages sit above the $400 account limit.",
+   "should": "Two money rules (job cap, monthly limit) plus the reaper, with the first look moved onto the job ledger.",
+   "change": "DELETE",
+   "proposal": "Delete screening $30/$4, Astra, rigid probe $1, fleet dollar totals, the two month pages above the limit and the grant dollar figures; merge ARTISAN $12, GPU attempt $6/$0.80/h and Atlas review $5 into the $40 ledger; put the first look on the job ledger, then drop its daily cap; keep the GCP guard only as an alert.",
+   "user_result": "The owner reads two money numbers instead of twenty-five; no job is refused by a sub-cap the $40 already covers.",
+   "risk": "A single stage could use most of a job's $40 without its sub-cap; that is within the owner's cap by definition. Each change is a money decision.",
+   "hard_stop": "money",
+   "requirement_source": "owner 2026-11-07, 11-12, 11-19, 11-20 for the two real limits; the rest: retired lanes or nobody"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "verified": "yes",
+   "id": "G-08",
+   "title": "Two of the three daily intake caps can never trip first, and a test pins them",
+   "dimension": "over-gated",
+   "severity": "P2",
+   "journey_step": "Starting a job",
+   "evidence": [
+    "webapp:server/utils/betaAbuseCaps.ts:44",
+    "webapp:server/routes/inbound-request.ts:330",
+    "webapp:server/routes/inbound-request.ts:1754",
+    "webapp:server/tests/durable-daily-caps.test.ts:152"
+   ],
+   "today": "Global 5 a day, per IP 20, per email 5, plus a 15-minute limiter of 10 per IP and 3 per email. At these defaults the per-IP daily cap cannot trip before the global cap, and the per-email cap only together with it.",
+   "should": "One global daily cap (owner D-13) and the honeypot.",
+   "change": "DELETE",
+   "proposal": "Remove intake_ip and intake_email from admitIntake and the per-IP 15-minute limiter; update the pinned defaults test.",
+   "user_result": "Fewer refusal paths; one clear limit.",
+   "risk": "If the owner raises the global cap, a per-IP cap may be wanted again (expected to come back then).",
+   "hard_stop": "money",
+   "requirement_source": "owner D-13 (global); nobody (the others)"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-09",
+   "title": "The job card's Ready stage still comes from the retired trial's runnable proof",
+   "dimension": "vestigial",
+   "severity": "P2",
+   "journey_step": "Find jobs library",
+   "evidence": [
+    "webapp:server/utils/teamJobAccess.ts:136",
+    "webapp:server/utils/teamJobAccess.ts:161",
+    "webapp:server/utils/taskBrowse.ts:20",
+    "webapp:client/src/components/site/TaskBrowse.tsx:83"
+   ],
+   "today": "evaluationAvailable needs triage 'qualified', a confirmed brief, gate answers, a world manifest and an internal proof that the harness can load and step the scene; the card's stage reads it, while the Ready-to-test filter reads simulationDownloadAvailable.",
+   "should": "One signal: Ready to test means the simulation can be downloaded.",
+   "change": "DELETE",
+   "proposal": "Derive the card stage from simulationDownloadAvailable; delete isRunnableTask and its readers.",
+   "user_result": "Cards and filter agree.",
+   "risk": "Older readers of evaluationAvailable (taskStatusProjection openForEvaluations) must move too.",
+   "hard_stop": "none",
+   "requirement_source": "retired trial"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-10",
+   "title": "A person must approve every window extension, though an extension moves only time",
+   "dimension": "friction",
+   "severity": "P1",
+   "journey_step": "Preparation",
+   "evidence": [
+    "webapp:server/utils/sceneExecutionWindowExtension.ts:1",
+    "webapp:server/utils/websiteSceneSponsorship.ts:523",
+    "door ls of scene intents: execution-window-extensions 8 records 2026-09-08 to 2026-11-03; execution-budget-extensions 52 records on 12 intents, last 2026-11-02; standing-budget-extensions 5 (2026-11-12/13) (scratchpad agents/dim-gates/ext_dates.txt)"
+   ],
+   "today": "A slow job ends unless the owner approves an extension through the operator door or renews the expired grant; used 8 times. Neither touches a cap.",
+   "should": "No person: the window ends paid work only (after G-01), bounded by $40.",
+   "change": "DELETE",
+   "proposal": "After G-01, delete the extend-scene-execution-window request kind and renewExpiredWebsiteSceneSponsorship, or renew automatically while the job is under its cap.",
+   "user_result": "No job waits on the owner's inbox.",
+   "risk": "Retries could run past a week; each is still inside $40. Might come back if the owner wants a hard stop on retry time.",
+   "hard_stop": "none",
+   "requirement_source": "nobody beyond 'owner approval reference'"
+  },
+  {
+   "effort": "M",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "verified": "yes",
+   "id": "G-11",
+   "title": "Three layers protect the same consent for the company clip; only one is load-bearing",
+   "dimension": "over-gated",
+   "severity": "P2",
+   "journey_step": "Video to listing",
+   "evidence": [
+    "webapp:server/utils/teamJobAccess.ts:217",
+    "pipeline:src/blueprint_pipeline/company_share_permission.py:37",
+    "pipeline:src/blueprint_pipeline/website_company_simulation.py:1640",
+    "journey-C C-10",
+    "door journal atlas preview: company_clip_not_permitted 2, company_clip_refused 1, company_simulation_not_permitted 2"
+   ],
+   "today": "The WebApp checks the listing rule on every company request; the Pipeline also re-reads live rights every 6 h and takes copies back, and checks a takedown gate before delivery. Layers 2 and 3 also decide whether a clip is made at all.",
+   "should": "The WebApp's per-request check decides who sees what; the Pipeline only deletes stored copies after a withdrawal.",
+   "change": "SIMPLIFY",
+   "proposal": "Keep the WebApp check; keep the Pipeline recheck only as the trigger to delete stored copies; ask the owner whether the takedown gate is needed; never let the Pipeline's own read stop a clip the WebApp would list.",
+   "user_result": "Fewer refused clips for jobs the site agreed to share.",
+   "risk": "Privacy: a stored copy could live up to one recheck window after a withdrawal unless the withdrawal handoff deletes it; that path exists (withdrawal deletion) but its approval is absent (A-08).",
+   "hard_stop": "privacy",
+   "requirement_source": "owner 2026-11-12 (sharing); the duplicate layers: nobody"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "verified": "yes",
+   "id": "G-12",
+   "title": "Tests pin gates and wording nobody asked for",
+   "dimension": "fragile",
+   "severity": "P2",
+   "journey_step": "CI",
+   "evidence": [
+    "webapp:server/tests/durable-daily-caps.test.ts:152",
+    "webapp:server/tests/capture-outbox.test.ts:209",
+    "webapp:e2e/onboarding-p1.spec.ts:190",
+    "pipeline:tests/test_website_scene_handoff.py:1441",
+    "pipeline:tests/test_control_plane_stall_alarm.py:272"
+   ],
+   "today": "Tests pin the dead intake caps, the Reply-To override (A-01), the filler status line (A-10) and the near-window hold constant; each makes deleting a gate look like a regression.",
+   "should": "Tests pin outcomes an owner asked for, not the gates under review.",
+   "change": "DELETE",
+   "proposal": "Change or delete each pin in the same PR as its gate change (G-08, G-04, A-01, A-10). Protected guards (publicClaims, recordedStatements, build-output sentinels) stay untouched and go to the owner as questions.",
+   "user_result": "Gate deletions ship without fighting the suite.",
+   "risk": "Low.",
+   "hard_stop": "none",
+   "requirement_source": "nobody"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "verified": "yes",
+   "id": "G-13",
+   "title": "By default every new Terms or Privacy version locks every company out of every job",
+   "dimension": "over-gated",
+   "severity": "P2",
+   "journey_step": "Company access",
+   "evidence": [
+    "webapp:server/utils/companyTerms.ts:36",
+    "webapp:client/src/lib/legalAcceptance.ts:336",
+    "webapp:client/src/lib/legalAcceptance.ts:339",
+    "webapp:client/src/lib/legalAcceptance.ts:198"
+   ],
+   "today": "companyMaySeeJobs needs both current versions; a new version counts no earlier acceptance until someone writes an exemption entry, so every company sees no job and gets no new-job email until it presses I agree. Privacy changed four times from 2026-11-13 to 11-21.",
+   "should": "A new version counts earlier acceptances unless it changes what a company may do with a job.",
+   "change": "SIMPLIFY",
+   "proposal": "Owner decision: flip the default so a new version inherits earlier acceptances unless marked 'asks again'; keep the guard test as the place the decision is recorded.",
+   "user_result": "Companies are not shut out by wording fixes.",
+   "risk": "Rights: a material change that is not marked would bind companies without their agreement; the owner must mark those.",
+   "hard_stop": "rights",
+   "requirement_source": "planner 18:50Z"
+  },
+  {
+   "effort": "S",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "verified": "yes",
+   "id": "G-14",
+   "title": "Jobs from before 2026-11-11 still wait for an owner decision",
+   "dimension": "over-gated",
+   "severity": "P2",
+   "journey_step": "Preparation",
+   "evidence": [
+    "webapp:server/utils/teamJobAccess.ts:131",
+    "webapp:server/utils/websiteSceneSponsorship.ts:332",
+    "webapp:server/utils/websiteSceneSponsorship.ts:349",
+    "webapp:server/utils/websiteCaptureOwner.ts:12"
+   ],
+   "today": "Older jobs still need triage 'qualified' for their scene grant and Ready label 'until the owner decides'; website_scene_site_unclaimed can only trip on jobs from before every job got a synthetic owner id.",
+   "should": "One rule for every job.",
+   "change": "DELETE",
+   "proposal": "Apply the 2026-11-11 rule to every job (or close those jobs) and delete website_scene_site_not_qualified and website_scene_site_unclaimed.",
+   "user_result": "Older sites' jobs move like new ones.",
+   "risk": "Older jobs were filmed under older statements; the listing still requires v4, so nothing is shared without agreement.",
+   "hard_stop": "none",
+   "requirement_source": "owner 2026-11-11 (pending decision)"
+  }
+ ],
+ "good_things": [
+  {
+   "what": "One predicate decides company visibility on every surface",
+   "why": "Fixing G-01 and G-06 is a small change because teamJobAccess is the single rule, also checked inside the introduction transaction",
+   "evidence": "webapp:server/utils/teamJobAccess.ts:222"
+  },
+  {
+   "what": "The $40 cap is enforced in one transaction and ships flagged at the cap",
+   "why": "No owner grants, no extensions; the job waits for no one at the cap",
+   "evidence": "webapp:server/routes/internal-capture-worlds.ts:376; pipeline:src/blueprint_pipeline/website_scene_handoff.py:542"
+  },
+  {
+   "what": "Face blur fails safe for unknown versions",
+   "why": "Any doubt blurs, so a privacy promise to older sites cannot be broken by a missing list entry",
+   "evidence": "pipeline:src/blueprint_pipeline/atlas_privacy_screen.py:178"
+  },
+  {
+   "what": "Owner success thresholds hold nothing",
+   "why": "The team packet compiles at once on assumed thresholds; nothing waits for a person",
+   "evidence": "pipeline:src/blueprint_pipeline/website_owner_success_confirmation.py:1"
+  }
+ ],
+ "owner_questions": [
+  {
+   "question": "May a window ending only stop paid work, never the job's listing or its introductions?",
+   "recommendation": "Yes; the $40 cap is the money bound.",
+   "unblocks": "G-01, G-10"
+  },
+  {
+   "question": "Which spend limits besides the $40 job cap, the monthly limit and the GPU reaper do you want to keep?",
+   "recommendation": "None; move the first look onto the job ledger.",
+   "unblocks": "G-07"
+  },
+  {
+   "question": "Should a new Terms or Privacy version count earlier company acceptances unless it is marked as asking again?",
+   "recommendation": "Yes, and mark only changes to what a company may do with a job.",
+   "unblocks": "G-13, G-06"
+  },
+  {
+   "question": "Should jobs Blueprint cannot simulate yet (early task hold) still get the room as filmed?",
+   "recommendation": "Yes, if each room costs about $1.30 of World Labs as measured; it gives companies something to look at.",
+   "unblocks": "early task hold row in the ledger"
+  },
+  {
+   "question": "Apply the 2026-11-11 'screen gates nothing' rule to every older job?",
+   "recommendation": "Yes.",
+   "unblocks": "G-14"
+  },
+  {
+   "question": "Is the Pipeline's delivery-time takedown gate needed beside the WebApp's per-request check?",
+   "recommendation": "No; keep the WebApp check and deletion after withdrawal.",
+   "unblocks": "G-11"
+  }
+ ],
+ "open_cost_questions": [
+  {
+   "question": "Is a room-as-filmed useful to a company for jobs under the early task hold or a recapture code?",
+   "estimated_cost_usd": "about 1.30 per job",
+   "basis": "World Labs November: 9 attempts, $11.85 (door capacity.provider_spend.world_labs); recapture-coded rooms are already paid for, so they cost $0"
+  }
+ ],
+ "not_covered": [
+  "Production counts that need Firestore (intake cap trips, listings closed per reason, older statements): listed as aggregates in the report",
+  "The reason code of the one Atlas needs_input job (would need reading its state file)",
+  "Whether the spend guard's blocked status also blocks reconciler teardown proofs",
+  "Deployed values of Render and host env overrides for the caps",
+  "No tests or servers were run; code and door reads only",
+  "Journey E had not reported"
+ ]
+}

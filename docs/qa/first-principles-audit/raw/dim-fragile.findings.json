@@ -119,7 +119,7 @@
       "evidence": [
         "webapp:client/src/lib/selfCaptureVideo.ts:115-160 the whole file in one XMLHttpRequest POST, client timeout 15 min, no parts or resume",
         "webapp:server/index.ts:5 http.createServer with no requestTimeout set (grep requestTimeout in server/: no match); .nvmrc = 22",
-        "cmd: node slowpost.mjs (scratch) on node v22.23.5 -> requestTimeout 300000; see report section 7 for the measured cut",
+        "cmd: node slowpost.mjs (scratch; default http.createServer on node v22.23.5, a 400 MB POST at about 640 KB/s) -> 'requestTimeout 300000', 'response 408 after s 330.011' with about 210 MB sent",
         "webapp:server/routes/self-capture-uploads.ts:128,146-147 the route accepts up to 2 GiB"
       ],
       "today": "When a site picks a saved video instead of filming in the page, the browser sends the whole file in one request. Node 22 closes any request not fully received within 300 seconds, and the server does not change that. At a 10 Mbit/s phone uplink that is about 375 MB; at 5 Mbit/s about 190 MB. A longer upload fails and starts from zero on retry. A network drop or a closed tab also loses the whole upload.",
@@ -130,7 +130,7 @@
       "risk": "Longer-held connections on the single web instance; the parts route already exists and is tested by the recorder.",
       "hard_stop": "none",
       "verified": "unverified",
-      "verify_how": "Measured on a bare Node 22 server with the same defaults; not measured end to end through Render's proxy. A real phone upload of a 500 MB file to a staging deploy would settle it.",
+      "verify_how": "Measured on a bare Node 22 server with the same defaults as server/index.ts (408 at 330 s). Not measured end to end through Render's proxy; a real phone upload of a 500 MB file to a staging deploy would settle it.",
       "requirement_source": "doctrine 'video in'; the single-request design has source nobody",
       "live_in_production": "yes",
       "needs_owner": false
@@ -477,22 +477,70 @@
     }
   ],
   "good_things": [
-    {"what": "The WebApp ends every job itself when its window passes, with no email and a page that says so", "why": "No job waits for ever on the Pipeline: the site always gets an ending.", "evidence": "webapp:server/utils/websiteJobWindowSweep.ts:1-32"},
-    {"what": "The email outbox: fixed idempotency keys, provider idempotency, 'unknown outcome' rows never re-sent", "why": "A worker or web restart never sends an email twice.", "evidence": "webapp:server/utils/captureOutbox.ts:380-470, captureOutboxRetry.ts:23-47"},
-    {"what": "Automatic send and outcome questions are idempotent and catch up after downtime", "why": "A marker on the job (company_auto_send) and fixed outbox ids per job, company, side and day mean a day of worker downtime delays sends but neither skips nor duplicates them.", "evidence": "webapp:server/utils/jobAutoSend.ts:37-86; jobOutcomes.ts:130-160"},
-    {"what": "The leader lease falls back to Firestore when there is no Redis", "why": "Two processes never run the same loop at once even without Redis.", "evidence": "webapp:server/utils/automationLeaderLease.ts:148-171"},
-    {"what": "The upload watch: no Pipeline status within 2 h pages ops, and the site page says only that it is taking longer", "why": "It catches extractFrames, Pub/Sub and host outages from outside the Pipeline.", "evidence": "webapp:server/utils/websitePreparationWatch.ts:1-13,62-63"},
-    {"what": "The door parks a deploy while paid work is in flight, and each paid call keeps its receipt", "why": "A deploy never wastes money already spent.", "evidence": "pipeline:docs/runbooks/beta-operations.md:655-666"}
+    {
+      "what": "The WebApp ends every job itself when its window passes, with no email and a page that says so",
+      "why": "No job waits for ever on the Pipeline: the site always gets an ending.",
+      "evidence": "webapp:server/utils/websiteJobWindowSweep.ts:1-32"
+    },
+    {
+      "what": "The email outbox: fixed idempotency keys, provider idempotency, 'unknown outcome' rows never re-sent",
+      "why": "A worker or web restart never sends an email twice.",
+      "evidence": "webapp:server/utils/captureOutbox.ts:380-470, captureOutboxRetry.ts:23-47"
+    },
+    {
+      "what": "Automatic send and outcome questions are idempotent and catch up after downtime",
+      "why": "A marker on the job (company_auto_send) and fixed outbox ids per job, company, side and day mean a day of worker downtime delays sends but neither skips nor duplicates them.",
+      "evidence": "webapp:server/utils/jobAutoSend.ts:37-86; jobOutcomes.ts:130-160"
+    },
+    {
+      "what": "The leader lease falls back to Firestore when there is no Redis",
+      "why": "Two processes never run the same loop at once even without Redis.",
+      "evidence": "webapp:server/utils/automationLeaderLease.ts:148-171"
+    },
+    {
+      "what": "The upload watch: no Pipeline status within 2 h pages ops, and the site page says only that it is taking longer",
+      "why": "It catches extractFrames, Pub/Sub and host outages from outside the Pipeline.",
+      "evidence": "webapp:server/utils/websitePreparationWatch.ts:1-13,62-63"
+    },
+    {
+      "what": "The door parks a deploy while paid work is in flight, and each paid call keeps its receipt",
+      "why": "A deploy never wastes money already spent.",
+      "evidence": "pipeline:docs/runbooks/beta-operations.md:655-666"
+    }
   ],
   "owner_questions": [
-    {"question": "Which bucket should hold the control-plane state backup, and will you install its file and key on the host?", "recommendation": "Use the existing B2 account with a dedicated encrypted bucket; it is the step the backup unit is waiting for.", "unblocks": "F-01"},
-    {"question": "May the RunPod key file be deleted now (account closure can follow)?", "recommendation": "Yes: RunPod launch has been refused since 2026-11-05; the key only keeps the guard red.", "unblocks": "F-07, IP-02"},
-    {"question": "When a scene's execution window expires, should the job end with what it has instead of waiting for your extension?", "recommendation": "Yes, the same as the spending cap: one fewer owner step and no job waits on a person.", "unblocks": "F-10"},
-    {"question": "Should a site that closed its job still get the 14, 45 and 90-day questions after an introduction?", "recommendation": "Yes: those are the outcomes a future invoice and investors need.", "unblocks": "F-04"}
+    {
+      "question": "Which bucket should hold the control-plane state backup, and will you install its file and key on the host?",
+      "recommendation": "Use the existing B2 account with a dedicated encrypted bucket; it is the step the backup unit is waiting for.",
+      "unblocks": "F-01"
+    },
+    {
+      "question": "May the RunPod key file be deleted now (account closure can follow)?",
+      "recommendation": "Yes: RunPod launch has been refused since 2026-11-05; the key only keeps the guard red.",
+      "unblocks": "F-07, IP-02"
+    },
+    {
+      "question": "When a scene's execution window expires, should the job end with what it has instead of waiting for your extension?",
+      "recommendation": "Yes, the same as the spending cap: one fewer owner step and no job waits on a person.",
+      "unblocks": "F-10"
+    },
+    {
+      "question": "Should a site that closed its job still get the 14, 45 and 90-day questions after an introduction?",
+      "recommendation": "Yes: those are the outcomes a future invoice and investors need.",
+      "unblocks": "F-04"
+    }
   ],
   "open_cost_questions": [
-    {"question": "Does a real phone upload of a 500 MB to 1.2 GB file through Render reach the server and extractFrames?", "estimated_cost_usd": "under 1", "basis": "GCP Storage and one Cloud Function run on a staging bucket; no paid model call"},
-    {"question": "What exactly do World Labs and Gemini return when the key is revoked or the account is out of credit (401, 402 or 403)?", "estimated_cost_usd": "0 to 5", "basis": "A revoked test key returns an error without work; checking the out-of-credit answer may need a near-empty account"}
+    {
+      "question": "Does a real phone upload of a 500 MB to 1.2 GB file through Render reach the server and extractFrames?",
+      "estimated_cost_usd": "under 1",
+      "basis": "GCP Storage and one Cloud Function run on a staging bucket; no paid model call"
+    },
+    {
+      "question": "What exactly do World Labs and Gemini return when the key is revoked or the account is out of credit (401, 402 or 403)?",
+      "estimated_cost_usd": "0 to 5",
+      "basis": "A revoked test key returns an error without work; checking the out-of-credit answer may need a near-empty account"
+    }
   ],
   "not_covered": [
     "The extractFrames code (BlueprintCapture repository is not checked out); its failure modes are inferred from WebApp and Pipeline references only.",

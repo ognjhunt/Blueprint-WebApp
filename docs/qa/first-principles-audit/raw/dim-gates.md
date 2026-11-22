@@ -247,7 +247,7 @@ Ids match `dim-gates.findings.json`.
 
 - The grant read answers `consent_expired` once the window passes (`websiteSceneSponsorship.ts:327`, `:854`). The window is time only: "Only time is set here. Caps, attempt counts, rights and consent are unchanged." (`websiteJobWindow.ts:17`).
 - The Pipeline treats `consent_expired` as a permanent authority ending (`pubsub_handoff_listener.py:577`). It ends a preparation that was still retrying as `authority_ended` (`website_preparation_terminal.py:9-14`).
-- `teamJobAccess.ts:237` closes such a job for every company (`authority_ended`). The introduction transaction and the dispatch gate re-check the same rule (`jobIntroductions.ts:109`, `jobIntroductionGate.ts:56-58`), so Introduce us is refused too.
+- `teamJobAccess.ts:237` closes such a job for every company (`authority_ended`). The comment five lines below says the opposite was intended: "A wait on Blueprint that ran out holds only the simulation; the job stays listed" (`:242-243`). The introduction transaction and the dispatch gate re-check the same rule (`jobIntroductions.ts:109`, `jobIntroductionGate.ts:56-58`), so Introduce us is refused too.
 - Who trips it: any job whose preparation was still retrying when Blueprint's window ran out. That is Blueprint's slowness, not the site's choice. The real job in journey C spent 16.3 hours in preparation, 10.5 of them in a hold.
 - Production: 7 scene intents end `scene_intake_authority_expired`; the alarm counts 9 as `execution_window` (door). How many listings are closed for `authority_ended` needs Firestore aggregate 6.
 - Journey A's ledger kept the window "because it bounds spend". The file says otherwise; the $40 cap is the money bound.
