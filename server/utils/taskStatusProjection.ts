@@ -513,8 +513,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Open for evaluation and no requested evaluation has started. Open implies a cleared,
-  // confirmed, runnable scene, so no rung below can be truer than this one.
+  // Open for evaluation and no requested evaluation has started. Open implies a listed job
+  // whose company simulation is stored, so no rung below can be truer than this one.
   if (input.openForEvaluations === true && screening && screening.teams === 0) {
     return {
       ...base,

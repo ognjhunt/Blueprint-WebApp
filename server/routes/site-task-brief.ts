@@ -387,7 +387,14 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
     // The screen gates nothing for a job filmed after 2026-11-11: its status follows the outlook, not the screen.
     screenGateEnded: sceneScreenGateEnded(data, requestId),
     // Stored plaintext fields, which is what the access predicate reads.
-    jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
+    jobAccess: await (async () => {
+      // Whether the company simulation is stored decides "open" (a job card's Ready); an unreadable session reads as not.
+      const companySimulationReady = await Promise.all([import("../utils/websiteCompanySimulation"),
+        db.collection("captureUploadSessions").doc(websiteIdentity.captureId).get()])
+        .then(([{ storedCompanySimulation }, session]) => Boolean(storedCompanySimulation(session.data(), websiteIdentity.captureId)))
+        .catch(() => false);
+      try { return teamJobAccess(data, { companySimulationReady }); } catch { return null; }
+    })(),
     recommended: Boolean(data.pilot_recommendation),
     workspace_task: (data.workspace_task as { terms?: unknown } | undefined) ?? null,
     site_task_scope: (data.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,

@@ -878,6 +878,14 @@ describe("the simulation download and the tested answers (E9)", () => {
     expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toBe(false);
   });
 
+  it("reads Ready on the job card only once the company simulation is stored, never from the retired runnable proof", async () => {
+    const before = (await list()).body.items[0];
+    expect(before).toMatchObject({ evaluationAvailable: false, simulationDownloadAvailable: false });
+    expect(before.stage).not.toBe("ready");
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    expect((await list()).body.items[0]).toMatchObject({ stage: "ready", evaluationAvailable: true, simulationDownloadAvailable: true });
+  });
+
   it("serves the package to the viewer's ticket only, accepts a tested answer, and introduces on tested_can_do", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     const url = (await page()).body.item.simulationDownload.url as string;
