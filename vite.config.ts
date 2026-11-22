@@ -56,9 +56,6 @@ export default defineConfig({
           if (packageName.startsWith("@sentry/")) {
             return "vendor-sentry";
           }
-          if (packageName === "framer-motion") {
-            return "vendor-motion";
-          }
           // Radix is left to Rollup: one combined chunk put every dialog,
           // select and tab primitive on the first load of every page, when
           // the shell only needs the toaster.
