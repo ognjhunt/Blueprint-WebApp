@@ -601,7 +601,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
         ? `${CAPACITY_ENDED_HEADLINE}${input.hasStoredCapture ? " Your video is kept." : " Keep your original video."} Nothing more is needed from you.`
         : `We could not finish building the simulation of your site, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you.`,
       // Final, never a hold: the job's own window says whether its time ran out.
-      authority_ended: `${input.jobWindowEnded ? `${JOB_WINDOW_ENDED_SENTENCE} ${ANSWER_STAYS_ON_JOB_PAGE}` : AUTHORITY_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
+      // A window ending keeps the job listed, so only a lost permission says to start again.
+      authority_ended: input.jobWindowEnded ? `${JOB_WINDOW_ENDED_SENTENCE} ${ANSWER_STAYS_ON_JOB_PAGE}`
+        : `${AUTHORITY_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
       unavailable: "Your video is saved. We can't show the latest status of your job right now. Check again shortly.",
     };
     const inProgress = preparation.state === "preparing" || preparation.state === "capacity_delayed";

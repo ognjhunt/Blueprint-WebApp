@@ -234,7 +234,11 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
   if (operatorListingHold(raw)) return closed("blueprint_hold");
   const hold = rightsHold(raw);
   if (hold) return closed(hold);
-  if (context.preparationState === "authority_ended") return closed("authority_ended");
+  // An ended authority closes the listing only for a source revocation (the recorded grant no longer allows scene
+  // building); a withdrawal is caught above and an owner close just below. The Pipeline also ends authority when
+  // Blueprint's own work window runs out (`consent_expired`): that stops further work only, so the job stays listed
+  // and Introduce us keeps working (finding G-01).
+  if (context.preparationState === "authority_ended" && !rights.derived_scene_generation_allowed) return closed("authority_ended");
   // The site closing its job: a run closure, or the old workspace "close" (`workspace_task.archived`). A site-set
   // `workspace_task.paused` from the retired pause control does NOT close: under E2 there is no site pause, and a job
   // paused before 2026-11-12 must not be stranded (planner, 15:07Z).
