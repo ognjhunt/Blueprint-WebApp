@@ -52,3 +52,16 @@ export async function listJobBillableEvents(requestId: string): Promise<Array<Bi
   return rows.docs.map(doc => ({ id: doc.id, ...(doc.data() as BillableEvent) }))
     .sort((a, b) => String(a.atIso).localeCompare(String(b.atIso)));
 }
+
+/** How many events stand (void ones are never counted), for the owner's totals (`ownerTotals.ts`). A count query. */
+export async function countStandingBillableEvents(store: FirebaseFirestore.Firestore | null = db): Promise<number> {
+  if (!store) throw new Error("billable_events_store_unavailable");
+  return (await store.collection(BILLABLE_EVENTS_COLLECTION).where("status", "==", "recorded_no_price").count().get()).data().count;
+}
+
+/** Every event's ids, times and status, for the admin CSV (`ownerTotals.ts`). Read only. */
+export async function listAllBillableEvents(store: FirebaseFirestore.Firestore | null = db): Promise<Array<Record<string, any>>> {
+  if (!store) throw new Error("billable_events_store_unavailable");
+  const snapshot = await store.collection(BILLABLE_EVENTS_COLLECTION).select("requestId", "companyId", "atIso", "madeAtIso", "status").get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
