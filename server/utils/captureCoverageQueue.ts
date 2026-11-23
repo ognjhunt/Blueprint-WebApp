@@ -11,6 +11,9 @@ import { mergeFootageIntoBrief } from "./siteTaskBriefReading";
 import { authorizeCaptureUpload } from "./captureUploadAuthorization";
 import { modelReviewHeadroom } from "./betaAbuseCaps";
 import { GEMINI_VIDEO_CALL_RESERVATION_USD } from "../agents/adapters/site-assessment-budget";
+import { providerOutageRetryDelayMs, type ProviderOutage } from "./providerOutage";
+import { closeProviderOutageAlerts, noteProviderOutage } from "./providerOutageAlerts";
+import { WEBSITE_JOB_WINDOW_ENDING_FIELD } from "./websiteJobWindowEnding";
 
 /**
  * Whether the brief now on file is the one a review read: the brief it was bound to, or the one
@@ -84,6 +87,7 @@ export async function enqueueCoverageReview(params: { requestId: string; sceneId
 /** Reuses the existing coverage agent; delayed briefs stay pending without model calls. */
 export async function reconcileCoverageReviews(limit = 10, options: { notifyOwner?: boolean } = {}) {
   if (!db || !isSiteVideoEvidenceEnabled()) return;
+  await recoverParkedCoverageReviews(Math.min(limit, 2));
   // Adopt an older pending flag without starting a second coverage executor.
   // Retain attempts and lease so an interrupted rollout never resets spend.
   const legacy = await db.collection("inboundRequests").where("coverageReviewPending", "==", true).limit(limit).get();
@@ -157,6 +161,9 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
       if (attempts >= COVERAGE_REVIEW_MAX_ATTEMPTS) return "exhausted";
       // A read that waited for another call on this capture tries again after a short delay, not at once.
       if (job?.state === "waiting_prerequisite" && typeof job.retry_after_ms === "number" && job.retry_after_ms > Date.now()) return null;
+      // A read the provider refused or did not answer waits out its back-off, and is not tried once the job's window has ended.
+      if (job?.state === "waiting_provider" && ((typeof job.retry_after_ms === "number" && job.retry_after_ms > Date.now())
+        || current?.[WEBSITE_JOB_WINDOW_ENDING_FIELD])) return null;
       tx.set(jobRef, { ...params, binding, state: "running", claim_token: claimToken, started_at: Date.now(), attempts: attempts + 1,
         first_claimed_at_ms: typeof job?.first_claimed_at_ms === "number" ? job.first_claimed_at_ms : Date.now() }, { merge: true });
       return "claimed";
@@ -171,13 +178,16 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
     try {
       if (claim !== "completed" && claim !== "exhausted") {
         let waited = null as CoverageWaitReason | null;
+        let outage = null as ProviderOutage | null;
         const finding = await reviewCaptureCoverage({ ...params, binding, reviewId: id, claimToken, notifyOwner: options.notifyOwner,
-          onWaiting: reason => { waited = reason; } });
+          onWaiting: reason => { waited = reason; }, onProviderOutage: found => { outage = found; } });
         if (!finding) {
-          await finish(waited ? await waitPatch(jobRef, waited) : { state: "waiting_prerequisite" });
+          const patch = waited ? await waitPatch(jobRef, waited) : outage ? await outagePatch(jobRef, outage) : { state: "waiting_prerequisite" };
+          if ((await finish(patch)) && outage) await noteProviderOutage(outage);
           continue;
         }
-        if (!(await finish({ state: "completed", finding }))) continue;
+        if (!(await finish({ state: "completed", finding, provider_outage: null, retry_after_ms: null }))) continue;
+        await closeProviderOutageAlerts("gemini");
       }
       await db.runTransaction(async tx => {
         const [current, currentBrief] = await Promise.all([tx.get(request.ref), tx.get(db!.collection("siteTaskBriefs").doc(request.id))]);
@@ -189,7 +199,9 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
           || !briefStillReviewed(data, humanDecisionDigest(currentBrief.data()), binding.brief_digest, params.captureId)) return;
         tx.set(request.ref, { capture_coverage_pending: false,
           capture_coverage_review: { review_id: id, state: claim === "exhausted" ? "review_required" : "completed",
-            reason: claim === "exhausted" ? "automatic_review_attempts_exhausted" : null } }, { merge: true });
+            reason: claim === "exhausted" ? "automatic_review_attempts_exhausted" : null,
+            // Since provider outages stopped using attempts, only readings that went wrong park a job.
+            ...(claim === "exhausted" ? { provider_outages_excluded: true } : {}) } }, { merge: true });
       });
     } catch (error) {
       await finish({ state: "failed", reason: "coverage_review_failed" });
@@ -211,4 +223,48 @@ async function waitPatch(jobRef: FirebaseFirestore.DocumentReference, reason: Co
   }
   const attempts = typeof job?.attempts === "number" && job.attempts > 0 ? job.attempts - 1 : 0;
   return { state: "waiting_prerequisite", attempts, wait_reason: reason, retry_after_ms: Date.now() + COVERAGE_REVIEW_WAIT_RETRY_MS };
+}
+
+/**
+ * A read the provider refused or did not answer (`providerOutage.ts`) is not an attempt: its attempt is given back and
+ * it is tried again on a back-off of 2 minutes doubling to an hour, for as long as the job's window is open. The call
+ * was never answered, so a retry pays for no answer twice; each retry is admitted by the same budget checks as any read.
+ */
+async function outagePatch(jobRef: FirebaseFirestore.DocumentReference, outage: ProviderOutage): Promise<Record<string, unknown>> {
+  const job = (await jobRef.get()).data();
+  const prior = job?.provider_outage;
+  const retries = typeof prior?.retries === "number" ? prior.retries : 0;
+  const attempts = typeof job?.attempts === "number" && job.attempts > 0 ? job.attempts - 1 : 0;
+  return { state: "waiting_provider", attempts, retry_after_ms: Date.now() + providerOutageRetryDelayMs(retries),
+    provider_outage: { ...outage, retries: retries + 1,
+      first_seen_at_ms: typeof prior?.first_seen_at_ms === "number" ? prior.first_seen_at_ms : Date.now(), last_seen_at_ms: Date.now() } };
+}
+
+/**
+ * Readings parked for a person before provider outages stopped using attempts get their attempts back from the queue
+ * itself, a few per pass, through the same requeue the owner's door uses (its clearance, rights, in-flight call and
+ * lifetime bound all apply). Not a reading whose window has ended, nor one parked by readings that went wrong.
+ */
+async function recoverParkedCoverageReviews(limit: number) {
+  if (!db || limit <= 0) return;
+  const cursorRef = db.collection("automationCursors").doc("capture_coverage_recovery");
+  const cursor = (await cursorRef.get()).data()?.last_id;
+  let query = db.collection("inboundRequests").where("capture_coverage_review.state", "==", "review_required")
+    .orderBy("__name__").limit(limit);
+  if (cursor) query = query.startAfter(cursor);
+  const parked = await query.get();
+  await cursorRef.set({ last_id: parked.docs.length ? parked.docs[parked.docs.length - 1].id : null });
+  const { requeueExhaustedCoverageReview } = await import("./captureCoverageRequeue");
+  for (const row of parked.docs) {
+    const value = row.data();
+    const review = value.capture_coverage_review;
+    if (review?.reason !== "automatic_review_attempts_exhausted" || review.provider_outages_excluded === true
+      || value[WEBSITE_JOB_WINDOW_ENDING_FIELD] || value.capture_coverage) continue;
+    try {
+      const result = await requeueExhaustedCoverageReview(row.id, { apply: true, automatic: true });
+      logger.info({ requestId: row.id, outcome: result.outcome, reason: result.reason }, "Parked coverage reading recovery");
+    } catch (error) {
+      logger.warn({ error, requestId: row.id }, "Parked coverage reading recovery will try again on a later pass");
+    }
+  }
 }

@@ -48,7 +48,12 @@ const WAIT_FIELDS = ["wait_reason", "wait_counted", "retry_after_ms", "first_cla
  * a preview: it reads, runs every check and lists the changes, and writes nothing.
  */
 export async function requeueExhaustedCoverageReview(requestId: string, options: { apply?: boolean;
-  approval?: CoverageRequeueApproval; now?: number } = {}): Promise<CoverageRequeueResult> {
+  approval?: CoverageRequeueApproval; now?: number;
+  /**
+   * The queue's own recovery of a reading parked before provider outages stopped using attempts
+   * (`captureCoverageQueue.ts`): no person approves it, and it is recorded as automatic. Every other check is the same.
+   */
+  automatic?: boolean } = {}): Promise<CoverageRequeueResult> {
   if (!db) throw new Error("coverage_store_unavailable");
   const store = db;
   const apply = options.apply === true;
@@ -57,7 +62,9 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
   const refuse = (reason: CoverageRequeueRefusal, flags: string[] = []): CoverageRequeueResult =>
     ({ outcome: "refused", reason, checks, changes: [], flags });
   const record = (check: string, passed: boolean) => { checks.push({ check, passed }); return passed; };
-  if (apply && !record("approval_given", Boolean(approval?.approvedBy.trim() && approval.approvalEvidence.trim())))
+  const automatic = options.automatic === true;
+  if (automatic) record("automatic_recovery", true);
+  else if (apply && !record("approval_given", Boolean(approval?.approvedBy.trim() && approval.approvalEvidence.trim())))
     return refuse("approval_required");
   // The same rights check the queue makes before each claim, before the transaction, but read-only: neither a preview
   // nor an apply ever converts a stored visit job (the site's link or the queue does that by itself).
@@ -132,14 +139,14 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
     const prior = { state: plain(job!.state), attempts, ...Object.fromEntries(WAIT_FIELDS.map(field => [field, plain(job![field])])),
       claim_token_set: Boolean(job!.claim_token) };
     const auditPayload = { schema_version: "capture_coverage_requeue.v1", request_id: requestId, review_id: reviewId,
-      capture_id: job!.captureId, requeue_number: history.length + 1, approved_by: approval?.approvedBy.trim() ?? null,
-      approval_evidence: approval?.approvalEvidence.trim() ?? null, requeued_at_iso: nowIso, prior_job: prior,
+      capture_id: job!.captureId, requeue_number: history.length + 1, approved_by: automatic ? null : approval?.approvedBy.trim() ?? null,
+      approval_evidence: automatic ? null : approval?.approvalEvidence.trim() ?? null, automatic, requeued_at_iso: nowIso, prior_job: prior,
       prior_review: { state: review.state, reason: review.reason }, checks };
     const auditDigest = humanDecisionDigest(auditPayload);
     const historyEntry = { requeued_at_iso: nowIso, approved_by: auditPayload.approved_by,
-      approval_evidence: auditPayload.approval_evidence, prior_attempts: attempts, prior_state: prior.state, audit_digest: auditDigest };
+      approval_evidence: auditPayload.approval_evidence, automatic, prior_attempts: attempts, prior_state: prior.state, audit_digest: auditDigest };
     const coverageRequest = params ?? { requestId, sceneId: job!.sceneId, captureId: job!.captureId };
-    const requeuedReview = { review_id: reviewId, state: REQUEUED_STATE, reason: "owner_approved_requeue" };
+    const requeuedReview = { review_id: reviewId, state: REQUEUED_STATE, reason: automatic ? "automatic_provider_outage_recovery" : "owner_approved_requeue" };
 
     const jobDoc = `captureCoverageReviews/${reviewId}`, requestDoc = `inboundRequests/${requestId}`;
     const changes: CoverageRequeueChange[] = [

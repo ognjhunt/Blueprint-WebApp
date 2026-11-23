@@ -1,4 +1,5 @@
 import { humanDecisionDigest } from "./human-reply-admission";
+import { classifyProviderFailure, type ProviderOutage } from "./providerOutage";
 import { validateCaptureSupplement } from "./captureSupplement";
 import { browserPendingDecisionKey, loadBrowserPending } from "./websiteBrowserPending";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
@@ -131,6 +132,11 @@ export async function reviewCaptureCoverage(params: {
    * queue does not count it against the retry limit.
    */
   onWaiting?: (reason: CoverageWaitReason) => void;
+  /**
+   * Told when the provider refused or did not answer the call (`providerOutage.ts`). That is an outage, not a reading
+   * that went wrong: the queue gives the attempt back and tries again on a back-off.
+   */
+  onProviderOutage?: (outage: ProviderOutage) => void;
 }): Promise<CoverageFinding | null> {
   if (!isSiteVideoEvidenceEnabled()) return null;
 
@@ -197,11 +203,23 @@ export async function reviewCaptureCoverage(params: {
       },
     });
     output = (result?.output as CaptureCoverageOutput) ?? null;
+    const outage = !output && result?.status === "failed" ? classifyProviderFailure("gemini", result.error) : null;
+    if (outage) {
+      logger.warn({ ...params, provider: outage.provider, cause: outage.cause }, "Coverage review waits: the video model refused or did not answer");
+      params.onProviderOutage?.(outage);
+      return null;
+    }
     }
   } catch (error) {
     if (/coverage_budget_call_in_flight/.test(String((error as Error)?.message ?? error))) {
       logger.info({ ...params }, "Coverage review waits: another model call for this capture is in flight");
       params.onWaiting?.("coverage_budget_call_in_flight");
+      return null;
+    }
+    const outage = classifyProviderFailure("gemini", error);
+    if (outage) {
+      logger.warn({ ...params, provider: outage.provider, cause: outage.cause }, "Coverage review waits: the video model refused or did not answer");
+      params.onProviderOutage?.(outage);
       return null;
     }
     logger.warn({ error, ...params }, "Coverage review failed");
