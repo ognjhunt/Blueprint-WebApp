@@ -18,6 +18,16 @@ The audit this follows is in pull request 1374
 
 For a session that picks this up. Newest first.
 
+- 2026-11-23 15:24Z. **Job 1 is submitted** (15:21:20Z). Ids: request
+  `capture-ceba4511-bfca-4a22-8fdc-0ffae40d27c3`, capture
+  `walkthrough-capture-ceba4511-…`, scene `site-capture-ceba4511-…`. The host
+  runs `8feb4e9`; the website runs `5c013b6` (1410, 1414 and 1415). Waiting
+  for: the hand-off to reach the host, the job link email, the sound-free
+  video, the listing and the new-job email to the company. Read the job on the
+  host with the door, states and times only. Also running: the pre-flight
+  workflow (four stretches), and a watch on internal test job
+  `itest-917ca852…`, whose first retry on the new release was due 15:29Z: it
+  shows whether a finished room now ships as the simulation.
 - 2026-11-23 15:06Z. The Pipeline deploy of `8feb4e9` is running; another
   operator requested it at 15:00:09Z (door request
   `20261123T150009Z-deploy-556fb13c`), so this session did not stack a second
@@ -156,6 +166,14 @@ Times are UTC.
 | 2026-11-23 13:21:43 | The approval email reached the company address: "Your company is approved to see jobs on Blueprint". 3 min 53 s after the application. | Gmail, the message's `date` |
 | 2026-11-23 13:23:05 to 13:23:09 | The company opened the link in that email, ticked "I agree to the Terms and Privacy Policy", pressed Create account, and was signed in with no password and taken to Find jobs: "No jobs yet. New jobs appear here when their video is ready." | browser log of the visit: `POST /api/account-invitations/redeem` 200, `POST /api/workspace/setup` 200, `GET /api/site-worlds/tasks` 200; `evidence/company-find-jobs-empty-1280.png` |
 | 2026-11-23 13:24 | The company's record holds a signed-in acceptance of Terms 2026-11-21.1 and Privacy 2026-11-21.1. Companies that may see jobs: 1, the test company. | count over `robotTeamAccess`: `approved_with_signed_in_terms_uid: 1` |
+| 2026-11-23 15:00:09 | Another operator requested the Pipeline deploy of `8feb4e9` (door request `20261123T150009Z-deploy-556fb13c`); this session did not stack a second one. | `door status` at 15:00:29: `deploys.active_units`; `door requests` |
+| 2026-11-23 15:11:35 | The host runs Pipeline release `8feb4e9`: `commit_proven: true`, no blockers, hand-off listener timer active. 11 min 26 s from the request. | `door status` at 15:11:37: `active_release.commit`, `deployed`; receipt `iteration_8feb4e96112b_door.json`, mtime 1795446695 |
+| 2026-11-23 15:13 | Pull request 1410 merged (`fc401e9`), then 1415 (`5c013b6`). | GitHub merge results |
+| 2026-11-23 15:18:54 | The website serves `5c013b6`: the start form shows the sentence with "the city and state it is in". | `/version.json` `built_at_iso`; the form's text read at 15:21:16 |
+| 2026-11-23 15:20:48 | Last checks before sending: companies that may see jobs 1 (the test company); real jobs a company could be shown 0; month $302.04 of $400, admission allowed, no deploy running, no lock held. | counts over `robotTeamAccess` and `captureUploadSessions`; `door status` at 15:20:50 |
+| 2026-11-23 15:21:20 | **Submitted.** The site pressed Send on the live start form: HTTP 201. Recorded: statement and description authority `2026-11-23.v6`, Terms `2026-11-21.1`, Privacy `2026-11-23.1`, country `us`, place `{"source":"google_places","city":"Austin","state":"Texas","country":"US"}`. The hidden bot field was left empty and nothing refused the browser. | the form's own `POST /api/inbound-request` body and its response `Date` header |
+| 2026-11-23 15:21:32 | The video was received: `POST /api/self-capture/uploads/<token>` 201; the page read "We have your video." at 15:21:33. 12 s for 77 MB. | browser log of the visit |
+| 2026-11-23 15:21:57 | The site's job page: "Video received. We're preparing your job for posting." and, under First look, "We're watching your video." No sideways scroll at 390 px (`scrollWidth` 390). | `evidence/site-job-page-at-submit-1280.png`, `-390.png` |
 
 ## Gaps
 
@@ -204,8 +222,8 @@ Found by reading, before the job was sent.
 - **Verified.** On the live form at 14:49Z (release `a65e3e8`), with nothing
   sent: after picking "Austin, Texas" the form's own saved draft holds
   `{"source":"google_places","city":"Austin","state":"Texas","country":"US"}`.
-  Still to verify on the test job: the request body, and the place line a
-  company reads.
+  On job 1 at 15:21:20Z the form's request body carried the same four
+  values. Still to verify: the place line a company reads.
 
 ### Gap 2. A new test on main failed at random
 
