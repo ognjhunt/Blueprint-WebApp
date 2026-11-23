@@ -2,7 +2,8 @@
  * The company's page for one job (package E, E3): what a signed-in, approved deployment company sees at `/jobs/:jobId`.
  *
  * Built field by field. It reads the site's own sentence (the brief's summary), the site's quick answers (`job_facts`),
- * the country (decrypted from the place's country alone, else the capture region), the job packet's media identities,
+ * the country (decrypted from the place's country alone, else the capture region; with the state or city only under a
+ * statement listed in `RECORDING_VERSION_PLACE_LEVEL`), the job packet's media identities,
  * the first look and the Pipeline's facts about the job's object (`packetFactsForCompany`). It never reads the site's name, typed address, email, phone or the submitter's name, so none can
  * reach the payload; plant-and-prove tests keep it so. Media are tickets bound to this viewer, re-checked on every
  * request (`companyMediaAllowed`).
@@ -18,7 +19,8 @@ import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanyS
 import { removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 import { knownSiteIdentity } from "./siteIdentity";
-import { loadCompanyJobAccess } from "./teamJobAccess";
+import { loadCompanyJobAccess, RECORDING_VERSION_PLACE_LEVEL } from "./teamJobAccess";
+import { recordingStatementShares } from "./jobSharedListing";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { companyClipUrl, storedCompanyClip } from "./websiteCompanyClip";
 import { viewableWebsiteScenePreview, websiteScenePreviewCompanyViewerUrl } from "./websiteScenePreview";
@@ -95,6 +97,37 @@ export async function countryOf(record: Record<string, any>): Promise<string | n
   return record.request?.capture_region === "us" ? "United States" : null;
 }
 
+/** A decrypted city or state field when it looks like a place name (no digit, at most 60 characters); else null. */
+async function placeField(stored: unknown): Promise<string | null> {
+  if (!stored) return null;
+  try {
+    const value = String(await decryptFieldValue(stored as any) ?? "").trim();
+    return value && value.length <= 60 && !/\d/.test(value) ? value : null;
+  } catch (error) {
+    logger.warn({ error }, "Could not read the job's place");
+    return null;
+  }
+}
+
+/**
+ * The place as a company reads it: the country (`countryOf`), with the state, or the city and state, before it only
+ * when the recording statement the site accepted is listed in `RECORDING_VERSION_PLACE_LEVEL`. Reads only the
+ * structured city and state fields, never the address, postal code, typed place, site name or coordinates. A field that
+ * is missing, unreadable or not place-shaped gives the coarser level, and in the end the country alone.
+ */
+export async function companyPlaceOf(record: Record<string, any>,
+  levels: Readonly<Record<string, "state" | "city">> = RECORDING_VERSION_PLACE_LEVEL): Promise<string | null> {
+  const country = await countryOf(record);
+  if (!country || !recordingStatementShares(record)) return country;
+  const level = levels[String(record.request?.consent_attestation?.statement_version ?? "")];
+  if (level !== "state" && level !== "city") return country;
+  const metadata = record.request?.siteLocationMetadata;
+  const state = await placeField(metadata?.state);
+  if (!state) return country;
+  const city = level === "city" ? await placeField(metadata?.city) : null;
+  return city ? `${city}, ${state}, ${country}` : `${state}, ${country}`;
+}
+
 /** Everything the job record holds that names or reaches the site (`siteIdentity.ts`). */
 export { knownSiteIdentity };
 
@@ -154,7 +187,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   const [answerRow, firstLook, country, known] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").doc(viewer.companyId).get().then(doc => doc.data()),
     loadJobCardAnswerWithRobots(requestId, record),
-    countryOf(record),
+    companyPlaceOf(record),
     knownSiteIdentity(record).catch(() => null),
   ]);
   const facts = readJobFacts(record);
