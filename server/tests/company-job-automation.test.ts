@@ -316,6 +316,25 @@ describe("the company's page for one job (E3)", () => {
     expect(outbox().find(row => row.kind === "job_clarification")).toMatchObject({ status: "sent" });
   });
 
+  // Owner, 2026-11-23: anyone may see on /jobs that real jobs exist, but only what Blueprint derives about each.
+  it("lists a shared job publicly by its kind, country, day and simulation state only", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    const jobs = await listPublicLiveJobs();
+    expect(jobs).toEqual([{ kind: "Palletize cartons", country: "United States", postedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      simulationReady: expect.any(Boolean) }]);
+    const text = JSON.stringify(jobs);
+    expectNoSiteIn("the public live jobs", text);
+    expect(text).not.toContain(ID);
+    expect(text).not.toMatch(/Stack 12 kg|pallet\. Call|\[removed\]/);
+  });
+
+  it("lists nothing publicly for a job companies cannot see", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    state.docs.set(`inboundRequests/${ID}`, { ...record, capture_rights: { ...(record.capture_rights ?? {}), consent_revoked: true } });
+    expect(await listPublicLiveJobs()).toEqual([]);
+  });
+
   // Owner, 2026-11-23: the company reads the answers to the questions the site was asked, chosen by the reading's kind.
   it("says the answers to the questions the video reading's kind of job chose, not the keyword match's", async () => {
     state.docs.set(`inboundRequests/${ID}`, job({

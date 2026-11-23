@@ -215,3 +215,15 @@ export interface CompanyJobPage {
   /** The line under the form, and the version recorded with an answer. */
   responseStatement: { version: string; text: string };
 }
+
+/** A live job as anyone reads it on /jobs (`server/utils/taskBrowse.ts`, `listPublicLiveJobs`). */
+export interface PublicLiveJob {
+  /** The kind of job, from Blueprint's fixed categories ("Palletize cartons"); never the site's words. */
+  kind: string;
+  /** The country only, or null. */
+  country: string | null;
+  /** The day the job was shared, YYYY-MM-DD. */
+  postedOn: string;
+  /** An approved company can download the job's simulation now. */
+  simulationReady: boolean;
+}

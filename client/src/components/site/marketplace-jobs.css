@@ -403,6 +403,15 @@
 
 /* The Find jobs page's sample job (`SampleJob.tsx`): the live job page's card, full width under the application. */
 .bare-company > .sample-job { grid-column: 1 / -1; width: 100%; max-width: none; margin: 8px 0 0; padding: 0; }
+/* The live jobs anyone may see (`LiveJobs.tsx`): one white row per job, full width above the sample. */
+.bare-company > .live-jobs { grid-column: 1 / -1; width: 100%; margin: 8px 0 0; }
+.live-jobs h2 { margin: 6px 0 4px; font-size: clamp(24px, 3.2vw, 32px); font-weight: 650; letter-spacing: -.035em; line-height: 1.15; }
+.live-jobs .live-jobs-lead { margin: 0 0 14px; color: var(--ms-muted); }
+.live-jobs ul { display: grid; gap: 8px; margin: 0 0 14px; padding: 0; list-style: none; }
+.live-jobs li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; border: 1px solid #c9cec1;
+  border-radius: 10px; background: #fff; }
+.live-jobs li span { color: var(--ms-muted); font-size: 14px; }
+.live-jobs a { color: var(--ms-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
 .sample-job > h2 { margin: 6px 0 4px; font-size: clamp(26px, 3.6vw, 36px); font-weight: 650; letter-spacing: -.04em; line-height: 1.12; }
 .sample-job .opportunity-meta { margin: 0 0 18px; }
 .sample-job h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: -.02em; }
