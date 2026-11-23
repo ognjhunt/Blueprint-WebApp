@@ -6,9 +6,8 @@ import { companyJobReturnPath } from "@/lib/authReturnPath";
 
 /**
  * The one application a deployment company sends to see jobs (on `/partners`; `/contact/robot-team` points here). It
- * asks only what approval by hand needs: who you are, what jobs you deliver with which robots, and where. Fields the
- * older forms asked (supported systems, pilot terms, a test site) stay on the records that hold them; the server keeps
- * them when a pending company applies again.
+ * asks only what approval by hand needs: who you are, your company and its website, what jobs you deliver with which
+ * robots, and where.
  */
 export function PartnerApplication() {
   const [interactive, setInteractive] = useState(false);
@@ -34,7 +33,7 @@ export function PartnerApplication() {
         name: read("name"),
         email: read("email"),
         company: read("company"),
-        website: read("website") || undefined,
+        website: read("website"),
         robot: read("robot"),
         workWanted: read("workWanted"),
         region: read("region"),
@@ -69,6 +68,7 @@ export function PartnerApplication() {
           <label>Work email<input name="email" type="email" autoComplete="email" maxLength={320} required /></label>
         </div>
         <label>Company<input name="company" autoComplete="organization" maxLength={160} required /></label>
+        <label>Company website<input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} required placeholder="https://example.com" title="Enter a website beginning with https:// or http://" /></label>
         <label>What jobs can you deliver?
           <textarea name="workWanted" rows={2} maxLength={1200} required placeholder="For example, packing boxes" />
         </label>
@@ -78,18 +78,13 @@ export function PartnerApplication() {
         <label>Where can you deploy?
           <input name="region" maxLength={300} required placeholder="Cities, states or countries you cover" />
         </label>
-        <details>
-          <summary>Add your website</summary>
-          <label>Company website<input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} placeholder="https://example.com" title="Enter a website beginning with https:// or http://"
-            onInvalid={event => { const details = event.currentTarget.closest("details"); if (details) details.open = true; }} /></label>
-        </details>
         {/* Job emails are the service and start on once approved (owner, 2026-11-20); this box is Blueprint updates only. */}
         <label className="ms-check-row"><input name="optionalUpdates" type="checkbox" />Also email me Blueprint updates. Optional; unsubscribe anytime.</label>
       </fieldset>
       <p className="ms-form-note">By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.</p>
       {error && <p role="alert">{error} Your entries are still here. You can also <a href="mailto:hello@tryblueprint.io">contact us</a>.</p>}
       <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Saving…" : "Apply"}<ArrowRight size={18} aria-hidden="true" /></button>
-      <noscript><p>Enable JavaScript to apply, or email your company, the robots you deploy and the jobs you deliver to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
+      <noscript><p>Enable JavaScript to apply, or email your company and its website, the robots you deploy and the jobs you deliver to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
     </form>
   );
 }

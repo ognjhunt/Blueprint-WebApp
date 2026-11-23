@@ -87,7 +87,7 @@ describe("the robot page", () => {
     mockLocation = "/contact/robot-team";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } }),
+      json: async () => ({ items: [], access: { status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } }),
     }));
     render(<Contact />);
     expect(await screen.findByRole("link", { name: "Apply" })).toHaveAttribute("href", APPLY);
@@ -109,7 +109,7 @@ describe("the robot page", () => {
     mockLocation = "/contact/robot-team";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ items: [], access: { gated: true, status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false } }),
+      json: async () => ({ items: [], access: { status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false } }),
     }));
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "Your application is in review." })).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe("the robot page", () => {
     mockLocation = "/contact/robot-team";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ items: [], access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false } }),
+      json: async () => ({ items: [], access: { status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false } }),
     }));
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "No jobs yet." })).toBeInTheDocument();

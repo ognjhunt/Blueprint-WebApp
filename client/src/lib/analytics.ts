@@ -5,10 +5,25 @@ import {
   type DemandAttribution,
 } from "./demandAttribution";
 import { withCsrfHeader } from "./csrf";
-import {
-  getActiveExperimentAssignments,
-  getOrCreateExperimentAnonymousId,
-} from "./experiments";
+
+const ANALYTICS_ANONYMOUS_ID_KEY = "bp.analytics.anonymousId";
+
+function getOrCreateAnonymousId() {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") return "server";
+
+  const existing = window.localStorage.getItem(ANALYTICS_ANONYMOUS_ID_KEY);
+  if (existing && existing.trim()) {
+    return existing;
+  }
+
+  const next =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `anon_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+  window.localStorage.setItem(ANALYTICS_ANONYMOUS_ID_KEY, next);
+  return next;
+}
 
 type AnalyticsConsent = {
   analytics: boolean;
@@ -219,13 +234,12 @@ async function ingestFirstPartyEvent(
       body: JSON.stringify(sanitizeTelemetry({
         event,
         source: "webapp",
-        anonymousId: getOrCreateExperimentAnonymousId(),
+        anonymousId: getOrCreateAnonymousId(),
         sessionId: getAnalyticsSessionId(),
         pagePath: redactInvitationUrl(page?.path || window.location.pathname),
         pageTitle: page?.title || document.title,
         currentUrl: redactInvitationUrl(window.location.href),
         referrer: redactInvitationUrl(document.referrer) || null,
-        experiments: getActiveExperimentAssignments(),
         properties: sanitizeTelemetry(parameters || {}),
         attribution: currentDemandAttribution(),
       })),
@@ -986,4 +1000,4 @@ export const analyticsEvents = {
     }),
 };
 
-export { getAnalyticsSessionId, getOrCreateExperimentAnonymousId, getSafeErrorType };
+export { getAnalyticsSessionId, getSafeErrorType };

@@ -14,12 +14,11 @@ import { requireAdminRole } from "../middleware/requireAdminRole";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { robotTeamAccountInvitation } from "../utils/accountInvitations";
 import type { RobotTeamAccessRecord } from "../utils/robotTeamEarlyAccess";
-import { autoApproveMinimumTasks, OPEN_LIBRARY_SUGGESTED_AT_TASKS } from "../utils/robotTeamAccessFit";
+import { autoApproveMinimumTasks } from "../utils/robotTeamAccessFit";
 import {
   accessRecordId,
   decideAccessApplication,
   inviteRobotTeam,
-  isRobotTeamEarlyAccessGated,
   listAccessApplications,
 } from "../utils/robotTeamEarlyAccess";
 import { listTaskBrowseCards } from "../utils/taskBrowse";
@@ -44,8 +43,6 @@ router.get("/", async (_req: Request, res: Response) => {
       library: {
         listedTaskCount: listed?.length ?? null,
         autoApproveMinimumTasks: autoApproveMinimumTasks(),
-        gated: isRobotTeamEarlyAccessGated(),
-        openSuggestedAtTasks: OPEN_LIBRARY_SUGGESTED_AT_TASKS,
       },
     });
   } catch (error) {
@@ -58,7 +55,6 @@ const decisionSchema = z
   .object({
     status: z.enum(["approved", "declined"]),
     note: z.string().trim().max(2000).optional(),
-    prerequisitesReviewed: z.boolean().optional(),
   })
   .strict();
 
@@ -68,7 +64,6 @@ router.post("/:id/decision", async (req: Request, res: Response) => {
   if (!parsed.success || !/^[a-f0-9]{64}$/.test(id)) {
     return res.status(400).json({ error: "Send status approved or declined for a known application." });
   }
-  if (parsed.data.status === "approved" && parsed.data.prerequisitesReviewed !== true) return res.status(400).json({ error: "Review the team's prerequisites and confirm approval before inviting it." });
   try {
     const result = await decideAccessApplication({
       id,
@@ -91,7 +86,6 @@ const inviteSchema = z
     email: z.string().trim().email().max(320),
     company: z.string().trim().min(1).max(160),
     note: z.string().trim().max(2000).optional(),
-    prerequisitesReviewed: z.literal(true),
   })
   .strict();
 

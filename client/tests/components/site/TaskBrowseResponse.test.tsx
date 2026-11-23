@@ -16,7 +16,7 @@ const card = (overrides: Partial<TaskBrowseCard> = {}): TaskBrowseCard => ({
   id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling", siteType: "", region: "", objects: "Cartons",
   cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open", stage: "capture", evaluationAvailable: false,
   publishedAtIso: "2026-11-11T10:00:00.000Z", thumbnailUrl: null, ...overrides });
-const access = { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false };
+const access = { status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false };
 const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
@@ -37,6 +37,21 @@ describe("a job in the library", () => {
     expect(screen.queryByRole("heading", { name: "Inspect cases" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("shows each card's sentence from the site, with search and Ready to test as the only filters", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
+      card({ region: "United States", sentence: "Stack 12 kg cartons onto the pallet." }),
+      card({ id: "job-2", title: "Inspect cases", region: "Canada", sentence: "Check each case label." }),
+    ] }) });
+    render(<TaskBrowse />);
+    expect(await screen.findByText("Stack 12 kg cartons onto the pallet.")).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Job type" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Region" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "Ready to test" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search jobs" }), { target: { value: "label" } });
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Inspect cases" })).toBeVisible();
   });
 
   it("keeps an older email link to one job usable, and drops the retired view from it", async () => {

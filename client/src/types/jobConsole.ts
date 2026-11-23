@@ -25,6 +25,20 @@ export interface AdminJobRow {
   receivedAtIso: string | null;
 }
 
+/** The owner's one line of totals above the job list (`GET /api/admin/jobs/totals`). Site jobs only, no internal tests;
+ * a number that could not be read is null. */
+export interface AdminJobTotals {
+  siteJobs: number;
+  siteJobsThisWeek: number;
+  withVideo: number | null;
+  shownToCompanies: number | null;
+  answered: number | null;
+  introductionsAsked: number | null;
+  introductionsMade: number | null;
+  outcomeAnswers: number | null;
+  billableEvents: number | null;
+}
+
 export interface AdminJobListResponse {
   jobs: AdminJobRow[];
   nextCursor: string | null;

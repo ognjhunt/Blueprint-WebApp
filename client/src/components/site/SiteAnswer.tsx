@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
 import { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY, type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
@@ -30,6 +30,8 @@ import { COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, SITE_CLARIFICATION_LIMIT
  */
 /** Sharing is the service (2026-11-12): a shared job's section opens with this. */
 export const SHARED_LINE = "Posted for approved deployment companies";
+/** Listed, but no approved deployment company can see jobs yet: the page does not say posted (finding L1-N1). */
+export const NO_COMPANY_CAN_SEE_LINE = "Your job is ready for deployment companies, but no approved company can see it yet.";
 export const PREPARING_TO_SHARE_LINE = "Companies will see your job once the video and job details are ready.";
 /** Shared, but not in front of companies right now: Blueprint's hold, a rights hold, or the site closed it. */
 export const NOT_VISIBLE_LINE = "Your job is not visible to companies right now.";
@@ -228,6 +230,13 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [requested, setRequested] = useState<string[]>([]);
+  // "Introduction requested." holds only until the server reads the introduction back. Once it no longer offers the
+  // button, the request is on record, so a later cancellation that may be asked again shows the button again.
+  useEffect(() => {
+    if (!isSiteCompanyActivity(activity)) return;
+    setRequested(current => current.filter(alias => activity.entries.some(entry =>
+      entry.kind === "answered" && entry.alias === alias && entry.canIntroduce === true)));
+  }, [activity]);
   if (!isSiteCompanyActivity(activity)) return null;
   async function introduce(alias: string) {
     if (busy) return;
@@ -341,7 +350,7 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
   const ends = ended === "withdrawn" || (ended === "closed" && sharing.state !== "visible");
   if (ends) body = <BareGroup><BareLead>{NOTHING_IS_SHARED}</BareLead></BareGroup>;
   else if (sharing.state === "visible" || sharing.state === "preparing" || agreed) body = <BareGroup>
-    <BareLead>{sharing.state === "visible" ? SHARED_LINE : sharing.videoReceived
+    <BareLead>{sharing.state === "visible" ? (sharing.noCompanyCanSee ? NO_COMPANY_CAN_SEE_LINE : SHARED_LINE) : sharing.videoReceived
       ? "Video received. We're preparing your job for posting."
       : sharing.videoReceived === false ? "Send a video to post your job." : PREPARING_TO_SHARE_LINE}</BareLead>
     <CompanyEntries key={token} token={token} activity={activity} onIntroduced={onChanged} posted={sharing.state === "visible"} />

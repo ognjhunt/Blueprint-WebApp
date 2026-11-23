@@ -1,7 +1,7 @@
 import { INTRODUCTION_CANCELLED } from "@/lib/siteIntroductions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NOTHING_IS_SHARED, NOT_SHARED_YET, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, PREPARING_TO_SHARE_LINE, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
+import { NOTHING_IS_SHARED, NOT_SHARED_YET, NO_COMPANY_CAN_SEE_LINE, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, PREPARING_TO_SHARE_LINE, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
 import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
@@ -189,6 +189,12 @@ describe("the job page's sections, bare bones", () => {
     expect(screen.getByText("We're building the simulation of your site.")).toBeVisible();
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
     unmount();
+  });
+
+  it("does not say posted while no approved company can see the job (L1-N1)", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, sharing: { ...VISIBLE.sharing, noCompanyCanSee: true } }} />);
+    expect(within(companies()).getByText(NO_COMPANY_CAN_SEE_LINE)).toBeVisible();
+    expect(within(companies()).queryByText(SHARED_LINE)).toBeNull();
   });
 
   it("says what is true of the card on the other-kind and no-pick screens, and while building", () => {
@@ -588,6 +594,19 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(await within(companies()).findByText("We are emailing you and Company A each other's contact details.")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({ method: "POST",
       body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12" }) }));
+  });
+
+  it("offers Introduce us again on the open page when an introduction it requested is later cancelled and may be asked again", async () => {
+    fetchMock.mockResolvedValue(response({ ok: true, introducedAtIso: "2026-11-14T09:00:00.000Z" }));
+    const page = (companies: typeof activity) => <SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies }} />;
+    const { rerender } = render(page(activity));
+    fireEvent.click(within(companies()).getByRole("button", { name: "Introduce us" }));
+    expect(await within(companies()).findByText("Introduction requested.")).toBeVisible();
+    // The server reads the introduction back, then Blueprint's own email to the company fails (F-03).
+    rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], canIntroduce: false }] }));
+    rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], canIntroduce: true, introductionCancelled: true } as never] }));
+    expect(within(companies()).getByRole("button", { name: "Introduce us" })).toBeEnabled();
+    expect(within(companies()).queryByText("Introduction requested.")).toBeNull();
   });
 
   it.each([

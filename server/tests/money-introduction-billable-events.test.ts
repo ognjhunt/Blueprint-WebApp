@@ -45,11 +45,11 @@ vi.mock("../utils/robotTeamLibraryAccess", async () => {
   const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
   const viewerFor = async (req: express.Request) => {
     const account = seams.tokens.get(String(req.headers.authorization ?? "").replace(/^Bearer /, ""));
-    if (!account) return { access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
+    if (!account) return { access: { status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
     const companyId = accessRecordId(account.email);
     const record = (await sharedFakeFirestore.collection("robotTeamAccess").doc(companyId).get()).data();
     const { companyMaySeeJobs } = await import("../utils/companyTerms");
-    return { access: { gated: true, status: record?.status ?? "none", signedIn: true, emailVerified: true,
+    return { access: { status: record?.status ?? "none", signedIn: true, emailVerified: true,
       allowed: companyMaySeeJobs(record), staff: false }, viewer: { uid: account.uid, email: account.email, companyId, staff: false } };
   };
   return { companyViewerForRequest: viewerFor, libraryAccessForRequest: async (req: express.Request) => (await viewerFor(req)).access };
@@ -257,6 +257,49 @@ describe("each introduction is one billable event, recorded only after the site'
     expect(before[0]).toMatchObject({ status: "void" });
   });
 
+  it("lets the site press again after Blueprint's own email failed: a new event for the new attempt, the void one kept", async () => {
+    expect((await press("A")).status).toBe(200);
+    const companyId = sha(NORTH.email);
+    // As the outbox ends it when the company's email definitely failed (`companyIntroductionEmailEnd`).
+    const key = `${EVENTS}${eventId(NORTH)}`;
+    state.docs.set(key, { ...(state.docs.get(key) as object), status: "void", voidedAtIso: "2026-11-19T10:00:00.000Z",
+      voidReason: "company_email_failed" });
+    const intro = `inboundRequests/${ID}/introductions/${companyId}`;
+    state.docs.set(intro, { ...(state.docs.get(intro) as object), cancelledAtIso: "2026-11-19T10:00:00.000Z",
+      cancelReason: "company_email_failed", siteShared: null, companyShared: null });
+    const voided = events();
+    const again = await press("A");
+    expect(again, JSON.stringify(again.body)).toMatchObject({ status: 200, body: { ok: true } });
+    expect(events()).toEqual([...voided, { id: `${eventId(NORTH)}-a1`, kind: "introduction", requestId: ID, companyId,
+      atIso: again.body.introducedAtIso, priceUsd: null, status: "recorded_no_price", attempt: 1 }]);
+    expect(state.docs.get(intro)).toMatchObject({ attempt: 1, requestedAtIso: again.body.introducedAtIso });
+    expect(state.docs.get(intro)).not.toHaveProperty("cancelledAtIso");
+    // The new attempt's emails have their own keys, so the spent ones never block it.
+    for (const kind of ["introduction_made_company", "introduction_made_site"])
+      expect(state.docs.has(`captureOutbox/${ID}:${kind}:${companyId}:a1`), kind).toBe(true);
+    expect(await press("A")).toMatchObject({ status: 409, body: { reason: "already_introduced" } });
+    expect(events()).toHaveLength(2);
+  });
+
+  it("records when the introduction was made once the company's email is sent, and never on a void event", async () => {
+    expect((await press("A")).status).toBe(200);
+    const { companyIntroductionEmailEnd } = await import("../utils/jobIntroductionGate");
+    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+    const entry = { kind: "introduction_made_company", requestId: ID, idempotencyKey: `${ID}:introduction_made_company:${sha(NORTH.email)}` };
+    expect(events()[0]).not.toHaveProperty("madeAtIso");
+    await dbAdmin!.runTransaction(async tx => { (await companyIntroductionEmailEnd(entry, tx))!.sent(tx); });
+    const made = events()[0];
+    expect(made).toMatchObject({ status: "recorded_no_price", madeAtIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) });
+    // Written once: a second end does not move it.
+    await dbAdmin!.runTransaction(async tx => { (await companyIntroductionEmailEnd(entry, tx))!.sent(tx); });
+    expect(events()[0]).toEqual(made);
+    const key = `${EVENTS}${eventId(NORTH)}`;
+    const { id: _id, madeAtIso: _madeAtIso, ...stored } = made;
+    state.docs.set(key, { ...stored, status: "void" });
+    await dbAdmin!.runTransaction(async tx => { (await companyIntroductionEmailEnd(entry, tx))!.sent(tx); });
+    expect(events()[0]).not.toHaveProperty("madeAtIso");
+  });
+
   it("never rewrites an event on record, even when its introduction record is gone", async () => {
     const onRecord = { kind: "introduction", requestId: ID, companyId: sha(NORTH.email), atIso: "2026-11-13T09:00:00.000Z",
       priceUsd: null, status: "void", voidedAtIso: "2026-11-13T09:05:00.000Z", voidReason: "company_email_failed" };
@@ -308,7 +351,7 @@ describe("only the site's own route reaches the billable event (source)", () => 
     expect(calling(/\brequestIntroduction\s*\(/)).toEqual(["server/routes/site-task-brief.ts", "server/utils/jobIntroductions.ts"]);
   });
 
-  it("creates an event only inside requestIntroduction, and changes one only to void it", () => {
+  it("creates an event only inside requestIntroduction, and changes one only to void it or to record when it was made", () => {
     expect(calling(/\bwriteIntroductionBillableEvent\s*\(/)).toEqual(["server/utils/billableEvents.ts", "server/utils/jobIntroductions.ts"]);
     // Everything that names the event store: the module itself, the dispatch checks that void an event, and the
     // admin console's reads.
@@ -317,7 +360,8 @@ describe("only the site's own route reaches the billable event (source)", () => 
     const gate = fs.readFileSync(path.join(ROOT, "server/utils/jobIntroductionGate.ts"), "utf8");
     const eventWrites = [...gate.matchAll(/write\.set\(eventRef, ([^;]+);/g)].map(match => match[1]);
     expect(eventWrites.length).toBeGreaterThan(0);
-    for (const write of eventWrites) expect(write).toMatch(/^\{ status: "void", voidedAtIso: atIso, voidReason: reason \}, \{ merge: true \}\)$/);
+    for (const write of eventWrites) expect(write).toMatch(
+      /^\{ status: "void", voidedAtIso: atIso, voidReason: reason \}, \{ merge: true \}\)$|^\{ madeAtIso: new Date\(\)\.toISOString\(\) \}, \{ merge: true \}\)$/);
     expect(gate).not.toMatch(/eventRef\)?\.delete|delete\(eventRef/);
   });
 });

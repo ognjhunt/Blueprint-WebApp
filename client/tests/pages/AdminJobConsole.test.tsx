@@ -86,6 +86,43 @@ describe("the job list", () => {
     expect(screen.queryByRole("search")).toBeNull();
   });
 
+  it("shows the owner's totals in one line, with the billable events CSV fetched with the admin's sign-in", async () => {
+    const totals = { siteJobs: 12, siteJobsThisWeek: 3, withVideo: 10, shownToCompanies: 8, answered: 5,
+      introductionsAsked: 4, introductionsMade: null, outcomeAnswers: 1, billableEvents: 4 };
+    const csv = "/api/admin/jobs/billable-events.csv";
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:csv");
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/jobs") return json({ jobs: [siteRow], nextCursor: null });
+      if (url === "/api/admin/jobs/totals") return json(totals);
+      if (url === csv) return new Response("event_id\r\n", { status: 200, headers: { "Content-Type": "text/csv" } });
+      return json({ error: "unexpected" }, 500);
+    });
+    renderPage();
+    const line = await screen.findByLabelText("Totals");
+    await waitFor(() => expect(line).toHaveTextContent("12 site jobs (3 in the last 7 days) · 10 with a video · 8 shown to companies · 5 with an answer"
+      + " · 4 introductions asked · ? made · 1 outcome answers · 4 billable events"));
+    expect(line).not.toHaveTextContent(/\$|price/i);
+    fireEvent.click(within(line).getByRole("button", { name: "Billable events (CSV)" }));
+    await waitFor(() => expect(clicked).toHaveBeenCalled());
+    const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === csv)!;
+    expect(init).toMatchObject({ credentials: "include" });
+  });
+
+  it("keeps the billable events CSV when the totals cannot be read", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/jobs") return json({ jobs: [siteRow], nextCursor: null });
+      if (url === "/api/admin/jobs/totals") return json({ error: "The totals are unavailable. Try again." }, 503);
+      return json({ error: "unexpected" }, 500);
+    });
+    renderPage();
+    const line = await screen.findByLabelText("Totals");
+    await waitFor(() => expect(line).toHaveTextContent("The totals are unavailable."));
+    expect(within(line).getByRole("button", { name: "Billable events (CSV)" })).toBeTruthy();
+  });
+
   it("keeps the privacy request queue, closed until opened", async () => {
     renderPage();
     await screen.findByRole("list", { name: "Jobs" });
@@ -137,6 +174,7 @@ describe("a job's page", () => {
     const tool = await screen.findByRole("region", { name: "Deployment companies" });
     const reads = () => fetchMock.mock.calls.filter(([url]) => String(url) === "/api/admin/jobs/job-a").length;
     const before = reads();
+    fireEvent.change(await within(tool).findByLabelText(/^Why/), { target: { value: "Checking the summary" } });
     fireEvent.click(await within(tool).findByRole("button", { name: "Stop showing this job to companies" }));
     await waitFor(() => expect(reads()).toBe(before + 1));
     expect(await screen.findByText(/Blueprint stopped showing this job to companies\./)).toBeInTheDocument();

@@ -1,8 +1,6 @@
 import type { UpdatePreferences, UpdatePreferencesInput } from '@/types/updatePreferences';
 /**
- * The two email switches. The job-email box shows only to a deployment company: sites never get new-job emails. The
- * stored targeting fields (interests, categories, requirements) have no screen and no effect on who is emailed; they are
- * sent back as stored so saving here changes only what the person sees.
+ * The two email switches. The job-email box shows only to a deployment company: sites never get new-job emails.
  */
 export function UpdatePreferencesForm({ preferences, pending, save, jobEmails }: {
   preferences?: UpdatePreferences | null; pending: boolean; save: (input: UpdatePreferencesInput) => void; jobEmails: boolean;
@@ -11,9 +9,7 @@ export function UpdatePreferencesForm({ preferences, pending, save, jobEmails }:
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     save({ newsletter: data.get('newsletter') === 'on',
-      newJobAlerts: jobEmails ? data.get('newJobAlerts') === 'on' : preferences?.newJobAlerts ?? true,
-      interests: preferences?.interests ?? {}, declaredCategories: preferences?.declaredCategories ?? {},
-      requirements: preferences?.requirements ?? {} });
+      newJobAlerts: jobEmails ? data.get('newJobAlerts') === 'on' : preferences?.newJobAlerts ?? true });
   }}>
     <h2>Emails</h2>
     <label><input type="checkbox" name="newsletter" defaultChecked={preferences?.newsletter ?? false} /> Blueprint news and updates</label>

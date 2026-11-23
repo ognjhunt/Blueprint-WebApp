@@ -254,3 +254,20 @@ it("CROSS-TAB-013 unsupported coordination still shows the form, says so, and bl
   await expect(screen.findByRole("alert")).resolves.toHaveTextContent("email hello@tryblueprint.io");
   expect(sent).toHaveLength(0);
 });
+it("RETURN-005: a 409 on 'Recover saved job' opens the saved job with its emailed-link sentence and offers a new job", async () => {
+  const view = await renderReady(<SiteCaptureStart />); fill(); submit();
+  await screen.findByRole("alert"); expect(sent).toHaveLength(1);
+  view.unmount(); await renderReady(<SiteCaptureStart />);
+  const conflict = "This job was already started from another page. Open the private link we emailed you to continue.";
+  fetchMock.mockImplementation(async (url: string, init?: any) => {
+    if (init?.method === "POST") { sent.push({url, body: JSON.parse(init.body)}); return {ok: false, status: 409, json: async () => ({ok: false, message: conflict})}; }
+    return {ok: true, status: 200, json: async () => ({features: [], workspaceType: "site_operator"})};
+  });
+  fireEvent.click(await screen.findByRole("button", {name: /Recover saved job/}));
+  expect(await screen.findByRole("alert")).toHaveTextContent(conflict);
+  expect(screen.queryByRole("button", {name: /Recover saved job/})).toBeNull();
+  expect(screen.getByText("Your job is saved. Return to it to see where it stands.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", {name: /Start a new job/}));
+  await vi.waitFor(() => expect(document.querySelector("#start-task")).not.toBeDisabled());
+  expect(document.querySelector("#start-task")).toHaveValue("");
+});

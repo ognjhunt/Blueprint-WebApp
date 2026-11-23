@@ -57,7 +57,6 @@ const application = {
   robot: "Fixed arm with a parallel gripper, one diffusion policy",
   workWanted: "Tote picking",
   region: "US",
-  pilotPackage: "Two-week onsite trial, indicative $20,000, six-week lead time",
   acceptedTerms: true,
 };
 /** The versions of the Terms and Privacy Policy the form shows; it sends them with every application (G2). */
@@ -66,27 +65,27 @@ const SHOWN = { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" };
 const form = { ...application, ...SHOWN };
 
 describe("partner application roles", () => {
-  it("records delivery role and supported systems without erasing them on a legacy reapplication", async () => {
-    const response = await fetch(`${base}/api/robot-team-access/apply`, {
-      method: "POST", headers: { ...CSRF, "content-type": "application/json" },
-      body: JSON.stringify({ ...form, partnerRole: "deployment", supportedSystems: "Franka and YAM", region: "Austin and surrounding central Texas sites" }),
-    });
-    expect(response.status).toBe(202);
-    const id = early.accessRecordId(application.email);
-    expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`)).toMatchObject({ partnerRole: "deployment", supportedSystems: "Franka and YAM", status: "applied" });
-    const repeated = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { ...CSRF, "content-type": "application/json" }, body: JSON.stringify(form) });
-    expect(repeated.status).toBe(202);
-    expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`)).toMatchObject({ partnerRole: "deployment", supportedSystems: "Franka and YAM", status: "applied" });
-  });
-
-  it("keeps the site and pilot notes an older form stored when a pending company applies again with the one form", async () => {
+  it("keeps the delivery role when a pending company applies again", async () => {
     const post = (body: unknown) => fetch(`${base}/api/robot-team-access/apply`, { method: "POST",
       headers: { ...CSRF, "content-type": "application/json" }, body: JSON.stringify(body) });
-    expect((await post({ ...form, testSite: "Our pilot warehouse in Ohio" })).status).toBe(202);
-    const { pilotPackage: _pilot, ...oneForm } = form;
-    expect((await post({ ...oneForm, partnerRole: "deployment" })).status).toBe(202);
-    expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${early.accessRecordId(application.email)}`)).toMatchObject({
-      testSite: "Our pilot warehouse in Ohio", pilotPackage: application.pilotPackage, partnerRole: "deployment", status: "applied" });
+    expect((await post({ ...form, partnerRole: "deployment" })).status).toBe(202);
+    expect((await post(form)).status).toBe(202);
+    const id = early.accessRecordId(application.email);
+    expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`)).toMatchObject({ partnerRole: "deployment", status: "applied" });
+  });
+
+  it("no longer takes the retired forms' fields (supported systems, pilot terms, a test site), nor keeps them on a re-application", async () => {
+    const post = (body: unknown) => fetch(`${base}/api/robot-team-access/apply`, { method: "POST",
+      headers: { ...CSRF, "content-type": "application/json" }, body: JSON.stringify(body) });
+    for (const legacy of [{ supportedSystems: "Franka" }, { pilotPackage: "Two-week trial" }, { testSite: "Our warehouse" }])
+      expect((await post({ ...form, ...legacy })).status).toBe(400);
+    const id = early.accessRecordId(application.email);
+    state.docs.set(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`, { ...application, email: "ada@arm.example", status: "applied",
+      supportedSystems: "Franka", pilotPackage: "Two-week trial", testSite: "Our warehouse" } as never);
+    expect((await post(form)).status).toBe(202);
+    const record = state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`) as Record<string, unknown>;
+    expect(record).toMatchObject({ name: "Ada Lovelace", company: "Arm Co", website: "https://arm.example", status: "applied" });
+    for (const key of ["supportedSystems", "pilotPackage", "testSite", "fit"]) expect(record, key).not.toHaveProperty(key);
   });
 
   it("rejects unsafe website schemes rather than storing clickable script links", async () => {
@@ -151,15 +150,6 @@ afterEach(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
-describe("the switch", () => {
-  it("is on unless explicitly opened, so a missing variable never exposes sites", () => {
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", "");
-    expect(early.isRobotTeamEarlyAccessGated()).toBe(true);
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", "0");
-    expect(early.isRobotTeamEarlyAccessGated()).toBe(false);
-  });
-});
-
 describe("who sees the job library", () => {
   beforeEach(() => listedSite("site-1"));
 
@@ -214,15 +204,6 @@ describe("who sees the job library", () => {
     const body = await tasks("forged");
     expect(body.items).toEqual([]);
   });
-
-  // Jobs are shared in full since 2026-11-12, so the open value of the switch admits nobody who is not approved.
-  it.each(["0", "false", "no", "off", "open"])("admits no anonymous viewer when the switch is set to %s", async value => {
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", value);
-    const body = await tasks();
-    expect(body.items).toEqual([]);
-    expect(body.access).toMatchObject({ allowed: false, signedIn: false });
-    expect(JSON.stringify(body)).not.toMatch(/PRIVATE|Move totes|Material handling/);
-  });
 });
 
 
@@ -241,7 +222,6 @@ describe("applying", () => {
     expect(records).toHaveLength(1);
     expect(records[0][1]).toMatchObject({
       email: "ada@arm.example", status: "applied",
-      pilotPackage: "Two-week onsite trial, indicative $20,000, six-week lead time",
       // What the form showed and the applicant ticked, with the time: on the application only (G1, G2).
       applicationTermsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1",
         terms_url: "/terms", privacy_url: "/privacy", accepted_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
@@ -253,12 +233,15 @@ describe("applying", () => {
     expect(slack).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects an application missing what matching needs", async () => {
-    const response = await fetch(`${base}/api/robot-team-access/apply`, {
-      method: "POST", headers: { "content-type": "application/json", ...CSRF },
-      body: JSON.stringify({ ...form, robot: "" }),
-    });
-    expect(response.status).toBe(400);
+  it("rejects an application without the company website", async () => {
+    for (const website of ["", undefined]) {
+      const response = await fetch(`${base}/api/robot-team-access/apply`, {
+        method: "POST", headers: { "content-type": "application/json", ...CSRF },
+        body: JSON.stringify({ ...form, website }),
+      });
+      expect(response.status).toBe(400);
+    }
+    expect([...state.docs.keys()].some(key => key.startsWith("robotTeamAccess/"))).toBe(false);
   });
 
   it("refuses a form that does not send the versions it showed, or sends stale ones, and asks for a reload", async () => {
@@ -317,7 +300,7 @@ describe("the review queue", () => {
     return fetch(`${base}/api/admin/robot-team-access/${id}/decision`, {
       method: "POST",
       headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
-      body: JSON.stringify({ status, prerequisitesReviewed: status === "approved" }),
+      body: JSON.stringify({ status }),
     });
   }
 
@@ -325,6 +308,8 @@ describe("the review queue", () => {
     tokens.set("team", { uid: "u1", email: "ada@arm.example", email_verified: true });
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer team", ...CSRF } });
     expect(response.status).toBe(403);
+    // One press approves, and only for staff: the decision route still needs the admin role.
+    expect((await decide("team", early.accessRecordId("ada@arm.example"), "approved")).status).toBe(403);
   });
 
   it("approves once, emails the next step, and the approved email then sees the library", async () => {
@@ -375,51 +360,25 @@ describe("the review queue", () => {
     listedSite("site-1");
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer ops", ...CSRF } });
     expect(await response.json()).toMatchObject({
-      library: { listedTaskCount: 1, autoApproveMinimumTasks: null, gated: true, openSuggestedAtTasks: 10 },
+      library: { listedTaskCount: 1, autoApproveMinimumTasks: null },
     });
   });
 });
 
-describe("the fit checklist", () => {
-  const apply = (body: Record<string, unknown>) => fetch(`${base}/api/robot-team-access/apply`, {
-    method: "POST", headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify({ ...SHOWN, ...body }),
-  });
-  const outbox = (kind: string) => [...state.docs.entries()].filter(([key]) => key.startsWith(`captureOutbox/${kind}`));
-  const listFive = () => ["a", "b", "c", "d", "e"].forEach((id) => listedSite(`site-${id}`));
-
-  it("records its reasons, and with nothing listed yet a person replies to everyone", async () => {
-    expect(await (await apply({ ...application, testSite: "Our pilot warehouse in Ohio" })).json()).toMatchObject({ status: "applied" });
-    const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
-    expect(record.testSite).toBe("Our pilot warehouse in Ohio");
-    expect(record.fit).toMatchObject({ clearFit: true, listedTaskCount: 0 });
-    expect(record.fit.checks.map((check: { id: string; passed: boolean }) => [check.id, check.passed])).toEqual([
-      ["work_email", true], ["website_matches_email", true], ["open_tasks_in_region", false],
-    ]);
-    expect(outbox("")).toHaveLength(0);
-    expect(slack).toHaveBeenCalledWith(expect.objectContaining({ testSite: "Our pilot warehouse in Ohio", autoApproved: false }));
-  });
-
-  it("keeps a clear matching-domain fit pending even with listed tasks and a legacy auto-approval setting", async () => {
+describe("an application has no fit checklist", () => {
+  it("is left to a person, with no checklist on the record or the bell", async () => {
     listedSite("site-1");
     vi.stubEnv("BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS", "1");
-    expect(await (await apply(application)).json()).toMatchObject({ status: "applied" });
-    const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
+    const response = await fetch(`${base}/api/robot-team-access/apply`, {
+      method: "POST", headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify(form),
+    });
+    expect(await response.json()).toMatchObject({ status: "applied" });
+    const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, unknown>;
     expect(record).toMatchObject({ status: "applied", decidedBy: null });
-    expect(outbox("robot_team_access_approved")).toHaveLength(0);
-    // A shared job's card carries no free-text region since 2026-11-12 (the company page shows the country only), so
-    // the region check cannot match a card; it never decided an approval.
-    expect(record.fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: false });
-  });
-
-  it("leaves anything short of a clear fit, or a switched-off rule, to a person", async () => {
-    listFive();
-    expect(await (await apply({ ...application, email: "ada@gmail.com" })).json()).toMatchObject({ status: "applied" });
-    expect(await (await apply({ ...application, email: "ada@other.example" })).json()).toMatchObject({ status: "applied" });
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS", "off");
-    expect(await (await apply({ ...application, email: "grace@arm.example" })).json()).toMatchObject({ status: "applied" });
-    expect(outbox("robot_team_access_approved")).toHaveLength(0);
-    const personal = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@gmail.com")}`) as Record<string, any>;
-    expect(personal.fit.checks[0]).toMatchObject({ passed: false, detail: "gmail.com is a personal email provider" });
+    expect(record).not.toHaveProperty("fit");
+    expect([...state.docs.keys()].some(key => key.startsWith("captureOutbox/robot_team_access_approved"))).toBe(false);
+    expect(slack).toHaveBeenCalledWith(expect.objectContaining({ company: "Arm Co", autoApproved: false }));
+    expect(slack.mock.calls[0][0]).not.toHaveProperty("fit");
   });
 });
 
@@ -427,7 +386,7 @@ describe("inviting a team after a call", () => {
   const invite = (token: string, body: Record<string, unknown>) => fetch(`${base}/api/admin/robot-team-access/invites`, {
     method: "POST",
     headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
-    body: JSON.stringify({ ...body, prerequisitesReviewed: true }),
+    body: JSON.stringify(body),
   });
 
   it("grants that email access, sends one sign-up email, and is staff-only", async () => {
@@ -493,10 +452,10 @@ describe("access decisions and their durable email intent", () => {
     body: JSON.stringify(body),
   });
   const invite = () => post("/api/admin/robot-team-access/invites", {
-    name: "Ada", email, company: "Arm Co", prerequisitesReviewed: true,
+    name: "Ada", email, company: "Arm Co",
   });
   const decide = () => post(`/api/admin/robot-team-access/${early.accessRecordId(email)}/decision`, {
-    status: "approved", prerequisitesReviewed: true,
+    status: "approved",
   });
   const resend = () => post("/api/robot-team-access/invitation", { email });
 

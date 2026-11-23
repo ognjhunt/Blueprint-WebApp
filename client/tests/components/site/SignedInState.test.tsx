@@ -35,7 +35,7 @@ describe("signed-in state on public pages", () => {
   it("shows staff the library exactly as an approved company sees it", async () => {
     auth.currentUser = { uid: "u1", email: "ops@example.test" };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
-      items: [], access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: true },
+      items: [], access: { status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: true },
     }) });
     render(<TaskBrowse />);
     expect(await screen.findByRole("heading", { name: "No jobs yet." })).toBeInTheDocument();
