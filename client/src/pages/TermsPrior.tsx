@@ -4,10 +4,10 @@ import { PreviousLegalVersionNote } from "@/components/site/LegalVersionNotes";
 import { PREVIOUS_TERMS_URL, PREVIOUS_TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Terms of Service of version 2026-11-12.1, in force on 2026-11-12 until version 2026-11-12.2 replaced it
- * the same day (owner: no limit on introductions). Its sections are copied word for word from `Terms.tsx` at commit
- * 27607c323; the shared sentences and the replacement policy it took from other files are copied in as they stood. Do
- * not edit the sections: they are the agreement as it stood. Change Terms.tsx instead.
+ * FROZEN: the Terms of Service of version 2026-11-12.2, in force from 2026-11-12 until the next version replaced it
+ * (owner, 2026-11-17: no face blurring for jobs started under the new version). Its sections are copied word for word
+ * from `Terms.tsx` as it stood at 2026-11-12.2; the replacement policy it took from another file is copied in as it
+ * stood. Do not edit the sections: they are the agreement as it stood. Change Terms.tsx instead.
  */
 const pilotReplacementPolicy =
   "If a deployment company withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund.";
@@ -50,7 +50,7 @@ export const previousTermsSections: readonly Section[] = [
       "Avoid recording screens, documents and restricted areas where you can.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to review them, build the simulation, run our early trial, show you the results, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
       SHARING_SENTENCE,
-      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you under an alias. When you ask for an introduction to a company that answered Interested or Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details. You can ask for up to three introductions for each job.`,
+      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you under an alias. When you ask for an introduction to a company that answered Interested or Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.`,
       COMPANY_USE_SENTENCE,
       WITHDRAWAL_SENTENCE,
       OLDER_JOB_SENTENCE,

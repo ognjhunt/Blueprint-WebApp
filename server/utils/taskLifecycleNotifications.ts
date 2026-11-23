@@ -17,7 +17,7 @@ import { enqueueOutbox, type OutboxKind } from "./captureOutbox";
 import { decryptFieldValue } from "./field-encryption";
 import { finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
-import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES, isCompanyResponseState,
+import { INTRODUCIBLE_RESPONSE_STATES, SITE_RESPONSE_LABELS, isCompanyResponseState,
   type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { isApprovedCaptureRegion, isCaptureRegion } from "../../client/src/data/captureResidency";
 
@@ -38,7 +38,8 @@ type CopyContext = { outsideApprovedRegion: boolean; introductionOffered: boolea
 
 const PRIVATE_LINK = "This link opens your job without a password, so please don't forward it.";
 // A fixed answer label in plain text is quoted: "Tested it: can do" has a colon of its own.
-const answered = (label: string) => `A deployment company answered "${label}" about your job.`;
+const answered = (label: string) => label === SITE_RESPONSE_LABELS.interested ? "A deployment company applied to your job."
+  : `A deployment company answered "${label}" about your job.`;
 
 // Bare bones (2026-11-11): each notice says one thing in at most three short lines, then one button ("Label:\nURL").
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, context: CopyContext) => string }> = {
@@ -55,10 +56,10 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   company_answered: {
     subject: "A deployment company answered",
     body: (url, detail, { introductionOffered, questionOnPage }) => `${
-      detail === COMPANY_RESPONSE_LABELS.needs_something
+      detail === SITE_RESPONSE_LABELS.needs_something
         ? `A deployment company needs more details about your job. ${questionOnPage
           ? "Read their question and answer it on your job page." : "Your job page has the details."}`
-        : `${answered(detail)} ${introductionOffered ? "To meet them, press Introduce us on your job page." : "Your job page has the details."}`
+        : `${answered(detail)} ${introductionOffered ? "To meet them, press Accept on your job page." : "Your job page has the details."}`
     }\n\nOpen your job:\n${url}`,
   },
   // The site asked for an introduction (PACKAGE_E E6). Built only by `buildIntroductionMadeSiteNotification`, whose
@@ -113,7 +114,7 @@ export function buildTaskLifecycleNotification(params: {
   const message = copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
-  const detail = params.milestone === "company_answered" ? COMPANY_RESPONSE_LABELS[params.companyAnswerState!]
+  const detail = params.milestone === "company_answered" ? SITE_RESPONSE_LABELS[params.companyAnswerState!]
     : "";
   return {
     idempotencyKey: `${requestId}:${params.milestone}${eventId ? `:${eventId}` : ""}`,
@@ -144,7 +145,8 @@ export function introductionMadeSiteCopy(company: { name: string; contactName?: 
   // The company's own stored answer, in its fixed label (review M2); with none, no answer is claimed.
   const label = detailLine(answerLabel, 60);
   const lines = [
-    label ? `${name} answered "${label}" about your job, and you asked us to introduce you.` : `You asked us to introduce you to ${name}.`,
+    label === SITE_RESPONSE_LABELS.interested ? `${name} applied to your job, and you accepted them.`
+      : label ? `${name} answered "${label}" about your job, and you accepted them.` : `You accepted ${name}.`,
     "",
     ...(detailLine(company.contactName) ? [`Contact: ${detailLine(company.contactName)}`] : []),
     `Email: ${detailLine(company.email)}`,

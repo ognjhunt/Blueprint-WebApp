@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT, RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V6, RECORDING_RIGHTS_STATEMENT_VERSIONS,
 } from "@/lib/recordingRightsStatement";
-import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_2026_11_12, COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION } from "@/lib/companyResponses";
 import { INTRODUCTION_REQUEST_STATEMENT, INTRODUCTION_REQUEST_STATEMENT_VERSION, introduceSentence } from "@/lib/siteIntroductions";
 import { DESCRIPTION_AUTHORITY_STATEMENTS, DESCRIPTION_AUTHORITY_VERSIONS } from "@/lib/siteSubmissionAuthority";
 import { TASK_CONFIRMATION_STATEMENTS, TASK_CONFIRMATION_VERSIONS } from "@/lib/taskConfirmationStatement";
@@ -50,7 +50,9 @@ const CONSTANT_STATEMENTS = [
   { name: "start form, with video, shares the job with its city and state", version: "2026-11-23.v6", actual: SITE_START_CONSENT_WITH_VIDEO_V6, text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved." },
   { name: "description authority", version: "2026-11-23.v6", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-23.v6"], text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved." },
   // A deployment company's answer (PACKAGE_E E5), recorded on every answer.
-  { name: "company response", version: "company-response-2026-11-12", actual: COMPANY_RESPONSE_STATEMENT_VERSION === "company-response-2026-11-12" ? COMPANY_RESPONSE_STATEMENT : "", text: "The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs." },
+  { name: "company response", version: "company-response-2026-11-12", actual: COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION === "company-response-2026-11-12" ? COMPANY_RESPONSE_STATEMENT_2026_11_12 : "", text: "The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs." },
+  // Owner, 2026-11-23: a company applies, and the site sees its name and website with the answer and accepts.
+  { name: "company response (applicants)", version: "company-response-2026-11-23", actual: COMPANY_RESPONSE_STATEMENT_VERSION === "company-response-2026-11-23" ? COMPANY_RESPONSE_STATEMENT : "", text: "The site sees your company's name and website with your answer. If you apply or answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs." },
   // The site's agreement beside "Introduce us" (planner, 2026-11-12, 18:25Z): the recorded text is the template.
   { name: "introduction request", version: "introduction-request-2026-11-12",
     actual: INTRODUCTION_REQUEST_STATEMENT_VERSION === "introduction-request-2026-11-12" ? INTRODUCTION_REQUEST_STATEMENT : "",
@@ -183,7 +185,7 @@ describe("recorded statements keep their exact text under their version", () => 
   it("covers every version the stores accept", () => {
     for (const version of RECORDING_RIGHTS_STATEMENT_VERSIONS.filter(v => v !== "2026-09-18.v1"))
       expect(CONSTANT_STATEMENTS.some(row => row.version === version), version).toBe(true);
-    for (const version of [...DESCRIPTION_AUTHORITY_VERSIONS, ...JOB_CARD_ANSWER_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSION])
+    for (const version of [...DESCRIPTION_AUTHORITY_VERSIONS, ...JOB_CARD_ANSWER_STATEMENT_VERSIONS, ...COMPANY_RESPONSE_STATEMENT_VERSIONS])
       expect(CONSTANT_STATEMENTS.some(row => row.version === version), version).toBe(true);
     // The closed sets themselves: a new version must be added here, and to the rows above, on purpose.
     expect([...RECORDING_RIGHTS_STATEMENT_VERSIONS]).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-23.v6"]);
@@ -192,7 +194,9 @@ describe("recorded statements keep their exact text under their version", () => 
 
   it("shows the introduction statement word for word beside the button, and the button records its version", () => {
     expect(introduceSentence("Company A")).toBe("We give Company A your name, address and contact details, and give you theirs.");
-    expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/helper=\{introduceSentence\(entry\.alias\)\}/);
+    // The company's name where its answer shows it, else its alias (owner, 2026-11-23).
+    expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/helper=\{introduceSentence\(shownName\(entry\)\)\}/);
+    expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/const shownName = \(entry: AnsweredEntry\) => entry\.applicant\?\.name \?\? entry\.alias;/);
     expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION/);
     expect(sourceText("server/routes/site-task-brief.ts")).toMatch(/statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION/);
   });

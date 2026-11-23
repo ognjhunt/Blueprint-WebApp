@@ -12,7 +12,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await imp
   authAdmin: null, storageAdmin: null, default: { firestore: { FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" } } } }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 const slack = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
-vi.mock("../utils/slack", () => ({ notifySlackRobotTeamAccessApplication: slack }));
+const recheckBell = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
+vi.mock("../utils/slack", () => ({ notifySlackRobotTeamAccessApplication: slack, notifySlackCompanyRecheck: recheckBell }));
 
 const check = await import("../utils/companyCheck");
 const early = await import("../utils/robotTeamEarlyAccess");
@@ -40,7 +41,7 @@ async function apply(fields: Partial<import("../utils/robotTeamEarlyAccess").Rob
 const stored = (id: string) => state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`) as Record<string, any>;
 const approvalEmails = () => [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_approved"));
 
-beforeEach(() => { state.docs.clear(); slack.mockClear(); });
+beforeEach(() => { state.docs.clear(); slack.mockClear(); recheckBell.mockClear(); });
 
 describe("the email's domain against the website", () => {
   it("matches the same domain, www and subdomains either way, and never a personal email provider", () => {
@@ -246,5 +247,64 @@ describe("the catch-up sweep", () => {
   it("never sweeps a technology partner", async () => {
     const { record } = await apply({ partnerRole: "technology" });
     expect(await check.sweepUncheckedCompanyApplications(Date.parse(record.appliedAtIso) + 3_600_000, deps())).toBe(0);
+  });
+});
+
+// Owner, 2026-11-23, after freight marketplaces: a company the rule approved is checked again every 90 days. A company
+// that no longer passes keeps its access (only privacy, rights and money stop anything); the owner is told once.
+describe("the 90-day re-check", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  async function approvedCompany() {
+    const { id, record } = await apply();
+    await check.checkNewCompanyApplication(record, deps());
+    expect(stored(id)).toMatchObject({ status: "approved" });
+    return { id, checkedAt: Date.parse(stored(id).companyCheck.checkedAtIso) };
+  }
+  const at = (ms: number) => () => new Date(ms);
+
+  it("re-checks only after 90 days, records a pass, and never re-checks a company the owner approved without the rule", async () => {
+    const { id, checkedAt } = await approvedCompany();
+    expect(await check.recheckApprovedCompanies(checkedAt + 89 * DAY, deps())).toBe(0);
+    expect(await check.recheckApprovedCompanies(checkedAt + 90 * DAY, deps({ now: at(checkedAt + 90 * DAY) }))).toBe(1);
+    expect(stored(id)).toMatchObject({ status: "approved", companyRecheck: { outcome: "approved", failuresInARow: 0 } });
+    expect(recheckBell).not.toHaveBeenCalled();
+    // The next one is 90 days after the re-check.
+    expect(await check.recheckApprovedCompanies(checkedAt + 179 * DAY, deps())).toBe(0);
+    const owner = await apply({ email: "bo@gmail.com" });
+    await check.checkNewCompanyApplication(owner.record, deps());
+    state.docs.set(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${owner.id}`, { ...stored(owner.id), status: "approved" });
+    expect(check.companyRecheckDueAtMs(stored(owner.id) as never)).toBeNull();
+  });
+
+  it("tells the owner once when the website no longer shows robot work, and never changes the company's access", async () => {
+    const { id, checkedAt } = await approvedCompany();
+    const no = deps({ now: at(checkedAt + 90 * DAY), askModel: vi.fn(async () => ({ deploys_robots: "no" as const, evidence_quote: "", reason: "A bakery." })) });
+    expect(await check.recheckApprovedCompanies(checkedAt + 90 * DAY, no)).toBe(1);
+    expect(stored(id)).toMatchObject({ status: "approved", companyRecheck: { outcome: "needs_owner", reasons: ["not_a_robot_company"], failuresInARow: 1 } });
+    expect(recheckBell).toHaveBeenCalledTimes(1);
+    expect(recheckBell).toHaveBeenLastCalledWith({ email: "ada@arm.example", reasons: ["not_a_robot_company"] });
+    // Still failing 90 days on: not told again. Passing again, then failing again: told again.
+    const later = checkedAt + 180 * DAY;
+    expect(await check.recheckApprovedCompanies(later, { ...no, now: at(later) })).toBe(1);
+    expect(recheckBell).toHaveBeenCalledTimes(1);
+    expect(await check.recheckApprovedCompanies(later + 90 * DAY, deps({ now: at(later + 90 * DAY) }))).toBe(1);
+    expect(stored(id).companyRecheck).toMatchObject({ outcome: "approved", failuresInARow: 0 });
+    expect(await check.recheckApprovedCompanies(later + 180 * DAY, { ...no, now: at(later + 180 * DAY) })).toBe(1);
+    expect(recheckBell).toHaveBeenCalledTimes(2);
+    expect(stored(id)).toMatchObject({ status: "approved" });
+  });
+
+  it("tries a website that did not answer again the next day, and tells the owner only on the third failure in a row", async () => {
+    const { id, checkedAt } = await approvedCompany();
+    const down = (ms: number) => deps({ now: at(ms), fetchPage: vi.fn(async () => { throw new Error("timeout"); }) });
+    let when = checkedAt + 90 * DAY;
+    for (const expected of [0, 0, 1]) {
+      expect(await check.recheckApprovedCompanies(when, down(when))).toBe(1);
+      expect(recheckBell).toHaveBeenCalledTimes(expected);
+      // Not due again until a day later.
+      expect(await check.recheckApprovedCompanies(when + DAY - 1, down(when + DAY - 1))).toBe(0);
+      when += DAY;
+    }
+    expect(stored(id)).toMatchObject({ status: "approved", companyRecheck: { reasons: ["website_unreadable"], failuresInARow: 3 } });
   });
 });

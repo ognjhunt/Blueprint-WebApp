@@ -93,9 +93,9 @@ test("the job page leads with deployment companies and the first look, and shows
   const { unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
-  const companies = page.getByRole("region", { name: "Deployment companies" });
+  const companies = page.getByRole("region", { name: "Applicants" });
   await expect(companies.getByText(OLDER, { exact: true })).toBeVisible();
-  await expect(job.locator("h2, summary")).toHaveText(["Deployment companies", "First look", "Simulation of your site"]);
+  await expect(job.locator("h2, summary")).toHaveText(["Applicants", "First look", "Simulation of your site"]);
   const titleBox = await page.getByRole("heading", { level: 1, name: "Your job" }).boundingBox();
   expect(titleBox!.y).toBeLessThan((await job.boundingBox())!.y);
   const firstLook = page.getByRole("region", { name: "First look" });
@@ -148,8 +148,8 @@ test("while the simulation of the site is being built, the page says so, with th
     sharing: { state: "preparing", sharedAtIso: "2026-11-11T15:00:00.000Z" }, companies: { interested: false, sent: null, entries: [] } });
   await page.goto(`/capture-upload/${token}?video=existing`);
   const job = page.getByRole("region", { name: "Your job" });
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText("Companies will see your job once the video and job details are ready.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByText(SHARED, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Applicants" }).getByText("Companies will see your job once the video and job details are ready.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Applicants" }).getByText(SHARED, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Simulation of your site" }).getByText("We're building the simulation of your site.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "First look" }).getByText(FIRST_LOOK, { exact: true })).toBeVisible();
   await expect(job.getByRole("navigation", { name: "More" })).toHaveText("See details ›Job settings ›");
@@ -184,12 +184,12 @@ test("a shared job that is held says it is not visible right now", async ({ page
   await page.setViewportSize({ width: 1440, height: 900 });
   await mockJob(page, { sharing: { state: "not_visible", sharedAtIso: "2026-11-11T15:00:00.000Z" } });
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByRole("region", { name: "Deployment companies" }).getByRole("status")).toHaveText("Your job is not visible to companies right now.");
+  await expect(page.getByRole("region", { name: "Applicants" }).getByRole("status")).toHaveText("Your job is not visible to companies right now.");
   await expect(page.getByText(/summary/)).toHaveCount(0);
 });
 
 // PACKAGE_E E4 and E6: one send line, each answer by alias, and "Introduce us" with its sentence where it can be pressed.
-test("the deployment companies section says the send line, each answer by alias, and offers Introduce us", async ({ page }) => {
+test("the applicants section says the send line, each answer by alias, and offers Accept", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { introductions, unexpected } = await mockJob(page, { sharing: { state: "visible", sharedAtIso: "2026-11-11T15:00:00.000Z" },
     companies: { interested: true, views: 3, sent: { count: 3, firstAtIso: "2026-11-12T10:00:00.000Z" }, introductions: { used: 0 }, entries: [
@@ -198,7 +198,7 @@ test("the deployment companies section says the send line, each answer by alias,
       { kind: "answered", alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested", canIntroduce: true },
     ] } });
   await page.goto(`/capture-upload/${token}?video=existing`);
-  const companies = page.getByRole("region", { name: "Deployment companies" });
+  const companies = page.getByRole("region", { name: "Applicants" });
   await expect(companies.getByText(SHARED, { exact: true })).toBeVisible();
   await expect(companies.getByText("Viewed by 3 companies", { exact: true })).toBeVisible();
   await expect(companies.getByText("2 responses", { exact: true })).toBeVisible();
@@ -206,15 +206,15 @@ test("the deployment companies section says the send line, each answer by alias,
   await expect(companyB.getByText("Need more details", { exact: true })).toBeVisible();
   await expect(companyB.getByText("November 12, 2026", { exact: true })).toBeVisible();
   const companyA = companies.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });
-  await expect(companyA.getByText("Interested", { exact: true })).toBeVisible();
+  await expect(companyA.getByText("Applied", { exact: true })).toBeVisible();
   // Why (2026-11-20): the company's words as the server gives them, and what would make an introduction possible.
   await expect(companies.getByText("In their words: “We would need a video of the far end of the line.”", { exact: true })).toBeVisible();
-  await expect(companies.getByText("You can ask for an introduction if Company B changes its answer to Interested or Tested it: can do.", { exact: true })).toBeVisible();
-  await expect(companies.getByRole("button", { name: "Introduce us" })).toHaveCount(1);
+  await expect(companies.getByText("You can accept Company B if it applies or changes its answer to Tested it: can do.", { exact: true })).toBeVisible();
+  await expect(companies.getByRole("button", { name: "Accept" })).toHaveCount(1);
   await expect(companies.getByText("We give Company A your name, address and contact details, and give you theirs.", { exact: true })).toBeVisible();
   await expect(companies.getByText("We will write to you about next steps.")).toHaveCount(0);
-  await companies.getByRole("button", { name: "Introduce us" }).click();
-  await expect(companies.getByRole("alert")).toHaveText("You have already been introduced to this company.");
+  await companies.getByRole("button", { name: "Accept" }).click();
+  await expect(companies.getByRole("alert")).toHaveText("You have already accepted this company.");
   expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A", statementVersion: "introduction-request-2026-11-12" } }]);
   expect(unexpected).toEqual([]);
 });

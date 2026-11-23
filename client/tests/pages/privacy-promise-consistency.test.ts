@@ -6,7 +6,9 @@
  * - a site's name, address and contact details go to a deployment company only through an introduction the site asked for;
  * - the video goes without its sound, only to the deployment companies Blueprint approves, only so they can decide
  *   whether they can do the job;
- * - a company's name reaches a site only through an introduction;
+ * - a company's name reaches a site only through an introduction (since Terms and Privacy 2026-11-23.2: with its website,
+ *   beside each answer given under the answer line `company-response-2026-11-23`; its contact details only when the site
+ *   accepts it, and an earlier answer stays under an alias);
  * - a site can withdraw, and the job then leaves every company's view at once.
  * A change to any of these needs a new Terms and Privacy version, and this test changed with it on purpose.
  */
@@ -38,13 +40,17 @@ function annexRow(label: string): string {
 // with every item a company receives still listed; withdrawal says where (the job's page) and still says a saved copy is
 // asked to be deleted and cannot be taken back; the older-job sentence uses a US date and says what the site does; the
 // company's sentence adds that a site reads its reason, with its name and contact details taken out.
+// Terms and Privacy 2026-11-23.2 (owner, 2026-11-23: "yes, update both"): a company applies, and a site sees its name and
+// website with each answer and its reason, with its contact details taken out; the site gets the contact details only
+// when it accepts the company, and an answer given before November 23, 2026 stays under an alias. The other promises
+// stay word for word.
 const PROMISES = {
   sharing: "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.",
   contacts: "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.",
   companyUse: "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.",
   withdrawal: "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.",
   olderJob: "A job started before November 12, 2026 is shared with companies only after you agree to share it on the job's page.",
-  companyAlias: "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.",
+  companyApplication: "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.",
 };
 
 describe("the sharing promises, in the Terms and the Privacy Policy, word for word", () => {
@@ -55,7 +61,7 @@ describe("the sharing promises, in the Terms and the Privacy Policy, word for wo
 
   it("are the same constants on both pages", () => {
     for (const name of ["SHARING_SENTENCE", "CONTACT_DETAILS_SENTENCE", "COMPANY_USE_SENTENCE", "WITHDRAWAL_SENTENCE",
-      "OLDER_JOB_SENTENCE", "COMPANY_ALIAS_SENTENCE"] as const)
+      "OLDER_JOB_SENTENCE", "COMPANY_APPLICATION_SENTENCE"] as const)
       expect((privacy as Record<string, unknown>)[name], name).toBe((terms as Record<string, unknown>)[name]);
   });
 });
@@ -100,9 +106,10 @@ describe("the video", () => {
 });
 
 describe("a company's name", () => {
-  it("reaches a site only through an introduction", () => {
-    expect(rolePrivacyAnnex.find(role => role.title === "Deployment companies")?.body).toContain(PROMISES.companyAlias);
-    expect(termsText).toContain(PROMISES.companyAlias);
+  it("reaches a site with its website beside each answer, and its contact details only when the site accepts it", () => {
+    expect(rolePrivacyAnnex.find(role => role.title === "Deployment companies")?.body).toContain(PROMISES.companyApplication);
+    expect(termsText).toContain(PROMISES.companyApplication);
+    expect(termsText).toContain("A deployment company's answer reaches you with its name and website, with its contact details taken out. An answer given before November 23, 2026 reaches you under an alias.");
   });
 });
 
@@ -113,21 +120,23 @@ describe("withdrawal", () => {
   });
 });
 
-// Review M3 and S1: an introduction gives the address too, and the Terms name all five answers.
+// Review M3 and S1: an introduction gives the address too, and the Terms name all five answers. Since Terms and Privacy
+// 2026-11-23.2 a site makes the introduction by accepting a company.
 describe("what an introduction gives, and the answers a company can give", () => {
-  it("says the address goes with an introduction, in the Terms and the Privacy Policy", () => {
-    expect(termsText).toContain("When you ask for an introduction to a company that answered Interested or Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.");
-    expect(privacyText).toContain("When a site asks for an introduction, we give you the site's name, address and contact details.");
+  it("says the address goes when the site accepts a company, in the Terms and the Privacy Policy", () => {
+    expect(termsText).toContain("When you accept a company that applied or answered Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.");
+    expect(privacyText).toContain("When a site accepts your application, we give you the site's name, address and contact details.");
     expect(termsText).not.toMatch(/we give it your name and contact details/);
   });
 
   // Terms 2026-11-21.1: the answers by the labels a company picks (`COMPANY_RESPONSE_LABELS`), the two tested answers
-  // once the simulation can be downloaded, in the Service section and the deployment companies' section.
+  // once the simulation can be downloaded, in the Service section and the deployment companies' section. Terms
+  // 2026-11-23.2: the answer that was Interested is labelled Apply.
   it("lists the five answers by their labels", () => {
-    expect(termsText.split("can answer Interested, Not a fit or Need more details.").length - 1).toBe(1);
-    expect(termsText.split("can answer each one: Interested, Not a fit or Need more details.").length - 1).toBe(1);
+    expect(termsText.split("can answer Apply, Not a fit or Need more details.").length - 1).toBe(1);
+    expect(termsText.split("can answer each one: Apply, Not a fit or Need more details.").length - 1).toBe(1);
     expect(termsText.split("can also answer Tested it: can do or Tested it: cannot yet.").length - 1).toBe(2);
     for (const label of Object.values(COMPANY_RESPONSE_LABELS)) expect(termsText).toContain(label);
-    expect(termsText).not.toMatch(/would need something|interested, not a fit/);
+    expect(termsText).not.toMatch(/would need something|interested, not a fit|Interested|Introduce us/);
   });
 });

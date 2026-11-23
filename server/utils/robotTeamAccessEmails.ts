@@ -1,3 +1,4 @@
+import { COMPANY_RESPONSE_LABELS } from "../../client/src/lib/companyResponses";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, outboxRecipientMatches, type OutboxStatus } from "./captureOutbox";
 import { rowAwaitsDelivery } from "./captureOutboxRetry";
@@ -149,25 +150,34 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
 }
 
 /**
- * The new-job email (package E, E4): the kind of job and the country, never the site's name, place, contact or
- * sentence. A job without a kind ("Other") or a country leaves that line out.
+ * The new-job email (package E, E4), like a load alert: the job's title (`jobHeadline`: what is done to what, from the
+ * video reading, else the kind of job), how often and how long when the site said, and the country. Never the site's
+ * name, place, contact or sentence. A job without a kind ("Other") or a country leaves that line out.
  */
 export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
 // True of a job sent with its description only as of a filmed one (statement v5 lists both). The answers themselves
 // are on the job's page.
 export const NEW_JOB_EMAIL_BODY = "A site has posted a new job. Open it to see the job packet and respond.";
 const NEW_JOB_ALERTS_LINE = "You get an email like this for each new job. Turn them off in Settings or unsubscribe below.";
+/** The category titles that say nothing about the job: never a subject line on their own. */
+const GENERIC_TITLES = new Set(["Automation job", "Job opportunity"]);
 
 /**
  * The email an approved deployment company that asked for job emails gets when a job is shared. `jobUrl` signs the
  * company in on the way when it is not signed in already (`jobEmailUrl`), so the email leads straight to the job.
  */
-export function newJobEmail(params: { to: string; jobUrl: string; kind?: string | null; country?: string | null }) {
+export function newJobEmail(params: { to: string; jobUrl: string; kind?: string | null; country?: string | null;
+  title?: string | null; facts?: readonly string[] }) {
   const kind = params.kind?.trim() && params.kind.trim() !== "Other" ? params.kind.trim() : null;
+  const title = params.title?.trim() && !GENERIC_TITLES.has(params.title.trim()) ? params.title.trim() : null;
   const country = params.country?.trim() || null;
-  const facts = [...(kind ? [`Kind of job: ${kind}`] : []), ...(country ? [`Country: ${country}`] : [])];
+  const often = (params.facts ?? []).map(fact => fact.trim()).filter(Boolean);
+  // The title says the kind of job too; the kind alone only when there is no title.
+  const facts = [...(title ? [`Job: ${title}`] : kind ? [`Kind of job: ${kind}`] : []),
+    ...(often.length ? [`How often: ${often.join(", ")}`] : []), ...(country ? [`Country: ${country}`] : [])];
+  const headline = title ?? kind;
   return {
-    subject: kind ? `${NEW_JOB_EMAIL_SUBJECT}: ${kind}` : NEW_JOB_EMAIL_SUBJECT,
+    subject: headline ? `${NEW_JOB_EMAIL_SUBJECT}: ${headline}` : NEW_JOB_EMAIL_SUBJECT,
     body: appendCommercialEmailFooter({ text: [NEW_JOB_EMAIL_BODY, ...(facts.length ? ["", ...facts] : []), "", "Open the job:",
       params.jobUrl, "", NEW_JOB_ALERTS_LINE].join("\n"), email: params.to, scope: "optional_updates" }),
   };
@@ -198,18 +208,19 @@ export function introductionCompanyEmail(params: { site: IntroductionSiteDetails
   // has no name of its own to give.
   const nameIsAddress = Boolean(site.location) && site.location === site.name;
   return {
-    subject: "A site wants to talk about its job",
+    subject: "A site accepted your application",
     body: [
       emailGreeting(params.contactName ? firstName(params.contactName) : null),
       "",
       // A fixed answer label in plain text is quoted: "Tested it: can do" has a colon of its own.
-      `You answered "${params.answerLabel}" to a job on Blueprint, and the site has asked for an introduction. Here are its details:`,
+      params.answerLabel === COMPANY_RESPONSE_LABELS.interested ? "You applied to a job on Blueprint, and the site accepted your application. Here are its details:"
+        : `You answered "${params.answerLabel}" to a job on Blueprint, and the site accepted. Here are its details:`,
       "",
       ...(nameIsAddress ? [] : [`Site: ${site.name}`]),
       ...(site.contactName ? [`Contact: ${site.contactName}`] : []),
       `Email: ${site.email}`,
       ...(site.phone ? [`Phone: ${site.phone}`] : []),
-      // "Address", the word of the statement the site agreed to beside Introduce us.
+      // "Address", the word of the statement the site agreed to beside Accept.
       ...(site.location ? [`Address: ${site.location}`] : []),
       "",
       "Open the job:",

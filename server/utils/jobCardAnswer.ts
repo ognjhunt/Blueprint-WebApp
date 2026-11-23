@@ -103,7 +103,7 @@ export async function loadJobCardAnswer(id: string, record: unknown): Promise<Jo
  * page, `firstLookRowFromAnswerRobot`). Robots carry names, verdicts and checks only.
  */
 export async function loadJobCardAnswerWithRobots(id: string, record: unknown):
-  Promise<{ summary: JobCardAnswerSummary | null; robots: AnswerRobot[] }> {
+  Promise<{ summary: JobCardAnswerSummary | null; robots: AnswerRobot[]; reading?: true }> {
   if (!jobCardAnswerShared(record)) return { summary: null, robots: [] };
   try {
     const { loadSiteAnswer } = await import("./siteAnswer");
@@ -111,7 +111,8 @@ export async function loadJobCardAnswerWithRobots(id: string, record: unknown):
     if (!answer) return { summary: null, robots: [] };
     const robots = answer.state === "ready" || answer.state === "cannot_assess"
       ? [answer.pick, answer.runnerUp].filter((robot): robot is AnswerRobot => Boolean(robot)) : [];
-    return { summary: projectJobCardAnswer(answer), robots };
+    // `reading`: the video is still being read, so the company's page can say the first look follows.
+    return { summary: projectJobCardAnswer(answer), robots, ...(answer.state === "reading" ? { reading: true as const } : {}) };
   } catch (error) {
     logger.warn({ error, requestId: id }, "Could not compose the answer for a job card");
     return { summary: null, robots: [] };

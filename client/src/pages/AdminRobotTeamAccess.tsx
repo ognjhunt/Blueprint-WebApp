@@ -35,7 +35,19 @@ type Application = {
   decisionNote: string | null;
   /** The automatic check on a new application (owner direction 2026-11-23). */
   companyCheck?: CompanyCheck | null;
+  /** The latest 90-day re-check of a company the rule approved (`recheckApprovedCompanies`). */
+  companyRecheck?: (CompanyCheck & { failuresInARow?: number }) | null;
 };
+
+/** The latest re-check: still passes, or what no longer does. Access is never changed by it; the owner decides. */
+function CompanyRecheckSummary({ check }: { check: CompanyCheck & { failuresInARow?: number } }) {
+  return <div className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body" aria-label="Re-check">
+    <p className="runway-meta">Re-check · {new Date(check.checkedAtIso).toLocaleString()}</p>
+    <p className="mt-1 text-runway-text">{check.outcome === "approved" ? "Still passes the published rule."
+      : "No longer passes the published rule. Access is unchanged until you decide."}</p>
+    {check.reasons.length ? <ul className="mt-1 grid gap-1">{check.reasons.map(reason => <li key={reason}>✗ {companyCheckReasonWords(reason)}</li>)}</ul> : null}
+  </div>;
+}
 
 /** What the automatic check found, so the one-press decision has its reasoning in front of it. */
 function CompanyCheckSummary({ check }: { check: CompanyCheck }) {
@@ -277,6 +289,7 @@ export default function AdminRobotTeamAccess() {
                 </ul>
               ) : null}
               {application.companyCheck ? <CompanyCheckSummary check={application.companyCheck} /> : null}
+              {application.companyRecheck ? <CompanyRecheckSummary check={application.companyRecheck} /> : null}
               {application.decisionNote ? <p className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body">{application.decisionNote}{application.decidedBy ? ` — ${application.decidedBy}` : ""}</p> : null}
               <div className="flex flex-wrap gap-3 border-t border-line pt-4">
                 {application.status === "approved" && <Button variant="secondary" onClick={() => void refreshInvitation(application)}>Get invitation link</Button>}

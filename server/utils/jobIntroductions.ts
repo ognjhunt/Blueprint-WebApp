@@ -21,7 +21,7 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
+import { COMPANY_RESPONSE_LABELS, SITE_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
   type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { billableEventRef, buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
@@ -168,7 +168,7 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     if (!siteRow.exists && EMAIL.test(site.email)) {
       const message = siteEmail({ jobUrl: captureUploadUrlFor(input.requestId, "owner"), company: { name: companyShared.company,
         contactName: companyShared.contactName, email: companyEmail, website: companyShared.website ?? null },
-        answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
+        answerLabel: SITE_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
       // One commit point (H2): the site's "Meet {company}" is held until the company's email is sent. With no company
       // email to send, it is left pending, and its dispatch check cancels the introduction as a whole.
       const siteEntry = buildOutboxEntry({ idempotencyKey: siteRowRef.id, requestId: input.requestId,
@@ -179,5 +179,42 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       logger.warn({ requestId: input.requestId }, "The site has no usable email; its introduction email is not queued");
     }
     return { ok: true, introducedAtIso: requestedAtIso };
+  });
+}
+
+/**
+ * After an introduction, the site says how it went (owner, 2026-11-23: the site's job reads like a shipment tracker,
+ * posted → companies looking → responses → introduced → visit → pilot). Blueprint cannot see a visit or a pilot, so
+ * only the site's own press records one: the date it pressed, or none again when it takes the press back. Only on an
+ * introduction that went ahead (made, not cancelled), for a job that is still the site's own (not withdrawn).
+ */
+export type IntroductionStep = "visit" | "pilot";
+export const INTRODUCTION_STEPS: readonly IntroductionStep[] = ["visit", "pilot"];
+export type IntroductionProgressResult = { ok: true; progress: { visitAtIso?: string; pilotAtIso?: string } }
+  | { ok: false; reason: "not_introduced" | "withdrawn" };
+
+export async function markIntroductionProgress(input: { requestId: string; alias: string; step: IntroductionStep; done: boolean },
+  now: () => Date = () => new Date()): Promise<IntroductionProgressResult> {
+  if (!db) throw new Error("introduction_store_unavailable");
+  const store = db;
+  const letter = aliasLetterOf(input.alias);
+  const jobRef = store.collection("inboundRequests").doc(input.requestId);
+  return store.runTransaction(async (tx): Promise<IntroductionProgressResult> => {
+    const record = (await tx.get(jobRef)).data();
+    if (!record) return { ok: false, reason: "not_introduced" };
+    const { projectWebsiteCaptureRights } = await import("./websiteCaptureRights");
+    if (projectWebsiteCaptureRights(record).consent_revoked || record.capture_withdrawal) return { ok: false, reason: "withdrawn" };
+    const companyId = letter ? Object.entries(storedAliases(record)).find(([, value]) => value === letter)?.[0] : undefined;
+    if (!companyId) return { ok: false, reason: "not_introduced" };
+    const ref = jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId);
+    const intro = (await tx.get(ref)).data();
+    if (!intro || typeof intro.cancelledAtIso === "string") return { ok: false, reason: "not_introduced" };
+    const prior = intro.progress && typeof intro.progress === "object" ? intro.progress as Record<string, unknown> : {};
+    const field = `${input.step}AtIso`;
+    const keep = Object.fromEntries(INTRODUCTION_STEPS.map(step => `${step}AtIso`)
+      .filter(key => key !== field && typeof prior[key] === "string").map(key => [key, prior[key] as string]));
+    const progress = { ...keep, ...(input.done ? { [field]: typeof prior[field] === "string" ? prior[field] : now().toISOString() } : {}) };
+    tx.update(ref, { progress: { ...progress, updatedAtIso: now().toISOString(), markedBy: "site" } });
+    return { ok: true, progress: Object.fromEntries(Object.entries(progress).filter(([key]) => key === "visitAtIso" || key === "pilotAtIso")) };
   });
 }

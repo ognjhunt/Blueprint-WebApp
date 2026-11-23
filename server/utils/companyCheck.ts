@@ -270,3 +270,88 @@ export async function sweepUncheckedCompanyApplications(nowMs = Date.now(), deps
   for (const { record } of due) await checkNewCompanyApplication(record, deps);
   return due.length;
 }
+
+/* --------------------------------------------------------------- re-checking approved companies */
+
+/**
+ * The published rule is checked again for every company it approved (owner, 2026-11-23, after freight marketplaces:
+ * a carrier's authority and insurance are watched for as long as it can book, not only at sign-up). Every 90 days a
+ * company the rule approved is assessed again exactly as an application is (`assessCompany`). A company that still
+ * passes is recorded so; one that no longer passes keeps its access (only privacy, rights and money stop anything) and
+ * the owner is told once, on the change, with the reasons. A failure that may be the moment's (the website did not
+ * answer, the model did not, today's cap) is tried again the next day and told only on the third in a row.
+ */
+export const COMPANY_RECHECK_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
+export const COMPANY_RECHECK_RETRY_MS = 24 * 60 * 60 * 1000;
+export const COMPANY_RECHECK_TELL_AFTER_PASSING_FAILURES = 3;
+const RECHECK_PER_PASS = 3;
+const MOMENTARY: ReadonlySet<CompanyCheckReason> = new Set(["daily_check_cap", "website_unreadable", "model_unavailable",
+  "no_model", "check_failed"]);
+
+/** The latest re-check, as stored on the company's record (`companyRecheck`). */
+export type CompanyRecheck = CompanyCheck & { failuresInARow: number; toldOwnerAtIso?: string };
+
+const momentary = (check: Pick<CompanyCheck, "outcome" | "reasons">) =>
+  check.outcome !== "approved" && check.reasons.length > 0 && check.reasons.every(reason => MOMENTARY.has(reason));
+
+/** When this approved company is next due: 90 days after its last check, or a day after a momentary failure. */
+export function companyRecheckDueAtMs(record: RobotTeamAccessRecord & { companyRecheck?: CompanyRecheck }): number | null {
+  if (record.status !== "approved" || record.partnerRole === "technology" || record.companyCheck?.outcome !== "approved") return null;
+  const last = record.companyRecheck ?? record.companyCheck;
+  const at = Date.parse(String(last.checkedAtIso ?? ""));
+  if (!Number.isFinite(at)) return 0;
+  return at + (record.companyRecheck && momentary(record.companyRecheck) ? COMPANY_RECHECK_RETRY_MS : COMPANY_RECHECK_AFTER_MS);
+}
+
+/**
+ * The ops monitor's re-check (`betaOpsMonitor.ts`, step 10): at most three due companies a pass, the longest waiting
+ * first; the daily cap still applies. Never changes a company's access. Returns how many were checked.
+ */
+export async function recheckApprovedCompanies(nowMs = Date.now(), deps: CompanyCheckDeps = defaultDeps): Promise<number> {
+  if (!db) return 0;
+  const store = db;
+  const found: Array<{ id: string; record: RobotTeamAccessRecord & { companyRecheck?: CompanyRecheck }; due: number }> = [];
+  let after: string | null = null;
+  for (let page = 0; page < SWEEP_MAX_PAGES; page += 1) {
+    let query = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved").orderBy("__name__").limit(SWEEP_PAGE_SIZE);
+    if (after) query = query.startAfter(after);
+    const { docs } = await query.get();
+    for (const doc of docs) {
+      const record = doc.data() as RobotTeamAccessRecord & { companyRecheck?: CompanyRecheck };
+      const due = companyRecheckDueAtMs(record);
+      if (due !== null && due <= nowMs && typeof record.email === "string" && accessRecordId(record.email) === doc.id)
+        found.push({ id: doc.id, record, due });
+    }
+    if (docs.length < SWEEP_PAGE_SIZE) break;
+    after = docs[docs.length - 1].id;
+  }
+  const due = found.sort((a, b) => a.due - b.due).slice(0, RECHECK_PER_PASS);
+  for (const { id, record } of due) {
+    const checked = { email: record.email, website: record.website ?? null };
+    let check: CompanyCheck;
+    try { check = await assessCompany(checked, deps); }
+    catch { check = { schemaVersion: COMPANY_CHECK_SCHEMA, checkedAtIso: deps.now().toISOString(), outcome: "needs_owner",
+      reasons: ["check_failed"], emailDomain: emailDomain(record.email), website: record.website ?? null }; }
+    const told = await store.runTransaction(async (tx) => {
+      const ref = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(id);
+      const prior = (await tx.get(ref)).data() as (RobotTeamAccessRecord & { companyRecheck?: CompanyRecheck }) | undefined;
+      // Decided again, or changed, meanwhile: this check is about a company that no longer stands as it was.
+      if (!prior || prior.status !== "approved" || prior.email !== checked.email || (prior.website ?? null) !== checked.website) return null;
+      const before = prior.companyRecheck;
+      const failuresInARow = check.outcome === "approved" ? 0 : (before && before.outcome !== "approved" ? before.failuresInARow : 0) + 1;
+      // Told once per run of failures: on the first failure that is not momentary, or the third momentary one in a row.
+      const alreadyTold = Boolean(before?.toldOwnerAtIso) && before!.outcome !== "approved";
+      const tell = check.outcome !== "approved" && !alreadyTold
+        && (!momentary(check) || failuresInARow >= COMPANY_RECHECK_TELL_AFTER_PASSING_FAILURES);
+      const next: CompanyRecheck = { ...check, failuresInARow,
+        ...(tell ? { toldOwnerAtIso: check.checkedAtIso } : alreadyTold && check.outcome !== "approved" ? { toldOwnerAtIso: before!.toldOwnerAtIso } : {}) };
+      tx.set(ref, { companyRecheck: next }, { merge: true });
+      return tell ? next : null;
+    });
+    if (told) {
+      const { notifySlackCompanyRecheck } = await import("./slack");
+      await notifySlackCompanyRecheck({ email: record.email, reasons: told.reasons }).catch(() => undefined);
+    }
+  }
+  return due.length;
+}

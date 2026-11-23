@@ -14,7 +14,7 @@ vi.mock("../utils/unknownPipelineCode", () => ({ noteUnknownPipelineCode: vi.fn(
   noteUnknownPipelineCodes: vi.fn(async () => undefined) }));
 
 const status = await import("../utils/websitePreparationStatus");
-const { packetFactsForCompany, PACKET_NOT_SHOWN, UNSTATED_RATE } = await import("../utils/companyJobPage");
+const { packetFactsForCompany } = await import("../utils/companyJobPage");
 type Selector = import("../utils/websitePreparationStatus").WebsitePreparationSelector;
 type Stored = import("../utils/websitePreparationStatus").StoredWebsitePreparation;
 type Deps = import("../utils/websitePreparationStatus").WebsitePreparationDeps;
@@ -87,13 +87,13 @@ describe("status v9", () => {
 });
 
 describe("the packet facts as a company reads them", () => {
-  it("shows Blueprint's estimates where the site did not answer, and says what nothing measured", () => {
+  it("shows Blueprint's estimates where the site did not answer, and names the questions they answer", () => {
     const page = packetFactsForCompany(status.packetFactsSchema.parse(facts()), null, nobody);
     expect(page.packetFacts!.object).toContain("Longest side: about 67 cm (Blueprint's estimate; the site did not say).");
     expect(page.packetFacts!.estimated).toContain("Weight: about 3.1 kg (0.34 to 28 kg). An estimate, not weighed.");
     // Every figure line passes the contact scan unchanged: coordinates and ranges are not phone numbers.
     expect(page.packetFacts!.object).toEqual(facts().object.map(row => row.text));
-    expect(page.notShown).toEqual([...PACKET_NOT_SHOWN, UNSTATED_RATE.hours_per_day]);
+    expect(page.estimated.sort()).toEqual(["perHour", "size", "weight"]);
   });
 
   it("leaves out Blueprint's estimate of what the site answered, but not of what it was not sure of", () => {
@@ -104,7 +104,8 @@ describe("the packet facts as a company reads them", () => {
     expect(all.some(text => text.startsWith("How many an hour"))).toBe(false);
     expect(all).toContain("Longest side: about 67 cm (Blueprint's estimate; the site did not say).");
     expect(all).toContain("How many days a week it runs: 5 to 7 (Blueprint's estimate; the site did not say).");
-    expect(page.notShown).toEqual([...PACKET_NOT_SHOWN]);
+    // Only the size: the site was not sure of it, so Blueprint's estimate is still shown and the fit summary points to it.
+    expect(page.estimated).toEqual(["size"]);
   });
 
   it("removes the site's identity, a street address and a contact detail from every line", () => {
@@ -118,7 +119,6 @@ describe("the packet facts as a company reads them", () => {
   });
 
   it("says plainly when there are no packet facts yet", () => {
-    expect(packetFactsForCompany(null, null, nobody)).toEqual({ packetFacts: null,
-      notShown: [...PACKET_NOT_SHOWN, UNSTATED_RATE.items_per_hour, UNSTATED_RATE.hours_per_day] });
+    expect(packetFactsForCompany(null, null, nobody)).toEqual({ packetFacts: null, estimated: [] });
   });
 });

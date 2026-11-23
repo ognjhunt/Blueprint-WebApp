@@ -1,11 +1,13 @@
 /**
- * The site's side of an introduction (PACKAGE_E E6, 2026-11-12). Beside each deployment company that answered
- * Interested, the site's job page offers one button. Pressing it asks Blueprint to give that company the site's name and
- * contact details and to give the site the company's; nobody at Blueprint is in the loop. One for each company the site
- * wants to meet, with no limit per job (owner, 2026-11-12). Before an introduction the site sees aliases only ("Company A").
+ * The site's side of an introduction (PACKAGE_E E6, 2026-11-12). Beside each deployment company that applied, the site's
+ * job page offers one button, "Accept" (owner, 2026-11-23: a company applies, the site sees its applicants and accepts
+ * the ones it wants to meet). Pressing it asks Blueprint to give that company the site's name and contact details and
+ * to give the site the company's; nobody at Blueprint is in the loop. One for each company the site wants to meet, with
+ * no limit per job (owner, 2026-11-12). Before it accepts, the site sees the company's name and website when the company
+ * answered under the current line, else its alias ("Company A"); never its contact details.
  */
 
-export const INTRODUCE_LABEL = "Introduce us";
+export const INTRODUCE_LABEL = "Accept";
 /**
  * The sentence beside the button: exactly what pressing it shares, both ways. A recorded statement (planner, 2026-11-12,
  * 18:25Z): pressing the button is the site's agreement, recorded under this version with the introduction. The recorded
@@ -15,13 +17,13 @@ export const INTRODUCTION_REQUEST_STATEMENT_VERSION = "introduction-request-2026
 export const INTRODUCTION_REQUEST_STATEMENT = "We give {alias} your name, address and contact details, and give you theirs.";
 export const introduceSentence = (alias: string) => INTRODUCTION_REQUEST_STATEMENT.replace("{alias}", alias);
 /** A page showing another wording (an old tab) is refused before anything is recorded. */
-export const INTRODUCTION_STATEMENT_CHANGED = "The wording on this page has changed. Reload the page, read it, then press Introduce us again.";
-export const INTRODUCTION_FAILED = "We could not ask for the introduction just now. Try again shortly.";
+export const INTRODUCTION_STATEMENT_CHANGED = "The wording on this page has changed. Reload the page, read it, then press Accept again.";
+export const INTRODUCTION_FAILED = "We could not accept this company just now. Try again shortly.";
 /** Beside an introduction cancelled before the company's email went: true by construction (H2). */
-export const INTRODUCTION_CANCELLED = "This introduction could not go ahead. We did not give them your details.";
-/** Right after Introduce us is pressed: one plain sentence that both sides are being emailed (ledger EL19). */
+export const INTRODUCTION_CANCELLED = "This could not go ahead. We did not give them your details.";
+/** Right after Accept is pressed: one plain sentence that both sides are being emailed (ledger EL19). */
 export const introductionRequested = (alias: string) => `We are emailing you and ${alias} each other's contact details.`;
-export const introducedOn = (company: string, date: string) => `You were introduced to ${company} on ${date}.`;
+export const introducedOn = (company: string, date: string) => `You accepted ${company} on ${date}.`;
 
 /** The refusal reasons `requestIntroduction` returns (`server/utils/jobIntroductions.ts`), each said in one plain sentence. */
 export const INTRODUCTION_REFUSAL_REASONS = [
@@ -30,13 +32,13 @@ export const INTRODUCTION_REFUSAL_REASONS = [
 export type IntroductionRefusalReason = (typeof INTRODUCTION_REFUSAL_REASONS)[number];
 
 export const INTRODUCTION_REFUSAL_SENTENCES: Readonly<Record<IntroductionRefusalReason, string>> = {
-  not_listed: "Your job is not in front of deployment companies right now, so we cannot make an introduction.",
+  not_listed: "Your job is not in front of deployment companies right now, so you cannot accept a company.",
   /** A withdrawn job: said for good, never "right now" (review S8). Chosen by the route, not by `requestIntroduction`. */
-  withdrawn: "You withdrew this job, so we cannot make an introduction.",
-  not_interested: "This company has not answered Interested, so we cannot introduce you.",
-  consent_missing: "This company needs to answer again before we can introduce you.",
-  already_introduced: "You have already been introduced to this company.",
-  company_not_approved: "This company can no longer be introduced.",
+  withdrawn: "You withdrew this job, so you cannot accept a company.",
+  not_interested: "This company has not applied, so you cannot accept it.",
+  consent_missing: "This company needs to apply again before you can accept it.",
+  already_introduced: "You have already accepted this company.",
+  company_not_approved: "This company can no longer be accepted.",
 };
 
 export function isIntroductionRefusalReason(value: unknown): value is IntroductionRefusalReason {

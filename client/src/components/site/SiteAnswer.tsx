@@ -20,7 +20,8 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
-import { COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "@/lib/jobTracker";
+import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
@@ -52,7 +53,8 @@ export const KIND_UNKNOWN_LINE = "We couldn't tell exactly what the job is, so w
 /** Under "Why this robot": the first look is a check of the machine; how it is run is set up when it is installed. */
 export const ROBOT_NOT_SOFTWARE = "This is the first look: it looks at the robot's reach, strength and track record, not the software that runs it.";
 /** The section titles. */
-export const SECTION_COMPANIES = "Deployment companies";
+/** Owner, 2026-11-23: companies apply, and the site sees its applicants and accepts the ones it wants to meet. */
+export const SECTION_COMPANIES = "Applicants";
 export const SECTION_FIRST_LOOK = "First look";
 export const SECTION_SIMULATION = "Simulation of your site";
 /** The simulation's own lines, by the phase. */
@@ -141,6 +143,9 @@ function cannotLine(reason: string | null): string | null {
 
 type AnsweredEntry = Extract<SiteCompanyEntry, { kind: "answered" }>;
 
+/** The applicant as the site reads it: the company's name when its answer shows it (`applicant`), else its alias. */
+const shownName = (entry: AnsweredEntry) => entry.applicant?.name ?? entry.alias;
+
 /** A company's details after an introduction: what the site was given, nothing more. */
 function IntroducedDetails({ entry }: { entry: AnsweredEntry }) {
   const company = entry.company!;
@@ -152,6 +157,58 @@ function IntroducedDetails({ entry }: { entry: AnsweredEntry }) {
       <li><a className="ms-text-link" href={`mailto:${company.email}`}>{company.email}</a></li>
       {website && <li><a className="ms-text-link" href={website} target="_blank" rel="noreferrer noopener">{website}</a></li>}
     </ul>
+  </div>;
+}
+
+/** Where the job stands, as a shipment tracker shows a load: six steps, each done, current or still to come. */
+export function JobTracker({ sharing, activity }: { sharing: JobSharing; activity: SiteCompanyActivity | undefined }) {
+  const steps = jobTrackerSteps(sharing, isSiteCompanyActivity(activity) ? activity : undefined);
+  return <ol className="site-job-tracker" aria-label="Where your job stands">
+    {steps.map(step => <li key={step.key} className={`site-job-tracker-${step.state}`} aria-current={step.state === "current" ? "step" : undefined}>
+      <span className="site-job-tracker-dot" aria-hidden="true" />
+      <span className="site-job-tracker-label">{step.label}<span className="sr-only">{step.state === "done" ? " (done)"
+        : step.state === "current" ? " (now)" : " (to come)"}</span></span>
+      {step.detail && <span className="site-job-tracker-detail">{step.detail}</span>}
+      {step.atIso && <time className="site-job-tracker-date" dateTime={step.atIso}>{dateInWords(step.atIso)}</time>}
+    </li>)}
+  </ol>;
+}
+
+/**
+ * After an introduction, the site says how it went: a visit happened, a pilot was agreed. Blueprint cannot see either,
+ * so only this press records one, with the date it was pressed; "Undo" takes it back.
+ */
+function IntroductionProgress({ token, entry, onChanged }: { token: string; entry: AnsweredEntry; onChanged?: () => void }) {
+  const [progress, setProgress] = useState(entry.progress ?? {});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => { setProgress(entry.progress ?? {}); }, [entry.progress?.visitAtIso, entry.progress?.pilotAtIso]);
+  async function mark(step: "visit" | "pilot", done: boolean) {
+    if (busy) return;
+    setBusy(step); setError("");
+    try {
+      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introductions/progress`, {
+        method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
+        body: JSON.stringify({ alias: entry.alias, step, done }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) throw new Error(typeof result?.error === "string" ? result.error : PROGRESS_FAILED);
+      setProgress(result.progress ?? {});
+      onChanged?.();
+    } catch (failure) { setError(failure instanceof Error && failure.message ? failure.message : PROGRESS_FAILED); }
+    finally { setBusy(null); }
+  }
+  return <div className="site-job-progress" role="group" aria-label={`How it went with ${shownName(entry)}`}>
+    {(["visit", "pilot"] as const).map(step => {
+      const at = step === "visit" ? progress.visitAtIso : progress.pilotAtIso;
+      return at ? <p key={step} className="site-job-progress-done">
+        <span>{PROGRESS_MARK[step].done(dateInWords(at))}</span>
+        <button type="button" className="ms-inline-link" disabled={busy !== null} onClick={() => void mark(step, false)}
+          aria-label={`${PROGRESS_UNDO}: ${PROGRESS_MARK[step].done(dateInWords(at))}`}>{PROGRESS_UNDO}</button>
+      </p> : <button key={step} type="button" className="site-job-progress-mark" disabled={busy !== null}
+        onClick={() => void mark(step, true)}>{busy === step ? "Saving…" : PROGRESS_MARK[step].press}</button>;
+    })}
+    {error && <p role="alert">{error}</p>}
   </div>;
 }
 
@@ -176,7 +233,7 @@ function AnswerReason({ entry }: { entry: AnsweredEntry }) {
       (reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
         : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
     {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.question && !entry.company && !entry.introducedAtIso
-      && !entry.introductionPending && <p className="bare-helper">{introductionIfChanged(entry.alias)}</p>}
+      && !entry.introductionPending && <p className="bare-helper">{introductionIfChanged(shownName(entry))}</p>}
   </>;
 }
 
@@ -204,11 +261,16 @@ function ReplyQuestion({ token, alias, question, onChanged }: { token: string; a
       setError(failure instanceof Error ? failure.message : "Your answer could not be saved. Try again.");
     } finally { setBusy(false); }
   }
+  // The reply date (three days after the question): a date to aim for, never a lock (`REPLY_WINDOW_MS`).
+  const by = !shownAnswer && question.replyByIso ? question.replyByIso : null;
+  const passed = by !== null && Date.parse(by) <= Date.now();
   return <div className="company-question">
     <dl className="company-response-facts">
       <div><dt>What they need to know</dt><dd>{question.text}</dd></div>
       {shownAnswer && <div><dt>Your reply</dt><dd>{shownAnswer}</dd></div>}
     </dl>
+    {by && <p className={passed ? "bare-helper site-reply-date-passed" : "bare-helper"}>
+      {passed ? REPLY_DATE_PASSED(dateInWords(by)) : replyByLine(dateInWords(by))}</p>}
     {!shownAnswer && <details>
       <summary className="bare-inline-link">Reply</summary>
       <form className="ms-form" onSubmit={submit}>
@@ -278,27 +340,29 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
         {entry.kind === "sent" ? <p className="bare-helper">{sentToCompany(entry.alias, dateInWords(entry.atIso))}</p> : <>
           <div className="site-company-response-title">
-            <h3>{entry.alias}</h3>
+            <h3>{shownName(entry)}</h3>
             <span className={INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) ? "opportunity-label-ready" : undefined}>
-              {COMPANY_RESPONSE_LABELS[entry.state]}
+              {SITE_RESPONSE_LABELS[entry.state]}
             </span>
           </div>
+          {entry.applicant?.website && !entry.company && <p className="site-company-website">
+            <a className="ms-text-link" href={entry.applicant.website} target="_blank" rel="noreferrer noopener">{entry.applicant.website}</a></p>}
           <p className="site-company-reply-date">Answered <time dateTime={entry.atIso}>{dateInWords(entry.atIso)}</time></p>
         </>}
         {entry.kind === "answered" && <AnswerReason entry={entry} />}
         {entry.kind === "answered" && entry.question && <ReplyQuestion key={entry.question.id} token={token}
           alias={entry.alias} question={entry.question} onChanged={onIntroduced} />}
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
-          && <IntroducedDetails entry={entry} />}
+          && <><IntroducedDetails entry={entry} /><IntroductionProgress token={token} entry={entry} onChanged={onIntroduced} /></>}
         {/* Asked, not made yet: the company's email has not been sent, so the site is told it is in progress (H2). */}
         {entry.kind === "answered" && !entry.company && entry.introductionPending === true
-          && <p className="bare-helper" role="status">{introductionRequested(entry.alias)}</p>}
+          && <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
           {requested.includes(entry.alias)
-            ? <p className="bare-helper" role="status">{introductionRequested(entry.alias)}</p>
-            : <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
+            ? <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>
+            : <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(shownName(entry))}>
               {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
             </BareButton>}
           {errors[entry.alias] && <p role="alert">{errors[entry.alias]}</p>}
@@ -368,8 +432,11 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
     {error && <p role="alert">{error}</p>}
   </BareGroup>;
   else body = <BareGroup><BareLead>{sharing.videoReceived === false ? "Send a video to post your job." : NOT_SHARED_YET}</BareLead></BareGroup>;
+  // The tracker, while the job is being posted or is posted; a withdrawn, closed or hidden job says so instead.
+  const tracked = !ends && (sharing.state === "visible" || sharing.state === "preparing");
   return <section className="site-answer-section site-company-panel" aria-labelledby="site-job-companies">
     <h2 id="site-job-companies">{SECTION_COMPANIES}</h2>
+    {tracked && <JobTracker sharing={sharing} activity={activity} />}
     {body}
   </section>;
 }

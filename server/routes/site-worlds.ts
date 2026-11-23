@@ -21,6 +21,7 @@ import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, TESTED_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
+import { recordReplyWindow } from "../utils/siteReplyReminders";
 import { questionOnReply } from "../utils/jobClarifications";
 import { recordCompanyJobView } from "../utils/companyJobViews";
 const router = Router();
@@ -89,12 +90,18 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       const sameQuestion = question && priorQuestion?.text === question.text;
       const next = { ...row, firstAnsweredAtIso: firstAnswerTimestamp(prior, row.updatedAtIso),
         ...(question ? { questionId: sameQuestion ? priorQuestion.id : randomBytes(32).toString("hex") } : {}),
+        // When this question was first asked, so the company's page can say how quickly the site answers.
+        ...(question && !sameQuestion ? { questionAskedAtIso: row.updatedAtIso }
+          : sameQuestion && typeof prior?.questionAskedAtIso === "string" ? { questionAskedAtIso: prior.questionAskedAtIso } : {}),
         ...(sameQuestion && prior?.siteClarification ? { siteClarification: prior.siteClarification } : {}) };
       if (prior && humanDecisionDigest({ ...prior, firstAnsweredAtIso: next.firstAnsweredAtIso, updatedAtIso: null })
         === humanDecisionDigest({ ...next, updatedAtIso: null })) return;
       const prepared = await prepareCompanyAnswerInTransaction(tx, ref, taskId, current, companyId, input.data.state, captureUrl);
       prepared.write();
       tx.set(interestRef, next);
+      // A new question opens its reply window (`siteReplyReminders.ts`): a date for the site, and one reminder at it.
+      if (question && !sameQuestion && typeof next.questionId === "string")
+        recordReplyWindow(tx, { jobId: taskId, companyId, questionId: next.questionId, askedAtIso: row.updatedAtIso });
     });
     return res.json({ ok: true, state: input.data.state, nextAction: answerNextStep(input.data.state) });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
@@ -103,9 +110,9 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
 /** After an answer, one sentence saying what happens next. */
 function answerNextStep(state: CompanyResponseState): string {
   if (INTRODUCIBLE_RESPONSE_STATES.includes(state))
-    return "Saved. If the site asks to meet you, we email you both each other's name and contact details.";
+    return "Saved. If the site accepts your application, we email you both each other's name and contact details.";
   if (state === "needs_something") return "Saved. If the site answers your question, its answer shows on this page.";
-  return "Saved. The site sees this answer without your company's name, and you can change it on this page.";
+  return "Saved. The site sees this answer with your company's name, and you can change it on this page.";
 }
 
 // The company's page for one job (E3): signed-in, approved accounts only, whatever the early-access switch says.

@@ -5,7 +5,9 @@ export type { PublicLiveJob } from "../../client/src/types/taskBrowse";
 import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
 import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, thumbnailSourceOf, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
-import { companyPlaceOf, countryOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
+import { companyJobHeadline, companyPlaceOf, countryOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
+import { readJobFacts } from "./jobFacts";
+import { rateInWords } from "../../client/src/lib/companyJobPage";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { storedCompanySimulation } from "./websiteCompanySimulation";
 
@@ -65,8 +67,10 @@ async function libraryCard(card: TaskBrowseCard, record: Record<string, any>,
     knownSiteIdentity(record).catch(() => null),
   ]);
   // The country, with the state or city only as the accepted statement allows (`companyPlaceOf`): never the site's name or address.
+  // The title and how often the job runs, as its page leads with them, like a load post.
   return { ...card, region: card.region || country || "", sentence: siteSentenceForCompany(brief, known), simulationStage,
-    simulationDownloadAvailable };
+    simulationDownloadAvailable, headline: companyJobHeadline(record, card.taskFamily, jobTitleForDisplay(card.title), known),
+    headlineFacts: rateInWords(readJobFacts(record)) };
 }
 
 /**

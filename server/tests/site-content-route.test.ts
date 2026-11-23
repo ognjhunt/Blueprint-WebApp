@@ -62,7 +62,7 @@ describe("site-content route", () => {
       expect(payload.summary).not.toMatch(/early trial|openly available/i);
       // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
       expect(payload.summary).toContain("The packet includes the video without sound and adds the simulation when it is ready. Blueprint sends each job automatically to the deployment companies it has approved.");
-      expect(payload.summary).toContain("A site's name, address and contact details go to a company only when the site asks for an introduction.");
+      expect(payload.summary).toContain("A site sees each company's name and website with its answer, and its own name, address and contact details go to a company only when the site accepts that company.");
       expect(payload.summary).not.toMatch(/stays private|only the summary/);
       expect(payload.summary).not.toMatch(/never sees? the site's own sentence/);
       expect(payload.summary).not.toMatch(/proves it|which did best|top AI robots|paper check/);

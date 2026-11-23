@@ -6,10 +6,10 @@ import { COMPANY } from "@/data/company";
 import { PREVIOUS_PRIVACY_URL, PREVIOUS_PRIVACY_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Privacy Policy of version 2026-11-13.1, in force from 2026-11-13 until the next version replaced it
- * (owner, 2026-11-17: no face blurring for jobs started under the new version). Its sections are copied word for word
- * from `Privacy.tsx` as it stood at 2026-11-13.1. Do not edit the sections: they are the policy as it stood. Change
- * Privacy.tsx instead.
+ * FROZEN: the Privacy Policy of version 2026-11-17.1, in force from 2026-11-17 until the next version replaced it
+ * (owner: the early trial dropped on 2026-11-14; the Privacy Policy and Terms updated with permission given on
+ * 2026-11-19). Its sections are copied word for word from `Privacy.tsx` as it stood at 2026-11-17.1. Do not edit the
+ * sections: they are the policy as it stood. Change Privacy.tsx instead.
  */
 const SHARING_SENTENCE = "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, our first look at which robots fit, and the result of any early trial we run.";
 const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
@@ -28,7 +28,7 @@ const privacyPolicySections = [
   {
     title: "Site footage",
     body:
-      `When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage, before sending it to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run our early trial. ${SHARING_SENTENCE} We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; the other listed providers receive the footage, with its sound removed, or frames from it as recorded, which can show people, including hands or arms performing the job. Companies see your video as you filmed it, without its sound. We ask sites to avoid screens and paperwork.`,
+      `When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage, before sending it to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run our early trial. ${SHARING_SENTENCE} We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound. We ask sites to avoid screens and paperwork.`,
     icon: Waypoints,
   },
   {
@@ -49,7 +49,7 @@ const capturePrivacyAnnex = [
   // Sharing is the service (owner, 2026-11-12): the video goes, without its sound, to the deployment companies Blueprint
   // approves, only so they can judge the job. Name, address and contacts go only through an introduction the site asks for.
   ["Your video", `Your recording is used inside Blueprint to draft the job brief, review the job and rebuild the work area. It is shared, without its sound, only with the robot deployment companies we approve, and only so they can judge the job. ${COMPANY_USE_SENTENCE}`],
-  ["People in job footage", "We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; otherwise Blueprint and the listed processing providers process the footage, with its sound removed, and frames from it as recorded, for job review and building the simulation. Companies see your video as you filmed it, without its sound. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint and with the robot deployment companies we approve, and obtain any permission the law requires from people who can be seen or heard."],
+  ["People in job footage", "We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint and with the robot deployment companies we approve, and obtain any permission the law requires from people who can be seen or heard."],
   ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review, before sending footage to an AI or 3D-processing provider and before a deployment company sees it, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
   ["Screens and paperwork", "Avoid them when filming where practical: companies see your video as you filmed it."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene. A deployment company sees the country of the job, not the address you typed."],
@@ -86,12 +86,12 @@ const betaRetentionSchedule = [
   {
     record: "Site footage and capture data",
     defaultWindow: "Existing recordings keep their original retention terms; longer retention requires separate authorization",
-    notes: "The video, photos, timestamps, motion and depth data, the frames and blurred copies we make from them and store with them, and the record of the site's authority and privacy review. Recordings collected under our previous policy keep its 180 days after the job closes schedule, subject to applicable legal holds. Publishing this update, reaching its effective date, or accepting it later does not extend that period for existing recordings. A proposed period of at least 7 years for newly collected recordings requires legal review and the notice and authorization applicable to those recordings before it can apply. Our storage does not currently delete originals automatically on a schedule; that configuration does not override the applicable retention terms. Withdrawal and verified deletion requests use our deletion process, after we confirm the request and check for any legal hold. When a site withdraws permission, we stop using the recording from that moment.",
+    notes: "The video, photos, timestamps, motion and depth data, the frames and any blurred copies we make from them and store with them, and the record of the site's authority and privacy review. Recordings collected under the version of this policy effective October 13, 2026 keep its 180 days after the job closes schedule, subject to applicable legal holds. Publishing this update, reaching its effective date, or accepting it later does not extend that period for existing recordings. A proposed period of at least 7 years for newly collected recordings requires legal review and the notice and authorization applicable to those recordings before it can apply. Our storage does not currently delete originals automatically on a schedule; that configuration does not override the applicable retention terms. Withdrawal and verified deletion requests use our deletion process, after we confirm the request and check for any legal hold. When a site withdraws permission, we stop using the recording from that moment.",
   },
   {
     record: "Temporary processing files",
     defaultWindow: "14 days after they are created",
-    notes: "Scratch files from rebuilding a scene or blurring footage that sit in our temporary processing storage, unless a legal hold applies. Frames and blurred copies stored with the capture are kept like the capture.",
+    notes: "Scratch files from processing footage that sit in our temporary processing storage, unless a legal hold applies. Frames and any blurred copies stored with the capture are kept like the capture.",
   },
   {
     record: "Scenes, evaluation results, pilot records and reports",
@@ -183,7 +183,7 @@ const privacySubprocessorCategories = [
       ["OpenAI", "Reading the job description and frames from a site capture to draft the job brief and prepare the simulated scene, drafting replies, and sorting incoming requests"],
       ["Google Gemini", "Watching site footage, with its sound removed, and frames from it, together with the job description, to draft and check the job brief and to find what the simulated scene needs"],
       ["Meta", "Outlining objects and areas in site footage, with its sound removed, to prepare the simulated scene"],
-      ["Anthropic", "For jobs started and requests sent under this version of the policy or a later one, may read the job description and frames from a site capture to draft the job brief and prepare the simulated scene, draft replies, and sort incoming requests; for earlier jobs, drafting the job brief from capture frames only when a site explicitly chooses that option; and drafting and sorting internal work where we configure it"],
+      ["Anthropic", "For jobs started and requests sent under the version of this policy effective November 13, 2026, or a later one, may read the job description and frames from a site capture to draft the job brief and prepare the simulated scene, draft replies, and sort incoming requests; for earlier jobs, drafting the job brief from capture frames only when a site explicitly chooses that option; and drafting and sorting internal work where we configure it"],
       ["DeepSeek", "Drafting and sorting internal work, where we configure it"],
       ["World Labs", "Rebuilding a work area as a 3D scene from site footage, with its sound removed"],
       ["Vast.ai", "Cloud GPU servers that rebuild scenes and run simulated evaluations"],
@@ -280,8 +280,8 @@ export default function PrivacyPrevious() {
         <p>
           Frames from a site capture, together with the job description, are processed by AI model providers acting as
           our sub-processors to draft the job brief. These are processed by OpenAI or, for jobs started and requests sent
-          under this version of the policy or a later one, by Anthropic, with Google Gemini reviewing the
-          footage; for an earlier job, Anthropic receives frames only when the site explicitly chose that option. We also
+          under the version of this policy effective November 13, 2026, or a later one, by Anthropic, with Google Gemini
+          reviewing the footage; for an earlier job, Anthropic receives frames only when the site explicitly chose that option. We also
           use the providers listed
           above to rebuild scenes and sort incoming requests. We send each provider only what the step needs, footage
           goes to them with its sound removed, the provider may not use it for its own purposes, and we do not give any

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
-import { COMPANY_RESPONSE_LABELS, companyAliasName, type CompanyResponseState } from "@/lib/companyResponses";
+import { SITE_RESPONSE_LABELS, companyAliasName, type CompanyResponseState } from "@/lib/companyResponses";
 import { EXAMPLE_TAG } from "@/lib/publicCopy";
 import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/site/RobotScene";
 
@@ -12,7 +12,7 @@ import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/sit
  *
  * Each example is a small version of what a site sees on its job page once deployment companies answer: the job, how
  * many companies opened it, and up to three answers, each an alias and one of the real answer labels
- * (`COMPANY_RESPONSE_LABELS`), as the site sees them. Every site, job, count and answer is made up and the card says
+ * (`SITE_RESPONSE_LABELS`), as the site sees them. Every site, job, count and answer is made up and the card says
  * "Example" in words at all times. No company names, product or robot names, prices, percentages or "how sure".
  * Three examples, each leading with an answer a company can give today; "Tested it" answers need a downloadable
  * simulation, so the card shows none of them (ledger AL02, EL03, 2026-11-23).
@@ -97,7 +97,7 @@ export function PilotPreview() {
               {example.answers.map((state, i) => (
                 <li key={ALIASES[i]}>
                   <span>{companyAliasName(ALIASES[i])}</span>
-                  <span className="bare-example-status" data-state={state}>{COMPANY_RESPONSE_LABELS[state]}</span>
+                  <span className="bare-example-status" data-state={state}>{SITE_RESPONSE_LABELS[state]}</span>
                 </li>
               ))}
             </ul>

@@ -8,7 +8,8 @@
  * reads are fakes. (The viewer gate itself, unmocked, is pinned in `robot-team-early-access.test.ts`.)
  */
 import express from "express";
-import { LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
+import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION }
+  from "../../client/src/lib/legalAcceptance";
 import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -361,6 +362,25 @@ describe("the launch-copy Terms and Privacy ask no approved company to agree aga
   });
 });
 
+describe("the application Terms and Privacy ask no approved company to agree again", () => {
+  // Owner, 2026-11-23 ("yes, update both"): Terms and Privacy 2026-11-23.2 say that a company applies and that a site
+  // sees its name and website with each answer and accepts it. A company's name reaches a site only under the answer
+  // line it answered under, `company-response-2026-11-23`, not under the Terms (as its reason does under
+  // `company-response-2026-11-12`), so every acceptance that let a company see jobs before still does.
+  const record = (termsVersion: string, privacyVersion: string) => ({ status: "approved", partnerRole: "deployment",
+    termsAcceptedByUid: "uid-company", termsAcceptance: { ...currentTermsAcceptance(), terms_version: termsVersion, privacy_version: privacyVersion } });
+  it("a company holding any acceptance that counted under Terms 2026-11-21.1 and Privacy 2026-11-23.1 keeps seeing jobs", () => {
+    for (const terms of ["2026-11-12.2", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, COMPANY_APPLICATION_VERSION])
+      for (const privacy of ["2026-11-12.2", "2026-11-13.1", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION,
+        COMPANY_APPLICATION_VERSION])
+        expect(companyMaySeeJobs(record(terms, privacy) as never), `${terms} ${privacy}`).toBe(true);
+  });
+  it("a company that was already asked again is still asked", () => {
+    expect(companyMaySeeJobs(record("2026-11-12.1", COMPANY_APPLICATION_VERSION) as never)).toBe(false);
+    expect(companyMaySeeJobs(record(COMPANY_APPLICATION_VERSION, "2026-11-02.1") as never)).toBe(false);
+  });
+});
+
 describe("T1 every company surface refuses without a current signed-in acceptance, and says nothing of any job", () => {
   it.each(STALE)("%s", async (_label, terms, keepUid) => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simPkg() });
@@ -538,7 +558,8 @@ describe("an introduction that may no longer go ahead at dispatch is cancelled a
     expect(a).not.toHaveProperty("introducedAtIso");
     expect(a).not.toHaveProperty("company");
     expect(a.canIntroduce).toBe(false);
-    expect(JSON.stringify(activity)).not.toMatch(/North Robotics|contact@north|Person North/);
+    // The applicant's name and website show with its answer (owner, 2026-11-23); its contact details never before Accept.
+    expect(JSON.stringify(activity)).not.toMatch(/contact@north|Person North/);
     expect(activity.introductions.used).toBe(0);
     // A cancelled introduction does not count among those made.
     seams.sendEmail.mockClear();
@@ -663,7 +684,8 @@ describe("one commit point: the company's email first, then the site's, which th
     expect(a).toMatchObject({ introductionCancelled: true,
       canIntroduce: reason === "company_email_failed" || reason === "company_email_not_sent" });
     expect(a).not.toHaveProperty("company");
-    expect(JSON.stringify(activity)).not.toMatch(/North Robotics|contact@north|Person North/);
+    // The applicant's name and website show with its answer (owner, 2026-11-23); its contact details never before Accept.
+    expect(JSON.stringify(activity)).not.toMatch(/contact@north|Person North/);
     expect(activity.introductions.used).toBe(0);
   }
 

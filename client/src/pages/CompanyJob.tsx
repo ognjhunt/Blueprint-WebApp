@@ -7,12 +7,13 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { withCsrfHeader } from "@/lib/csrf";
 import { companyApplicationHref, companyJobReturnPath, companyJobSignInHref } from "@/lib/authReturnPath";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES, TESTED_RESPONSE_STATES,
-  companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
+  companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
 import { JobCardAnswer } from "@/components/site/JobCardAnswer";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
+import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, NO_SUCCESS_RULE, type FitSummaryRow } from "@/lib/companyJobPage";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } from "@/lib/companySignInLink";
 
@@ -124,13 +125,14 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   const simulationReady = page.simulationDownload?.state === "ready";
   return <div className="bare-screen company-job company-job-ready" role="region" aria-label="Job">
     <a className="company-job-back" href={backHref}><ArrowLeft size={17} aria-hidden="true" />Back to jobs</a>
-    <h1>{jobTitleForDisplay(page.title)}</h1>
+    <h1>{page.headline || jobTitleForDisplay(page.title)}</h1>
     <div className="opportunity-meta">
       {page.country && <span><MapPin size={15} aria-hidden="true" />{page.country}</span>}
+      {page.headlineFacts.map(fact => <span key={fact}>{fact}</span>)}
       {dateInWords(page.publishedAtIso) && <span>Shared {dateInWords(page.publishedAtIso)}</span>}
     </div>
     <div className="company-job-actions">
-      {user && <a className="ms-button" href="#answer-this-job">Respond<ArrowDown size={16} aria-hidden="true" /></a>}
+      {user && <a className="ms-button" href="#answer-this-job">Apply or respond<ArrowDown size={16} aria-hidden="true" /></a>}
       {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url} download><Download size={16} aria-hidden="true" />Download the simulation</a>}
     </div>
 
@@ -139,11 +141,13 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         <section aria-label="The job">
           <h2>The job, in the site's words</h2>
           {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site's description can't be shown right now.</p>}
-          {page.successRule && <div className="company-job-success"><h3>What counts as done</h3><p>{page.successRule}</p></div>}
-          {page.jobFacts.length > 0 && <>
-            <ul aria-label="The site's answers">{page.jobFacts.map(line => <li key={line}>{line}</li>)}</ul>
-            <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>
-          </>}
+          <div className="company-job-success"><h3>What counts as done</h3><p>{page.successRule || NO_SUCCESS_RULE}</p></div>
+        </section>
+
+        <section aria-label="At a glance">
+          <h2>At a glance</h2>
+          <FitSummary rows={page.fitSummary} />
+          <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>
         </section>
 
         <section aria-label="The video">
@@ -159,6 +163,26 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} tested={simulationReady} />}
 
       <div className="company-job-evidence">
+        <section aria-label="First look">
+          <h2>First look</h2>
+          {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
+            <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
+          {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
+          {/* A status only when nothing at all is shown: rows of robots on paper are a first look already. */}
+          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} />
+            : page.firstLookRows.length === 0 ? <p role="status">{page.firstLookStatus ?? NO_FIRST_LOOK}</p> : null}
+        </section>
+
+        <section aria-label="Simulation of the site">
+          <h2>Simulation of the site</h2>
+          {page.simulationDownload?.state === "ready"
+            ? <p className="ms-field-hint">A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.</p>
+            : null}
+          {page.simulation.state === "ready"
+            ? <p><a className="ms-button" href={page.simulation.viewerUrl}>View the simulation of the site</a></p>
+            : page.simulationDownload?.state !== "ready" ? <p role="status">{page.simulationStatus ?? SIMULATION_NOT_FINISHED}</p> : null}
+        </section>
+
         <section aria-label="The object and how sure we are">
           <h2>The object, and how sure we are</h2>
           {page.packetFacts ? <>
@@ -169,32 +193,33 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
             {page.packetFacts.estimated.length > 0 && <><h3>Estimated</h3>
               <ul aria-label="Estimated">{page.packetFacts.estimated.map(line => <li key={line}>{line}</li>)}</ul></>}
           </> : <p>{NO_PACKET_FACTS}</p>}
-          <h3>What this job packet does not show</h3>
-          <ul aria-label="What this job packet does not show">{page.notShown.map(line => <li key={line}>{line}</li>)}</ul>
         </section>
 
-        <section aria-label="First look">
-          <h2>First look</h2>
-          {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
-            <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
-          {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
-          {/* "Not ready" only when nothing at all is shown: rows of robots on paper are a first look already. */}
-          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} />
-            : page.firstLookRows.length === 0 ? <p>{NO_FIRST_LOOK}</p> : null}
+        <section aria-label="A visit must confirm">
+          <h2>A visit must confirm</h2>
+          <p className="ms-field-hint">{NOTHING_TESTED_AT_SITE}</p>
+          <ul aria-label="What a visit must confirm">{page.visitMustConfirm.map(line => <li key={line}>{line}</li>)}</ul>
         </section>
 
-        <section aria-label="Simulation of the site">
-          <h2>Simulation of the site</h2>
-          {page.simulationDownload?.state === "ready"
-            ? <p className="ms-field-hint">A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.</p>
-            : null}
-          {page.simulation.state === "ready"
-            ? <p><a className="ms-button" href={page.simulation.viewerUrl}>View the simulation of the site</a></p>
-            : page.simulationDownload?.state !== "ready" ? <p>{SIMULATION_NOT_FINISHED}</p> : null}
+        <section aria-label="About the site">
+          <h2>About the site</h2>
+          <ul aria-label="About the site">{page.aboutSite.map(line => <li key={line}>{line}</li>)}</ul>
         </section>
       </div>
     </div>
   </div>;
+}
+
+/** The site's answers as fixed fields a company scans like a load post: "Not stated" where the site skipped one. */
+function FitSummary({ rows }: { rows: FitSummaryRow[] }) {
+  if (rows.length === 0) return <p>{NOT_STATED}.</p>;
+  return <dl className="company-fit-summary" aria-label="The site's answers">{rows.map(row => <div key={row.key}
+    className={row.state === "stated" || row.state === "from_video" ? undefined : "company-fit-missing"}>
+    <dt>{row.label}</dt>
+    <dd>{row.value ?? (row.state === "unsure" ? NOT_SURE : NOT_STATED)}
+      {row.state === "from_video" && <span className="ms-field-hint"> (from the video)</span>}
+      {row.estimateBelow && <span className="ms-field-hint"> · {ESTIMATE_BELOW}</span>}</dd>
+  </div>)}</dl>;
 }
 
 /**
@@ -235,9 +260,12 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
   }
   return <section id="answer-this-job" aria-label={formLabel} tabIndex={-1}>
     <h2>Your response</h2>
-    {mine && <p className="ms-field-hint">You answered “{COMPANY_RESPONSE_LABELS[mine.state]}”{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
+    {mine && <p className="ms-field-hint">{mine.state === "interested" ? "You applied" : `You answered “${COMPANY_RESPONSE_LABELS[mine.state]}”`}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
-        ? " Answer again below so the site can ask for an introduction." : ""}</p>}
+        ? " Send it again below so the site sees your company's name and website with it." : ""}</p>}
+    {page.pendingQuestion && <p className="ms-field-hint" role="status">{Date.parse(page.pendingQuestion.replyByIso) <= Date.now()
+      ? companyQuestionOverdue(dateInWords(page.pendingQuestion.replyByIso), page.pendingQuestion.reminded)
+      : companyQuestionWaiting(dateInWords(page.pendingQuestion.askedAtIso), dateInWords(page.pendingQuestion.replyByIso))}</p>}
     {page.clarification && <div className="company-question" role="region" aria-label="Answer from the site">
       <dl className="company-response-facts">
         <div><dt>Your question</dt><dd>{page.clarification.question}</dd></div>
@@ -245,7 +273,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
       </dl>
     </div>}
     <form onSubmit={submit} className="ms-form" aria-label={formLabel}>
-      <fieldset className="company-answer-options"><legend>Is this job a fit for your company?</legend>
+      <fieldset className="company-answer-options"><legend>Will you apply for this job?</legend>
         {(tested ? [...FIT_RESPONSE_STATES, ...TESTED_RESPONSE_STATES] : FIT_RESPONSE_STATES).map(state => <label key={state}><input type="radio" name="state" value={state} required
           checked={answer === state} onChange={() => choose(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
@@ -264,7 +292,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
           {COMPANY_START_WINDOWS.map(window => <option key={window} value={window}>{COMPANY_START_LABELS[window]}</option>)}
         </select></label>
       </details>}
-      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send response"}</button>
+      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send"}</button>
       {message && <p role="status">{message}</p>}
       <p className="ms-field-hint" id="company-answer-statement">{page.responseStatement.text}</p>
     </form>
