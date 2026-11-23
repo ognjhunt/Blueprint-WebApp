@@ -60,10 +60,10 @@ vi.mock("@/lib/siteCaptureDurability", () => ({
     const current = durability.rows.get(key);
     if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
       || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
-    const { task, location, email, method, region, regionManuallySet, regionFromPlace, privateHandling, jobFrequency, purchaseReadiness } = value.draft;
+    const { task, location, email, method, region, regionManuallySet, regionFromPlace, placeParts, privateHandling, jobFrequency, purchaseReadiness } = value.draft;
     durability.rows.set(key, { retired: false, value: {
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, method, region, regionManuallySet, ...(regionFromPlace ? { regionFromPlace } : {}), ...(privateHandling === true ? { privateHandling } : {}), ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}) },
+      draft: { task, location, email, method, region, regionManuallySet, ...(regionFromPlace ? { regionFromPlace } : {}), ...(regionFromPlace && placeParts ? { placeParts } : {}), ...(privateHandling === true ? { privateHandling } : {}), ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     } });
   },
@@ -1528,6 +1528,11 @@ describe("the country a place gave is kept", () => {
     fireEvent.submit(screen.getByRole("form"));
     await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(2));
     expect(JSON.parse(postsTo("/api/inbound-request")[1][1].body)).toMatchObject({ siteLocation: FILLED, captureRegion: "us" });
+    // The place's structured parts go with both sends; never the street the reverse lookup also returned.
+    for (const [, init] of postsTo("/api/inbound-request")) {
+      expect(JSON.parse(init.body).siteLocationMetadata).toEqual({ source: "photon", city: "Austin", state: "Texas", country: "US" });
+      expect(init.body).not.toMatch(/Parmer|4201|30\.44|97\.72/);
+    }
   });
 
   it("keeps it from \"Use my location\" across a reload while the address is unedited", async () => {
@@ -1535,11 +1540,18 @@ describe("the country a place gave is kept", () => {
     const first = await renderReady(<SiteCaptureStart />);
     await useMyLocation();
     const key = siteCaptureDraftKey(null, "default");
-    await waitFor(() => expect(JSON.parse(localStorage.getItem(key)!).draft).toMatchObject({ location: FILLED, region: "us", regionFromPlace: FILLED }));
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(key)!).draft).toMatchObject({ location: FILLED, region: "us", regionFromPlace: FILLED,
+      placeParts: { source: "photon", city: "Austin", state: "Texas", country: "US" } }));
     first.unmount();
     await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-location")).toHaveValue(FILLED);
     expectInferredUnitedStates();
+    describeTask("Move sealed cartons to the dock");
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
+    expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body).siteLocationMetadata)
+      .toEqual({ source: "photon", city: "Austin", state: "Texas", country: "US" });
   });
 
   it("keeps it from a chosen suggestion across a reload, and asks once the restored address is edited", async () => {
@@ -1566,11 +1578,21 @@ describe("the country a place gave is kept", () => {
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Perth, WA" } });
     const key = siteCaptureDraftKey(null, "default");
     await waitFor(() => expect(JSON.parse(localStorage.getItem(key)!).draft).toMatchObject({ location: "Perth, WA", region: "" }));
+    expect(JSON.parse(localStorage.getItem(key)!).draft.placeParts).toBeUndefined();
     first.unmount();
     await renderReady(<SiteCaptureStart />);
     expect(region()).toHaveValue("");
     fireEvent.submit(screen.getByRole("form"));
     expect(postsTo("/api/inbound-request")).toHaveLength(0);
+    // Typed over, the picked place's parts are gone: the typed text is sent alone.
+    describeTask("Move sealed cartons to the dock");
+    fireEvent.change(region()!, { target: { value: "non_us" } });
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
+    const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+    expect(sent.siteLocation).toBe("Perth, WA");
+    expect(sent.siteLocationMetadata).toBeUndefined();
   });
 
   it("does not keep a stored country whose place label no longer matches the address (a stale write)", async () => {

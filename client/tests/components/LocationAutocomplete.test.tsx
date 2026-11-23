@@ -130,7 +130,17 @@ describe("reporting the chosen place", () => {
 
     fireEvent.click(await screen.findByText("Munich, Germany"));
 
-    expect(onSelect).toHaveBeenCalledWith({ label: "Munich, Germany", countryCode: "DE" });
+    expect(onSelect).toHaveBeenCalledWith({ label: "Munich, Germany", countryCode: "DE", city: null, state: null, source: "photon" });
+  });
+
+  it("tells the form a Photon city's state, and never its street or postcode", async () => {
+    fetchMock.mockResolvedValue(photonRaw([{ name: "Austin", type: "city", state: "Texas", country: "United States", countrycode: "us",
+      postcode: "78701" }]));
+    const onSelect = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "austin" } });
+    fireEvent.click(await screen.findByText("Austin, Texas, United States"));
+    expect(onSelect).toHaveBeenCalledWith({ label: "Austin, Texas, United States", countryCode: "US", city: "Austin", state: "Texas", source: "photon" });
   });
 
   it("reports no country when the provider gave none", async () => {
@@ -141,7 +151,7 @@ describe("reporting the chosen place", () => {
 
     fireEvent.click(await screen.findByText("Somewhere"));
 
-    expect(onSelect).toHaveBeenCalledWith({ label: "Somewhere", countryCode: null });
+    expect(onSelect).toHaveBeenCalledWith({ label: "Somewhere", countryCode: null, city: null, state: null, source: "photon" });
   });
 
   it("invalidates a picked place when its text is edited or cleared", async () => {
@@ -151,7 +161,7 @@ describe("reporting the chosen place", () => {
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "munich" } });
     fireEvent.click(await screen.findByText("Munich, Germany"));
-    await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "Munich, Germany", countryCode: "DE" }));
+    await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "Munich, Germany", countryCode: "DE", city: null, state: null, source: "photon" }));
 
     fireEvent.change(input, { target: { value: "Munich, Bavaria" } });
     expect(onSelectionChange).toHaveBeenLastCalledWith(null);
@@ -159,7 +169,7 @@ describe("reporting the chosen place", () => {
     expect(onSelectionChange).toHaveBeenLastCalledWith(null);
   });
 
-  function googleFixture(label: string, fetchFields = vi.fn(async () => ({ countryCode: "GB" }))) {
+  function googleFixture(label: string, fetchFields = vi.fn(async () => ({ countryCode: "GB", city: "London", state: "England" }))) {
     const fetchAutocompleteSuggestions = vi.fn(async (_request: { input: string; sessionToken: string }) => ({
       suggestions: [{ label, placeId: "fixture-place", mainText: label.split(", ")[0], secondaryText: label.split(", ").slice(1).join(", ") }],
     }));
@@ -186,7 +196,7 @@ describe("reporting the chosen place", () => {
     fireEvent.click(await screen.findByRole("option", { name: "London United Kingdom" }));
 
     await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({
-      label: "London, United Kingdom", countryCode: "GB",
+      label: "London, United Kingdom", countryCode: "GB", city: "London", state: "England", source: "google_places",
     }));
     expect(fetchFields).toHaveBeenCalled();
     const predictionQuery = new URL(fetchMock.mock.calls[0][0], "https://example.test").searchParams;
@@ -204,7 +214,7 @@ describe("reporting the chosen place", () => {
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "paris" } });
     fireEvent.click(await screen.findByRole("option", { name: "Paris France" }));
 
-    await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ label: "Paris, France", countryCode: null }));
+    await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ label: "Paris, France", countryCode: null, city: null, state: null, source: "google_places" }));
   });
 
   it("passes opted-in coordinates to the private proxy and clears them from later lookups", async () => {
@@ -241,7 +251,7 @@ describe("reporting the chosen place", () => {
     await act(async () => { resolveDetails!({ countryCode: "DE" }); });
 
     await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith(null));
-    expect(onSelectionChange).not.toHaveBeenCalledWith({ label: "Berlin, Germany", countryCode: "DE" });
+    expect(onSelectionChange).not.toHaveBeenCalledWith(expect.objectContaining({ label: "Berlin, Germany", countryCode: "DE" }));
   });
 
   it("reuses a Google session while typing and starts a fresh one after a pick", async () => {
@@ -294,7 +304,7 @@ describe("reporting the chosen place", () => {
     expect(input.value).toBe("London, United Kingdom");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-    expect(onSelect).toHaveBeenCalledWith({ label: "London, United Kingdom", countryCode: null });
+    expect(onSelect).toHaveBeenCalledWith({ label: "London, United Kingdom", countryCode: null, city: null, state: null, source: "google_places" });
   });
 
   it("keeps zero Google results empty instead of mixing providers", async () => {
@@ -366,7 +376,9 @@ describe("the configured browser Maps key", () => {
     return { ok: true, json: async () => ({ features: properties.map((props) => ({ properties: props })) }) };
   }
   function googleFixture(label: string, fetchFields = vi.fn(async () => ({
-    place: { addressComponents: [{ shortText: "GB", types: ["country"] }] },
+    place: { addressComponents: [{ longText: "London", shortText: "London", types: ["locality", "political"] },
+      { longText: "England", shortText: "England", types: ["administrative_area_level_1", "political"] },
+      { longText: "SW1A 1AA", shortText: "SW1A 1AA", types: ["postal_code"] }, { shortText: "GB", types: ["country"] }] },
   }))) {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
     resetClientEnvCacheForTests();
@@ -392,7 +404,7 @@ describe("the configured browser Maps key", () => {
     fireEvent.click(await screen.findByRole("option", { name: "London United Kingdom" }));
 
     await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({
-      label: "London, United Kingdom", countryCode: "GB",
+      label: "London, United Kingdom", countryCode: "GB", city: "London", state: "England", source: "google_places",
     }));
     expect(fetchFields).toHaveBeenCalledWith({ fields: ["addressComponents"] });
     expect(fetchAutocompleteSuggestions).toHaveBeenCalledWith({ input: "london", sessionToken: expect.any(Object), region: "us",
@@ -407,7 +419,7 @@ describe("the configured browser Maps key", () => {
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "paris" } });
     fireEvent.click(await screen.findByRole("option", { name: "Paris France" }));
 
-    await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ label: "Paris, France", countryCode: null }));
+    await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ label: "Paris, France", countryCode: null, city: null, state: null, source: "google_places" }));
   });
 
   it("ignores Google details that resolve after the operator changes the text", async () => {
@@ -423,7 +435,7 @@ describe("the configured browser Maps key", () => {
     await act(async () => { resolveDetails!({ place: { addressComponents: [{ shortText: "DE", types: ["country"] }] } }); });
 
     await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith(null));
-    expect(onSelectionChange).not.toHaveBeenCalledWith({ label: "Berlin, Germany", countryCode: "DE" });
+    expect(onSelectionChange).not.toHaveBeenCalledWith(expect.objectContaining({ label: "Berlin, Germany", countryCode: "DE" }));
   });
 
   it("reuses a Google session while typing and starts a fresh one after a pick", async () => {
@@ -489,14 +501,15 @@ describe("the configured browser Maps key", () => {
     const geocode = vi.fn(async () => ({ results: [{ formatted_address: "1005 Crete St, Durham, NC 27707, USA", types: ["street_address"],
       address_components: [{ types: ["country"], short_name: "US" }] }, { formatted_address: "North Carolina, USA",
       types: ["administrative_area_level_1", "political"], address_components: [{ types: ["country"], short_name: "US" }] },
-    { formatted_address: "Durham, NC, USA", types: ["locality", "political"], address_components: [{ types: ["country"], short_name: "US" }] }] }));
+    { formatted_address: "Durham, NC, USA", types: ["locality", "political"], address_components: [{ types: ["locality", "political"], long_name: "Durham" },
+      { types: ["administrative_area_level_1", "political"], long_name: "North Carolina", short_name: "NC" }, { types: ["country"], short_name: "US" }] }] }));
     Object.assign(window.google.maps, { importLibrary: vi.fn(async () => ({ Geocoder: class { geocode = geocode; } })) });
     vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } } as GeolocationPosition) } });
     const onSelectionChange = vi.fn();
     render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("Durham, NC, USA"));
-    expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "Durham, NC, USA", countryCode: "US" });
+    expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "Durham, NC, USA", countryCode: "US", city: "Durham", state: "North Carolina", source: "google_places" });
     expect(geocode).toHaveBeenCalledWith({ location: { lat: 35.9940321, lng: -78.8986192 } });
     expect(screen.getByRole("status")).toHaveTextContent("Filled in your city or region. Check it before continuing.");
     expect(screen.getByRole("img", { name: "Powered by Google" })).toBeInTheDocument();
@@ -515,7 +528,7 @@ describe("the configured browser Maps key", () => {
     render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("Toronto, Canada"));
-    expect(onSelect).toHaveBeenLastCalledWith({ label: "Toronto, Canada", countryCode: "CA" });
+    expect(onSelect).toHaveBeenLastCalledWith({ label: "Toronto, Canada", countryCode: "CA", city: "Toronto", state: null, source: "photon" });
     expect(screen.getByRole("link", { name: "© OpenStreetMap" })).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toContain("photon.komoot.io/reverse?");
   });
@@ -671,7 +684,7 @@ describe("the configured browser Maps key", () => {
     expect(input.value).toBe("London, United Kingdom");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-    expect(onSelect).toHaveBeenCalledWith({ label: "London, United Kingdom", countryCode: null });
+    expect(onSelect).toHaveBeenCalledWith({ label: "London, United Kingdom", countryCode: null, city: null, state: null, source: "google_places" });
   });
 
   it("keeps zero Google results empty instead of mixing providers", async () => {
