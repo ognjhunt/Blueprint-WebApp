@@ -1,0 +1,9 @@
+[15:05:46] check: start
+[15:06:13] check: exit 0 after 27s
+[15:06:13] build: start
+[15:06:14] build: exit 1 after 1s
+[15:06:14] vitest-client: start
+[15:07:02] vitest-client: exit 0 after 48s
+[15:07:02] core-journey: start
+[15:08:09] core-journey: exit 0 after 67s
+[15:09:40] build (BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD=1): exit 0 after 11s

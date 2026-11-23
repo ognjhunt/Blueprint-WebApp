@@ -1,0 +1,497 @@
+{
+ "agent": "dim-observe",
+ "summary": "Each introduction is recorded once as a billable event, and tests prove it on a fake Firestore and on the emulator. Production has none, and the event lacks the legal entity, billing contact, Terms version and made time an invoice needs. Three stores built for watching keep a site's email, signed job link or name in plain text with no reader or purge: the Resend webhook copy, sent outbox rows and unsubscribe request logs. The owner has no totals, job cost is split across two never-joined ledgers (only $59.75 of $296.58 this month is tied to a job), the live site runs none of the analytics its Privacy Policy names, and the one real Pipeline failure has posted hourly about 227 times.",
+ "findings": [
+  {
+   "effort": "S",
+   "change": "DELETE",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "Field contents in production: run Firestore aggregate 1 (counts where payload.data.subject / click.link exist), reading no values.",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.5 Personal data in observation stores",
+   "id": "O-01",
+   "title": "The Resend webhook copies every email's recipient, subject and click link into a collection nobody reads",
+   "dimension": "broken",
+   "severity": "P0",
+   "evidence": [
+    "webapp:server/routes/resend-webhook.ts:50-63 (eventRef.create with recipient and payload: envelope)",
+    "webapp:server/utils/jobOutcomes.ts:52 subject 'How did it go with ${otherSide}?' (the site's name for the company's question)",
+    "webapp:server/utils/taskLifecycleNotifications.ts:176 subject 'Meet ${name}'",
+    "resend.com/docs/webhooks/emails/clicked: data has to, from, subject, click.link, click.ipAddress, click.userAgent",
+    "cmd: grep -rn growth_campaign_events server scripts -> only the writer (resend-webhook.ts:50)",
+    "baseline firestore-collection-counts.json: growth_campaign_events 403"
+   ],
+   "today": "For every customer email, the Resend webhook stores the recipient's address and the whole event payload: subject, sender and, for a click, the link, IP address and browser. Subjects include a site's name in the company's outcome question. A click on a site email is its signed private job link. Nothing reads these documents, nothing deletes them, and withdrawal does not touch them.",
+   "should": "The webhook keeps only what it must: suppressions for unsubscribe, complaint and permanent bounce, plus the delivery status of the outbox row by Resend email id. No address, subject or link is stored in an observation table.",
+   "proposal": "In resend-webhook.ts stop writing growth_campaign_events and growthCampaigns. On delivered, bounced or complained, set deliveredAtIso or bounce on the captureOutbox row whose stored Resend id matches (see O-16). Keep recordEmailSuppression. Ask the owner to approve a one-off delete of the 403 existing documents.",
+   "user_result": "A site's email, name and private link no longer sit in a forgotten table; the owner can see which emails bounced.",
+   "risk": "Outreach campaign stats go (the campaigns are retired). Deleting existing documents is a production write the owner must approve.",
+   "requirement_source": "nobody (growth studio era; the file comment says it 'outlived the growth studio')"
+  },
+  {
+   "effort": "S",
+   "change": "FIX",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.5 Personal data in observation stores",
+   "id": "O-02",
+   "title": "Sent outbox rows keep the site's email, signed job link and name in plain text forever, also after withdrawal",
+   "dimension": "broken",
+   "severity": "P0",
+   "evidence": [
+    "webapp:server/utils/captureOutbox.ts:136-147 (only introduction_made_company/site are cleared on send)",
+    "webapp:server/utils/taskLifecycleNotifications.ts:53-82 (bodies end with the private job url)",
+    "webapp:server/utils/jobOutcomes.ts:52,154-158 (outcome question subject names the other side)",
+    "cmd: grep captureOutbox in websiteCaptureWithdrawal.ts, websiteCaptureDeletion.ts, accountDeletion.ts -> no match",
+    "webapp:firestore.indexes.json:450 fieldOverrides [] (no TTL)",
+    "baseline: captureOutbox 143 documents"
+   ],
+   "today": "After a site email is sent, its outbox row keeps 'to' (the site's email), the subject and the body. The body contains the signed private job link, and anyone holding that link acts as the site. The company's outcome question keeps the site's name in its subject. The two introduction emails are cleared on send; the other eleven kinds are not. Withdrawal and account deletion leave these rows alone.",
+   "should": "Once a row is sent or cancelled, it keeps only kind, status, times, attempts and the Resend id. Rows of a withdrawn job are cleared at withdrawal.",
+   "proposal": "Extend clearedIntroductionDetails in captureOutbox.ts to every kind: clear subject, body and replyTo on sent or cancelled, and keep 'to' only as a hash for deduplication. Add a withdrawal step that clears every row of the request. Ask the owner to approve a one-off backfill of the existing sent rows.",
+   "user_result": "A site's private link and email stop living in a queue table after the email has gone.",
+   "risk": "Debugging a delivered email loses its text; the builders can regenerate it. A suppression check that reads 'to' must use the hash.",
+   "requirement_source": "nobody (introduction kinds were cleared on purpose; the rest were missed)"
+  },
+  {
+   "effort": "S",
+   "change": "FIX",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "O.5 Personal data in observation stores",
+   "id": "O-03",
+   "title": "Unsubscribe links put the recipient's email in the address, and request logs record it",
+   "dimension": "broken",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/utils/email-suppression.ts:39-44 (url.searchParams.set('email', ...))",
+    "webapp:server/utils/blueprintWorkLogPrivacy.ts:18-29 (no rule for /api/growth/email)",
+    "webapp:server/index.ts:327,334 (logs privateWorkLogPath(req.originalUrl))",
+    "cmd: npx tsx logpath.ts -> /api/growth/email/unsubscribe?email=person%40example.com&scope=optional_updates => unchanged"
+   ],
+   "today": "The new-job email to companies ends with an unsubscribe link that carries the recipient's email address in plain text. Every click is written to the request log with that address. The link is also unsigned, so anyone can open the confirm page for any address.",
+   "should": "The link carries a signed token. If the address stays, the request log drops the query of /api/growth/email/ like it does for signed links.",
+   "proposal": "Short term: add '/api/growth/email/' to the query-dropping prefixes in privateWorkLogPath (one line plus a test). Then replace email= with a signed token built like jobOutcomeToken.",
+   "user_result": "A company contact's email no longer lands in server logs when they unsubscribe.",
+   "risk": "Existing links in sent emails keep working if the handler accepts both forms for a while.",
+   "requirement_source": "provider term / law requires an unsubscribe; nobody asked for the email in the query"
+  },
+  {
+   "effort": "S",
+   "change": "SIMPLIFY",
+   "hard_stop": "privacy",
+   "verified": "unverified",
+   "verify_how": "Firestore aggregate 6: count agentRuns by task_kind where input is a digest object versus a raw value.",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.5 Personal data in observation stores",
+   "id": "O-04",
+   "title": "Model runs store the site's job text unredacted in agentRuns, and withdrawal leaves it",
+   "dimension": "fragile",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/agents/runtime.ts:825-848 (only lanes with persist_content 'redacted' are digested)",
+    "webapp:server/agents/tasks/site-task-follow-up.ts:42 (the only lane marked redacted)",
+    "webapp:server/agents/provider-privacy.ts:57 (site_task_brief_reading classed site_job_text)",
+    "baseline: agentRuns 2478 documents"
+   ],
+   "today": "For brief reading, coverage review, video evidence and robot-fit ranking, each run row keeps the task input and the model's output word for word. The input includes the site's own description of its job. These rows are kept for cost and debugging, and withdrawal does not purge them.",
+   "should": "Every lane that reads site text stores lengths and a digest, as the follow-up lane already does. Cost and timing fields stay.",
+   "proposal": "Mark site_task_brief_reading, capture_coverage, site_video_evidence, capture_video_privacy and robot_fit_ranking persist_content: 'redacted' in their task definitions. Ask the owner whether to backfill existing rows.",
+   "user_result": "A withdrawn site's job text is not left behind in a cost log.",
+   "risk": "Replaying an old run for debugging is no longer possible (REDACTED_CONTENT_NOT_REPLAYABLE already handles that refusal).",
+   "requirement_source": "nobody for keeping the text; cost telemetry needs only usage fields"
+  },
+  {
+   "effort": "M",
+   "change": "BUILD",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.1 Billable events",
+   "id": "O-05",
+   "title": "A billable event lacks what an invoice needs: legal entity, billing contact and the Terms version",
+   "dimension": "business",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/utils/billableEvents.ts:16-26 (fields: kind, requestId, companyId, atIso, priceUsd, status)",
+    "webapp:server/utils/robotTeamEarlyAccess.ts:37-53 (company: name, email, company, website, robot, workWanted, region; no legal entity or billing contact)",
+    "webapp:server/utils/companyTerms.ts:69,102 (termsAcceptance overwritten on each new acceptance)",
+    "cmd: grep -rn 'legalEntity|billingContact|legalName' server client/src -> only Blueprint's own COMPANY.legalName"
+   ],
+   "today": "Each introduction records the job, an internal company id and the press time. Blueprint knows no company's legal name or billing email. The Terms version the company accepted is overwritten at its next acceptance, so after a Terms change nobody can show which version it held.",
+   "should": "When the owner decides how to charge, each event already names the company's legal entity, a billing email and the Terms version in force, frozen at the moment of the introduction.",
+   "proposal": "(1) Ask for legal entity name and billing email once, on the approval or accept-Terms step. (2) In buildIntroductionBillableEvent, copy companyLegalName, billingEmail, termsVersion and privacyVersion (from termsAcceptance) and statementVersion onto the event at create. No price, no payment code.",
+   "user_result": "The owner can bill the first introduction the day he picks a model, without chasing companies for details.",
+   "risk": "One more field for an approved company. It touches money, so it is the owner's call when to ask.",
+   "requirement_source": "doctrine 'each introduction is recorded as a billable event'"
+  },
+  {
+   "effort": "S",
+   "change": "BUILD",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "O.2 What the owner can observe",
+   "id": "O-06",
+   "title": "No total of jobs, sends, answers, introductions or billable events anywhere, and no export",
+   "dimension": "unseen",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/utils/jobConsoleData.ts:34,112-152 (25 per page, no count, no filter)",
+    "webapp:client/src/types/jobConsole.ts:16-26 (list row: id, sentence, phase, standing, receivedAt only)",
+    "webapp:server/utils/billableEvents.ts:49 (events listed per job only)",
+    "builds on IW-07"
+   ],
+   "today": "To learn how many jobs came in, the owner pages through /admin/jobs 25 at a time (76 jobs is 4 pages) and counts by hand. Sends, answers, introductions and billable events can be seen only by opening each job. Nothing exports billable events.",
+   "should": "One daily email gives the totals and this week's movement for each step, the jobs waiting on Blueprint, and the introductions made. One admin route exports billable events as CSV.",
+   "proposal": "Add a read-only daily digest in the worker (leader-leased, one email to CONTACT_TO), built from count() aggregates on inboundRequests, companySends, companyResponses, introductions and billableEvents. Add GET /api/admin/billable-events.csv. Then delete the intake-notice Slack duplicate and growth_events (O-13).",
+   "user_result": "The owner sees in one message whether the loop works and what needs him.",
+   "risk": "Low; read only. Collection-group count queries may need an index.",
+   "requirement_source": "doctrine (the owner must see billable events); IW-07"
+  },
+  {
+   "effort": "S",
+   "change": "FIX",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "O.1 Billable events",
+   "id": "O-07",
+   "title": "A billable event looks the same before the company has the site's details as after",
+   "dimension": "business",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/utils/jobIntroductions.ts:151 (event created at the press with atIso = requestedAtIso)",
+    "webapp:server/utils/jobIntroductionGate.ts:162-167 (send path releases the site row; the event is not touched)",
+    "webapp:server/utils/jobIntroductionGate.ts:85-87 (company row 'dispatching' or 'unknown' holds with no end)"
+   ],
+   "today": "The event is written 'recorded_no_price' when the site presses. It turns void only if the company's email is cancelled or definitely fails. If that email sits 'unknown', or if neither side has a usable email so no row is made, the event stays 'recorded' with no proof the company ever got the details.",
+   "should": "An invoice counts only introductions that were made: the event carries madeAtIso, set when the company's email is marked sent.",
+   "proposal": "In companyIntroductionEmailEnd's sent branch, also merge { madeAtIso } onto the event (the event is already read there). The daily digest and the export count only events with madeAtIso.",
+   "user_result": "The owner never bills a company for an introduction it did not receive.",
+   "risk": "Small: one more write in an existing transaction. Tests pin 'changes one only to void it' (money-introduction-billable-events.test.ts:311), so that test must change.",
+   "requirement_source": "money hard stop"
+  },
+  {
+   "effort": "S",
+   "change": "FIX",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.1 Billable events",
+   "id": "O-08",
+   "title": "After a site withdraws, outcome answers are refused, so the record of what happened is lost",
+   "dimension": "business",
+   "severity": "P2",
+   "evidence": [
+    "webapp:server/utils/jobOutcomes.ts:213 (consent_revoked -> 'closed')",
+    "webapp:server/utils/jobOutcomeGate.ts:74 (no questions after withdrawal)"
+   ],
+   "today": "Once the site withdraws, neither side gets the 14/45/90-day question, and an answer link already sent records nothing. The company already holds the site's details, so a deal may still happen, and there will be no record of it.",
+   "should": "The owner decides whether the company's side of the outcome question survives withdrawal. The question names only the company's own deal, so it holds no site content.",
+   "proposal": "Owner decision. If yes, let the company-side question and answer continue after withdrawal and record only {by, state, atIso}.",
+   "user_result": "The owner keeps evidence of outcomes for introductions he may bill.",
+   "risk": "Privacy: the question names the site to the company. The company already holds that name, but withdrawal may be read as 'stop all contact about me'.",
+   "requirement_source": "privacy guard (withdrawal) versus doctrine 14/45/90"
+  },
+  {
+   "effort": "M",
+   "change": "BUILD",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "O.2 What the owner can observe",
+   "id": "O-09",
+   "title": "A job's cost is split across two ledgers that share a key but are never joined, and 80% of spend has no job",
+   "dimension": "unseen",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/utils/websiteJobCeiling.ts:186-207 (WebApp: reservations, scene intakes, screening runs)",
+    "webapp:client/src/pages/AdminJobConsole.tsx:257-264 ('spent or held')",
+    "pipeline:src/blueprint_pipeline/paid_spend_meter.py:57 (job keyed by WebApp request id)",
+    "webapp:client/src/lib/siteCaptureDraft.ts:35 (request id = capture-<uuid>)",
+    "door-status.json spend_guard.account_monthly_spend: counted 296.58, meter_totals.metered_usd 59.75, unpriced_admissions 351 of 354; openai counted 85.25 vs metered 13.25; world_labs 52.31 vs 11.85",
+    "door-status.json jobs: overhead:webapp.site... 6.01 kept as overhead, not on the job"
+   ],
+   "today": "The admin job page shows what the WebApp's own ledgers hold or settled. The Pipeline meters by the same request id, and its figures appear only in door status, for this month. Most paid admissions carry no price. The first look ($6.01 this month) is booked as overhead, never on a job. Only $59.75 of the $296.58 counted this month is tied to any job.",
+   "should": "One number per job (settled spend from both ledgers plus its share of the first look), and the unattributed remainder shown as one line.",
+   "proposal": "Have the Pipeline publish per-job settled spend to the WebApp (it already calls internal account-spend overhead routes), and show it beside the WebApp figure on the job page and in the digest. Do not build a new ledger.",
+   "user_result": "The owner knows what a job that reached companies costs.",
+   "risk": "Needs Pipeline lanes to carry held_usd (stage 2 of the meter, which is not done). Until then the figure is partial and must say so.",
+   "requirement_source": "owner decision 2026-11-07 'Meter + monthly cap' (every paid call metered against its job)"
+  },
+  {
+   "effort": "S",
+   "change": "SIMPLIFY",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "O.3 Alerts and noise",
+   "id": "O-10",
+   "title": "One known failure posts to the operator webhook every hour, about 227 times since 2026-11-13",
+   "dimension": "unseen",
+   "severity": "P1",
+   "evidence": [
+    "cmd: door cat unit-failures/blueprint-gpu-spend-guard.service.json -> failure_count 4855, first_failure_epoch 1794544764 (2026-11-13T04:39Z), last_alert_epoch 1795359170 (2026-11-22T14:52Z), alert_error null",
+    "pipeline:src/blueprint_pipeline/control_plane_capacity_controller.py:118 ALERT_REPEAT_SECONDS = 3600",
+    "pipeline:src/blueprint_pipeline/unit_failure_notifier.py:1-16 (once, then hourly)",
+    "cmd: door journal blueprint-control-plane-capacity.service -n 40 -> 18 alerts, all severity warn, every ~11 min",
+    "door-status.json failed_units 207 (IP-03), preflight blockers 108 (IP-17)"
+   ],
+   "today": "The spend guard has failed every run since 2026-11-13 because retired RunPod is still queried (IP-02). The notifier reposts it hourly, about 227 times so far. Beside it sit 18 standing capacity warnings (10 are disk-usage rows that need no action), 206 stale failed units and 108 preflight blockers. A new real failure arrives looking exactly like the old one.",
+   "should": "A failure posts once when it starts and once when it clears. Repeats go into the daily digest. Only actionable codes are alerts.",
+   "proposal": "(1) Notifier: post on a new cause or on recovery, not hourly; list open failures in the daily digest. (2) Drop usage_* rows from report.alerts (keep them in usage). (3) Owner: delete the RunPod key (IP-02) and reset-failed the 206 units (IP-03).",
+   "user_result": "A real failure shows up within a minute, alone.",
+   "risk": "A failure that persists for days is mentioned once a day instead of once an hour.",
+   "requirement_source": "AGENTS.md (operator told of failures); nobody for the hourly repeat"
+  },
+  {
+   "effort": "S",
+   "change": "FIX",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.2 What the owner can observe",
+   "id": "O-11",
+   "title": "The Pipeline's job state and spend ledgers are not backed up, and the stall alarm treats that as quiet",
+   "dimension": "fragile",
+   "severity": "P1",
+   "evidence": [
+    "door-status.json capacity.stall.checks.state_backup: {status: not_configured}",
+    "pipeline:src/blueprint_pipeline/control_plane_state_backup.py:556-562 ('not_configured (no ledger, so never set up: quiet)')",
+    "pipeline:deploy/systemd/blueprint-control-plane-state-backup.service:12-13 (ConditionPathExists on encryption_key and b2_bucket)"
+   ],
+   "today": "The backup unit never runs because its key and bucket files are missing, and every check reports that as quiet. The spend meter journal, the screening ledger and job state exist on one host disk only.",
+   "should": "Either the backup runs, or the missing backup is one standing line in the daily digest.",
+   "proposal": "Owner: install the backup key and bucket (a one-time host step). Code: make state_backup 'not_configured' a warn alert, not quiet.",
+   "user_result": "Losing the host does not lose the record of what each job cost.",
+   "risk": "Backups cost a little storage (Backblaze B2).",
+   "requirement_source": "AGENTS.md money records"
+  },
+  {
+   "effort": "S",
+   "change": "FIX",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.4 The public funnel",
+   "id": "O-12",
+   "title": "The Privacy Policy names Google Analytics, PostHog and Sentry, but the live site runs none of them",
+   "dimension": "untrue",
+   "severity": "P1",
+   "evidence": [
+    "cmd: curl -s https://tryblueprint.io/assets/index-IUZGgzws.js | grep -oE '_n=\\{BASE_URL[^}]*\\}' -> keys BASE_URL, DEV, MODE, PROD, SSR, VITE_FIREBASE_* (6), VITE_GOOGLE_MAPS_API_KEY only",
+    "webapp:client/src/lib/analytics.ts:70-76 (hasConfiguredGa / hasConfiguredPostHog false without keys)",
+    "webapp:client/src/pages/Privacy.tsx:161-163,237-239",
+    "related: IW-09 (Notion named but unused)"
+   ],
+   "today": "The live build has no measurement id, no PostHog token and no Sentry DSN, so none of the three runs. The Privacy Policy lists them as processors, and the cookie banner asks visitors to allow them.",
+   "should": "The policy names only processors that run. If no analytics cookies are set, the cookie banner can go (Journey A-16: it covers the start button).",
+   "proposal": "Owner decision: either configure them on purpose, or remove the three rows from Privacy.tsx (legal page, owner edits) and delete the loaders. Then decide whether the banner is still needed for the first-party ingest (O-13 proposes deleting that too).",
+   "user_result": "The policy is true, and a site sees one less banner over the start button.",
+   "risk": "A legal page changes, so it needs a new policy version and the account notice.",
+   "requirement_source": "law (a policy must be accurate); nobody asked for unused processors"
+  },
+  {
+   "effort": "S",
+   "change": "DELETE",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "journey_step": "O.4 The public funnel",
+   "id": "O-13",
+   "title": "The public funnel is not measured, and growth_events (1,247 docs) is written by retired code and read by nothing",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/utils/growth-events.ts:45-78 (writer stores current_url, referrer and user.email as sent)",
+    "webapp:server/routes/internal-pipeline.ts:1307-1339 (capture-era proof-path stamps)",
+    "webapp:server/routes/inbound-request.ts:1501 (robot_team_fit_checked)",
+    "cmd: grep -rn growth_events server client/src scripts -> writer only",
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:590,616 (the only analyticsEvents calls)",
+    "webapp:client/src/lib/analytics.ts:373+ (56 events defined)"
+   ],
+   "today": "After consent, the site sends page views and one start-form event to /api/analytics/ingest. That persists only if a flag is on (unknown). Separately, capture-era 'proof motion' code stamps growth_events. Nobody reads the collection. Video uploaded, shown to companies, answered and introduced exist only as job records, and nothing turns them into a funnel.",
+   "should": "The funnel is read from the job records themselves (Firestore aggregate 4) in the daily digest. Nothing else is collected.",
+   "proposal": "Delete growth-events.ts, analytics-ingest.ts and its route, the logGrowthEvent calls in inbound-request.ts and internal-pipeline.ts, and the 54 unused analyticsEvents. Ask the owner to approve deleting the 1,247 documents.",
+   "user_result": "One honest funnel from real records; about 1,000 fewer lines.",
+   "risk": "Visit counts are lost if the ingest flag is on today; the server request log still holds page loads.",
+   "requirement_source": "nobody (capture-era proof motion)"
+  },
+  {
+   "effort": "S",
+   "change": "DELETE",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "O.3 Alerts and noise",
+   "id": "O-14",
+   "title": "WebApp alerts still ring for retired steps: screening calls, hand footage review, grants and the budget extension",
+   "dimension": "vestigial",
+   "severity": "P2",
+   "evidence": [
+    "webapp:server/utils/slack.ts:93-120 (screening call; gate ended 2026-11-11)",
+    "webapp:server/routes/site-task-brief.ts:1066-1075 (sends model-written open questions to Slack)",
+    "webapp:server/utils/slack.ts:122-136 ('the site has been told a person will review it')",
+    "webapp:server/utils/betaOpsMonitor.ts:35-38 (checks 7 and 8: no-grant wait, automatic budget extension)",
+    "webapp:server/utils/websiteJobCeiling.ts:12-15 ('owner grants ... and the automatic budget extension are gone')"
+   ],
+   "today": "Slack still gets 'site needs a screening call' (with the model's open questions about the site's job) and 'review coverage by hand'. The latter tells the site a person will look, which contradicts 'no person between a site's video and an introduction'. The monitor still scans for jobs waiting on a grant and over-budget extensions, which the cap decision of 2026-11-19 removed.",
+   "should": "Only alerts for steps that still exist.",
+   "proposal": "Delete notifySlackScreeningCallNeeded and its call, notifySlackFootageNeedsReview and its call, and betaOpsMonitor checks 7 and 8 with their collections' writers.",
+   "user_result": "Fewer false pings for the owner, and no site text in Slack.",
+   "risk": "Jobs from before 2026-11-11 still waiting on a call would lose their bell. Check none remain with Firestore (ops.next_step set).",
+   "requirement_source": "retired directions (screen gate ended 2026-11-11; one cap 2026-11-19)"
+  },
+  {
+   "effort": "S",
+   "change": "SIMPLIFY",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "O.5 Personal data in observation stores",
+   "id": "O-15",
+   "title": "The company-application Slack message carries the applicant's name, email and a site they name",
+   "dimension": "fragile",
+   "severity": "P2",
+   "evidence": [
+    "webapp:server/utils/slack.ts:138-165",
+    "webapp:server/routes/robot-team-access.ts:93"
+   ],
+   "today": "Each application posts the applicant's name, company, email, robot, wanted work and 'Site lead — would test at: …' to Slack. The intake notices for sites were made link-only on purpose.",
+   "should": "Link-only, like the intake notices: 'A company applied', with the admin link.",
+   "proposal": "Reduce the message to the company name (a business, not a person) and the /admin/robot-team-access link. Drop the email, the person's name and testSite.",
+   "user_result": "Personal details stay behind admin sign-in.",
+   "risk": "The owner reads one more click to see the applicant.",
+   "requirement_source": "intakeOpsNotice.ts:17-20 sets the link-only rule; nobody asked for details in Slack"
+  },
+  {
+   "effort": "S",
+   "change": "FIX",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "O.2 What the owner can observe",
+   "id": "O-16",
+   "title": "'Sent' means only that Resend accepted the email; delivery and bounces are never tied to the job",
+   "dimension": "unseen",
+   "severity": "P2",
+   "evidence": [
+    "webapp:server/routes/resend-webhook.ts:109-115 (comment: 'delivery receipts settle the status of transactional notifications')",
+    "webapp:server/routes/resend-webhook.ts:27-107 (code writes growth_campaign_events and suppressions only; no captureOutbox write)"
+   ],
+   "today": "The comment says delivery receipts settle the status of transactional emails, but the code never touches the outbox. An introduction email that bounces still reads 'sent', and the billable event stands.",
+   "should": "The outbox row records delivered or bounced. A bounced company introduction email shows in the digest.",
+   "proposal": "Store Resend's email id on the outbox row at send (check email.ts returns it). In the webhook, merge delivered/bounced onto that row by id. This replaces the payload store deleted in O-01.",
+   "user_result": "The owner knows whether the site and the company actually got their introduction.",
+   "risk": "Low; a status field only.",
+   "requirement_source": "the file's own comment; money (introduction emails carry the billable act)"
+  }
+ ],
+ "good_things": [
+  {
+   "what": "Billable event written once in the introduction's own transaction, created not set, voided not deleted",
+   "why": "Exactly once protects money; 13 offline tests plus the emulator journey pin it",
+   "evidence": "webapp:server/utils/billableEvents.ts:28-46; server/tests/money-introduction-billable-events.test.ts"
+  },
+  {
+   "what": "Intake and ops notices are link-only",
+   "why": "Ops alerts carry ids and admin links, never names or emails",
+   "evidence": "webapp:server/utils/intakeOpsNotice.ts:17-20; betaOpsMonitor.ts:240-246"
+  },
+  {
+   "what": "Email send logs keep only the recipient's domain",
+   "why": "No address enters the log on send",
+   "evidence": "webapp:server/utils/email.ts:106-132"
+  },
+  {
+   "what": "Introduction outbox rows are cleared on send and the introduction record is encrypted",
+   "why": "The one place both sides' details meet is protected; extend the same rule (O-02)",
+   "evidence": "webapp:server/utils/captureOutbox.ts:136-147; jobIntroductions.ts:146-150"
+  },
+  {
+   "what": "Client telemetry sanitizer and request-log link redaction",
+   "why": "Signed links and emails are stripped before telemetry and logs",
+   "evidence": "webapp:client/src/lib/invitationPrivacy.ts:1-55; server/utils/blueprintWorkLogPrivacy.ts:14-22"
+  },
+  {
+   "what": "Door status and Pipeline journals hold no personal data",
+   "why": "grep found 0 email addresses in door status, and 0 signatures, tokens or emails in five unit journals (9,000+ lines)",
+   "evidence": "cmd: door journal <unit> -n 2000 | grep -ciE 'Signature=|token=|@' -> 0"
+  },
+  {
+   "what": "Company first-answer time is kept when an answer changes",
+   "why": "Time-to-answer is measurable",
+   "evidence": "webapp:server/utils/jobCompanies.ts:230,377-386"
+  }
+ ],
+ "owner_questions": [
+  {
+   "question": "May Blueprint ask each approved company once for a legal entity name and a billing email, and freeze them with the Terms version on each billable event?",
+   "recommendation": "Yes, at the accept-Terms step; no price is stated.",
+   "unblocks": "O-05, the first invoice whenever pricing is decided"
+  },
+  {
+   "question": "May the orchestrator delete the 403 growth_campaign_events, the 1,247 growth_events and the plain-text bodies of sent outbox rows?",
+   "recommendation": "Yes; nothing reads them and they hold site emails, names and links.",
+   "unblocks": "O-01, O-02, O-13"
+  },
+  {
+   "question": "Should the company's outcome question survive a site's withdrawal?",
+   "recommendation": "Yes for the company side only, recording just the state; the company already holds the site's name.",
+   "unblocks": "O-08"
+  },
+  {
+   "question": "Do you want analytics on the public site at all?",
+   "recommendation": "No for now: fix the Privacy Policy to match, drop the loaders, and read the funnel from job records.",
+   "unblocks": "O-12, O-13, possibly the cookie banner (A-16)"
+  },
+  {
+   "question": "Is a daily email (about 15 lines) the right place to see the loop, instead of new admin screens?",
+   "recommendation": "Yes.",
+   "unblocks": "O-06, O-10"
+  }
+ ],
+ "open_cost_questions": [],
+ "not_covered": [
+  "Production Firestore contents: only the orchestrator's document counts were used; field-level questions are listed under 'Firestore aggregates wanted'.",
+  "Render request logs, Slack channel contents and Resend dashboard settings (click tracking on or off): no access; O-01's click-link exposure depends on that setting.",
+  "Whether BLUEPRINT_ANALYTICS_INGEST_ENABLED, SLACK_WEBHOOK_URL and BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED are set in production: not visible from the repo or the live bundle.",
+  "Capacity alert delivery history: door cat of capacity/latest.json and history.jsonl was refused (open_failed); delivery was confirmed only through the unit-failure records.",
+  "Admin pages were not rendered in a browser (Journey D walks them); this report reads the code and data under them.",
+  "Firestore and Storage backup status for the WebApp (DATA_BACKUP_AND_DR_RUNBOOK.md says a schedule is not established); not verified."
+ ]
+}

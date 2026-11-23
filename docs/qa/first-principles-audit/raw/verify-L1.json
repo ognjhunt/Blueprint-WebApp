@@ -1,0 +1,577 @@
+{
+ "lane": "L1",
+ "summary": "Of 22 candidates, 6 were confirmed, 15 corrected, 0 refuted and 1 unverified (A-05: the deployed frame-extraction limit lives outside both repositories). The most important corrections are to severity: A-01 is friction, not untrue, because the introduction emails say to write to the address shown; E-03 and E-04 drop to P1, since E-03 needs a site's private owner link and a company answer (neither exists in production) and PR 1369 is unmerged and behind a flag that is off. G-01 is real but hits jobs whose simulation was never made, not finished jobs; the count is 3 upload sessions, not 6; and removing the authority_ended close outright would also drop source-revoked and owner-closed endings. Several proposals would break something: A-09 would remove the success definition the task context and company page read, G-06 would let introductions go out under a rights hold, and M-03 and O-12 miss that the cookie banner gates a live first-party analytics ingest.",
+ "verdicts": [
+  {
+   "id": "A-01",
+   "verdict": "corrected",
+   "checks": [
+    "captureOutbox.ts:492-493 sends every outbox row with ...CUSTOMER_JOB_EMAIL_IDENTITY (emailLayout.ts:26-30, replyTo hello@); the row's stored replyTo (jobIntroductions.ts:157,167: the other side's address) is ignored; capture-outbox.test.ts:209-216 pins replyTo hello@ for a row stored with ops@.",
+    "Both introduction bodies say 'Write to them at the email above' (robotTeamAccessEmails.ts:195, taskLifecycleNotifications.ts:172) with code comments acknowledging a reply reaches Blueprint; neither tells the reader to press reply. Production has 0 introductions. WebApp HEAD 4579665b differs from live 0ee5df6 only in docs/qa audit files."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Reply-To would carry the other side's address, which the same email body already gives; no ledger, consent or spend path reads the header. Only the outbox send call and its pinning test change.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Not untrue: the emails deliberately say to write to the address shown, not to reply. It is friction (a reflexive reply lands in hello@ and waits on a person), so P1 not P0. Owner question 6 on launch copy decides whether Reply-To should name the other side.",
+   "corrected_title": "A reply to an introduction email goes to Blueprint's inbox, not the other side",
+   "corrected_today": "The introduction email gives the other side's address and says to write to it; a reader who presses reply instead writes to hello@tryblueprint.io, where it waits on a person. No introduction has happened in production yet.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "server/utils/robotTeamAccessEmails.ts:194-195",
+    "server/utils/taskLifecycleNotifications.ts:171-172,195-197",
+    "evidence/production-counts: introductions 0"
+   ]
+  },
+  {
+   "id": "E-02",
+   "verdict": "confirmed",
+   "checks": [
+    "publicCopy.ts:7-11 and the v4 statement (e2e/site-answer.spec.ts:23) scope sharing to deployment companies Blueprint approves; nothing in that scope covers an investor audience.",
+    "demo-script.md:9 and :11 already carry the rule (green path only with a site that agreed in writing)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "A demo-script rule; no code changes.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P0",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "docs/qa/first-principles-audit/raw/demo-script.md:9"
+   ]
+  },
+  {
+   "id": "E-03",
+   "verdict": "corrected",
+   "checks": [
+    "Mechanism holds: requestIntroduction writes the billable event in the same transaction, never rewritten (billableEvents.ts:1-10, jobIntroductions.ts:115-120), and queues both emails.",
+    "site-task-brief.ts:254-260: the route needs the site's signed owner link (scope owner), so only the holder of a site's private link can press it; production has 0 company answers, so no real job shows Introduce us today."
+   ],
+   "real_in_production": "no",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "A demo-script rule; no code changes.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The risk needs the presenter to hold a real site's private owner link and a company answer on that job; neither exists in production today (0 company responses). Keep the demo rule, but grade P1 and state the precondition. 'Billable' carries no charge: priceUsd null, status recorded_no_price.",
+   "corrected_title": "Pressing Introduce us on a real job during a demo cannot be undone: both sides are emailed and an introduction event is recorded",
+   "corrected_today": "Only someone holding a site's private owner link, on a job a company has answered, can press Introduce us; doing so for show would send both sides' details and record an unpriced event that is never rewritten. No real job has a company answer yet.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "server/routes/site-task-brief.ts:253-270"
+   ]
+  },
+  {
+   "id": "E-04",
+   "verdict": "corrected",
+   "checks": [
+    "gh api repos/ognjhunt/Blueprint-WebApp/pulls/1369: state open, merged_at null, title 'DEMO, never merge: invented launch content for the internal showing'; its patch adds DEMO_CONTENT-gated '5 business days' (Beta.tsx) and '42 open jobs \u00b7 18 approved deployment companies' (Partners.tsx), plus DemoQuotes.tsx.",
+    "Production has 1 robotTeamAccess record; demo-script.md:11 already says not to use the build."
+   ],
+   "real_in_production": "no",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Closing an unmerged PR touches no code on main.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Not live: unmerged and behind a build flag that is off, and the PR is titled never-merge for an internal showing. The harm only occurs if it is shown, so P1 not P0. Did not rerun git apply --check (not needed for the verdict).",
+   "corrected_title": "Unmerged demo PR 1369 holds invented quotes, an invented reply time and invented counts; it must not be shown",
+   "corrected_today": "Nothing on the live site; the demo build exists only as open PR 1369 behind VITE_BLUEPRINT_DEMO_CONTENT.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "docs/qa/first-principles-audit/raw/demo-script.md:11"
+   ]
+  },
+  {
+   "id": "G-01",
+   "verdict": "corrected",
+   "checks": [
+    "websiteSceneSponsorship.ts:327 throws consent_expired when the grant window passes; cbff06b pubsub_handoff_listener.py:577 lists consent_expired in AUTHORITY_ENDING_CODES (with source_revoked, no_grant_ended, owner-closed) and ends the job authority_ended; teamJobAccess.ts:237 then closes the listing, and jobIntroductionGate.ts:56-58 and jobIntroductions.ts:109-110 refuse on access.listed.",
+    "teamJobAccess.ts:240-241 comment says a wait on Blueprint that ran out keeps the job listed, contradicting line 237. Production second pass: 3 upload sessions in authority_ended (not 6), 9 handed_off."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "Removing line 237 outright also drops the close for source_revoked and owner-closed endings that reach the WebApp only as authority_ended; a withdrawal is caught earlier (line 233) but the proposal must keep closing for those codes. A cross-repo rename of consent_expired adds risk for no user gain.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The job is not 'finished': a job that reached handed_off is unaffected; this hits a job whose simulation was never made within 7 days. The count is 3 upload sessions in authority_ended, not 6. Grade P1 (a slow-preparation case; today no company can see any job anyway). Drop the rename; close only for endings caused by withdrawal, source revocation or the owner.",
+   "corrected_title": "When Blueprint's 7-day window runs out before the simulation is made, the job is taken down for every company and Introduce us is refused",
+   "corrected_today": "A job whose preparation is still retrying when the 7-day grant window passes ends authority_ended; teamJobAccess then unlists it and the introduction checks refuse, although the code comment two lines below says a wait on Blueprint keeps the job listed.",
+   "corrected_proposal": "In teamJobAccess, close on authority_ended only when the recorded ending code is source_revoked or owner-closed; a consent_expired (window) ending keeps the job listed. No rename.",
+   "extra_evidence": [
+    "evidence/production-counts/firestore-second-pass.json: captureUploadSessions.website_preparation_state authority_ended 3",
+    "git show cbff06b:src/blueprint_pipeline/pubsub_handoff_listener.py:577-578"
+   ]
+  },
+  {
+   "id": "A-02",
+   "verdict": "corrected",
+   "checks": [
+    "descriptionAuthority.ts:14-19: canGrantInitialRecordingConsent has no region check; captureUploadAuthorization.ts:154-157 returns recordingConsentAvailable from it, and jobSharedListing.ts:112-121 writes the listing record on a sharing statement. Running the earlier verifier's script (npx tsx a02.ts, credentials blanked) printed non_us approved region false, canGrantInitialRecordingConsent true.",
+    "Region is refused only later, in captureDispatch.ts:170. Production funnel: 5 non-US site jobs, 4 with a recording grant (2 v1, 2 v4), 3 with a listing record enabled; teamJobAccess.ts has no region check (grep 'region' finds nothing), but such a job stays closed as video_required."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Only the initial-grant rule for non-approved regions changes; US grants, the withdrawal path and existing records are untouched. The existing non-US grants and listing records need an owner decision, not a code change.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "The count of existing non-US grants is wrong: production has 4 non-US site jobs with a recording grant (2 under v4) and 3 with a listing record enabled, not 1.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "Return false from canGrantInitialRecordingConsent when request.capture_region is not an approved region, so the page shows the US-only notice. The owner decides what to do with the 3 non-US listing records and 4 non-US recording grants already stored.",
+   "extra_evidence": [
+    "server/utils/captureDispatch.ts:170",
+    "evidence/production-counts/firestore-funnel.json non_us_site_jobs_not_internal"
+   ]
+  },
+  {
+   "id": "A-03",
+   "verdict": "confirmed",
+   "checks": [
+    "SiteCaptureStart.tsx:587 clears the pending submission only on 400/401/403/422, so a 409 keeps it; line 833 shows 'Recover saved job' and line 834 offers 'Start a new job' only when pending.acknowledged; the fieldset stays disabled while pending exists (line 838).",
+    "inbound-request.ts:1373-1377 returns 409 whenever mayRecoverSubmission (281-292) fails, e.g. a job saved signed in and retried signed out. I did not rerun the Playwright walk."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Client-side recovery state only; the server's duplicate guard and its 409 stay, so no duplicate job record or consent is created by the change itself.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": []
+  },
+  {
+   "id": "A-04",
+   "verdict": "corrected",
+   "checks": [
+    "inbound-request.ts:1341-1360 and workspace.ts:586-589 accept claudeAuthoringConsent/solAgentsApiConsent with no server-side development flag; the client hides the boxes only by import.meta.env.DEV (SiteCaptureStart.tsx:51).",
+    "websiteSceneSponsorship.ts:351-357 sets authoringProvider anthropic when the consent is present and throws website_anthropic_provider_terms_not_configured without terms. Production funnel: 1 non-internal site job carries claude_authoring_consent granted and 1 carries sol_agents_api_consent granted."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Refusing the fields at intake changes no stored consent; the jobs already carrying them keep their records until the owner decides.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Needs the owner: production already holds one non-internal job with the Claude authoring consent and one with the managed-agents consent; the owner must say whether those were real development tests and what happens to them.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "evidence/production-counts/firestore-funnel.json: claude_authoring_consent_granted true 1, sol_agents_api_consent_granted true 1"
+   ]
+  },
+  {
+   "id": "A-05",
+   "verdict": "unverified",
+   "checks": [
+    "self-capture-uploads.ts:128 DEFAULT_MAX_BYTES is 2 GiB; websiteLargeVideoBlock.ts:4-12 states BlueprintCapture's extractFrames limit is 1,000,000,000 bytes by default and overridable, and that the WebApp does not know the deployed value; no file.size check exists in selfCaptureVideo.ts or SiteCaptureStart.tsx.",
+    "The block is detected by the window sweep from a marker and turned into a new-video ask (websiteJobWindowSweep.ts:298-326); the 'days later' timing depends on the sweep and extraction, not measured."
+   ],
+   "real_in_production": "unknown",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "A client-side size refusal stores nothing; the server limit lowering only refuses more uploads.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Settle by reading the deployed extractFrames inline limit in BlueprintCapture's deployment config (not in either repo), and by checking how soon after upload the sweep records the new-video ask; 'days later' is not measured.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "server/utils/websiteJobWindowSweep.ts:319-326"
+   ]
+  },
+  {
+   "id": "A-06",
+   "verdict": "corrected",
+   "checks": [
+    "grep -c headline server/utils/taskStatusProjection.ts gives 35, not 39 (WebApp code at HEAD equals live 0ee5df6). jobOutlook.ts keeps 'testing' and 'result' phases and LIVE_RUN_GRACE_SECONDS (server/utils/jobOutlook.ts:11-14,67).",
+    "SiteAnswer.tsx:470 renders both 'testing' and 'result' to the site as SIMULATION_READY, so the trial-era names are internal; the site sees one sentence at a time, never the full list."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Wording and dead branches only; the withdrawal, consent and ledger paths do not read these sentences, though emails reuse some (check readers when collapsing).",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "Headline count is 35, so the total is about 70, not 74. The site never sees trial-era words: 'testing' and 'result' render as 'simulation ready'. The number of possible sentences is internal complexity, not something a site hits; P2 cleanup.",
+   "corrected_title": "The job page has about 70 possible status sentences and keeps trial-era 'testing' and 'result' phases internally; five states would do",
+   "corrected_today": "The site sees one status sentence at a time; behind it are 35 headlines plus phase lines, and the early-trial phases still exist in code though they render as 'simulation ready'.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "client/src/components/site/SiteAnswer.tsx:470"
+   ]
+  },
+  {
+   "id": "A-07",
+   "verdict": "corrected",
+   "checks": [
+    "taskPreparationOutcome.ts:426 PREPARATION_ENDED_NEXT 'To try again, start a new job.' is appended to JOB_WINDOW_ENDING_MESSAGE (441, used at taskStatusProjection.ts:409) and to the authority_ended headline (taskStatusProjection.ts:604).",
+    "But teamJobAccess.ts:237 unlists an authority_ended job, so on that path the job is not still listed (see G-01); the 'stays listed' contradiction holds only when the sweep's window ending is recorded while preparation is not authority_ended. A wait on Blueprint with no grant already says 'Nothing is needed from you' (taskPreparationOutcome.ts:456-457)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Wording on the job page and its one email; readers of PREPARATION_ENDED_NEXT must be updated together. No privacy, rights or money path reads it.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Today an authority_ended job is unlisted, so 'start a new job' matches the listing on that path; the fix belongs with G-01 (keep a window-ended job listed) and then drop the sentence. Make the copy change depend on G-01.",
+   "corrected_title": "Endings caused by Blueprint's window tell the site to start a new job; with G-01 fixed the job would still be listed",
+   "corrected_today": "When Blueprint's work window runs out, the page says the simulation stopped and 'To try again, start a new job.' On the authority_ended path the job is also taken down for companies (G-01); otherwise it stays listed while the page says to start again.",
+   "corrected_proposal": "Do G-01 first; then drop PREPARATION_ENDED_NEXT from the window and Blueprint-caused endings and say 'Your job is still with deployment companies. Nothing is needed from you.' wherever teamJobAccess still lists it.",
+   "extra_evidence": [
+    "server/utils/taskStatusProjection.ts:405-409",
+    "server/utils/teamJobAccess.ts:237"
+   ]
+  },
+  {
+   "id": "A-08",
+   "verdict": "confirmed",
+   "checks": [
+    "git show cbff06b:src/blueprint_pipeline/website_capture_withdrawal_automatic.py:1-31: the hourly timer only plans without a valid standing approval at APPROVAL_PATH. Door status copy 2026-11-22T15:01Z: website_withdrawal_deletion.approval_status absent, withdrawals.total 0.",
+    "cbff06b docs/runbooks/beta-operations.md:853-872: the owner installs /etc/blueprint/website-withdrawal-deletion-approval.json by hand as root; no deploy step installs it."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "The timer still skips legal holds, unsettled money and the cool-off, and keeps ledgers and the audit journal; deletion is irreversible, so the owner sets cool_off_hours.",
+   "already_built": "yes",
+   "already_built_where": "pipeline:src/blueprint_pipeline/website_capture_withdrawal_automatic.py (timer exists; only the approval file is missing)",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "door-status.json capacity.website_withdrawal_deletion.withdrawals.awaiting_owner_approval 0"
+   ]
+  },
+  {
+   "id": "A-09",
+   "verdict": "corrected",
+   "checks": [
+    "SiteCaptureStart.tsx:959-981: a collapsed 'Add details' disclosure with 'What counts as success?', 'How often does it happen?' and 'Where are you in the process?' (Planning a pilot / Ready to run a pilot); the comment cites the owner's 2026-11-12 choice of a drop-down.",
+    "successDefinition is read by websiteTaskContext.ts:64,128,174 (the job's task context and scope screen) and companyJobPage.ts:171 (shown to companies), so removing all three fields cuts an input to the success rule."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "Removing 'What counts as success?' drops the only site-written success definition read by the task context and the company page; the pilot select and frequency can go without loss.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "The disclosure is optional and closed by default, and the owner chose it on 2026-11-12, so P2 and an owner call. Keep the success field; remove only the pilot select (retired pilot frame) and, if wanted, frequency, which the job page asks as perHour/hours.",
+   "corrected_title": "The start form's optional details still offer 'Planning a pilot' and repeat a frequency question the job page asks",
+   "corrected_today": "",
+   "corrected_proposal": "Remove 'Where are you in the process?' (pilot wording) and 'How often does it happen?' from the start form; keep 'What counts as success?'; the server keeps accepting old drafts. Owner confirms, since the drop-down was the owner's choice.",
+   "extra_evidence": [
+    "server/utils/websiteTaskContext.ts:64,128,174",
+    "server/utils/companyJobPage.ts:171"
+   ]
+  },
+  {
+   "id": "A-12",
+   "verdict": "corrected",
+   "checks": [
+    "taskLifecycleNotifications.ts:1-11 names the owner's 2026-11-19 rule ('SIMPLER THE BETTER') and lists four site emails, job_sent among them; job_sent (60-66) carries the how-to-stop sentence.",
+    "captureOutbox.ts:86 job_outcome_question goes to both sides at 14, 45 and 90 days; no separate 'reminder' kind exists in the OutboxKind list (62-89)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "The withdrawal sentence must stay in some email the site receives before or at sharing; moving it into task_received keeps that. Nothing in money or consent records reads job_sent.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "The four-email list including job_sent is the owner's own decision of 2026-11-19, and there is no separate reminder email. One extra email is polish, P2, and only the owner can drop it.",
+   "corrected_title": "'Your job is posted' repeats what the site agreed to; the owner kept it in the four-email list",
+   "corrected_today": "A site gets the job link, 'Your job is posted', one email per company answer and 'Meet {company}', then outcome questions at 14, 45 and 90 days after an introduction.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "server/utils/captureOutbox.ts:86-87"
+   ]
+  },
+  {
+   "id": "E-06",
+   "verdict": "confirmed",
+   "checks": [
+    "playwright.answer-journey.config.ts runs e2e/site-answer-journey.spec.ts (real handlers on emulators, lines 1-10 describe the full loop); the config sets no video option.",
+    "git ls-files finds no recording of that loop: the tracked MP4s are client/public/proof/* and samples/sample-job-parcels.mp4, none referenced by any page (grep finds no importer), and no scripts/demo exists. I did not rerun the Playwright suites."
+   ],
+   "real_in_production": "no",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "A recording on test data and a scratch config; nothing in the repos, consent or money paths changes.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "playwright.answer-journey.config.ts:3-6"
+   ]
+  },
+  {
+   "id": "E-07",
+   "verdict": "corrected",
+   "checks": [
+    "websiteScenePreview.ts:38 caps the preview at 32 MiB; lines 245-270 fetch it from the Pipeline origin and hash it on first view.",
+    "websiteScenePreview.ts:42 CACHE_ROOT is os.tmpdir()/blueprint-scene-preview-views, so the prepared files live on the instance's temp disk: a restart or another instance serving the request starts cold again. The real first-open time is still unmeasured."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "A demo pre-flight; no code change.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The 'ephemeral disk' risk is settled: the cache is in tmpdir, so warming one tab helps only while the same instance keeps running. The size of the wait is unknown, so this is demo polish, P2; time one internal test job's first open to settle the number.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "Pre-flight: open the chosen simulation shortly before the demo on the same deployment, keep the tab open, and time the first open. Know that a restart or a second server instance clears the warm copy (tmpdir cache).",
+   "extra_evidence": [
+    "server/utils/websiteScenePreview.ts:42"
+   ]
+  },
+  {
+   "id": "G-02",
+   "verdict": "confirmed",
+   "checks": [
+    "cbff06b website_company_clip.py:1-15: a new capture's clip is made from the normalized clip and 'a new capture waits for normalization'; it runs in the Atlas preview timer pass (line 57). cbff06b pubsub_handoff_scene_operations.py:355-365: admit_browser_preparation (the WebApp's paid-preparation grant) and require_task_named come before the run that normalizes.",
+    "teamJobAccess.ts:253 closes a job as video_required until companyVideoReady; the door journal counts cited (clip current 2, no source 1, not permitted 2, refused 1) were not re-read."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "The clip must keep its live statement check, its silent re-encode and its capture-named storage that withdrawal deletion finds; ffmpeg is local and costs no provider money.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "git show cbff06b:src/blueprint_pipeline/pubsub_handoff_scene_operations.py:355-365"
+   ]
+  },
+  {
+   "id": "G-06",
+   "verdict": "corrected",
+   "checks": [
+    "jobIntroductionGate.ts:52-58 re-checks withdrawal, companyMaySeeJobs (approved, not technology, current Terms, signed-in acceptance: companyTerms.ts:37-41) and loadCompanyJobAccess(...).listed at dispatch.",
+    "The listing check also carries the rights holds, Blueprint's listing hold and the internal-test stop (teamJobAccess.ts:226-236). The gap between the press and dispatch is one outbox pass, so a lapse in that window is rare; production has 0 introductions."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "Dropping the listing re-check would let an introduction go out on a job placed under a rights hold or Blueprint's hold after the press, breaking the rights stop; dropping the Terms check is a legal call.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Keep the rights holds and Blueprint's hold at dispatch; only the window-end case (G-01) and Terms currency are candidates to drop, and Terms currency is the owner's legal call. The window between press and dispatch is short, so P2.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "At dispatch keep withdrawal, approval status, rights holds and Blueprint's listing hold; stop re-checking listing reasons that are not privacy or rights (the window end, after G-01). The owner decides whether a lapsed Terms acceptance should still cancel.",
+   "extra_evidence": [
+    "server/utils/companyTerms.ts:37-41",
+    "server/utils/teamJobAccess.ts:226-236"
+   ]
+  },
+  {
+   "id": "M-02",
+   "verdict": "confirmed",
+   "checks": [
+    "Privacy.tsx:72-73 defines job close; lines 84-105 set 180 days after close for recordings under the 2026-10-13 policy, 365 days for simulations and answers, contact details 'while your account or job is open', and line 88 itself says storage does not delete originals on a schedule and that a longer period for new recordings needs legal review.",
+    "server/utils/websiteCaptureRetention.ts:1-30 only records which policy applies ('neither authorizes deletion'); grep finds no 180/365-day sweep in server. Whether any site-closed job's contact details are already past due was not counted."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Reusing the withdrawal deletion path keeps its receipts, legal-hold and money checks; a wrong deletion is irreversible, hence report-only first. Legal text is the owner's.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "server/utils/websiteCaptureRetention.ts:10-30"
+   ]
+  },
+  {
+   "id": "M-03",
+   "verdict": "corrected",
+   "checks": [
+    "CookieConsent.tsx:198-199 labels Marketing 'Personalized ads and content'; Privacy.tsx:236-239 says marketing cookies let Google Analytics measure outreach; analytics.ts:245-248 grants ad_storage, ad_user_data and ad_personalization when marketing and analytics are both allowed.",
+    "Live bundle /assets/index-IUZGgzws.js (curl): env keys are only Firebase and Maps, GA id is the placeholder G-XXXXXXXXXX, no PostHog token; but it calls /api/analytics/ingest, which analytics.ts:203-216 sends only when analytics is allowed, so the banner does gate a live first-party ingest."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "Hiding the banner while no GA id is set is safe for privacy (the ingest then never fires) but silently ends the first-party event ingest the Analytics choice gates; that is the owner's call with O-13. Removing the Marketing toggle and ad grants touches nothing else.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "The banner does not ask consent for nothing: its Analytics choice gates first-party events sent to /api/analytics/ingest on the live site. Only the Marketing choice controls nothing today. Keep the banner question tied to the ingest decision.",
+   "corrected_title": "",
+   "corrected_today": "A visitor is asked to allow 'Personalized ads and content'. The Privacy Policy never mentions personalized ads; it says marketing cookies only measure outreach. With a GA id the code would grant ad personalization. The live build has no GA, PostHog or Sentry, so Marketing controls nothing; Analytics still controls Blueprint's own first-party event ingest.",
+   "corrected_proposal": "Delete the Marketing toggle and the three ad_* grants (keep them denied). Keep the banner only while the first-party ingest needs consent; if the owner drops that ingest (O-13), remove the banner too. The Privacy marketing sentences need the owner's edit.",
+   "extra_evidence": [
+    "live https://tryblueprint.io/assets/index-IUZGgzws.js contains '/api/analytics/ingest' and 'G-XXXXXXXXXX'",
+    "client/src/lib/analytics.ts:203-216"
+   ]
+  },
+  {
+   "id": "M-04",
+   "verdict": "corrected",
+   "checks": [
+    "publicCopy.ts:55-59 SAMPLE_JOB.liveAlso includes the downloadable simulation, shown under 'A live job can also include' (SampleJob.tsx:34-36); SampleJob.tsx:38 and Terms.tsx:26 say the tested answers come 'once' the simulation can be downloaded, which is hedged.",
+    "Production counts: 6 upload sessions carry a company simulation, all internal tests; companySends 0 and robotTeamInterest 0. So the package exists in the system but has never been on a real job."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "One public string; check client/tests/publicClaims.guard.test.ts. No privacy, rights or money path reads it.",
+   "already_built": "yes",
+   "already_built_where": "company simulation package exists for internal test jobs only (production counts: 6 upload sessions, all internal tests)",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The copy says a live job 'can also include' the download and the Terms say 'once' it can be downloaded: hedged, not a promise. The package has been made for internal test jobs, just never for a real one. P2 wording fix.",
+   "corrected_title": "The sample job lists a downloadable simulation among what a live job can include; no real job has had one yet",
+   "corrected_today": "A company reading Find jobs sees the downloadable simulation listed under 'A live job can also include'. It has only ever been made for internal test jobs, so no real job has offered it and no company could give a 'Tested it' answer.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "client/src/components/site/SampleJob.tsx:34-38",
+    "client/src/pages/Terms.tsx:26"
+   ]
+  },
+  {
+   "id": "O-12",
+   "verdict": "corrected",
+   "checks": [
+    "curl of the live bundle /assets/index-IUZGgzws.js: env object holds only BASE_URL/DEV/MODE/PROD/SSR, six VITE_FIREBASE_* and VITE_GOOGLE_MAPS_API_KEY; GA id is the placeholder G-XXXXXXXXXX, no 'phc_' token, no sentry ingest host; grep finds no @sentry/node or Sentry.init in server.",
+    "Privacy.tsx:159-164 lists Google Analytics, PostHog and Sentry; analytics.ts:70-76 leaves GA and PostHog off without keys."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Removing the loaders and rows changes no data flow (none runs); a legal page change needs a new policy version and notice, which is the owner's.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Naming processors that do not run over-discloses; no visitor's data goes anywhere unannounced, so P2 not P1. The cookie banner cannot simply go: its Analytics choice gates the live first-party ingest (/api/analytics/ingest).",
+   "corrected_title": "",
+   "corrected_today": "The live build has no GA measurement id, no PostHog token and no Sentry (client or server), so none of the three runs, while the Privacy Policy lists them as processors. The banner still gates Blueprint's own first-party analytics events.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "live bundle contains '/api/analytics/ingest'"
+   ]
+  }
+ ],
+ "new_findings": [
+  {
+   "id": "L1-N1",
+   "title": "A site's job page says 'Posted for approved deployment companies' while no company can see any job",
+   "dimension": "untrue",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.4 Waiting",
+   "evidence": [
+    "webapp:client/src/components/site/SiteAnswer.tsx:32,344 (SHARED_LINE shown when sharing.state is visible)",
+    "webapp:server/utils/siteAnswer.ts:735 (visible = access.listed, which does not check whether any company may see jobs)",
+    "webapp:server/utils/companyTerms.ts:37-41 (companyMaySeeJobs needs current Terms and a signed-in acceptance)",
+    "webapp:server/utils/jobAutoSend.ts:47-54 (returns no_companies when none qualify)",
+    "evidence/production-counts/firestore-second-pass.json: robotTeamAccess n 1, with_signed_in_terms_acceptance 0; firestore-funnel.json captureOutbox has no job_sent row"
+   ],
+   "today": "Once a job is listed, the site reads 'Posted for approved deployment companies'. In production the only approved company has no signed-in Terms acceptance, so companyMaySeeJobs is false, auto-send finds no company and no company can open the job. The site waits for responses that cannot come.",
+   "should": "The job page says the job is posted only when at least one approved company can see it; otherwise it says the job is ready and Blueprint is still approving companies.",
+   "change": "FIX",
+   "proposal": "Make sharing.state 'visible' also require at least one robotTeamAccess record for which companyMaySeeJobs holds (the same filter jobAutoSend uses); otherwise show a 'ready, no company can see it yet' line. Separately, the owner asks the approved company to sign in and accept the Terms.",
+   "user_result": "A site is never told its job is in front of companies when it is not.",
+   "risk": "A count query per page view; cache it. No privacy, rights or money record changes.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "Code read plus production aggregate counts; did not open a real job page.",
+   "requirement_source": "nobody (the line was written for the case with approved companies)",
+   "live_in_production": "yes",
+   "needs_owner": true
+  }
+ ],
+ "not_checked": [
+  "A-03 and E-06: did not rerun the Playwright walks; verdicts rest on code reads.",
+  "A-05: the deployed BlueprintCapture extractFrames limit is not in either repository.",
+  "G-02: door journal clip counts were not re-read through the operator door.",
+  "M-02: how many site-closed jobs exist (contact details due for deletion at close) is not in the production count files.",
+  "E-04: did not rerun git apply --check of PR 1369 against HEAD."
+ ]
+}

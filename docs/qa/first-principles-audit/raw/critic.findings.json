@@ -1,0 +1,68 @@
+{
+  "agent": "critic",
+  "summary": "The deliverables mostly agree with their evidence. Five sentences say more than the evidence does or disagree between files: the room-ready time, 'the only real job', the 21,000 WebApp lines credited to the trial, '153 deploys', and 'the 59 P2 findings'. One gap changes the plan: from 2026-12-01 the account's monthly limit goes back to USD 300. Spend with no job behind it already runs about USD 9.30 a day, so December leaves room for about one or two jobs before every paid step is refused. Also, no existing US job carries the sharing statement, so a company that signs in today would still see nothing.",
+  "findings": [
+    {
+      "id": "K-01",
+      "title": "From 1 December the account's monthly limit falls to USD 300. Spend with no job behind it nearly fills that, so the loop stops after about one or two jobs a month.",
+      "dimension": "fragile",
+      "severity": "P1",
+      "effort": "S",
+      "journey_step": "C.4 to C.9 paid preparation, and A.4 Waiting",
+      "evidence": [
+        "pipeline:config/account_monthly_spend_limit.v1.json:3-6,12 monthly_limit_usd 300, override 400 for 2026-11 only, note 'USD 300 again from 2026-12' (same file at the running release: git show cbff06b:config/account_monthly_spend_limit.v1.json)",
+        "pipeline:src/blueprint_pipeline/account_monthly_spend.py:29-40 what counts: every provider's reconciled month-to-date bill (DigitalOcean, Google Cloud, OpenAI organization costs), not only job spend",
+        "pipeline:src/blueprint_pipeline/account_monthly_spend.py:412 'return [LIMIT_REACHED] if counted >= limit' refuses every new paid admission",
+        "pipeline:src/blueprint_pipeline/atlas_scene_automation.py:199-201 on account_monthly_spend_limit_reached 'the job waits for the next month's money recheck'",
+        "cmd: operator_door.py status (2026-11-22T20:13Z) spend_guard.account_monthly_spend: counted_usd 297.16, measured_days 21.843; reconciliation unattributed_usd digitalocean 63.43, gcp 61.53, openai 72.00; WebApp overhead openai 6.02, gcp 0.03; forecast daily_rate_usd 13.60, rate_is_lower_bound true",
+        "arithmetic from those numbers: (63.43 + 61.53 + 72.00 + 6.05) / 21.843 days = USD 9.29 a day with no job behind it; times 31 days = about USD 288 against the USD 300 December limit",
+        "pipeline-timing.md:65-67 metered spend per job: USD 8.46 (capture-39ecdc97), 8.41 and 2.31 (test jobs); the job cap is USD 40",
+        "webapp:server/utils/betaPolicyScreeningHold.ts:80-90 the site's page reads 'awaiting_spend_approval' when the account limit stops a job",
+        "webapp:server/utils/websiteJobWindowSweep.ts:30-32 a job waiting on Blueprint ends held when its window passes",
+        "findings.md G-02: the sound-free video that a listing needs waits for paid preparation to be admitted"
+      ],
+      "today": "Two things decide December. The month's limit goes back to USD 300. The host, Google Cloud and OpenAI cost with no job behind them already run about USD 9.30 a day, about USD 288 for the month. That leaves roughly USD 12 for every job in December. One job used USD 8.46. After one or two jobs the limit is reached. From then until January every new paid step is refused for every job. Each job waits for the next month, the site's page says the job is waiting on spending, and when its 7-day window passes the job ends held. Because the sound-free video waits for paid preparation (G-02), a job that waits like this never reaches a company. None of this is in the summary, the plan or the owner questions. Owner question 19 asks only which limits to delete.",
+      "should": "Before outreach starts, the owner knows how many jobs a month the account limit allows. Spend with no job behind it does not decide whether a site's job reaches companies.",
+      "change": "FIX",
+      "proposal": "Owner step before wave 0's outreach: set the December limit with the fixed costs in view. Either keep USD 400 or more, or count only job spend against the limit and watch fixed costs with alerts alone. Add it to owner-questions.md as a money question with this arithmetic. In code, do PR 2.3 (sound-free video first, G-02) early so a money wait holds back only the simulation and not the listing. Deleting the idle lanes (V-01: the Cloud Run collector that starts about 1,180 times a day) should lower the Google Cloud line; measure it after the cut.",
+      "user_result": "A site that films in December still reaches companies, and the owner knows the month's job capacity in advance.",
+      "risk": "Raising the limit or narrowing what counts lets more money be spent. The per-job USD 40 cap and the provider limits still apply, and the owner decides. The OpenAI and Google Cloud lines with no job behind them may include development use that will fall. The USD 9.29 a day rests on 21.8 days of November.",
+      "hard_stop": "money",
+      "verified": "yes",
+      "verify_how": "Config read at HEAD and at the running release cbff06b. Spend figures read with operator_door.py status at 2026-11-22T20:13Z. Arithmetic shown in the evidence. That the limit actually stops a December job is inferred from the admission code and was not observed, because December has not started.",
+      "requirement_source": "owner decision 2026-11-20 (USD 400 for November only, USD 300 from 2026-12), recorded in the config note",
+      "live_in_production": "yes",
+      "needs_owner": true
+    }
+  ],
+  "good_things": [
+    {
+      "what": "Sound is removed before footage goes to Gemini, as the Privacy Policy promises",
+      "why": "The only upload path to Gemini accepts nothing but a video-only copy that has been checked for audio. If the sound cannot be removed, the run fails.",
+      "evidence": "webapp:server/agents/adapters/gemini-video.ts:22-29,94-100; webapp:client/src/pages/Privacy.tsx:52"
+    },
+    {
+      "what": "The 14, 45 and 90 day answer links need no sign-in and cannot be triggered by an email scanner",
+      "why": "GET shows a confirm page and records nothing; POST with the signed token records the answer; the route is mounted without CSRF on purpose; 21 tests pass.",
+      "evidence": "webapp:server/routes/job-outcomes.ts:4-7,45-64; webapp:server/routes.ts:91-93; cmd: npx vitest run server/tests/job-outcomes.test.ts -> 21 passed"
+    }
+  ],
+  "owner_questions": [
+    {
+      "question": "What should December's account limit be, and should fixed costs (the host, Google Cloud, development OpenAI use) count against the limit that stops site jobs?",
+      "recommendation": "Count only job spend against the limit that refuses paid steps. Keep alerts on the whole bill. Otherwise keep USD 400 for December.",
+      "unblocks": "K-01: more than one or two jobs in December."
+    }
+  ],
+  "open_cost_questions": [],
+  "not_covered": [
+    "Sign-in, password reset, the site claim page (client/src/pages/ClaimSite.tsx) and /settings: not walked by any agent or by this check. A site needs no account, so no P0 or P1 conclusion rests on them.",
+    "Emails as sent (the HTML parts): no agent rendered them. Close by rendering each outbox kind from test fixtures with no send.",
+    "The Terms of Service read in full against the product: only the clauses behind M-01 and the price check were compared.",
+    "The Pipeline's functions/storage_trigger.py (the upload hand-off Cloud Function): mapped in inventory.md:1105 but not read for failure modes. extractFrames sits in a third repository.",
+    "Accessibility of the start form at phone width (labels, focus order, zoom, screen reader): not tested. Close with one axe run at 390 px on a local server.",
+    "A second or tenth job at the same time: only per-capture locks were found (website_atlas_pipeline.py:323, website_company_clip.py:546). Host throughput was not measured. The money limit (K-01) binds first.",
+    "The 14-day deletion of temporary processing files the Privacy Policy promises: the repository holds the bucket rule (pipeline:deploy/storage/primary-capture-bucket-lifecycle.json, Delete at age 14 for tmp/, staging/, debug/). Whether it is applied to the live bucket, and whether scratch files on the host follow it, was not read.",
+    "Deployed Firestore and Storage rules, and the values set in Render and on the host: still unread, as the audit already says."
+  ]
+}

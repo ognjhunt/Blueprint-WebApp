@@ -1,0 +1,620 @@
+{
+ "lane": "L2",
+ "summary": "Of 27 candidates, 9 were confirmed, 18 corrected, 0 refuted and 0 unverified as wholes (D-10's money reach in production stays unverified inside a corrected verdict). The two P0s (O-01 Resend webhook store, O-02 sent outbox rows) are real but are retention in Blueprint's own admin-only store, not exposure, so both drop to P1, and O-01 stores no click links in production because no clicked events exist. B-06 is wrong that nothing reads the application's robot and jobs answers: the approver's card and Slack show them; the real defect is the hidden website field and a region check that cannot match states. D-17 is sharper than stated: the one approved company never accepted the Terms signed in, so no company can see any job, and D-09's staff hold should not be deleted without a privacy takedown to replace it; several copy and polish items (B-02, B-05, B-09, B-10, B-13, F-15, O-03, O-13) drop to P2.",
+ "verdicts": [
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/routes/resend-webhook.ts:50-63: every event is stored with recipient and payload: envelope (whole Resend event, which carries data.subject); grep finds no reader of growth_campaign_events or growthCampaigns outside this file.",
+    "Production aggregate firestore-second-pass.json: growth_campaign_events 403, event types sent 173, delivered 129, bounced 46, suppressed 41, dropped 14, latest 2026-11-20; no clicked events, so no click link, IP or browser is stored in production today."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Suppression (recordEmailSuppression, lines 84-99) is the only part with an effect and stays; the eventRef existence check also serves as webhook dedupe, so without the write a replayed webhook re-runs recordEmailSuppression, which is a harmless upsert. Purging the 403 docs is a production write the owner approves.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Click links, IP addresses and browsers are not stored in production: there are no clicked events (click tracking is not producing events). What is stored is the recipient address and subject of every email, including site and company job emails. This is retention in an internal admin-only store, not exposure, so P1 rather than P0.",
+   "corrected_title": "The Resend webhook keeps every email's recipient and subject in a collection nobody reads",
+   "corrected_today": "403 stored events (latest 2026-11-20) hold each email's recipient address and the full Resend payload including the subject; nothing reads or deletes them and withdrawal does not touch them.",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "firestore-second-pass.json growth_campaign_events: campaign_id_unknown 399 of 403"
+   ],
+   "id": "O-01"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/utils/captureOutbox.ts:138-147: clearedIntroductionDetails clears subject, body and replyTo only for introduction_made_company and introduction_made_site.",
+    "taskLifecycleNotifications.ts:43-82: site emails end with the job's private link ('opens your job without a password'); grep of the withdrawal, deletion and account-deletion utils finds no captureOutbox write; firestore.indexes.json has no TTL on captureOutbox; production captureOutbox 143 rows, 132 sent."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Sender reads the body only while a row is pending; dedupe is by key, not body. Anything that reads 'to' after send (suppression or dedupe) must move to a hash. Backfill is a production write the owner approves.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Real, but it is retention in an internal admin-only collection, not exposure to anyone outside Blueprint; a holder of Firestore access can already act as any site. Lower to P1. Most of the 143 rows are kinds now retired (RETIRED_KINDS, captureOutbox.ts:126-133), so the backfill is mostly old rows.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "firestore-funnel.json captureOutbox kind_and_status: task_received/sent 25, video_received/sent 22, team_run_no_result/sent 23"
+   ],
+   "id": "O-02"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/utils/robotTeamAccessEmails.ts:149-163: subject 'New job on Blueprint', body 'A site has posted a new job. Open it to see the job packet and respond.'; the comment cites package E4 'Nothing about the site'.",
+    "Production: robotTeamAccess has 1 record with no signed-in Terms acceptance, so companyMaySeeJobs filters it out (jobAutoSend.ts:48-54) and no new-job email has ever been sent."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Category title and country are already on the card every approved company sees; no site identity is added. It changes the owner's package E4 wording, so the owner signs off.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "The wording is a recorded owner decision (package E4), and no company has ever received this email, so it is polish until companies exist: P2, needs the owner.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "B-02"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/utils/jobAutoSend.ts:1-60 and 98-145: the send runs once per job when listed; a job with no Terms-accepted company is left for the once-a-minute sweep, so it is sent when the first company accepts; a company approved after a job's send gets no row or email for it (it sees the job in its library).",
+    "Outbox kinds in captureOutbox.ts:60-90 include robot_team_new_task but nothing for simulation ready; grep of newJobAlerts.ts and captureOutbox.ts finds no company simulation trigger."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Adds one outbox kind behind the same dispatch gate (listing, approval, preference, suppression); no site data is added.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "'An approved company not yet signed up is skipped for that job forever' is wrong for jobs listed before any company accepted: those wait and are sent when the first company accepts the Terms (today all 17 listed jobs would go to the first one at once). The skip applies only to jobs whose one send already happened before the company accepted. The missing simulation-ready email is real.",
+   "corrected_title": "No email when a job's simulation becomes ready, and a company that accepts the Terms after a job's send is never emailed about it",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "jobAutoSend.ts:107-123 sweepAutomaticSends re-examines every listed job without company_auto_send.sentAtIso"
+   ],
+   "id": "B-03"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened server/utils/companyJobPage.ts:80-90: countryOf returns the decrypted country name only; taskLifecycleNotifications.ts:54 says videos are taken only from US sites, so every job reads 'United States' and the field carries no information.",
+    "PartnerApplication.tsx:79 asks 'Cities, states or countries you cover'."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "State is coarser than an address, but it is more than the recording statement lists today; the owner decides and may need to amend the statement wording.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "B-04"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/utils/taskBrowse.ts:15-27: the card carries category title, stage (ready, preparing, capture), publishedAtIso and a thumbnailUrl, not only category and country.",
+    "Production: 17 listings, but no company can see them yet (0 Terms acceptances, 0 companyViews)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "The redacted sentence is already shown on the job page to the same approved companies; the card must use the same redaction.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Cards also show a thumbnail and a stage, so they are not identical; with no company able to see the list today this is polish (P2).",
+   "corrected_title": "Job cards show only a category, stage and thumbnail, not the site's redacted sentence",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "B-05"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened client/src/pages/AdminRobotTeamAccess.tsx:247-249 and server/utils/slack.ts:143-159: the approver's card and the Slack message both show robot, workWanted and region, so the human approver reads them; 'nothing reads' is false.",
+    "PartnerApplication.tsx:69-86: six required fields, website optional inside a collapsed details; robotTeamAccessFit.ts:72-75 matches region words against listed task regions, which are the country, so a state list never matches."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Removing robot and workWanted removes what the owner uses to approve; making website required touches no privacy, rights or money.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "The approver reads robot, workWanted and region on the admin card and in Slack. The real defects are narrower: the website the fit check needs is optional and hidden, and the region check cannot match states or cities. Whether to drop the free-text questions is the owner's approval criterion.",
+   "corrected_title": "The website the fit check needs is optional and hidden, and the region check cannot match states or cities",
+   "corrected_today": "",
+   "corrected_proposal": "Show the website field and make it required; drop or fix the region check (compare against country only, or remove it). Ask the owner whether he still wants the robot and jobs questions for approval before removing them.",
+   "extra_evidence": [],
+   "id": "B-06"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened client/src/pages/RobotTeamSignUpFlow.tsx:85-110: the invitation screen has a read-only email, a details review (open only when name or company is missing), a password field marked 'Skip this field to use Google', a Terms and Privacy tick, and Create account; server/utils/accountInvitations.ts:41-54 redeems by password or Google.",
+    "Production: the one robotTeamAccess record (approved 2026-09-28) has no signed-in Terms acceptance (firestore-second-pass.json), so the only approved company never got past this step."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "The signed-in Terms press is the rights and money record (companyTerms.ts, G1) and must stay; an email-bound one-time sign-in link proves the same mailbox the invitation already proves. The application's passive 'By applying, you agree' line is not counted (robot-team-access.ts:80-83), so replacing it with a Privacy notice changes no record.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "The password is optional: 'Continue with Google' is offered, and the details review is collapsed when name and company are known. The application's Terms line is a passive notice, not a second tick. Add: the only approved company in production stopped here.",
+   "corrected_title": "After approval, the company must create a password or use Google and tick the Terms before its first job",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "firestore-second-pass.json robotTeamAccess: with_signed_in_terms_acceptance 0"
+   ],
+   "id": "B-07"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened server/utils/robotTeamEarlyAccess.ts:205-215: 'Only an approval is emailed (owner, 2026-11-19)'; admin-robot-team-access.ts:59 accepts approved or declined; robot-team-access.ts:90 'No receipt by email'.",
+    "RobotTeamEarlyAccess.tsx:115-130 has 'in review' and 'declined' screens, reached only through TaskBrowse for a signed-in user; sign-up needs an invitation, so an applicant normally cannot reach them (not tested live)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "A fixed 'not yet' email carries no site data; it reverses a recorded owner direction.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "B-08"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "grep of betaOpsMonitor.ts, opsAlert*.ts and worker.ts finds no robotTeamAccess reminder; robot-team-access.ts:92-94 sends one Slack message on a new application.",
+    "AdminRobotTeamAccess.tsx:249 shows each application's applied date on its card; production has 1 application ever (approved 2026-09-28), so a duration aggregate has n=1."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "A read-only alert; no privacy, rights or money.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The review page does show when each company applied. With one application in production, the missing reminder is a P2 gap; fold it into D-08 (an email per application to the owner already removes the dependence on Slack).",
+   "corrected_title": "Nothing reminds the owner of applications waiting for a decision",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "B-09"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "git show cbff06b:src/blueprint_pipeline/website_company_simulation.py (the live release, BUILDER_REVISION v3, line 127): the package is scene.usda plus its parts and an optional splat PLY; no GLB, OBJ, MJCF or URDF export.",
+    "Same file 1183-1190: when a goal region is defined the README explains success_rule.json (radius around surface_position_world_m, settling.stable_seconds); only the no-room case says 'with the run's timing'."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "A local pxr export adds files; the outbound scan and size steps must cover them. No paid compute.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "The README does explain the success rule's goal region and settling time when a rule is defined; the timing note appears only for the no-room case. No real company has downloaded a package (the 6 company simulations are internal tests), and USD opens in Isaac Sim and Omniverse, so this is P2 until a company asks.",
+   "corrected_title": "The simulation package is USD only, and the no-room README still mentions the dropped runner's timing",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "B-10"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/routes/site-worlds.ts:96: nextAction is always 'Saved. The site sees this answer, without your company's name.'; CompanyJob.tsx:236 shows it.",
+    "CompanyJob.tsx:241-262: the answer area says nothing about the introduction except when an old statement version needs a new answer."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Copy only; must not promise a response.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Real, but a one-line copy change with no company yet answering: P2.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "B-13"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened server/routes/robot-team-access.ts:88-94: the only notice of a new application is notifySlackRobotTeamAccessApplication, fire-and-forget; no receipt or owner email.",
+    "client/src/pages/AdminRobotTeamAccess.tsx:174-175: Approve needs window.confirm ('I reviewed the team's capabilities, task fit, and prerequisites...') then window.prompt for a note; the page header reads 'Partners' and 'Partner applications'."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Approval admits a company to every listed job, so a one-press link must be single-use, short-lived and bound to the owner's sign-in; the approval record (decidedBy, decidedAtIso) must still be written.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "Whether SLACK webhook is set in production was not checked; if it is not, the owner gets no notice at all."
+   ],
+   "id": "D-08"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened client/src/components/admin/JobCompaniesConsole.tsx:1-11 and server/routes/admin-job-console.ts:315,335,360,381: four staff POST routes: record a send, void it, record an emailed answer, and hold the job.",
+    "server/utils/operatorListing.ts:24-30 and teamJobAccess.ts:12: the hold is read by teamJobAccess, separately from the rights hold and the site's withdrawal; production companySends 0, so the send and answer forms were never used."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "no",
+   "change_safe_why": "Deleting the send, void and answer forms touches nothing in use (0 rows). Deleting the hold removes Blueprint's only staff stop for a job found to show something it must not (a privacy hard stop); the rights hold is set elsewhere and withdrawal is the site's own act.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "The manual send and answer forms do not stand between a video and an introduction (the automatic send runs regardless); they are unused extras, so P2. The hold must not simply go: keep it as a privacy or rights takedown with a stated reason, or have the owner confirm another staff stop exists.",
+   "corrected_title": "Staff can still record sends and emailed answers by hand, never used in production",
+   "corrected_today": "",
+   "corrected_proposal": "Delete the send, void and answer forms and their three POST routes. Keep the hold, renamed as a privacy or rights takedown that requires a reason, unless the owner decides the rights hold covers it.",
+   "extra_evidence": [],
+   "id": "D-09"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "server/routes.ts:138-143 mounts /api/capture-uploads with csrfProtection and verifyFirebaseToken only; capture-uploads.ts:815-820 create checks the invitee allowlist (open to any verified signed-in account when BLUEPRINT_INVITEE_ALLOWLIST is unset, inviteeAllowlist.ts:3-7); authorize (1279) and execute (1361) check session ownership only; no requireAdmin anywhere in the 18 routes.",
+    "reconstructionForwarding.ts:508,538 forwards authorize and execute to the Pipeline; cbff06b live_pipeline_reconstruction_testbed_routes.py:257-270 has an execute route. Whether the WebApp production env sets RECONSTRUCTION_PIPELINE_BASE_URL and whether that route is mounted on the control plane was not checked."
+   ],
+   "real_in_production": "unknown",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Keep the captureUploadSessions collection (the company simulation and site uploads are recorded there), captureLifecycleForwarding.ts (withdrawal uses it) and the self-capture router. The interim requireAdminRole touches no site path.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "The guard gap is real in code; whether it reaches paid reconstruction in production is unverified (settle by reading the WebApp production env for RECONSTRUCTION_PIPELINE_BASE_URL and the control plane's mounted routes with the door's read commands). Ship requireAdminRole on the router first (S), then the delete (M), keeping captureUploadSessions and captureLifecycleForwarding.ts.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "PR 1 (S): add requireAdminRole to the /api/capture-uploads mount. PR 2 (M): delete /app/captures, client captureUploads.ts, the capture-uploads router and reconstructionForwarding.ts after confirming no live job reads sessions it writes; keep captureUploadSessions, captureLifecycleForwarding.ts and self-capture-uploads.",
+   "extra_evidence": [
+    "firestore-funnel.json captureUploadSessions 34 (32 undated, 2 from 2026-10)"
+   ],
+   "id": "D-10"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Production counts (firestore-collection-counts.json, firestore-second-pass.json): inboundRequests 76 (61 site jobs that are not internal tests), robotTeamAccess 1, companySends 0, introductions 0, billableEvents 0 (top level and any parent), companyViews 0, companyResponses 0.",
+    "The one robotTeamAccess record has with_signed_in_terms_acceptance 0, and jobAutoSend.ts:48-54 sends only to companies that pass companyMaySeeJobs, so no company can see or be sent any job today."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "n/a",
+   "change_safe_why": "No code change; inviting companies is outreach, which needs the owner.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Sharper than stated: there is not one usable company but zero; the single approved record never accepted the Terms signed in, so the 17 listed jobs are waiting unsent. E-01 graded this P0; it is P1 because no code is broken, the loop is unexercised. Effort is owner time, not engineering.",
+   "corrected_title": "The billable loop has never run in production: no company can see a job, no sends, no introductions",
+   "corrected_today": "61 site jobs (17 listed) and one approved company record that never accepted the Terms signed in, so no job has been sent, viewed, answered or introduced, and no billable event exists.",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "D-17"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened captureOutboxRetry.ts:29 (MAX_UNDELIVERED_AGE_MS 36 h) and captureOutbox.ts:201-206 (a retry past that age becomes failed); jobIntroductionGate.ts:168-175: a failed company email cancels the introduction, clears both sides and voids the billable event.",
+    "jobIntroductions.ts:118-121 refuses a new introduction when the intro or billable event doc exists (already_introduced); jobCompanies.ts:530 canIntroduce is false for a cancelled pair. Production: 0 introductions, so it has never happened."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "The billable event doc id is the pair (billableEventRef(requestId, companyId)) and the code guarantees one event per pair; a retry must use a new attempt-keyed event and leave the void one untouched, and any reader that looks up the event by pair id must count only status recorded.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "F-03"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened server/utils/jobOutcomeGate.ts:71-76: jobTakesOutcomeQuestions returns loadCompanyJobAccess(...).access.listed after the consent check; teamJobAccess.ts:234-251 makes listed false for closed_by_site, authority_ended, blueprint_hold, rights hold, job_ended and older_statement.",
+    "jobOutcomes.ts:143-150 skips a job that is not listed with no record. Production: 0 introductions, so no question has ever been due."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Keeping the withdrawal check (consent_revoked) preserves the privacy stop; a final answer already ends the questions. No money or rights record changes.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "teamJobAccess.ts:249 older_statement: a job on an older recording statement is also not listed, so its outcome questions stop too"
+   ],
+   "id": "F-04"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/worker.ts:47-59: six loops (launch forwarder, withdrawals, deletions, window sweep, automatic sends, outcome questions) and one heartbeat (workerHeartbeat.ts:21, stale after 5 min); jobAutoSend.ts:131-140 'running' guard has no timeout.",
+    "grep of betaOpsMonitor.ts: nothing reads automationState/companyAutoSendCursor; it does alert on outbox failures, unknown rows and outbox backlog (lines 24-31), and the outbox pump runs in the web process, not the worker."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Adds small heartbeat writes and a read in the monitor. A stalled withdrawal or deletion loop is a privacy delay, so those two matter most.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Six worker loops, not seven. A stuck email send is caught: the ops monitor alerts on outbox failures and backlog. The unwatched loops are the automatic send, outcome questions, withdrawal, deletion and window sweep; withdrawal and deletion are the privacy-critical ones.",
+   "corrected_title": "One worker heartbeat covers six loops; a stuck withdrawal, deletion, send or outcome loop goes unnoticed",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "F-11"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "playwright.config.ts:18 runs the server with BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER=1; e2e/site-answer-journey.spec.ts:134-135,359-390 reads outbox rows through /api/reliability/outbox and gets outcome questions from POST /api/reliability/outcomes; no route runs the outbox pump.",
+    "captureOutbox.ts:492-493 sends with ...CUSTOMER_JOB_EMAIL_IDENTITY, whose replyTo is hello@ (emailLayout.ts:26-29), and never passes entry.replyTo, so the introduction emails' Reply-To to the other side is dropped, which the journey test cannot see."
+   ],
+   "real_in_production": "no",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Test-only route behind the existing reliability test gate; stubbed sender, no real email.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "A test-coverage gap, not something a customer hits: P2. The customer-facing defect it hides (Reply-To replaced by hello@ on introduction emails) is real in code and should carry its own severity under A-01.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "F-15"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/utils/withdrawalCompanyNotice.ts:1-12,49-62: the notice goes only to companies with a companySends row, 'never to a company it was not sent to (planner, 19:50Z, G6)'; companyJobViews.ts:4-12 writes a companyViews row per company that opens a job.",
+    "client/src/pages/Terms.tsx:12 WITHDRAWAL_SENTENCE: 'we ask any company that saved a copy to delete it'. Production: 0 companySends, 0 companyViews, 0 withdrawals."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "More notice emails, carrying only the category and send date; companyViews writes are best effort, so a media-ticket write would close the gap. Touches the Terms promise, which is a legal statement.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "needs_owner should be true: the send-list-only rule is a recorded planner decision (G6) and the fix is about keeping a Terms promise.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "M-01"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/utils/email-suppression.ts:39-44: the link carries email= in plain text, unsigned; reran the colleague's logpath.ts with npx tsx (credentials blanked): privateWorkLogPath leaves /api/growth/email/unsubscribe?email=person%40example.com unchanged while it masks signed job links.",
+    "The link is added by appendCommercialEmailFooter to the company new-job email (robotTeamAccessEmails.ts:160), which has never been sent in production (no Terms-accepted company)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Adding the prefix to the log mask is one line; a signed token must keep accepting old links for a while. Anyone can today unsubscribe any address, which only stops optional and job emails.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Real, but the address belongs to the person clicking, it lands only in Blueprint's own logs, and no such email has been sent in production yet: P2.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "O-03"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened server/agents/runtime.ts:826-847: input, output, raw_output_text, artifacts and logs are digested only when the lane's definition says persist_content 'redacted'; grep finds that only in tasks/site-task-follow-up.ts:42.",
+    "provider-privacy.ts:50-62 classes site_video_evidence, capture_coverage, site_task_brief_reading and robot_fit_ranking as site_job_text; grep of the withdrawal and deletion utils finds no agentRuns. Production agentRuns 2478, 27 since 2026-11-01."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Cost, usage, model and timing fields stay; replay of a redacted run is already refused (REDACTED_CONTENT_NOT_REPLAYABLE). A backfill is a production write the owner approves.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "O-04"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened server/utils/billableEvents.ts:16-26: kind, requestId, companyId, atIso, priceUsd null, status, void fields only.",
+    "companyTerms.ts:95 merges termsAcceptance onto robotTeamAccess, replacing the previous one; grep finds no acceptance history or legal-entity or billing-contact field. Production billableEvents 0."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Adds fields to a money record at create; no price or payment code. When to ask companies for billing details is the owner's call.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "O-05"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened server/utils/jobConsoleData.ts:33-34,112-130: newest first, at most 25 rows a page, no count or filter; grep finds no .count() aggregate in server routes or utils and no admin billable-events route; listJobBillableEvents is read only per job (jobCompanies.ts).",
+    "minimalPublicSite.ts redirect of /admin/company-metrics is reported by IW-07 and D-03 (not reopened)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Read-only counts and an admin-only export; the export must not include site identity.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The merged duplicates propose a daily email, a totals strip on /admin/jobs and a billable-events list. The cheapest first step is the totals strip plus the CSV route (S); the daily digest can follow.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "O-06"
+  },
+  {
+   "verdict": "confirmed",
+   "checks": [
+    "Opened server/utils/jobIntroductions.ts:151: the event is written at the press; jobIntroductionGate.ts:80-92: a company row 'dispatching' or 'unknown' holds with no end, and only failed or cancelled rows void the event (lines 168-175).",
+    "No madeAtIso or equivalent on BillableEvent (billableEvents.ts:16-26). Production: 0 events."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "One merge in the existing transaction; money-introduction-billable-events.test.ts pins 'changes one only to void it' and must change. No price exists, so nothing is billed wrongly today.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "O-07"
+  },
+  {
+   "verdict": "corrected",
+   "checks": [
+    "grep: growth_events is written only by server/utils/growth-events.ts:76 (record includes current_url, referrer and user.email) and read by nothing; logGrowthEvent has 10 call sites; analytics-ingest.ts:8-15 persists only when BLUEPRINT_ANALYTICS_INGEST_ENABLED is on.",
+    "Production firestore-funnel.json: growth_events 1247, 697 from 2026-04 and only 6 in 2026-11 (latest 2026-11-18), which suggests the ingest flag is off today."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Nothing reads the collection; removing the calls must leave inbound-request and internal-pipeline routes working (the calls are side effects). Deleting the 1247 docs is a production write the owner approves.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Deleting retired analytics is cleanup (P2); the funnel measurement half duplicates O-06, which should carry it.",
+   "corrected_title": "growth_events (1,247 docs, 6 this month) is written by retired code and read by nothing",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [],
+   "id": "O-13"
+  }
+ ],
+ "new_findings": [],
+ "not_checked": [
+  "D-10: whether the WebApp production env sets RECONSTRUCTION_PIPELINE_BASE_URL and whether the control plane mounts the reconstruction execute route (would need the door's read commands; not run, to stay economical).",
+  "D-08: whether a Slack webhook is configured in production.",
+  "B-08: whether a signed-in applicant can reach the in-review and declined screens (no live sign-in allowed)."
+ ]
+}

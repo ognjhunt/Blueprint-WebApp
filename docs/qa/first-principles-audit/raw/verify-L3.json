@@ -1,0 +1,456 @@
+{
+ "lane": "L3",
+ "summary": "Of 19 L3 candidates, 5 are confirmed (C-03, D-04, F-01, F-02, G-10), 14 corrected, 0 refuted and 0 unverified. The most important corrections are that C-01's proposed fallback already exists (the company simulation already falls back to the room package and room floor, which still produced nothing for real jobs) and that D-01 needs no code change: Vast and the other live providers are verified at zero, and deleting the RunPod key already makes the guard treat RunPod as retired. C-02 drops to P1 (November deploys counted at 153, not D-06's 129, and the rate has fallen); C-05, C-06, D-05, G-05, G-07 and IP-07 drop to P2, mostly because they hit only test jobs, err on the safe side, or are dead code or noise. G-07's merge proposal would remove load-bearing rate, fleet and Google Cloud money stops, and F-10 wrongly lists the money hard stop spend_unproven as a defect.",
+ "verdicts": [
+  {
+   "id": "C-01",
+   "verdict": "corrected",
+   "checks": [
+    "Read cbff06b:src/blueprint_pipeline/website_company_simulation.py:1-30,407-533: the package source is the compiled half, else the handoff's room package, else the job's room floor (_floor_source) when the object path stopped; it is not 'only the team scene half'.",
+    "Saved door journal of blueprint-website-atlas-preview.service at 2026-11-22T15:51Z shows company_simulation_no_source 4, company_simulation_not_permitted 2 and no current package; production counts say the 6 upload sessions with a company simulation are all internal tests."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "n/a",
+   "change_safe_why": "The proposed fallback already exists (room package and room floor sources); the consent check (company_simulation_not_permitted) must stay since it is the rights gate.",
+   "already_built": "yes",
+   "already_built_where": "cbff06b:src/blueprint_pipeline/website_company_simulation.py:475-533 (_floor_source, room package source)",
+   "severity": "P0",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "Internal test jobs did produce company simulations, so the title must say real site jobs. The package is not built only from the GPU/ARTISAN team scene half: a room-package and room-floor fallback exists at cbff06b and still produced nothing for the 4 no_source captures. The missing work is why the floor/room source did not qualify (object_path_stopped returns None or floor_unclassified, or no FLOOR_FLAG room record), not a new writer. 'No packet has been sent' (companySends 0) is not shown to be caused by this alone.",
+   "corrected_title": "No real site's job has produced a simulation a company can open; the room-floor fallback did not fire either",
+   "corrected_today": "The company package can come from the compiled object half, the room package or the room floor, but for every real site job none qualified: 4 captures report no source and 2 lack consent. Only internal test jobs carry a company simulation.",
+   "corrected_proposal": "Find why the room-package and room-floor sources (website_company_simulation.py:475-533) returned nothing for the 4 no_source captures (the object path is still 'moving', floor_unclassified, or no flagged room record) and make the floor ship with a flag within the job window instead of waiting on the object build. Keep the consent gate.",
+   "extra_evidence": [
+    "cbff06b:src/blueprint_pipeline/website_company_simulation.py:506-533 _source docstring: 'the compiled half, else the handoff's room package, else the room floor'",
+    "scratchpad verify-L3/atlas-journal.txt 2026-11-22T15:51:55Z summary line"
+   ]
+  },
+  {
+   "id": "C-02",
+   "verdict": "corrected",
+   "checks": [
+    "Door ls deploy-receipts (read-only): 325 iteration_*_door.json receipts; 153 dated in November by mtime, 32 from 11-14 to 11-21, 33 between 15:00Z and 18:00Z, last 2026-11-20 17:49Z. This matches C-02's 153/30 and contradicts D-06's '129 in 18 days'.",
+    "cbff06b:AGENTS.md:136-155 sets one window at 15:00Z and says the door already parks a deploy while a website job has a paid stage (285 min) or unpaid work (60 min) in flight; door-status 15:01Z shows deploy_activation_hold null."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Refusing out-of-window deploys keeps the money, privacy and rights exception; it touches no ledger or consent record. The drain must not delay a money or privacy fix.",
+   "already_built": "yes",
+   "already_built_where": "cbff06b:AGENTS.md:142-148 (door deploy activation hold parks a deploy while in-flight work runs)",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Severity P0 to P1: churn delays and blocks holds but neither loses money nor breaks privacy, and the rate has fallen (11-01..11-09 about 12 a day; 11-13..11-20 about 4 a day; none since 11-20). D-06's 129 count is wrong; C-02's 153 receipts in November is right. The door already parks deploys behind in-flight work, so the proposal is to enforce the window and to extend the park to $0 preparations, not to build a drain from scratch.",
+   "corrected_title": "Deploys ran about 7 a day in November, mostly outside the window, and each retired in-flight preparations",
+   "corrected_today": "",
+   "corrected_proposal": "Make the door refuse a deploy outside the 15:00Z window unless the request names a money, privacy, rights or stuck-paid-stage fix, and widen the existing activation hold so it also covers a $0 preparation in flight.",
+   "extra_evidence": [
+    "scratchpad verify-L3/deploy-ls.txt (door ls, 1095 entries)",
+    "daily November iteration receipts: 11,13,12,14,15,6,15,7,11,1,6,7,3,2,5,9,2,5,7,2"
+   ]
+  },
+  {
+   "id": "C-03",
+   "verdict": "confirmed",
+   "checks": [
+    "cbff06b:src/blueprint_pipeline/task_evaluation_terminal_scene_attempt_settlement.py:229-244: a scene_configuration launch with status blocked and no never-queued/contained/stopped proof falls through to terminal_launch_unreconciled, retaining the full cap.",
+    "Saved copies of the 8 cancelled-unstarted-controls rows: 7 have basis terminal_launch_unreconciled, retained 18.0, launch_status blocked, provider_mutation_performed false; 1 launch_never_queued 0.0. progression-events/000373 blocker scene_intake_spend_cap_exhausted at 2026-11-16T07:27Z; spend report meters the job at 8.456467 USD."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Only rows with a terminal receipt proving no provider mutation and no allocator result would drop to 0; any row lacking that proof keeps the conservative hold, so no real rental is hidden from the cap.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P0",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "cbff06b:src/blueprint_pipeline/task_evaluation_scene_intake.py:222-236 (owner decision 2026-11-19: nothing raises the budget)"
+   ]
+  },
+  {
+   "id": "D-01",
+   "verdict": "corrected",
+   "checks": [
+    "Door cat unit-failures/blueprint-gpu-spend-guard.service.json now: exit_status 2, failure_count 4984, first 2026-11-13, last 2026-11-22T19:56Z. Saved door status: spend_guard blocked on runpod_inventory_query_failed, but the vast, digitalocean and gcp inventories succeeded with 0 rows; the unit appears under unit_health.historical_diagnostics, not current.",
+    "cbff06b:AGENTS.md:102 says that with no RunPod key the guard records RunPod as retired and not required (RETIRED_PROVIDERS in spend_admission_lock.py)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Deleting the RunPod key ends the check of a retired account; if the account could still hold a pod, the owner must close it first or the one orphan check for it is lost.",
+   "already_built": "yes",
+   "already_built_where": "cbff06b:AGENTS.md:102; src/blueprint_pipeline/spend_admission_lock.py RETIRED_PROVIDERS (no key means retired and not required)",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Severity P0 to P1: the current paid provider (Vast) and the others are still checked and verified at zero, so no rented machine is going unseen; the harm is a false alarm every hour that hides a real one. No code PR is needed: the code already treats RunPod as retired once its key is gone, so the fix is the owner closing the RunPod account and deleting the key. Failure count is now 4984.",
+   "corrected_title": "The GPU spend guard fails every run on the retired RunPod key, so its hourly alert is noise, and the door files it as history",
+   "corrected_today": "The guard exits 2 on every run since 2026-11-13 because the RunPod inventory query fails while a RunPod key is still on the host. Vast, DigitalOcean and GCP are still checked and show zero machines. The failure alerts about once an hour and the door lists it under historical diagnostics.",
+   "corrected_proposal": "Owner closes the RunPod account and deletes the RunPod key file; the existing code then records RunPod as retired and the guard goes green. Have door status list a failing money unit under current, never history.",
+   "extra_evidence": [
+    "door status spend_guard.inventory_results: runpod failed (credential_present true), vast/digitalocean/gcp succeeded row_count 0"
+   ]
+  },
+  {
+   "id": "C-04",
+   "verdict": "corrected",
+   "checks": [
+    "cbff06b:docs/architecture/job-retry-and-deadlines.md:238-248 and src/blueprint_pipeline/website_recapture_required.py:41-53 confirm the five registration codes are recapture holds that ask the site to film again.",
+    "cbff06b:src/blueprint_pipeline/website_held_handoff_replay.py:206-228 (registration_recapture_code, citing capture-39ecdc97 2026-11-12) now re-runs a retained registration hold once per release with no person; the operator replay (lines 30-32) is only for jobs held before the ledger kept their bytes."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Registration is decided on retained geometry (CPU, nothing bought); shipping it flagged buys nothing and touches no consent or ledger. The front-normal and frames-unusable stops depend on the video and should stay.",
+   "already_built": "yes",
+   "already_built_where": "cbff06b:src/blueprint_pipeline/website_held_handoff_replay.py:206-228 (automatic once-per-release replay of registration holds)",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The 2026-11-12 operator replay is history: since then a registration hold is re-run automatically once per release. What remains is that the hold still tells the site to film again and waits for the next release, instead of shipping the room flagged. Deleting the held-handoff replay path would break the consent and navigation-intake replays it also serves (lines 6-21), so only the registration branch could go.",
+   "corrected_title": "A registration fit code still asks the site to film again and waits for a new release, instead of shipping flagged",
+   "corrected_today": "A registration code that the same video can pass on new code holds the job and asks the site for a new video. Since 2026-11-12 each new release re-runs it once without a person, so it waits on a deploy rather than an operator.",
+   "corrected_proposal": "Route the five registration fit codes to the section 8 'ship the room package, flagged' rule. Keep the held-handoff replay module, which also serves consent and navigation-intake holds.",
+   "extra_evidence": [
+    "door requests: 4 selected-handoff requests among 20"
+   ]
+  },
+  {
+   "id": "C-05",
+   "verdict": "corrected",
+   "checks": [
+    "cbff06b:src/blueprint_pipeline/website_atlas_pose.py:1159-1161 raises website_atlas_pose_release_not_admitted before a paid Atlas call when _website_atlas_release_blockers returns any.",
+    "cbff06b:src/blueprint_pipeline/paid_resource_allocator.py:406-452: the check passes for any checkout merged into origin/main (ancestor test), so it blocks only a non-main checkout (a test build) or a failed GitHub lookup. Both cited delays are internal test jobs; the real job's Atlas was ready within hours on 2026-11-12."
+   ],
+   "real_in_production": "no",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Removing the per-call check would rely on the door's deploy-time origin/main check; it is a paid-call gate, so a test build on a PR head could then spend on World Labs without a main release. Turning it into a flag needs the owner's acceptance of that.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "No real site job is shown to have hit this; the check accepts any released main commit, so it bites test builds off main or a GitHub lookup failure. Severity P1 to P2. To make it P1, show a real job's preview_job.json with this reason.",
+   "corrected_title": "Test jobs on non-main builds wait days on the per-call Atlas release check",
+   "corrected_today": "Two internal test jobs waited 26.7 hours and three days because their host checkout was not on origin/main or the lookup failed. Real jobs on a released main commit pass the check.",
+   "corrected_proposal": "Record the release provenance once at deploy and, per call, refuse only when the lookup proves the checkout is off main; treat an unavailable GitHub lookup as a flag, not a stop.",
+   "extra_evidence": [
+    "cbff06b:src/blueprint_pipeline/paid_resource_allocator.py:441-446 (_commit_is_merged_into origin/main)"
+   ]
+  },
+  {
+   "id": "C-06",
+   "verdict": "corrected",
+   "checks": [
+    "cbff06b:src/blueprint_pipeline/artisan_provider_choice.py:39,58-61,108-115: Anthropic is chosen only for a grant listing both providers with an Anthropic terms digest; else openai. git grep in WebApp finds authoring_providers only in audit files.",
+    "WebApp client/src/components/site/SiteCaptureStart.tsx:51,522 sends claudeAuthoringConsent only when import.meta.env.DEV; server/utils/websiteSceneSponsorship.ts:351-352 picks anthropic only with that consent."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Callers to remove: artisan_anthropic_month.py:223, task_evaluation_scene_configuration_{bundle,stage_configuration,submission,vast}.py, website_native_background.py:442, website_native_inputs.py:95; the Anthropic month spend ledger and the claude_authoring_consent record would go with it. Safe only if no job ever sealed an Anthropic choice.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "It is real but nobody is harmed: every job runs on OpenAI ARTISAN, which works. That is dead code to simplify, not a gap a customer meets, so P1 to P2. Whether to keep Anthropic is an owner product and Privacy decision. Effort to delete is S to M given seven call sites.",
+   "corrected_title": "The Anthropic object-modelling path is unreachable from the website and could be deleted",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "git grep cbff06b artisan_provider_choice: 7 importing modules"
+   ]
+  },
+  {
+   "id": "C-12",
+   "verdict": "corrected",
+   "checks": [
+    "Door cat of scene-8ae57e progression-events/000997.json: phase preparation blocked on control_plane_disk_budget_exceeded at 2026-11-18T15:32Z; the last event 001164 at 18:46Z is scene_intake_authority_expired and outcome.json reason_code authority_expired, so the disk gate held the last 3.2 hours of the window.",
+    "Door status now: disk_headroom ok, 86.2 GB available over a 15.8 GB floor, no refused role; the budget still carries declared footprints for retired roles (g1_checkpoint_cache 32 GiB, embodiment_preparation 24 GiB, semantic_pretraining 3 GiB)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "Deleting retired-lane trees needs the owner: some trees may hold site-derived data covered by withdrawal or rights records, and nothing in the finding checks that. Removing retired roles' declared footprints from the disk budget touches no money or privacy.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": true,
+   "corrections": "The 11-18 disk block is real and held the job until its window expired, but nothing shows the 67 GiB of retired-lane data caused it: the event does not record the role or bytes, and disk is not short today. The inventory's 67.5 GiB is a lower bound from a truncated survey. Retired roles' declared footprints are still in the budget, which is a likelier cheap fix to check. To settle the cause, read the disk-budget ledger for 2026-11-18T15:32Z (role, free and reserved bytes).",
+   "corrected_title": "A disk-budget gate held the real job for the last three hours of its window; the cause is not recorded",
+   "corrected_today": "On 2026-11-18 from 15:32Z the job's preparation was refused by the disk budget until its authority expired at 18:46Z. Today the host has 86 GB available and refuses nothing.",
+   "corrected_proposal": "Record the role and bytes on every disk-budget refusal; drop retired roles' declared footprints from the budget; with the owner's approval and a withdrawal-record check, delete the retired-lane trees.",
+   "extra_evidence": [
+    "door status deployed.disk_headroom.footprints (18 roles, most declared_default with 0 samples)"
+   ]
+  },
+  {
+   "id": "D-04",
+   "verdict": "confirmed",
+   "checks": [
+    "Door status 2026-11-22T16:02Z spend_guard.account_monthly_spend: counted 296.68 USD, meter_totals.metered 59.75 USD across 10 jobs (20%); reconciliation unattributed digitalocean 63.43, gcp 61.05, openai 72.00; vast ledger 34.52 vs billed 24.84; forecast reaches the 400 USD limit on 2026-11-30.",
+    "WebApp server/utils/jobConsoleData.ts:318-333 computes the job cost from WebApp ledgers only (preparation reservations, scene intakes, screening runs); git grep finds no reader of the Pipeline's jobs[] meter in WebApp."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Showing the meter is read-only; it must not replace the WebApp's own ceiling ledger (websiteJobCeiling), which enforces the per-job spend cap.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "the month's 400 USD account limit, if reached, refuses new paid admissions (WebApp server/utils/betaPolicyScreeningHold.ts:84 account_monthly_spend_limit_reached)"
+   ]
+  },
+  {
+   "id": "D-05",
+   "verdict": "corrected",
+   "checks": [
+    "Door status beta_screening: status preparation_needed, capability_preparation 28642, unavailable 4262, but observed_at 2026-11-15T03:38Z and last_ledger_progress 2026-11-10T03:52Z, so it is a week-old snapshot of a stopped worker.",
+    "spend report jobs[]: beta_policy_screening 26.63 + 7.89 = 34.52 USD on Vast in period 2026-11; the screening ledger last moved 2026-11-10, before the trial was dropped on 2026-11-14."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Removing the stale status block is display only; the screening ledgers must stay because withdrawal deletion and the month's money accounting read them.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The 34.52 USD is real November spend from before the trial was dropped (ledger last moved 2026-11-10), so booking it is correct accounting, not a defect. What remains is a stale worker block in door status, which is polish: P1 to P2.",
+   "corrected_title": "Door status still shows a stale screening worker block from 2026-11-15",
+   "corrected_today": "Door status carries the retired screening worker's last report (observed 2026-11-15, 28,642 blocked preparations). The 34.52 USD of November screening spend happened by 2026-11-10, before the trial was dropped.",
+   "corrected_proposal": "Remove beta_screening from door status and the capacity report; keep the screening ledgers for withdrawal and money accounting.",
+   "extra_evidence": []
+  },
+  {
+   "id": "D-16",
+   "verdict": "corrected",
+   "checks": [
+    "cbff06b:docs/runbooks/beta-ops-incident-response.md:20-31: the founder is named primary owner; the pipeline-oncall and ops-lead people are 'TBD, owner to name (tracker D-24)'.",
+    "cbff06b:src/blueprint_pipeline/control_plane_capacity_controller.py:1028-1050 alert_due posts on warn levels as well as pages; WebApp render.yaml:68-82 uptime probe posts to SLACK_WEBHOOK_URL (sync false, value not in repo)."
+   ],
+   "real_in_production": "unknown",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Routing warnings to a digest touches no money or privacy, provided money and privacy failures (spend guard, withdrawal) stay on the paging route.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "A person is named: the founder is the primary owner until a commander is assigned; only the two role holders are TBD. Where the webhooks land cannot be read from either repo, so real_in_production is unknown.",
+   "corrected_title": "Alerts go to webhooks whose destination is not recorded; only the founder is on call and warnings share the paging route",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": []
+  },
+  {
+   "id": "F-01",
+   "verdict": "confirmed",
+   "checks": [
+    "Door journal blueprint-control-plane-state-backup.service -n 4: runs at 19:08Z to 19:55Z on 2026-11-22 all 'skipped because of an unmet condition check'; door status capacity.stall.checks.state_backup is {status: not_configured} and no control_plane_backup_stale among the 18 capacity alerts.",
+    "cbff06b:src/blueprint_pipeline/control_plane_state_backup.py:551-562: a missing ledger returns not_configured, documented as 'never set up: quiet'. git grep of cbff06b docs finds no other droplet backup or snapshot."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Turning not_configured into a warning adds no gate. The backup bucket will hold money ledgers and job state that may name sites, so it must be encrypted and covered by withdrawal deletion; the unit description says 'dedicated encrypted bucket'.",
+   "already_built": "yes",
+   "already_built_where": "cbff06b:src/blueprint_pipeline/control_plane_state_backup.py (the backup itself is built; only the bucket file and key are missing on the host)",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "a DigitalOcean provider-side droplet backup, if enabled, is not visible from either repo; the owner can confirm"
+   ]
+  },
+  {
+   "id": "F-02",
+   "verdict": "confirmed",
+   "checks": [
+    "cbff06b:src/blueprint_pipeline/job_retry_policy.py:176,192-200: RETRY_LATER_STATUSES is {408,409,425,429} plus 5xx; any other 4xx (401, 402, 403) is request_cannot_succeed.",
+    "cbff06b:src/blueprint_pipeline/website_atlas_preview.py:217-226,308-320: _outage covers only 429, 5xx, release switch and OS errors; a cannot-succeed code moves the job to failed at once, and beta-operations.md:64-73 says nothing steps a parked job again except door selected-handoff --atlas-retry."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Retrying a 401 or 402 until the deadline spends nothing at an unpaid or unauthenticated provider. A 403 that is a content or rights refusal must stay final, so only a key or account 403 should move.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "no production event of this kind was found or claimed; the gap is in code on the running release"
+   ]
+  },
+  {
+   "id": "F-10",
+   "verdict": "corrected",
+   "checks": [
+    "cbff06b:docs/runbooks/beta-operations.md:57,64-74,112-118,136-141 confirms the operator-only exits: Atlas reopen by door --atlas-retry (automatic only for a release switch since #3664), spend_unproven settled by hand, dispatcher_lost read by hand, Blueprint faults fixed by a release, six-retry preparation then left.",
+    "Door progression of scene-8ae57e: the real job ended at authority expiry (outcome reason_code authority_expired, 2026-11-18T18:46Z) without an extension, so window expiry already ends a job with what it has."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "spend_unproven (a launch whose receipt cannot prove $0) is a money hard stop by doctrine; making it retry automatically could launch again over an unreconciled rental. The other items touch no money or privacy.",
+   "already_built": "yes",
+   "already_built_where": "cbff06b:docs/runbooks/beta-operations.md:73-74 (#3664 auto-retries release-switch parks); window expiry already ends the job (outcome authority_expired)",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "Drop spend_unproven from the list: settling it by hand is the money hard stop working as intended. Proposal (a) overstates #3664, which retries only release-switch parks, not parked jobs in general. The 'delete the extension as a requirement' item is already true: an expired window ends the job with what it has.",
+   "corrected_title": "Parked Atlas jobs, dead dispatchers and preparations past six retries have only an operator command or a deploy as the way forward",
+   "corrected_today": "",
+   "corrected_proposal": "(a) Atlas: after each deploy, retry every parked non-wall Atlas job once (extend #3664 beyond release-switch parks); (b) preparation: after six retries keep retrying on the outage schedule until the grant ends; (c) let the stall alarm read .website_preparation_recovery_failures.json and page dispatcher_lost. Keep spend_unproven a hand settlement.",
+   "extra_evidence": []
+  },
+  {
+   "id": "G-04",
+   "verdict": "corrected",
+   "checks": [
+    "cbff06b:src/blueprint_pipeline/website_scene_handoff.py:357-366,462-464,508-545: goes_on ships at once only for scene or wording facts; any other non-wall code waits until the window end is within LAST_CALL_SECONDS (2 h); KEEP_HOLDING codes hold for good.",
+    "Door journal of scene-progression (-n 200): installed_source_holds name installed_source_installation_receipt_unavailable and scene_configuration_submission_input_file_invalid; these are scene-progression intents (stall check execution_window 9), not preparations held by goes_on."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Walls (privacy, rights, money, owner closure, recapture) stay excluded by goes_on itself; shipping flagged earlier buys nothing more.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "The code claim holds, but the 'nine intents on an internal receipt code' evidence belongs to the scene-progression lane, not to preparations waiting in goes_on; no real job is shown waiting in goes_on today. The wait is a deliberate owner-era design ('so a fix or the next run can still prepare the job'), so changing it is a product call.",
+   "corrected_title": "",
+   "corrected_today": "goes_on ships at once only for scene or wording facts; any other non-wall code (configuration fault, missing key, website refusal, outage, defect) waits until the window is within 2 hours of its end, and KEEP_HOLDING codes hold for good. No real job is shown waiting this way today.",
+   "corrected_proposal": "",
+   "extra_evidence": []
+  },
+  {
+   "id": "G-05",
+   "verdict": "corrected",
+   "checks": [
+    "cbff06b:src/blueprint_pipeline/control_plane_stall_alarm.py:545-549 counts any intent with revoked.json as 'rights'; task_evaluation_scene_intake.py:538-546 seals revoked.json with no cause; WebApp server/utils/taskEvaluationSceneIntake.ts:816-822 says 'A revocation receipt carries no reason'.",
+    "Earlier agent's door ls (scratchpad agents/dim-gates/ext_dates.txt): 30 revoked.json, 29 dated 2026-09-07 to 09-16 and one 2026-11-02; door status stall check shows rights 30."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Adding a cause to the receipt and counting only source_revoked as rights is additive; retiring past-window intents must keep the revocation receipt the withdrawal path reads.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Real, but it is a mislabelled alarm count over old intents with 0 withdrawals in production; no site or company meets it. P1 to P2.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": []
+  },
+  {
+   "id": "G-07",
+   "verdict": "corrected",
+   "checks": [
+    "cbff06b:AGENTS.md:87-110 spend-limit table has 22 rows (not 21); config/account_monthly_spend_limit.v1.json sets $300 with a $400 override for 2026-11 only.",
+    "cbff06b:src/blueprint_pipeline/provider_spend_alerts.py:92-95: OpenAI month page $560 and World Labs month page $450, both above the $400 account limit, so they can never fire before the account limit refuses."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "no",
+   "change_safe_why": "Several items on the delete list are money stops, not duplicates: the GPU attempt $0.80/h and fleet guard ($10/h, $100/day, 10 instances) bound the burn rate of a runaway rental, which a $40 total ledger cannot do in time; the Google Cloud $100 guard refuses paid work at 100% and making it alert-only removes a stop; the Vast credit checks prevent overdrawing. Deleting the screening limits is safe only while screening ledgers stay readable for withdrawal and accounting.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "M",
+   "needs_owner": true,
+   "corrections": "AGENTS.md has 22 limit rows. Only the two month pages above the account limit and the retired-lane limits (screening, rigid probe, Astra when unused) are clean deletions. Rate and fleet limits are load-bearing for money, so they must not be merged into the $40 total. This is complexity, not a gap a customer meets: P1 to P2. Every limit change is an owner money decision (AGENTS.md:84-85).",
+   "corrected_title": "About 22 spend limits overlap; two month pages sit above the account limit and several belong to retired lanes",
+   "corrected_today": "",
+   "corrected_proposal": "Delete the OpenAI $560 and World Labs $450 month pages (or set them under the account limit) and the limits of retired lanes (screening $30/$4, rigid probe $1), keeping their ledgers. Keep the rate and fleet limits, the Vast credit checks and the Google Cloud guard as stops. Put the first look on the job ledger. Owner approves each change.",
+   "extra_evidence": []
+  },
+  {
+   "id": "G-10",
+   "verdict": "confirmed",
+   "checks": [
+    "WebApp server/utils/sceneExecutionWindowExtension.ts:1-9: extensions are owner-approved, time-only, never past raw + 7 days, and change no cap, attempt, provider, task or rights; server/utils/websiteSceneSponsorship.ts:518-527 renewal needs approved_by, approval_reference and an ack.",
+    "Earlier agent's door ls (scratchpad agents/dim-gates/ext_dates.txt): 8 execution-window-extensions, 2026-09-08 to 2026-11-03; the real job scene-8ae57e ended on authority_expired on 2026-11-18 with no extension."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "An extension moves only time and the caps still bound spend; automatic renewal under the cap touches no money. Whether the site's consent covers processing past the agreed window is a rights question for the owner.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "cbff06b:scripts/operator_door.py:25-27,87 extend-scene-execution-window needs --ack"
+   ]
+  },
+  {
+   "id": "IP-07",
+   "verdict": "corrected",
+   "checks": [
+    "git diff cbff06b 7d8b532 -- src/blueprint_pipeline/atlas_privacy_screen.py: 2026-11-21.1 and 2026-11-22.1 join NO_FACE_BLUR_PRIVACY_VERSIONS only at HEAD (#3684); the running release cbff06b lists up to 2026-11-20.1, so a 2026-11-21.1 job takes the blur branch.",
+    "WebApp client/src/lib/legalAcceptance.ts:198-200 PRIVACY_VERSION = LAUNCH_COPY_VERSION = 2026-11-21.1. Production counts: 2 jobs in the week of 2026-11-16, so how many fall under 2026-11-21.1 is not known."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Blurring more than the policy requires is privacy-safe; the fix only stops blurring for versions whose policy already says no blur. A shared contract file must keep 'unknown version means blur' as the default.",
+   "already_built": "yes",
+   "already_built_where": "7d8b532:src/blueprint_pipeline/atlas_privacy_screen.py:49-50 (#3684, merged, not deployed)",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Over-blurring is the safe direction: it breaks no promise and risks no privacy, it only lowers the quality of the room for affected jobs, so P1 to P2. The fix is already merged at HEAD and needs only the next window deploy; the mirrored-contract proposal is the durable fix. The Anthropic list part duplicates C-06.",
+   "corrected_title": "Jobs under the 2026-11-21 Privacy Policy are blurred until the merged fix (#3684) is deployed",
+   "corrected_today": "",
+   "corrected_proposal": "Deploy 7d8b532 in the next window. Then put the per-version terms (blur yes or no, providers allowed) in one mirrored contract file checked byte for byte against the WebApp, defaulting to blur for an unknown version.",
+   "extra_evidence": []
+  }
+ ],
+ "new_findings": [],
+ "not_checked": [
+  "C-12: the disk-budget refusal of 2026-11-18T15:32Z does not record its role or bytes in the progression event; the disk-budget ledger for that time would settle whether retired-lane data or declared retired footprints caused it.",
+  "D-16: where BLUEPRINT_OPERATOR_ALERT_WEBHOOK_URL and SLACK_WEBHOOK_URL deliver is set on the host and in Render and is not readable from the repos.",
+  "IP-07: how many jobs since 2026-11-21 carry Privacy 2026-11-21.1 (production counts show privacy_version absent on all 61 job records)."
+ ]
+}

@@ -1,0 +1,316 @@
+{
+ "agent": "dim-missing",
+ "summary": "I checked 34 promises Blueprint makes in its doctrine, public pages, emails, Terms and Privacy Policy against the code, the tests and production. The privacy promises that matter most hold in code and are proven by tests: nothing a company receives names the site before an introduction, the company video is silent and metadata-free, older statements are shown to nobody, and no price appears anywhere. The core-loop promises (sent to companies, answers, introductions, billable events, 14/45/90-day questions) are built and tested but have never run in production, and several hold only partly: later-approved companies are never asked to delete a saved copy, the retention schedule has no code, the simulation download has never existed, and the cookie wording disagrees three ways. The cheapest fixes are mostly small code changes; the legal texts are flagged for the owner.",
+ "findings": [
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "privacy",
+   "id": "M-01",
+   "title": "A company approved after a job was sent can save its video and simulation, but is never asked to delete them on withdrawal",
+   "dimension": "missing",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "Withdrawal",
+   "evidence": [
+    "webapp:server/utils/jobAutoSend.ts:10-11 ('A company approved later sees listed jobs in its library; it is not emailed about them')",
+    "webapp:server/utils/withdrawalCompanyNotice.ts:3-5,54 (notice goes only to companies with a companySends row)",
+    "webapp:server/utils/jobAutoSend.ts:72 (the only automatic writer of companySends; runs once per job)",
+    "webapp:server/utils/companyJobViews.ts:4-10 (every company that opens a job already gets a companyViews row)",
+    "webapp:server/tests/withdrawal-company-notice.test.ts:104 pins 'never to a company the job was not sent to'",
+    "cmd: npx vitest run server/tests/withdrawal-company-notice.test.ts -> 5 passed (the gap is pinned, not caught)"
+   ],
+   "today": "The Terms and Privacy Policy say 'we ask any company that saved a copy to delete it'. Only companies on the job's one-time send list get that email. A company approved a day later opens the job from Find jobs, downloads the clip or simulation, and is never asked to delete it when the site withdraws.",
+   "should": "Every company that opened the job is asked to delete any copy when the site withdraws.",
+   "change": "FIX",
+   "proposal": "In planWithdrawalCompanyNotices, take the union of companySends and companyViews company ids (both are read in the withdrawal transaction already or cheaply); change the pinned test to 'every company that was sent or opened the job'.",
+   "user_result": "The withdrawal promise holds for every company that could have saved a copy.",
+   "risk": "A few more notice emails per withdrawal. companyViews writes are best effort (a failed write would miss a company); if that matters, also write the row when a media ticket is minted.",
+   "requirement_source": "Terms/Privacy WITHDRAWAL_SENTENCE (owner, 2026-11-12); doctrine 'the company is asked to delete it'"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "M-02",
+   "title": "The Privacy Policy's retention schedule has no code behind it, and new videos have no stated period",
+   "dimension": "missing",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "Retention after a job closes",
+   "evidence": [
+    "webapp:client/src/pages/Privacy.tsx (jobClosedDefinition: a job closes after 12 months with no activity; betaRetentionSchedule: 180 days after close for videos under the 2026-10-13 policy, 365 days for simulations and answers, contact details deleted when the job closes, 90 days for support requests, 14 days for temporary files)",
+    "webapp:client/src/pages/Privacy.tsx betaRetentionSchedule notes: 'Our storage does not currently delete originals automatically on a schedule' and 'A proposed period of at least 7 years for newly collected recordings requires legal review'",
+    "cmd: grep -rn '180.*day|RETENTION_DAYS|12 months|inactiv' server/utils -> only durableDailyCaps.ts:34 (8-day counter cleanup); no job-close or retention sweep",
+    "cmd: grep -rln 'lifecycle|retention' --include=*.json --include=*.yaml . -> test fixtures only; no bucket lifecycle rule in the repo",
+    "pipeline:src/blueprint_pipeline/website_scene_workspace_retention.py:1-36 (disk reclaim that archives and keeps everything, not deletion)",
+    "door-status.json capacity.website_withdrawal_deletion.approval_status = absent (D-14): even the withdrawal deletion path waits for a person"
+   ],
+   "today": "Nothing computes when a job closes, nothing deletes a video 180 days later, nothing removes contact details when a job closes, and nothing deletes simulations or answers after 365 days. For videos collected under every policy since 2026-10-13 the policy names no period at all. No deadline has passed yet: the oldest possible 180-day deletion falls in April 2027 at the earliest (unverified; see the Firestore aggregate).",
+   "should": "Each period the policy states is kept by one daily sweep, and every recording has a stated period.",
+   "change": "BUILD",
+   "proposal": "Owner and counsel pick one period for all recordings (recommend the existing '180 days after the job closes'). Then one worker loop, once a day: compute closedAt (site close, withdrawal, or 12 months with no activity), and when closedAt + 180 days passes, enqueue the job into the existing withdrawal deletion queue (websiteCaptureDeletion plus the Pipeline's withdrawal deletion), and clear the job's contact fields. Install the Pipeline deletion approval file (D-14) so the queue runs unattended. Simulations and answers at 365 days can wait for the first due date.",
+   "user_result": "What the Privacy Policy says about deletion becomes true before the first deadline arrives.",
+   "risk": "Deleting the wrong job is irreversible: reuse the withdrawal path, which already has receipts, and run it in report-only mode for a week first.",
+   "requirement_source": "Privacy Policy retention schedule (legal text, owner); CCPA requires a retention period or criteria per category (counsel to confirm)"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "M-03",
+   "title": "Marketing cookies: the policy says 'measure outreach', the banner says 'personalized ads', the code grants ad personalization, and production runs none of it",
+   "dimension": "untrue",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "Cookie banner on every public page",
+   "evidence": [
+    "webapp:client/src/pages/Privacy.tsx Cookies section: 'Marketing cookies let Google Analytics measure whether our outreach works'; californiaPrivacyRows 'Sharing for advertising': 'measure whether our outreach and ads work'",
+    "webapp:client/src/components/CookieConsent.tsx:198-199 banner label 'Marketing' with 'Personalized ads and content'",
+    "webapp:client/src/lib/analytics.ts:245-248 marketing (only together with analytics) grants ad_storage, ad_user_data and ad_personalization; marketing ticked without analytics grants nothing",
+    "screenshots/M-03-cookie-banner-390.png (live site, Customize opened, nothing saved)",
+    "cmd: node agents/dim-missing/cookie.cjs on https://tryblueprint.io -> hosts requested: tryblueprint.io, fonts.googleapis.com, fonts.gstatic.com; GA/PostHog/Sentry requests: 0 (agrees with O-12)"
+   ],
+   "today": "A visitor is asked to allow 'Personalized ads and content'. The Privacy Policy never mentions personalized ads; it says marketing cookies only measure outreach. If a measurement id were configured, the code would grant Google's ad personalization signal, which neither text describes. Today the live build has no analytics at all, so the banner asks for consent to nothing.",
+   "should": "One description, the same in the policy, the banner and the code; or no Marketing choice at all while nothing uses it.",
+   "change": "DELETE",
+   "proposal": "Delete the Marketing toggle and the three ad_* grants (keep them 'denied'); while no analytics id is configured, do not show the banner at all. The Privacy Policy's marketing sentences and California row then need the owner's edit (legal text: flagged, not edited here).",
+   "user_result": "One fewer choice on the first screen of every visit (the banner covers about a quarter of the phone screen, A-16), and no consent asked for something that does not run.",
+   "risk": "If the owner later turns Google Ads measurement on, both the policy and the banner must be rewritten together.",
+   "requirement_source": "nobody for the ad_personalization grant; Privacy text is the owner's"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "M-04",
+   "title": "The packet's simulation is promised on public pages and in the Terms as downloadable, and no live job has ever had one",
+   "dimension": "untrue",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "Find jobs sample job; Terms 1",
+   "evidence": [
+    "webapp:client/src/lib/publicCopy.ts:58 SAMPLE_JOB.liveAlso: 'A simulation of the site with the job's object in it, to download and open in your own tools.' (shown as what a live job also has, SampleJob.tsx:36)",
+    "webapp:client/src/lib/publicCopy.ts:68 HOW_STEPS: 'with a first look and a simulation when ready' (hedged, fine)",
+    "journey C finding C-01 and inventory IP-01: no company simulation package exists for any capture; door journal company_simulation_no_source",
+    "baseline firestore-group-counts.json: companySends 0, robotTeamInterest 0"
+   ],
+   "today": "A deployment company reading Find jobs is told a live job also has a simulation to download. None has ever had one, so the two 'Tested it' answers have never been offered on any job.",
+   "should": "The page says only what a live job has today, or the package exists.",
+   "change": "FIX",
+   "proposal": "Change the sample job's third liveAlso line to 'When it is ready, a simulation of the site with the job's object in it, to download and open in your own tools.' (one string; check client/tests/publicClaims.guard.test.ts first and ask the owner if it is pinned). Building the package is the real fix and is tracked by C-01.",
+   "user_result": "A company is not promised a file it cannot get.",
+   "risk": "None; the How it works line already hedges the same way.",
+   "requirement_source": "owner direction 2026-11-20 (Find jobs page with a sample job); doctrine 'once a job's simulation exists a company downloads it'"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "M-05",
+   "title": "Outside the US: a non-US company can be approved, and a non-US site can agree to sharing, before any transfer terms exist",
+   "dimension": "missing",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "Company application and approval; site start",
+   "evidence": [
+    "webapp:client/src/pages/Privacy.tsx betaResidencyTransferRows: 'We work with a site or company outside the United States only under signed transfer terms, such as standard contractual clauses.'",
+    "webapp:server/routes/robot-team-access.ts:46 region is optional free text; no country field and no check anywhere in approval (cmd: grep -n 'country|transfer' server/routes/robot-team-access.ts -> none)",
+    "journey A finding A-02 (non-US site page offers and records the sharing agreement although its video can never be taken)",
+    "webapp:server/utils/taskLifecycleNotifications.ts (task_received non-US branch: 'Your job is saved ... please don't send a video yet')"
+   ],
+   "today": "The owner approves companies with no field saying where the company is. A company outside the US would then receive US sites' videos with no transfer terms. On the site side, a non-US site is invited to save a job and agree to sharing that can never happen.",
+   "should": "No data moves to or from a non-US party until transfer terms exist, and nobody is asked to agree to something that cannot happen.",
+   "change": "FIX",
+   "proposal": "Site: when the place is outside the US, show one sentence ('We only take jobs in the United States for now') and save nothing. Company: add 'Is your company based in the United States? Yes / No' to the application and show it on the approval row; the owner declines or holds No until transfer terms exist.",
+   "user_result": "A non-US site gets an honest answer in one screen; the owner sees the one fact the policy depends on before approving.",
+   "risk": "Loses non-US leads that might have been kept for later; an email-only waitlist could keep them if the owner wants (owner decision).",
+   "requirement_source": "Privacy Policy transfer row (legal text); privacy hard stop"
+  },
+  {
+   "verified": "unverified",
+   "verify_how": "The owner confirms whether any person copies personal details into Notion.",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "M-06",
+   "title": "The Privacy Policy names Notion as a processor; the only Notion code builds a spend summary and never calls Notion",
+   "dimension": "untrue",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "Privacy Policy processor list",
+   "evidence": [
+    "webapp:client/src/pages/Privacy.tsx privacySubprocessorCategories: ['Notion', 'Internal operations and support records']",
+    "cmd: grep -rn 'api.notion.com|NOTION_' server client/src scripts -> env names only (server/config/env.ts:85-88, scripts/launch-smoke-env.mjs:53-54); no sender",
+    "pipeline:src/blueprint_pipeline/notion_spend_projection.py:1-4 ('This module never calls Notion'); it shapes provider spend rows, no personal data",
+    "builds on inventory finding IW-09"
+   ],
+   "today": "No code sends personal information to Notion. Whether a person pastes support records into Notion by hand cannot be seen from the code.",
+   "should": "The processor list names only providers that receive personal information.",
+   "change": "DELETE",
+   "proposal": "Owner answers one question: does anyone put a site's or company's details into Notion by hand? If no, remove the Notion row at the next policy edit (legal text: owner edits) and delete the unused NOTION_* env names.",
+   "user_result": "The policy lists only real processors.",
+   "risk": "Listing a processor that is not used is low risk; leaving out one that is used is worse. Ask before deleting.",
+   "requirement_source": "Privacy Policy (owner); IW-09"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "M-07",
+   "title": "'No job is refused by kind' holds for the listing, but the simulation package refuses every build except rigid and articulated",
+   "dimension": "missing",
+   "severity": "P2",
+   "effort": "M",
+   "journey_step": "Simulation package",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/scene_packet.py:665-667 raises team_scene_task_kind_unsupported for any strategy other than articulated or rigid",
+    "pipeline:src/blueprint_pipeline/website_company_simulation.py:7-14 the package source is the team scene half (trial-era), which also needs a DROID profile (scene_packet.py check_droid_profile)",
+    "pipeline:src/blueprint_pipeline/website_build_choice.py:1-25 (owner 2026-11-17: accept every job; the menu includes room_only_as_filmed and family/navigation builds)",
+    "webapp:server/utils/taskStatusProjection.ts:241 site sentence 'We can't simulate this kind of job yet.' for a terminal state out_of_scope that no Pipeline code emits (cmd: grep -rn '\"out_of_scope\"' src -> only the allowed-set line website_preparation_terminal.py:44)"
+   ],
+   "today": "A job of any kind is listed with its video. But a navigation or room-only job can never get a simulation package, because the package is made only from the trial's team scene, which takes two strategies. A dead site sentence still says 'We can't simulate this kind of job yet.'",
+   "should": "At the cap or for an unusual kind, the package ships what exists (the room as filmed, no rule), flagged in its README.",
+   "change": "FIX",
+   "proposal": "Make the package from the room package for every build (journey C's P.4), with 'no success rule' in the README when there is none; delete the out_of_scope site sentence and its console label.",
+   "user_result": "Every job's packet gets the simulation of the site, even when Blueprint cannot write a success rule for it.",
+   "risk": "Depends on the C-01 rebuild of the package source.",
+   "requirement_source": "doctrine 'No job is refused by task kind'; 'at the cap the job ships what it has, flagged'"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "no",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "M-08",
+   "title": "Find jobs reads at most 200 shared jobs in no set order, so later jobs can silently never appear",
+   "dimension": "fragile",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "Find jobs library",
+   "evidence": [
+    "webapp:server/utils/taskBrowse.ts:73-74 .where(consentVersion == job-shared-2026-11-12).limit(200).get() with no orderBy; sorting happens after the read",
+    "webapp:server/utils/jobAutoSend.ts:100-110 the send sweep pages with a cursor, so the send and the library disagree past 200",
+    "baseline firestore-collection-counts.json: inboundRequests 76 (latent today)"
+   ],
+   "today": "Fine at 76 jobs. Past 200 shared jobs, an arbitrary set of jobs is missing from every company's library, including withdrawn and held ones taking slots.",
+   "should": "Every listed job appears, newest first.",
+   "change": "FIX",
+   "proposal": "Query with orderBy('public_task_listing.approvedAtIso', 'desc') and page, or filter out closed jobs in the query; add one test with 201 jobs.",
+   "user_result": "Companies see every open job once Blueprint has more than 200.",
+   "risk": "Needs a composite index.",
+   "requirement_source": "doctrine 'When a job is ready it is shown to every approved deployment company'"
+  },
+  {
+   "verified": "unverified",
+   "verify_how": "Firestore aggregate: captureOutbox where kind == 'account_notice', count by status and by createdAt day since 2026-11-17.",
+   "live_in_production": "unknown",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "M-09",
+   "title": "Policy changes promise an email to account holders first, but the notice is a hand-run script with no record that it ran",
+   "dimension": "unseen",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "Terms and Privacy changes",
+   "evidence": [
+    "webapp:client/src/pages/Terms.tsx section 11 and Privacy.tsx 'Changes': 'email account holders before a material change takes effect'",
+    "inventory-webapp.md E13: account_notice is started only by the operator script npm run email:account-notice",
+    "webapp:client/src/lib/legalAcceptance.ts:187-198 three Privacy versions in five days (2026-11-17.1, 2026-11-19.1, 2026-11-21.1)"
+   ],
+   "today": "Three policy versions shipped in five days. Whether any notice went out is not visible anywhere the owner looks.",
+   "should": "Either each material change is announced, or the promise says how changes are announced in practice.",
+   "change": "FIX",
+   "proposal": "Owner decides which of the three changes were material. Count captureOutbox account_notice rows (aggregate below); if none, either run the script for the current version or ask counsel whether the in-app acceptance prompt (G-13) already meets the promise.",
+   "user_result": "The owner knows whether the change promise was kept.",
+   "risk": "None from counting.",
+   "requirement_source": "Terms section 11, Privacy 'Changes' (legal text)"
+  }
+ ],
+ "good_things": [
+  {
+   "what": "Company-facing identity protection",
+   "why": "A test walks every company surface (library, card, job page, signed links and headers, viewer files) and finds nothing naming, placing or reaching the site before an introduction; the site's own sentence and clarification answers are redacted.",
+   "evidence": "webapp:server/tests/company-facing-site-identity.test.ts (7 passed, run 2026-11-22); server/utils/companyJobPage.ts:179-182; server/utils/jobClarifications.ts:60"
+  },
+  {
+   "what": "The silent company clip",
+   "why": "Video stream only, metadata, chapters, captions and SEI removed, every frame checked, audio count proven zero before publishing.",
+   "evidence": "pipeline:src/blueprint_pipeline/website_company_clip.py:395-425,481"
+  },
+  {
+   "what": "The simulation package's outbound scan",
+   "why": "Neutral file names, every file scanned for ids, links and site identity before zipping; a fixed download file name.",
+   "evidence": "pipeline:src/blueprint_pipeline/website_company_simulation.py:27-31,1423-1429; webapp:server/utils/websiteCompanySimulation.ts:184"
+  },
+  {
+   "what": "No price anywhere",
+   "why": "Only the Terms' $100 liability cap matches a dollar pattern in the built bundle; a guard test checks emails and pages.",
+   "evidence": "cmd: grep dollar amounts in dist/public/assets/*.js -> only ' $100.' (liability); client/tests/money/no-price-copy.guard.test.ts"
+  },
+  {
+   "what": "Introduction and billable event in one transaction",
+   "why": "One press writes the introduction, the encrypted details, the billable event and both emails atomically, one per company per job.",
+   "evidence": "webapp:server/utils/jobIntroductions.ts:108-170; server/tests/money-introduction-billable-events.test.ts (13 passed)"
+  },
+  {
+   "what": "Withdrawal closes every company surface at once",
+   "why": "Every media byte range and every company route re-reads teamJobAccess, which checks withdrawal first.",
+   "evidence": "webapp:server/utils/teamJobAccess.ts:229; server/utils/websiteCompanyClip.ts:6-10"
+  }
+ ],
+ "owner_questions": [
+  {
+   "question": "Which single retention period applies to videos collected since 2026-10-13?",
+   "recommendation": "The existing '180 days after the job closes' for every recording, so one sweep keeps it.",
+   "unblocks": "M-02 (retention sweep) and a true Privacy Policy."
+  },
+  {
+   "question": "Should the Marketing cookie choice exist while no analytics runs?",
+   "recommendation": "Delete it and hide the banner until an analytics id is configured; edit the policy's marketing sentences to match.",
+   "unblocks": "M-03."
+  },
+  {
+   "question": "Does anyone copy site or company details into Notion by hand?",
+   "recommendation": "If not, drop Notion from the processor list at the next policy edit.",
+   "unblocks": "M-06."
+  },
+  {
+   "question": "Will you approve deployment companies based outside the US before transfer terms exist?",
+   "recommendation": "No; add one yes/no field to the application and decline or hold No.",
+   "unblocks": "M-05."
+  },
+  {
+   "question": "May a company see the job's city (not the street address) before an introduction?",
+   "recommendation": "Yes, if counsel agrees; companies cannot judge travel without it (B-04). It changes the Privacy 'Location' row.",
+   "unblocks": "B-04 and a judgeable packet."
+  }
+ ],
+ "open_cost_questions": [
+  {
+   "question": "Does a real site job, end to end, produce a downloadable simulation package once the package source is rebuilt from the room package?",
+   "estimated_cost_usd": "about 10 to 40 per job (World Labs reconstruction plus Gemini and SAM calls, under the $40 job cap)",
+   "basis": "pipeline-timing.md: real job spent $8.46 before stopping; job cap $40"
+  }
+ ],
+ "not_covered": [
+  "Production counts beyond the orchestrator's document counts: I wrote the aggregates I need under 'Firestore aggregates wanted' in the report.",
+  "The Pipeline's 14-day deletion of temporary processing files: I did not find or test it; unverified.",
+  "Whether Twilio is configured in production for the film-link text message the Privacy Policy lists.",
+  "Rendering every email body: I read the builders, not rendered output, except where tests ran.",
+  "Journey E (investor demo) was not yet written when I finished, so demo ranking rests on journeys A to D."
+ ]
+}

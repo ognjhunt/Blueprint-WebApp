@@ -1,0 +1,291 @@
+{
+ "lane": "L4",
+ "summary": "Of 12 candidates, 1 was confirmed (F-05: a picked video goes up in one request that Node cuts at 300 s; re-run showed 408 after 330 s with 206 MB sent), 11 were corrected, 0 refuted and 0 unverified. The biggest correction: IW-01's 35 uncalled routes include the two launch routes (publication readiness and progress) that the live Pipeline release calls through systemd URLs, so deleting all 35 would stop job launches; IW-02's trial routers likewise carry today's job. IP-03 gains a money point: the GPU spend guard, the one repo unit in the 207 failed units, fails on every run (exit 2) only because the retired RunPod inventory query fails, so a real spend block would look the same. Several grades were lowered to P2 (IP-04, IP-05, IP-12, V-01, IW-01, IW-02, IW-03, IW-06, V-02), because they are internal weight or CI that no site meets; IP-12 is no longer red (passed 2026-11-22 on the commit that failed on 11-21) and IP-04's 81% counts lazy imports (31% at import time).",
+ "verdicts": [
+  {
+   "id": "F-05",
+   "verdict": "confirmed",
+   "checks": [
+    "Opened client/src/lib/selfCaptureVideo.ts:115-160 at HEAD (only audit docs changed since live 0ee5df6): one XMLHttpRequest POST of the whole file, request.timeout 15 min, no parts or resume; called from SelfCaptureUpload.tsx:511 and SiteCaptureStart.tsx:315,644.",
+    "server/index.ts:351 createServer(app) with no requestTimeout/headersTimeout set at 0ee5df6 or HEAD; .nvmrc 22, package.json engines node 22.x; route limit DEFAULT_MAX_BYTES 2 GiB at self-capture-uploads.ts:128.",
+    "Re-ran scratch slowpost.mjs on Node 22 (default createServer, slow 400 MB POST): 'requestTimeout 300000', 'response 408 after s 330.0 sent MB 206', matching the finding."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Raising requestTimeout for the upload route or reusing the existing parts route touches no consent, rights or money record; the parts route is already used by CaptureRecorder.tsx:376.",
+   "already_built": "no",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": [
+    "client/src/components/site/CaptureRecorder.tsx:376 parts/complete already exists for in-page recording"
+   ]
+  },
+  {
+   "id": "IP-03",
+   "verdict": "corrected",
+   "checks": [
+    "Counted failed_units in the 15:01Z door status copy and the colleague's 16:03Z copy: 207 in both; only blueprint-gpu-spend-guard.service is a repo unit (deploy/systemd has it), the rest are dated or one-off transient names.",
+    "Read journal of blueprint-gpu-spend-guard.service (door journal, last 6 h, 400 lines): 21 'Failed with result exit-code' (status=2) and 0 clean finishes; each run writes the admission lock and snapshot then exits 2.",
+    "door cat of paid_spend_admission_lock.json (state file, no site text): admission_allowed true overall; runpod blocked by 'runpod_inventory_query_failed' and 'runpod_provider_retired'; cbff06b scripts/gpu_spend_guard.py:2373,2576 exits 2 whenever any inventory result has blockers."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "reset-failed on transient units removes only systemd failure state; journals stay. No privacy, rights or money record touched. The guard itself must not be removed; only its exit code for a retired provider changes.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The one 'real' failed unit is not a real failure either: the GPU spend guard does its work and exits 2 on every run only because the retired RunPod provider's inventory query fails, so the money guard is permanently red and a true block would look identical. The proposal must also fix that, not only reset transient units.",
+   "corrected_title": "207 failed units on the host: 206 stale experiment runs, and the GPU spend guard red on every run because of the retired RunPod provider",
+   "corrected_today": "Door status lists 207 failed units. 206 are transient experiment runs from Sept-Oct. The 207th, the GPU spend guard, fails every 2-3 minutes with exit 2 although paid admission is open, because it still queries the retired RunPod account. Nobody can tell a real money-guard block from this noise.",
+   "corrected_proposal": "One deploy window: reset-failed the transient units (door unit action). In the Pipeline, drop RunPod from the guard's required provider inventory (or exit 0 when the only blocker is a retired provider), so the guard goes green and a real block turns it red. Make door status list repo units first and count transient ones separately.",
+   "extra_evidence": [
+    "scratch journal-gpu-spend-guard.txt: 19:56:37 'Paid-work admission lock written' then 'status=2/INVALIDARGUMENT'",
+    "cbff06b:scripts/gpu_spend_guard.py:2576-2585 return 2 if inventory_blocked"
+   ]
+  },
+  {
+   "id": "IP-04",
+   "verdict": "corrected",
+   "checks": [
+    "Re-ran the colleague's independent graph (scratch preach.py over src at HEAD 7d8b532): all static edges 1317 modules / 581,873 lines = 81.2%, but top-level imports only 507 modules / 272,757 lines = 31.3% of modules, 38.1% of lines.",
+    "Opened vast_provider_adapter.py:197 (10,327 lines): imports vast_policy_canary_remote_progress at top level, as cited."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Cutting imports changes no consent, ledger or spend control if each cut runs the impacted tests; the GPU spend guard and spend ledgers are not in the cut list.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "L",
+   "needs_owner": false,
+   "corrections": "'Imports 81%' counts lazy imports inside functions too; at import time the job path loads 31% of modules (38% of lines). It is code weight, not something a site or company meets, so P2 not P1.",
+   "corrected_title": "The website job path can reach 81% of the package through static imports (31% at import time), retired lanes included",
+   "corrected_today": "Static analysis reaches 1,317 of 1,621 modules from the job path, but only 507 load at import time; most of the rest are lazy imports in functions. Retired lanes are still reachable, so changes and reviews drag them along.",
+   "corrected_proposal": "",
+   "extra_evidence": []
+  },
+  {
+   "id": "IP-05",
+   "verdict": "corrected",
+   "checks": [
+    "Colleague's independent graph (boundary_mine.json) reproduces policy_trial 59 edges from 41 importers into 22 modules.",
+    "Opened task_evaluation_launch_dispatcher.py:61 (imports task_evaluation_policy_run_contract, 1,092 lines), website_robot_fit.py:99 (droid_policy_canary_embodiment), task_evaluation_result_delivery.py:1458 (lazy import of policy_canary_control_result_delivery), website_rigid_feasibility.py:25 (names config/beta_policy_candidates.v1.json, which no src/scripts code reads per git grep)."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Moving constants and deleting trial modules touches no consent or spend record, provided retained terminal records that these contracts validate keep a read-only reader (as the finding's risk says).",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "M",
+   "needs_owner": false,
+   "corrections": "Numbers and citations are right, but this is internal code hygiene that no site, company or investor meets; lower to P2.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": []
+  },
+  {
+   "id": "IP-12",
+   "verdict": "corrected",
+   "checks": [
+    "gh run list --workflow full-test-lane.yml -L 10: failure 11-18, 11-19, 11-20, 11-21, but success on 2026-11-22T16:17Z on commit 7d8b532, the same commit that failed on 11-21.",
+    "So the 11-21 failure (registered-feature Linux test, 'groupdel: group blueprint does not exist') is environment-dependent or flaky, not a deterministic break."
+   ],
+   "real_in_production": "no",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "Fixing or removing a test of an experiment-lane disk diagnostic touches no privacy, rights or money control; keep the spend-cap test (test_scene_attempt_measured_compute) and fix it rather than delete.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The lane is green again as of 2026-11-22 on the same commit that failed on 11-21; the failures were flaky single tests, not a standing red lane. CI-only, so P2.",
+   "corrected_title": "The nightly full test lane failed four nights (11-18 to 11-21) on flaky single tests and no one is alerted",
+   "corrected_today": "The nightly full lane failed 11-18 to 11-21, each time on one different test, then passed on 11-22 on the same commit that failed on 11-21. Nothing posts a failure anywhere, so a real regression would look like the usual flake.",
+   "corrected_proposal": "Make the registered-feature Linux test create or skip its 'blueprint' group, make the spend-cap tests deterministic, and post nightly failures to the operator alert route.",
+   "extra_evidence": []
+  },
+  {
+   "id": "IW-01",
+   "verdict": "corrected",
+   "checks": [
+    "Opened the cited lines: they are the routes named (robot-team proposals and supply agreements, testbed and Atlas authorize/plan, run-closure, items, measurements, job-workflow owner, buyer-artifact-access-check, rights-privacy-revocation, hosted-readiness, operator-status/current); git grep over client/src and scripts finds no caller for the sampled ones.",
+    "But internal-task-evaluation-launches.ts:17 (/task-evaluation-launch-publication-readiness) and :343 (/task-evaluation-launch-progress) ARE called by the live Pipeline release: cbff06b deploy/systemd/blueprint-task-evaluation-launch-dispatcher.service:152 and ...-launch-reconciler.service:58 set their tryblueprint.io URLs, read by task_evaluation_scene_configuration_publication_readiness.py:26 and task_evaluation_launch_webapp_sync.py:24.",
+    "rights-privacy-revocation: Pipeline consent_takedown.sync_webapp_consent_revocation (cbff06b :588) would post to it but is called nowhere, so it has no live caller; it revokes marketplace entitlements."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "Deleting the two launch routes would break the job launch path (dispatcher publication readiness, reconciler progress). Supply-agreement routes are the only write path for a rights record read by robotTeamSupply.ts and siteAssessmentRecord.ts; rights-privacy-revocation and buyer-artifact-access-check are privacy/entitlement controls of the marketplace.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "M",
+   "needs_owner": true,
+   "corrections": "The caller search missed the Pipeline's deploy/systemd env URLs: the 'two trial progress routes' are the live launch path's publication-readiness and progress calls, so at most 33 routes are uncalled and deleting all 35 would stop job launches. Supply agreements (rights) and the marketplace revocation/access routes need an owner decision before removal. Dead routes are not met by sites; P2.",
+   "corrected_title": "About 33 API routes have no caller in the website, the Pipeline or the scripts",
+   "corrected_today": "",
+   "corrected_proposal": "Exclude /task-evaluation-launch-publication-readiness and /task-evaluation-launch-progress (live Pipeline callers via systemd URLs). Search deploy/ and env files as well as src. Delete the rest one router per PR after 30 days of Render request logs; ask the owner first about supply agreements (rights record) and the marketplace revocation and artifact-access routes; delete the owned Atlas routes, which can start paid work.",
+   "extra_evidence": [
+    "cbff06b:deploy/systemd/blueprint-task-evaluation-launch-dispatcher.service:152",
+    "cbff06b:deploy/systemd/blueprint-task-evaluation-launch-reconciler.service:58"
+   ]
+  },
+  {
+   "id": "IW-02",
+   "verdict": "corrected",
+   "checks": [
+    "Opened routes.ts:31-33,42,48-49,71-73,88: the routers are mounted; jobOutlook.ts:5-13 keeps testing/result phases and run_held, run_ended, no_ai_robot_scored, window_ended_during_test; server/utils/jobOutlook.ts:102,114 still produces 'testing' when a live run record exists; worker.ts:46 starts the forwarder.",
+    "policyIntegration.ts:123 compares a checkpoint reference to the dreamlabs URL as a validation rule; it does not call it. Routes of internal-scene-execution-window and internal-owner-success-proposal serve task-evaluation-scene-intents, named in 28 Pipeline cbff06b files; beta-policy-screening-holds in 1."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "partly",
+   "change_safe": "no",
+   "change_safe_why": "Deleting by router would break the live job path: the scene-intents routes, the launch forwarder and the two launch routes are called by the Pipeline release. Removing outlook phases is safe only once no live job record holds them. No consent or ledger record lives in the pure trial files (policyCanary, runResultScoring).",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "L",
+   "needs_owner": false,
+   "corrections": "Not 'five mounted routers of the dropped trial': at least the scene-execution-window and owner-success-proposal routers and the launch routes carry today's job. policyIntegration validates against, but never calls, the dreamlabs URL. A site sees 'testing'/'result' mapped to 'simulation ready' (jobConsoleData.ts:67, taskBrowse.ts:46), not trial wording, so this is naming and weight: P2. The 10,514-line count was not recomputed.",
+   "corrected_title": "Trial-era code and names (about 10,500 lines) remain mixed into the live job launch path",
+   "corrected_today": "",
+   "corrected_proposal": "Caller-first: trace each trial-named route and module to a live caller (WebApp, Pipeline src and deploy/systemd at the running release); delete what has none (policyCanary*, runResultScoring, robotTeamTestSubmission, policyIntegration checks); then rename the surviving launch path. Remove testing/result phases only after confirming no live job record holds them.",
+   "extra_evidence": [
+    "server/utils/jobConsoleData.ts:67 testing/result -> SIMULATION_READY"
+   ]
+  },
+  {
+   "id": "IW-03",
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/worker.ts:22-58 (identical at live 0ee5df6): the flag only picks the log line; launch forwarder, withdrawals, deletions, window sweep, automatic sends, outcome questions and heartbeat all start unconditionally. render.yaml:31-33,53 and render.required.env.example:16-19,106 say the worker is launch-forward-only.",
+    "git grep for the flag: .github/workflows/deploy.yml:162 checks and repairs it to 'true' on the worker service before every deploy; tests worker-entrypoint.test.ts:36,65 and task-evaluation-launch-forward-worker.test.ts:179 set it."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "The flag gates nothing, so removing it changes no send, withdrawal, deletion or ledger behaviour. The deploy.yml env check must be removed in the same PR, or deploy keeps re-adding it.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "The proposal misses deploy.yml:162, which enforces the flag on the Render worker each deploy, and the two tests that set it. Misleading config that no site or company meets is P2, not P1.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "Delete the flag from worker.ts, render.yaml, render.required.env.example, the deploy.yml:162 env check and the two tests; rewrite the render.yaml and env-manifest comments to list the seven worker loops.",
+   "extra_evidence": [
+    ".github/workflows/deploy.yml:162 ['srv-d9t8gg1t0dsc73am9q70', 'BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER', false, 'true']"
+   ]
+  },
+  {
+   "id": "IW-04",
+   "verdict": "corrected",
+   "checks": [
+    "Opened storage.rules (last changed 2026-10-14): users/, accounts/, captures/, capture-artifacts/ writable by the owning uid (500 MB per object), menus/ by any signed-in user with owner metadata; deny-all at the end. git grep shows no client upload (only getStorage in firebase.ts:27).",
+    "Anyone can get a Firebase account: client/src/lib/accountAuth.ts:30 and ClaimSite.tsx:219 call createUserWithEmailAndPassword, firebase.ts:477 signInWithPopup. blueprints/ needs ownership of a blueprint doc; the scenes raw path needs a matching raw-capture submission, and its comment (storage.rules:147-150) calls the Android app the current writer, not retired."
+   ],
+   "real_in_production": "unknown",
+   "evidence_sound": "partly",
+   "change_safe": "yes",
+   "change_safe_why": "No current product writes these paths from the browser; removal stops only new client writes. The scenes raw rule is shared with the Capture repo (last-writer-wins) and must not change before Capture confirms the Android app is retired.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P1",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "blueprints/ is not open to any signed-in user (needs blueprint-doc ownership), and the scenes raw path is described in the rules as used by the current Android app, not a retired one. The money exposure is real for users/, accounts/, captures/, capture-artifacts/ and menus/, because sign-up is open. Deployed rules were not read, so production is unknown.",
+   "corrected_title": "",
+   "corrected_today": "The website never writes to Storage from the browser, yet anyone who creates a Firebase account through the site's sign-up can store unlimited 500 MB objects under their own users/, accounts/, captures/ and capture-artifacts/ folders, and 10 MB files under menus/. Blueprint pays for what is stored.",
+   "corrected_proposal": "Remove the users/, accounts/, captures/, capture-artifacts/ and menus/ client write rules (deny-all covers them); keep blueprints/ and scenes raw until the Capture repo confirms. Change both repos together because deploys are last-writer-wins. Confirm the deployed rules match HEAD.",
+   "extra_evidence": []
+  },
+  {
+   "id": "IW-06",
+   "verdict": "corrected",
+   "checks": [
+    "playwright.config.ts:34 testIgnore lists the three intake specs; each has its own config (intake, intake-backend, intake-durability); git grep over .github, package.json and scripts finds them only in scripts/qa/reliability-README.md:27-28. wc -l: 264+159+262 = 685 lines.",
+    "ci.yml:310-319 runs only invited-beta, reliability-intake and privacy configs. Also ignored by default and absent from CI: site-intake-first and site-private-link-reliability (playwright.site-reliability.config.ts, npm script only) and site-answer-journey (npm script only)."
+   ],
+   "real_in_production": "no",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Adding CI runs touches no production data; the specs use intercepts or emulators. Deleting a spec loses only coverage.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "More than three suites never run in CI: site-intake-first, site-private-link-reliability and site-answer-journey are also run by nobody but a manual npm script. Whether any is red is unknown (not run here). CI coverage gap, not something a site meets: P2.",
+   "corrected_title": "Six site browser test suites, three of them for intake (685 lines), never run in CI",
+   "corrected_today": "",
+   "corrected_proposal": "Add the intake, intake-backend, intake-durability, site-reliability and answer-journey configs to the CI e2e job; fix or delete any spec red on main in the same PR; drop the stale /api/job-workflow/owner mock in site-private-link-reliability.spec.ts.",
+   "extra_evidence": []
+  },
+  {
+   "id": "V-01",
+   "verdict": "corrected",
+   "checks": [
+    "door journal of blueprint-task-evaluation-episode-compilation-remote.service, last hour: 42 starts in 53 min (one per about 75 s, about 1,150 a day), every result rows 0, mean 13.3 s CPU (about 4.2 CPU-hours a day, about 4% of a 4-CPU host).",
+    "cbff06b deploy/systemd/...episode-compilation-remote.timer: OnBootSec=1min, OnUnitInactiveSec=60s; door units shows timer active/waiting and path active; cbff06b deploy_control_plane_commit.py lists the remote units as armed."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "Retiring the units and the collector drops no consent, rights or spend data; rows are 0 so nothing is in flight. The two live imports must be cut first or launch preparation breaks.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": false,
+   "corrections": "Real and reproduced, but about 4% of host CPU and journal noise is not friction a site, company or investor meets; P2.",
+   "corrected_title": "",
+   "corrected_today": "",
+   "corrected_proposal": "",
+   "extra_evidence": []
+  },
+  {
+   "id": "V-02",
+   "verdict": "corrected",
+   "checks": [
+    "Opened server/utils/launch-readiness.ts:129-134,146,222-243: betaCohortControls (enabled, no kill switch, invite cap and daily limit > 0) is in checks and status is 'ready' only if every check passes; deploy.yml:509-512 exits 1 when /health/ready is not 200.",
+    "git grep evaluateBetaCohortGate/recordBetaCohortAdmission: only beta-cohort-policy.ts and its test; getBetaCohortPolicySnapshot is imported only by launch-readiness.ts; BLUEPRINT_BETA_KILL_SWITCH is read nowhere else; beta-cohort-policy.ts last changed 2026-07-20."
+   ],
+   "real_in_production": "yes",
+   "evidence_sound": "yes",
+   "change_safe": "yes",
+   "change_safe_why": "No intake, consent, rights or money path reads the cohort policy; intake abuse caps live elsewhere. Removing the check changes only /health/ready.",
+   "already_built": "n/a",
+   "already_built_where": "",
+   "severity": "P2",
+   "effort": "S",
+   "needs_owner": true,
+   "corrections": "Real. Add that BLUEPRINT_BETA_KILL_SWITCH looks like a way to pause the beta but pauses nothing: setting it only makes /health/ready fail and deploys roll back while intake continues. The 7 names are in .env.example, not render.yaml (0 there); the values live in the Render dashboard. It passes today, so P2. The owner decides whether a real intake pause is wanted (then build it) or not (then delete).",
+   "corrected_title": "",
+   "corrected_today": "Deploys require BLUEPRINT_BETA_ENABLED, invite cap and daily limit set and the kill switch off, or /health/ready fails and the release is rolled back. Nothing calls the cohort gate, so no site is admitted or refused by it, and the kill switch would not pause intake; it would only block deploys.",
+   "corrected_proposal": "",
+   "extra_evidence": []
+  }
+ ],
+ "new_findings": [],
+ "not_checked": [
+  "The deployed Firebase Storage rules (IW-04) were not read; no firebase CLI read was attempted, so production state is unknown.",
+  "The 35-route and 10,514-line counts (IW-01, IW-02) were sampled, not fully recomputed.",
+  "The three intake Playwright suites (IW-06) were not run, so whether they pass is unknown."
+ ]
+}

@@ -1,0 +1,164 @@
+{
+ "billableEvents": {
+  "top_level": 0,
+  "any_parent": 0
+ },
+ "companyViews_all_jobs": 0,
+ "companyResponses_all_jobs": 0,
+ "jobOutcomes_all_jobs": {
+  "outcomes": 0,
+  "jobOutcomes": 0
+ },
+ "robotTeamAccess": {
+  "n": 1,
+  "status": {
+   "approved": 1
+  },
+  "partnerRole": {
+   "(absent)": 1
+  },
+  "with_signed_in_terms_acceptance": 0,
+  "terms_version": {
+   "(absent)": 1
+  }
+ },
+ "inboundRequests": {
+  "site_jobs_not_internal": 61,
+  "created_since_2026_11_12": 3,
+  "created_since_2026_11_17": 1,
+  "created_since_2026_11_21T01_45Z": 0,
+  "by_iso_week_last_12": {
+   "2026-05-11": 3,
+   "2026-09-07": 2,
+   "2026-09-14": 19,
+   "2026-09-21": 10,
+   "2026-09-28": 1,
+   "2026-10-05": 2,
+   "2026-10-12": 4,
+   "2026-10-19": 2,
+   "2026-10-26": 6,
+   "2026-11-02": 1,
+   "2026-11-09": 3,
+   "2026-11-16": 2
+  },
+  "company_auto_send_sent": 0,
+  "privacy_version": {
+   "(absent)": 61
+  },
+  "privacyVersion": {
+   "(absent)": 61
+  },
+  "triage_disposition": {
+   "(absent)": 47,
+   "qualified": 5,
+   "needs_conversation": 5,
+   "not_now": 4
+  },
+  "rights_review_status": {
+   "(absent)": 61
+  },
+  "pipeline_rights_review_status": {
+   "(absent)": 61
+  },
+  "job_evidence_forward_pending": {
+   "(absent)": 61
+  },
+  "archived": {
+   "(absent)": 52,
+   "false": 9
+  },
+  "v4_jobs_created_days": [
+   "2026-11-15",
+   "2026-11-18"
+  ]
+ },
+ "captureUploadSessions": {
+  "n": 34,
+  "company_clip_permission_basis": {
+   "(absent)": 26,
+   "internal_test": 8
+  },
+  "company_simulation_permission_basis": {
+   "(absent)": 28,
+   "internal_test": 6
+  },
+  "website_preparation_state": {
+   "(absent)": 19,
+   "handed_off": 9,
+   "authority_ended": 3,
+   "failed_retryable": 2,
+   "awaiting_inputs": 1
+  },
+  "reconstruction_state": {
+   "(absent)": 34
+  },
+  "upload_transport": {
+   "(absent)": 34
+  },
+  "scene_preview_state": {
+   "(absent)": 20,
+   "ready": 14
+  },
+  "size_buckets": {
+   "(unknown)": 34
+  }
+ },
+ "siteAssessmentJobs": {
+  "n": 21,
+  "state": {
+   "completed": 19,
+   "needs_review": 1,
+   "authority_ended": 1
+  },
+  "with_start": 0,
+  "with_end": 0,
+  "start_to_complete_minutes": {
+   "n": 0
+  }
+ },
+ "captureOutbox_since_2026_11_12": {
+  "n": 8,
+  "kind_and_status": {
+   "scene_outcome / cancelled": 1,
+   "scene_outcome / sent": 3,
+   "site_action_needed / sent": 1,
+   "task_received / sent": 3
+  }
+ },
+ "taskEvaluationLaunches_since_2026_11_14": {
+  "n": 1,
+  "state": {
+   "completed": 1
+  }
+ },
+ "agentRuns_since_2026_11_01": {
+  "n": 27,
+  "provider": {
+   "openai_agents_sdk": 27
+  },
+  "status": {
+   "completed": 25,
+   "cancelled": 2
+  }
+ },
+ "growth_campaign_events": {
+  "n": 403,
+  "event_type": {
+   "sent": 173,
+   "delivered": 129,
+   "bounced": 46,
+   "suppressed": 41,
+   "dropped": 14
+  },
+  "campaign_id_unknown": 399,
+  "latest": "2026-11-20"
+ },
+ "opsHeartbeats": {
+  "n": 1,
+  "service": {
+   "blueprint-webapp-worker": 1
+  },
+  "latest": []
+ },
+ "durableDailyCaps": 85
+}

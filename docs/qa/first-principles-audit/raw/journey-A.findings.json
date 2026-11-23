@@ -1,0 +1,505 @@
+{
+ "agent": "journey-A",
+ "summary": "From landing to an introduction a US site takes about 12 steps, 3 required fields and 9 clicks, with no sign-in, and the home page, the phone camera path and the responses section work well. Four things break or mislead: introduction replies still go to Blueprint, a non-US job can record a sharing agreement, 'Recover saved job' loops on a 409, and production still accepts the development authoring consent fields. The job page can show about 74 different status sentences (some still model the dropped trial) where five would do, and Blueprint's own failures tell the site to start a new job. A withdrawal clears every company's view at once, but the Pipeline would delete nothing until the owner signs a standing approval that does not exist yet.",
+ "findings": [
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "A-01",
+   "title": "Introduction emails tell people to write to the other side, but a reply still goes to Blueprint",
+   "dimension": "untrue",
+   "severity": "P0",
+   "effort": "S",
+   "journey_step": "A.6 Introduce us and the emails",
+   "evidence": [
+    "webapp:server/utils/jobIntroductions.ts:157",
+    "webapp:server/utils/jobIntroductions.ts:167",
+    "webapp:server/utils/captureOutbox.ts:492-493",
+    "webapp:server/utils/emailLayout.ts:26-30",
+    "webapp:server/tests/capture-outbox.test.ts:209-216",
+    "cmd: npx vitest run server/tests/capture-outbox.test.ts -t \"sends a pending message and marks it sent\" -> 1 passed (send uses replyTo hello@ although the row says ops@)"
+   ],
+   "today": "The site presses reply on 'Meet {company}' and the reply lands at hello@tryblueprint.io; a person at Blueprint stands between the two sides.",
+   "should": "A reply to an introduction email reaches the other side directly.",
+   "change": "FIX",
+   "proposal": "In captureOutbox dispatch, for kinds introduction_made_company and introduction_made_site, pass the row's stored replyTo when it is a valid address; update the pinning test.",
+   "user_result": "Both sides can just press reply; no reply sits unanswered in Blueprint's inbox.",
+   "risk": "The other side's address becomes visible as Reply-To, which the introduction already gives in the body; nothing else depends on the override.",
+   "requirement_source": "owner question 6 (launch copy decisions) is open; the override comes from the shared sender identity, source nobody for introductions"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "A-02",
+   "title": "A non-US job page offers and records the sharing agreement although its video can never be taken",
+   "dimension": "broken",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.3 The video (non-US)",
+   "evidence": [
+    "webapp:server/utils/descriptionAuthority.ts:14-19",
+    "webapp:server/utils/captureUploadAuthorization.ts:154-157",
+    "webapp:server/utils/jobSharedListing.ts:117-121",
+    "webapp:server/routes/self-capture-uploads.ts:595-613",
+    "webapp:server/utils/teamJobAccess.ts:253",
+    "screenshots/A-17-job-non-us-consent-390.png"
+   ],
+   "today": "A site outside the US opens its job link, sees 'Record your job' with recording statement v4 and 'Agree and continue'; pressing records a sharing grant and a listing record, then the video is refused by the region rule.",
+   "should": "A non-US job page says only that Blueprint cannot take its video yet; no sharing agreement is offered or recorded.",
+   "change": "FIX",
+   "proposal": "Return false from canGrantInitialRecordingConsent when request.capture_region is not an approved region; the page then shows the US-only notice.",
+   "user_result": "No dead-end button; no cross-border sharing agreement recorded before data-transfer terms exist.",
+   "risk": "Low; US jobs are untouched. Existing non-US grants (Firestore aggregate 1) need a decision.",
+   "requirement_source": "nobody (no region check was ever added to the initial-grant rule)"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "Real trigger frequency unverified: a job saved while signed in, then retried signed out, fails mayRecoverSubmission (inbound-request.ts:287).",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "A-03",
+   "title": "'Recover saved job' loops on a 409 and the browser can never start another job",
+   "dimension": "broken",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.2 Starting the job",
+   "evidence": [
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:587-589",
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:833",
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:838",
+    "webapp:server/routes/inbound-request.ts:281-292",
+    "webapp:server/routes/inbound-request.ts:1373-1377",
+    "screenshots/A-09-recover-409-loop-390.png",
+    "cmd: playwright walk.spec.ts 'recover loop on 409' -> statuses [503,409,409,409], recoverButtonStill 1, startNew 0"
+   ],
+   "today": "After a lost answer, each press of 'Recover saved job' gets 409 'already started from another page'; the form stays locked and 'Start a new job' never appears.",
+   "should": "A 409 clears the saved submission, points to the emailed link once, and lets the site start a new job.",
+   "change": "FIX",
+   "proposal": "Add 409 to the definitive refusals that clear recovery.current.pending in SiteCaptureStart.tsx and show 'Start a new job' with the message; add an e2e case to site-intake-recovery.spec.ts.",
+   "user_result": "One fewer dead end; the site can always start again from the same browser.",
+   "risk": "A true duplicate could be started; the server's own 409 already proves the original job exists and its link was emailed.",
+   "requirement_source": "guard against duplicate jobs (siteCaptureDraft.ts); the 409 handling itself: nobody"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "privacy",
+   "id": "A-04",
+   "title": "Production still accepts the development authoring consent fields from a hand-made request",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.2 Starting the job",
+   "evidence": [
+    "webapp:server/routes/inbound-request.ts:1341-1360",
+    "webapp:server/routes/workspace.ts:586-589",
+    "webapp:server/utils/websiteSceneSponsorship.ts:351-362",
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:51"
+   ],
+   "today": "The boxes no longer render in production, but a crafted POST with claudeAuthoringConsent switches a US job's authoring provider to Anthropic, or stalls it if Anthropic terms are not configured.",
+   "should": "Production refuses both development consent fields.",
+   "change": "DELETE",
+   "proposal": "Reject claudeAuthoringConsent and solAgentsApiConsent with 400 in inbound-request.ts and workspace.ts unless a server-side development flag is set.",
+   "user_result": "No job can be routed to a different provider under a development statement.",
+   "risk": "Any real development test on production stops working (owner question 5 asks whether there were any).",
+   "requirement_source": "owner rule: development-only consent boxes never in production (launch copy decision 5); server acceptance: nobody"
+  },
+  {
+   "verified": "unverified",
+   "verify_how": "Read the deployed extractFrames inline limit in BlueprintCapture's deployment config, and upload a 1.2 GB file from a real iPhone and Android phone to a staging bucket.",
+   "live_in_production": "unknown",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "A-05",
+   "title": "Videos between 1 GB and 2 GiB are accepted, then never processed",
+   "dimension": "fragile",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.3 The video",
+   "evidence": [
+    "webapp:server/routes/self-capture-uploads.ts:128",
+    "webapp:server/utils/websiteLargeVideoBlock.ts:4-9",
+    "webapp:client/src/lib/selfCaptureVideo.ts:24-27",
+    "webapp:client/src/lib/selfCaptureVideo.ts:126-132",
+    "webapp:server/utils/taskPreparationOutcome.ts:462"
+   ],
+   "today": "The site uploads a long 4K video, sees 'We have your video', and days later is asked for a smaller one; the job ends after the 7-day site wait.",
+   "should": "A file over the real processing limit is refused when chosen, in one sentence, before any upload.",
+   "change": "FIX",
+   "proposal": "Check file.size against the frame-extraction limit in isCaptureVideoFile callers and lower SELF_CAPTURE_MAX_UPLOAD_BYTES to the same limit.",
+   "user_result": "The site learns in a second, not in days, that it must trim or refilm.",
+   "risk": "If the deployed extractFrames limit is higher than 1 GB, the client limit must read it from config.",
+   "requirement_source": "nobody chose 2 GiB against the 1 GB extraction limit"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "A-06",
+   "title": "A site can be shown about 74 status sentences, including trial-era phases; it needs five",
+   "dimension": "friction",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "A.4 Waiting",
+   "evidence": [
+    "webapp:server/utils/taskStatusProjection.ts:380-746",
+    "webapp:server/utils/taskPreparationOutcome.ts",
+    "webapp:client/src/lib/jobOutlook.ts:5-55",
+    "webapp:server/utils/jobOutlook.ts:11-14",
+    "webapp:server/utils/jobOutlook.ts:67",
+    "screenshots/A-11-job-video-received-390.png",
+    "screenshots/A-14-job-shared-waiting-390.png",
+    "cmd: grep -c headline taskStatusProjection.ts -> 39; distinct decision values -> 13; outcome titles -> 11"
+   ],
+   "today": "The site sees one of 39 headlines before an answer and a different set of phase lines after; 'testing' and 'result' still model an AI robot being scored.",
+   "should": "Five plain states: watching your video, we need one thing from you, sent with no response yet, responses, stopped.",
+   "change": "SIMPLIFY",
+   "proposal": "Collapse projectTaskStatus headlines into the five states and delete the testing/result phases and liveRun grace from jobOutlook; keep the typed reasons for staff only.",
+   "user_result": "The site always knows in one line where its job stands.",
+   "risk": "Many tests pin the current strings; emails reuse outlook sentences.",
+   "requirement_source": "doctrine asks for 'not yet sent, sent and waiting, or no response yet'; the extra states come from reviews and the retired early trial (dropped 2026-11-14)"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "A-07",
+   "title": "Endings caused by Blueprint tell the site to start a new job, though the job stays listed",
+   "dimension": "untrue",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.4 Waiting",
+   "evidence": [
+    "webapp:server/utils/taskPreparationOutcome.ts:426",
+    "webapp:server/utils/taskPreparationOutcome.ts:441",
+    "webapp:server/utils/taskStatusProjection.ts:604",
+    "webapp:server/utils/teamJobAccess.ts:222-260",
+    "screenshots/A-16-job-ended-window-390.png"
+   ],
+   "today": "When Blueprint's own work window runs out, the page says 'To try again, start a new job' and still offers 'Send a new video' and 'Change my job description'.",
+   "should": "The page says the job is still with deployment companies and nothing is needed.",
+   "change": "FIX",
+   "proposal": "Drop PREPARATION_ENDED_NEXT from the window, failed-terminal and authority-ended messages; say 'Your job is still with deployment companies. Nothing is needed from you.' where teamJobAccess still lists it.",
+   "user_result": "No site refilms or posts a duplicate job because of Blueprint's failure.",
+   "risk": "Emails reuse these sentences; check every reader of PREPARATION_ENDED_NEXT.",
+   "requirement_source": "nobody"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "A-08",
+   "title": "After a withdrawal the Pipeline deletes nothing until the owner signs a standing approval, and none exists",
+   "dimension": "fragile",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.7 Leaving",
+   "evidence": [
+    "pipeline:src/blueprint_pipeline/website_capture_withdrawal.py:1-10",
+    "pipeline:src/blueprint_pipeline/website_capture_withdrawal_automatic.py:24-31",
+    "door-status.json: capacity.website_withdrawal_deletion.approval_status = absent, withdrawals.total = 0 (2026-11-22T15:01Z)",
+    "webapp:server/utils/websiteCaptureWithdrawal.ts:83-117"
+   ],
+   "today": "The job leaves every company's view at once and companies are asked to delete copies, but the Pipeline's own frames, scene and offload would stay until the owner acts.",
+   "should": "The hourly deletion timer applies by itself after the cool-off.",
+   "change": "AUTOMATE",
+   "proposal": "The owner writes the standing approval file once (APPROVAL_PATH) so the existing timer applies deletions; door status then shows approval_status present.",
+   "user_result": "'Stop using my video' removes Blueprint's own copies without a person.",
+   "risk": "Deletion is irreversible; the timer already skips legal holds and unsettled money.",
+   "requirement_source": "Pipeline design choice; doctrine requires withdrawal to be respected"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "A-09",
+   "title": "The start form and the job page ask overlapping questions, and the form still offers 'Planning a pilot'",
+   "dimension": "friction",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.2 Starting the job",
+   "evidence": [
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:961-981",
+    "webapp:client/src/lib/jobFacts.ts:17-19",
+    "webapp:server/routes/inbound-request.ts:1644",
+    "screenshots/A-07-start-filled-390.png",
+    "screenshots/A-15-job-responses-390.png"
+   ],
+   "today": "'Add details' asks success, frequency and pilot readiness; the job page then asks up to 5 quick questions including rate, shifts and timing.",
+   "should": "One place asks optional facts, one at a time, on the job page.",
+   "change": "DELETE",
+   "proposal": "Remove the 'Add details' disclosure and its three fields from SiteCaptureStart; keep job_facts on the job page.",
+   "user_result": "Three fewer fields; the form fits closer to one screen.",
+   "risk": "Old drafts with these fields still restore; the server must keep accepting them.",
+   "requirement_source": "nobody (retired pilot frame; jobFacts is PACKAGE_E E1)"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "A-10",
+   "title": "'Blueprint will update this job as the work progresses.' is filler, pinned by tests",
+   "dimension": "untrue",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "A.4 Waiting",
+   "evidence": [
+    "webapp:client/src/components/site/NextTaskUpdate.tsx:5",
+    "webapp:e2e/onboarding-p1.spec.ts:190",
+    "webapp:client/tests/pages/SelfCaptureUpload.test.tsx:1631",
+    "screenshots/A-11-job-video-received-390.png"
+   ],
+   "today": "Under every status before an answer the site reads a promise with no time and no content.",
+   "should": "Nothing under the headline.",
+   "change": "DELETE",
+   "proposal": "Delete NextTaskUpdate and its three test pins.",
+   "user_result": "One less line that says nothing.",
+   "risk": "None.",
+   "requirement_source": "nobody (a test pins it)"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "A-11",
+   "title": "Requests for a new video run to 40 words and say 'rebuild'",
+   "dimension": "friction",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "A.4 Waiting",
+   "evidence": [
+    "webapp:server/utils/taskPreparationOutcome.ts:236",
+    "webapp:server/utils/taskPreparationOutcome.ts:255-297"
+   ],
+   "today": "A site asked to refilm reads a 20-30 word reason and a 25-40 word instruction with words like 'rebuild' and 'overlapping'.",
+   "should": "One short line on what to film.",
+   "change": "SIMPLIFY",
+   "proposal": "Rewrite RECAPTURE_SENTENCES to one sentence each, no 'rebuild'.",
+   "user_result": "The site knows what to film in one glance.",
+   "risk": "Emails reuse the sentences (siteActionNeeded keys hash them, so a rewrite re-sends an ask once).",
+   "requirement_source": "nobody"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "A-12",
+   "title": "A site gets at least four emails before its first introduction; 'Your job is posted' repeats what it agreed to",
+   "dimension": "friction",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "A.6 Emails",
+   "evidence": [
+    "webapp:server/utils/taskLifecycleNotifications.ts:1-11",
+    "webapp:server/utils/taskLifecycleNotifications.ts:60-66",
+    "webapp:server/utils/captureOutbox.ts:62-89",
+    "webapp:client/src/lib/siteStartConsent.ts:47-49"
+   ],
+   "today": "Job link, job posted, one per company answer, Meet {company}, plus a reminder and three follow-ups per introduction.",
+   "should": "Job link (with how to stop), one per answer, Meet {company}, follow-ups.",
+   "change": "MERGE",
+   "proposal": "Move the withdrawal sentence into task_received and stop queuing job_sent.",
+   "user_result": "One fewer email for every site.",
+   "risk": "The owner may want a notice at the moment of sharing.",
+   "requirement_source": "PACKAGE_E E4"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "privacy",
+   "id": "A-13",
+   "title": "Stopping takes four taps behind Job settings",
+   "dimension": "friction",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "A.7 Leaving",
+   "evidence": [
+    "webapp:e2e/site-answer-journey.spec.ts:403-406"
+   ],
+   "today": "Job settings, Stop using my video, Stop using my video..., Yes.",
+   "should": "One link on the job page and one confirm.",
+   "change": "SIMPLIFY",
+   "proposal": "Put 'Stop using my video' on the job page under the sections; keep one confirm.",
+   "user_result": "Two taps to withdraw.",
+   "risk": "Accidental taps; the confirm stays.",
+   "requirement_source": "doctrine (withdrawal); the extra taps: nobody"
+  },
+  {
+   "verified": "unverified",
+   "verify_how": "Which geocoder runs in production depends on the Google Maps key in the client build; check the deployed bundle's env.",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "privacy",
+   "id": "A-14",
+   "title": "The place field asks more than the privacy gate needs and sends typed text to a geocoder",
+   "dimension": "friction",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "A.2 Starting the job",
+   "evidence": [
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:902-944",
+    "webapp:client/src/components/site/LocationAutocomplete.tsx:49",
+    "webapp:client/src/components/site/LocationAutocomplete.tsx:76",
+    "webapp:server/utils/taskBrowse.ts:63",
+    "screenshots/A-06-start-non-us-390.png"
+   ],
+   "today": "A typed city without a picked suggestion brings up a second country field; the text goes to Google Places or photon.komoot.io.",
+   "should": "One question: 'Is the job in the United States? Yes / No'.",
+   "change": "SIMPLIFY",
+   "proposal": "Replace the place field and country select with one yes/no; the city can be given at introduction.",
+   "user_result": "One field instead of up to two, no third-party lookup.",
+   "risk": "Companies lose the city at introduction; it may come back.",
+   "requirement_source": "privacy gate needs the country only (captureResidency.ts:43); the city: owner 2026-11-11"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": true,
+   "hard_stop": "privacy",
+   "id": "A-15",
+   "title": "'Introduce us' promises name, address and contact details; Blueprint holds only an email and a city",
+   "dimension": "untrue",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "A.6 Introduce us",
+   "evidence": [
+    "webapp:client/src/lib/siteIntroductions.ts:15",
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:469-471",
+    "webapp:client/src/components/site/SiteCaptureStart.tsx:484",
+    "webapp:server/utils/robotTeamAccessEmails.ts:184-189"
+   ],
+   "today": "The company receives an email address and a city labelled 'Address'.",
+   "should": "The statement says exactly what is given.",
+   "change": "FIX",
+   "proposal": "New statement version: 'We give {alias} your email and city, and give you theirs.' (keep the old as retired).",
+   "user_result": "The site is told exactly what it gives.",
+   "risk": "A recorded statement; needs a new version.",
+   "requirement_source": "owner recorded statement introduction-request-2026-11-12"
+  },
+  {
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "hard_stop": "none",
+   "id": "A-16",
+   "title": "The start button and its agreement line are below the first screen, under the cookie banner",
+   "dimension": "demo-risk",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "A.2 Starting the job",
+   "evidence": [
+    "screenshots/A-03-start-390.png",
+    "screenshots/A-03-start-1280.png",
+    "agents/journey-A/public-metrics.json: start form 1204 px tall at 1280, 1314 px at 390"
+   ],
+   "today": "On a first visit the site must dismiss the cookie banner and scroll to find 'Next: film the job'.",
+   "should": "The button is on the first screen.",
+   "change": "SIMPLIFY",
+   "proposal": "After A-09 and A-14 remove four fields, check the button fits above the fold at 390 x 844.",
+   "user_result": "The site sees the button without scrolling.",
+   "risk": "None.",
+   "requirement_source": "nobody"
+  }
+ ],
+ "good_things": [
+  {
+   "what": "Home page: one title, one sub-line, one button and 'Free for sites.' above the fold at 390 and 1280",
+   "why": "A site knows what it gets and what it costs in under 10 seconds",
+   "evidence": "client/src/pages/Home.tsx:15-21; screenshots/A-01-home-390.png"
+  },
+  {
+   "what": "Phone path: 'Next: film the job' lands straight on the in-page camera; no microphone, parts upload while filming, resume after a drop",
+   "why": "Fewest taps on the main path and robust on a bad connection",
+   "evidence": "client/src/components/site/SiteCaptureStart.tsx:672-679; client/src/components/site/CaptureRecorder.tsx:49-61"
+  },
+  {
+   "what": "No sign-in from start to introduction; the private link is the credential",
+   "why": "Removes the biggest drop-off for a phone user",
+   "evidence": "client/src/components/site/SiteCaptureStart.tsx:475-479"
+  },
+  {
+   "what": "Responses section: aliases, the company's reason in its words, one Introduce us with its sentence",
+   "why": "It is the site's answer and reads well at 390 px",
+   "evidence": "screenshots/A-15-job-responses-390.png"
+  },
+  {
+   "what": "Introduction is one transaction with the billable event and both emails, site email held until the company's is sent",
+   "why": "All-or-nothing money and privacy record with no person in the loop",
+   "evidence": "server/utils/jobIntroductions.ts:103-170"
+  },
+  {
+   "what": "WebApp withdrawal closes every company's view in the same transaction and plans the deletion notices there",
+   "why": "Privacy promise kept and verified end to end",
+   "evidence": "server/utils/websiteCaptureWithdrawal.ts:83-117; e2e/site-answer-journey.spec.ts:401-418"
+  }
+ ],
+ "owner_questions": [
+  {
+   "question": "Should introduction emails carry Reply-To set to the other side?",
+   "recommendation": "Yes: pass the stored Reply-To for the two introduction kinds",
+   "unblocks": "A-01"
+  },
+  {
+   "question": "Should a non-US job be offered the sharing agreement before data-transfer terms exist?",
+   "recommendation": "No: offer nothing and say we cannot take the video yet",
+   "unblocks": "A-02"
+  },
+  {
+   "question": "Will you sign the standing approval for automatic Pipeline deletion after a withdrawal?",
+   "recommendation": "Yes, once; the timer already skips legal holds and unsettled money",
+   "unblocks": "A-08"
+  },
+  {
+   "question": "Can 'Your job is posted' be dropped if the job link email says how to stop?",
+   "recommendation": "Yes",
+   "unblocks": "A-12"
+  },
+  {
+   "question": "May the Introduce us statement get a new version that names only what is given (email and city)?",
+   "recommendation": "Yes",
+   "unblocks": "A-15"
+  }
+ ],
+ "open_cost_questions": [
+  {
+   "question": "End-to-end wall-clock time from a real phone upload to first look, shared job and simulation for one synthetic job",
+   "estimated_cost_usd": "up to 40",
+   "basis": "the per-job preparation cap cited in server/utils/siteActionNeeded.ts:6 ($40 cap); journey C measures from recorded runs first"
+  }
+ ],
+ "not_covered": [
+  "Real iOS Safari and Android Chrome devices (camera, codecs, backgrounding); Chromium with an iPhone user agent only",
+  "Forms on the live site (not allowed); only public pages were loaded there",
+  "Wall-clock waits between Pipeline stages (see journey C)",
+  "The account/claim path and the signed-in site's /app",
+  "I did not rerun the core-journey spec under the emulators; I relied on the baseline pass",
+  "Company-side emails except where they reach the site (journey B)"
+ ]
+}
