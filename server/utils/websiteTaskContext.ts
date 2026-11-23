@@ -233,15 +233,6 @@ export function legacyRoutingTaskContextDigest(context: ReturnType<typeof projec
   return canonicalArtifactDigest(value, "context_digest");
 }
 
-/** Operator renewal compatibility only: prove the old projection against today's
- * complete records. Never restores an unphotographed suggestion as task evidence. */
-export function legacySuggestedTaskContextDigest(context: ReturnType<typeof projectWebsiteTaskContext>,
-  inventory: TaskItemInventoryRecord | null) {
-  if (!inventory?.items.some(item => !countsTowardTask(item))) return undefined;
-  const { context_digest: _digest, ...value } = context;
-  return canonicalArtifactDigest({ ...value, task_items: inventory.items.map(item => projectTaskItem(item, context.request_id)) }, "context_digest");
-}
-
 /** One projection used by the signed read and the spending/publication checks. */
 export async function loadWebsiteTaskInventory(requestId: string): Promise<TaskItemInventoryRecord | null> {
   if (!db) throw new Error("website_capture_rights_store_unavailable");

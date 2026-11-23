@@ -6,8 +6,7 @@ const help = `Usage:
 Puts a website job's brief back to the task its scene grant was issued for, by removing
 only model-read proposals merged after the grant (before WebApp #1182). Acts only when one
 smallest removal reproduces the grant's context digest exactly. Each removed proposal is kept
-for the site's review. Without --apply it writes nothing. Run it before renewing an expired
-grant (scripts/renew-website-scene-sponsorship.ts), which refuses a moved task.`;
+for the site's review. Without --apply it writes nothing.`;
 
 async function main() {
   const { values } = parseArgs({ options: { "request-id": { type: "string" }, apply: { type: "boolean" },

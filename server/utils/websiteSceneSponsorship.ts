@@ -8,7 +8,7 @@ import { internalTestRightsMarker } from "./internalTestJob";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { TASK_BRIEFS_COLLECTION, isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import { preparationGrantFollowsBrief, UNNAMED_TASK_GRANT_FIELD } from "./preparationGrantTask";
-import { projectWebsiteTaskContext, legacySuggestedTaskContextDigest, legacyRoutingTaskContextDigest, preparationGrantContextDigest,
+import { projectWebsiteTaskContext, legacyRoutingTaskContextDigest, preparationGrantContextDigest,
   taskContextSiteIdentity } from "./websiteTaskContext";
 import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
@@ -256,12 +256,11 @@ export function websiteSceneSponsorship(input: {
   siteIdentity: KnownSiteIdentity | null;
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;
   purpose?: "scene_preparation"; expected_task_context_digest?: string;
-  retainedPolicy?: z.infer<typeof policySchema>; renewal?: SponsorshipRenewal;
   /** A verified time-only extension of the bound scene intent: the non-creating read and
    * native/Marble paid reservations only, never a new grant. */
   executionWindowUntil?: number;
 }) {
-  const configured = input.retainedPolicy ?? policy();
+  const configured = policy();
   const rights = projectWebsiteCaptureRights(input.record);
   if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
   if (input.purpose !== undefined && input.purpose !== "scene_preparation") throw new Error("website_scene_sponsorship_changed");
@@ -380,7 +379,6 @@ export function websiteSceneSponsorship(input: {
     max_total_spend_usd: configured.native_max_spend_usd,
     max_paid_attempts: configured.max_paid_attempts,
     scene_configuration_max_retries: WEBSITE_SCENE_CONFIGURATION_MAX_RETRIES,
-    ...(input.renewal ? { renewal: input.renewal } : {}),
     expires_at_epoch: input.now + configured.ttl_seconds,
     consent: {
       rights_reference: digest(rights), provider_terms_reference: configured.provider_terms_reference,
@@ -500,118 +498,6 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
       ...(authority.purpose === "scene_preparation" && isPlaceholderSummary(input.brief.summary)
         ? { [UNNAMED_TASK_GRANT_FIELD]: authority.authority_digest } : {}) });
     return continuationAuthority(authority, {...input, captureId, captureBinding});
-  }));
-}
-
-type SponsorshipRenewal = { parent_authority_digest: string; parent_expires_at_epoch: number;
-  approved_by: string; approval_reference: string };
-export const SPONSORSHIP_RENEWAL_ACK = "renew-expired-blueprint-preparation-sponsorship";
-
-/** The sponsor's explicit re-issue of its own expired preparation grant.
- *
- * Expiry still ends the grant for every automatic caller; only this call
- * re-issues it. The policy is rebuilt from the expired grant and must hash to
- * its recorded digest, so caps, attempts and window cannot change here, and
- * every later use revalidates that digest against the configured policy.
- * Reservations stay on the request, so spend already reserved keeps counting,
- * and the owner's amendments are re-bound to the renewed grant, never widened. */
-export async function renewExpiredWebsiteSceneSponsorship(requestId: string, input: {
-  approved_by: string; approval_reference: string; ack: string; apply: boolean; captureId?: string;
-}) {
-  if (input.ack !== SPONSORSHIP_RENEWAL_ACK) throw new Error("website_scene_sponsorship_renewal_unacknowledged");
-  if (!input.approval_reference.trim() || input.approval_reference.length > 500)
-    throw new Error("website_scene_sponsorship_renewal_reference_invalid");
-  if (!db) throw new Error("website_capture_rights_store_unavailable");
-  const store = db;
-  const captureId = input.captureId ?? `walkthrough-${requestId}`;
-  const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
-  return storeTimeout(store.runTransaction(async transaction => {
-    const ref = store.collection("inboundRequests").doc(requestId);
-    const [request, brief, inventory] = await Promise.all([
-      transaction.get(ref), transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
-      transaction.get(store.collection("siteTaskItemInventories").doc(requestId)),
-    ]);
-    if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
-    await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
-    const record = request.data()!;
-    const previous = record.website_scene_sponsorship;
-    if (!previous) throw new Error("website_scene_sponsorship_missing");
-    const { authority_digest: parentDigest, ...payload } = previous;
-    if (digest(payload) !== parentDigest || previous.purpose !== "scene_preparation")
-      throw new Error("website_scene_sponsorship_changed");
-    const now = Date.now() / 1000;
-    if (previous.expires_at_epoch > now) throw new Error("website_scene_sponsorship_renewal_not_expired");
-    if (input.approved_by !== previous.owner?.user_id) throw new Error("website_scene_sponsorship_renewal_unauthorized");
-    // Amendments are bound to the expired grant's digest. Each must still be the
-    // owner's valid amendment of that grant; below it is re-bound to the renewal.
-    if (record.website_preparation_limit_extension && !record.website_preparation_limit_amendment)
-      throw new Error("website_preparation_amendment_invalid");
-    preparationRequestLimit(record, previous);
-    const retained = policySchema.safeParse({ owner: previous.owner,
-      upstream_max_spend_usd: previous.upstream_max_spend_usd, native_max_spend_usd: previous.max_total_spend_usd,
-      max_total_spend_usd: previous.preparation_max_total_spend_usd, max_paid_attempts: previous.max_paid_attempts,
-      // Epoch floats subtract inexactly; the digest check below proves the rounded window.
-      ttl_seconds: Math.round(previous.expires_at_epoch - previous.consent?.accepted_at_epoch),
-      provider_terms_reference: previous.consent?.provider_terms_reference });
-    if (!retained.success || digest(retained.data) !== previous.policy_digest)
-      throw new Error("website_scene_sponsorship_renewal_policy_unproven");
-    const inputs = { brief: brief.data() as SiteTaskBriefRecord,
-      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-      siteIdentity: await taskContextSiteIdentity(record) };
-    const base = projectWebsiteTaskContext(inputs.brief, projectWebsiteCaptureRights(record),
-      {siteIdentity: inputs.siteIdentity, inventory: inputs.inventory, purpose: "scene_preparation"});
-    const { website_scene_sponsorship: _expired, ...unsponsored } = record;
-    const issued = websiteSceneSponsorship({ requestId, record: unsponsored, ...inputs, now,
-      purpose: "scene_preparation", expected_task_context_digest: base.context_digest,
-      retainedPolicy: retained.data, renewal: { parent_authority_digest: parentDigest,
-        parent_expires_at_epoch: previous.expires_at_epoch, approved_by: input.approved_by,
-        approval_reference: input.approval_reference.trim() } });
-    // A grant issued while preparation still waited on an assessment keeps its
-    // recorded proposal as advisory context. The renewal never reads or needs one.
-    // The retry allowance and the automatic budget extension (no longer read, 2026-11-19) are restored as
-    // the expired grant named them, so the renewal binds the same scope.
-    // So are the job's Privacy version and the site's accepted statements: a grant issued before they were
-    // recorded is renewed without them.
-    const { authority_digest: _issuedDigest, scene_configuration_max_retries: _retries,
-      automatic_budget_extension: _extension, privacy_policy_version: _privacy, site_consents: _consents,
-      ...issuedRest } = issued as Record<string, any>;
-    const issuedPayload = { ...issuedRest,
-      ...(previous.privacy_policy_version === undefined ? {} : { privacy_policy_version: previous.privacy_policy_version }),
-      ...(previous.site_consents === undefined ? {} : { site_consents: previous.site_consents }),
-      ...(previous.scene_configuration_max_retries === undefined ? {}
-        : { scene_configuration_max_retries: previous.scene_configuration_max_retries }),
-      ...(previous.automatic_budget_extension === undefined ? {}
-        : { automatic_budget_extension: previous.automatic_budget_extension }) };
-    const renewedPayload = previous.assessment_preparation_proposal
-      ? { ...issuedPayload, assessment_preparation_proposal: previous.assessment_preparation_proposal } : issuedPayload;
-    const renewed = { ...renewedPayload, authority_digest: digest(renewedPayload) };
-    // A renewal restores the same allowance for a new window. Any change to the
-    // task, rights or provider needs a fresh grant, never this path.
-    const scope = (grant: Record<string, any>) => {
-      const { authority_digest: _d, expires_at_epoch: _e, renewal: _r, consent, ...rest } = grant;
-      const { accepted_at_epoch: _a, ...terms } = consent ?? {};
-      return digest({ ...rest, consent: terms });
-    };
-    const projectionMigration = previous.task_context_digest !== base.context_digest
-      && previous.task_context_digest === legacySuggestedTaskContextDigest(base, inputs.inventory);
-    // Compare every other bound field unchanged. Only the byte-proven legacy
-    // projection may drop an unphotographed suggestion under the current rule.
-    if (scope(renewed) !== scope(projectionMigration ? { ...previous, task_context_digest: base.context_digest } : previous))
-      throw new Error("website_scene_sponsorship_renewal_scope_changed");
-    const carried = carriedPreparationAmendments(record, renewed.authority_digest, input, now);
-    if (input.apply) transaction.update(ref, { website_scene_sponsorship: renewed,
-      website_scene_sponsorship_history: [...(record.website_scene_sponsorship_history ?? []), previous],
-      ...carried.updates, ...(carried.archived.length ? { website_preparation_amendment_history:
-        [...(record.website_preparation_amendment_history ?? []), ...carried.archived] } : {}) });
-    const carriedRecord = { ...record, ...carried.updates };
-    return { ...renewed, task_context_projection_migration: projectionMigration ? {
-      from: previous.task_context_digest, to: base.context_digest, basis: "unphotographed_suggestions_excluded",
-    } : null, preparation_amendments: {
-      carried: carried.updates, archived: carried.archived,
-      effective_limits: { max_requests: preparationRequestLimit(carriedRecord, renewed) },
-      history_length_before: (record.website_preparation_amendment_history ?? []).length,
-      history_length_after: (record.website_preparation_amendment_history ?? []).length + carried.archived.length,
-    } };
   }));
 }
 
@@ -798,35 +684,6 @@ function preparationRequestLimit(record: Record<string, any>, authority: Record<
     || extended.max_requests <= value.max_requests)
     throw new Error("website_preparation_amendment_invalid");
   return extended.max_requests;
-}
-
-/** The renewal's owner approval re-issues each amendment, unchanged in value, bound
- * to the renewed grant; the originals move to history. Reservations already
- * count against the same caps, so carrying an amendment never adds allowance. */
-function carriedPreparationAmendments(record: Record<string, any>, authorityDigest: string,
-  approval: { approved_by: string; approval_reference: string }, now: number) {
-  const reference = (original: Record<string, any>, from: string) => (`Carried forward on owner-approved renewal `
-    + `(${approval.approval_reference.trim()}) from ${from}: ${original.approval_reference}`).slice(0, 1000).trim();
-  const updates: Record<string, any> = {}, archived: Record<string, any>[] = [];
-  const limit = record.website_preparation_limit_amendment;
-  if (limit) {
-    const value = { ...preparationLimitAmendment.parse({ authority_digest: authorityDigest, max_requests: limit.max_requests,
-      approved_by: approval.approved_by, approval_reference: reference(limit, limit.amendment_digest) }), approved_at_epoch: now };
-    updates.website_preparation_limit_amendment = { ...value, amendment_digest: digest(value) };
-    archived.push(limit);
-    const extension = record.website_preparation_limit_extension;
-    if (extension) {
-      const extended = { ...preparationLimitAmendment.parse({ authority_digest: authorityDigest,
-        max_requests: extension.max_requests, approved_by: approval.approved_by,
-        approval_reference: reference(extension, extension.extension_digest) }), approved_at_epoch: now,
-        prior_amendment_digest: updates.website_preparation_limit_amendment.amendment_digest };
-      updates.website_preparation_limit_extension = { ...extended, extension_digest: digest(extended) };
-      archived.push(extension);
-    }
-  }
-  // An upstream spend amendment from before 2026-11-19 is no longer read (the job's cap is the one dollar stop),
-  // so it is not carried; it stays on the record as it was.
-  return { updates, archived };
 }
 
 /** Operator-only amendment: never exposed as a public or Pipeline API. */
