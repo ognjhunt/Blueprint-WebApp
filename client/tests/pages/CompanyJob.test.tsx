@@ -109,6 +109,43 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("The simulation of the site is not finished yet.")).toBeInTheDocument();
   });
 
+  it("signs a visitor back into this job and fetches nothing while signed out", async () => {
+    auth.currentUser = null;
+    render(<CompanyJob />);
+    expect(await screen.findByRole("heading", { name: "Sign in to see this job" })).toBeInTheDocument();
+    const main = within(screen.getByRole("main"));
+    const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
+    expect(main.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
+    expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
+    expect(main.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("says the job is not available when the server refuses it", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) });
+    render(<CompanyJob />);
+    expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
+  });
+
+  // The page knows the account's access, so it says which case a refusal is.
+  it("tells an approved company the job is no longer available, and links back to the jobs", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { status: "approved", signedIn: true,
+      emailVerified: true, allowed: true, staff: false } }) });
+    render(<CompanyJob />);
+    expect(await screen.findByRole("heading", { name: "This job is no longer available" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to jobs" })).toHaveAttribute("href", "/contact/robot-team");
+    expect(screen.queryByText(/may not be approved/)).toBeNull();
+  });
+
+  it("tells an account that never applied that only approved companies see jobs, and how to apply", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { status: "none", signedIn: true,
+      emailVerified: true, allowed: false, staff: false } }) });
+    render(<CompanyJob />);
+    expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
+    expect(screen.getByText(/Only approved deployment companies can see jobs\./)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
+  });
+
   it("shows a conditional first-look row and the count of the rest, from the shared first look", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
       firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 11.6 kg.", robot: "Universal Robots UR10e" }],

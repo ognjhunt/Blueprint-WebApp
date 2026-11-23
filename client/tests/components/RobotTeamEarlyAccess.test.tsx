@@ -16,7 +16,7 @@ import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 describe("robot-team verification from the job library", () => {
   it("resends the account verification link to the approved signed-in address", async () => {
     auth.send.mockClear();
-    render(<RobotTeamEarlyAccess access={{ gated: true, status: "approved", signedIn: true,
+    render(<RobotTeamEarlyAccess access={{ status: "approved", signedIn: true,
       emailVerified: false, allowed: false, staff: false }} email="eng@robot.example" />);
     fireEvent.click(screen.getByRole("button", { name: "Resend verification email" }));
     await waitFor(() => expect(auth.send).toHaveBeenCalledWith(auth.user, `${window.location.origin}/contact/robot-team`));
@@ -32,7 +32,7 @@ describe("robot-team verification from the job library", () => {
   });
 
   it("says approval will be emailed while an application is pending, without printing the viewer's address", () => {
-    render(<RobotTeamEarlyAccess access={{ gated: true, status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false }}
+    render(<RobotTeamEarlyAccess access={{ status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false }}
       email="eng@robot.example" />);
     expect(screen.getByText("We'll email you if your company is approved.")).toBeInTheDocument();
     expect(document.body.textContent).not.toContain("eng@robot.example");

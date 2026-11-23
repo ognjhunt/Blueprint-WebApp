@@ -19,7 +19,6 @@ import {
   accessRecordId,
   decideAccessApplication,
   inviteRobotTeam,
-  isRobotTeamEarlyAccessGated,
   listAccessApplications,
 } from "../utils/robotTeamEarlyAccess";
 import { listTaskBrowseCards } from "../utils/taskBrowse";
@@ -44,7 +43,6 @@ router.get("/", async (_req: Request, res: Response) => {
       library: {
         listedTaskCount: listed?.length ?? null,
         autoApproveMinimumTasks: autoApproveMinimumTasks(),
-        gated: isRobotTeamEarlyAccessGated(),
       },
     });
   } catch (error) {

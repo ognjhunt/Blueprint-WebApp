@@ -16,7 +16,6 @@ export function jobLibrarySignInHref(): string {
 
 /** Mirrors `LibraryAccess` on the server. */
 export interface LibraryAccess {
-  gated: boolean;
   status: "applied" | "approved" | "declined" | "none";
   signedIn: boolean;
   emailVerified: boolean;
