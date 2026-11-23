@@ -12,7 +12,6 @@ function chooseCountry(value: "us" | "non_us") {
 
 const state = vi.hoisted(() => ({ user: null as any, rows: new Map<string, any>(), writes: vi.fn(), retireFailure: false, failWritesExcept: null as string | null }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: state.user, loading: false }) }));
-vi.mock('@/lib/analytics', () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
 vi.mock('@/lib/csrf', () => ({ withCsrfHeader: async (h: any) => h }));
 vi.mock('@/lib/siteCaptureDurability', () => ({
     readDurableSiteCaptureRecovery: async (key: string) => state.rows.get(key) ?? null,

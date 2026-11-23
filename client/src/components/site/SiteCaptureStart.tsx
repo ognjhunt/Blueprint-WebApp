@@ -12,7 +12,6 @@ import {
   isApprovedCaptureRegion,
   type CaptureRegion,
 } from "@/data/captureResidency";
-import { analyticsEvents } from "@/lib/analytics";
 import { checkEmail, EMAIL_HINT_SENTENCES, EMAIL_REFUSAL_SENTENCES, isEmailRefusal } from "@/lib/emailAddress";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
@@ -587,7 +586,6 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         if (response.status === 409 && recovery.current.pending && !recovery.current.pending.acknowledged) {
           await retain({ ...frozen.value, pending: { ...recovery.current.pending, acknowledged: true } }); setPending(recovery.current.pending);
         }
-        analyticsEvents.contactFormError("capture_start");
         // An email the server cannot send to: the sentence goes under the email field, which takes focus. The site
         // fixes it there, so no job reference is shown.
         if (result.field === "email" && isEmailRefusal(result.code) && !currentUser && [400, 422].includes(response.status)) {
@@ -613,7 +611,6 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         return;
       }
       setPending(recovery.current.pending);
-      analyticsEvents.contactFormSubmit("capture_start");
       // The screening form lower on the page shares this storage: nobody
       // types their identity twice on one page.
       try {

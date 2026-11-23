@@ -18,7 +18,6 @@ import { SiteLayout } from "./components/site/SiteLayout";
 import { LoadingScreen } from "./components/site/LoadingScreen";
 import { CanvasSurfaceSync } from "./components/site/CanvasSurfaceSync";
 import { CookieConsent } from "./components/CookieConsent";
-import { Analytics } from "./components/Analytics";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { installClientLogger } from "./utils/clientLogger";
@@ -99,7 +98,6 @@ const app = (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Analytics />
           <CanvasSurfaceSync />
           <Router />
           <Toaster />

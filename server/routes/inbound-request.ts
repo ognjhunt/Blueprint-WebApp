@@ -36,7 +36,6 @@ import {
   sendFilmLinkHandoff,
   shouldSendFilmerHandoff,
 } from "../utils/filmLinkHandoff";
-import { logGrowthEvent } from "../utils/growth-events";
 import { incrementInboundRequestStats } from "../utils/inboundRequestStats";
 import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import { admitIntake, admitIntakeMessage, intakeMessageSuppression, intakeRefusal } from "../utils/betaAbuseCaps";
@@ -868,15 +867,6 @@ function normalizeRealSiteRobotEvalFit(
   return hasRealSiteRobotEvalFit(normalized) ? normalized : null;
 }
 
-function hasFitField(
-  fit: RealSiteRobotEvalFitInput | null,
-  field: "metric_thresholds" | "safety_constraints" | "evidence_validation_needs",
-): boolean {
-  if (field === "metric_thresholds") return Boolean(fit?.taskCardInput?.requiredMetrics);
-  if (field === "safety_constraints") return Boolean(fit?.siteCardInput?.safetyConstraints);
-  return Boolean(fit?.evalCardInput?.resultsValidationExpectations);
-}
-
 function normalizeToken(value: string | null | undefined) {
   return String(value || "")
     .trim()
@@ -964,16 +954,6 @@ function toStructuredIntakeSummary(
     pilot_opportunity_gate_criteria: decision.pilotOpportunityGateCriteria,
     missing_pilot_opportunity_fields: decision.missingPilotOpportunityFields,
   };
-}
-
-function proofPathClassification(
-  outcome: ReturnType<typeof evaluateStructuredIntake>["proofPathOutcome"]
-) {
-  if (outcome === "exact_site" || outcome === "adjacent_site") {
-    return outcome;
-  }
-
-  return "needs_guidance";
 }
 
 function isProduction(): boolean {
@@ -1496,85 +1476,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
     const structuredIntake = toStructuredIntakeSummary(structuredIntakeDecision);
     const queueTags = [...new Set([...routing.queueTags, ...structuredIntakeDecision.filterTags])];
     queueTags.push(`request_path_${commercialRequestPath}`);
-    const emitRobotTeamFitChecked = async () => {
-      if (buyerType !== "robot_team") {
-        return;
-      }
-
-      await logGrowthEvent({
-        event: "robot_team_fit_checked",
-        source: "server:inbound_request",
-        properties: {
-          request_id: payload.requestId,
-          city: demandAttribution.demandCity || null,
-          requested_lane: requestedLanes[0] || null,
-          commercial_request_path: commercialRequestPath,
-          requested_lane_count: requestedLanes.length,
-          has_buyer_role: Boolean(payload.roleTitle?.trim()),
-          has_site_scope: Boolean(siteName || siteLocation || targetSiteType),
-          has_robot_or_policy: Boolean(
-            payload.targetRobotTeam?.trim() ||
-              realSiteRobotEvalFit?.evalCardInput?.robotOrPolicyTested
-          ),
-          has_metric_thresholds: hasFitField(realSiteRobotEvalFit, "metric_thresholds"),
-          has_safety_constraints: hasFitField(realSiteRobotEvalFit, "safety_constraints"),
-          has_evidence_validation_needs: hasFitField(
-            realSiteRobotEvalFit,
-            "evidence_validation_needs"
-          ),
-          exact_site_classification: proofPathClassification(
-            structuredIntakeDecision.proofPathOutcome
-          ),
-          adjacent_site_allowed: proofPathPreference === "adjacent_site_acceptable",
-          proof_path_preference: proofPathPreference || "unknown",
-          proof_ready_outcome: structuredIntakeDecision.proofReadyOutcome,
-          proof_path_outcome: structuredIntakeDecision.proofPathOutcome,
-          proof_readiness_score: structuredIntakeDecision.proofReadinessScore,
-          missing_proof_ready_fields: structuredIntakeDecision.missingProofReadyFields,
-        },
-        attribution: {
-          demandCity: demandAttribution.demandCity,
-          buyerChannelSource: demandAttribution.buyerChannelSource,
-          buyerChannelSourceCaptureMode:
-            demandAttribution.buyerChannelSourceCaptureMode,
-          utm: payload.context?.utm || {},
-        },
-        user: null,
-      });
-    };
-    const emitSiteOperatorClaimChecked = async () => {
-      if (buyerType !== "site_operator") {
-        return;
-      }
-
-      await logGrowthEvent({
-        event: "site_operator_claim_checked",
-        source: "server:inbound_request",
-        properties: {
-          request_id: payload.requestId,
-          city: demandAttribution.demandCity || null,
-          requested_lane: requestedLanes[0] || null,
-          commercial_request_path: commercialRequestPath,
-          requested_lane_count: requestedLanes.length,
-          site_operator_claim_outcome: structuredIntakeDecision.siteOperatorClaimOutcome,
-          access_boundary_outcome: structuredIntakeDecision.accessBoundaryOutcome,
-          site_claim_readiness_score: structuredIntakeDecision.siteClaimReadinessScore,
-          missing_site_claim_fields: structuredIntakeDecision.missingSiteClaimFields,
-          has_access_rules: Boolean(payload.operatingConstraints?.trim()),
-          has_privacy_security_boundary: Boolean(payload.privacySecurityConstraints?.trim()),
-          has_commercialization_boundary: Boolean(payload.derivedScenePermission?.trim()),
-        },
-        attribution: {
-          demandCity: demandAttribution.demandCity,
-          buyerChannelSource: demandAttribution.buyerChannelSource,
-          buyerChannelSourceCaptureMode:
-            demandAttribution.buyerChannelSourceCaptureMode,
-          utm: payload.context?.utm || {},
-        },
-        user: null,
-      });
-    };
-
     if (!db) {
       // The isolated local launch smoke boots the production build without
       // Firestore; its loopback-guarded profile may use the same tmpdir
@@ -1717,9 +1618,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
           logPath: DEV_INBOUND_REQUEST_LOG,
         },
       });
-
-      await emitRobotTeamFitChecked().catch(() => null);
-      await emitSiteOperatorClaimChecked().catch(() => null);
 
       logger.warn(
         { requestId: payload.requestId, logPath: DEV_INBOUND_REQUEST_LOG },
@@ -2127,82 +2025,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
       logger.warn({ error, requestId: payload.requestId }, "Could not update inbound request statistics");
     });
 
-    if (buyerType === "robot_team") {
-      await emitRobotTeamFitChecked().catch(() => null);
-
-      await logGrowthEvent({
-        event: "robot_team_inbound_captured",
-        source: "server:inbound_request",
-        properties: {
-          request_id: payload.requestId,
-          city: demandAttribution.demandCity || null,
-          has_buyer_role: Boolean(payload.roleTitle?.trim()),
-          requested_lane: requestedLanes[0] || null,
-          commercial_request_path: commercialRequestPath,
-          requested_lane_count: requestedLanes.length,
-          proof_path_preference: proofPathPreference,
-        },
-        attribution: {
-          demandCity: demandAttribution.demandCity,
-          buyerChannelSource: demandAttribution.buyerChannelSource,
-          buyerChannelSourceCaptureMode:
-            demandAttribution.buyerChannelSourceCaptureMode,
-          utm: payload.context?.utm || {},
-        },
-        user: null,
-      }).catch(() => null);
-
-      if (proofPathPreference === "exact_site_required") {
-        await logGrowthEvent({
-          event: "exact_site_request_created",
-          source: "server:inbound_request",
-          properties: {
-            request_id: payload.requestId,
-            city: demandAttribution.demandCity || null,
-            site_request_type: "exact_site_required",
-            commercial_request_path: commercialRequestPath,
-            has_buyer_role: Boolean(payload.roleTitle?.trim()),
-          },
-          attribution: {
-            demandCity: demandAttribution.demandCity,
-            buyerChannelSource: demandAttribution.buyerChannelSource,
-            buyerChannelSourceCaptureMode:
-              demandAttribution.buyerChannelSourceCaptureMode,
-            utm: payload.context?.utm || {},
-          },
-          user: null,
-        }).catch(() => null);
-      }
-
-      if (requestedLanes.includes("deeper_evaluation")) {
-        await logGrowthEvent({
-          event: "deeper_review_requested",
-          source: "server:inbound_request",
-          properties: {
-            request_id: payload.requestId,
-            city: demandAttribution.demandCity || null,
-            blocker_type: payload.humanGateTopics?.trim()
-              ? "human_gate_topics"
-              : payload.privacySecurityConstraints?.trim()
-                ? "privacy_security_constraints"
-                : "deeper_evaluation_requested",
-            commercial_request_path: commercialRequestPath,
-            has_buyer_role: Boolean(payload.roleTitle?.trim()),
-          },
-          attribution: {
-            demandCity: demandAttribution.demandCity,
-            buyerChannelSource: demandAttribution.buyerChannelSource,
-            buyerChannelSourceCaptureMode:
-              demandAttribution.buyerChannelSourceCaptureMode,
-            utm: payload.context?.utm || {},
-          },
-          user: null,
-        }).catch(() => null);
-      }
-    }
-    if (buyerType === "site_operator" && !internalTest) {
-      await emitSiteOperatorClaimChecked().catch(() => null);
-    }
 
     logger.info(
       {

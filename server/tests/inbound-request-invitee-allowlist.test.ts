@@ -23,7 +23,6 @@ vi.mock("../utils/field-encryption", () => ({
 }));
 vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => ({ sent: true })) }));
 vi.mock("../utils/slack", () => ({ notifySlackInboundRequest: vi.fn(async () => undefined) }));
-vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ ok: true })) }));
 vi.mock("../utils/rate-limit-redis", () => ({ getRateLimitRedisClient: () => null }));
 vi.mock("../utils/siteTaskBrief", () => ({
   TASK_BRIEFS_COLLECTION: "siteTaskBriefs",
@@ -44,7 +43,6 @@ vi.mock("../utils/filmLinkHandoff", async () => ({
 
 const { submitInboundRequest } = await import("../routes/inbound-request");
 const { sendEmail } = await import("../utils/email");
-const { logGrowthEvent } = await import("../utils/growth-events");
 const { inviteeDecision, inviteeDecisionForToken, parseInviteeAllowlist } = await import("../utils/inviteeAllowlist");
 
 const NOT_INVITED = "Blueprint is taking jobs from invited sites only for now, and this email is not on the list.";
@@ -169,7 +167,6 @@ describe("invitee allowlist at intake", () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect([...sharedFakeFirestoreState.docs.keys()]).toEqual([]);
     expect(sendEmail).not.toHaveBeenCalled();
-    expect(logGrowthEvent).not.toHaveBeenCalled();
   });
 
   it("lets a verified admin sign-in start a job that is not on the list, but not a typed admin email", async () => {

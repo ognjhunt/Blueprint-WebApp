@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { updateAnalyticsConsent } from "@/lib/analytics";
 
 const COOKIE_CONSENT_KEY = "blueprint_cookie_consent";
 /** Dispatched by the footer's "Cookie settings" link to reopen these choices. */
@@ -12,7 +11,6 @@ export function openCookieSettings() {
 
 export interface ConsentPreferences {
   analytics: boolean;
-  marketing: boolean;
   necessary: boolean;
   /**
    * Set when the choice was made while the browser sent Global Privacy
@@ -24,7 +22,7 @@ export interface ConsentPreferences {
 
 /**
  * Global Privacy Control (https://globalprivacycontrol.org): a browser-level
- * opt-out of sale and sharing. We treat it as "analytics and marketing off"
+ * opt-out of sale and sharing. We treat it as "analytics off"
  * unless the visitor turns them on themselves while the signal is present.
  */
 export function globalPrivacyControlEnabled(): boolean {
@@ -32,7 +30,7 @@ export function globalPrivacyControlEnabled(): boolean {
   return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
 }
 
-const optionalOff: ConsentPreferences = { analytics: false, marketing: false, necessary: true };
+const optionalOff: ConsentPreferences = { analytics: false, necessary: true };
 // A failed storage write must not resurrect a previous opt-in on navigation.
 let sessionChoice: ConsentPreferences | undefined;
 
@@ -46,8 +44,8 @@ export function refreshCookieConsentFromStorage(): ConsentPreferences | null {
 export function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  // Nothing optional is pre-selected: a visitor has to turn analytics or
-  // marketing on themselves.
+  // Nothing optional is pre-selected: a visitor has to turn analytics on
+  // themselves.
   const [preferences, setPreferences] = useState<ConsentPreferences>(optionalOff);
   const gpc = globalPrivacyControlEnabled();
 
@@ -57,7 +55,7 @@ export function CookieConsent() {
     const reopen = () => {
       try {
         const stored = getCookieConsent();
-        if (stored) setPreferences({ necessary: true, analytics: stored.analytics === true, marketing: stored.marketing === true });
+        if (stored) setPreferences({ necessary: true, analytics: stored.analytics === true });
       } catch { /* Keep the defaults. */ }
       setShowDetails(true);
       setIsVisible(true);
@@ -91,13 +89,11 @@ export function CookieConsent() {
     }
     setPreferences(consent);
     setIsVisible(false);
-    updateAnalyticsConsent(consent);
   };
 
   const handleAcceptAll = () => {
     const fullConsent = {
       analytics: true,
-      marketing: true,
       necessary: true,
       ...(gpc ? { gpc: true } : {}),
       timestamp: new Date().toISOString(),
@@ -117,7 +113,6 @@ export function CookieConsent() {
   const handleRejectAll = () => {
     const minimalConsent = {
       analytics: false,
-      marketing: false,
       necessary: true,
       timestamp: new Date().toISOString(),
     };
@@ -152,12 +147,12 @@ export function CookieConsent() {
 
         {/* Description */}
         <p className={`mb-4 text-sm text-[#62645d]${asBar("lg:col-start-1 lg:mb-0")}`}>
-          Essential cookies keep the site working. Choose whether to allow analytics and marketing cookies. Read our{" "}
+          Essential cookies keep the site working. Choose whether to allow analytics cookies. Read our{" "}
           <a href="/privacy" className="font-medium text-[#203d2e] underline underline-offset-4">Privacy Policy</a>.
         </p>
         {gpc && (
           <p className={`mb-4 text-sm text-[#62645d]${asBar("lg:col-start-1 lg:mb-0 lg:mt-2")}`}>
-            Your browser sends a Global Privacy Control signal, so analytics and marketing cookies stay off unless you turn them on here.
+            Your browser sends a Global Privacy Control signal, so analytics cookies stay off unless you turn them on here.
           </p>
         )}
 
@@ -188,20 +183,6 @@ export function CookieConsent() {
                 type="checkbox"
                 checked={preferences.analytics}
                 onChange={(e) => setPreferences(p => ({ ...p, analytics: e.target.checked }))}
-                className="h-4 w-4 rounded-none border-[#c5cabc] bg-[#f6f5ef] accent-[#203d2e] focus:ring-[#203d2e]"
-              />
-            </label>
-
-            {/* Marketing */}
-            <label className="flex min-h-[44px] cursor-pointer items-center justify-between">
-              <div>
-                <span className="text-sm font-medium text-[#22251e]">Marketing</span>
-                <p className="text-xs text-[#62645d]">Personalized ads and content</p>
-              </div>
-              <input
-                type="checkbox"
-                checked={preferences.marketing}
-                onChange={(e) => setPreferences(p => ({ ...p, marketing: e.target.checked }))}
                 className="h-4 w-4 rounded-none border-[#c5cabc] bg-[#f6f5ef] accent-[#203d2e] focus:ring-[#203d2e]"
               />
             </label>
@@ -250,7 +231,7 @@ export function CookieConsent() {
 
 // Utility to check consent status. Under Global Privacy Control, an opt-in
 // recorded without the signal is read as opted out: only a choice made while
-// the signal was present can turn analytics or marketing on.
+// the signal was present can turn analytics on.
 export function getCookieConsent(): ConsentPreferences | null {
   if (sessionChoice) {
     return globalPrivacyControlEnabled() && sessionChoice.gpc !== true
@@ -260,7 +241,7 @@ export function getCookieConsent(): ConsentPreferences | null {
     const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
     if (consent) {
       const stored = JSON.parse(consent) as ConsentPreferences;
-      if (!stored || typeof stored.analytics !== "boolean" || typeof stored.marketing !== "boolean") return null;
+      if (!stored || typeof stored.analytics !== "boolean") return null;
       if (globalPrivacyControlEnabled() && stored?.gpc !== true) {
         return { ...stored, ...optionalOff };
       }
@@ -278,17 +259,3 @@ export function isAnalyticsAllowed(): boolean {
   return consent?.analytics ?? false;
 }
 
-// Use this for personalization or marketing features that require explicit opt-in.
-// Example consumers: client/src/components/Analytics.tsx or any personalization logic.
-export function isPersonalizationAllowed(): boolean {
-  const consent = getCookieConsent();
-  return consent?.marketing ?? false;
-}
-
-// Extend Window interface for gtag
-declare global {
-  interface Window {
-    gtag?: (...args: unknown[]) => void;
-    dataLayer?: unknown[];
-  }
-}

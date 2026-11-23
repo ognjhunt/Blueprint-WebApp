@@ -10,7 +10,6 @@ function chooseCountry(value: "us" | "non_us") {
 
 const identity = vi.hoisted(() => ({ user: null as any }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: identity.user, loading: false }) }));
-vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => headers }));
 // Explicit unit durability contract fake; native storage is exercised separately.
 // Native strict IndexedDB execution is a separate layer.

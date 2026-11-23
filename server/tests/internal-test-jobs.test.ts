@@ -55,7 +55,6 @@ vi.mock("../utils/capturePrivacyScreen", () => ({
   screenCaptureForPrivacy: vi.fn(async () => ({ proceed: true, outcome: "cleared", eligibility: "unscreened", detail: null, evidence: null })),
 }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: vi.fn(() => { throw new Error("No model calls here"); }) }));
-vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ ok: true })) }));
 
 const SLACK = "https://hooks.slack.invalid/services/fixture";
 const originalFetch = globalThis.fetch;

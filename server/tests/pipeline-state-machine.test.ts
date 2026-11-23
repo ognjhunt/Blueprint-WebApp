@@ -18,7 +18,6 @@ import {
   stampProofPathMilestones,
   computeOpsEnvelopeFromPipeline,
   enrichEvaluationReadinessFromArtifacts,
-  growthEventsForStamps,
 } from "../utils/pipelineStateMachine";
 import type { PipelineArtifacts, ProofPathMilestones } from "../types/inbound-request";
 
@@ -289,38 +288,6 @@ describe("stampProofPathMilestones", () => {
       artifacts: arts,
     });
     expect(result.stampedThisSync).not.toContain("human_commercial_handoff_at");
-  });
-});
-
-// ── growthEventsForStamps tests ──
-
-describe("growthEventsForStamps", () => {
-  it("maps proof_pack_delivered_at to proof_pack_delivered event", () => {
-    expect(growthEventsForStamps(["proof_pack_delivered_at"])).toEqual(["proof_pack_delivered"]);
-  });
-
-  it("maps hosted_review_ready_at to hosted_review_ready event", () => {
-    expect(growthEventsForStamps(["hosted_review_ready_at"])).toEqual(["hosted_review_ready"]);
-  });
-
-  it("maps hosted_review_started_at to hosted_review_started event", () => {
-    expect(growthEventsForStamps(["hosted_review_started_at"])).toEqual(["hosted_review_started"]);
-  });
-
-  it("maps hosted_review_follow_up_at to hosted_review_follow_up_sent event", () => {
-    expect(growthEventsForStamps(["hosted_review_follow_up_at"])).toEqual(["hosted_review_follow_up_sent"]);
-  });
-
-  it("maps human_commercial_handoff_at to human_commercial_handoff_started event", () => {
-    expect(growthEventsForStamps(["human_commercial_handoff_at"])).toEqual(["human_commercial_handoff_started"]);
-  });
-
-  it("skips milestones with no event mapping", () => {
-    expect(growthEventsForStamps(["qualified_inbound_at", "artifact_handoff_delivered_at"])).toEqual([]);
-  });
-
-  it("returns empty array for empty input", () => {
-    expect(growthEventsForStamps([])).toEqual([]);
   });
 });
 

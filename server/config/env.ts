@@ -63,7 +63,6 @@ const envSchema = z
     TWILIO_PHONE_NUMBER: z.string().trim().optional(),
     BLUEPRINT_VOICE_FORWARD_NUMBER: z.string().trim().optional(),
     BLUEPRINT_VOICE_BOOKING_URL: z.string().trim().url().optional(),
-    BLUEPRINT_ANALYTICS_INGEST_ENABLED: z.string().trim().optional(),
     BLUEPRINT_ALL_AUTOMATION_ENABLED: z.string().trim().optional(),
     BLUEPRINT_WAITLIST_AUTOMATION_ENABLED: z.string().trim().optional(),
     BLUEPRINT_INBOUND_AUTOMATION_ENABLED: z.string().trim().optional(),

@@ -32,27 +32,6 @@ import type {
 } from "../types/inbound-request";
 
 // ────────────────────────────────────────────────
-// Milestone-to-growth-event mapping
-// ────────────────────────────────────────────────
-
-const MILESTONE_TO_GROWTH_EVENT: Partial<Record<keyof ProofPathMilestones, string>> = {
-  proof_pack_delivered_at: "proof_pack_delivered",
-  hosted_review_ready_at: "hosted_review_ready",
-  hosted_review_started_at: "hosted_review_started",
-  hosted_review_follow_up_at: "hosted_review_follow_up_sent",
-  human_commercial_handoff_at: "human_commercial_handoff_started",
-};
-
-export function growthEventsForStamps(stampedThisSync: (keyof ProofPathMilestones)[]): string[] {
-  const events: string[] = [];
-  for (const stamp of stampedThisSync) {
-    const event = MILESTONE_TO_GROWTH_EVENT[stamp];
-    if (event) events.push(event);
-  }
-  return events;
-}
-
-// ────────────────────────────────────────────────
 // Artifact presence detection
 // ────────────────────────────────────────────────
 

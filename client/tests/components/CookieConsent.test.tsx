@@ -52,7 +52,7 @@ describe("cookie consent placement", () => {
     expect(screen.getByRole("region", { name: "Cookie preferences" })).toBeInTheDocument();
   });
 
-  it("stays hidden once a choice is recorded", () => {
+  it("stays hidden once a choice is recorded, including one saved with the old Marketing choice", () => {
     atPath("/contact/site-operator");
     window.localStorage.setItem(
       "blueprint_cookie_consent",
@@ -67,7 +67,9 @@ describe("cookie consent placement", () => {
     renderAndElapse();
     fireEvent.click(screen.getByRole("button", { name: "Customize" }));
     expect(screen.getByRole("checkbox", { name: /Analytics/ })).not.toBeChecked();
-    expect(screen.getByRole("checkbox", { name: /Marketing/ })).not.toBeChecked();
+    // No advertising runs, so there is no Marketing choice.
+    expect(screen.queryByRole("checkbox", { name: /Marketing/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ads|marketing/i)).not.toBeInTheDocument();
   });
 });
 
@@ -86,7 +88,7 @@ describe("Global Privacy Control", () => {
       JSON.stringify({ analytics: true, marketing: true, necessary: true }),
     );
     sendGlobalPrivacyControl();
-    expect(getCookieConsent()).toMatchObject({ analytics: false, marketing: false, necessary: true });
+    expect(getCookieConsent()).toMatchObject({ analytics: false, necessary: true });
   });
 
   it("still lets a visitor opt in explicitly from cookie settings", () => {
@@ -98,7 +100,7 @@ describe("Global Privacy Control", () => {
     expect(screen.getByRole("checkbox", { name: /Analytics/ })).not.toBeChecked();
     fireEvent.click(screen.getByRole("checkbox", { name: /Analytics/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
-    expect(getCookieConsent()).toMatchObject({ analytics: true, marketing: false, gpc: true });
+    expect(getCookieConsent()).toMatchObject({ analytics: true, gpc: true });
   });
 });
 
@@ -128,7 +130,7 @@ describe("cookie choice resilience", () => {
     act(() => openCookieSettings());
     expect(screen.getByRole("checkbox", { name: /Analytics/ })).toBeChecked();
     fireEvent.click(screen.getByRole("button", { name: "Reject all", exact: true }));
-    expect(getCookieConsent()).toMatchObject({ analytics: false, marketing: false });
+    expect(getCookieConsent()).toMatchObject({ analytics: false });
   });
   it("keeps rejection effective when an old opt-in cannot be overwritten", () => {
     atPath("/privacy");
@@ -138,7 +140,7 @@ describe("cookie choice resilience", () => {
     const blocked = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("read only"); });
     fireEvent.click(screen.getByRole("button", { name: "Reject all", exact: true }));
     expect(JSON.parse(localStorage.getItem("blueprint_cookie_consent")!)).toMatchObject({ analytics: true });
-    expect(getCookieConsent()).toMatchObject({ analytics: false, marketing: false });
+    expect(getCookieConsent()).toMatchObject({ analytics: false });
     // Reopening/navigation reads the session choice, not the stale grant.
     act(() => openCookieSettings());
     expect(screen.getByRole("checkbox", { name: /Analytics/ })).not.toBeChecked();
