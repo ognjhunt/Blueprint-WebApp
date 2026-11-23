@@ -62,12 +62,8 @@ const CONSTANT_STATEMENTS = [
  * word and an appended sentence both fail. A `{expression}` child renders as `{…}`.
  */
 const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; text: string }> = [
-  // v3 (launch copy, owner approval in the consent pull request): the sign-up box says the application's words; the
-  // new-job fact sits on its own line above it; the Settings switch says what it sends. The application's own box
-  // (optional-updates-v2 and v3, the same words) was removed on 2026-11-23 (owner); it is recorded as retired once no
-  // page says these words any more.
-  { version: "optional-updates-v3", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
-    text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
+  // v3 (launch copy, owner approval in the consent pull request): the Settings switch says what it sends. The
+  // application's and the sign-up's "Blueprint updates" boxes were removed on 2026-11-23 (owner): RETIRED below.
   { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
   { version: "optional-updates-v2", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
   { version: "optional-updates-v3", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
@@ -98,6 +94,10 @@ const RETIRED_INLINE_STATEMENTS = [
     text: "Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime." },
   { version: "optional-updates-v1", was: "client/src/pages/RobotTeamSignUpFlow.tsx",
     text: "Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime." },
+  // The application's and the company sign-up's "Blueprint updates" boxes, removed on 2026-11-23 (owner). Settings
+  // keeps the switch.
+  { version: "optional-updates-v2 and optional-updates-v3", was: "client/src/components/site/PartnerApplication.tsx and client/src/pages/RobotTeamSignUpFlow.tsx",
+    text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
   // The application agrees to nothing since 2026-11-23 (owner): a Privacy Policy link sits beside Apply instead.
   { version: "terms and privacy acceptance v2", was: "client/src/components/site/PartnerApplication.tsx",
     text: "By applying, you agree to our Terms of Service and Privacy Policy." },
@@ -252,8 +252,8 @@ describe("recorded statements keep their exact text under their version", () => 
 
   it("knows every optional-updates surface: a new one must be added to the table above", () => {
     // RobotTeamEarlyAccess.tsx carried its own application until 2026-11-20; it now points to the one on /partners. The
-    // application's own box was removed on 2026-11-23 (owner).
-    const surfaces = ["client/src/pages/RobotTeamSignUpFlow.tsx"];
+    // application's and the sign-up's boxes were removed on 2026-11-23 (owner); Settings is the one place left.
+    const surfaces: string[] = [];
     for (const file of surfaces) expect(sourceText(file)).toMatch(/optionalUpdates/);
     const pinned = new Set(INLINE_STATEMENTS.filter(row => row.version === CURRENT_UPDATE_PREFERENCES_VERSION).map(row => row.file));
     for (const file of surfaces) expect(pinned.has(file), file).toBe(true);

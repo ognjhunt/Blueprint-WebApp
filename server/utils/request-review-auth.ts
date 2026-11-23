@@ -70,6 +70,44 @@ export function verifyAccountInvitationToken(token: string): AccountInvitationPa
   } catch { return null; }
 }
 
+/**
+ * A deployment company's emailed sign-in link: single use (the `jti` is spent on redemption, `companySignInLink.ts`),
+ * 15 minutes, and bound to its approved access record (`sourceId`, `revision`). Its own `kind`, so it is never accepted
+ * as an invitation, a review link or a claim link, and none of those is accepted as it.
+ */
+export interface AccountSignInPayload {
+  kind: "account_sign_in";
+  email: string;
+  sourceId: string;
+  revision: string;
+  jti: string;
+  exp: number;
+}
+export const ACCOUNT_SIGN_IN_TTL_SECONDS = 15 * 60;
+
+export function createAccountSignInToken(link: Omit<AccountSignInPayload, "kind" | "exp" | "jti">) {
+  const serialized = JSON.stringify({ ...link, kind: "account_sign_in", jti: crypto.randomBytes(16).toString("hex"),
+    exp: Math.floor(Date.now() / 1000) + ACCOUNT_SIGN_IN_TTL_SECONDS });
+  return `${toBase64Url(serialized)}.${signPayload(serialized)}`;
+}
+
+export function verifyAccountSignInToken(token: string): AccountSignInPayload | null {
+  try {
+    const parts = String(token || "").split(".");
+    if (parts.length !== 2) return null;
+    const serialized = fromBase64Url(parts[0]);
+    const actual = Buffer.from(parts[1]), expected = Buffer.from(signPayload(serialized));
+    if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return null;
+    const payload = JSON.parse(serialized) as AccountSignInPayload;
+    if (payload.kind !== "account_sign_in" || !Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()
+      || typeof payload.email !== "string" || !payload.email.includes("@")
+      || typeof payload.sourceId !== "string" || !/^[a-f0-9]{64}$/.test(payload.sourceId)
+      || typeof payload.revision !== "string" || !payload.revision
+      || typeof payload.jti !== "string" || !/^[a-f0-9]{32}$/.test(payload.jti)) return null;
+    return payload;
+  } catch { return null; }
+}
+
 export function createRequestReviewToken(requestId: string, ttlSeconds = 60 * 60 * 24 * 14) {
   const payload: RequestReviewTokenPayload = {
     kind: "request_review",

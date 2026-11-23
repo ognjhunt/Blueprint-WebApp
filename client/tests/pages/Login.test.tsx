@@ -7,6 +7,10 @@ const signInWithGoogle = vi.hoisted(() => vi.fn());
 const prepareGoogleSignIn = vi.hoisted(() => vi.fn());
 const completeGoogleRedirect = vi.hoisted(() => vi.fn());
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn }) }));
+const customSignIn = vi.hoisted(() => vi.fn());
+vi.mock("firebase/auth", () => ({ signInWithCustomToken: customSignIn }));
+vi.mock("@/lib/firebase", () => ({ auth: { fixture: true } }));
+vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "x-csrf-token": "t" }) }));
 beforeEach(() => {
   signIn.mockReset().mockResolvedValue(undefined);
   signInWithGoogle.mockReset().mockResolvedValue(undefined);
@@ -151,5 +155,43 @@ describe("Minimal sign in", () => {
     expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
     finish();
     await waitFor(() => expect(screen.getByRole("button", { name: /^sign in$/i })).toBeEnabled());
+  });
+
+  it("emails a deployment company a sign-in link, with the same answer for any address", async () => {
+    const message = "If that address belongs to an approved deployment company, we have emailed it a sign-in link. It works once, for 15 minutes.";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ok: true, message }), { status: 202 }));
+    render(<Login />);
+    fireEvent.click(screen.getByRole("button", { name: "Email me a sign-in link" }));
+    expect(screen.getByText("Enter your email.")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "team@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Email me a sign-in link" }));
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/robot-team-access/sign-in-link", expect.objectContaining({ method: "POST",
+      body: JSON.stringify({ email: "team@example.com" }) }));
+    expect(signIn).not.toHaveBeenCalled();
+    fetchMock.mockRestore();
+  });
+  it("spends an emailed sign-in link, takes it out of the address bar and signs the account in", async () => {
+    const assign = vi.spyOn(window.location, "assign").mockImplementation(() => undefined);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ customToken: "custom", returnTo: "/jobs/job-1" }), { status: 200 }));
+    customSignIn.mockResolvedValue({ user: { uid: "u1" } });
+    window.history.replaceState({}, "", "/sign-in?link=signed-link");
+    render(<Login />);
+    expect(window.location.search).toBe("");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/jobs/job-1"));
+    expect(fetchMock).toHaveBeenCalledWith("/api/robot-team-access/sign-in-link/redeem", expect.objectContaining({ body: JSON.stringify({ link: "signed-link" }) }));
+    expect(customSignIn).toHaveBeenCalledWith({ fixture: true }, "custom");
+    fetchMock.mockRestore(); assign.mockRestore();
+  });
+  it("says a spent or expired link no longer works", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      error: "This sign-in link no longer works. Ask for a new one on this page." }), { status: 403 }));
+    customSignIn.mockReset();
+    window.history.replaceState({}, "", "/sign-in?link=spent");
+    render(<Login />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("This sign-in link no longer works. Ask for a new one on this page.");
+    expect(customSignIn).not.toHaveBeenCalled();
+    fetchMock.mockRestore();
   });
 });
