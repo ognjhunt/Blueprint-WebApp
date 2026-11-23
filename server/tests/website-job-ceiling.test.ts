@@ -9,8 +9,11 @@ import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screenin
 const policy = { schema_version: "website_atlas_grant_policy.v1", maximum_cost_usd: 40, maximum_requests: 32,
   validity_seconds: 3600, provider_retention: "account_does_not_retain", approval_reference: "owner", approved_by: "owner" };
 const reader = (intakes: Record<string, any>[] = [],
-  runs: Array<{ run: Record<string, any>; result: Record<string, any> | null }> = []): WebsiteJobLedgerReader =>
-  ({ sceneIntakes: async () => intakes, screeningRuns: async () => runs });
+  runs: Array<{ run: Record<string, any>; result: Record<string, any> | null }> = [],
+  readings: Array<{ capture_id: string; budget: Record<string, any> | null }> = []): WebsiteJobLedgerReader =>
+  ({ sceneIntakes: async () => intakes, screeningRuns: async () => runs, captureReadings: async () => readings });
+const reading = (captureId: string, exposure: unknown) => ({ capture_id: captureId,
+  budget: { schema_version: "capture_coverage_inference_budget.v1", capture_id: captureId, exposure_usd: exposure } });
 const held = (maximum: number, settled?: number) => ({ admission: { maximum_cost_usd: maximum },
   ...(settled === undefined ? {} : { settlement: { actual_cost_usd: settled, status: "settled" } }) });
 const screening = (committed: string, generatedAt: string, revision = 1) => ({ run: { run_kind: "beta_policy_screening" },
@@ -226,13 +229,13 @@ describe("what counts against it", () => {
 
 describe("admission", () => {
   it("admits spend that fits exactly and refuses a micro-dollar more, the same way for every ledger", async () => {
-    const record = { website_preparation_reservations: { a: held(30) } };
+    const record = { website_preparation_reservations: { a: held(28) } };
     const intakes = [{ state: "accepted", request: { execution: { max_total_spend_usd: 5 } } }];
-    const input = { record, reader: reader(intakes, [screening("4", "2026-10-30T11:00:00Z")]) };
+    const input = { record, reader: reader(intakes, [screening("4", "2026-10-30T11:00:00Z")], [reading("capture-a", 2)]) };
     const { ceiling, spend } = await assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 1 });
     expect(websiteJobCeilingSummary(ceiling, spend)).toEqual({ schema_version: "website_job_ceiling.v1",
-      maximum_cost_usd: 40, source: "job_spending_cap", preparation_cost_usd: 30, native_construction_cost_usd: 5,
-      screening_cost_usd: 4, reserved_or_settled_cost_usd: 39, remaining_cost_usd: 1 });
+      maximum_cost_usd: 40, source: "job_spending_cap", preparation_cost_usd: 28, native_construction_cost_usd: 5,
+      screening_cost_usd: 4, capture_reading_cost_usd: 2, reserved_or_settled_cost_usd: 39, remaining_cost_usd: 1 });
     await expect(assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 1.000001 }))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
   });
@@ -348,5 +351,24 @@ describe("one cap at $40: every provider, every retry, released when a call ends
     await expect(assertWithinWebsiteJobCeiling({ record: small, reader: reader(), additionalCostUsd: 37.8 })).resolves.toBeDefined();
     await expect(assertWithinWebsiteJobCeiling({ record: small, reader: reader(), additionalCostUsd: 37.800001 }))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
+  });
+});
+
+describe("the video reading's ledger", () => {
+  it("counts every capture's whole reading exposure, and a capture with no reading as nothing", async () => {
+    const spend = await websiteJobSpend({ record: {}, reader: reader([], [],
+      [reading("capture-a", 1.0000001), reading("capture-b", 3), { capture_id: "capture-c", budget: null }]) });
+    expect(spend).toMatchObject({ capture_reading_micros: 1_000_001 + 3_000_000, total_micros: 4_000_001,
+      readable_total_micros: 4_000_001, unreadable: [] });
+  });
+
+  it("counts an unreadable or mismatched reading record as unbounded, so the cap admits nothing, and names it", async () => {
+    for (const budget of [reading("capture-a", "2").budget, reading("capture-a", -1).budget, reading("capture-z", 2).budget]) {
+      const spend = await websiteJobSpend({ record: {}, reader: reader([], [], [{ capture_id: "capture-a", budget }]) });
+      expect(spend.total_micros).toBe(Infinity);
+      expect(spend.unreadable).toEqual(["video reading of capture capture-a"]);
+      await expect(assertWithinWebsiteJobCeiling({ record: {}, reader: reader([], [], [{ capture_id: "capture-a", budget }]),
+        additionalCostUsd: 0.01 })).rejects.toThrow("website_scene_preparation_budget_exhausted");
+    }
   });
 });

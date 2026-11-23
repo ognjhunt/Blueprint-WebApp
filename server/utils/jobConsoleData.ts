@@ -325,6 +325,7 @@ async function costOf(requestId: string, record: Data): Promise<AdminJobDetail["
   const counted = {
     sceneIntakes: async () => { const rows = await ledgers.sceneIntakes(); entries += rows.length; return rows; },
     screeningRuns: async () => { const rows = await ledgers.screeningRuns(); entries += rows.length; return rows; },
+    captureReadings: async () => { const rows = await ledgers.captureReadings(); entries += rows.filter(row => row.budget).length; return rows; },
   };
   const spend = await websiteJobSpend({ record, reader: counted });
   if (!entries) return null;

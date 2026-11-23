@@ -1225,7 +1225,7 @@ it("counts the readings of every capture of the job, the current one and one the
 it("two preparation reservations racing after readings cannot both pass",async()=>{
   const {spend}=await budgetJob();
   readingsHold(39.2);
-  const results=await Promise.all(["d","e"].map(n=>reserveWebsitePreparationSpend("one",spend(n,0.4))
+  const results=await Promise.all(["d","e"].map(n=>reserveWebsitePreparationSpend("one",spend(n,0.5))
     .then(row=>row.status,(error:Error)=>error.message)));
   expect(results.sort()).toEqual(["admitted","website_scene_preparation_budget_exhausted"]);
   expect(Object.keys((state.docs.get("inboundRequests/one") as any).website_preparation_reservations)).toHaveLength(1);
