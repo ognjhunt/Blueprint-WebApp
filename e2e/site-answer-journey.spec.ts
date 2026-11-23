@@ -404,9 +404,10 @@ test.describe("desktop", () => {
 
     // 6. The site withdraws its recording permission: the job leaves the company's view at once.
     await page.goto(jobUrl);
-    await answer(page).getByRole("button", { name: "Job settings ›" }).click();
-    await page.getByText("Stop using my video", { exact: true }).click();
-    await page.getByRole("button", { name: "Stop using my video…" }).click();
+    // Two taps: open the row on the job page, then confirm once (ledger AL43). The row sits under the job's answer, so
+    // the answer is read first.
+    await expect(answer(page).getByRole("button", { name: "Job settings ›" })).toBeVisible();
+    await page.locator("section.job-more").getByText("Stop using my video", { exact: true }).click();
     await page.getByRole("button", { name: "Yes, stop using my video" }).click();
     await expect(page.getByText("Video withdrawn.", { exact: true })).toBeVisible();
     expect((await jobRecord(request, requestId)).access).toEqual({ listed: false, reason: "consent_withdrawn" });

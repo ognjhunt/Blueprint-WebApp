@@ -6,7 +6,7 @@ import { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY, type JobOutlook, t
 /** The job page's lines for the phase, kept in `@/lib/jobOutlook` so staff see the same words; re-exported here. */
 export { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY };
 import {
-  INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
+  INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn, introductionRequested,
   isIntroductionRefusalReason,
 } from "@/lib/siteIntroductions";
 import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
@@ -230,7 +230,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [requested, setRequested] = useState<string[]>([]);
-  // "Introduction requested." holds only until the server reads the introduction back. Once it no longer offers the
+  // The "we are emailing you" line holds only until the server reads the introduction back. Once it no longer offers the
   // button, the request is on record, so a later cancellation that may be asked again shows the button again.
   useEffect(() => {
     if (!isSiteCompanyActivity(activity)) return;
@@ -294,7 +294,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
           {requested.includes(entry.alias)
-            ? <p className="bare-helper" role="status">Introduction requested.</p>
+            ? <p className="bare-helper" role="status">{introductionRequested(entry.alias)}</p>
             : <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
               {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
             </BareButton>}

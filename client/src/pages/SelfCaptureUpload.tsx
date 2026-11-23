@@ -10,7 +10,6 @@ import { TaskDestinationAnswered, TaskDestinationChoice, isDestinationChoice, ty
 import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/RobotFit";
 import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/components/site/RobotFitHold";
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
-import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { JobCompanyResponses, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type DetailScreen } from "@/components/site/SiteAnswer";
 import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL, type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
@@ -748,8 +747,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </p>
       )}
       <TaskOutcomeNotice showTitle={false} outcome={status.outcome} />
-      {/* Said only while there is no answer: an answer, even one still reading, says where things stand. */}
-      {status.decision !== "ended" && !answer && <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />}</>}
+      </>}
       {!answer && cardExtras}
     </div>
   ) : null;
@@ -890,7 +888,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     {taskStatementForm}
     <TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount onConfirmed={onBriefConfirmed} />
   </details> : null;
-  // Job settings: every optional control, one per row; "Stop using my video" always among them.
+  // Job settings: every optional control, one per row. "Stop using my video" is among them until there is an answer;
+  // under an answer it sits on the job page itself, two taps from stopping (ledger AL43).
   const settingsScreen = <>
     <BareBack onClick={closeView} />
     <h1 tabIndex={-1}>Job settings</h1>
@@ -903,7 +902,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       ...(processingSection ? [{ key: "processing", label: "Processing status", body: processingSection }] : []),
       ...(advisory ? [{ key: "advisory", label: "Earlier video notes", body: advisory }] : []),
       { key: "contact", label: "Contact Blueprint about this job", href: "mailto:hello@tryblueprint.io" },
-      ...(withdrawal ? [{ key: "stop", label: stopLabel, body: withdrawal }] : []),
+      ...(withdrawal && !answer ? [{ key: "stop", label: stopLabel, body: withdrawal }] : []),
     ]} />
     {videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
   </>;
@@ -953,6 +952,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         outlook={status?.outlook ?? null} sceneViewUrl={sceneViewUrl}
         successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null}
         firstLookTable={status?.firstLookTable ?? null} jobFacts={siteActionWaiting ? null : jobFacts} />}
+      {answer && withdrawal && <section className="job-more job-more-plain" aria-label="More for this job">{withdrawal}</section>}
       {!answer && companyStatus && companyStatus.sharing.state !== "not_shared" && (
         <JobCompanyResponses token={token} sharing={companyStatus.sharing} activity={companyStatus.companies}
           onChanged={() => setStatusRefresh(value => value + 1)}

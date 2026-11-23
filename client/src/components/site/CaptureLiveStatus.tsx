@@ -2,7 +2,6 @@ import type { SiteAdvisory } from "@/types/siteAdvisory";
 import { SiteAdvisoryReport } from "./SiteAdvisoryReport";
 import { TaskOutcomeNotice } from "./TaskOutcomeNotice";
 import type { TaskOutcome } from "@/types/taskOutcome";
-import { NextTaskUpdate } from "./NextTaskUpdate";
 /**
  * The desktop reflecting what the phone is doing — from the server, not a guess.
  *
@@ -142,7 +141,6 @@ export function CaptureLiveStatus({
       <p className="ms-field-hint" style={{ marginTop: "4px" }}>
         {status.headline}
       </p>
-      <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
       <TaskOutcomeNotice showTitle={false} outcome={loadError ? null : status.outcome} />
       <SiteAdvisoryReport advisory={status.siteAdvisory} />
       <p className="ms-field-hint" style={{ marginTop: "4px", opacity: 0.8 }}>
