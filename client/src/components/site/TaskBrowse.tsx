@@ -18,8 +18,6 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
   const [items, setItems] = useState<TaskBrowseCard[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error" | "terms">("loading");
   const [retry, setRetry] = useState(0);
-  const [family, setFamily] = useState(() => browseParam("type").slice(0, 100));
-  const [region, setRegion] = useState(() => browseParam("region").slice(0, 100));
   const [search, setSearch] = useState(() => browseParam("q").slice(0, 100));
   const [readyToTest, setReadyToTest] = useState(() => browseParam("test") === "1");
   const [access, setAccess] = useState<LibraryAccess | null>(null);
@@ -63,13 +61,13 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
     const applied = Boolean(access && ["applied", "declined", "approved"].includes(access.status));
     if (state !== "loading") onLibrary?.(state === "ready" ? access === null || access.allowed : Boolean(currentUser), applied);
   }, [state, access, currentUser, onLibrary]);
-  const filterParams = { q: search, type: family, region, test: readyToTest ? "1" : "" };
+  const filterParams = { q: search, test: readyToTest ? "1" : "" };
   const filtersQuery = new URLSearchParams(Object.entries(filterParams).filter(([, value]) => value !== "")).toString();
   useEffect(() => {
     if (state !== "ready" || access?.allowed === false || window.location.pathname !== BROWSE_JOBS_PATH) return;
     const url = new URL(window.location.href);
     const selected = new URLSearchParams(filtersQuery);
-    // "view" was the open/past toggle; every listed job is open, so an old link's value is dropped.
+    // "view" was the open/past toggle, and "type" and "region" were filters; an old link's values are dropped.
     for (const key of ["q", "type", "region", "view", "test"]) {
       const value = selected.get(key);
       if (value) url.searchParams.set(key, value);
@@ -79,14 +77,13 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
   }, [state, access, filtersQuery]);
   const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const filtered = items.filter(item => {
-    if ((family && item.taskFamily !== family) || (region && item.region !== region)) return false;
     if (readyToTest && item.simulationDownloadAvailable !== true) return false;
-    const listing = [item.title, jobTitleForDisplay(item.title), item.taskFamily, item.region, item.objects, item.siteType].join(" ").toLowerCase();
+    const listing = [item.title, jobTitleForDisplay(item.title), item.sentence, item.taskFamily, item.region, item.objects, item.siteType].join(" ").toLowerCase();
     return terms.every(term => listing.includes(term));
   }).sort((left, right) => (Date.parse(right.publishedAtIso) || 0) - (Date.parse(left.publishedAtIso) || 0));
-  const filtersActive = Boolean(terms.length || family || region || readyToTest);
+  const filtersActive = Boolean(terms.length || readyToTest);
   function clearFilters() {
-    setSearch(""); setFamily(""); setRegion(""); setReadyToTest(false);
+    setSearch(""); setReadyToTest(false);
     searchInput.current?.focus();
   }
   // Nothing library-shaped renders until the server has said who may see it,
@@ -107,8 +104,6 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
   const gated = state === "ready" && access !== null && !access.allowed;
   if (gated) return <RobotTeamEarlyAccess access={access} email={currentUser?.email ?? null} onVerified={() => setRetry(value => value + 1)} />;
   // Staff see exactly what an approved company sees, with no hint of their own on this page.
-  const regions = [...new Set(items.map(item => item.region).filter(Boolean))].sort();
-  const families = [...new Set(items.map(item => item.taskFamily).filter(Boolean))].sort();
   return <section aria-label={BROWSE_JOBS_LABEL} className="opportunities">
     {items.length === 0 ? <div className="opportunities-empty">
       <Box size={24} aria-hidden="true" />
@@ -122,14 +117,6 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
             <Search size={18} aria-hidden="true" />
             <input ref={searchInput} type="search" value={search} maxLength={100} placeholder="Search jobs" onChange={event => setSearch(event.currentTarget.value)} />
           </label>
-          <select aria-label="Job type" value={family} onChange={event => setFamily(event.currentTarget.value)}>
-            <option value="">All job types</option>
-            {families.map(value => <option key={value}>{value}</option>)}
-          </select>
-          <select aria-label="Region" value={region} onChange={event => setRegion(event.currentTarget.value)}>
-            <option value="">All regions</option>
-            {regions.map(value => <option key={value}>{value}</option>)}
-          </select>
           <label className="opportunities-ready">
             <input type="checkbox" checked={readyToTest} onChange={event => setReadyToTest(event.currentTarget.checked)} />
             Ready to test
@@ -154,6 +141,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
             : <span className="opportunity-icon" aria-hidden="true"><Box size={24} strokeWidth={1.5} /></span>}
           <div className="opportunity-content">
             <h2 id={`job-title-${item.id}`}>{title}</h2>
+            {item.sentence && <p className="opportunity-sentence">{item.sentence}</p>}
             <div className="opportunity-meta">
               {item.taskFamily !== "Other" && item.taskFamily && <span>{item.taskFamily}</span>}
               {item.region && <span><MapPin size={14} aria-hidden="true" />{item.region}</span>}

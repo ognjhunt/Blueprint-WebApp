@@ -159,7 +159,7 @@ describe("a website evaluation held before any campaign started", () => {
     await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 1, alerted: 1 });
     expect(alert).toHaveBeenCalledTimes(1);
     expect(String((alert.mock.calls[0] as unknown[])[1])).toMatch(
-      /holds the scene stage: held_scene_check \(robot_free_probe_failed\)\. .*\/admin\/leads\/job-one/);
+      /holds the scene stage: held_scene_check \(robot_free_probe_failed\)\. .*\/admin\/jobs\?job=job-one/);
     await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toMatchObject({ alerted: 0 });
     // A stored campaign of the retired trial is never reported.
     state.docs.clear();

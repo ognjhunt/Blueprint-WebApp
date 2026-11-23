@@ -59,7 +59,7 @@ describe("terminal outbox failure scan", () => {
     expect(first).toEqual({ failed: 1, newlyAlerted: 1 });
     const text = String(alert.mock.calls[0][1]);
     expect(text).toContain("req-1");
-    expect(text).toContain("/admin/leads/req-1");
+    expect(text).toContain("/admin/jobs?job=req-1");
     expect(text).not.toContain("site@example.com");
     expect(text).not.toContain("secret body");
     expect(JSON.stringify(email.mock.calls)).not.toContain("site@example.com");
@@ -89,7 +89,7 @@ describe("terminal outbox failure scan", () => {
     await scanTerminalOutboxFailures({ store: store as never, alert, email: email as never });
     for (const text of [String(alert.mock.calls[0][1]), email.mock.calls[0][0].text]) {
       expect(text).toContain(`Firestore: captureOutbox/${entry.idempotencyKey} (inspect deliveryReceipts)`);
-      expect(text).not.toContain("/admin/leads/");
+      expect(text).not.toContain("/admin/jobs?job=");
       expect(text).not.toContain(entry.to);
       expect(text).not.toContain(entry.body);
     }
