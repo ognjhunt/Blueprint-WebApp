@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { COMPANY_APPLICATION_VERSION, COMPANY_ESTIMATE_TERMS_VERSION } from "@/lib/legalAcceptance";
+import { COMPANY_APPLICATION_VERSION, LIBRARY_MODEL_TERMS_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyJobPage } from "@/types/taskBrowse";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
@@ -326,7 +326,7 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("Two shifts", { selector: ".opportunity-meta span" })).toBeInTheDocument();
     const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(path).toBe("/api/robot-team-access/accept-terms");
-    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: COMPANY_ESTIMATE_TERMS_VERSION, privacyVersion: COMPANY_APPLICATION_VERSION });
+    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: LIBRARY_MODEL_TERMS_VERSION, privacyVersion: COMPANY_APPLICATION_VERSION });
   });
 });
 

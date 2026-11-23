@@ -46,6 +46,8 @@ function annexRow(label: string): string {
 // stay word for word.
 // Terms 2026-11-23.3 (owner, 2026-11-23: "yes build it this way"): two sentences on the estimate a company may give with
 // its answer; the Privacy Policy keeps 2026-11-23.2, and every promise below stays word for word on both pages.
+// Terms 2026-11-23.4 (owner, 2026-11-23): one sentence in section 6, Ownership, on a model in a simulation that comes from
+// a public library; the Privacy Policy keeps 2026-11-23.2, and every promise below stays word for word on both pages.
 const PROMISES = {
   sharing: "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.",
   contacts: "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.",
@@ -125,6 +127,25 @@ describe("a company's estimate", () => {
     expect(items("3.").join("\n")).toContain("An answer given before November 23, 2026 reaches you under an alias. An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it.");
     expect(items("4.")).toContain(`${PROMISES.companyApplication} If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.`);
     expect(privacyText).not.toMatch(/not a quote/);
+  });
+});
+
+// Terms 2026-11-23.4: models from public libraries (Google Scanned Objects, NVIDIA SimReady) go into the simulation a
+// deployment company downloads. They stay under their library's license, named in the simulation's README; Blueprint does
+// not own them and the Terms do not restrict them. The sentence sits in section 6 right after what Blueprint owns, in the
+// same paragraph, so it reads for everyone and for the section on what a deployment company may do with a job. What a
+// company may do with the rest of a job, and what a site is told about it, stays word for word.
+describe("a model from a public library", () => {
+  it("stays under its library's license, right after what Blueprint owns, and the use promises stay as they were", () => {
+    const OWNS = "Blueprint owns the Service, our software, and the simulations, their files and the reports we create, subject to the rights these Terms give you, including a site's right to withdraw its job.";
+    const ownership = termsSections.find(section => section.title === "6. Ownership")?.paragraphs ?? [];
+    expect(ownership).toHaveLength(1);
+    expect(ownership[0]).toContain(`${OWNS} ${terms.LIBRARY_MODEL_SENTENCE} If you send us feedback`);
+    expect(termsText.split(terms.LIBRARY_MODEL_SENTENCE)).toHaveLength(2);
+    expect(termsSections.find(section => section.title === "4. For deployment companies")?.items)
+      .toContain("You may use a job only to decide whether you can do it. You may not pass it on, use it to train software, or keep it after we ask you to delete it.");
+    expect(termsText).toContain(PROMISES.companyUse);
+    expect(privacyText).not.toMatch(/public library/);
   });
 });
 

@@ -17,6 +17,13 @@ export const OLDER_JOB_SENTENCE = "A job started before November 12, 2026 is sha
  */
 export const REPLACEMENT_SENTENCE = "If a company you were introduced to drops out, you can accept another company that applied or answered Tested it: can do.";
 export const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
+/**
+ * The Pipeline is starting to put models from public libraries (Google Scanned Objects, NVIDIA SimReady) into the
+ * simulation a deployment company downloads. They are under CC BY 4.0, which forbids adding terms that restrict a
+ * recipient's use (section 2(a)(5)(B)), and Blueprint does not own them (owner, 2026-11-23). It sits in section 6, right
+ * after what Blueprint owns, so it covers everyone, the section for deployment companies included.
+ */
+export const LIBRARY_MODEL_SENTENCE = "A model in a simulation that comes from a public library stays under that library's license, named in the simulation's README: Blueprint does not own it, and these Terms do not restrict it.";
 
 export const termsSections: readonly Section[] = [
   {
@@ -76,7 +83,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "6. Ownership",
     paragraphs: [
-      "You keep ownership of the content you give us. Blueprint owns the Service, our software, and the simulations, their files and the reports we create, subject to the rights these Terms give you, including a site's right to withdraw its job. If you send us feedback, we may use it without obligation to you.",
+      `You keep ownership of the content you give us. Blueprint owns the Service, our software, and the simulations, their files and the reports we create, subject to the rights these Terms give you, including a site's right to withdraw its job. ${LIBRARY_MODEL_SENTENCE} If you send us feedback, we may use it without obligation to you.`,
     ],
   },
   {

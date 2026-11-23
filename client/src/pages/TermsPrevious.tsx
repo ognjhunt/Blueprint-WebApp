@@ -4,10 +4,10 @@ import { PreviousLegalVersionNote } from "@/components/site/LegalVersionNotes";
 import { PREVIOUS_TERMS_URL, PREVIOUS_TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Terms of Service of version 2026-11-23.2, in force from 2026-11-23 until the next version replaced it
- * (owner, 2026-11-23: a deployment company may give an estimate with its answer, and a site sees it as an estimate
- * before a site visit, not a quote). Its sections are copied word for word from `Terms.tsx` as it stood at 2026-11-23.2.
- * Do not edit the sections: they are the agreement as it stood. Change Terms.tsx instead.
+ * FROZEN: the Terms of Service of version 2026-11-23.3, in force from 2026-11-23 until the next version replaced it
+ * (owner, 2026-11-23: a model in a simulation that comes from a public library stays under that library's license;
+ * Blueprint does not own it, and the Terms do not restrict it). Its sections are copied word for word from `Terms.tsx`
+ * as it stood at 2026-11-23.3. Do not edit the sections: they are the agreement as it stood. Change Terms.tsx instead.
  */
 
 type Section = { title: string; paragraphs?: readonly string[]; items?: readonly string[] };
@@ -18,7 +18,7 @@ const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address
 const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
 const OLDER_JOB_SENTENCE = "A job started before November 12, 2026 is shared with companies only after you agree to share it on the job's page.";
-/** What a site could do when a company it was introduced to drops out (owner, 2026-11-21), as 2026-11-23.2 said it. */
+/** What a site could do when a company it was introduced to drops out (owner, 2026-11-21), as 2026-11-23.3 said it. */
 const REPLACEMENT_SENTENCE = "If a company you were introduced to drops out, you can accept another company that applied or answered Tested it: can do.";
 const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
 
@@ -50,7 +50,7 @@ export const previousTermsSections: readonly Section[] = [
       "Avoid recording screens, documents and restricted areas where you can.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to make the job packet and the simulation, show you companies' responses, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
       SHARING_SENTENCE,
-      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you with its name and website, with its contact details taken out. An answer given before November 23, 2026 reaches you under an alias. When you accept a company that applied or answered Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.`,
+      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you with its name and website, with its contact details taken out. An answer given before November 23, 2026 reaches you under an alias. An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it. When you accept a company that applied or answered Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.`,
       COMPANY_USE_SENTENCE,
       WITHDRAWAL_SENTENCE,
       OLDER_JOB_SENTENCE,
@@ -63,7 +63,7 @@ export const previousTermsSections: readonly Section[] = [
     title: "4. For deployment companies",
     items: [
       "A deployment company applies for an account, and Blueprint approves each company. An approved company signs in, sees the jobs sites have shared, and can answer each one: Apply, Not a fit or Need more details. Once a job's simulation can be downloaded, it can also answer Tested it: can do or Tested it: cannot yet.",
-      COMPANY_APPLICATION_SENTENCE,
+      `${COMPANY_APPLICATION_SENTENCE} If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.`,
       "You may use a job only to decide whether you can do it. You may not pass it on, use it to train software, or keep it after we ask you to delete it.",
       "Nothing is charged today.",
     ],
