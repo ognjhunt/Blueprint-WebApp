@@ -101,8 +101,13 @@ for (const device of ["desktop", "mobile"] as const) {
         expect(bodies[0].siteLocation).toBe("Acme Foods, 12 Main Street, Austin");
         expect(bodies[0].siteLocationMetadata).toBeUndefined();
 
-        // Picked again, then the page reloads: the saved draft keeps the place and its parts.
+        // Picked again, then the page reloads: the saved draft keeps the place and its parts. The draft is saved
+        // under a cross-tab lock, after the pick, so the reload waits for the saved copy to hold the pick.
         await pick();
+        await expect.poll(() => page.evaluate(() => {
+          const draft = JSON.parse(localStorage.getItem("bp-site-capture:v1:anonymous:default") ?? "null")?.draft;
+          return draft ? { location: draft.location, placeParts: Boolean(draft.placeParts) } : null;
+        })).toEqual({ location: label, placeParts: true });
         await page.reload();
         await expect(page.locator("#start-location")).toHaveValue(label);
         await expect(page.locator("#start-region")).toHaveCount(0);
