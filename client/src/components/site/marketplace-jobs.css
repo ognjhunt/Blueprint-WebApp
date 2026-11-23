@@ -537,3 +537,5 @@
   .live-jobs .live-job { grid-template-columns: auto minmax(0, 1fr); }
   .live-job-open { grid-column: 2; }
 }
+.company-job-gate-facts { margin: 0 0 12px; color: var(--ms-muted); font-size: 15px; }
+.company-job-gate-form { margin: 8px 0 14px; }

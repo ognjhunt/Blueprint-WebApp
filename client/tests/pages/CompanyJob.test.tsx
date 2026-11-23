@@ -191,12 +191,30 @@ describe("the company's page for one job", () => {
     expect(await screen.findByRole("heading", { name: "Apply to see this job" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
     const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
-    expect(main.getByRole("link", { name: "Apply to see this job" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
+    // The four-field application is right here, pointed back at this job (no extra page to find).
+    expect(main.getByRole("form", { name: "Deployment company application" })).toBeInTheDocument();
     expect(within(main.getByRole("list", { name: "What an approved company sees" })).getAllByRole("listitem")).toHaveLength(4);
     expect(main.getByText(/brings you back to this job/)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
     expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends the application from a job's gated page with that job to return to", async () => {
+    auth.currentUser = null;
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Deployment company application" });
+    await waitFor(() => expect(within(form).getByLabelText("Your name")).toBeEnabled());
+    fireEvent.change(within(form).getByLabelText("Your name"), { target: { value: "Ada Lovelace" } });
+    fireEvent.change(within(form).getByLabelText("Work email"), { target: { value: "ada@arm.example" } });
+    fireEvent.change(within(form).getByLabelText("Company"), { target: { value: "Arm Co" } });
+    fireEvent.change(within(form).getByLabelText("Company website"), { target: { value: "https://arm.example" } });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ status: "applied", notificationStatus: "queued" }) });
+    fireEvent.submit(form);
+    await screen.findByText("Your application is saved.");
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/api/robot-team-access/apply");
+    expect(JSON.parse(String(init.body))).toMatchObject({ returnToJob: "/jobs/job-1", email: "ada@arm.example" });
   });
 
   it("says the job is not available when the server refuses it", async () => {
