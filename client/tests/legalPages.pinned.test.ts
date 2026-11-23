@@ -6,16 +6,18 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { termsSections } from "@/pages/Terms";
-import { previousTermsSections as terms232Sections } from "@/pages/TermsPrevious";
-import { previousTermsSections as terms21Sections } from "@/pages/TermsOlder";
-import { previousTermsSections as terms19Sections } from "@/pages/TermsFormer";
-import { previousTermsSections as terms17Sections } from "@/pages/TermsPrior";
-import { previousTermsSections as terms122Sections } from "@/pages/TermsPast";
-import { previousTermsSections as terms121Sections } from "@/pages/TermsBygone";
+import { LIBRARY_MODEL_SENTENCE, termsSections } from "@/pages/Terms";
+import { previousTermsSections as terms233Sections } from "@/pages/TermsPrevious";
+import { previousTermsSections as terms232Sections } from "@/pages/TermsOlder";
+import { previousTermsSections as terms21Sections } from "@/pages/TermsFormer";
+import { previousTermsSections as terms19Sections } from "@/pages/TermsPrior";
+import { previousTermsSections as terms17Sections } from "@/pages/TermsPast";
+import { previousTermsSections as terms122Sections } from "@/pages/TermsBygone";
+import { previousTermsSections as terms121Sections } from "@/pages/TermsLapsed";
 import {
   ANNOUNCED_SUPERSEDED_VERSION, BYGONE_PRIVACY_VERSION, BYGONE_TERMS_VERSION, CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION,
-  COMPANY_ESTIMATE_TERMS_VERSION, EARLIER_PRIVACY_VERSION, EARLIER_TERMS_VERSION, FORMER_PRIVACY_VERSION, FORMER_TERMS_VERSION, LAUNCH_COPY_VERSION, LEGAL_PAGE_DIGESTS, LEGAL_PAGE_DIGEST_VERSIONS, NO_EARLY_TRIAL_VERSION, OLDER_PRIVACY_VERSION,
+  COMPANY_ESTIMATE_TERMS_VERSION, EARLIER_PRIVACY_VERSION, EARLIER_TERMS_VERSION, FORMER_PRIVACY_VERSION, FORMER_TERMS_VERSION, LAPSED_TERMS_VERSION,
+  LAUNCH_COPY_VERSION, LEGAL_PAGE_DIGESTS, LEGAL_PAGE_DIGEST_VERSIONS, LIBRARY_MODEL_TERMS_VERSION, NO_EARLY_TRIAL_VERSION, OLDER_PRIVACY_VERSION,
   OLDER_TERMS_VERSION, PAST_PRIVACY_VERSION, PAST_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION, PREVIOUS_TERMS_VERSION, PRIOR_PRIVACY_VERSION, PRIOR_TERMS_VERSION,
   PRIVACY_VERSION, TERMS_VERSION, legalEffectiveDate,
 } from "@/lib/legalAcceptance";
@@ -41,7 +43,7 @@ describe("legal pages are pinned to their versions", () => {
   it("keeps the 2026-11-25.1 text, published ahead and replaced before it took effect, frozen as a record", () => {
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsAnnounced.tsx"].version).toBe("2026-11-25.1");
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyAnnounced.tsx"].version).toBe("2026-11-25.1");
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"].version).toBe("2026-11-12.2");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"].version).toBe("2026-11-12.2");
   });
 
   // Owner, 2026-11-12 (~21:45Z): "if they want to talk to 1 that should be fine if they want to go through the steps with 8
@@ -49,8 +51,9 @@ describe("legal pages are pinned to their versions", () => {
   // 2026-11-17.1 the text of 2026-11-12.2 was at /terms/previous and the 2026-11-12.1 page at `TermsOlder.tsx`; since
   // 2026-11-19.1 the 2026-11-12.2 page was kept byte for byte at `TermsOlder.tsx` and the 2026-11-12.1 page at
   // `TermsFormer.tsx`; since 2026-11-21.1 they were at `TermsFormer.tsx` and `TermsPrior.tsx`; since 2026-11-23.2 they
-  // were at `TermsPrior.tsx` and `TermsPast.tsx`; since Terms 2026-11-23.3 they are at `TermsPast.tsx` and
-  // `TermsBygone.tsx`, as the 2026-11-02.1 page is at `TermsEarlier.tsx`.
+  // were at `TermsPrior.tsx` and `TermsPast.tsx`; since Terms 2026-11-23.3 they were at `TermsPast.tsx` and
+  // `TermsBygone.tsx`; since Terms 2026-11-23.4 they are at `TermsBygone.tsx` and `TermsLapsed.tsx`, as the 2026-11-02.1
+  // page is at `TermsEarlier.tsx`.
   it("2026-11-12.2 removes exactly one sentence of 2026-11-12.1; the money sentence stays word for word", () => {
     const LIMIT = " You can ask for up to three introductions for each job.";
     const previous = JSON.stringify(terms121Sections), current = JSON.stringify(terms122Sections);
@@ -60,7 +63,7 @@ describe("legal pages are pinned to their versions", () => {
     const MONEY = "Blueprint charges no fee for and takes no percentage of any pilot or deployment.";
     expect(previous).toContain(MONEY);
     expect(current).toContain(MONEY);
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsLapsed.tsx"]).toEqual({ version: "2026-11-12.1",
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsEarlier.tsx"]).toEqual({ version: "2026-11-02.1",
       sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" });
@@ -101,7 +104,7 @@ describe("legal pages are pinned to their versions", () => {
     expect(tail(current)).toBe(tail(previous));
     expect(current).not.toMatch(/Z\.ai|OpenRouter/);
     expect(current).toContain('["DeepSeek", "Drafting and sorting internal work, where we configure it"]');
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsLapsed.tsx"]).toEqual({ version: "2026-11-12.1",
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyBygone.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" });
@@ -117,8 +120,8 @@ describe("legal pages are pinned to their versions", () => {
   // Since 2026-11-19.1 the 2026-11-17.1 pages were the previous pages and the pages before them were kept at `*Older.tsx`;
   // since 2026-11-21.1 the 2026-11-17.1 pages were at `*Older.tsx` and the pages before them at `*Former.tsx`; since
   // 2026-11-23.2 the 2026-11-17.1 pages were at `TermsFormer.tsx` and `PrivacyPrior.tsx`, and the pages before them at
-  // `TermsPrior.tsx` and `PrivacyPast.tsx`; since Terms 2026-11-23.3 the Terms pages are one slot further down, at
-  // `TermsPrior.tsx` and `TermsPast.tsx`.
+  // `TermsPrior.tsx` and `PrivacyPast.tsx`; since Terms 2026-11-23.3 the Terms pages were one slot further down, at
+  // `TermsPrior.tsx` and `TermsPast.tsx`; since Terms 2026-11-23.4 they are at `TermsPast.tsx` and `TermsBygone.tsx`.
   it("the no-blur version changes only the sentences on blurring; the previous pages keep the text in force before it", () => {
     const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
     const EARLIER_JOB = "For a job started under an earlier version of this policy, we still blur faces in the frames we send to World Labs to rebuild the work area.";
@@ -158,7 +161,7 @@ describe("legal pages are pinned to their versions", () => {
     const previousTerms = JSON.stringify(terms122Sections);
     expect(previousTerms.split(TERMS_FROM)).toHaveLength(2);
     expect(previousTerms.replace(TERMS_FROM, TERMS_TO)).toBe(JSON.stringify(terms17Sections));
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"].version).toBe("2026-11-12.2");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"].version).toBe("2026-11-12.2");
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPast.tsx"].version).toBe("2026-11-13.1");
     // The pages before it are the pages of 2026-11-13 before this change, word for word in their sections and copy.
     const previousPrivacy = read("client/src/pages/PrivacyPast.tsx");
@@ -169,8 +172,8 @@ describe("legal pages are pinned to their versions", () => {
   // Terms and Privacy 2026-11-19.1 remove every statement that Blueprint runs, keeps or shares an early trial or its
   // result, and change nothing else in meaning. The one other change names the version that "an earlier version" meant
   // in the blurring sentence, so a job started under 2026-11-17.1 is not read as blurred. Both are frozen pages since
-  // 2026-11-21.1; since Terms 2026-11-23.3 2026-11-19.1 is at `TermsFormer.tsx` and `PrivacyFormer.tsx`, 2026-11-17.1 at
-  // `TermsPrior.tsx` and `PrivacyPrior.tsx`; only the page shell differed when each was frozen, so their sections
+  // 2026-11-21.1; since Terms 2026-11-23.4 2026-11-19.1 is at `TermsPrior.tsx` and `PrivacyFormer.tsx`, 2026-11-17.1 at
+  // `TermsPast.tsx` and `PrivacyPrior.tsx`; only the page shell differed when each was frozen, so their sections
   // compare as they did.
   it("the no-early-trial version removes only the early trial; the pages before it keep the 2026-11-17.1 text", () => {
     const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
@@ -223,13 +226,14 @@ describe("legal pages are pinned to their versions", () => {
     }
     expect(JSON.stringify(terms19Sections)).toBe(expectedTerms);
     // Nothing on the 2026-11-19.1 pages says Blueprint runs, keeps or shares an early trial.
-    for (const text of [privacy, read("client/src/pages/TermsFormer.tsx")]) expect(text).not.toMatch(/early trial|robot software/i);
+    for (const text of [privacy, read("client/src/pages/TermsPrior.tsx")]) expect(text).not.toMatch(/early trial|robot software/i);
 
     // Privacy 2026-11-23.1 moved the Privacy slots one place further down than the Terms slots; Terms 2026-11-23.3 moved
-    // the Terms slots down too, so they sit level again.
-    expect([FORMER_TERMS_VERSION, FORMER_PRIVACY_VERSION]).toEqual([NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION]);
-    expect([PRIOR_TERMS_VERSION, PRIOR_PRIVACY_VERSION]).toEqual(["2026-11-17.1", "2026-11-17.1"]);
-    expect(legalEffectiveDate(FORMER_TERMS_VERSION)).toBe("November 19, 2026");
+    // the Terms slots down too, so they sat level again; Terms 2026-11-23.4 moved the Terms slots one place further down
+    // than the Privacy slots.
+    expect([PRIOR_TERMS_VERSION, FORMER_PRIVACY_VERSION]).toEqual([NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION]);
+    expect([PAST_TERMS_VERSION, PRIOR_PRIVACY_VERSION]).toEqual(["2026-11-17.1", "2026-11-17.1"]);
+    expect(legalEffectiveDate(PRIOR_TERMS_VERSION)).toBe("November 19, 2026");
     expect(legalEffectiveDate(FORMER_PRIVACY_VERSION)).toBe("November 19, 2026");
   });
 
@@ -240,8 +244,8 @@ describe("legal pages are pinned to their versions", () => {
   // marks, and the "review" and "evaluation" words. Every change is listed here; nothing else moves. The retention row
   // for site footage (g-003) and the money sentence (g-018) are held word for word. The previous pages keep the
   // 2026-11-19.1 text word for word: only the page shell differs, as for every previous page. Since 2026-11-23.2 the
-  // 2026-11-21.1 pages are frozen too, at `TermsPrevious.tsx` (`TermsOlder.tsx` since Terms 2026-11-23.3) and
-  // `PrivacyOlder.tsx`, and compare the same way.
+  // 2026-11-21.1 pages are frozen too, at `TermsPrevious.tsx` (`TermsOlder.tsx` since Terms 2026-11-23.3, `TermsFormer.tsx`
+  // since Terms 2026-11-23.4) and `PrivacyOlder.tsx`, and compare the same way.
   it("the launch-copy version makes exactly the approved changes; the previous pages keep the 2026-11-19.1 text", () => {
     const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
     const SHARING_FROM = "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit.";
@@ -366,26 +370,26 @@ describe("legal pages are pinned to their versions", () => {
     expect(body(privacy)).toBe(expectedBody);
     // What left stays gone, on the 2026-11-21.1 pages and on both current pages. (The Privacy Policy keeps Stripe's
     // records of payments made before the free beta, refunds included: no decision moved that row.)
-    for (const text of [privacy, read("client/src/pages/TermsOlder.tsx"), read("client/src/pages/Terms.tsx"), read("client/src/pages/Privacy.tsx")]) {
+    for (const text of [privacy, read("client/src/pages/TermsFormer.tsx"), read("client/src/pages/Terms.tsx"), read("client/src/pages/Privacy.tsx")]) {
       expect(text).not.toMatch(/early trial|robot software|unused balance|filming visit|phone line|voice assistant|ElevenLabs|mark as restricted|you mark out|job brief|simulated evaluation|order form/i);
     }
-    for (const file of ["client/src/pages/TermsOlder.tsx", "client/src/pages/Terms.tsx"]) expect(read(file)).not.toMatch(/refund/i);
+    for (const file of ["client/src/pages/TermsFormer.tsx", "client/src/pages/Terms.tsx"]) expect(read(file)).not.toMatch(/refund/i);
 
-    expect(OLDER_TERMS_VERSION).toBe(LAUNCH_COPY_VERSION);
+    expect(FORMER_TERMS_VERSION).toBe(LAUNCH_COPY_VERSION);
     expect(OLDER_PRIVACY_VERSION).toBe(LAUNCH_COPY_VERSION);
-    expect([FORMER_TERMS_VERSION, FORMER_PRIVACY_VERSION]).toEqual(["2026-11-19.1", "2026-11-19.1"]);
-    expect(legalEffectiveDate(OLDER_TERMS_VERSION)).toBe("November 21, 2026");
+    expect([PRIOR_TERMS_VERSION, FORMER_PRIVACY_VERSION]).toEqual(["2026-11-19.1", "2026-11-19.1"]);
+    expect(legalEffectiveDate(FORMER_TERMS_VERSION)).toBe("November 21, 2026");
     expect(legalEffectiveDate(OLDER_PRIVACY_VERSION)).toBe("November 21, 2026");
     // The pages that moved are kept byte for byte: their digests are the ones they had before each move.
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrior.tsx"]).toEqual({ version: "2026-11-17.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"]).toEqual({ version: "2026-11-17.1",
       sha256: "cb7276aa54fa2044a391900ce89ac1a23c64a0a088bbc7b2de4104390d6135c9" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"]).toEqual({ version: "2026-11-17.1",
       sha256: "dd1cf7021b9bcd521dd82d75051649d6a1ec176580d74f22b3870cb9de8db229" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"]).toEqual({ version: "2026-11-12.2",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPast.tsx"]).toEqual({ version: "2026-11-13.1",
       sha256: "cc64b063dc906beb69ba2e7ddcdd02cadaf2e27e86c0b59157478cc038eb8099" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsLapsed.tsx"]).toEqual({ version: "2026-11-12.1",
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyBygone.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" });
@@ -413,7 +417,7 @@ describe("legal pages are pinned to their versions", () => {
     expect(PREVIOUS_PRIVACY_VERSION).toBe("2026-11-23.1");
     expect(legalEffectiveDate(PREVIOUS_PRIVACY_VERSION)).toBe("November 23, 2026");
     // The Terms in force beside it were 2026-11-21.1, and the Privacy Policy it replaced was 2026-11-21.1.
-    expect([OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual([LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION]);
+    expect([FORMER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual([LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION]);
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyFormer.tsx"]).toEqual({ version: "2026-11-19.1",
       sha256: "4bea76fcde690b85752bd60bf7396a270d369921e698dab056b683d561922ccf" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"]).toEqual({ version: "2026-11-17.1",
@@ -430,7 +434,8 @@ describe("legal pages are pinned to their versions", () => {
   // stays under an alias. Every change is listed here; nothing else moves. The previous pages keep the Terms 2026-11-21.1
   // and Privacy 2026-11-23.1 text word for word: only the page shell differs, as for every previous page. Every page that
   // moved is kept byte for byte. Since Terms 2026-11-23.3 the 2026-11-23.2 Terms page is frozen at `TermsPrevious.tsx` and
-  // the 2026-11-21.1 page is at `TermsOlder.tsx`; their sections compare as they did.
+  // the 2026-11-21.1 page is at `TermsOlder.tsx`; since Terms 2026-11-23.4 they are at `TermsOlder.tsx` and
+  // `TermsFormer.tsx`; their sections compare as they did.
   it("the application version makes exactly the approved changes; the previous pages keep the text in force before it", () => {
     const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
     const ALIAS = "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.";
@@ -485,25 +490,25 @@ describe("legal pages are pinned to their versions", () => {
     expect(body(previousPrivacy).split(sharingFrom)).toHaveLength(2);
     expect(body(privacy)).toBe(body(previousPrivacy).replace(sharingFrom, sharingTo));
     // Neither current page names the old answer or the old button, and both keep the alias only for earlier answers; nor
-    // does the 2026-11-23.2 Terms page, frozen since Terms 2026-11-23.3.
-    for (const text of [read("client/src/pages/Terms.tsx"), read("client/src/pages/TermsPrevious.tsx"), privacy]) {
+    // does the 2026-11-23.2 Terms page, frozen since Terms 2026-11-23.3 (at `TermsOlder.tsx` since Terms 2026-11-23.4).
+    for (const text of [read("client/src/pages/Terms.tsx"), read("client/src/pages/TermsOlder.tsx"), privacy]) {
       expect(text).not.toMatch(/Interested|Introduce us|COMPANY_ALIAS_SENTENCE/);
       expect(text).toContain(APPLICATION);
     }
 
-    // Since Terms 2026-11-23.3 the 2026-11-23.2 Terms are the previous Terms; the Privacy Policy is still 2026-11-23.2.
-    expect([PREVIOUS_TERMS_VERSION, PRIVACY_VERSION]).toEqual([COMPANY_APPLICATION_VERSION, COMPANY_APPLICATION_VERSION]);
+    // Since Terms 2026-11-23.4 the 2026-11-23.2 Terms are the older Terms; the Privacy Policy is still 2026-11-23.2.
+    expect([OLDER_TERMS_VERSION, PRIVACY_VERSION]).toEqual([COMPANY_APPLICATION_VERSION, COMPANY_APPLICATION_VERSION]);
     expect(COMPANY_APPLICATION_VERSION).toBe("2026-11-23.2");
-    expect(legalEffectiveDate(PREVIOUS_TERMS_VERSION)).toBe("November 23, 2026");
-    expect([OLDER_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION]);
+    expect(legalEffectiveDate(OLDER_TERMS_VERSION)).toBe("November 23, 2026");
+    expect([FORMER_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION]);
     // The pages that moved are kept byte for byte: their digests are the ones they had before the move.
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsFormer.tsx"]).toEqual({ version: "2026-11-19.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrior.tsx"]).toEqual({ version: "2026-11-19.1",
       sha256: "9febe464cf76b6e77b03c72c6f48464c1611dcfb35203d54e600b09d42ad1771" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrior.tsx"]).toEqual({ version: "2026-11-17.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"]).toEqual({ version: "2026-11-17.1",
       sha256: "cb7276aa54fa2044a391900ce89ac1a23c64a0a088bbc7b2de4104390d6135c9" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"]).toEqual({ version: "2026-11-12.2",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsLapsed.tsx"]).toEqual({ version: "2026-11-12.1",
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyOlder.tsx"]).toEqual({ version: "2026-11-21.1",
       sha256: "ffda6e2de60e1a97f79321a688482a477bc4c01ff2c3c0923698b350e7917e93" });
@@ -522,7 +527,9 @@ describe("legal pages are pinned to their versions", () => {
   // quote. Terms 2026-11-23.3 add exactly two sentences, one in the section for sites beside how a company's answer
   // reaches the site and one in the section for deployment companies beside what a site sees of an answer, and change
   // nothing else. The Privacy Policy does not change: it keeps 2026-11-23.2, and no Privacy page moves. The previous
-  // Terms page keeps the 2026-11-23.2 text word for word, and every Terms page that moved is kept byte for byte.
+  // Terms page keeps the 2026-11-23.2 text word for word, and every Terms page that moved is kept byte for byte. Since
+  // Terms 2026-11-23.4 the 2026-11-23.3 Terms page is frozen at `TermsPrevious.tsx` and the 2026-11-23.2 page is at
+  // `TermsOlder.tsx`; their sections compare as they did.
   it("Terms 2026-11-23.3 add only the two estimate sentences; the Privacy Policy and its pages do not change", () => {
     const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
     const APPLICATION = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
@@ -538,26 +545,27 @@ describe("legal pages are pinned to their versions", () => {
       expect(expectedTerms.split(from), from).toHaveLength(count + 1);
       expectedTerms = expectedTerms.split(from).join(to);
     }
-    expect(JSON.stringify(termsSections)).toBe(expectedTerms);
+    expect(JSON.stringify(terms233Sections)).toBe(expectedTerms);
     // Each sentence sits in its own section: the site's sentence in section 3, the company's in section 4.
-    const items = (number: string) => termsSections.find(section => section.title.startsWith(number))?.items ?? [];
+    const items = (number: string) => terms233Sections.find(section => section.title.startsWith(number))?.items ?? [];
     expect(items("3.").filter(item => item.includes(SITE_ESTIMATE))).toHaveLength(1);
     expect(items("4.")).toContain(`${APPLICATION} ${COMPANY_ESTIMATE}`);
-    const termsText = JSON.stringify(termsSections);
+    const termsText = JSON.stringify(terms233Sections);
     expect(termsText.split("estimate").length - 1).toBe(4);
     // No figure, currency or price of Blueprint's own comes with them, and what was held word for word still is.
     for (const sentence of [SITE_ESTIMATE, COMPANY_ESTIMATE]) expect(sentence).not.toMatch(/[$€£¥]|\d|USD|dollar|fee|price/i);
     expect(termsText).toContain("Blueprint charges no fee for and takes no percentage of any pilot or deployment.");
     expect(termsText).toContain("We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.");
-    expect(termsSections.find(section => section.title === "11. Changes to these Terms")?.paragraphs?.[0])
+    expect(terms233Sections.find(section => section.title === "11. Changes to these Terms")?.paragraphs?.[0])
       .toMatch(/email account holders before a material change takes effect/);
-    // The 2026-11-23.2 Terms page, now the previous one, says nothing of an estimate.
+    // The 2026-11-23.2 Terms page, now the older one, says nothing of an estimate.
     expect(JSON.stringify(terms232Sections)).not.toMatch(/before a site visit|not a quote/);
 
-    expect([TERMS_VERSION, PRIVACY_VERSION]).toEqual([COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_APPLICATION_VERSION]);
+    // Since Terms 2026-11-23.4 the 2026-11-23.3 Terms are the previous Terms; the Privacy Policy is still 2026-11-23.2.
+    expect([PREVIOUS_TERMS_VERSION, PRIVACY_VERSION]).toEqual([COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_APPLICATION_VERSION]);
     expect(COMPANY_ESTIMATE_TERMS_VERSION).toBe("2026-11-23.3");
-    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 23, 2026");
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([COMPANY_APPLICATION_VERSION, CITY_STATE_PRIVACY_VERSION]);
+    expect(legalEffectiveDate(PREVIOUS_TERMS_VERSION)).toBe("November 23, 2026");
+    expect([OLDER_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([COMPANY_APPLICATION_VERSION, CITY_STATE_PRIVACY_VERSION]);
     // The Privacy pages are the same bytes as before: no Privacy slot moves.
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/Privacy.tsx"]).toEqual({ version: "2026-11-23.2",
       sha256: "b15096f220f555ca9ca107d8389ffd1f0f48d1254b74613005f170346999bbb5" });
@@ -574,24 +582,96 @@ describe("legal pages are pinned to their versions", () => {
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyBygone.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" });
     // The Terms pages that moved are kept byte for byte: their digests are the ones they had before the move.
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsOlder.tsx"]).toEqual({ version: "2026-11-21.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsOlder.tsx"]).toEqual({ version: "2026-11-23.2",
+      sha256: "546909384564aa1bc1a0aee7a56abc63fa347f1a7fc2ed00b2e7e7cd0a870b4b" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsFormer.tsx"]).toEqual({ version: "2026-11-21.1",
       sha256: "c34a330db07e8bebb525d5459a3eb86fb01b49e90a0af65b64e4f5b403bfe4dd" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsFormer.tsx"]).toEqual({ version: "2026-11-19.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrior.tsx"]).toEqual({ version: "2026-11-19.1",
       sha256: "9febe464cf76b6e77b03c72c6f48464c1611dcfb35203d54e600b09d42ad1771" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrior.tsx"]).toEqual({ version: "2026-11-17.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"]).toEqual({ version: "2026-11-17.1",
       sha256: "cb7276aa54fa2044a391900ce89ac1a23c64a0a088bbc7b2de4104390d6135c9" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"]).toEqual({ version: "2026-11-12.2",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsLapsed.tsx"]).toEqual({ version: "2026-11-12.1",
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
+  });
+
+  // Owner, 2026-11-23: approved adding exactly one sentence. The Pipeline is starting to put 3D models from public
+  // libraries (Google Scanned Objects, NVIDIA SimReady) into the simulation a deployment company downloads; those models
+  // are under CC BY 4.0, which forbids adding terms that restrict a recipient's use, and Blueprint does not own them.
+  // Terms 2026-11-23.4 add that sentence in section 6 (Ownership), right after what Blueprint owns and in the same
+  // paragraph, so it covers everyone and the section for deployment companies, and change nothing else. It only loosens,
+  // so nobody is asked to agree again. The Privacy Policy does not change: it keeps 2026-11-23.2, and no Privacy page
+  // moves. The previous Terms page keeps the 2026-11-23.3 text word for word, and every Terms page that moved is kept
+  // byte for byte.
+  it("Terms 2026-11-23.4 add only the library-model sentence, after what Blueprint owns; the Privacy Policy and its pages do not change", () => {
+    const LIBRARY = "A model in a simulation that comes from a public library stays under that library's license, named in the simulation's README: Blueprint does not own it, and these Terms do not restrict it.";
+    const OWNS = "Blueprint owns the Service, our software, and the simulations, their files and the reports we create, subject to the rights these Terms give you, including a site's right to withdraw its job.";
+    expect(LIBRARY_MODEL_SENTENCE).toBe(LIBRARY);
+    const from = `${OWNS} If you send us feedback`;
+    const expectedTerms = JSON.stringify(terms233Sections);
+    expect(expectedTerms.split(from)).toHaveLength(2);
+    expect(JSON.stringify(termsSections)).toBe(expectedTerms.replace(from, `${OWNS} ${LIBRARY} If you send us feedback`));
+    // It sits in section 6, in the one ownership paragraph, right after the ownership sentence.
+    expect(termsSections.find(section => section.title === "6. Ownership")?.paragraphs).toEqual([
+      `You keep ownership of the content you give us. ${OWNS} ${LIBRARY} If you send us feedback, we may use it without obligation to you.`]);
+    const termsText = JSON.stringify(termsSections);
+    expect(termsText.split("public library").length - 1).toBe(1);
+    // No figure, currency or price comes with it, and what was held word for word still is, the use restrictions included.
+    expect(LIBRARY).not.toMatch(/[$€£¥]|\d|USD|dollar|fee|price/i);
+    expect(termsText).toContain("Blueprint charges no fee for and takes no percentage of any pilot or deployment.");
+    expect(termsText).toContain("We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.");
+    expect(termsText).toContain("A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.");
+    expect(termsText).toContain("You may use a job only to decide whether you can do it. You may not pass it on, use it to train software, or keep it after we ask you to delete it.");
+    expect(termsSections.find(section => section.title === "11. Changes to these Terms")?.paragraphs?.[0])
+      .toMatch(/email account holders before a material change takes effect/);
+    // The 2026-11-23.3 Terms page, now the previous one, says nothing of a public library.
+    expect(JSON.stringify(terms233Sections)).not.toMatch(/public library/);
+
+    expect([TERMS_VERSION, PRIVACY_VERSION]).toEqual([LIBRARY_MODEL_TERMS_VERSION, COMPANY_APPLICATION_VERSION]);
+    expect(LIBRARY_MODEL_TERMS_VERSION).toBe("2026-11-23.4");
+    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 23, 2026");
+    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([COMPANY_ESTIMATE_TERMS_VERSION, CITY_STATE_PRIVACY_VERSION]);
+    // The Privacy pages are the same bytes as before: no Privacy slot moves.
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/Privacy.tsx"]).toEqual({ version: "2026-11-23.2",
+      sha256: "b15096f220f555ca9ca107d8389ffd1f0f48d1254b74613005f170346999bbb5" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrevious.tsx"]).toEqual({ version: "2026-11-23.1",
+      sha256: "8ee31f21a7e98349814556e889de7f610114df60b3c06cbffa128cc274b784b4" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyOlder.tsx"]).toEqual({ version: "2026-11-21.1",
+      sha256: "ffda6e2de60e1a97f79321a688482a477bc4c01ff2c3c0923698b350e7917e93" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyFormer.tsx"]).toEqual({ version: "2026-11-19.1",
+      sha256: "4bea76fcde690b85752bd60bf7396a270d369921e698dab056b683d561922ccf" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"]).toEqual({ version: "2026-11-17.1",
+      sha256: "dd1cf7021b9bcd521dd82d75051649d6a1ec176580d74f22b3870cb9de8db229" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPast.tsx"]).toEqual({ version: "2026-11-13.1",
+      sha256: "cc64b063dc906beb69ba2e7ddcdd02cadaf2e27e86c0b59157478cc038eb8099" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyBygone.tsx"]).toEqual({ version: "2026-11-12.2",
+      sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyEarlier.tsx"]).toEqual({ version: "2026-11-02.1",
+      sha256: "cad7fcac5cc1ec468ab74471a13a5e61a208b697deafd97b4039f01ab38eab3c" });
+    // The Terms pages that moved are kept byte for byte: their digests are the ones they had before the move.
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsOlder.tsx"]).toEqual({ version: "2026-11-23.2",
+      sha256: "546909384564aa1bc1a0aee7a56abc63fa347f1a7fc2ed00b2e7e7cd0a870b4b" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsFormer.tsx"]).toEqual({ version: "2026-11-21.1",
+      sha256: "c34a330db07e8bebb525d5459a3eb86fb01b49e90a0af65b64e4f5b403bfe4dd" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrior.tsx"]).toEqual({ version: "2026-11-19.1",
+      sha256: "9febe464cf76b6e77b03c72c6f48464c1611dcfb35203d54e600b09d42ad1771" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPast.tsx"]).toEqual({ version: "2026-11-17.1",
+      sha256: "cb7276aa54fa2044a391900ce89ac1a23c64a0a088bbc7b2de4104390d6135c9" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsBygone.tsx"]).toEqual({ version: "2026-11-12.2",
+      sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsLapsed.tsx"]).toEqual({ version: "2026-11-12.1",
+      sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsEarlier.tsx"]).toEqual({ version: "2026-11-02.1",
+      sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" });
   });
 
   it("each digest was recorded against the version now in force for its page", () => {
     expect({ terms: TERMS_VERSION, privacy: PRIVACY_VERSION, previousTerms: PREVIOUS_TERMS_VERSION, previousPrivacy: PREVIOUS_PRIVACY_VERSION,
       olderTerms: OLDER_TERMS_VERSION, olderPrivacy: OLDER_PRIVACY_VERSION, formerTerms: FORMER_TERMS_VERSION, formerPrivacy: FORMER_PRIVACY_VERSION,
       priorTerms: PRIOR_TERMS_VERSION, priorPrivacy: PRIOR_PRIVACY_VERSION, pastTerms: PAST_TERMS_VERSION, pastPrivacy: PAST_PRIVACY_VERSION,
-      bygoneTerms: BYGONE_TERMS_VERSION, bygonePrivacy: BYGONE_PRIVACY_VERSION, announced: ANNOUNCED_SUPERSEDED_VERSION, earlierTerms: EARLIER_TERMS_VERSION,
-      earlierPrivacy: EARLIER_PRIVACY_VERSION },
+      bygoneTerms: BYGONE_TERMS_VERSION, bygonePrivacy: BYGONE_PRIVACY_VERSION, lapsedTerms: LAPSED_TERMS_VERSION, announced: ANNOUNCED_SUPERSEDED_VERSION,
+      earlierTerms: EARLIER_TERMS_VERSION, earlierPrivacy: EARLIER_PRIVACY_VERSION },
       "a legal version changed without recording its page's new digest; a change needs a new version approved by the owner")
       .toEqual(LEGAL_PAGE_DIGEST_VERSIONS);
   });

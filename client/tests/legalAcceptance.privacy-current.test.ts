@@ -4,8 +4,8 @@
  * acceptance still counts. List an earlier version only when the new version changes nothing for existing accounts.
  */
 import { describe, expect, it } from "vitest";
-import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION,
-  legalEffectiveAtMs } from "@/lib/legalAcceptance";
+import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, COMPANY_ESTIMATE_TERMS_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION,
+  NO_FACE_BLUR_VERSION, legalEffectiveAtMs } from "@/lib/legalAcceptance";
 import { PREVIOUS_PRIVACY_VERSION, PRIVACY_VERSION, PRIVACY_VERSIONS_CURRENT_WITH_TERMS,
   acceptedVersionsAreCurrent, TERMS_VERSION } from "@/lib/legalAcceptance";
 
@@ -24,7 +24,9 @@ const DECIDE = "The Privacy Policy version changed. Decide in EARLIER_PRIVACY_VE
 // name and website, under the answer line the company answered under; owner, 2026-11-23) changes nothing for an
 // existing account: 2026-11-23.1 and every version that counted before it still count, and nobody is asked again.
 // Terms 2026-11-23.3 (an estimate a company gives is its own, not a quote; owner, 2026-11-23) leaves the Privacy Policy
-// at 2026-11-23.2: the same Privacy versions count beside it as beside Terms 2026-11-23.2.
+// at 2026-11-23.2: the same Privacy versions count beside it as beside Terms 2026-11-23.2. Terms 2026-11-23.4 (a model
+// in a simulation from a public library stays under its own license; owner, 2026-11-23) leaves it at 2026-11-23.2 too:
+// the same Privacy versions count beside it as beside Terms 2026-11-23.3.
 describe("Privacy versions that still count beside the current Terms", () => {
   it("is exactly the current version, 2026-11-23.1, 2026-11-21.1, 2026-11-19.1, 2026-11-17.1, 2026-11-13.1 and 2026-11-12.2", () => {
     expect(PRIVACY_VERSION, DECIDE).toBe(COMPANY_APPLICATION_VERSION);
@@ -36,7 +38,8 @@ describe("Privacy versions that still count beside the current Terms", () => {
 
   it("counts an acceptance of the current version, 2026-11-23.1, 2026-11-21.1, 2026-11-19.1, 2026-11-17.1, 2026-11-13.1 or 2026-11-12.2 beside a Terms version that counts, and no other", () => {
     const after = legalEffectiveAtMs(COMPANY_APPLICATION_VERSION) + 10 * 3_600_000;
-    for (const terms of [TERMS_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, "2026-11-12.2"]) {
+    for (const terms of [TERMS_VERSION, COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION,
+      NO_FACE_BLUR_VERSION, "2026-11-12.2"]) {
       for (const privacy of [COMPANY_APPLICATION_VERSION, CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION,
         "2026-11-13.1", "2026-11-12.2"])
         expect(acceptedVersionsAreCurrent(terms, privacy, after), `${terms} ${privacy}`).toBe(true);

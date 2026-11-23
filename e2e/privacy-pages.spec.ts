@@ -74,9 +74,9 @@ test("the Terms and Privacy Policy say a site sees a company's name and website 
 });
 
 // Terms 2026-11-23.3 (owner, 2026-11-23: "yes build it this way"): a company may give an estimate with its answer. The
-// Terms say, for sites and for companies, that it is an estimate before a site visit and not a quote; the previous Terms
-// (2026-11-23.2) say nothing of it, and the Privacy Policy does not change.
-test("the Terms say a company's estimate is its own, before a site visit and not a quote; the previous Terms and the Privacy Policy do not", async ({ page }) => {
+// Terms say, for sites and for companies, that it is an estimate before a site visit and not a quote, and the Privacy
+// Policy does not change. Since Terms 2026-11-23.4 the previous Terms are 2026-11-23.3, which say the same of the estimate.
+test("the Terms and the previous Terms say a company's estimate is its own, before a site visit and not a quote; the Privacy Policy does not", async ({ page }) => {
   const SITE = "An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it.";
   const COMPANY = "If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.";
   const article = page.locator("article");
@@ -88,8 +88,29 @@ test("the Terms say a company's estimate is its own, before a site visit and not
   await page.getByRole("link", { name: "previous version", exact: true }).click();
   await expect(page).toHaveURL(/\/terms\/previous$/);
   await expect(article).toContainText("Previous version, effective November 23, 2026");
-  await expect(article).not.toContainText("not a quote");
+  await expect(article).toContainText(SITE);
+  await expect(article).toContainText(COMPANY);
   await page.goto("/privacy");
   await expect(article).toContainText("Effective November 23, 2026");
   await expect(article).not.toContainText("not a quote");
+});
+
+// Terms 2026-11-23.4 (owner, 2026-11-23): one sentence in section 6, Ownership, right after what Blueprint owns: a model
+// in a simulation that comes from a public library stays under that library's license. The previous Terms (2026-11-23.3)
+// say nothing of it, and the Privacy Policy does not change.
+test("the Terms say a library model in a simulation stays under its own license; the previous Terms and the Privacy Policy do not", async ({ page }) => {
+  const LIBRARY = "A model in a simulation that comes from a public library stays under that library's license, named in the simulation's README: Blueprint does not own it, and these Terms do not restrict it.";
+  const article = page.locator("article");
+  await page.goto("/terms");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article.locator("section", { has: page.getByRole("heading", { name: "6. Ownership" }) }))
+    .toContainText(`subject to the rights these Terms give you, including a site's right to withdraw its job. ${LIBRARY} If you send us feedback`);
+  await expect(article).toContainText("This version replaced the previous version (effective November 23, 2026).");
+  await page.getByRole("link", { name: "previous version", exact: true }).click();
+  await expect(page).toHaveURL(/\/terms\/previous$/);
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).not.toContainText("public library");
+  await page.goto("/privacy");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).not.toContainText("public library");
 });

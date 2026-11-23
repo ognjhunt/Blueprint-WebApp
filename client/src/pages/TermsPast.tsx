@@ -4,10 +4,11 @@ import { PreviousLegalVersionNote } from "@/components/site/LegalVersionNotes";
 import { PREVIOUS_TERMS_URL, PREVIOUS_TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Terms of Service of version 2026-11-12.2, in force from 2026-11-12 until the next version replaced it
- * (owner, 2026-11-17: no face blurring for jobs started under the new version). Its sections are copied word for word
- * from `Terms.tsx` as it stood at 2026-11-12.2; the replacement policy it took from another file is copied in as it
- * stood. Do not edit the sections: they are the agreement as it stood. Change Terms.tsx instead.
+ * FROZEN: the Terms of Service of version 2026-11-17.1, in force from 2026-11-17 until the next version replaced it
+ * (owner: the early trial dropped on 2026-11-14; the Privacy Policy and Terms updated with permission given on
+ * 2026-11-19). Its sections are copied word for word from `Terms.tsx` as it stood at 2026-11-17.1; the replacement
+ * policy it took from another file is copied in as it stood. Do not edit the sections: they are the agreement as it
+ * stood. Change Terms.tsx instead.
  */
 const pilotReplacementPolicy =
   "If a deployment company withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund.";
@@ -46,7 +47,7 @@ export const previousTermsSections: readonly Section[] = [
     items: [
       "When you submit a job description, you confirm that you are authorized to share it on behalf of the site. When you start a capture with footage, you confirm that you are authorized to record the site and to let Blueprint use the recording as these Terms describe.",
       "Task footage may show people, including hands or arms performing the task, and a phone video can also record what people nearby say. Share only footage you are authorized to share. Before recording, tell the people in the work area that you are recording and that the video will be shared with Blueprint and with the robot deployment companies we approve, and obtain any permission the law or your own policies require from people who can be seen or heard. Some laws require everyone's consent before a conversation is recorded, so avoid recording conversations and turn sound off where your camera allows. Do not submit footage if you cannot meet these conditions.",
-      "Blueprint keeps your original upload as received for the uses and retention periods in our Privacy Policy. We remove its sound before any automated review, before sending footage to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to draft the job brief, build the simulation and run our early trial. We do not remove people from the footage or from frames taken from it; we blur faces only in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound.",
+      "Blueprint keeps your original upload as received for the uses and retention periods in our Privacy Policy. We remove its sound before any automated review, before sending footage to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to draft the job brief, build the simulation and run our early trial. We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under an earlier version of our Privacy Policy, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound.",
       "Avoid recording screens, documents and restricted areas where you can.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to review them, build the simulation, run our early trial, show you the results, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
       SHARING_SENTENCE,
