@@ -176,7 +176,7 @@ function AnswerReason({ entry }: { entry: AnsweredEntry }) {
       (reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
         : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
     {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.question && !entry.company && !entry.introducedAtIso
-      && <p className="bare-helper">{introductionIfChanged(entry.alias)}</p>}
+      && !entry.introductionPending && <p className="bare-helper">{introductionIfChanged(entry.alias)}</p>}
   </>;
 }
 
@@ -290,6 +290,9 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           alias={entry.alias} question={entry.question} onChanged={onIntroduced} />}
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
           && <IntroducedDetails entry={entry} />}
+        {/* Asked, not made yet: the company's email has not been sent, so the site is told it is in progress (H2). */}
+        {entry.kind === "answered" && !entry.company && entry.introductionPending === true
+          && <p className="bare-helper" role="status">{introductionRequested(entry.alias)}</p>}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
