@@ -18,6 +18,21 @@ The audit this follows is in pull request 1374
 
 For a session that picks this up. Newest first.
 
+- 2026-11-23 18:05Z. **Stopped on money: the OpenAI account has no credit**
+  (the owner must add credit; see "What still needs the owner"). Job 1 is
+  listed, its video is visible, the company answered and the introduction is
+  made. Its room build waits on OpenAI, so there is no simulation yet, and its
+  first look is parked (gap 15). The usage limit cut seven fix workers at
+  about 15:45Z; it reset at 17:50Z. Merged since: Pipeline 3702 (gap 3 and 4),
+  not deployed yet; the host still runs `8feb4e9`. Another session merged
+  WebApp 1416 and Pipeline 3704 in between. Running now, workflow
+  `fix-gaps-3`, two at a time: the room-build funding outage (extends Pipeline
+  pull request 3703), the video reading that retries by itself (WebApp), then
+  the two "room ships at once" fixes. Not started again yet: gaps 6, 9, 10,
+  11, 12. Next: review and merge each pull request; deploy Pipeline `main`
+  through the door once 3703 is merged (it restarts job 1's attempt); when the
+  owner has added credit, watch job 1 recover by itself; then the simulation
+  download, the cost, the withdrawal.
 - 2026-11-23 15:40Z. Job 1 is on the host and its room build is in flight.
   Its sound-free video is not built yet (gap 3). Nine fixes are with workers
   in two workflows (`fix-preflight-gaps-1`: six; `fix-preflight-gaps-2`:
@@ -191,6 +206,18 @@ Times are UTC.
 | 2026-11-23 15:22:53 to 15:22:55 | The Pipeline run started; preflight took 1.1 s, materialization 0.8 s; the capture pipeline stage started 15:22:55. | `pipeline/run_summary.json` `stage_timings` |
 | 2026-11-23 15:22:55 | The room build was queued; its first step was in flight from 15:22:58. | `pipeline/atlas/preview_job.json`: `enqueued_at_epoch`, `step_in_flight.since_epoch` |
 | 2026-11-23 15:23:44 | "Your Blueprint job link" reached the site address, 2 min 24 s after Send. It tells a site that already sent its video that a video is required (gap 11). | Gmail, the message's `date` and text |
+| 2026-11-23 16:11:19 | The sound-free video was built, 48 min 28 s after the hand-off (gap 3). | `pipeline/company_clip/company_clip.json` `built_at_epoch` 1795450279 |
+| 2026-11-23 16:11:47 | **Video visible.** The clip was delivered to the website under `site_sharing_statement`, `2026-11-23.v6`; from then the job is shown to approved companies. | same file, `delivered.at_epoch` 1795450307; count of clips a company could be shown went from 0 to 1 |
+| 2026-11-23 16:11:48 | **Listed and sent** to the one approved company, 50 min 28 s after Send. (The listing record itself was written at 15:21:16, with the submission.) | the job's `company_auto_send.sentAtIso`; `public_task_listing.wentLiveIso` |
+| 2026-11-23 16:12:12 | "New job on Blueprint" reached the company address. It gives the country and the job's link; no kind of job, since no first look existed. | Gmail, the message's `date` and text |
+| 2026-11-23 17:52 | The company's Find jobs card: "Automation job", the sentence, "Austin, Texas, United States", "Simulation not started yet". Its job page: the same place line, "Shared November 23, 2026", the video playing (1280x720, 21.4 s, no sound decoded), the response form, "Our first look is not ready yet.", "The simulation of the site is not finished yet." No sideways scroll at 390 px. | `evidence/company-find-jobs-1280.png`, `-390.png`, `evidence/company-job-page-1280.png`, `-390.png`; browser log of the visit |
+| 2026-11-23 17:54 | The site's job page: "Posted for approved deployment companies", "Viewed by 1 company", "0 responses"; First look still "We're watching your video." | browser log of the visit |
+| 2026-11-23 17:59:11 | **Answered.** The company chose Interested with a note: HTTP 200. | the page's own `POST /api/site-worlds/tasks/<id>/interest` and its `Date` header |
+| 2026-11-23 17:59:27 | "A deployment company answered" reached the site address. | Gmail |
+| 2026-11-23 17:59:40 | The site's job page: "1 response", "Time to first response: 2.6 hours.", "Company A", "Interested", "Answered November 23, 2026", the note in their words, and the Introduce us button. | `evidence/site-answer-shown-1280.png`, `-390.png` |
+| 2026-11-23 18:00:15 | The site pressed Introduce us: HTTP 200. The page read "We are emailing you and Company A each other's contact details." | the page's `POST …/introductions`; the introduction record's `requestedAtIso` 18:00:15.343 |
+| 2026-11-23 18:00:28 | **Introduced.** Both emails arrived: "A site wants to talk about its job" at the company address (the site's email and "Austin, Texas"), and "Meet Test Deployment Co …" at the site address (the company's contact name, email and website). | Gmail, both messages' `date` |
+| 2026-11-23 18:00:28 | One billable event records when the introduction was made: `billableEvents/introduction-capture-ceba4511-…-246f01597c9c…`, kind `introduction`, status `recorded_no_price`, `madeAtIso` 2026-11-23T18:00:28.094Z. It is the only billable event in production. | read-only query over `billableEvents` (ids, states and times) |
 
 ## Gaps
 
@@ -269,8 +296,8 @@ and its output, or an exact file and line. Each row gets its own pull request;
 
 | # | What | Evidence | Fix | Status |
 |---|---|---|---|---|
-| 3 | The sound-free video is built last in the room-build unit, behind every job's paid room steps. | `website_atlas_preview.py` `main()` order (about :1203-1208); `OnUnitInactiveSec=60s`. Live on job 1: hand-off 15:22:51Z, the pass busy with the job's first room step from 15:22:58Z, no clip at 15:31Z. | Pipeline, `…-publish-before-atlas`: the cheap, rights-gated passes run first and again after the room steps. | with a worker |
-| 4 | A finished job's simulation package is built at the very end of the same unit. | same file; estimated 10 to 30 min typical, about 2 h worst | same pull request as 3 (one cause) | with a worker |
+| 3 | The sound-free video is built last in the room-build unit, behind every job's paid room steps. | `website_atlas_preview.py` `main()` order (about :1203-1208); `OnUnitInactiveSec=60s`. Live on job 1: hand-off 15:22:51Z, clip built 16:11:19Z, 48 min 28 s later. | Pipeline pull request 3702: the cheap, rights-gated passes run first and again after the room steps; an error in the room steps no longer skips them. Tests fail before (5), pass after (665 in the four files). | merged 17:57Z (`7b0e562`); not deployed yet |
+| 4 | A finished job's simulation package is built at the very end of the same unit. | same file; estimated 10 to 30 min typical, about 2 h worst | same pull request as 3 (one cause) | merged with 3 |
 | 5 | A provider's own 500, 504 or 429 is read as a refusal: the job waits 15 min, then 1 h. | failing test, 5 cases (`…-pf-provider-500-waits`); `website_preparation_retry.py:68-69` | Pipeline, `…-provider-5xx-outage` | with a worker |
 | 6 | The hand-off listener runs up to six other jobs' re-runs before it pulls a new job. | `pubsub_handoff_scene_operations.py:485-518`, pull at about :531 | Pipeline, `…-listener-new-first` | queued |
 | 7 | A built room never ships when the object path is unclear (no scene intent, build never queued, block with no hold): nothing for 24 h, then only a log line. | failing test, 6 cases (`…-pf-floor-never-ships`); `website_company_simulation.py:433-500` | Pipeline, `…-floor-ships-unclear`. Owner: yes, 15:35Z. | with a worker |
@@ -280,6 +307,9 @@ and its output, or an exact file and line. Each row gets its own pull request;
 | 11 | The job link email tells a site that already sent its video "A video is required to post your job." | read in the test site's mailbox, 15:23:44Z; `server/utils/taskLifecycleNotifications.ts` | WebApp, `…-job-link-email-video` | queued |
 | 12 | A company's video stops seeking 15 min after the page loads: the ticket in its address expires and the player never asks for a new one. | `taskEvaluationResultDownloadTicket.ts:3`, `company-media.ts:94-95`, `CompanyJob.tsx:139` (read; the worker confirms with a test first) | WebApp, `…-video-ticket-refresh` | queued |
 | 13 | The hand-off listener works on one job at a time. It was inside job 1's preparation from 15:22:39Z, so another job's retry due 15:28:59Z had not run by 15:31Z, and a second upload would wait the same way. | `door journal blueprint-pubsub-handoff-listener.service`: started 15:22:39Z, no "Finished" by 15:31Z; the other job's ledger still at attempt 74 | Needs a design: jobs side by side touch paid admission and the host's 4 CPUs. Not assigned. | measuring |
+| 14 | **Money.** The OpenAI account ran out of prepaid credit and nothing told anyone. In the room build the provider's answer is read as a refusal: waits of 15 min, 1 h, 3 h and on, then the job ends. | Host journal 17:47:27Z: `openai.RateLimitError: Error code: 429 … 'You have no credits remaining …' 'insufficient_quota'`; job 1's `preview_job.json`: `refusal_retries_total 2`, `last_refusal_reason atlas_preview_ratelimiterror`; `website_atlas_preview.py` `_outage` (about :217-229). OpenAI has no balance to read (`docs/runbooks/beta-operations.md` section 2a). | Pipeline, on pull request 3703's branch: a funding refusal or a provider 429/5xx waits as an outage in both classifiers, never ends the job, and pages the owner. **The owner adds the credit.** | with a worker |
+| 15 | When the provider fails, the website's reading of the video gives up within minutes and parks the job for a person. The first look never comes and the site is told "We're watching your video." for good. | Job 1's record: `capture_coverage_review: { state: "review_required", reason: "automatic_review_attempts_exhausted" }`, `capture_coverage_pending: false`; the site's page at 17:54Z, 2 h 33 min after Send. | WebApp, `…-video-reading-retries`: a provider failure is an outage, the reading retries by itself, parked jobs are picked up again, the owner is alerted once. | with a worker |
+| 16 | The company's note reaches the site with a common word changed: the company wrote "Test answer from the first-job run…", the site read "The company answer from the first-job run…". The redaction that removes the company's name replaced the first word of its name wherever it stood. A company whose name starts with an everyday word would have its notes garbled. | The answer sent at 17:59:11Z and the site's page at 17:59:40Z (`evidence/site-answer-shown-1280.png`). | Not assigned. It errs on the safe side (the name stays hidden); the owner decides whether to narrow it. | noted |
 
 Run by the pre-flight and found working: the Pipeline's real clip for a job
 under `2026-11-23.v6` is accepted by the website's real route (two sources,
@@ -293,6 +323,13 @@ comes out as a sound-free H.264 clip; the emulator journey on the 1410 branch.
   may pull internal test jobs' files for replays.
 - Decided 15:35Z: a built room ships flagged at once in every case; a billable
   event counts only once the introduction is made.
+- **Now: add credit to the OpenAI account** (or switch on automatic
+  recharge). Job 1's room build and first look wait on it. Found 17:47Z.
+- **To void:** the test introduction's billable event,
+  `billableEvents/introduction-capture-ceba4511-bfca-4a22-8fdc-0ffae40d27c3-246f01597c9c…`
+  (made 2026-11-23T18:00:28Z, status `recorded_no_price`). It is between the
+  two test accounts.
+- Open: gap 16, the company's name taken out of its note word by word.
 - Open: whether an introduction whose company email has an unknown outcome is
   ever settled once the job is withdrawn (the second half of gap 10).
 - Open: gap 13, jobs handled one at a time by the listener.
