@@ -187,11 +187,11 @@ it("v2 explicit current preparation admits unknown task/account without confirmi
   const later=await loadWebsiteSceneSponsorship("one",false);
   expect(later).toEqual(grant);expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(stored);
 });
-it("v2 absent purpose leaves confirmation, site screen and account gates strict, whatever the assessment says",async()=>{
+it("v2 absent purpose leaves confirmation and site screen gates strict, whatever the assessment says",async()=>{
   seed(packet(),false,false);await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_task_context_not_confirmed");
   seed(packet(),true,true);await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_scene_site_not_qualified");
   seed(packet(),true,false);(state.docs.get("inboundRequests/one") as any).site_task_triage.disposition="qualified";
-  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_scene_site_unclaimed");
+  await expect(loadWebsiteSceneSponsorship("one",true)).resolves.toMatchObject({request_id:"one"});
 });
 it("v2 preparation cannot create a grant without the exact current expected context",async()=>{
   seed(packet(),false,false);

@@ -17,7 +17,6 @@ vi.mock("../utils/email", () => ({ sendEmail }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 const { projectTaskBrowseCard, listTaskBrowseCards } = await import("../utils/taskBrowse");
 const { approvedTaskDetails, listingDetailsForSentence, sharedJobListing, taskListingSchema } = await import("../utils/taskListingDetails");
-const { isRunnableTask } = await import("../utils/teamJobAccess");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 // Sharing follows the job's outlook (review, 2026-11-11). These tests are about cards on jobs that have an answer,
@@ -45,7 +44,7 @@ describe("public task disclosure", () => {
   it("publishes only the closed category of the job, with no contact, intake, storage, footage or stored free text", () => {
     const card = projectTaskBrowseCard("req1", record());
     // The stored title is free text, so the card shows the neutral category (2026-11-12: never trust stored text).
-    expect(card).toMatchObject({ title: "Job opportunity", opportunity: "open", evaluationAvailable: true, stage: "ready" });
+    expect(card).toMatchObject({ title: "Job opportunity", opportunity: "open", evaluationAvailable: false, stage: "preparing" });
     expect(card).not.toHaveProperty("costUsd");
     expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs|Move cartons|US Midwest|Warehouse|Sealed cartons/);
   });
@@ -87,22 +86,22 @@ describe("public task disclosure", () => {
   ])("does not expose unconsented, closed, development or restricted records: %j", patch => {
     expect(projectTaskBrowseCard("req1", record(patch))).toBeNull();
   });
-  it("public interest in a pilot cannot make an unproven scene runnable", () => {
-    const source = record({ evaluation_readiness: null });
-    expect(projectTaskBrowseCard("req1", source)).toMatchObject({ stage: "preparing", evaluationAvailable: false });
-    expect(isRunnableTask(source)).toBe(false);
+  it("does not read Ready from the retired runnable proof: only the stored company simulation makes a card Ready", () => {
+    // The fixture carries the retired runnable proof; without a stored company simulation the card is not Ready.
+    expect(projectTaskBrowseCard("req1", record())).toMatchObject({ stage: "preparing", evaluationAvailable: false });
+    expect(projectTaskBrowseCard("req1", record({ evaluation_readiness: null }), { companySimulationReady: true }))
+      .toMatchObject({ stage: "ready", evaluationAvailable: true });
   });
   it("shows capture progress separately and keeps closed scenes out of paid supply", () => {
     // The fixture's video arrived (its admission record is on file), so it is past "capture"; with no video it is not.
-    expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "preparing", evaluationAvailable: false });
+    expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "preparing" });
     expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null, capture_privacy_screen: undefined })))
-      .toMatchObject({ stage: "capture", evaluationAvailable: false });
-    // A pause no longer hides the job from companies (must-fix 3) but still keeps it out of paid runs, as does a close.
-    expect(isRunnableTask(record({ workspace_task: { archived: true } }))).toBe(false);
-    expect(isRunnableTask(record({ workspace_task: { paused: true } }))).toBe(false);
+      .toMatchObject({ stage: "capture" });
+    // A close still closes the job.
+    expect(projectTaskBrowseCard("req1", record({ workspace_task: { archived: true } }))).toBeNull();
   });
-  it("lists a ready job", () => {
-    expect(projectTaskBrowseCard("req1", record())).toMatchObject({ id: "req1", stage: "ready" });
+  it("lists a shared job", () => {
+    expect(projectTaskBrowseCard("req1", record())).toMatchObject({ id: "req1", stage: "preparing" });
   });
   it("does not wait on an upload-time privacy decision: no screen has held a video since 2026-09-24", () => {
     expect(projectTaskBrowseCard("req1", record({ capture_privacy_screen: { eligibility: "rejected", proceeded: false } })))

@@ -45,7 +45,7 @@ const { draftBrief, saveBrief, getBrief, confirmBrief, recordSiteTaskCallOutcome
   "../utils/siteTaskBrief"
 );
 const { assessReadiness } = await import("../../client/src/lib/siteTaskReadiness");
-const { isRunnableTask, teamJobAccess } = await import("../utils/teamJobAccess");
+const { teamJobAccess } = await import("../utils/teamJobAccess");
 const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
 const { RECORDING_CONSENT_VERSION } = await import("../utils/recordingConsent");
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
@@ -170,10 +170,7 @@ describe("the join: a confirmed, reconstructed site is runnable supply", () => {
 
     // The site-readiness half of what runnable supply needs, with a scene
     // now present. This is the operator's side: brief confirmed, gates
-    // answered, scene reconstructed. `isRunnableTask` then adds one more
-    // gate on our side -- `sceneRunnableReadiness`, that an evaluation can
-    // actually run against the scene -- which the funnel does not produce and
-    // is covered in scene-runnable-readiness.test.ts.
+    // answered, scene reconstructed.
     const readiness = assessReadiness({
       answers: stored.siteTaskGates as Record<string, string>,
       captureMode: "self_capture",
@@ -185,57 +182,6 @@ describe("the join: a confirmed, reconstructed site is runnable supply", () => {
 
     expect(readiness.isSupply).toBe(true);
     expect(readiness.stage).toBe("evaluation_ready");
-  });
-
-  it("is runnable through the real supply predicate once the scene is proven", async () => {
-    // The check above passes the confirmed answers in by hand. `isRunnableTask`
-    // reads them off the stored record itself, and it used to read only the
-    // intake answers -- empty in the capture-first flow -- so every confirmed
-    // site looked unanswered and never reached a robot team.
-    await submitSiteTask();
-    const brief = await getBrief(REQUEST);
-    const answers: Record<string, string> = {};
-    for (const fieldId of brief!.unresolved) answers[fieldId] = clearValue(fieldId);
-    await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana", operatorAnswers: answers });
-
-    const stored = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as Record<
-      string,
-      any
-    >;
-    expect(stored.request.siteTaskGates).toEqual({});
-
-    const withScene = {
-      ...stored,
-      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site/world.json" } },
-      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" },
-    };
-    expect(isRunnableTask(withScene as never)).toBe(true);
-  });
-
-  it("does not bring back an intake answer the operator marked not sure", async () => {
-    await submitSiteTask({ sceneStability: clearValue("sceneStability") });
-    const brief = await getBrief(REQUEST);
-    const answers: Record<string, string> = {};
-    for (const fieldId of brief!.unresolved) answers[fieldId] = clearValue(fieldId);
-    await confirmBrief({
-      requestId: REQUEST,
-      confirmedBy: "Dana",
-      operatorAnswers: answers,
-      operatorUnknown: ["sceneStability"],
-    });
-
-    const stored = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as Record<
-      string,
-      any
-    >;
-    const withScene = {
-      ...stored,
-      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site/world.json" } },
-      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" },
-    };
-    // Intake still says "stable"; the operator withdrew it, so it is open.
-    expect(stored.request.siteTaskGates.sceneStability).toBeTruthy();
-    expect(isRunnableTask(withScene as never)).toBe(false);
   });
 
   it("is NOT supply until the operator confirms, however complete the gates look", async () => {
@@ -282,16 +228,16 @@ describe("a shared job's access does not depend on the screen after the cutover"
   it("opens a not_now job with the marker exactly as a qualified one, and leaves one without it closed", async () => {
     const qualified = await sharedJob(allClear());
     expect(qualified.site_task_triage.disposition).toBe("qualified");
-    expect(teamJobAccess(qualified)).toMatchObject({ listed: true, evaluationAvailable: true, reason: null });
+    expect(teamJobAccess(qualified)).toMatchObject({ listed: true, evaluationAvailable: false, reason: "simulation_not_ready" });
+    expect(teamJobAccess(qualified, { companySimulationReady: true })).toMatchObject({ listed: true, evaluationAvailable: true, reason: null });
     const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
     expect(blocked.site_task_triage.disposition).toBe("not_now");
-    expect(teamJobAccess(blocked)).toMatchObject({ evaluationAvailable: false, reason: "scene_not_runnable" });
+    // The retired trial's runnable proof no longer decides anything a company sees.
+    expect(teamJobAccess(blocked)).toEqual(teamJobAccess(qualified));
     const after = { ...blocked, scene_screen_gate_ended: marker() };
     expect(teamJobAccess(after)).toEqual(teamJobAccess({ ...qualified, scene_screen_gate_ended: marker() }));
-    expect(isRunnableTask(after as never)).toBe(true);
-    // Consent, the listing and the site's own pause still decide.
+    // Consent and the listing still decide.
     expect(teamJobAccess({ ...after, consent_revoked: true })).toMatchObject({ evaluationAvailable: false, reason: "consent_withdrawn" });
-    expect(teamJobAccess({ ...after, workspace_task: { paused: true } })).toMatchObject({ evaluationAvailable: false });
     expect(teamJobAccess({ ...after, public_task_listing: undefined })).toMatchObject({ listed: false, evaluationAvailable: false });
   });
 
