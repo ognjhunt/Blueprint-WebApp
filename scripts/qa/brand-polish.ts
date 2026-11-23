@@ -197,7 +197,7 @@ export function collectBannedCopyHits(text: string): string[] {
 // content — the route stays in this sweep to keep verifying the redirect
 // itself (HTTP status, console health, no broken links) still works.
 const canonicalPublicQaRoutes: PublicQaRoute[] = [
-  { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "How it works", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "Questions ›", hrefStartsWith: "/beta" }] },
+  { label: "How it works", path: "/how-it-works", canonicalPath: "/", expectedHeading: "Post a job for robots.", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Questions", path: "/beta", canonicalPath: "/beta", expectedHeading: "Questions", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Home", path: "/", canonicalPath: "/", expectedHeading: "Post a job for robots.", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "For deployment companies", hrefStartsWith: "/partners" }] },
   { label: "For deployment companies", path: "/partners", canonicalPath: "/partners", expectedHeading: "Find jobs for the robots you deploy.", requiredCtas: [{ label: "See jobs", hrefStartsWith: "/contact/robot-team" }] },

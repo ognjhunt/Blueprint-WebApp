@@ -35,8 +35,7 @@ test("terms make the beta free, with no early trial and no Blueprint fee", async
 test("the beta page reaches the header on mobile without a horizontal scrollbar", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("link", { name: "How it works" }).click();
-  await page.getByRole("link", { name: "Questions ›" }).click();
+  await page.getByRole("link", { name: "Questions", exact: true }).click();
 
   await expect(page).toHaveURL(/\/beta$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

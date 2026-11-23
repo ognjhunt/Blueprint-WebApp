@@ -40,7 +40,6 @@ function lazyRoute<P = any>(
   return Object.assign(lazy(load), { preload: load });
 }
 
-const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const Partners = lazyRoute(() => import("../pages/Partners"));
 const JobOutcomeThanks = lazyRoute(() => import("../pages/JobOutcomeThanks"));
 const CompanyJob = lazyRoute(() => import("../pages/CompanyJob"));
@@ -202,7 +201,6 @@ export const appRoutes: AppRoute[] = [
     path, layout: "public", component: () => <MarketingRedirect to={to} preserveQuery={!queryDroppingRedirects.has(path)} />,
   })),
   { path: "/", layout: "public", component: Home },
-  { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/jobs", layout: "public", component: Partners },
   { path: "/partners", layout: "public", component: Partners },
   { path: "/beta", layout: "public", component: Beta },

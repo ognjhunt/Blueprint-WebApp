@@ -19,7 +19,6 @@ const ROOT = path.resolve(import.meta.dirname, "../..");
 /** The site-facing files: the public pages, the job page's answer and simulation result, their sentences, the email copy, the agent-readable summaries. */
 const CLAIM_FILES = [
   "client/src/pages/Home.tsx",
-  "client/src/pages/HowItWorks.tsx",
   "client/src/pages/Beta.tsx",
   "client/src/pages/Partners.tsx",
   "client/src/pages/Contact.tsx",

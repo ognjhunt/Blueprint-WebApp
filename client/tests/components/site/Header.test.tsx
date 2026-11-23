@@ -33,7 +33,7 @@ describe("Header", () => {
     const nav = within(screen.getByRole("navigation", { name: "Main navigation" }));
     expect(nav.getAllByRole("link").map((link) => link.textContent)).toEqual(["How it works", "Find jobs"]);
     expect(nav.getByRole("link", { name: "Find jobs" })).toHaveAttribute("href", "/jobs");
-    expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
+    expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/#how-it-works");
     expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" }))
       .toHaveAttribute("href", "/sign-in");
     expect(document.body.textContent).not.toMatch(/Sign up|Robot team|Site operator|Task Evaluation Run|pilot|Choose access path|Explore|Signed in as/);

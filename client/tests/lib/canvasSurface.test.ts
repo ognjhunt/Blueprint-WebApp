@@ -87,7 +87,6 @@ describe("canvasSurfaceFor", () => {
   it("puts the public site, auth, and workspace on Blueprint paper", () => {
     for (const pathname of [
       "/",
-      "/how-it-works",
       "/contact/site-operator",
       "/contact/robot-team",
       "/privacy",

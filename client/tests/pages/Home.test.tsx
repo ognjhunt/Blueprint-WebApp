@@ -3,6 +3,7 @@ import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import Home from "@/pages/Home";
 import { COMPANY_RESPONSE_LABELS } from "@/lib/companyResponses";
+import { HOW_STEPS } from "@/lib/publicCopy";
 
 const SITES = ["Warehouse", "Café", "Lab"];
 
@@ -23,11 +24,12 @@ describe("Site-led homepage", () => {
   it("shows three steps from the video through responses and introductions", () => {
     render(<Home />);
     const steps = within(screen.getByRole("list", { name: "How it works" })).getAllByRole("listitem");
-    expect(steps.map(step => step.textContent)).toEqual([
-      "Film the job",
-      "Companies review it",
-      "Choose who to meet",
-    ]);
+    // How it works is part of the home page: each step shows its title and its line.
+    expect(steps).toHaveLength(3);
+    HOW_STEPS.forEach((step, index) => {
+      expect(steps[index]).toHaveTextContent(step.title);
+      expect(steps[index]).toHaveTextContent(step.line);
+    });
     expect(screen.getByRole("list", { name: "How it works" })).toHaveAttribute("id", "how-it-works");
   });
 
