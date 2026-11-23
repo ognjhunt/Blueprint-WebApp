@@ -257,8 +257,8 @@ test("public photos fall back to illustrations when removed", async ({ page }) =
   await fixtures(page, [{ ...card, thumbnailUrl: "/api/site-worlds/tasks/task-1/thumbnail" }]);
   await page.route("**/api/site-worlds/tasks/task-1/thumbnail", route => route.fulfill({ contentType: "image/png", body: taskPhoto }));
   await page.goto("/contact/robot-team");
-  await expect(page.getByRole("img", { name: `Owner-approved job view: ${card.title}` })).toBeVisible();
-  await expect(page.getByText("Owner-approved job photo", { exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: `A frame of the site's video: ${card.title}` })).toBeVisible();
+  await expect(page.getByText("From the site's video", { exact: true })).toBeVisible();
   await page.route("**/api/site-worlds/tasks/task-1/thumbnail", route => route.fulfill({ status: 404, body: "" }));
   await page.reload();
   await expect(page.getByText("Job illustration · not a site photo", { exact: true })).toBeVisible();

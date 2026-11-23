@@ -40,6 +40,7 @@ import { createAutomationLeaderLease, type AutomationLeaderLease } from "./autom
 import { deriveWebsiteWithdrawalState, websiteWithdrawalCommand } from "./websiteCaptureWithdrawal";
 import { deleteWebsiteScenePreviews } from "./websiteScenePreview";
 import { deleteWebsiteCompanyClips } from "./websiteCompanyClip";
+import { deleteJobThumbnail } from "./jobThumbnail";
 import { recordWorkerLoopPass } from "./workerHeartbeat";
 
 export const DELETION_RECEIPTS_COLLECTION = "websiteCaptureDeletionReceipts";
@@ -240,6 +241,8 @@ async function runPass(work: Claim, deps: DeletionDeps) {
     // The company clip's and the simulation package's stored references too (company clip contract, section 3; E9);
     // the Pipeline deletes their bytes.
     await deleteWebsiteCompanyClips(work.requestId, [`walkthrough-${work.requestId}`, ...supplements]);
+    // The job's thumbnail is a frame of that clip, so it goes too.
+    await deleteJobThumbnail(work.requestId);
     const listed = await listOwned(deps.bucket, prefixes, MAX_OBJECTS_PER_PASS);
     // Resumable sessions are minted only after an app bundle plan is stored.
     nativePlanSeen = nativePlanSeen || listed.objects.some(object => object.prefix.endsWith("/upload/"))

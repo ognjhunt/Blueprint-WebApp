@@ -20,7 +20,7 @@ import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanyS
 import { removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 import { knownSiteIdentity } from "./siteIdentity";
-import { loadCompanyJobAccess, RECORDING_VERSION_PLACE_LEVEL } from "./teamJobAccess";
+import { loadCompanyJobAccess, RECORDING_VERSION_PLACE_LEVEL, taskThumbnailUrl } from "./teamJobAccess";
 import { recordingStatementShares } from "./jobSharedListing";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { companyClipUrl, storedCompanyClip } from "./websiteCompanyClip";
@@ -228,6 +228,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
       : { state: "preparing" },
+    thumbnailUrl: taskThumbnailUrl(requestId, record),
     simulationDownload: simulationUrl ? { state: "ready", url: simulationUrl } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },
     firstLook: firstLook.summary,

@@ -234,6 +234,9 @@ router.post("/creator-captures/:captureId/company-clip", createPipelineSyncRateL
       const sharedClip = clip.permission_basis !== "internal_test";
       if (sharedClip) void import("../utils/jobAutoSend")
         .then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(requestId)).catch(() => undefined);
+      // The job's thumbnail: a frame of this clip, for the job cards and the company job page (owner, 2026-11-23).
+      if (sharedClip) void import("../utils/jobThumbnail").then(({ makeJobThumbnailSoon }) => makeJobThumbnailSoon(requestId))
+        .catch(() => undefined);
       res.setHeader("Cache-Control", "no-store");
       return res.json(accepted);
     } catch (error) {

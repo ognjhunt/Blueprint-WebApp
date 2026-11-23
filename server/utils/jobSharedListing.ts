@@ -25,7 +25,8 @@ export interface JobSharedListing {
   recordingStatementVersion: string | null;
   /** Only for a job sent without a video: the description statement (v5) it is shared under. */
   descriptionStatementVersion?: string;
-  thumbnailDigest: null;
+  /** The job's thumbnail (`jobThumbnail.ts`): none when the listing is written; set once the frame is made. */
+  thumbnailDigest: string | null;
   reviewRequired: false;
 }
 

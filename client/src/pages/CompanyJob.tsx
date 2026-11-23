@@ -149,7 +149,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         <section aria-label="The video">
           <h2>The video</h2>
           {page.video.state === "ready"
-            ? <video src={page.video.url} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
+            ? <video src={page.video.url} poster={page.thumbnailUrl ?? undefined} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
                 playsInline onContextMenu={event => event.preventDefault()}
                 width={page.video.width} height={page.video.height} aria-label="The site's video, without sound" />
             : <p>{VIDEO_PREPARING}</p>}

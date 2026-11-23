@@ -39,7 +39,9 @@ import {
  *     three working days without an answer (accessApplicationReminder).
  *  8. checks a deployment company application the automatic check missed
  *     (the server restarted mid-check, or it applied before the rule), and
- *     rings Slack with what it found (companyCheck, owner 2026-11-23).
+ *     rings Slack with what it found (companyCheck, owner 2026-11-23);
+ *  9. makes the thumbnail of a listed job that has none yet, at most three a
+ *     pass (jobThumbnail, owner 2026-11-23).
  *
  * Retired 2026-11-22: the no-grant wait page and the over-budget extension
  * report (grants and the extension are gone).
@@ -406,13 +408,15 @@ export async function runBetaOpsMonitorPass() {
     import("./accessApplicationReminder").then(({ remindWaitingAccessApplications }) => remindWaitingAccessApplications()),
     // 8. a deployment company application the automatic check missed: checked now, and Slack rings.
     import("./companyCheck").then(({ sweepUncheckedCompanyApplications }) => sweepUncheckedCompanyApplications()),
+    // 9. a listed job with no thumbnail yet: a frame of its company clip.
+    import("./jobThumbnail").then(({ sweepJobThumbnails }) => sweepJobThumbnails()),
   ]);
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
       logger.warn(
         { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan",
           "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan", "access_application_reminder",
-          "company_check_sweep"][index] },
+          "company_check_sweep", "job_thumbnail_sweep"][index] },
         "Beta ops monitor step failed",
       );
     }

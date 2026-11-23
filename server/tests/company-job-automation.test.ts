@@ -316,6 +316,52 @@ describe("the company's page for one job (E3)", () => {
     expect(outbox().find(row => row.kind === "job_clarification")).toMatchObject({ status: "sent" });
   });
 
+  // Owner, 2026-11-23: every job has a thumbnail, a frame of its video until the Pipeline renders its simulation.
+  it("makes the job's thumbnail from its company clip, serves it to approved companies, and drops it on withdrawal", async () => {
+    const thumbnail = await import("../utils/jobThumbnail");
+    const { createRequire } = await import("node:module");
+    const { PNG } = createRequire(import.meta.url)("pngjs") as { PNG: { sync: { write: (image: object) => Buffer } } };
+    const frame = PNG.sync.write({ width: 48, height: 30, data: Buffer.alloc(48 * 30 * 4, 120) });
+    const downloads: string[] = [];
+    const deps = { now: () => new Date("2026-11-23T12:00:00.000Z"),
+      downloadClip: async (jobId: string, clip: { digest: string }) => { downloads.push(`${jobId}:${clip.digest}`); return true; },
+      extractFrame: async (_file: string, start: number) => { expect(start).toBeGreaterThanOrEqual(0); return frame; } };
+    expect((await page()).body.item.thumbnailUrl).toBeNull();
+    expect(await thumbnail.makeJobThumbnail(ID, deps)).toBe("made");
+    expect(downloads).toEqual([`${ID}:${companyClip().digest}`]);
+    const stored = state.docs.get(`taskThumbnails/${ID}`) as Record<string, any>;
+    expect(stored).toMatchObject({ consentVersion: thumbnail.JOB_THUMBNAIL_VERSION, source: "company_clip_frame", clipDigest: companyClip().digest });
+    expect((state.docs.get(`inboundRequests/${ID}`) as Record<string, any>).public_task_listing.thumbnailDigest).toBe(stored.digest);
+    // Made once: the same clip is not read again.
+    expect(await thumbnail.makeJobThumbnail(ID, deps)).toBe("current");
+    expect(downloads).toHaveLength(1);
+    const url = (await page()).body.item.thumbnailUrl as string;
+    expect(url).toBe(`/api/site-worlds/tasks/${ID}/thumbnail`);
+    const served = await realFetch(`${base}${url}`, { headers: signIn(NORTH) });
+    expect(served.status).toBe(200);
+    expect(Buffer.from(await served.arrayBuffer()).toString("base64")).toBe(stored.pngBase64);
+    expect((await realFetch(`${base}${url}`)).status).toBe(404);
+    await thumbnail.deleteJobThumbnail(ID);
+    expect(state.docs.get(`taskThumbnails/${ID}`)).toBeUndefined();
+    expect((await page()).body.item.thumbnailUrl).toBeNull();
+  });
+
+  it("makes no thumbnail for a job companies cannot see, and catches up listed jobs without one", async () => {
+    const thumbnail = await import("../utils/jobThumbnail");
+    const { createRequire } = await import("node:module");
+    const { PNG } = createRequire(import.meta.url)("pngjs") as { PNG: { sync: { write: (image: object) => Buffer } } };
+    const deps = { now: () => new Date(), downloadClip: async () => true,
+      extractFrame: async () => PNG.sync.write({ width: 8, height: 5, data: Buffer.alloc(8 * 5 * 4, 9) }) };
+    expect(await thumbnail.sweepJobThumbnails(deps)).toBe(1);
+    expect(await thumbnail.sweepJobThumbnails(deps)).toBe(0);
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    state.docs.delete(`taskThumbnails/${ID}`);
+    state.docs.set(`inboundRequests/${ID}`, { ...record, capture_rights: { ...(record.capture_rights ?? {}), consent_revoked: true },
+      public_task_listing: { ...record.public_task_listing, thumbnailDigest: null } });
+    expect(await thumbnail.makeJobThumbnail(ID, deps)).toBe("not_listed");
+    expect(state.docs.get(`taskThumbnails/${ID}`)).toBeUndefined();
+  });
+
   // Owner, 2026-11-23: anyone may see on /jobs that real jobs exist, but only what Blueprint derives about each.
   it("lists a shared job publicly by its kind, country, day and simulation state only", async () => {
     const { listPublicLiveJobs } = await import("../utils/taskBrowse");

@@ -190,6 +190,8 @@ export interface CompanyJobPage {
    * with its description only, so there is no video yet.
    */
   video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" };
+  /** The job's thumbnail, a frame of its video (`server/utils/jobThumbnail.ts`), shown before the video plays; null until made. */
+  thumbnailUrl?: string | null;
   /** "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet". */
   simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */

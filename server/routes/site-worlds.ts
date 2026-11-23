@@ -6,6 +6,7 @@ import { Response, Router } from "express";
 import { companyViewerForRequest, libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { loadCompanyJobAccess } from "../utils/teamJobAccess";
 import { loadCompanyJobPage } from "../utils/companyJobPage";
+import { JOB_THUMBNAIL_VERSION } from "../utils/jobThumbnail";
 import { companyMaySeeJobs, TERMS_ACCEPTANCE_REQUIRED } from "../utils/companyTerms";
 import { TERMS_PROMPT } from "../../client/src/lib/companyResponses";
 
@@ -134,7 +135,8 @@ router.get("/tasks/:taskId/thumbnail", async (req, res) => {
     const { record, access } = await loadCompanyJobAccess(id);
     if (!record || !projectTaskBrowseCard(id, record as InboundRequest, access)?.thumbnailUrl) return res.status(404).end();
     const image = (await db.collection("taskThumbnails").doc(id).get()).data();
-    if (!image || image.consentVersion !== "public-task-thumbnail-v1"
+    // A frame of the job's company clip (`jobThumbnail.ts`), or an image stored under the older listing.
+    if (!image || (image.consentVersion !== JOB_THUMBNAIL_VERSION && image.consentVersion !== "public-task-thumbnail-v1")
       || image.digest !== record.public_task_listing.thumbnailDigest) return res.status(404).end();
     const bytes = Buffer.from(image.pngBase64, "base64");
     if (createHash("sha256").update(bytes).digest("hex") !== image.digest) return res.status(404).end();
