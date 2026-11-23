@@ -1,15 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// The staff captures API (/api/capture-uploads) is staff-only, like its page; sites upload through /api/self-capture-uploads.
+// The staff captures API (/api/capture-uploads) and its page are retired; sites upload through /api/self-capture-uploads.
 describe("/api/capture-uploads mount", () => {
   const source = readFileSync("server/routes.ts", "utf8");
 
-  it("requires the admin role before the router", () => {
-    const mount = source.match(/app\.use\(\s*"\/api\/capture-uploads",([\s\S]*?)\);/);
-    expect(mount).not.toBeNull();
-    const handlers = mount![1].split(",").map(part => part.trim()).filter(Boolean);
-    expect(handlers).toEqual(["csrfProtection", "verifyFirebaseToken", "requireAdminRole", "captureUploadsRouter"]);
+  it("is no longer mounted, and the staff captures page is gone", () => {
+    expect(source).not.toMatch(/"\/api\/capture-uploads"/);
+    expect(readFileSync("client/src/app/routes.tsx", "utf8")).not.toContain('"/app/captures"');
   });
 
   it("leaves the site's own upload route without the admin role", () => {
