@@ -3,7 +3,7 @@ import type { InboundRequest } from "../types/inbound-request";
 import { jobTitleForDisplay, type LibraryJobStage, type PublicLiveJob, type TaskBrowseCard, type TaskCardDetail } from "../../client/src/types/taskBrowse";
 export type { PublicLiveJob } from "../../client/src/types/taskBrowse";
 import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
-import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
+import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, thumbnailSourceOf, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { companyPlaceOf, countryOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
@@ -26,7 +26,8 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest, decide
   return { ...access.details, id, stage: ready ? "ready" : captured ? "preparing" : "capture",
     evaluationAvailable: ready,
     publishedAtIso: raw.public_task_listing.approvedAtIso, jobUrl: `/jobs/${encodeURIComponent(id)}`,
-    thumbnailUrl: taskThumbnailUrl(id, record) };
+    thumbnailUrl: taskThumbnailUrl(id, record),
+    ...(taskThumbnailUrl(id, record) ? { thumbnailSource: thumbnailSourceOf(record) } : {}) };
 }
 
 /**

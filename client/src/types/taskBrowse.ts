@@ -30,6 +30,8 @@ export interface TaskBrowseCard extends TaskListingDetails {
   evaluationAvailable: boolean;
   publishedAtIso: string;
   thumbnailUrl: string | null;
+  /** What the thumbnail is, when there is one: a render of the job's simulation, or a frame of its video. */
+  thumbnailSource?: "simulation_render" | "company_clip_frame";
   /** The company's page for this job (`/jobs/:jobId`). */
   jobUrl?: string;
   /**
@@ -190,8 +192,10 @@ export interface CompanyJobPage {
    * with its description only, so there is no video yet.
    */
   video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" };
-  /** The job's thumbnail, a frame of its video (`server/utils/jobThumbnail.ts`), shown before the video plays; null until made. */
+  /** The job's thumbnail (`server/utils/jobThumbnail.ts`), shown before the video plays; null until made. */
   thumbnailUrl?: string | null;
+  /** What the thumbnail is: a render of the job's simulation, or a frame of its video. */
+  thumbnailSource?: "simulation_render" | "company_clip_frame" | null;
   /** "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet". */
   simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */

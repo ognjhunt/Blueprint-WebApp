@@ -2,9 +2,9 @@
  * Every shared job's thumbnail (owner, 2026-11-23: all jobs have thumbnails, a render of the job's simulation or a
  * frame of its video).
  *
- * For now it is one frame of the job's sound-free company clip: the same video approved deployment companies play, so
- * the thumbnail shares exactly what the clip shares, under the same statement, and goes when the clip goes. A render
- * of the job's simulation from the Pipeline takes its place once the Pipeline sends one.
+ * A render of the job's simulation when the Pipeline has sent one (`recordJobThumbnailRender`: the scene preview
+ * companies open, from the viewer's start view), otherwise one frame of the job's sound-free company clip. Both share
+ * only what the job already shares with approved deployment companies, under the same statement, and go when it goes.
  *
  * The frame: ffmpeg's `thumbnail` filter picks the most representative of the frames from a third of the way into the
  * clip (past an opening of floor or hands), scaled to fit 480 by 300, then re-encoded by `sanitizeTaskThumbnail`, which
@@ -14,6 +14,7 @@
  * Pipeline delivers the clip and caught up by the ops monitor. Never on the public /jobs list.
  */
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -27,17 +28,26 @@ import { fetchCompanyClip, storedCompanyClip, type WebsiteCompanyClip } from "./
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
+import { z } from "zod";
+import { WEBSITE_ATLAS_CAPTURE_ID, WEBSITE_ATLAS_REQUEST_ID } from "./websiteAtlasPreview";
+import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
+import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
+import { storedWebsiteScenePreview } from "./websiteScenePreview";
 
 export const JOB_THUMBNAIL_VERSION = "job-thumbnail-v1";
 export const JOB_THUMBNAIL_COLLECTION = "taskThumbnails";
-/** The stored image's source: a frame of the company clip (a simulation render comes next). */
-export type JobThumbnailSource = "company_clip_frame";
+/** The stored image's source: a render of the job's simulation, or a frame of its company clip. */
+export type JobThumbnailSource = "simulation_render" | "company_clip_frame";
 export interface StoredJobThumbnail {
   consentVersion: typeof JOB_THUMBNAIL_VERSION;
   source: JobThumbnailSource;
   digest: string;
   pngBase64: string;
-  clipDigest: string;
+  /** A frame: the clip it came from. */
+  clipDigest?: string;
+  /** A render: the scene preview it was rendered from, and the Pipeline's own digest of the PNG it sent. */
+  scenePreviewDigest?: string;
+  sourceDigest?: string;
   createdAtIso: string;
 }
 
@@ -117,6 +127,13 @@ export async function makeJobThumbnail(jobId: string, deps: JobThumbnailDeps = d
   const imageRef = store.collection(JOB_THUMBNAIL_COLLECTION).doc(jobId);
   const existing = (await imageRef.get()).data() as StoredJobThumbnail | undefined;
   const listedDigest = (record as Record<string, any>).public_task_listing?.thumbnailDigest;
+  // A render of the simulation outranks a frame: kept, and named on the listing again if a re-share cleared it.
+  if (existing?.consentVersion === JOB_THUMBNAIL_VERSION && existing.source === "simulation_render") {
+    if (existing.digest !== listedDigest)
+      await store.collection("inboundRequests").doc(jobId).set({ public_task_listing: { thumbnailDigest: existing.digest,
+        thumbnailSource: existing.source } }, { merge: true });
+    return "current";
+  }
   if (existing?.consentVersion === JOB_THUMBNAIL_VERSION && existing.clipDigest === clip.digest && existing.digest === listedDigest)
     return "current";
   const folder = await mkdtemp(path.join(os.tmpdir(), "job-thumbnail-"));
@@ -129,15 +146,17 @@ export async function makeJobThumbnail(jobId: string, deps: JobThumbnailDeps = d
     const jobRef = store.collection("inboundRequests").doc(jobId);
     const sessionRef = store.collection("captureUploadSessions").doc(captureId);
     const stored = await store.runTransaction(async (tx) => {
-      const [job, currentSession] = await Promise.all([tx.get(jobRef), tx.get(sessionRef)]);
+      const [job, currentSession, currentImage] = await Promise.all([tx.get(jobRef), tx.get(sessionRef), tx.get(imageRef)]);
       const listing = job.data()?.public_task_listing;
       // Still shared under the current listing, and still the same clip: a withdrawal or a new clip meanwhile wins.
       if (!listing || listing.consentVersion !== JOB_SHARED_LISTING_VERSION
         || storedCompanyClip(currentSession.data(), captureId)?.digest !== clip.digest) return false;
+      // A render that arrived meanwhile wins.
+      if ((currentImage.data() as StoredJobThumbnail | undefined)?.source === "simulation_render") return false;
       const value: StoredJobThumbnail = { consentVersion: JOB_THUMBNAIL_VERSION, source: "company_clip_frame", digest: image.digest,
         pngBase64: image.pngBase64, clipDigest: clip.digest, createdAtIso: deps.now().toISOString() };
       tx.set(imageRef, value);
-      tx.set(jobRef, { public_task_listing: { thumbnailDigest: image.digest } }, { merge: true });
+      tx.set(jobRef, { public_task_listing: { thumbnailDigest: image.digest, thumbnailSource: value.source } }, { merge: true });
       return true;
     });
     return stored ? "made" : "not_listed";
@@ -177,5 +196,64 @@ export async function deleteJobThumbnail(jobId: string): Promise<void> {
   await store.collection(JOB_THUMBNAIL_COLLECTION).doc(jobId).delete();
   const jobRef = store.collection("inboundRequests").doc(jobId);
   if ((await jobRef.get()).data()?.public_task_listing?.thumbnailDigest)
-    await jobRef.set({ public_task_listing: { thumbnailDigest: admin.firestore.FieldValue.delete() } }, { merge: true });
+    await jobRef.set({ public_task_listing: { thumbnailDigest: admin.firestore.FieldValue.delete(),
+      thumbnailSource: admin.firestore.FieldValue.delete() } }, { merge: true });
+}
+
+/* ----------------------------------------------------------------------------------------- the simulation render */
+
+/** What the Pipeline sends: one PNG of the job's scene preview from the viewer's start view (thumbnails step 2). */
+export const websiteJobThumbnailSchema = z.object({
+  schema_version: z.literal("website_job_thumbnail.v1"),
+  capture_id: z.string().regex(WEBSITE_ATLAS_CAPTURE_ID),
+  source: z.literal("simulation_render"),
+  camera: z.literal("scene_preview_start_view"),
+  scene_preview_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  width: z.number().int().min(1).max(480),
+  height: z.number().int().min(1).max(300),
+  png_base64: z.string().min(1).max(800_000),
+  digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict();
+export type WebsiteJobThumbnail = z.infer<typeof websiteJobThumbnailSchema>;
+
+/**
+ * Keep the Pipeline's render as the job's thumbnail, in place of a frame: only while the site's rights still allow
+ * scenes from its video, the PNG matches its digest and passes the same sanitizer as a frame, and it was rendered from
+ * the capture's current scene preview. The same render sent twice is accepted once. Named on the listing when the job
+ * is shared; a job shared later picks it up from the store (`makeJobThumbnail`).
+ */
+export async function recordJobThumbnailRender(requestId: string, sceneId: string, captureId: string,
+  thumbnail: WebsiteJobThumbnail, now: () => Date = () => new Date()) {
+  if (!db) throw new Error("job_thumbnail_store_unavailable");
+  const store = db;
+  if (!WEBSITE_ATLAS_REQUEST_ID.test(requestId) || sceneId !== `site-${requestId}` || thumbnail.capture_id !== captureId)
+    throw new Error("task_context_capture_mismatch");
+  const bytes = Buffer.from(thumbnail.png_base64, "base64");
+  if (`sha256:${createHash("sha256").update(bytes).digest("hex")}` !== thumbnail.digest)
+    throw new Error("website_job_thumbnail_digest_invalid");
+  let image: { pngBase64: string; digest: string };
+  try { image = sanitizeTaskThumbnail(thumbnail.png_base64); } catch { throw new Error("website_job_thumbnail_invalid"); }
+  const binding = await resolveWebsiteCaptureBinding(requestId, sceneId, captureId);
+  const acceptance = { schema_version: "website_job_thumbnail_acceptance.v1", accepted: true as const, digest: thumbnail.digest };
+  return store.runTransaction(async (tx) => {
+    const jobRef = store.collection("inboundRequests").doc(requestId);
+    const sessionRef = store.collection("captureUploadSessions").doc(captureId);
+    const imageRef = store.collection(JOB_THUMBNAIL_COLLECTION).doc(requestId);
+    const [job, session, prior] = await Promise.all([tx.get(jobRef), tx.get(sessionRef), tx.get(imageRef)]);
+    await assertWebsiteCaptureBindingInTransaction(tx, requestId, binding);
+    const record = job.data();
+    if (!job.exists || !record) throw new Error("website_job_thumbnail_request_missing");
+    if (!projectWebsiteCaptureRights(record).derived_scene_generation_allowed) throw new Error("source_revoked");
+    const preview = storedWebsiteScenePreview(session.data(), captureId);
+    if (!preview || preview.preview_digest !== thumbnail.scene_preview_digest) throw new Error("website_job_thumbnail_stale");
+    const stored = prior.data() as StoredJobThumbnail | undefined;
+    if (stored?.source === "simulation_render" && stored.sourceDigest === thumbnail.digest) return acceptance;
+    const value: StoredJobThumbnail = { consentVersion: JOB_THUMBNAIL_VERSION, source: "simulation_render", digest: image.digest,
+      pngBase64: image.pngBase64, scenePreviewDigest: thumbnail.scene_preview_digest, sourceDigest: thumbnail.digest,
+      createdAtIso: now().toISOString() };
+    tx.set(imageRef, value);
+    if (record.public_task_listing?.consentVersion === JOB_SHARED_LISTING_VERSION)
+      tx.set(jobRef, { public_task_listing: { thumbnailDigest: image.digest, thumbnailSource: value.source } }, { merge: true });
+    return acceptance;
+  });
 }

@@ -53,6 +53,7 @@ import { recordWebsiteScenePreview, websiteScenePreviewSchema } from "../utils/w
 import { loadOwnedCaptureAtlasConfiguration, ownedAtlasConfigurationRequest,
   reserveOwnedCaptureAtlasSpend, settleOwnedCaptureAtlasSpend } from "../utils/ownedCaptureAtlasPreparation";
 import { checkWebsiteJobCeiling, transactionJobLedgerReader } from "../utils/websiteJobCeiling";
+import { recordJobThumbnailRender, websiteJobThumbnailSchema } from "../utils/jobThumbnail";
 
 const router = Router();
 
@@ -214,6 +215,26 @@ router.post("/creator-captures/:captureId/scene-preview", createPipelineSyncRate
       if (/^(source_revoked|idempotency_conflict|task_context_capture_mismatch|website_scene_preview_(stale|digest_invalid|capture_missing|request_missing)|website_capture_binding_)/.test(code))
         return res.status(409).json({ code });
       return res.status(503).json({ code: "website_scene_preview_unavailable" });
+    }
+  });
+
+// The job's thumbnail as a render of its simulation (owner, 2026-11-23; `jobThumbnail.ts`): one small PNG of the scene
+// preview from the viewer's start view. It takes the place of the frame of the company clip. Rights are rechecked here.
+router.post("/creator-captures/:captureId/job-thumbnail", createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
+      scene_id: z.string().max(200), thumbnail: websiteJobThumbnailSchema }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "website_job_thumbnail_invalid" });
+    const { request_id: requestId, scene_id: sceneId, thumbnail } = parsed.data;
+    try {
+      const accepted = await recordJobThumbnailRender(requestId, sceneId, String(req.params.captureId), thumbnail);
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(accepted);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (/^(source_revoked|task_context_capture_mismatch|website_job_thumbnail_(stale|invalid|digest_invalid|request_missing)|website_capture_binding_)/.test(code))
+        return res.status(409).json({ code });
+      return res.status(503).json({ code: "website_job_thumbnail_unavailable" });
     }
   });
 

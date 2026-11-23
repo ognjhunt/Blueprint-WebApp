@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 
 /**
- * The job's thumbnail: a frame of the site's own video (`server/utils/jobThumbnail.ts`). No stock site photos: a job
+ * The job's thumbnail: a render of its simulation, or a frame of the site's own video (`server/utils/jobThumbnail.ts`). No stock photos: a job
  * without one yet, or whose video was withdrawn, shows an explicitly labelled diagram.
  */
-export function TaskThumbnail({ src, title, taskFamily }: { src?: string | null; title: string; taskFamily: string }) {
+export function TaskThumbnail({ src, title, taskFamily, source }: { src?: string | null; title: string; taskFamily: string;
+  source?: "simulation_render" | "company_clip_frame" | null }) {
+  const rendered = source === "simulation_render";
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
   const pallet = /pallet|stack/i.test(`${title} ${taskFamily}`);
   const inspect = /inspect|scan/i.test(`${title} ${taskFamily}`);
   return <figure className="ms-task-thumbnail">
-    {src && !failed ? <img src={src} alt={`A frame of the site's video: ${title}`} width={480} height={300} loading="lazy" onError={() => setFailed(true)} /> :
+    {src && !failed ? <img src={src} alt={`${rendered ? "The simulation of the site" : "A frame of the site's video"}: ${title}`} width={480} height={300} loading="lazy" onError={() => setFailed(true)} /> :
       <svg viewBox="0 0 240 150" role="img" aria-label={`Illustration of ${taskFamily || "a job"}, not a site photo`}>
         <rect width="240" height="150" fill="#e9eade" />
         <g fill="none" stroke="#526255" strokeWidth="2" strokeLinejoin="round">
@@ -23,6 +25,6 @@ export function TaskThumbnail({ src, title, taskFamily }: { src?: string | null;
           <><path d="M159 75L196 62L221 77L185 93ZM159 75V103L185 117L221 101V77M185 93V117" fill="#cbd1c3" /><path d="M174 68V52L192 45L207 54V69M174 52L190 61L207 54M190 61V77" fill="#d6dbc9" /></>}
         </g>
       </svg>}
-    <figcaption>{src && !failed ? "From the site's video" : "Job illustration · not a site photo"}</figcaption>
+    <figcaption>{src && !failed ? rendered ? "Simulation of the site" : "From the site's video" : "Job illustration · not a site photo"}</figcaption>
   </figure>;
 }

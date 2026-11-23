@@ -346,6 +346,37 @@ describe("the company's page for one job (E3)", () => {
     expect((await page()).body.item.thumbnailUrl).toBeNull();
   });
 
+  // Thumbnails step 2: a render of the job's simulation takes the place of the frame.
+  it("keeps the Pipeline's render of the simulation as the thumbnail, over a frame, once, and refuses a stale or forged one", async () => {
+    const thumbnail = await import("../utils/jobThumbnail");
+    const { createHash } = await import("node:crypto");
+    const { createRequire } = await import("node:module");
+    const { PNG } = createRequire(import.meta.url)("pngjs") as { PNG: { sync: { write: (image: object) => Buffer } } };
+    const sha = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+    const frameDeps = { now: () => new Date(), downloadClip: async () => true,
+      extractFrame: async () => PNG.sync.write({ width: 8, height: 5, data: Buffer.alloc(8 * 5 * 4, 9) }) };
+    expect(await thumbnail.makeJobThumbnail(ID, frameDeps)).toBe("made");
+    const render = PNG.sync.write({ width: 48, height: 27, data: Buffer.alloc(48 * 27 * 4, 200) });
+    const sent = { schema_version: "website_job_thumbnail.v1" as const, capture_id: CAPTURE, source: "simulation_render" as const,
+      camera: "scene_preview_start_view" as const, scene_preview_digest: scenePreview().preview_digest, width: 48, height: 27,
+      png_base64: render.toString("base64"), digest: sha(render) };
+    const record = (value = sent) => thumbnail.recordJobThumbnailRender(ID, `site-${ID}`, CAPTURE, value);
+    expect(await record()).toEqual({ schema_version: "website_job_thumbnail_acceptance.v1", accepted: true, digest: sent.digest });
+    const stored = state.docs.get(`taskThumbnails/${ID}`) as Record<string, any>;
+    expect(stored).toMatchObject({ source: "simulation_render", sourceDigest: sent.digest, scenePreviewDigest: sent.scene_preview_digest });
+    const listing = (state.docs.get(`inboundRequests/${ID}`) as Record<string, any>).public_task_listing;
+    expect(listing).toMatchObject({ thumbnailDigest: stored.digest, thumbnailSource: "simulation_render" });
+    expect((await page()).body.item).toMatchObject({ thumbnailUrl: `/api/site-worlds/tasks/${ID}/thumbnail`, thumbnailSource: "simulation_render" });
+    // The same render again is accepted once; a frame never replaces a render.
+    expect(await record()).toMatchObject({ accepted: true });
+    expect(await thumbnail.makeJobThumbnail(ID, frameDeps)).toBe("current");
+    expect((state.docs.get(`taskThumbnails/${ID}`) as Record<string, any>).source).toBe("simulation_render");
+    // Not of the current scene preview, bytes that do not match the digest, or another capture: refused.
+    await expect(record({ ...sent, scene_preview_digest: `sha256:${"0".repeat(64)}` })).rejects.toThrow("website_job_thumbnail_stale");
+    await expect(record({ ...sent, digest: `sha256:${"1".repeat(64)}` })).rejects.toThrow("website_job_thumbnail_digest_invalid");
+    await expect(thumbnail.recordJobThumbnailRender(ID, `site-${ID}`, "walkthrough-other", sent)).rejects.toThrow("task_context_capture_mismatch");
+  });
+
   it("makes no thumbnail for a job companies cannot see, and catches up listed jobs without one", async () => {
     const thumbnail = await import("../utils/jobThumbnail");
     const { createRequire } = await import("node:module");

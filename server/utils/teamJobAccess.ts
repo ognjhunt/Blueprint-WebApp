@@ -231,6 +231,12 @@ export async function loadCompanyJobAccess(requestId: string, given?: Record<str
 }
 
 /** The card image route, when the site approved a thumbnail with its card. */
+/** What a job's thumbnail is (`jobThumbnail.ts`): a render of its simulation, or a frame of its video. */
+export function thumbnailSourceOf(record: RecordLike): "simulation_render" | "company_clip_frame" {
+  return (record as { public_task_listing?: { thumbnailSource?: unknown } } | null | undefined)?.public_task_listing?.thumbnailSource
+    === "simulation_render" ? "simulation_render" : "company_clip_frame";
+}
+
 export function taskThumbnailUrl(id: string, record: RecordLike): string | null {
   const digest = (record as { public_task_listing?: { thumbnailDigest?: unknown } } | null | undefined)
     ?.public_task_listing?.thumbnailDigest;
