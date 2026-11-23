@@ -112,6 +112,24 @@ export async function notifySlackRobotTeamAccessApplication(options: {
   return sendSlackMessage(text, webhookUrl);
 }
 
+/**
+ * A company the published rule approved no longer passes it on a re-check (`recheckApprovedCompanies`). Its access is
+ * unchanged; the owner decides. Told once per run of failures.
+ */
+export async function notifySlackCompanyRecheck(options: { email: string; reasons: string[] }): Promise<{ sent: boolean; error?: unknown }> {
+  const webhookUrl = process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) {
+    logger.warn("No Slack webhook configured; a company re-check has no bell");
+    return { sent: false };
+  }
+  const id = createHash("sha256").update(options.email.trim().toLowerCase()).digest("hex");
+  const pageUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/robot-team-access?application=${id}`;
+  const { companyCheckReasonWords } = await import("../../client/src/lib/companyCheck");
+  const why = options.reasons.length ? ` ${options.reasons.map(companyCheckReasonWords).join(" ")}` : "";
+  return sendSlackMessage(`:warning: *An approved deployment company no longer passes the published rule on its re-check.*${why} `
+    + `It keeps its access until you decide: ${pageUrl}`, webhookUrl);
+}
+
 export async function sendSlackDirectMessage(
   message: string,
   options?: {
