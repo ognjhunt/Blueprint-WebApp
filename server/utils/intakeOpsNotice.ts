@@ -69,7 +69,7 @@ export function appBaseUrl() {
 }
 
 export function adminLeadUrl(requestId: string) {
-  return `${appBaseUrl()}/admin/jobs?job=${encodeURIComponent(requestId)}`;
+  return `${appBaseUrl()}/admin/leads/${encodeURIComponent(requestId)}`;
 }
 
 export function opsNoticeRecipient() {

@@ -96,7 +96,7 @@ describe("ops alert", () => {
     expect(alert).toHaveBeenCalledTimes(1); expect(email).not.toHaveBeenCalled();
     const text = (alert.mock.calls[0] as unknown as [string, string])[1];
     expect(text).toContain("walkthrough-r1 (request r1): no preparation status since its upload");
-    expect(text).toContain("/admin/jobs?job=r1");
+    expect(text).toContain("/admin/leads/r1");
     expect(session()?.other_field).toBe("kept");
     expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD]).toBeNull();
     expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ due_at_ms: null, alerted_at_iso: new Date(3 * HOUR).toISOString() });

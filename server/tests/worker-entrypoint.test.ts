@@ -33,7 +33,6 @@ vi.mock("../logger", () => ({
 const repoRoot = join(__dirname, "..", "..");
 
 afterEach(() => {
-  delete process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER;
   vi.clearAllMocks();
 });
 
@@ -61,8 +60,7 @@ describe("worker entrypoint", () => {
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
   });
 
-  it("can run the Task Evaluation launch forwarder without unrelated workers", async () => {
-    process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER = "true";
+  it("starts every job loop with no flag to narrow it", async () => {
     const stopLaunchForwarder = vi.fn();
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(stopLaunchForwarder);
 
@@ -70,7 +68,7 @@ describe("worker entrypoint", () => {
     const handle = startWorker();
 
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
-    // Withdrawal storage deletion runs in the deployed launch-forward mode.
+    // Withdrawal storage deletion runs in the deployed worker.
     expect(startWebsiteCaptureDeletionWorker).toHaveBeenCalledTimes(1);
     // So does the window sweep that ends a job the Pipeline went quiet on.
     expect(startWebsiteJobWindowSweepWorker).toHaveBeenCalledTimes(1);
@@ -99,6 +97,8 @@ describe("deploy manifests", () => {
     expect(renderYaml).toContain("startCommand: NODE_ENV=production node dist/worker.js");
     const deploySource = readFileSync(join(repoRoot, ".github", "workflows", "deploy.yml"), "utf8");
     expect(deploySource).toContain("'background_worker', 'NODE_ENV=production node dist/worker.js'");
+    // No flag claims to narrow the worker: it runs every job loop.
+    for (const source of [renderYaml, deploySource]) expect(source).not.toContain("LAUNCH_FORWARD_ONLY_WORKER");
   });
 
   it("bundles and exposes the worker entrypoint", () => {

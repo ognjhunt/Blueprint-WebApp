@@ -16,7 +16,6 @@ export function reliabilityHarnessEnv({ project = 'demo-blueprint-reliability', 
     FIELD_ENCRYPTION_MASTER_KEY: Buffer.alloc(32, 1).toString('base64'), BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET: 'owned-local-reliability-fixture-secret-never-production',
     APP_URL: `http://127.0.0.1:${port}`, RELIABILITY_APP_PORT: String(port),
     CODEX_LOCAL_AVAILABLE: '0', BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER: '1', BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED: '0',
-    BLUEPRINT_BETA_ENABLED: 'false',
     // One disposable emulator day carries every suite case. The production
     // default (5 a day) stays in betaAbuseCaps; per-IP and per-email caps keep
     // their defaults, so each case still exercises the real cap logic.

@@ -194,7 +194,7 @@ export async function scanWebsitePreparationWatch(deps: AlertDeps = {}): Promise
       });
       if (!claimed) continue;
       claims.push({ id: row.id, line: `- ${claimed.capture_id} (request ${claimed.request_id}): ${describe(claimed)}. `
-        + `${appBaseUrl()}/admin/jobs?job=${encodeURIComponent(claimed.request_id)}`,
+        + `${appBaseUrl()}/admin/leads/${encodeURIComponent(claimed.request_id)}`,
       update: action => store.runTransaction(async tx => {
         const data = (await tx.get(ref)).data() ?? {}, nowMs = now();
         const watch = parseWebsitePreparationWatch(data[WEBSITE_PREPARATION_WATCH_FIELD]);
@@ -330,7 +330,7 @@ export async function scanEndedWebsiteSceneIntakes(deps: AlertDeps = {}): Promis
       });
       if (!claimed) continue;
       claims.push({ id: intake.id, line: `- scene intake ${intake.id} (request ${intake.requestId}) cannot become runnable. `
-        + `${appBaseUrl()}/admin/jobs?job=${encodeURIComponent(intake.requestId)}`,
+        + `${appBaseUrl()}/admin/leads/${encodeURIComponent(intake.requestId)}`,
       update: action => store.runTransaction(async tx => {
         const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
         const request = (await tx.get(store.collection("inboundRequests").doc(intake.requestId))).data(), nowMs = now();
@@ -399,7 +399,7 @@ export async function scanHeldOwnerSuccessThresholds(deps: AlertDeps = {}): Prom
       const reason = intake.hold.reason ? OWNER_SUCCESS_HOLD_REASON_TEXT[intake.hold.reason] : "no reason given";
       claims.push({ id: alertId, line: `- request ${intake.requestId} (scene intake ${intake.id}): the site owner says the job's `
         + `success thresholds are wrong ("${reason}"). Review the thresholds and contact the site. `
-        + `${appBaseUrl()}/admin/jobs?job=${encodeURIComponent(intake.requestId)}`,
+        + `${appBaseUrl()}/admin/leads/${encodeURIComponent(intake.requestId)}`,
       update: action => store.runTransaction(async tx => {
         const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
         const request = (await tx.get(store.collection("inboundRequests").doc(intake.requestId))).data(), nowMs = now();
@@ -473,7 +473,7 @@ export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<
       });
       if (!claimed) continue;
       claims.push({ id: run.id, line: `- hold ${run.id} (request ${run.requestId}) holds the scene stage: `
-        + `${run.outcome}${run.reason ? ` (${run.reason})` : ""}. ${appBaseUrl()}/admin/jobs?job=${encodeURIComponent(run.requestId)}`,
+        + `${run.outcome}${run.reason ? ` (${run.reason})` : ""}. ${appBaseUrl()}/admin/leads/${encodeURIComponent(run.requestId)}`,
       update: action => store.runTransaction(async tx => {
         const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
         const request = (await tx.get(store.collection("inboundRequests").doc(run.requestId))).data(), nowMs = now();
@@ -538,6 +538,7 @@ export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{
   const now = deps.now || Date.now;
   const rows = await store.collection(OVER_BUDGET_ALERT_COLLECTION).where("next_attempt_at_ms", "<=", now())
     .limit(Math.max(1, Math.min(deps.limit ?? 50, 200))).get();
+  const claims: ClaimedAlert[] = [];
   const jobClaims: Record<JobAlertKind, ClaimedAlert[]> = { safety_limit: [], screening_over_safety_limit: [], screening_job_ceiling: [],
     spend_unreadable: [] };
   for (const row of rows.docs) {
@@ -559,16 +560,12 @@ export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{
           cancel(tx, parsed.success ? parsed.data : pendingDelivery());
           return null;
         }
-        const kind = JOB_ALERT_KINDS.find(name => marker[name] && typeof marker[name] === "object");
-        // An over-budget marker from the retired budget extension is not reported (2026-11-22): cleared, no alert.
-        if (!kind) {
-          cancel(tx, parsed.success ? parsed.data : pendingDelivery());
-          return null;
-        }
         const delivery = claimDelivery(parsed.success ? parsed.data : pendingDelivery(), nowMs, leaseId);
         if (!delivery) return null;
         tx.set(ref, { delivery, next_attempt_at_ms: delivery.lease_until_ms, alerted_at_iso: null }, { merge: true });
-        return { kind, value: marker[kind] as Record<string, any> };
+        const kind = JOB_ALERT_KINDS.find(name => marker[name] && typeof marker[name] === "object");
+        return { overBudget: (marker.over_budget ?? {}) as Record<string, any>,
+          job: kind ? { kind, value: marker[kind] as Record<string, any> } : null };
       });
       if (!claimed) continue;
       const update: ClaimedAlert["update"] = action => store.runTransaction(async tx => {
@@ -585,14 +582,26 @@ export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{
         return true;
       });
       // Owner decision 2026-11-11: one alert per job for each thing about its safety limit a person needs to see.
-      const line = JOB_ALERT_LINE[claimed.kind](claimed.value);
-      jobClaims[claimed.kind].push({ id: row.id, line: `- request ${requestId}${line.startsWith(":") ? "" : " "}${line} `
-        + `${appBaseUrl()}/admin/jobs?job=${encodeURIComponent(requestId)}`, update });
+      if (claimed.job) {
+        const line = JOB_ALERT_LINE[claimed.job.kind](claimed.job.value);
+        jobClaims[claimed.job.kind].push({ id: row.id, line: `- request ${requestId}${line.startsWith(":") ? "" : " "}${line} `
+          + `${appBaseUrl()}/admin/leads/${encodeURIComponent(requestId)}`, update });
+        continue;
+      }
+      const over = claimed.overBudget;
+      const passed = [over.allowance_exceeded ? `its ${over.allowance === "atlas_allowance" ? "Atlas allowance"
+        : "preparation allowance"} of ${usd(over.allowance_usd)}` : null,
+      over.job_ceiling_exceeded ? `its job budget of ${usd(over.job_ceiling_usd)}` : null].filter(Boolean).join(" and ");
+      claims.push({ id: row.id, line: `- request ${requestId} passed ${passed || "its original budget"} `
+        + `(${usd(over.job_reserved_or_settled_before_usd)} already held or spent before this reservation). `
+        + `It continues under the account's monthly limit. ${appBaseUrl()}/admin/leads/${encodeURIComponent(requestId)}`, update });
     } catch (error) {
       logger.warn({ err: error, alertId: row.id }, "Could not claim a website job over-budget alert");
     }
   }
-  const alerted = await report(jobClaims.safety_limit, deps, "website_job_safety_limit",
+  const alerted = await report(claims, deps, "website_job_over_budget",
+    "Website jobs passed their original budget (automatic budget extension)")
+    + await report(jobClaims.safety_limit, deps, "website_job_safety_limit",
       "Website jobs reached their safety limit and need a person to look")
     + await report(jobClaims.screening_over_safety_limit, deps, "website_job_screening_over_safety_limit",
       "The Pipeline reported testing above a website job's safety limit")

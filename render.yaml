@@ -28,9 +28,11 @@ services:
       - key: BLUEPRINT_READINESS_REDIS_WAIVED
         value: "1"
 
-  # Dedicated production launch-forward worker. This deployment is explicitly
-  # constrained to Task Evaluation launch reconciliation; unrelated ops
-  # processors stay off in this service.
+  # Dedicated production background worker (server/worker.ts). It runs the
+  # job loops: the launch forwarder, withdrawals, deletions, the job window
+  # sweep, the automatic send of listed jobs to approved deployment companies
+  # and the outcome questions. Each loop records its last finished pass in
+  # opsHeartbeats, and the web process's ops monitor alerts when one stops.
   #
   # Env vars are dashboard-managed. The worker needs Firebase Admin plus the
   # canonical Pipeline forward URL/token and launch-forward controls.
@@ -50,8 +52,6 @@ services:
       # is deliberately not given. The web service has no such exemption.
       - key: BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD
         value: "1"
-      - key: BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER
-        value: "true"
 
   # External uptime probe, every 10 minutes (scripts/ops/uptime-probe.mjs):
   # /health, /version.json and /health/worker (the worker heartbeat). GitHub

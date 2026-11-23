@@ -59,7 +59,7 @@ describe("terminal outbox failure scan", () => {
     expect(first).toEqual({ failed: 1, newlyAlerted: 1 });
     const text = String(alert.mock.calls[0][1]);
     expect(text).toContain("req-1");
-    expect(text).toContain("/admin/jobs?job=req-1");
+    expect(text).toContain("/admin/leads/req-1");
     expect(text).not.toContain("site@example.com");
     expect(text).not.toContain("secret body");
     expect(JSON.stringify(email.mock.calls)).not.toContain("site@example.com");
@@ -89,7 +89,7 @@ describe("terminal outbox failure scan", () => {
     await scanTerminalOutboxFailures({ store: store as never, alert, email: email as never });
     for (const text of [String(alert.mock.calls[0][1]), email.mock.calls[0][0].text]) {
       expect(text).toContain(`Firestore: captureOutbox/${entry.idempotencyKey} (inspect deliveryReceipts)`);
-      expect(text).not.toContain("/admin/jobs?job=");
+      expect(text).not.toContain("/admin/leads/");
       expect(text).not.toContain(entry.to);
       expect(text).not.toContain(entry.body);
     }
@@ -208,8 +208,9 @@ describe("ongoing conditions", () => {
     const reading = (status: "fresh" | "stale" | "missing" | "unavailable", ageMs: number | null) =>
       async () => ({ status, ageMs, staleAfterMs: minutes(5), beatAtIso: null, revision: null });
 
+    const loopsFresh = reading("fresh", minutes(1));
     await checkWorkerHeartbeat({ read: reading("unavailable", null), alert, email: email as never });
-    await checkWorkerHeartbeat({ read: reading("fresh", minutes(1)), alert, email: email as never });
+    await checkWorkerHeartbeat({ read: reading("fresh", minutes(1)), readLoop: loopsFresh, alert, email: email as never });
     expect(alert).not.toHaveBeenCalled();
     await checkWorkerHeartbeat({ read: reading("stale", minutes(12)), alert, email: email as never });
     expect(String(alert.mock.calls[0][1])).toMatch(/last heartbeat was 12 min ago/);
@@ -218,6 +219,33 @@ describe("ongoing conditions", () => {
     __resetBetaOpsMonitorForTests();
     await checkWorkerHeartbeat({ read: reading("missing", null), alert, email: email as never });
     expect(String(alert.mock.calls[1][1])).toMatch(/no heartbeat on record/);
+  });
+
+  it("alerts when one worker loop stops finishing passes while the worker still beats, and says when it is back", async () => {
+    const alert = vi.fn(async () => undefined);
+    const email = vi.fn(async () => ({ sent: true }));
+    const fresh = async () => ({ status: "fresh" as const, ageMs: minutes(1), staleAfterMs: minutes(5), beatAtIso: null, revision: null });
+    let deletionAge = minutes(20);
+    const readLoop = vi.fn(async (loop: string) => (loop === "deletion"
+      ? { status: deletionAge > minutes(5) ? "stale" as const : "fresh" as const, ageMs: deletionAge, staleAfterMs: minutes(5), beatAtIso: null, revision: null }
+      : fresh()));
+
+    await checkWorkerHeartbeat({ read: fresh, readLoop, alert, email: email as never });
+    expect(readLoop.mock.calls.map(([loop]) => loop).sort()).toEqual(
+      ["automatic-send", "deletion", "outcome-questions", "window-sweep", "withdrawal"],
+    );
+    expect(alert).toHaveBeenCalledOnce();
+    expect(alert).toHaveBeenCalledWith("worker_loop_stale:deletion", expect.stringMatching(/deleting withdrawn videos.*20 min ago/));
+    expect(email).toHaveBeenCalledOnce();
+
+    deletionAge = minutes(1);
+    await checkWorkerHeartbeat({ read: fresh, readLoop, alert, email: email as never });
+    expect(alert).toHaveBeenLastCalledWith("worker_loop_stale:deletion:recovered", expect.stringMatching(/finishing passes again/));
+
+    // A dead worker is the worker alert's job; the loops are not read then.
+    readLoop.mockClear();
+    await checkWorkerHeartbeat({ read: async () => ({ ...(await fresh()), status: "stale" as const }), readLoop, alert, email: email as never });
+    expect(readLoop).not.toHaveBeenCalled();
   });
 });
 

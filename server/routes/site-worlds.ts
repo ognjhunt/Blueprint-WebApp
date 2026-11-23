@@ -14,7 +14,7 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
-import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, TESTED_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
+import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, TESTED_RESPONSE_STATES, companyResponseNeedsNote } from "../../client/src/lib/companyResponses";
 import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import { questionOnReply } from "../utils/jobClarifications";
@@ -92,17 +92,10 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       prepared.write();
       tx.set(interestRef, next);
     });
-    return res.json({ ok: true, state: input.data.state, nextAction: answerNextStep(input.data.state) });
+    return res.json({ ok: true, state: input.data.state,
+      nextAction: "Saved. The site sees this answer, without your company's name." });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
 });
-
-/** After an answer, one sentence saying what happens next. */
-function answerNextStep(state: CompanyResponseState): string {
-  if (INTRODUCIBLE_RESPONSE_STATES.includes(state))
-    return "Saved. If the site asks to meet you, we email you both each other's name and contact details.";
-  if (state === "needs_something") return "Saved. If the site answers your question, its answer shows on this page.";
-  return "Saved. The site sees this answer without your company's name, and you can change it on this page.";
-}
 
 // The company's page for one job (E3): signed-in, approved accounts only, whatever the early-access switch says.
 router.get("/jobs/:taskId", async (req, res) => {

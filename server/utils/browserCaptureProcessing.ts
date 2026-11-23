@@ -2,11 +2,13 @@
 import { createHash } from "node:crypto";
 import { dbAdmin, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { buildBrowserCaptureManifest, type BrowserVideoMetadata } from "./browserCaptureManifest";
 import { probeCaptureVideo, probeStoredCaptureVideo, VideoProbeError } from "./selfCaptureMediaMetadata";
 import { authorizeCaptureUpload } from "./captureUploadAuthorization";
 import { getBrief } from "./siteTaskBrief";
 import { loadWebsiteCaptureRights, manifestTaskDescription } from "./websiteTaskContext";
+import { notifySlackFootageNeedsReview } from "./slack";
 import { screenCaptureForPrivacy } from "./capturePrivacyScreen";
 import { claimCapturePrivacyScreen, recordCapturePrivacyScreen, releaseCapturePrivacyScreenClaim } from "./capturePrivacyRecord";
 import { enqueueCoverageReview } from "./captureCoverageQueue";
@@ -229,6 +231,10 @@ export async function finishStoredCapture(params: {
     return { status: 200, body: { ok: true, state: "held", uploadState: "retained", captureReceived: true,
       processingRetryAvailable: false, code: "capture_processing_not_authorized",
       message: "Your video is saved. Processing is on hold until its existing consent can be verified." } };
+  }
+
+  if (!isSiteVideoEvidenceEnabled()) {
+    void notifySlackFootageNeedsReview({ requestId: payload.requestId }).catch(() => undefined);
   }
 
   const producerSource = { kind: "browser_pending" as const, key: browserPendingDecisionKey(pending) };

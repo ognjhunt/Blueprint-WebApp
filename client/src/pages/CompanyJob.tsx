@@ -19,6 +19,10 @@ import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 /** The job library: the signed-in list on the companies' page, at its own section. */
 export const JOB_LIBRARY_URL = BROWSE_JOBS_PATH;
 export const VIDEO_PREPARING = "The video is being prepared.";
+/** Said for a job the site sent with its description only. */
+export const NO_VIDEO_YET = "No video yet. The site sent this job with its description only.";
+/** Under the answer form when there is no video: how to ask for one with the answers that exist. */
+export const ASK_FOR_VIDEO = "Need a video to decide? Choose Need more details.";
 /** Under the words box: the site reads them, with the company's identity taken out first (`jobCompanies.siteReasonOf`). */
 export const WORDS_REACH_SITE = "The site reads these words, with your company's name and contact details taken out.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
@@ -55,6 +59,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   const [page, setPage] = useState<CompanyJobPage | null>(null);
   const [access, setAccess] = useState<LibraryAccess | null>(null);
   const [retry, setRetry] = useState(0);
+  const [responseMode, setResponseMode] = useState<ResponseMode>("fit");
   const from = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("from");
   const browseQuery = new URLSearchParams();
   if (from && from.length <= 1200) {
@@ -117,8 +122,9 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {dateInWords(page.publishedAtIso) && <span>Shared {dateInWords(page.publishedAtIso)}</span>}
     </div>
     <div className="company-job-actions">
-      {user && <a className="ms-button" href="#answer-this-job">Respond<ArrowDown size={16} aria-hidden="true" /></a>}
+      {user && <a className="ms-button" href="#answer-this-job" onClick={() => setResponseMode("fit")}>Respond<ArrowDown size={16} aria-hidden="true" /></a>}
       {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url} download><Download size={16} aria-hidden="true" />Download the simulation</a>}
+      {simulationReady && user && <a className="company-job-download" href="#answer-this-job" onClick={() => setResponseMode("simulation")}>Report simulation result<ArrowDown size={16} aria-hidden="true" /></a>}
     </div>
 
     <div className="company-job-grid">
@@ -139,11 +145,11 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
             ? <video src={page.video.url} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
                 playsInline onContextMenu={event => event.preventDefault()}
                 width={page.video.width} height={page.video.height} aria-label="The site's video, without sound" />
-            : <p>{VIDEO_PREPARING}</p>}
+            : <p>{page.video.state === "none" ? NO_VIDEO_YET : VIDEO_PREPARING}</p>}
         </section>
       </div>
 
-      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} tested={simulationReady} />}
+      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} mode={simulationReady ? responseMode : "fit"} />}
 
       <div className="company-job-evidence">
         <section aria-label="The object and how sure we are">
@@ -176,7 +182,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
             ? <p className="ms-field-hint">A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.</p>
             : null}
           {page.simulation.state === "ready"
-            ? <p><a className="ms-button" href={page.simulation.viewerUrl}>View the simulation of the site</a></p>
+            ? <p><a className="ms-button" href={page.simulation.viewerUrl} target="_blank" rel="noreferrer">View the simulation of the site</a></p>
             : page.simulationDownload?.state !== "ready" ? <p>{SIMULATION_NOT_FINISHED}</p> : null}
         </section>
       </div>
@@ -185,34 +191,46 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
 }
 
 /**
- * The one answer form: the answers and the company's words, with the recorded line under it (E5). Once the simulation
- * can be downloaded it also offers the two tested answers. Nothing is chosen for the company: a first answer starts
- * empty and the browser asks for one; a later visit shows the answer it gave.
+ * The answers and the company's words, with the recorded line under it (E5). Nothing is chosen for the company: a
+ * first answer starts empty and the browser asks for one; a later visit shows the answer it gave.
  */
-function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user: User; page: CompanyJobPage; tested: boolean }) {
+type ResponseMode = "fit" | "simulation";
+type ResponseDraft = { answer: CompanyResponseState | null; inputs: string; details: CompanyReplyDetails };
+
+function CompanyAnswerForm({ jobId, user, page, mode }: { jobId: string; user: User; page: CompanyJobPage; mode: ResponseMode }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const prior = page.myAnswer;
-  const [answer, setAnswer] = useState<CompanyResponseState | null>(prior && (tested || !TESTED_RESPONSE_STATES.includes(prior.state)) ? prior.state : null);
-  const [inputs, setInputs] = useState(prior?.inputs ?? "");
-  const [details, setDetails] = useState<CompanyReplyDetails>(prior?.details ?? {});
+  const [drafts, setDrafts] = useState<Record<ResponseMode, ResponseDraft>>(() => {
+    const empty = { answer: null, inputs: "", details: {} };
+    const prior = page.myAnswer;
+    if (!prior) return { fit: empty, simulation: empty };
+    const draft = { answer: prior.state, inputs: prior.inputs, details: prior.details ?? {} };
+    return TESTED_RESPONSE_STATES.includes(prior.state) ? { fit: empty, simulation: draft } : { fit: draft, simulation: empty };
+  });
   // The answer on record: the page's, then the one just saved, so "You answered" never names an answer it replaced.
   const [mine, setMine] = useState(page.myAnswer);
-  const testedAnswer = answer !== null && TESTED_RESPONSE_STATES.includes(answer);
-  const noteRequired = answer !== null && (testedAnswer || companyResponseNeedsNote(answer));
-  const noteLabel = testedAnswer ? "What did you test?" : noteRequired ? "What details would help you decide?" : "Note to the site";
-  const formLabel = "Your response";
-  function choose(state: CompanyResponseState) { setAnswer(state); setMessage(""); }
+  const { answer, inputs, details } = drafts[mode];
+  const simulation = mode === "simulation";
+  const noteRequired = simulation || (answer !== null && companyResponseNeedsNote(answer));
+  const noteLabel = simulation ? "What did you test?" : noteRequired ? "What details would help you decide?" : "Note to the site";
+  const formLabel = simulation ? "Simulation result" : "Your response";
+
+  function editDraft(change: Partial<ResponseDraft>) {
+    setDrafts(current => ({ ...current, [mode]: { ...current[mode], ...change } }));
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving || !answer) return;
     setSaving(true); setMessage("");
     try {
-      const question = answer === "needs_something" ? undefined : details.question?.trim() || undefined;
       const response = await fetch(`/api/site-worlds/tasks/${encodeURIComponent(jobId)}/interest`, { method: "POST", credentials: "include",
         headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
         body: JSON.stringify({ state: answer, inputs, statementVersion: page.responseStatement.version,
-          ...(answer !== "declined" && (question || details.startWindow) ? { details: { question, startWindow: details.startWindow } } : {}),
+          ...(answer !== "declined" && (details.verified?.trim() || details.question?.trim() || details.startWindow) ? { details: {
+            verified: details.verified?.trim() || undefined,
+            question: answer === "needs_something" ? undefined : details.question?.trim() || undefined,
+            startWindow: details.startWindow,
+          } } : {}),
         }) });
       const body = await response.json();
       setMessage(response.ok ? body.nextAction : body.error || "Your answer was not saved.");
@@ -221,7 +239,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
     finally { setSaving(false); }
   }
   return <section id="answer-this-job" aria-label={formLabel} tabIndex={-1}>
-    <h2>Your response</h2>
+    <h2>{simulation ? "Simulation result" : "Your response"}</h2>
     {mine && <p className="ms-field-hint">You answered “{COMPANY_RESPONSE_LABELS[mine.state]}”{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
         ? " Answer again below so the site can ask for an introduction." : ""}</p>}
@@ -232,26 +250,29 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
       </dl>
     </div>}
     <form onSubmit={submit} className="ms-form" aria-label={formLabel}>
-      <fieldset className="company-answer-options"><legend>Is this job a fit for your company?</legend>
-        {(tested ? [...FIT_RESPONSE_STATES, ...TESTED_RESPONSE_STATES] : FIT_RESPONSE_STATES).map(state => <label key={state}><input type="radio" name="state" value={state} required
-          checked={answer === state} onChange={() => choose(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
+      <fieldset className="company-answer-options"><legend>{simulation ? "What was the result in simulation?" : "Is this job a fit for your company?"}</legend>
+        {(simulation ? TESTED_RESPONSE_STATES : FIT_RESPONSE_STATES).map(state => <label key={state}><input type="radio" name="state" value={state} required
+          checked={answer === state} onChange={() => editDraft({ answer: state })} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
+      {!simulation && page.video.state === "none" && <p className="ms-field-hint">{ASK_FOR_VIDEO}</p>}
       <label>{noteLabel}
         <textarea name="inputs" required={noteRequired} minLength={noteRequired ? 4 : undefined} maxLength={2000} value={inputs}
-          onChange={event => setInputs(event.target.value)}
+          onChange={event => editDraft({ inputs: event.target.value })}
           aria-describedby="company-answer-words-hint" /></label>
       <p className="ms-field-hint" id="company-answer-words-hint">{WORDS_REACH_SITE}</p>
       {answer && answer !== "declined" && <details className="company-reply-optional">
         <summary className="ms-inline-link">Add details</summary>
+        {!simulation && <label>What you have checked<input maxLength={COMPANY_QUESTION_LIMIT} value={details.verified ?? ""}
+          onChange={event => editDraft({ details: { ...details, verified: event.target.value } })} /></label>}
         {answer !== "needs_something" && <label>Question for the site<input minLength={4} maxLength={COMPANY_QUESTION_LIMIT}
-          value={details.question ?? ""} onChange={event => setDetails({ ...details, question: event.target.value })} /></label>}
+          value={details.question ?? ""} onChange={event => editDraft({ details: { ...details, question: event.target.value } })} /></label>}
         <label>Earliest start<select value={details.startWindow ?? ""}
-          onChange={event => setDetails({ ...details, startWindow: event.target.value as CompanyStartWindow || undefined })}>
+          onChange={event => editDraft({ details: { ...details, startWindow: event.target.value as CompanyStartWindow || undefined } })}>
           <option value="">Not specified</option>
           {COMPANY_START_WINDOWS.map(window => <option key={window} value={window}>{COMPANY_START_LABELS[window]}</option>)}
         </select></label>
       </details>}
-      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send response"}</button>
+      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : simulation ? "Send simulation result" : "Send response"}</button>
       {message && <p role="status">{message}</p>}
       <p className="ms-field-hint" id="company-answer-statement">{page.responseStatement.text}</p>
     </form>

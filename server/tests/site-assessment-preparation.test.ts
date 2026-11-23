@@ -859,17 +859,6 @@ it("a safety-limit alert stored before the switch is still reported once; no new
   expect(message).toContain("request one reached its safety limit of $100.00 ($99.75 already held or spent; $0.50 more was asked for).");
   expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:0,alerted:0});
 });
-it("an over-budget marker from the retired budget extension is cleared without an alert (2026-11-22)",async()=>{
-  state.docs.set("opsWebsiteJobOverBudgetAlerts/one-extension",{request_id:"one",over_budget:{allowance_exceeded:true,allowance:"preparation_allowance",
-    allowance_usd:10,job_ceiling_exceeded:false,job_reserved_or_settled_before_usd:9.5},delivery:null,next_attempt_at_ms:0,alerted_at_iso:null});
-  const alert=vi.fn(async()=>({sent:true})),email=vi.fn();
-  const deps={store:(await import("./helpers/fake-firestore")).sharedFakeFirestore as any,alert,email:email as any};
-  expect((await scanOverBudgetWebsiteJobs(deps)).alerted).toBe(0);
-  expect(alert).not.toHaveBeenCalled();
-  expect(email).not.toHaveBeenCalled();
-  expect(state.docs.get("opsWebsiteJobOverBudgetAlerts/one-extension")).toMatchObject({next_attempt_at_ms:null,delivery:{state:"cancelled"}});
-  expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:0,alerted:0});
-});
 import { scanOverBudgetWebsiteJobs } from "../utils/websitePreparationOpsAlerts";
 import { websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
 it("v2 actual signed item/visual/intake handlers retain purpose through transactions and outbox replay",async()=>{

@@ -32,11 +32,6 @@ export interface TaskBrowseCard extends TaskListingDetails {
   thumbnailUrl: string | null;
   /** The company's page for this job (`/jobs/:jobId`). */
   jobUrl?: string;
-  /**
-   * The site's own sentence for the job, as its job page shows it (`siteSentenceForCompany`): its known name, address
-   * and contact details removed. Empty when the site's identity cannot be read.
-   */
-  sentence?: string;
   /** The answer's headline, only when the site chose to share its answer with the card. */
   answerHeadline?: string;
 }
@@ -189,7 +184,7 @@ export interface CompanyJobPage {
    * The sound-free company clip behind a short ticket, "The video is being prepared.", or `none`: the site sent the job
    * with its description only, so there is no video yet.
    */
-  video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" };
+  video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" } | { state: "none" };
   /** "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet". */
   simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */

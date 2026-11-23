@@ -94,8 +94,8 @@ describe("intake ops notice content", () => {
       for (const value of PII) expect(text).not.toContain(value);
       expect(text).not.toMatch(/@/);
     }
-    expect(message.text).toContain("https://tryblueprint.io/admin/jobs?job=req-123");
-    expect(message.slack).toContain("https://tryblueprint.io/admin/jobs?job=req-123");
+    expect(message.text).toContain("https://tryblueprint.io/admin/leads/req-123");
+    expect(message.slack).toContain("https://tryblueprint.io/admin/leads/req-123");
     expect(message.subject).toContain("[HIGH]");
   });
 });
@@ -113,7 +113,7 @@ describe("deliverIntakeOpsNoticeAtIntake", () => {
     expect(result.delivered).toBe(true);
     const notice = store.docs.get("req-1")!.ops_notice as IntakeOpsNotice;
     expect(notice).toMatchObject({ state: "delivered", attempts: 1, channels: { slack: "sent", email: "unconfigured" } });
-    expect(slack).toHaveBeenCalledWith(expect.stringContaining("/admin/jobs?job=req-1"), "https://hooks.slack.test/x");
+    expect(slack).toHaveBeenCalledWith(expect.stringContaining("/admin/leads/req-1"), "https://hooks.slack.test/x");
   });
 
   it("keeps the notice pending, with the reason, when no channel is configured", async () => {
@@ -191,7 +191,7 @@ describe("sweepIntakeOpsNotices", () => {
       expect(notice.escalated_at_ms).toBe(60_000);
       // The escalation email is link-only too.
       const escalationText = JSON.stringify(email.mock.calls);
-      expect(escalationText).toContain("/admin/jobs?job=req-c");
+      expect(escalationText).toContain("/admin/leads/req-c");
       for (const value of PII) expect(escalationText).not.toContain(value);
 
       // Terminal: later passes do not pick it up again.

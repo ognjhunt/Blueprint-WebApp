@@ -136,14 +136,6 @@ export function packetFactsForCompany(facts: PacketFacts | null, answers: Partia
     notShown: [...PACKET_NOT_SHOWN, ...unstated] };
 }
 
-/**
- * The site's own sentence as a deployment company reads it, on the job page and on its card in the list: the brief's
- * summary with the site's known identity removed. Empty when the identity cannot be read, never one that might name it.
- */
-export function siteSentenceForCompany(brief: { summary?: unknown } | undefined | null, known: KnownSiteIdentity | null): string {
-  return known ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known)) : "";
-}
-
 /** The page payload for one viewer, or null when the job is not listed (refused alike with a job that does not exist). */
 export async function loadCompanyJobPage(requestId: string, viewer: { companyId: string }): Promise<CompanyJobPage | null> {
   if (!db) throw new Error("company_job_store_unavailable");
@@ -187,7 +179,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
     // text and any other contact detail removed (`removeIdentifyingDetails`), then any name-shaped text the record does
     // not hold (`removeNamesNotHeld`): a company gets the site's name only through an introduction the site asks for.
-    sentence: siteSentenceForCompany(brief, known),
+    sentence: known ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known)) : "",
     ...(successRule ? { successRule } : {}),
     jobFacts: jobFactsInWords(facts, access.details.taskFamily),
     country,

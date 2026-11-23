@@ -26,6 +26,7 @@ import {
 } from "./jobOutcomeGate";
 import { createJobOutcomeToken, verifyJobOutcomeToken, type OutcomeSide } from "./jobOutcomeToken";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
+import { recordWorkerLoopPass } from "./workerHeartbeat";
 
 export { outcomeQuestionIsCurrent, OUTCOME_QUESTION_DAYS, type OutcomeRecord } from "./jobOutcomeGate";
 export { OUTCOME_STATE_LABELS, OUTCOME_STATES, type OutcomeState } from "../../client/src/lib/jobOutcomeStates";
@@ -176,7 +177,7 @@ export function startJobOutcomeQuestionWorker(options: { intervalMs?: number; le
     if (stopped) return;
     if (!running && lease.isLeader()) {
       running = true;
-      try { await sweepOutcomeQuestions(); }
+      try { await sweepOutcomeQuestions(); await recordWorkerLoopPass("outcome-questions"); }
       catch (error) { logger.error({ err: error }, "Outcome question sweep failed; it will retry"); }
       finally { running = false; }
     }

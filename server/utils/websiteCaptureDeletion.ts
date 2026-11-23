@@ -40,6 +40,7 @@ import { createAutomationLeaderLease, type AutomationLeaderLease } from "./autom
 import { deriveWebsiteWithdrawalState, websiteWithdrawalCommand } from "./websiteCaptureWithdrawal";
 import { deleteWebsiteScenePreviews } from "./websiteScenePreview";
 import { deleteWebsiteCompanyClips } from "./websiteCompanyClip";
+import { recordWorkerLoopPass } from "./workerHeartbeat";
 
 export const DELETION_RECEIPTS_COLLECTION = "websiteCaptureDeletionReceipts";
 /** Mirrors SIGNED_URL_TTL_MS in siteCaptureBundleService.ts. */
@@ -383,7 +384,7 @@ export function startWebsiteCaptureDeletionWorker(options: { intervalMs?: number
     if (stopped) return;
     if (!running && lease.isLeader()) {
       running = true;
-      try { await runWebsiteCaptureDeletions(); }
+      try { await runWebsiteCaptureDeletions(); await recordWorkerLoopPass("deletion"); }
       catch { logger.error("Website capture deletion pass failed; it will retry"); }
       finally { running = false; }
     }

@@ -44,6 +44,7 @@ vi.mock("../agents/runtime", () => ({ runAgentTask: vi.fn(() => { throw new Erro
 vi.mock("../utils/slack", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../utils/slack")>()),
   notifySlackInboundRequest: vi.fn(async () => undefined),
+  notifySlackFootageNeedsReview: vi.fn(async () => false),
   notifySlackCapturePrivacyEscalation: vi.fn(async () => ({ sent: false })),
   sendSlackMessage: vi.fn(async () => ({ sent: false })),
 }));
