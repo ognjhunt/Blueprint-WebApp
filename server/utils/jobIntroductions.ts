@@ -21,7 +21,7 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
+import { COMPANY_RESPONSE_LABELS, SITE_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
   type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { billableEventRef, buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
@@ -168,7 +168,7 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     if (!siteRow.exists && EMAIL.test(site.email)) {
       const message = siteEmail({ jobUrl: captureUploadUrlFor(input.requestId, "owner"), company: { name: companyShared.company,
         contactName: companyShared.contactName, email: companyEmail, website: companyShared.website ?? null },
-        answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
+        answerLabel: SITE_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
       // One commit point (H2): the site's "Meet {company}" is held until the company's email is sent. With no company
       // email to send, it is left pending, and its dispatch check cancels the introduction as a whole.
       const siteEntry = buildOutboxEntry({ idempotencyKey: siteRowRef.id, requestId: input.requestId,

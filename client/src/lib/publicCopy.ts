@@ -26,8 +26,11 @@ export const HOME_SUB_LINE = "Film one repetitive job and find out who wants to 
  */
 export const EVERYDAY_ANSWERS = `${ANSWER.interested}, ${ANSWER.declined} or ${ANSWER.needs_something}`;
 export const TESTED_ANSWERS = `${ANSWER.tested_can_do} or ${ANSWER.tested_cannot_yet}`;
-/** The answers beside which a site may ask for an introduction (`INTRODUCIBLE_RESPONSE_STATES`). */
-export const INTRODUCIBLE_ANSWERS = `${ANSWER.interested} or ${ANSWER.tested_can_do}`;
+/**
+ * The answers a site may accept (`INTRODUCIBLE_RESPONSE_STATES`), said as the site reads them: "applied" is the
+ * company's "Apply" (owner, 2026-11-23: a company applies, the site sees its applicants and accepts).
+ */
+export const INTRODUCIBLE_ANSWERS = `applied or answered ${ANSWER.tested_can_do}`;
 
 export const START_JOB = "Start a job";
 export const FIRST_LOOK_WHEN_READY = "We add a first look at which robots could fit when we have enough detail.";
@@ -57,7 +60,7 @@ export const SAMPLE_JOB = {
     "A first look on paper at which kinds of robot most likely fit, from published specifications.",
     "A simulation of the site with the job's object in it, when it is ready, to download and open in your own tools.",
   ],
-  introduction: "You see no site name, address or contact details until the site asks to meet you. Then we email you both each other's details.",
+  introduction: "The site sees your company's name and website when you answer. You see no site name, address or contact details until the site accepts you. Then we email you both each other's details.",
   cta: "Apply to see jobs",
 } as const;
 

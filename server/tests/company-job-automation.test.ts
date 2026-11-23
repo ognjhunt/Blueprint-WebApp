@@ -916,7 +916,7 @@ describe("introductions (E6) and money (E7)", () => {
       atIso: "2026-11-12T15:00:00.000Z", priceUsd: null, status: "recorded_no_price" });
     const toCompany = outbox().find(row => row.kind === "introduction_made_company")!;
     expect(toCompany).toMatchObject({ key: `${ID}:introduction_made_company:${companyId}`, to: NORTH.email,
-      subject: "A site wants to talk about its job", replyTo: SITE.email });
+      subject: "A site accepted your application", replyTo: SITE.email });
     for (const detail of [SITE.name, `${SITE.first} ${SITE.last}`, SITE.email, SITE.address, `/jobs/${ID}`]) expect(toCompany.body).toContain(detail);
     // The company's email goes first (H2), so it says the site's email is on its way, not that it has gone (J2).
     // A reply reaches Blueprint (dispatch sends Reply-To hello@), so it says where to write instead (decision 9).
@@ -938,11 +938,16 @@ describe("introductions (E6) and money (E7)", () => {
       introducedAtIso: "2026-11-12T15:00:00.000Z", company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website } })]);
   });
 
-  it("before an introduction the site sees aliases only, and may introduce each Interested company that answered under the new line", async () => {
+  // Owner, 2026-11-23: an answer under the current line shows the site the company's name and website, never its
+  // contact details, before the site accepts.
+  it("before the site accepts, it sees each applicant's name and website and no contact details, and may accept each one that applied", async () => {
     await interested(NORTH, SOUTH);
     expect((await answer(EAST, { state: "declined" })).status).toBe(200);
     const activity = await loadSiteCompanyActivity(ID);
-    expect(JSON.stringify(activity)).not.toMatch(/North|South|East|contact@/);
+    expect(activity.entries.map(entry => entry.kind === "answered" && entry.applicant)).toEqual([
+      { name: "North Robotics", website: "https://north.example" }, { name: "South Robotics", website: "https://south.example" },
+      { name: "East Robotics", website: "https://east.example" }]);
+    expect(JSON.stringify(activity)).not.toMatch(/contact@|Person (North|South|East)/);
     expect(activity.entries.map(entry => [entry.alias, entry.kind === "answered" && entry.canIntroduce])).toEqual([
       ["Company A", true], ["Company B", true], ["Company C", false]]);
   });
@@ -989,13 +994,13 @@ describe("introductions (E6) and money (E7)", () => {
     for (const alias of ["A", "B"])
       expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION },
         { siteEmail: capture })).toMatchObject({ ok: true });
-    expect(labels).toEqual(["Tested it: can do", "Interested"]);
+    expect(labels).toEqual(["Tested it: can do", "Applied"]);
     // And the site side's real email words it (no stub).
     await interested(EAST);
     expect(await requestIntroduction({ requestId: ID, alias: "C", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }))
       .toMatchObject({ ok: true });
     const toSite = outbox().filter(row => row.kind === "introduction_made_site").map(row => String(row.body));
-    expect(toSite.at(-1)).toContain("Interested");
+    expect(toSite.at(-1)).toContain("applied to your job");
   });
 
   // Owner, 2026-11-12: "if they want to talk to 1 that should be fine if they want to go through the steps with 8 that
@@ -1247,15 +1252,15 @@ describe("review findings (must-fix and should-fix)", () => {
   });
 
   it("must-fix 5: the consent line names both answers, and the company's email states its own stored answer", async () => {
-    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site is told your answer. If you answer Interested or Tested it: can do and the "
-      + "site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.");
+    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site sees your company's name and website with your answer. If you apply or "
+      + "answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs.");
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
     await interested(SOUTH);
     for (const alias of ["A", "B"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     const bodyTo = (email: string) => outbox().find(row => row.kind === "introduction_made_company" && row.to === email)!.body as string;
     expect(bodyTo(NORTH.email)).toContain('You answered "Tested it: can do" to a job on Blueprint');
-    expect(bodyTo(SOUTH.email)).toContain('You answered "Interested" to a job on Blueprint');
+    expect(bodyTo(SOUTH.email)).toContain("You applied to a job on Blueprint, and the site accepted your application.");
   });
 
   it("must-fix 6: both media routes refuse an answer without the stored digest, and the download refuses another size", async () => {

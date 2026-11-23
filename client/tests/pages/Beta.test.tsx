@@ -31,15 +31,15 @@ describe("the questions page", () => {
   it("promises no response from a company", () => {
     render(<Beta />);
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("A company can answer Interested, Not a fit or Need more details. Once the simulation can be downloaded, it can also answer Tested it: can do or Tested it: cannot yet. We can't promise any will say yes.");
+      .toHaveTextContent("A company can choose Apply, Not a fit or Need more details. Once the simulation can be downloaded, it can also choose Tested it: can do or Tested it: cannot yet. We can't promise any will say yes.");
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("Press Introduce us beside a company that answered Interested or Tested it: can do. We email the company your name, address and contact details, and email you theirs.");
+      .toHaveTextContent("You see each company's name and website with its answer. Press Accept beside a company that applied or answered Tested it: can do to meet it. We email the company your name, address and contact details, and email you theirs.");
   });
 
   it("says who sees the video, what stays with us, how to stop, and who we are", () => {
     render(<Beta />);
     const video = screen.getByRole("region", { name: "Your video" });
-    expect(video).toHaveTextContent(/We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job\. Your name, address and contact details go to a company only if you ask for an introduction\./);
+    expect(video).toHaveTextContent(/We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job\. Your name, address and contact details go to a company only if you accept it\./);
     expect(video).toHaveTextContent(/Who sees it\s*We share it, without its sound/);
     expect(video).toHaveTextContent("Sending a job means we share it. You agree to that once, when you send. If your job page asks you to agree, we share the job only after you do.");
     expect(video).not.toHaveTextContent(/12 November 2026/);

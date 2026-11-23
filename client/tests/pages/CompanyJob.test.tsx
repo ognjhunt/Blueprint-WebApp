@@ -103,10 +103,10 @@ describe("the company's page for one job", () => {
     expect(await screen.findByText(/You answered “Need more details” on November 12, 2026\./)).toBeInTheDocument();
     const form = screen.getByRole("form", { name: "Your response" });
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved." }) });
-    fireEvent.click(within(form).getByLabelText("Interested"));
+    fireEvent.click(within(form).getByLabelText("Apply"));
     fireEvent.submit(form);
     await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
-    expect(screen.getByText(/^You answered “Interested” on /)).toBeInTheDocument();
+    expect(screen.getByText(/^You applied on /)).toBeInTheDocument();
     expect(screen.queryByText(/You answered “Need more details”/)).toBeNull();
   });
 
@@ -116,7 +116,7 @@ describe("the company's page for one job", () => {
     render(<CompanyJob />);
     const form = await screen.findByRole("form", { name: "Your response" });
     fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Your answer was not saved." }) });
-    fireEvent.click(within(form).getByLabelText("Interested"));
+    fireEvent.click(within(form).getByLabelText("Apply"));
     fireEvent.submit(form);
     await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Your answer was not saved."));
     expect(screen.getByText(/You answered “Need more details” on November 12, 2026\./)).toBeInTheDocument();
@@ -222,7 +222,7 @@ describe("the company's page for one job", () => {
     render(<CompanyJob />);
     const form = await screen.findByRole("form", { name: "Your response" });
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved. If the site asks to meet you, we email you both each other's name and contact details." }) });
-    fireEvent.click(within(form).getByLabelText("Interested"));
+    fireEvent.click(within(form).getByLabelText("Apply"));
     fireEvent.submit(form);
     await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("If the site asks to meet you"));
     fireEvent.click(within(form).getByLabelText("Tested it: can do"));

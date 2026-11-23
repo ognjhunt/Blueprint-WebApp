@@ -144,6 +144,16 @@ const siteEmailText = () => JSON.stringify([sent(), outbox().filter(row => !row.
 const expectNoCompanyIn = (label: string, text: string) => {
   for (const planted of PLANTED) expect(text.toLowerCase(), `${label} contains ${planted}`).not.toContain(planted.toLowerCase());
 };
+/**
+ * The site's page since 2026-11-23 (owner: a company applies, the site sees its applicants): the applicant's name and
+ * website show with an answer given under the current line; nothing else of the company does before the site accepts.
+ */
+const NOT_SHOWN_BEFORE_ACCEPT = PLANTED.filter(value => ![NORTH, SOUTH].some(record => value === record.company
+  || value === record.website || value === record.website.replace(/^https:\/\/www\./, "").replace(/\/.*$/, "")
+  || value === record.company.split(" ")[0].replace(/PLANT$/, "")));
+const expectNoContactIn = (label: string, text: string) => {
+  for (const planted of NOT_SHOWN_BEFORE_ACCEPT) expect(text.toLowerCase(), `${label} contains ${planted}`).not.toContain(planted.toLowerCase());
+};
 
 beforeEach(async () => {
   state.docs.clear();
@@ -223,7 +233,10 @@ describe("what the site receives", () => {
     expect(body.answer.companies.sent).toMatchObject({ count: 2 });
     expect(body.answer.companies.introductions).toEqual({ used: 0 });
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([
-      ["alias", "atIso", "canIntroduce", "kind", "question", "reason", "state"], ["alias", "atIso", "canIntroduce", "kind", "reason", "state"]]);
+      ["alias", "applicant", "atIso", "canIntroduce", "kind", "question", "reason", "state"],
+      ["alias", "applicant", "atIso", "canIntroduce", "kind", "reason", "state"]]);
+    expect(entries.map(entry => entry.applicant)).toEqual([{ name: SOUTH.company, website: SOUTH.website },
+      { name: NORTH.company, website: NORTH.website }]);
     // Why: the company's own words, with its name, email and website taken out (2026-11-20).
     expect(entries.map(entry => entry.reason)).toEqual([SOUTH_REASON, NORTH_REASON]);
     // Interested can be introduced; Need more details is not (E6).
@@ -232,7 +245,7 @@ describe("what the site receives", () => {
       { kind: "answered", alias: "Company A", answer: "needs_something" },
       { kind: "answered", alias: "Company B", answer: "interested" },
     ]);
-    expectNoCompanyIn("the site's status payload", raw);
+    expectNoContactIn("the site's status payload", raw);
 
     // The emails: one per company and answer, each by the fixed words. The send itself emails the site nothing: its job
     // link email already said where the job goes (ledger AL38).
@@ -252,7 +265,7 @@ describe("what the site receives", () => {
     // The company's own "Need more details" carries the question the site answers on its page; North's Interested
     // answer is one the site can ask to be introduced after, so the email says how.
     expect(bodyOf(questionEvent)).toMatch(/^A deployment company needs more details about your job\. Read their question and answer it on your job page\.\n\nOpen your job:\nhttps:\/\/\S+$/);
-    expect(bodyOf("company_answered:B-interested")).toMatch(/^A deployment company answered "Interested" about your job\. To meet them, press Introduce us on your job page\.\n\nOpen your job:\n/);
+    expect(bodyOf("company_answered:B-interested")).toMatch(/^A deployment company applied to your job\. To meet them, press Accept on your job page\.\n\nOpen your job:\n/);
     expect(rows.every(row => row.status === "sent")).toBe(true);
     expectNoCompanyIn("the site's emails", siteEmailText());
 
@@ -268,7 +281,7 @@ describe("what the site receives", () => {
     expect(sent().filter(message => message.subject === "A deployment company answered")).toHaveLength(3);
     expect((await siteStatus()).body.answer.companies.entries).toContainEqual(expect.objectContaining({ alias: "Company A", state: "needs_something" }));
     expectNoCompanyIn("the site's emails", siteEmailText());
-    expectNoCompanyIn("the site's status payload", (await siteStatus()).raw);
+    expectNoContactIn("the site's status payload", (await siteStatus()).raw);
 
     // The operator, and only the operator, sees the names and the words.
     const read = await panel();

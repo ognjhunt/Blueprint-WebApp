@@ -60,14 +60,18 @@ describe("the company's introduction email", () => {
 
   it("quotes the company's answer, labels the address, and says where to write (a reply reaches Blueprint)", () => {
     const { body } = introductionCompanyEmail({ site, jobUrl, contactName: "Dana Lee", answerLabel: "Tested it: can do" });
-    expect(body).toContain('You answered "Tested it: can do" to a job on Blueprint, and the site has asked for an introduction.');
+    expect(body).toContain('You answered "Tested it: can do" to a job on Blueprint, and the site accepted. Here are its details:');
+    // An application reads as one (owner, 2026-11-23: a company applies, the site accepts).
+    const applied = introductionCompanyEmail({ site, jobUrl, contactName: "Dana Lee", answerLabel: "Apply" });
+    expect(applied.subject).toBe("A site accepted your application");
+    expect(applied.body).toContain("You applied to a job on Blueprint, and the site accepted your application. Here are its details:");
     expect(body).toContain("\nSite: Eastside Laundromat\nEmail: manager@site.example\nAddress: 1200 E 6th St, Austin, TX\n\nOpen the job:\nhttps://tryblueprint.io/jobs/req-1\n");
     expect(body).toContain("We are sending the site your company's name and your contact details now. Write to them at the email above.");
     expect(body).not.toMatch(/Reply to them|Where it is/);
   });
 
   it("says a start-form job's typed address once, as its address, not as the site's name", () => {
-    const { body } = introductionCompanyEmail({ site: { ...site, name: site.location }, jobUrl, answerLabel: "Interested" });
+    const { body } = introductionCompanyEmail({ site: { ...site, name: site.location }, jobUrl, answerLabel: "Apply" });
     expect(body).not.toContain("Site: ");
     expect(body.split("1200 E 6th St, Austin, TX")).toHaveLength(2);
     expect(body).toContain("\nAddress: 1200 E 6th St, Austin, TX\n");

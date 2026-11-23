@@ -18,16 +18,16 @@ describe("the site's job tracker", () => {
     expect(steps.slice(2).every(step => step.detail === null)).toBe(true);
   });
 
-  it("asks the site to press Introduce us once a company is interested", () => {
+  it("asks the site to press Accept once a company applies", () => {
     const activity: SiteCompanyActivity = { interested: true, views: 3, firstAnswerAtIso: "2026-11-12T09:00:00.000Z",
       entries: [answered("Company A", "interested"), answered("Company B", "declined")] };
     const steps = jobTrackerSteps(visible, activity);
     expect(states(steps).slice(0, 4)).toEqual(["posted:done", "looking:done", "responses:done", "introduced:current"]);
     expect(steps[2].atIso).toBe("2026-11-12T09:00:00.000Z");
-    expect(steps[3].detail).toBe("Press Introduce us below to meet a company");
+    expect(steps[3].detail).toBe("Press Accept below to meet a company");
     // With only a "Not a fit", it waits for a company to say Interested.
     expect(jobTrackerSteps(visible, { ...activity, interested: false, entries: [answered("Company B", "declined")] })[3].detail)
-      .toBe("Waiting for a company to say Interested");
+      .toBe("Waiting for a company to apply");
   });
 
   it("counts a visit and a pilot only from the site's own marks, and a later mark completes the steps before it", () => {

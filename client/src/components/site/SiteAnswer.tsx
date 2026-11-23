@@ -21,7 +21,7 @@ import {
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
 import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "@/lib/jobTracker";
-import { COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+import { COMPANY_START_LABELS, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
@@ -53,7 +53,8 @@ export const KIND_UNKNOWN_LINE = "We couldn't tell exactly what the job is, so w
 /** Under "Why this robot": the first look is a check of the machine; how it is run is set up when it is installed. */
 export const ROBOT_NOT_SOFTWARE = "This is the first look: it looks at the robot's reach, strength and track record, not the software that runs it.";
 /** The section titles. */
-export const SECTION_COMPANIES = "Deployment companies";
+/** Owner, 2026-11-23: companies apply, and the site sees its applicants and accepts the ones it wants to meet. */
+export const SECTION_COMPANIES = "Applicants";
 export const SECTION_FIRST_LOOK = "First look";
 export const SECTION_SIMULATION = "Simulation of your site";
 /** The simulation's own lines, by the phase. */
@@ -142,6 +143,9 @@ function cannotLine(reason: string | null): string | null {
 
 type AnsweredEntry = Extract<SiteCompanyEntry, { kind: "answered" }>;
 
+/** The applicant as the site reads it: the company's name when its answer shows it (`applicant`), else its alias. */
+const shownName = (entry: AnsweredEntry) => entry.applicant?.name ?? entry.alias;
+
 /** A company's details after an introduction: what the site was given, nothing more. */
 function IntroducedDetails({ entry }: { entry: AnsweredEntry }) {
   const company = entry.company!;
@@ -194,7 +198,7 @@ function IntroductionProgress({ token, entry, onChanged }: { token: string; entr
     } catch (failure) { setError(failure instanceof Error && failure.message ? failure.message : PROGRESS_FAILED); }
     finally { setBusy(null); }
   }
-  return <div className="site-job-progress" role="group" aria-label={`How it went with ${entry.alias}`}>
+  return <div className="site-job-progress" role="group" aria-label={`How it went with ${shownName(entry)}`}>
     {(["visit", "pilot"] as const).map(step => {
       const at = step === "visit" ? progress.visitAtIso : progress.pilotAtIso;
       return at ? <p key={step} className="site-job-progress-done">
@@ -229,7 +233,7 @@ function AnswerReason({ entry }: { entry: AnsweredEntry }) {
       (reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
         : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
     {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.question && !entry.company && !entry.introducedAtIso
-      && <p className="bare-helper">{introductionIfChanged(entry.alias)}</p>}
+      && <p className="bare-helper">{introductionIfChanged(shownName(entry))}</p>}
   </>;
 }
 
@@ -331,11 +335,13 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
         {entry.kind === "sent" ? <p className="bare-helper">{sentToCompany(entry.alias, dateInWords(entry.atIso))}</p> : <>
           <div className="site-company-response-title">
-            <h3>{entry.alias}</h3>
+            <h3>{shownName(entry)}</h3>
             <span className={INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) ? "opportunity-label-ready" : undefined}>
-              {COMPANY_RESPONSE_LABELS[entry.state]}
+              {SITE_RESPONSE_LABELS[entry.state]}
             </span>
           </div>
+          {entry.applicant?.website && !entry.company && <p className="site-company-website">
+            <a className="ms-text-link" href={entry.applicant.website} target="_blank" rel="noreferrer noopener">{entry.applicant.website}</a></p>}
           <p className="site-company-reply-date">Answered <time dateTime={entry.atIso}>{dateInWords(entry.atIso)}</time></p>
         </>}
         {entry.kind === "answered" && <AnswerReason entry={entry} />}
@@ -347,8 +353,8 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
           {requested.includes(entry.alias)
-            ? <p className="bare-helper" role="status">{introductionRequested(entry.alias)}</p>
-            : <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
+            ? <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>
+            : <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(shownName(entry))}>
               {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
             </BareButton>}
           {errors[entry.alias] && <p role="alert">{errors[entry.alias]}</p>}

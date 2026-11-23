@@ -132,7 +132,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {dateInWords(page.publishedAtIso) && <span>Shared {dateInWords(page.publishedAtIso)}</span>}
     </div>
     <div className="company-job-actions">
-      {user && <a className="ms-button" href="#answer-this-job">Respond<ArrowDown size={16} aria-hidden="true" /></a>}
+      {user && <a className="ms-button" href="#answer-this-job">Apply or respond<ArrowDown size={16} aria-hidden="true" /></a>}
       {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url} download><Download size={16} aria-hidden="true" />Download the simulation</a>}
     </div>
 
@@ -260,9 +260,9 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
   }
   return <section id="answer-this-job" aria-label={formLabel} tabIndex={-1}>
     <h2>Your response</h2>
-    {mine && <p className="ms-field-hint">You answered “{COMPANY_RESPONSE_LABELS[mine.state]}”{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
+    {mine && <p className="ms-field-hint">{mine.state === "interested" ? "You applied" : `You answered “${COMPANY_RESPONSE_LABELS[mine.state]}”`}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
-        ? " Answer again below so the site can ask for an introduction." : ""}</p>}
+        ? " Send it again below so the site sees your company's name and website with it." : ""}</p>}
     {page.clarification && <div className="company-question" role="region" aria-label="Answer from the site">
       <dl className="company-response-facts">
         <div><dt>Your question</dt><dd>{page.clarification.question}</dd></div>
@@ -270,7 +270,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
       </dl>
     </div>}
     <form onSubmit={submit} className="ms-form" aria-label={formLabel}>
-      <fieldset className="company-answer-options"><legend>Is this job a fit for your company?</legend>
+      <fieldset className="company-answer-options"><legend>Will you apply for this job?</legend>
         {(tested ? [...FIT_RESPONSE_STATES, ...TESTED_RESPONSE_STATES] : FIT_RESPONSE_STATES).map(state => <label key={state}><input type="radio" name="state" value={state} required
           checked={answer === state} onChange={() => choose(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
@@ -289,7 +289,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
           {COMPANY_START_WINDOWS.map(window => <option key={window} value={window}>{COMPANY_START_LABELS[window]}</option>)}
         </select></label>
       </details>}
-      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send response"}</button>
+      <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send"}</button>
       {message && <p role="status">{message}</p>}
       <p className="ms-field-hint" id="company-answer-statement">{page.responseStatement.text}</p>
     </form>

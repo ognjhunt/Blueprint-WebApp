@@ -491,3 +491,4 @@
   .site-job-tracker > li { padding: 0 0 14px 26px; }
   .site-job-tracker > li::before { top: 16px; bottom: 0; left: 6px; right: auto; width: 2px; height: auto; }
 }
+.bare-screen .site-company-website { margin: 2px 0 0; font-size: 14px; overflow-wrap: anywhere; }

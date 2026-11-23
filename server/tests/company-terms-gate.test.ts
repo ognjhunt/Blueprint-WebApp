@@ -538,7 +538,8 @@ describe("an introduction that may no longer go ahead at dispatch is cancelled a
     expect(a).not.toHaveProperty("introducedAtIso");
     expect(a).not.toHaveProperty("company");
     expect(a.canIntroduce).toBe(false);
-    expect(JSON.stringify(activity)).not.toMatch(/North Robotics|contact@north|Person North/);
+    // The applicant's name and website show with its answer (owner, 2026-11-23); its contact details never before Accept.
+    expect(JSON.stringify(activity)).not.toMatch(/contact@north|Person North/);
     expect(activity.introductions.used).toBe(0);
     // A cancelled introduction does not count among those made.
     seams.sendEmail.mockClear();
@@ -663,7 +664,8 @@ describe("one commit point: the company's email first, then the site's, which th
     expect(a).toMatchObject({ introductionCancelled: true,
       canIntroduce: reason === "company_email_failed" || reason === "company_email_not_sent" });
     expect(a).not.toHaveProperty("company");
-    expect(JSON.stringify(activity)).not.toMatch(/North Robotics|contact@north|Person North/);
+    // The applicant's name and website show with its answer (owner, 2026-11-23); its contact details never before Accept.
+    expect(JSON.stringify(activity)).not.toMatch(/contact@north|Person North/);
     expect(activity.introductions.used).toBe(0);
   }
 

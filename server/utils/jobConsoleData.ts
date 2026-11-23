@@ -362,7 +362,8 @@ function companyEvents(companies: AdminJobCompanies | null): AdminJobEvent[] {
     events.push({ key: `send-${send.sendId}`, atIso: send.sentAtIso, text: `Sent to ${name(send)} by hand` });
   for (const row of companies.responses) if (row.updatedAtIso && row.recordedBy !== "before_c1")
     events.push({ key: `response-${row.companyId}`, atIso: row.updatedAtIso,
-      text: `${name(row)} answered: ${row.state ? COMPANY_RESPONSE_LABELS[row.state] : "an answer this page cannot read"}` });
+      text: row.state === "interested" ? `${name(row)} applied`
+        : `${name(row)} answered: ${row.state ? COMPANY_RESPONSE_LABELS[row.state] : "an answer this page cannot read"}` });
   for (const row of companies.introductions ?? []) {
     if (row.requestedAtIso)
       events.push({ key: `introduction-${row.companyId}`, atIso: row.requestedAtIso, text: `The site asked to meet ${name(row)}` });

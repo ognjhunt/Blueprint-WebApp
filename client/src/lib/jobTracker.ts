@@ -15,7 +15,7 @@ export type TrackerStepState = "done" | "current" | "upcoming";
 export interface TrackerStep { key: TrackerStepKey; label: string; state: TrackerStepState; detail: string | null; atIso?: string }
 
 export const TRACKER_LABELS: Readonly<Record<TrackerStepKey, string>> = {
-  posted: "Posted", looking: "Companies looking", responses: "Responses", introduced: "Introduced", visit: "Site visit",
+  posted: "Posted", looking: "Companies looking", responses: "Applications", introduced: "Accepted", visit: "Site visit",
   pilot: "Pilot agreed",
 };
 
@@ -47,8 +47,8 @@ export function jobTrackerSteps(sharing: JobSharing, activity: SiteCompanyActivi
     posted: "Getting your job ready to post",
     looking: sentCount ? `Sent to ${plural(sentCount, "approved company", "approved companies")}; waiting for one to open it`
       : "Waiting for companies to open it",
-    responses: "Waiting for a company to answer",
-    introduced: interested.length ? "Press Introduce us below to meet a company" : "Waiting for a company to say Interested",
+    responses: "Waiting for a company to apply",
+    introduced: interested.length ? "Press Accept below to meet a company" : "Waiting for a company to apply",
     visit: "Mark it below when a company visits",
     pilot: "Mark it below when you agree a pilot",
   };

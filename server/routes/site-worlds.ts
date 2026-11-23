@@ -106,9 +106,9 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
 /** After an answer, one sentence saying what happens next. */
 function answerNextStep(state: CompanyResponseState): string {
   if (INTRODUCIBLE_RESPONSE_STATES.includes(state))
-    return "Saved. If the site asks to meet you, we email you both each other's name and contact details.";
+    return "Saved. If the site accepts your application, we email you both each other's name and contact details.";
   if (state === "needs_something") return "Saved. If the site answers your question, its answer shows on this page.";
-  return "Saved. The site sees this answer without your company's name, and you can change it on this page.";
+  return "Saved. The site sees this answer with your company's name, and you can change it on this page.";
 }
 
 // The company's page for one job (E3): signed-in, approved accounts only, whatever the early-access switch says.

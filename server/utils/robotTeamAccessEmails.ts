@@ -1,3 +1,4 @@
+import { COMPANY_RESPONSE_LABELS } from "../../client/src/lib/companyResponses";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, outboxRecipientMatches, type OutboxStatus } from "./captureOutbox";
 import { rowAwaitsDelivery } from "./captureOutboxRetry";
@@ -207,18 +208,19 @@ export function introductionCompanyEmail(params: { site: IntroductionSiteDetails
   // has no name of its own to give.
   const nameIsAddress = Boolean(site.location) && site.location === site.name;
   return {
-    subject: "A site wants to talk about its job",
+    subject: "A site accepted your application",
     body: [
       emailGreeting(params.contactName ? firstName(params.contactName) : null),
       "",
       // A fixed answer label in plain text is quoted: "Tested it: can do" has a colon of its own.
-      `You answered "${params.answerLabel}" to a job on Blueprint, and the site has asked for an introduction. Here are its details:`,
+      params.answerLabel === COMPANY_RESPONSE_LABELS.interested ? "You applied to a job on Blueprint, and the site accepted your application. Here are its details:"
+        : `You answered "${params.answerLabel}" to a job on Blueprint, and the site accepted. Here are its details:`,
       "",
       ...(nameIsAddress ? [] : [`Site: ${site.name}`]),
       ...(site.contactName ? [`Contact: ${site.contactName}`] : []),
       `Email: ${site.email}`,
       ...(site.phone ? [`Phone: ${site.phone}`] : []),
-      // "Address", the word of the statement the site agreed to beside Introduce us.
+      // "Address", the word of the statement the site agreed to beside Accept.
       ...(site.location ? [`Address: ${site.location}`] : []),
       "",
       "Open the job:",

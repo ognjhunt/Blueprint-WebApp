@@ -37,7 +37,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
-  COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
+  COMPANY_NAME_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
   type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
@@ -342,7 +342,7 @@ export function knownCompanyIdentity(...records: Array<Data | null | undefined>)
  * or your words"), with no line, or recorded by staff under "staff only, never shown to the site" never shows its words.
  */
 export function answerWordsMayReachSite(answer: Data | null | undefined): boolean {
-  return (answer?.recordedBy === "company" && answer.statementVersion === COMPANY_RESPONSE_STATEMENT_VERSION)
+  return (answer?.recordedBy === "company" && COMPANY_RESPONSE_STATEMENT_VERSIONS.includes(String(answer.statementVersion)))
     || (answer?.recordedBy === "operator" && answer.wordsShownToSite === true);
 }
 
@@ -378,8 +378,20 @@ export function siteReasonOf(answer: Data | null | undefined, identity: KnownSit
  */
 export function answerConsentsToIntroduction(answer: Data | null | undefined): boolean {
   if (!answer || !INTRODUCIBLE_RESPONSE_STATES.includes(answer.state)) return false;
-  return (answer.recordedBy === "company" && answer.statementVersion === COMPANY_RESPONSE_STATEMENT_VERSION)
+  return (answer.recordedBy === "company" && COMPANY_RESPONSE_STATEMENT_VERSIONS.includes(String(answer.statementVersion)))
     || answer.recordedBy === "operator";
+}
+
+/**
+ * The company's name and website as the site may read them with its answer, or null: only for an answer the company
+ * gave itself under a line that says the site sees them (`COMPANY_NAME_STATEMENT_VERSIONS`), from its approved record.
+ */
+export function applicantShownToSite(answer: Data | null | undefined, company: Data | undefined): { name: string; website: string | null } | null {
+  if (answer?.recordedBy !== "company" || !COMPANY_NAME_STATEMENT_VERSIONS.includes(String(answer.statementVersion))) return null;
+  const name = typeof company?.company === "string" ? company.company.trim().slice(0, 120) : "";
+  if (!name) return null;
+  const website = typeof company?.website === "string" && /^https?:\/\/[^\s]+$/i.test(company.website.trim()) ? company.website.trim().slice(0, 300) : null;
+  return { name, website };
 }
 
 /**
@@ -447,7 +459,9 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
       ...(verified ? { verified } : {}),
       ...(COMPANY_START_WINDOWS.some(window => window === startWindow) ? { startWindow } : {}),
     } : {};
+    const applicant = applicantShownToSite(response.data, input.companies?.get(response.id));
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
+      ...(applicant ? { applicant } : {}),
       ...(reason ? { reason } : {}),
       ...(Object.keys(details).length ? { details } : {}),
       ...(canAnswer ? { question: { id: question.id, text: questionText, ...(answer ? { answer } : {}) } } : {}),
