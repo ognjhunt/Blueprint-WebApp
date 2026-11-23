@@ -40,16 +40,48 @@ For a session that picks this up. Newest first.
 | Company name on the application | Test Deployment Co (Blueprint first-job run 2026-11-23) |
 | Company website on the application | `https://example.com` (a reserved test domain) |
 | Place | Austin, Texas. **A test value**: the clip's real place is not known. |
-| Job sentence | written from the clip; see "Footage" |
+| Job sentence | "Scrape the cake batter from the mixing bowl into each baking pan on the counter." |
 
 No real site and no real company is part of this run. Production data beyond
 the test job is read as counts and timings only.
 
 ## Footage
 
-Not chosen yet. This section will hold the clip's source page, its licence
-with the line read on the source, the file's sha256, and whether any face is
-recognisable.
+**The clip for the job.** One clip, used as downloaded, not edited.
+
+| | |
+|---|---|
+| Source page | `https://mixkit.co/free-stock-video/woman-pastry-chef-pouring-a-mixture-into-baking-molds-50033/` |
+| File | `https://assets.mixkit.co/videos/50033/50033-1080.mp4`, downloaded 2026-11-23 13:35Z |
+| sha256 | `9287a931b2f0448e1712b5437823386a72b6f69a1f00f3fe5e813cb3d0ce140b` |
+| Size, length, format | 76,974,681 bytes; 21.4 s; 1920x1080 H.264 mp4, 23.976 frames a second; no sound track (`ffprobe`) |
+| What it shows | A commercial kitchen. A worker in a white jacket, seen from the shoulders down, scrapes cake batter from a steel mixing bowl into round baking pans lined up on a steel counter. One continuous shot (`ffmpeg` scene filter at 0.3: 0 changes). |
+| Faces | None: the worker is framed from the shoulders down in all 12 frames looked at. |
+| Names, logos, text | None seen in those frames. |
+| Job sentence | "Scrape the cake batter from the mixing bowl into each baking pan on the counter." True of what is on screen. |
+| Place | Austin, Texas: a test value. The clip's real place is not known. |
+
+**Licence.** Mixkit Stock Video Free License. The item's own page marks it
+`data-license="videoFree"` and carries no "Restricted" or "Personal Use only"
+wording. The licence text, read on `https://mixkit.co/license/` on 2026-11-23
+at 13:28Z: "Items under the Mixkit Stock Video Free License can be used in your
+commercial and non-commercial projects, for free. You're permitted to
+download, copy, modify, distribute, publicly perform and broadcast the Items.
+Your rights are non-exclusive, worldwide, sub-licensable and ongoing.
+Attribution is not required". The limits it points to, read in section 9 of
+`https://mixkit.co/terms/` at 13:29Z: no selling unaltered copies, no offering
+items as stock, no competing service, no removing watermarks, no mass
+download. That section names no limit on analysing a clip with software.
+
+Not read: Envato's Acceptable Use Policy, which those terms also apply. Its
+page answered automated requests with a challenge (HTTP 403) and was left
+alone. The site's own public sample job already uses a Mixkit clip under this
+licence.
+
+**How well it fits the brief.** It is a repetitive manual job with no face,
+which the brief asked for. It is not a handheld walk through a work area: the
+camera only drifts, and the room is seen from one side. No clip found under a
+clean licence had both.
 
 Looked at and not used, 2026-11-23 13:20Z to 13:30Z:
 
