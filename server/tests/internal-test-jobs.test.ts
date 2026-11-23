@@ -449,7 +449,9 @@ describe("nothing about a test job leaves Blueprint (W5)", () => {
     expect(toSite).toEqual(["Your Blueprint job link"]);
     expect(seams.sendEmail.mock.calls.some(([message]) => message.to === "ops@tryblueprint.io")).toBe(true);
     expect(slackMentioning(site.jobId).map(text => text.slice(0, 80))).toEqual(expect.arrayContaining([
-      expect.stringContaining("New request"), expect.stringContaining("Site walkthrough"), expect.stringContaining("Pipeline code")]));
+      expect.stringContaining("New request"), expect.stringContaining("Pipeline code")]));
+    // No bell for footage review by hand: no person reviews footage (2026-11-22).
+    expect(slackMentioning(site.jobId).some(text => /review coverage by hand/.test(text))).toBe(false);
     // Every email of the drive went to the site or to ops: none outward about the test job.
     expect(seams.sendEmail.mock.calls.length).toBe(toSite.length + 2);
   });

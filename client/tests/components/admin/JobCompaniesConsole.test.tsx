@@ -4,8 +4,8 @@ import { JobCompaniesConsole } from "@/components/admin/JobCompaniesConsole";
 import type { AdminJobCompanies } from "@/types/jobCompanies";
 
 /**
- * The operator's "Deployment companies" panel (package C1): sharing in words, the library address to copy, record a
- * send (only while visible), void, responses with the company's own words, record an emailed answer, and the hold.
+ * The operator's "Deployment companies" panel (package C1): sharing in words, the sends and responses on record (read
+ * only since 2026-11-22: no hand send, void or emailed answer), and the hold, which needs a reason.
  */
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "csrf" }) }));
 vi.mock("@/lib/firebaseAuthHeaders", () => ({
@@ -32,17 +32,6 @@ beforeEach(() => {
     if (url === base && !init?.method) return json(panel);
     const body = init?.body ? JSON.parse(String(init.body)) : null;
     posts.push({ path: url.slice(base.length), body });
-    if (url === `${base}/sends`) {
-      panel.sends.push({ sendId: "send-1", companyId: NORTH, company: "North Robotics", alias: "A", sentAtIso: "2026-11-12T10:00:00.000Z",
-        sentBy: "ops@tryblueprint.io", voidedAtIso: null, voidedBy: null });
-      return json({ send: { sendId: "send-1", alias: "A" } });
-    }
-    if (url === `${base}/sends/send-1/void`) { panel.sends[0].voidedAtIso = "2026-11-12T11:00:00.000Z"; panel.sends[0].voidedBy = "ops@tryblueprint.io"; return json({}); }
-    if (url === `${base}/responses`) {
-      panel.responses.push({ companyId: NORTH, company: "North Robotics", email: "sales@north.example", alias: "A", state: body.state,
-        inputs: body.inputs, updatedAtIso: "2026-11-12T12:00:00.000Z", recordedBy: "operator" });
-      return json({ response: { alias: "A" } });
-    }
     if (url === `${base}/hold`) {
       panel.hold = body.held ? { atIso: "2026-11-12T13:00:00.000Z", by: "ops@tryblueprint.io", reason: body.reason ?? null } : null;
       panel.sharing = body.held ? { state: "shared_not_visible", reason: "blueprint_hold",
@@ -56,54 +45,30 @@ beforeEach(() => {
 const section = () => screen.getByRole("region", { name: "Deployment companies" });
 
 describe("the Deployment companies panel", () => {
-  it("records a send, shows it with who and when, and voids it", async () => {
+  it("shows sends and answers on record with no form to record, void or answer by hand", async () => {
+    panel.sends = [{ sendId: "send-1", companyId: NORTH, company: "North Robotics", alias: "A", sentAtIso: "2026-11-12T10:00:00.000Z",
+      sentBy: "ops@tryblueprint.io", voidedAtIso: null, voidedBy: null }];
+    panel.responses = [{ companyId: NORTH, company: "North Robotics", email: "sales@north.example", alias: "A", state: "needs_something",
+      inputs: "We would need a second gripper.", updatedAtIso: "2026-11-12T12:00:00.000Z", recordedBy: "company" }];
     render(<JobCompaniesConsole requestId="job-a" currentUser={{ uid: "founder" } as never} />);
-    expect(await within(section()).findByText("Shared and visible to approved companies.")).toBeInTheDocument();
-    expect(within(section()).getByLabelText("Job library address")).toHaveTextContent("https://tryblueprint.io/contact/robot-team#job-job-a");
-    expect(within(section()).getByText("Not sent to any company yet.")).toBeInTheDocument();
-    const sendForm = within(section()).getByRole("form", { name: "Record a send" });
-    fireEvent.change(within(sendForm).getByRole("combobox"), { target: { value: NORTH } });
-    fireEvent.submit(sendForm);
-    const sends = within(section()).getByRole("region", { name: "Sends" });
-    expect(await within(sends).findByText(/North Robotics \(Company A to the site\)/)).toBeInTheDocument();
-    expect(posts).toEqual([{ path: "/sends", body: { companyId: NORTH } }]);
-    fireEvent.click(within(sends).getByRole("button", { name: "Void" }));
-    expect(await within(sends).findByText(/^Voided /)).toBeInTheDocument();
+    const sends = await within(section()).findByRole("region", { name: "Sends" });
+    expect(within(sends).getByText(/North Robotics \(Company A to the site\)/)).toBeInTheDocument();
     expect(within(sends).queryByRole("button", { name: "Void" })).toBeNull();
-  });
-
-  it("records an emailed answer with the company's words, only for a company the job was sent to, and has no note for the site", async () => {
-    const { unmount } = render(<JobCompaniesConsole requestId="job-a" currentUser={{ uid: "founder" } as never} />);
-    let form = await within(section()).findByRole("form", { name: "Record a response" });
-    // Not sent to anyone yet: no company to choose, and the panel says why.
-    expect(within(form).getAllByRole("combobox")[0].querySelectorAll("option:not([disabled])")).toHaveLength(0);
-    expect(within(form).getByText(/Record a send first/)).toBeInTheDocument();
-    unmount();
-    panel.sends.push({ sendId: "send-1", companyId: NORTH, company: "North Robotics", alias: "A", sentAtIso: "2026-11-12T10:00:00.000Z",
-      sentBy: "ops@tryblueprint.io", voidedAtIso: null, voidedBy: null });
-    render(<JobCompaniesConsole requestId="job-a" currentUser={{ uid: "founder" } as never} />);
-    form = await within(section()).findByRole("form", { name: "Record a response" });
-    const [company, state] = within(form).getAllByRole("combobox");
-    fireEvent.change(company, { target: { value: NORTH } });
-    fireEvent.change(state, { target: { value: "needs_something" } });
-    expect(within(state).getAllByRole("option").map(option => option.textContent)).toEqual(["Interested", "Not a fit", "Need more details"]);
-    expect(within(form).queryByLabelText(/Note/)).toBeNull();
-    fireEvent.change(within(form).getByLabelText(/Their words/), { target: { value: "We would need a second gripper." } });
-    fireEvent.submit(form);
     const responses = within(section()).getByRole("region", { name: "Responses" });
-    expect(await within(responses).findByText("“We would need a second gripper.”")).toBeInTheDocument();
-    expect(within(responses).getByText("Need more details")).toBeInTheDocument();
-    expect(posts).toEqual([{ path: "/responses", body: { companyId: NORTH, state: "needs_something", inputs: "We would need a second gripper." } }]);
+    expect(within(responses).getByText("“We would need a second gripper.”")).toBeInTheDocument();
+    expect(within(section()).queryByRole("form", { name: "Record a send" })).toBeNull();
+    expect(within(section()).queryByRole("form", { name: "Record a response" })).toBeNull();
+    expect(within(section()).queryByLabelText("Job library address")).toBeNull();
   });
 
-  it("stops showing the job to companies, disables sends while held, and shows it again", async () => {
+  it("stops showing the job to companies only with a reason, and shows it again", async () => {
     render(<JobCompaniesConsole requestId="job-a" currentUser={{ uid: "founder" } as never} />);
     const holdForm = await within(section()).findByRole("form", { name: "Stop showing this job to companies" });
+    expect(within(holdForm).getByRole("textbox")).toBeRequired();
     fireEvent.change(within(holdForm).getByRole("textbox"), { target: { value: "Checking the summary" } });
     fireEvent.click(within(holdForm).getByRole("button", { name: "Stop showing this job to companies" }));
     expect(await within(section()).findByText(/Not shown to any company since .*: Checking the summary\./)).toBeInTheDocument();
     expect(within(section()).getByText("Shared, but not visible to companies right now: Blueprint stopped showing it.")).toBeInTheDocument();
-    expect(within(within(section()).getByRole("form", { name: "Record a send" })).getByRole("button", { name: "Record the send" })).toBeDisabled();
     fireEvent.click(within(section()).getByRole("button", { name: "Show again" }));
     await waitFor(() => expect(within(section()).getByText("Shared and visible to approved companies.")).toBeInTheDocument());
     expect(posts).toEqual([{ path: "/hold", body: { held: true, reason: "Checking the summary" } }, { path: "/hold", body: { held: false } }]);

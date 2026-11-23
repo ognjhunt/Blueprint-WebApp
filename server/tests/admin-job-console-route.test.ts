@@ -57,6 +57,11 @@ vi.mock("../utils/jobOutlook", () => ({
 }));
 const companies = vi.hoisted(() => ({ panel: null as null | Record<string, unknown> }));
 vi.mock("../utils/jobCompanies", () => ({ loadAdminJobCompanies: async () => companies.panel }));
+vi.mock("../utils/ownerTotals", () => ({
+  loadJobTotals: async () => ({ siteJobs: 2, siteJobsThisWeek: 1, withVideo: 1, shownToCompanies: 1, answered: 0,
+    introductionsAsked: 0, introductionsMade: 0, outcomeAnswers: 0, billableEvents: 0 }),
+  billableEventsCsv: async () => '"event_id"\r\n',
+}));
 vi.mock("../utils/siteAnswer", () => ({ loadSiteAnswer: async () => null }));
 
 vi.mock("../utils/access-control", () => ({
@@ -114,6 +119,20 @@ afterEach(async () => {
 
 const admin = { headers: { Authorization: "Bearer admin" } };
 const TEST_MARKER = { label: "mug to tray", footage_id: "f-1", created_by: "pipeline_sync_signature", created_at_iso: "2026-11-16T18:00:00.000Z" };
+
+describe("the owner's totals and billable events CSV", () => {
+  it("are admin only and answer before the job detail route", async () => {
+    expect((await fetch(`${baseUrl}/totals`)).status).toBe(401);
+    expect((await fetch(`${baseUrl}/billable-events.csv`, { headers: { Authorization: "Bearer user" } })).status).toBe(403);
+    const totals = await fetch(`${baseUrl}/totals`, admin);
+    expect(totals.status).toBe(200);
+    expect(await totals.json()).toMatchObject({ siteJobs: 2, siteJobsThisWeek: 1 });
+    const csv = await fetch(`${baseUrl}/billable-events.csv`, admin);
+    expect(csv.status).toBe(200);
+    expect(csv.headers.get("content-type")).toMatch(/^text\/csv/);
+    expect(csv.headers.get("content-disposition")).toMatch(/attachment/);
+  });
+});
 
 describe("GET /api/admin/jobs", () => {
   it("requires authentication", async () => {

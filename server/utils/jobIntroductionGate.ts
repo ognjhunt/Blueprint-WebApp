@@ -20,6 +20,10 @@
  * - A held site row never depends on the company row's own step having run (20:55Z, J1): every dispatch pass decides
  *   each held row from the facts (`settleHeldSiteIntroductions`), and a company row that ages out in the outbox's
  *   deferral path ends the introduction there too.
+ * - A cancellation caused by Blueprint's own email to the company (`company_email_failed`, `company_email_not_sent`) may
+ *   be asked for again by the site (`RETRYABLE_CANCEL_REASONS`). Each attempt after the first has its own email keys
+ *   (ending `:a{attempt}`) and its own billable event; the introduction record carries the current `attempt`, and a row
+ *   or event of an earlier attempt never acts on the current one.
  * Every other kind passes.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -28,8 +32,18 @@ import { companyMaySeeJobs } from "./companyTerms";
 
 export const INTRODUCTION_COMPANY_KIND = "introduction_made_company";
 export const INTRODUCTION_SITE_EMAIL_KIND = "introduction_made_site";
-export const introductionCompanyKey = (requestId: string, companyId: string) => `${requestId}:${INTRODUCTION_COMPANY_KIND}:${companyId}`;
-const introductionSiteEmailKey = (requestId: string, companyId: string) => `${requestId}:${INTRODUCTION_SITE_EMAIL_KIND}:${companyId}`;
+const attemptSuffix = (attempt: number) => attempt > 0 ? `:a${attempt}` : "";
+export const introductionCompanyKey = (requestId: string, companyId: string, attempt = 0) =>
+  `${requestId}:${INTRODUCTION_COMPANY_KIND}:${companyId}${attemptSuffix(attempt)}`;
+export const introductionSiteEmailKey = (requestId: string, companyId: string, attempt = 0) =>
+  `${requestId}:${INTRODUCTION_SITE_EMAIL_KIND}:${companyId}${attemptSuffix(attempt)}`;
+/** Cancellations caused by Blueprint's own email failing, not by the site, the company or the job: the site may ask again. */
+export const RETRYABLE_CANCEL_REASONS: ReadonlySet<string> = new Set(["company_email_failed", "company_email_not_sent"]);
+/** The attempt an introduction record is on: 0 for the first. */
+export const introductionAttemptOf = (record: Record<string, unknown> | undefined) => {
+  const attempt = Number(record?.attempt);
+  return Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
+};
 
 /** Outbox statuses of a row that has not gone out and is not being handed to the provider: these are cancelled. */
 const NOT_YET_SENT = new Set(["pending", "claimed", "review_required", "held"]);
@@ -40,7 +54,7 @@ export type IntroductionStopReason = "introduction_missing" | "introduction_canc
   | "company_not_approved" | "company_email_failed" | "company_email_missing" | "company_email_not_sent";
 
 /** The one predicate both introduction emails' dispatch checks call. Reads only; inside a transaction pass `tx`. */
-export async function introductionMayProceed(requestId: string, companyId: string, tx?: FirebaseFirestore.Transaction):
+export async function introductionMayProceed(requestId: string, companyId: string, tx?: FirebaseFirestore.Transaction, attempt = 0):
   Promise<{ ok: true } | { ok: false; reason: IntroductionStopReason; introductionOnRecord: boolean }> {
   if (!db) throw new Error("introduction_store_unavailable");
   const jobRef = db.collection("inboundRequests").doc(requestId);
@@ -49,38 +63,30 @@ export async function introductionMayProceed(requestId: string, companyId: strin
   const [job, intro, company] = tx ? [await tx.get(jobRef), await tx.get(introRef), await tx.get(companyRef)]
     : [await jobRef.get(), await introRef.get(), await companyRef.get()];
   if (!intro.exists) return { ok: false, reason: "introduction_missing", introductionOnRecord: false };
-  if (typeof intro.data()?.cancelledAtIso === "string") return { ok: false, reason: "introduction_cancelled", introductionOnRecord: false };
+  // Cancelled, or an email of an earlier attempt: it stops without touching the current record.
+  if (typeof intro.data()?.cancelledAtIso === "string" || introductionAttemptOf(intro.data()) !== attempt)
+    return { ok: false, reason: "introduction_cancelled", introductionOnRecord: false };
   const record = job.data();
   if (!job.exists || projectWebsiteCaptureRights(record).consent_revoked)
     return { ok: false, reason: "job_withdrawn", introductionOnRecord: true };
   // Approved, a deployment company, and the current Terms accepted, signed in (`companyMaySeeJobs`).
   if (!companyMaySeeJobs(company.data())) return { ok: false, reason: "company_not_approved", introductionOnRecord: true };
-  const { loadCompanyJobAccess, teamJobAccess } = await import("./teamJobAccess");
-  const { access } = await loadCompanyJobAccess(requestId, record as Record<string, any>, tx);
-  if (!access.listed && !(await onlyWorkWindowEnded(access.reason, record as Record<string, any>, teamJobAccess)))
+  // Blueprint's own work window ending keeps the job listed (`teamJobAccess`, finding G-01), so it passes here; an
+  // authority end for a source revocation closes the listing and stops the introduction.
+  const { loadCompanyJobAccess } = await import("./teamJobAccess");
+  if (!(await loadCompanyJobAccess(requestId, record as Record<string, any>, tx)).access.listed)
     return { ok: false, reason: "job_not_shared", introductionOnRecord: true };
   return { ok: true };
 }
 
-/**
- * The job left the list only because Blueprint's own work window ended: the preparation ended `authority_ended`, the
- * window has passed while the rights still allow the work (`websiteJobWorkWindow`'s `ended`), and every stop the record
- * holds (withdrawal, Blueprint's hold, each rights hold, the site's close, the statement and the listing record) still
- * lets the job through.
- */
-async function onlyWorkWindowEnded(reason: string | null, record: Record<string, any>,
-  teamJobAccess: typeof import("./teamJobAccess").teamJobAccess): Promise<boolean> {
-  if (reason !== "authority_ended" || !teamJobAccess(record).listed) return false;
-  const { websiteJobWorkWindow } = await import("./websiteSceneSponsorship");
-  return (await websiteJobWorkWindow(record).catch(() => null))?.ended === true;
-}
-
-/** The company an introduction email's key names, or null for a key of any other shape. */
-export function introductionEmailCompany(entry: { kind: string; requestId: string; idempotencyKey?: string }): string | null {
+/** The company and attempt an introduction email's key names, or null for a key of any other shape. */
+export function introductionEmailTarget(entry: { kind: string; requestId: string; idempotencyKey?: string }):
+  { companyId: string; attempt: number } | null {
   if (entry.kind !== INTRODUCTION_COMPANY_KIND && entry.kind !== INTRODUCTION_SITE_EMAIL_KIND) return null;
   const prefix = `${entry.requestId}:${entry.kind}:`;
-  const companyId = entry.idempotencyKey?.startsWith(prefix) ? entry.idempotencyKey.slice(prefix.length) : "";
-  return /^[a-f0-9]{64}$/.test(companyId) ? companyId : null;
+  const rest = entry.idempotencyKey?.startsWith(prefix) ? entry.idempotencyKey.slice(prefix.length) : "";
+  const match = /^([a-f0-9]{64})(?::a([1-9][0-9]{0,3}))?$/.exec(rest);
+  return match ? { companyId: match[1], attempt: match[2] ? Number(match[2]) : 0 } : null;
 }
 
 /**
@@ -92,16 +98,17 @@ export function introductionEmailCompany(entry: { kind: string; requestId: strin
  * - "cancel": the introduction cannot go ahead: the one predicate fails before the company's email went, or the
  *   company's email was cancelled or definitely failed.
  */
-export async function siteIntroductionEmailState(requestId: string, companyId: string, tx?: FirebaseFirestore.Transaction):
+export async function siteIntroductionEmailState(requestId: string, companyId: string, tx?: FirebaseFirestore.Transaction,
+  attempt = 0):
   Promise<{ state: "go" } | { state: "hold" } | { state: "cancel"; reason: IntroductionStopReason; introductionOnRecord: boolean }> {
   if (!db) throw new Error("introduction_store_unavailable");
-  const companyRowRef = db.collection("captureOutbox").doc(introductionCompanyKey(requestId, companyId));
+  const companyRowRef = db.collection("captureOutbox").doc(introductionCompanyKey(requestId, companyId, attempt));
   const companyRow = tx ? await tx.get(companyRowRef) : await companyRowRef.get();
   const status = companyRow.exists ? String(companyRow.data()?.status ?? "") : "";
   if (status === "sent") return { state: "go" };
   // Being handed over, or handed over with an unknown outcome: the company may have it, so nothing is cancelled.
   if (status === "dispatching" || status === "unknown") return { state: "hold" };
-  const decision = await introductionMayProceed(requestId, companyId, tx);
+  const decision = await introductionMayProceed(requestId, companyId, tx, attempt);
   if (!decision.ok) return { state: "cancel", reason: decision.reason, introductionOnRecord: decision.introductionOnRecord };
   if (!companyRow.exists) return { state: "cancel", reason: "company_email_missing", introductionOnRecord: true };
   if (status === "failed" || status === "cancelled") return { state: "cancel", reason: "company_email_failed", introductionOnRecord: true };
@@ -116,28 +123,29 @@ export async function siteIntroductionEmailState(requestId: string, companyId: s
 export async function introductionEmailCheck(entry: { kind: string; requestId: string; idempotencyKey?: string },
   tx?: FirebaseFirestore.Transaction): Promise<{ current: boolean; hold?: true; cancel?: (tx: FirebaseFirestore.Transaction) => void }> {
   if (entry.kind !== INTRODUCTION_COMPANY_KIND && entry.kind !== INTRODUCTION_SITE_EMAIL_KIND) return { current: true };
-  const companyId = introductionEmailCompany(entry);
-  if (!companyId) return { current: false };
+  const target = introductionEmailTarget(entry);
+  if (!target) return { current: false };
+  const { companyId, attempt } = target;
   let reason: IntroductionStopReason;
   let onRecord: boolean;
   if (entry.kind === INTRODUCTION_SITE_EMAIL_KIND) {
-    const site = await siteIntroductionEmailState(entry.requestId, companyId, tx);
+    const site = await siteIntroductionEmailState(entry.requestId, companyId, tx, attempt);
     if (site.state === "go") return { current: true };
     if (site.state === "hold") return { current: false, hold: true };
     reason = site.reason; onRecord = site.introductionOnRecord;
   } else {
     // The company's email goes first; before it is sent, the one predicate decides.
-    const decision = await introductionMayProceed(entry.requestId, companyId, tx);
+    const decision = await introductionMayProceed(entry.requestId, companyId, tx, attempt);
     if (decision.ok) return { current: true };
     reason = decision.reason; onRecord = decision.introductionOnRecord;
   }
   if (!onRecord || !tx) return { current: false };
   const store = db!;
-  const siblingKey = entry.kind === INTRODUCTION_COMPANY_KIND ? introductionSiteEmailKey(entry.requestId, companyId)
-    : introductionCompanyKey(entry.requestId, companyId);
+  const siblingKey = entry.kind === INTRODUCTION_COMPANY_KIND ? introductionSiteEmailKey(entry.requestId, companyId, attempt)
+    : introductionCompanyKey(entry.requestId, companyId, attempt);
   const siblingRef = store.collection("captureOutbox").doc(siblingKey);
   const { BILLABLE_EVENTS_COLLECTION, billableEventId } = await import("./billableEvents");
-  const eventRef = store.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(entry.requestId, companyId));
+  const eventRef = store.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(entry.requestId, companyId, attempt));
   const introRef = store.collection("inboundRequests").doc(entry.requestId).collection("introductions").doc(companyId);
   const [sibling, event] = [await tx.get(siblingRef), await tx.get(eventRef)];
   return {
@@ -156,7 +164,8 @@ export async function introductionEmailCheck(entry: { kind: string; requestId: s
 /**
  * Inside the transaction that ends the company's introduction email. Reads now (reads before writes); the caller applies
  * `write` only for the matching end:
- * - sent: the introduction is made, so the site's held "Meet {company}" row is released;
+ * - sent: the introduction is made: its billable event records when (`madeAtIso`), and the site's held
+ *   "Meet {company}" row is released (`sent` returns whether it was);
  * - definitely failed: the company never received the site's details, so the introduction is cancelled as a whole
  *   (`company_email_failed`): the site's row is cancelled and cleared, the record marked, the billable event void.
  */
@@ -164,25 +173,30 @@ export async function companyIntroductionEmailEnd(entry: { kind: string; request
   tx: FirebaseFirestore.Transaction): Promise<null | { siteRow: FirebaseFirestore.DocumentReference;
     sent: (tx: FirebaseFirestore.Transaction) => boolean; failed: (tx: FirebaseFirestore.Transaction) => void }> {
   if (entry.kind !== INTRODUCTION_COMPANY_KIND || !db) return null;
-  const companyId = introductionEmailCompany(entry);
-  if (!companyId) return null;
+  const target = introductionEmailTarget(entry);
+  if (!target) return null;
+  const { companyId, attempt } = target;
   const store = db;
-  const siteRef = store.collection("captureOutbox").doc(introductionSiteEmailKey(entry.requestId, companyId));
+  const siteRef = store.collection("captureOutbox").doc(introductionSiteEmailKey(entry.requestId, companyId, attempt));
   const { BILLABLE_EVENTS_COLLECTION, billableEventId } = await import("./billableEvents");
-  const eventRef = store.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(entry.requestId, companyId));
+  const eventRef = store.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(entry.requestId, companyId, attempt));
   const introRef = store.collection("inboundRequests").doc(entry.requestId).collection("introductions").doc(companyId);
   const [site, event, intro] = [await tx.get(siteRef), await tx.get(eventRef), await tx.get(introRef)];
   const siteStatus = site.exists ? String(site.data()?.status) : "";
   return {
     siteRow: siteRef,
     sent: write => {
+      // The company now holds the site's details: the introduction was made at this moment. Written once.
+      const eventData = event.data();
+      if (event.exists && eventData?.status !== "void" && typeof eventData?.madeAtIso !== "string")
+        write.set(eventRef, { madeAtIso: new Date().toISOString() }, { merge: true });
       if (siteStatus !== HELD_STATUS) return false;
       write.set(siteRef, { status: "pending", nextAttemptAtMs: null, lastError: null, releasedAtIso: new Date().toISOString() },
         { merge: true });
       return true;
     },
     failed: write => {
-      if (!intro.exists || typeof intro.data()?.cancelledAtIso === "string") return;
+      if (!intro.exists || typeof intro.data()?.cancelledAtIso === "string" || introductionAttemptOf(intro.data()) !== attempt) return;
       const atIso = new Date().toISOString(), reason: IntroductionStopReason = "company_email_failed";
       write.set(introRef, { cancelledAtIso: atIso, cancelReason: reason, siteShared: null, companyShared: null }, { merge: true });
       if (event.exists) write.set(eventRef, { status: "void", voidedAtIso: atIso, voidReason: reason }, { merge: true });
@@ -194,19 +208,19 @@ export async function companyIntroductionEmailEnd(entry: { kind: string; request
 
 /** Reads (call before any write): the writes that cancel an introduction as a whole, for `reason`. */
 async function introductionCancellation(tx: FirebaseFirestore.Transaction, requestId: string, companyId: string,
-  reason: IntroductionStopReason): Promise<(tx: FirebaseFirestore.Transaction) => void> {
+  reason: IntroductionStopReason, attempt: number): Promise<(tx: FirebaseFirestore.Transaction) => void> {
   const store = db!;
   const { BILLABLE_EVENTS_COLLECTION, billableEventId } = await import("./billableEvents");
   const introRef = store.collection("inboundRequests").doc(requestId).collection("introductions").doc(companyId);
-  const eventRef = store.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(requestId, companyId));
-  const rowRefs = [introductionCompanyKey(requestId, companyId), introductionSiteEmailKey(requestId, companyId)]
+  const eventRef = store.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(requestId, companyId, attempt));
+  const rowRefs = [introductionCompanyKey(requestId, companyId, attempt), introductionSiteEmailKey(requestId, companyId, attempt)]
     .map(key => store.collection("captureOutbox").doc(key));
   const intro = await tx.get(introRef), event = await tx.get(eventRef);
   const rows: FirebaseFirestore.DocumentSnapshot[] = [];
   for (const ref of rowRefs) rows.push(await tx.get(ref));
   return write => {
     const atIso = new Date().toISOString();
-    if (intro.exists && typeof intro.data()?.cancelledAtIso !== "string") {
+    if (intro.exists && typeof intro.data()?.cancelledAtIso !== "string" && introductionAttemptOf(intro.data()) === attempt) {
       write.set(introRef, { cancelledAtIso: atIso, cancelReason: reason, siteShared: null, companyShared: null }, { merge: true });
       if (event.exists) write.set(eventRef, { status: "void", voidedAtIso: atIso, voidReason: reason }, { merge: true });
     }
@@ -240,13 +254,14 @@ export async function settleHeldSiteIntroductions(limit: number, nowMs: number, 
         const row = (await tx.get(doc.ref)).data();
         if (row?.status !== HELD_STATUS || row.kind !== INTRODUCTION_SITE_EMAIL_KIND) return "skipped" as const;
         const entry = { kind: String(row.kind), requestId: String(row.requestId), idempotencyKey: String(row.idempotencyKey ?? doc.id) };
-        const companyId = introductionEmailCompany(entry);
-        if (!companyId) {
+        const target = introductionEmailTarget(entry);
+        if (!target) {
           tx.set(doc.ref, { status: "cancelled", lastError: "introduction_cancelled", subject: "", body: "", replyTo: null,
             detailsClearedAtIso: new Date(nowMs).toISOString() }, { merge: true });
           return "cancelled" as const;
         }
-        const state = await siteIntroductionEmailState(entry.requestId, companyId, tx);
+        const { companyId, attempt } = target;
+        const state = await siteIntroductionEmailState(entry.requestId, companyId, tx, attempt);
         if (state.state === "go") {
           tx.set(doc.ref, { status: "pending", nextAttemptAtMs: null, lastError: null, releasedAtIso: new Date(nowMs).toISOString() },
             { merge: true });
@@ -256,11 +271,11 @@ export async function settleHeldSiteIntroductions(limit: number, nowMs: number, 
         if (state.state === "cancel") reason = state.reason;
         else {
           if (ageOf(row, nowMs) <= maxAgeMs) return "held" as const;
-          const companyRow = (await tx.get(store.collection("captureOutbox").doc(introductionCompanyKey(entry.requestId, companyId)))).data();
+          const companyRow = (await tx.get(store.collection("captureOutbox").doc(introductionCompanyKey(entry.requestId, companyId, attempt)))).data();
           if (companyRow?.status === "dispatching" || companyRow?.status === "unknown") return "held" as const;
           reason = "company_email_not_sent";
         }
-        const cancel = await introductionCancellation(tx, entry.requestId, companyId, reason);
+        const cancel = await introductionCancellation(tx, entry.requestId, companyId, reason, attempt);
         cancel(tx);
         return "cancelled" as const;
       });

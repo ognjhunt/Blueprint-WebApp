@@ -1,6 +1,5 @@
 import { websitePreparationCaptureId, websitePreparationRenewal, websitePreparationRevision } from "./websitePreparationRevision";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
-import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
 import { z } from "zod";
@@ -344,10 +343,6 @@ export function websiteSceneSponsorship(input: {
   // never a spend gate: the Pipeline decides from the job's compiled task what it can
   // simulate and score, and holds with a typed code naming the missing piece.
   // Source ownership and spending remain distinct from optional account setup.
-  const sourceOwner = websiteCaptureOwnerUid(input.record);
-  if (!preparationOnly && (typeof sourceOwner !== "string" || !sourceOwner)) {
-    throw new Error("website_scene_site_unclaimed");
-  }
   const claudeConsent = input.record.request?.claude_authoring_consent;
   const authoringProvider = claudeConsent ? "anthropic" : "openai";
   if (claudeConsent && (claudeConsent.granted !== true

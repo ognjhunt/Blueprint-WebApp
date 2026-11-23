@@ -139,7 +139,6 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
                 {item.limitations.map((limit, index) => <p className="bare-helper" key={index}>{limit}</p>)}
                 <p className="bare-helper">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>
               </article>)}
-              {!workflow.evidenceContext?.question ? <p className="bare-helper"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(requestId)}`}>Prepare task-specific capture evidence</a> when the question needs new site observations. Use the existing capture task approval and compilation actions; recording permissions and source access still apply.</p> : null}
               <form aria-label="Ask an evidence question" className="ms-form" onSubmit={async event => {
                 event.preventDefault(); evidenceKey.current ||= crypto.randomUUID();
                 if (await mutate("/evidence", { question: question.trim() }, "Evidence question saved.", "POST", { "Idempotency-Key": evidenceKey.current })) evidenceKey.current = "";

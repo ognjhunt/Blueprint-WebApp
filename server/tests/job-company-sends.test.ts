@@ -1,17 +1,15 @@
 // @vitest-environment node
 /**
- * Sends and responses (package C1): the operator records that it sent a site's job to an approved deployment company
- * and what each company answered; the site sees, on its job page and in two emails, only an alias, dates, one of three
+ * Sends and responses (package C1): a site's job is sent to every approved deployment company automatically and each
+ * company answers on the job's page (staff no longer record a send or an answer by hand, 2026-11-22); the site sees, on its job page and in two emails, only an alias, dates, one of three
  * fixed labels and Blueprint's own sentence. OFFLINE: the real admin routes, the real company response route, the real
  * owner status read and the real outbox against the fake Firestore; email delivery, Slack and sign-in are fakes.
  *
  * What this pins:
  * - nothing the site receives (its status payload, either email) carries a company's name, email, website, the id
  *   derived from its email or its own words: distinctive strings are planted in every company field;
- * - a send is refused for a job that is not shared and visible, and for a company that is not an approved
- *   deployment company;
  * - the operator hold closes the library card and the response route and flips the site's sentence;
- * - a voided send is not shown and its email is not sent; a withdrawn job shows nothing and sends nothing.
+ * - a voided send recorded before is not shown; a withdrawn job shows nothing and sends nothing.
  */
 import { sharedCompanyClip } from "./helpers/sharedJob";
 import express from "express";
@@ -55,7 +53,10 @@ const { default: briefRouter } = await import("../routes/site-task-brief");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { projectTaskBrowseCard } = await import("../utils/taskBrowse");
-const { projectSiteCompanyActivity, setJobCompaniesPageSizeForTests } = await import("../utils/jobCompanies");
+const { projectSiteCompanyActivity, setJobCompaniesPageSizeForTests, AUTO_SEND_EVENT_ID } = await import("../utils/jobCompanies");
+const { sendJobToApprovedCompanies } = await import("../utils/jobAutoSend");
+/** The job goes to every approved deployment company that accepted the Terms (here North and South), once. */
+const sendToCompanies = () => sendJobToApprovedCompanies(ID);
 
 const ID = "req-c1";
 let server: Server;
@@ -135,9 +136,11 @@ async function siteStatus(): Promise<{ raw: string; body: Record<string, any> }>
 }
 const outbox = () => [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/"))
   .map(([key, value]) => ({ key, ...(value as { kind: string; status: string; subject: string; body: string }) }));
-const sent = () => seams.sendEmail.mock.calls.map(([message]) => message as { subject: string; text?: string; body?: string; to: string });
+/** Emails to the site only: the automatic send also emails each company that asked for job emails. */
+const sent = () => seams.sendEmail.mock.calls.map(([message]) => message as { subject: string; text?: string; body?: string; to: string })
+  .filter(message => message.to.includes("owner@site.example"));
 /** Every byte of every email the site was sent, and every row queued for it. */
-const siteEmailText = () => JSON.stringify([sent(), outbox()]);
+const siteEmailText = () => JSON.stringify([sent(), outbox().filter(row => !row.key.startsWith("captureOutbox/robot_team_new_task:"))]);
 const expectNoCompanyIn = (label: string, text: string) => {
   for (const planted of PLANTED) expect(text.toLowerCase(), `${label} contains ${planted}`).not.toContain(planted.toLowerCase());
 };
@@ -178,7 +181,17 @@ afterEach(async () => {
 describe("the operator's Deployment companies panel", () => {
   it("is for admins only", async () => {
     expect((await fetch(`${base}/api/admin/jobs/${ID}/companies`, { headers: { Authorization: "Bearer user" } })).status).toBe(403);
-    expect((await adminPost("/sends", { companyId: sha(NORTH.email) }, { Authorization: "Bearer user", "content-type": "application/json" })).status).toBe(403);
+    expect((await adminPost("/hold", { held: true, reason: "x" }, { Authorization: "Bearer user", "content-type": "application/json" })).status).toBe(403);
+    expect(outbox()).toHaveLength(0);
+  });
+
+  it("has no route to record a send, void one or record an emailed answer (2026-11-22)", async () => {
+    const post = async (path: string, body: unknown) => (await fetch(`${base}/api/admin/jobs/${ID}/companies${path}`,
+      { method: "POST", headers: admin, body: JSON.stringify(body) })).status;
+    expect(await post("/sends", { companyId: sha(NORTH.email) })).toBe(404);
+    expect(await post("/sends/send-1/void", {})).toBe(404);
+    expect(await post("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north })).toBe(404);
+    expect(companyRows()).toEqual([]);
     expect(outbox()).toHaveLength(0);
   });
 
@@ -189,104 +202,52 @@ describe("the operator's Deployment companies panel", () => {
     expect(read.libraryUrl).toMatch(new RegExp(`/jobs/${ID}$`));
     expect(read).toMatchObject({ hold: null, consentRevoked: false, sends: [], responses: [] });
   });
-
-  it("refuses a send for a job that is not shared, not visible or withdrawn, and for a company that is not an approved deployment company", async () => {
-    for (const record of [TECH, PENDING]) {
-      expect(await adminPost("/sends", { companyId: sha(record.email) })).toMatchObject({ status: 409, body: { code: "company_not_approved" } });
-    }
-    expect(await adminPost("/sends", { companyId: "f".repeat(64) })).toMatchObject({ status: 409, body: { code: "company_not_approved" } });
-    patchJob({ public_task_listing: { ...jobDoc().public_task_listing, enabled: false } });
-    expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
-    patchJob({ public_task_listing: job().public_task_listing, evaluation_readiness: { rights_review_status: "needs_review" } });
-    expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
-    // The site closed its job with the old workspace control (`archived`): closed. A site-set `paused` alone no longer closes.
-    patchJob({ evaluation_readiness: {}, workspace_task: { archived: true } });
-    expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
-    patchJob({ workspace_task: {}, consent_revoked: true });
-    expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
-    expect([...state.docs.keys()].filter(key => key.includes("/companySends/"))).toHaveLength(0);
-    expect(outbox()).toHaveLength(0);
-    expect(jobDoc().company_aliases).toBeUndefined();
-  });
-
-  it("records a send with who and when, voids without deleting, and records an emailed answer only for a company with a standing send", async () => {
-    const recorded = await adminPost("/sends", { companyId: sha(NORTH.email) });
-    expect(recorded).toMatchObject({ status: 200, body: { send: { alias: "A" } } });
-    const sendKey = `inboundRequests/${ID}/companySends/${recorded.body.send.sendId}`;
-    expect(state.docs.get(sendKey)).toMatchObject({ schemaVersion: 1, companyId: sha(NORTH.email), sentBy: "admin-1", sentByEmail: "ops@tryblueprint.io" });
-    expect(await adminPost(`/sends/${recorded.body.send.sendId}/void`, {})).toMatchObject({ status: 200 });
-    expect(state.docs.get(sendKey)).toMatchObject({ voidedBy: "ops@tryblueprint.io", voidedAtIso: expect.any(String) });
-    expect(await adminPost("/sends/nope/void", {})).toMatchObject({ status: 404 });
-    // North's only send is voided, and South was never sent the job: neither answer can be recorded.
-    expect(await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north }))
-      .toMatchObject({ status: 409, body: { code: "not_sent" } });
-    expect(await adminPost("/responses", { companyId: sha(SOUTH.email), state: "interested", inputs: WORDS.south }))
-      .toMatchObject({ status: 409, body: { code: "not_sent" } });
-    // A note for the site is no longer a field at all.
-    expect(await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north,
-      noteForSite: "They can visit in two weeks." })).toMatchObject({ status: 400 });
-    expect([...state.docs.keys()].filter(key => key.includes("/robotTeamInterest/"))).toEqual([]);
-    expect(outbox().filter(row => row.kind === "company_answered")).toEqual([]);
-    // A fresh send makes North's answer recordable.
-    await adminPost("/sends", { companyId: sha(NORTH.email) });
-    expect(await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north }))
-      .toMatchObject({ status: 200, body: { response: { alias: "A" } } });
-    const read = await panel();
-    expect(read.sends[0]).toEqual(expect.objectContaining({ company: NORTH.company, alias: "A", sentBy: "ops@tryblueprint.io", voidedAtIso: expect.any(String) }));
-    expect(state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toMatchObject({ recordedBy: "operator",
-      recordedByUid: "admin-1", recordedByEmail: "ops@tryblueprint.io" });
-    expect(state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).not.toHaveProperty("noteForSite");
-  });
 });
 
 describe("what the site receives", () => {
   it("tells the site each send and answer by alias, date, label and the company's cleared words only: no company field reaches its page, and no company words its emails", async () => {
-    // Blueprint sends to North; South answers in the library without a send; North answers by email, recorded by Blueprint.
-    const send = await adminPost("/sends", { companyId: sha(NORTH.email) });
-    expect(send.status).toBe(200);
+    // The job goes to North and South automatically; South, then North, answer on the job's page.
+    expect(await sendToCompanies()).toMatchObject({ sent: true, count: 2 });
     expect((await companyAnswers(SOUTH, { state: "needs_something", inputs: WORDS.south })).status).toBe(200);
-    expect(await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north }))
-      .toMatchObject({ status: 200, body: { response: { alias: "A" } } });
+    expect((await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north })).status).toBe(200);
     await deliverOutbox();
 
-    // The aliases, assigned once, in order of first appearance.
-    expect(jobDoc().company_aliases).toEqual({ [sha(NORTH.email)]: "A", [sha(SOUTH.email)]: "B" });
+    // The aliases, assigned once, in order of first answer.
+    expect(jobDoc().company_aliases).toEqual({ [sha(SOUTH.email)]: "A", [sha(NORTH.email)]: "B" });
 
     // The site's job page: exactly these fields.
     const { raw, body } = await siteStatus();
     const entries = body.answer.companies.entries as Array<Record<string, unknown>>;
     expect(body.answer.companies.interested).toBe(true);
     expect(Object.keys(body.answer.companies).sort()).toEqual(["entries", "firstAnswerAtIso", "interested", "introductions", "sent"]);
-    expect(body.answer.companies.sent).toMatchObject({ count: 1 });
+    expect(body.answer.companies.sent).toMatchObject({ count: 2 });
     expect(body.answer.companies.introductions).toEqual({ used: 0 });
-    expect(entries.map(entry => Object.keys(entry).sort())).toEqual([["alias", "atIso", "kind"],
+    expect(entries.map(entry => Object.keys(entry).sort())).toEqual([
       ["alias", "atIso", "canIntroduce", "kind", "question", "reason", "state"], ["alias", "atIso", "canIntroduce", "kind", "reason", "state"]]);
-    // Why: the company's own words, with its name, email and website taken out, whoever recorded them (2026-11-20).
-    expect(entries.map(entry => entry.reason)).toEqual([undefined, SOUTH_REASON, NORTH_REASON]);
-    // An answer an operator recorded from an email is introduced like any Interested answer (2026-11-20): the company's
-    // consent is the current Terms it accepted, which the introduction checks. Need more details is not (E6).
-    expect(entries.map(entry => entry.canIntroduce)).toEqual([undefined, false, true]);
+    // Why: the company's own words, with its name, email and website taken out (2026-11-20).
+    expect(entries.map(entry => entry.reason)).toEqual([SOUTH_REASON, NORTH_REASON]);
+    // Interested can be introduced; Need more details is not (E6).
+    expect(entries.map(entry => entry.canIntroduce)).toEqual([false, true]);
     expect(entries.map(({ kind, alias, state: answer }) => ({ kind, alias, answer }))).toEqual([
-      { kind: "sent", alias: "Company A", answer: undefined },
-      { kind: "answered", alias: "Company B", answer: "needs_something" },
-      { kind: "answered", alias: "Company A", answer: "interested" },
+      { kind: "answered", alias: "Company A", answer: "needs_something" },
+      { kind: "answered", alias: "Company B", answer: "interested" },
     ]);
     expectNoCompanyIn("the site's status payload", raw);
 
-    // The emails: one per send, one per company and answer, each by the fixed words.
+    // The emails: one for the send, one per company and answer, each by the fixed words.
     const subjects = sent().map(message => message.subject);
     expect(subjects.sort()).toEqual(["A deployment company answered", "A deployment company answered", "Your job is posted"].sort());
     const rows = outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered");
-    expect(entries[1].question).toMatchObject({ id: expect.stringMatching(/^[a-f0-9]{64}$/), text: SOUTH_REASON });
-    const questionEvent = "company_answered:B-needs_something";
-    expect(rows.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:A-interested`,
-      `captureOutbox/${ID}:${questionEvent}`, `captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`].sort());
+    expect(entries[0].question).toMatchObject({ id: expect.stringMatching(/^[a-f0-9]{64}$/), text: SOUTH_REASON });
+    const questionEvent = "company_answered:A-needs_something";
+    expect(rows.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:B-interested`,
+      `captureOutbox/${ID}:${questionEvent}`, `captureOutbox/${ID}:job_sent:${AUTO_SEND_EVENT_ID}`].sort());
     const bodyOf = (key: string) => rows.find(row => row.key === `captureOutbox/${ID}:${key}`)!.body;
-    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any responses\.\n\nTo withdraw your job, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
-    // The company's own "Need more details" carries the question the site answers on its page; the Interested answer
-    // Blueprint recorded from North's email is one the site can ask to be introduced after, so the email says how.
+    expect(bodyOf(`job_sent:${AUTO_SEND_EVENT_ID}`)).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any responses\.\n\nTo withdraw your job, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
+    // The company's own "Need more details" carries the question the site answers on its page; North's Interested
+    // answer is one the site can ask to be introduced after, so the email says how.
     expect(bodyOf(questionEvent)).toMatch(/^A deployment company needs more details about your job\. Read their question and answer it on your job page\.\n\nOpen your job:\nhttps:\/\/\S+$/);
-    expect(bodyOf("company_answered:A-interested")).toMatch(/^A deployment company answered "Interested" about your job\. To meet them, press Introduce us on your job page\.\n\nOpen your job:\n/);
+    expect(bodyOf("company_answered:B-interested")).toMatch(/^A deployment company answered "Interested" about your job\. To meet them, press Introduce us on your job page\.\n\nOpen your job:\n/);
     expect(rows.every(row => row.status === "sent")).toBe(true);
     expectNoCompanyIn("the site's emails", siteEmailText());
 
@@ -295,28 +256,27 @@ describe("what the site receives", () => {
     expect((await companyAnswers(SOUTH, { state: "needs_something", inputs: WORDS.south })).status).toBe(200);
     expect((await companyAnswers(SOUTH, { state: "declined", inputs: WORDS.south })).status).toBe(200);
     await deliverOutbox();
-    expect(outbox().filter(row => row.kind === "company_answered").map(row => row.key)).toContain(`captureOutbox/${ID}:company_answered:B-declined`);
+    expect(outbox().filter(row => row.kind === "company_answered").map(row => row.key)).toContain(`captureOutbox/${ID}:company_answered:A-declined`);
     expect(sent().filter(message => message.subject === "A deployment company answered")).toHaveLength(3);
     expect((await companyAnswers(SOUTH, { state: "needs_something", inputs: `${WORDS.south} again` })).status).toBe(200);
     await deliverOutbox();
     expect(sent().filter(message => message.subject === "A deployment company answered")).toHaveLength(3);
-    expect((await siteStatus()).body.answer.companies.entries).toContainEqual(expect.objectContaining({ alias: "Company B", state: "needs_something" }));
+    expect((await siteStatus()).body.answer.companies.entries).toContainEqual(expect.objectContaining({ alias: "Company A", state: "needs_something" }));
     expectNoCompanyIn("the site's emails", siteEmailText());
     expectNoCompanyIn("the site's status payload", (await siteStatus()).raw);
 
     // The operator, and only the operator, sees the names and the words.
     const read = await panel();
     expect(read.responses.map((row: { company: string; inputs: string; recordedBy: string }) => [row.company, row.inputs, row.recordedBy]).sort())
-      .toEqual([[NORTH.company, WORDS.north, "operator"], [SOUTH.company, `${WORDS.south} again`, "company"]].sort());
+      .toEqual([[NORTH.company, WORDS.north, "company"], [SOUTH.company, `${WORDS.south} again`, "company"]].sort());
   });
 
-  // 2026-11-20: an answer Blueprint recorded from a company's email behaves like the company's own: its words (cleared),
-  // and "Introduce us" beside Interested, the company's consent being the current Terms it accepted.
-  it("introduces the site to a company whose Interested answer Blueprint recorded from its email", async () => {
+  // "Introduce us" beside Interested, the company's consent being the current Terms it accepted.
+  it("introduces the site to a company that answered Interested", async () => {
     // The introduction record is sealed at rest (`introductionShared.ts`).
     vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY", Buffer.alloc(32, 7).toString("base64"));
-    expect((await adminPost("/sends", { companyId: sha(NORTH.email) })).status).toBe(200);
-    expect((await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north })).status).toBe(200);
+    expect(await sendToCompanies()).toMatchObject({ sent: true });
+    expect((await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north })).status).toBe(200);
     const before = (await siteStatus()).body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.kind === "answered");
     expect(before).toMatchObject({ alias: "Company A", state: "interested", canIntroduce: true, reason: NORTH_REASON });
     const token = createCaptureUploadToken({ requestId: ID, captureId: `walkthrough-${ID}`, sceneId: `site-${ID}`, scope: "owner" });
@@ -330,7 +290,8 @@ describe("what the site receives", () => {
   });
 
   it("shows no words staff recorded before the form said the site reads them, and still offers the introduction", async () => {
-    expect((await adminPost("/sends", { companyId: sha(NORTH.email) })).status).toBe(200);
+    expect(await sendToCompanies()).toMatchObject({ sent: true });
+    patchJob({ company_aliases: { [sha(NORTH.email)]: "A" } });
     state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`, { state: "interested", inputs: WORDS.north,
       email: NORTH.email, company: NORTH.company, recordedBy: "operator", recordedByUid: "ops", recordedByEmail: "ops@example.com",
       updatedAtIso: "2026-11-13T00:00:00.000Z" });
@@ -371,34 +332,36 @@ describe("what the site receives", () => {
     expect((await panel()).responses).toEqual([expect.objectContaining({ company: SOUTH.company, recordedBy: "before_c1", alias: null })]);
   });
 
-  it("does not show a voided send, and does not send its email", async () => {
-    const send = await adminPost("/sends", { companyId: sha(NORTH.email) });
-    await adminPost(`/sends/${send.body.send.sendId}/void`, {});
-    await deliverOutbox();
-    expect(sent().map(message => message.subject)).not.toContain("Your job is posted");
-    expect(outbox().find(row => row.kind === "job_sent")).toMatchObject({ status: "cancelled" });
+  it("does not show a send voided before staff stopped recording sends", async () => {
+    patchJob({ company_aliases: { [sha(NORTH.email)]: "A" } });
+    state.docs.set(`inboundRequests/${ID}/companySends/send-1`, { schemaVersion: 1, companyId: sha(NORTH.email),
+      sentAtIso: "2026-11-12T10:00:00.000Z", sentBy: "admin-1", sentByEmail: "ops@tryblueprint.io",
+      voidedAtIso: "2026-11-12T11:00:00.000Z", voidedBy: "ops@tryblueprint.io" });
     expect((await siteStatus()).body.answer.companies).toMatchObject({ entries: [], interested: false, sent: null });
   });
 });
 
 describe("Blueprint's hold", () => {
   it("closes the library card and the response route, flips the site's sentence and holds the emails, until shown again", async () => {
-    await adminPost("/sends", { companyId: sha(NORTH.email) });
+    await sendToCompanies();
+    // Stopping needs a reason: it is the staff stop for a privacy or rights problem.
+    expect(await adminPost("/hold", { held: true })).toMatchObject({ status: 400 });
+    expect(await adminPost("/hold", { held: true, reason: "  " })).toMatchObject({ status: 400 });
+    expect(jobDoc().operator_listing_hold).toBeUndefined();
     expect(await adminPost("/hold", { held: true, reason: "Checking the summary" })).toMatchObject({ status: 200, body: { hold: { held: true } } });
     expect(jobDoc().operator_listing_hold).toMatchObject({ held: true, by: "admin-1", byEmail: "ops@tryblueprint.io", reason: "Checking the summary" });
 
     // The card a company sees, and its response form, close.
     expect(projectTaskBrowseCard(ID, jobDoc() as never)).toBeNull();
     expect((await companyAnswers(SOUTH, { state: "interested", inputs: WORDS.south })).status).toBe(409);
-    // Nothing can be sent, and the queued send email is not delivered while held.
-    expect(await adminPost("/sends", { companyId: sha(SOUTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
+    // The queued send email is not delivered while held.
     await deliverOutbox();
     expect(sent().map(message => message.subject)).not.toContain("Your job is posted");
     expect(outbox().find(row => row.kind === "job_sent")).toMatchObject({ status: "cancelled" });
-    // The site's page says the existing "not visible right now" sentence (its state), and still lists the send.
+    // The site's page says the existing "not visible right now" sentence (its state), and still counts the send.
     const held = (await siteStatus()).body.answer;
     expect(held.sharing.state).toBe("not_visible");
-    expect(held.companies.entries).toEqual([expect.objectContaining({ kind: "sent", alias: "Company A" })]);
+    expect(held.companies.sent).toMatchObject({ count: 2 });
     expect((await panel()).sharing).toMatchObject({ state: "shared_not_visible", reason: "blueprint_hold",
       words: "Shared, but not visible to companies right now: Blueprint stopped showing it." });
 
@@ -413,10 +376,8 @@ describe("Blueprint's hold", () => {
 describe("a withdrawn job", () => {
   it("queues neither email and records nothing when the site withdrew before any send or answer", async () => {
     patchJob({ consent_revoked: true });
-    expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
+    expect(await sendToCompanies()).toEqual({ sent: false, reason: "not_listed" });
     expect((await companyAnswers(SOUTH, { state: "interested", inputs: WORDS.south })).status).toBe(409);
-    expect(await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north }))
-      .toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
     await deliverOutbox();
     expect(outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered")).toEqual([]);
     expect(sent().map(message => message.subject)).not.toEqual(expect.arrayContaining(["Your job is posted"]));
@@ -426,7 +387,7 @@ describe("a withdrawn job", () => {
 
 
   it("shows nothing, sends nothing and records nothing new", async () => {
-    await adminPost("/sends", { companyId: sha(NORTH.email) });
+    await sendToCompanies();
     expect((await companyAnswers(SOUTH, { state: "interested", inputs: WORDS.south })).status).toBe(200);
     patchJob({ consent_revoked: true });
     await deliverOutbox();
@@ -438,9 +399,7 @@ describe("a withdrawn job", () => {
     // The loader itself shows nothing for a withdrawn job, whatever its caller does.
     const { loadSiteCompanyActivity } = await import("../utils/jobCompanies");
     expect(await loadSiteCompanyActivity(ID)).toMatchObject({ entries: [], interested: false, sent: null });
-    expect(await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north }))
-      .toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
-    expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
+    expect((await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north })).status).toBe(409);
   });
 });
 
@@ -450,40 +409,40 @@ function failNextCommit() {
   vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementationOnce((async (body: (tx: unknown) => Promise<unknown>) =>
     original(async (tx: never) => { await body(tx); throw new Error("SYNTHETIC commit failure"); })) as never);
 }
+const siteRows = () => outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered");
 const companyRows = () => [...state.docs.keys()].filter(key => key.includes("/companySends/") || key.includes("/robotTeamInterest/"));
 
 describe("the site's email is a durable intent of the activity", () => {
   it("is queued in the same transaction: the row exists as soon as the send or answer is recorded, before any delivery pass", async () => {
-    const send = await adminPost("/sends", { companyId: sha(NORTH.email) });
-    expect(outbox().map(row => [row.key, row.status])).toEqual([[`captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`, "pending"]]);
-    await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north });
+    await sendToCompanies();
+    expect(siteRows().map(row => [row.key, row.status])).toEqual([[`captureOutbox/${ID}:job_sent:${AUTO_SEND_EVENT_ID}`, "pending"]]);
+    await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north });
     await companyAnswers(SOUTH, { state: "declined", inputs: WORDS.south });
-    expect(outbox().map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:A-interested`,
-      `captureOutbox/${ID}:company_answered:B-declined`, `captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`].sort());
+    expect(siteRows().map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:A-interested`,
+      `captureOutbox/${ID}:company_answered:B-declined`, `captureOutbox/${ID}:job_sent:${AUTO_SEND_EVENT_ID}`].sort());
     expectNoCompanyIn("the queued emails", siteEmailText());
   });
 
-  it("leaves neither the activity nor its email when the transaction fails, on all three paths", async () => {
+  it("leaves neither the activity nor its email when the transaction fails, on both paths", async () => {
     failNextCommit();
-    expect((await adminPost("/sends", { companyId: sha(NORTH.email) })).status).toBe(503);
+    await expect(sendToCompanies()).rejects.toThrow("SYNTHETIC commit failure");
     expect(companyRows()).toEqual([]);
     expect(outbox()).toEqual([]);
     expect(jobDoc().company_aliases).toBeUndefined();
 
-    const send = await adminPost("/sends", { companyId: sha(NORTH.email) });
-    failNextCommit();
-    expect((await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north })).status).toBe(503);
+    await sendToCompanies();
     failNextCommit();
     expect((await companyAnswers(SOUTH, { state: "interested", inputs: WORDS.south })).status).toBe(409);
-    expect(companyRows()).toEqual([`inboundRequests/${ID}/companySends/${send.body.send.sendId}`]);
-    expect(outbox().map(row => row.kind)).toEqual(["job_sent"]);
-    expect(jobDoc().company_aliases).toEqual({ [sha(NORTH.email)]: "A" });
+    expect(companyRows().sort()).toEqual([`inboundRequests/${ID}/companySends/system-${sha(NORTH.email)}`,
+      `inboundRequests/${ID}/companySends/system-${sha(SOUTH.email)}`].sort());
+    expect(siteRows().map(row => row.kind)).toEqual(["job_sent"]);
+    expect(jobDoc().company_aliases).toBeUndefined();
   });
 
-  it("queues one row for an answer recorded twice with the same state, by either path", async () => {
-    await adminPost("/sends", { companyId: sha(NORTH.email) });
-    await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north });
-    await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: `${WORDS.north} (resent)` });
+  it("queues one row for an answer given twice with the same state", async () => {
+    await sendToCompanies();
+    await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north });
+    await companyAnswers(NORTH, { state: "interested", inputs: `${WORDS.north} (resent)` });
     await companyAnswers(SOUTH, { state: "declined", inputs: WORDS.south });
     await companyAnswers(SOUTH, { state: "declined", inputs: `${WORDS.south} (again)` });
     expect(outbox().filter(row => row.kind === "company_answered").map(row => row.key).sort())
@@ -493,9 +452,9 @@ describe("the site's email is a durable intent of the activity", () => {
   });
 
   it("an answer queued while visible is cancelled at dispatch once the job is held, and once it is withdrawn", async () => {
-    await adminPost("/sends", { companyId: sha(NORTH.email) });
-    await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north });
-    await adminPost("/hold", { held: true });
+    await sendToCompanies();
+    await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north });
+    await adminPost("/hold", { held: true, reason: "Checking the summary" });
     await deliverOutbox();
     expect(outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered").map(row => row.status)).toEqual(["cancelled", "cancelled"]);
     await adminPost("/hold", { held: false });
@@ -513,19 +472,16 @@ describe("every row is read, page by page", () => {
     for (const record of extra) state.docs.set(`robotTeamAccess/${sha(record.email)}`, record);
     setJobCompaniesPageSizeForTests(2);
     const everyone = [NORTH, SOUTH, ...extra];
-    for (const record of everyone) expect((await adminPost("/sends", { companyId: sha(record.email) })).status).toBe(200);
+    expect(await sendToCompanies()).toMatchObject({ sent: true, count: everyone.length });
     for (const record of everyone) {
-      expect(await adminPost("/responses", { companyId: sha(record.email), state: "needs_something", inputs: "words" })).toMatchObject({ status: 200 });
+      expect((await companyAnswers(record, { state: "needs_something", inputs: "words" })).status).toBe(200);
     }
     const read = await panel();
     expect(read.companies).toHaveLength(everyone.length);
     expect(read.sends).toHaveLength(everyone.length);
     expect(read.responses).toHaveLength(everyone.length);
-    // The last send can still be voided from the panel, and the last company still answers.
-    const last = read.sends[read.sends.length - 1];
-    expect((await adminPost(`/sends/${last.sendId}/void`, {})).status).toBe(200);
-    const entries = (await siteStatus()).body.answer.companies.entries as Array<{ kind: string }>;
-    expect(entries.filter(entry => entry.kind === "sent")).toHaveLength(everyone.length - 1);
-    expect(entries.filter(entry => entry.kind === "answered")).toHaveLength(everyone.length);
+    const companies = (await siteStatus()).body.answer.companies;
+    expect(companies.sent).toMatchObject({ count: everyone.length });
+    expect((companies.entries as Array<{ kind: string }>).filter(entry => entry.kind === "answered")).toHaveLength(everyone.length);
   });
 });

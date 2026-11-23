@@ -42,11 +42,11 @@
  */
 
 import { hasCurrentRecordingConsent } from "./recordingConsent";
-import { canGrantInitialRecordingConsent } from "./descriptionAuthority";
+import { canGrantInitialRecordingConsent, jobOutsideApprovedRegion } from "./descriptionAuthority";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { bindingGateFieldIds, isCaptureMode } from "../../client/src/data/siteTaskQualification";
 import type { InboundRequest } from "../types/inbound-request";
-import { decideCaptureDispatch, type CaptureDispatchDecision } from "./captureDispatch";
+import { CAPTURE_REGION_UNAPPROVED_DETAIL, decideCaptureDispatch, type CaptureDispatchDecision } from "./captureDispatch";
 import { footageArrivedBeforeAccount } from "./siteWalkthrough";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { FOOTAGE_BEFORE_ACCOUNT_SENTENCE } from "./taskPreparationOutcome";
@@ -153,6 +153,8 @@ export async function authorizeCaptureUpload(
   }
 
   if (!hasCurrentRecordingConsent(request.request?.consent_attestation)) {
+    // Outside the approved region no recording agreement is offered: the page says plainly the video cannot be taken.
+    if (jobOutsideApprovedRegion(request)) return held("capture_region_unapproved", CAPTURE_REGION_UNAPPROVED_DETAIL, request);
     return { ...held("recording_consent_required", "The site owner must confirm the current recording permission before uploading.", request),
       recordingConsentAvailable: canGrantInitialRecordingConsent(request) };
   }

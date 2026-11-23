@@ -27,7 +27,13 @@ const job = SCENE_URL.exec(contentUrl)?.[1];
 if (!job) {
   showProblem(NOT_VALID);
 } else {
-  // The way back is the account's one jobs list, which opens each job page (2026-11-12: no signed-in job page).
+  // The way back: a site goes to its one jobs list (2026-11-12: no signed-in job page); a deployment company, whose
+  // view ticket names it (`viewer=`), goes back to the job's page, which opens the viewer in the same tab.
+  const back = document.querySelector(".bp-back");
+  if (back && new URLSearchParams(contentUrl.split("?")[1] ?? "").has("viewer")) {
+    back.setAttribute("href", `/jobs/${encodeURIComponent(job)}`);
+    back.textContent = "Back to the job";
+  }
   // Ask for the scene and its start view before loading the viewer's code: on a first view
   // the server is still preparing them, and that wait now overlaps the download.
   //

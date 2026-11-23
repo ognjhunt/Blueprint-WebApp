@@ -46,7 +46,6 @@ const screenCaptureForPrivacy = vi.hoisted(() =>
 vi.mock("../utils/capturePrivacyScreen", () => ({ screenCaptureForPrivacy }));
 vi.mock("../utils/slack", async importOriginal => ({
   ...await importOriginal<typeof import("../utils/slack")>(),
-  notifySlackFootageNeedsReview: vi.fn(async () => false),
   notifySlackCapturePrivacyEscalation: vi.fn(async () => ({ sent: false })),
   sendSlackMessage: vi.fn(async () => ({ sent: false })),
 }));
@@ -341,6 +340,20 @@ describe("description-only owner can explicitly authorize future footage", () =>
       expect((await uploadFor(baseUrl, "req-description")).status).toBe(201);
     });
   });
+  it("offers a non-US job no sharing agreement, says plainly its video can't be taken, and records none (A-02)", async () => {
+    const record = seedDescription("req-non-us");
+    record.request.capture_region = "non_us";
+    await withRoutes(async baseUrl => {
+      expect((await uploadStatus(baseUrl, "req-non-us")).body).toMatchObject({ state: "held", holdReason: "capture_region_unapproved",
+        recordingConsentAvailable: false, detail: "We can only take videos from sites in the United States for now, so this link can't take a video yet." });
+      const refused = await consent(baseUrl, "req-non-us", { granted: true, statementVersion: "2026-11-12.v4" });
+      expect(refused.status).toBe(409);
+      expect((await refused.json()).code).toBe("capture_region_unapproved");
+      const after = sharedFakeFirestoreState.docs.get("inboundRequests/req-non-us") as Record<string, any>;
+      expect(after.request.consent_attestation).toBeNull();
+      expect(after.public_task_listing).toBeUndefined();
+    });
+  });
   it.each(["2026-09-18.v1", "2026-11-02.v2"])("records the rights sentence version the owner confirmed (%s)", async statementVersion => {
     // v1 is what a job page opened before the v2 sentence still sends.
     const requestId = `req-description-${statementVersion.replace(/\W/g, "-")}`;
@@ -513,7 +526,8 @@ describe("description-only owner can explicitly authorize future footage", () =>
     if (reason === "missing_authority") record.request.description_authority = null;
     if (reason === "non_us") record.request.capture_region = "non_us";
     await withRoutes(async baseUrl => {
-      expect((await consent(baseUrl, `req-consent-${reason}`)).status).toBe(reason === "non_us" ? 200 : 409);
+      // A non-US job records no agreement either (A-02): its video can never be taken.
+      expect((await consent(baseUrl, `req-consent-${reason}`)).status).toBe(409);
       expect((await uploadFor(baseUrl, `req-consent-${reason}`)).status).toBe(409);
       expect(written.size).toBe(0);
     });

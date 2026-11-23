@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { logger } from "../logger";
 // New-intake notices are link-only and live in ./intakeOpsNotice.ts. The old
 // block-kit notifier that copied name, email, company, site and task text
@@ -71,7 +72,7 @@ export async function notifySlackCapturePrivacyEscalation(options: {
     return { sent: false };
   }
 
-  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
+  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/jobs?job=${encodeURIComponent(options.requestId)}`;
   const attemptsPart =
     options.attempts !== undefined ? ` after ${options.attempts} attempts` : "";
   const text =
@@ -82,67 +83,13 @@ export async function notifySlackCapturePrivacyEscalation(options: {
 }
 
 /**
- * Tell ops a confirmed site's screen left questions open.
- *
- * For a job whose video arrived after the owner's decision of 2026-11-11
- * (`screenGateEnded`) this is a note: its scene is built whatever the screen
- * says. A job uploaded before it still waits on this call for its scene, so
- * its alert says so. The request's `ops.next_step` is the record; this is the
- * bell, on the channel ops already reads.
+ * The bell for a new company application: that a company applied, and one link
+ * to its card on the approvals page. No applicant name or email goes to Slack;
+ * the page is behind the admin role and approving there is one press.
  */
-export async function notifySlackScreeningCallNeeded(options: {
-  requestId: string;
-  openQuestions: readonly string[];
-  screenGateEnded?: boolean;
-}): Promise<{ sent: boolean; error?: unknown }> {
-  const webhookUrl =
-    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) {
-    logger.warn({ requestId: options.requestId }, "No Slack webhook configured; screening call has no bell");
-    return { sent: false };
-  }
-  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
-  const agenda = options.openQuestions.length
-    ? options.openQuestions.map((question) => `• ${question}`).join("\n")
-    : "• Unanswered gates on the brief";
-  const text =
-    (options.screenGateEnded
-      ? `:telephone_receiver: *Site screen left questions open (a note; it does not hold the scene)* — request \`${options.requestId}\`\n`
-      : `:telephone_receiver: *Site needs a screening call before its scene is built* — request \`${options.requestId}\`\n`)
-    + `${agenda}\nRecord the outcome: ${adminUrl}`;
-  return sendSlackMessage(text, webhookUrl);
-}
-
-/**
- * A walkthrough arrived and no automated footage review will read it.
- *
- * With BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED off, a person reviews coverage,
- * and the site is told so; this is how that person hears there is one to do.
- */
-export async function notifySlackFootageNeedsReview(options: {
-  requestId: string;
-}): Promise<{ sent: boolean; error?: unknown }> {
-  const webhookUrl =
-    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) {
-    logger.warn({ requestId: options.requestId }, "No Slack webhook configured; footage review has no bell");
-    return { sent: false };
-  }
-  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
-  const text =
-    `:film_frames: *Site walkthrough received — review coverage by hand* — request \`${options.requestId}\`\n`
-    + `Automated footage review is off, so the site has been told a person will review it. ${adminUrl}`;
-  return sendSlackMessage(text, webhookUrl);
-}
-
 export async function notifySlackRobotTeamAccessApplication(options: {
-  name: string;
-  company: string;
   email: string;
-  robot: string;
-  workWanted: string;
-  testSite?: string | null;
-  fit?: { checks: Array<{ label: string; passed: boolean; detail: string }> } | null;
+  fit?: unknown;
   autoApproved?: boolean;
 }): Promise<{ sent: boolean; error?: unknown }> {
   const webhookUrl =
@@ -151,16 +98,10 @@ export async function notifySlackRobotTeamAccessApplication(options: {
     logger.warn("No Slack webhook configured; a robot-team application has no bell");
     return { sent: false };
   }
-  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/robot-team-access`;
-  const fit = options.fit?.checks.map((check) => `${check.passed ? ":white_check_mark:" : ":x:"} ${check.label}: ${check.detail}`) ?? [];
-  const text = [
-    `:robot_face: *Robot-team early-access application${options.autoApproved ? " (auto-approved: clear fit)" : ""}* — ${options.name}, ${options.company} (${options.email})`,
-    `Robot: ${options.robot}`,
-    `Wants to test on: ${options.workWanted}`,
-    ...(options.testSite ? [`Site lead — would test at: ${options.testSite}`] : []),
-    ...fit,
-    `${options.autoApproved ? "Book the call" : "Review"}: ${adminUrl}`,
-  ].join("\n");
+  // The same id as accessRecordId(): the application's record id, not the email.
+  const id = createHash("sha256").update(options.email.trim().toLowerCase()).digest("hex");
+  const pageUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/robot-team-access?application=${id}`;
+  const text = `:robot_face: *A deployment company applied.* Approve or not yet: ${pageUrl}`;
   return sendSlackMessage(text, webhookUrl);
 }
 

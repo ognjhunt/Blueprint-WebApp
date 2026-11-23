@@ -23,7 +23,7 @@ export type TeamAccessReason =
   | "rights_blocked"
   | "rights_needs_review"
   | "recording_consent_missing"
-  | "scene_not_runnable"
+  | "simulation_not_ready"
   | "video_required";
 
 /**
