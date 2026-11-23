@@ -15,7 +15,7 @@ import {
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
-  ALSO_INVOLVES_PREFIX, FIRST_LOOK_SOURCE, REASON_UNSIZED, LIMITS_JOB_PAGE, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP,
+  ALSO_INVOLVES_PREFIX, FIRST_LOOK_SOURCE, REASON_NOT_READ, REASON_UNSIZED, LIMITS_JOB_PAGE, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP,
   firstLookSentence, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
@@ -421,7 +421,9 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
     <p className="bare-helper">{READING_HELPER}</p>
   </BareGroup>;
   else if (answer.state === "cannot_assess") {
-    const fix = answer.reason === REASON_UNSIZED ? onUpdateVideo && { label: NEW_VIDEO_LABEL, run: onUpdateVideo } : onEditJob && { label: EDIT_JOB_LABEL, run: onEditJob };
+    // An unread video is not fixed by editing the job: no button is offered for it.
+    const fix = answer.reason === REASON_UNSIZED ? onUpdateVideo && { label: NEW_VIDEO_LABEL, run: onUpdateVideo }
+      : answer.reason === REASON_NOT_READ ? null : onEditJob && { label: EDIT_JOB_LABEL, run: onEditJob };
     const reason = cannotLine(answer.reason);
     firstLook = <>
       <BareGroup>
