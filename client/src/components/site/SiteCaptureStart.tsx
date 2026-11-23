@@ -587,6 +587,12 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         if ([400, 401, 403, 422].includes(response.status)) {
           await retain({ ...frozen.value, pending: null }, body); setPending(recovery.current.pending);
         }
+        // 409: the server already holds this job (started from another page or signed in elsewhere) and emailed its
+        // private link. The saved submission is treated as the saved job, so "Start a new job" is offered and the
+        // server's sentence points to the link, instead of asking to recover it again.
+        if (response.status === 409 && recovery.current.pending && !recovery.current.pending.acknowledged) {
+          await retain({ ...frozen.value, pending: { ...recovery.current.pending, acknowledged: true } }); setPending(recovery.current.pending);
+        }
         analyticsEvents.contactFormError("capture_start");
         // An email the server cannot send to: the sentence goes under the email field, which takes focus. The site
         // fixes it there, so no job reference is shown.
