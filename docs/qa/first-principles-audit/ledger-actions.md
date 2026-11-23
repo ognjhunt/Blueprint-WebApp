@@ -16,9 +16,8 @@ host with the next window deploy.
 
 | Status | Rows |
 |---|---|
-| Done | 144 |
+| Done | 145 |
 | Partly done | 9 |
-| In a pull request now | 1 |
 | Left, with a reason | 45 |
 | Not taken up | 5 |
 | Owner writes it | 4 |
@@ -30,7 +29,7 @@ host with the next window deploy.
 | Demo practice, no code | 8 |
 | **All** | **254** |
 
-## Done (144)
+## Done (145)
 
 | Row | Verdict | Thing | What happened |
 |---|---|---|---|
@@ -63,6 +62,7 @@ host with the next window deploy.
 | BL25 | DELETE | "Review account details" (name, company again) | company way in: Find jobs, application, sign-up, job page: pull requests 1385, 1389, 1393, 1394 |
 | BL29 | SIMPLIFY | Library cards: category title and country only | company way in: Find jobs, application, sign-up, job page: pull requests 1385, 1389, 1393, 1394 |
 | BL30 | SIMPLIFY | Library filters: job type, region, Ready to test, search | company way in: Find jobs, application, sign-up, job page: pull requests 1385, 1389, 1393, 1394 |
+| BL35 | SIMPLIFY | Job page: country only | the owner chose city and state on 2026-11-23 and approved the sentence a site agrees to; 1410 merges after the Pipeline deploy: pull requests 1407, 1410 |
 | BL37 | DELETE | Client branch for video state "none" | company way in: Find jobs, application, sign-up, job page: pull requests 1385, 1389, 1393, 1394 |
 | BL38 | MERGE | Two answer forms ("Respond", "Report simulation result") | company way in: Find jobs, application, sign-up, job page: pull requests 1385, 1389, 1393, 1394 |
 | BL39 | SIMPLIFY | "Add details": what you checked, question, earliest start | company way in: Find jobs, application, sign-up, job page: pull requests 1385, 1389, 1393, 1394 |
@@ -192,12 +192,6 @@ host with the next window deploy.
 | GL11 | MERGE | Shared listing record | the duplicated grant check was merged (pull request 1395); the listing-record check stays because it supplies the card's details |
 | GL39 | DELETE | Recapture stops (8 codes) | six of the eight codes ship the room flagged (pull request 3690); two still ask for a new video because no room exists when they are found |
 | VL25 | DELETE | Host failed transient units and hold-expiry units | the 206 failed units are cleared; the 22 hold-expiry units and the expired hold are not |
-
-## In a pull request now (1)
-
-| Row | Verdict | Thing | What happened |
-|---|---|---|---|
-| BL35 | SIMPLIFY | Job page: country only | the owner chose city and state on 2026-11-23 and approved the sentence a site agrees to; 1410 merges after the Pipeline deploy: pull requests 1407, 1410 |
 
 ## Left, with a reason (45)
 

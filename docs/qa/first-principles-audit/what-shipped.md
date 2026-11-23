@@ -5,11 +5,12 @@ fixes, and they went out as small pull requests, one fix each. This file lists
 every one. Titles and merged state are read from `main` of each repository;
 the rest comes from each worker's report.
 
-- **Blueprint-WebApp: 36 merged.** A merge to `main` with green
+- **Blueprint-WebApp: 38 merged.** A merge to `main` with green
   checks deploys the website and its worker, so these are live.
-- **BlueprintCapturePipeline: 16 merged.** A merge does
-  not deploy the Pipeline. None of it runs on the host until the owner asks
-  for the window deploy.
+- **BlueprintCapturePipeline: 16 merged.** They reached
+  the host with the window deploy of 2026-11-23 (release `8feb4e9`, done at
+  15:11 UTC), which the owner asked for. Door code is the exception: it waits
+  for a root upgrade of the operator door.
 - **On the host:** 206 stale failed units were cleared through the operator
   door on 2026-11-22. Nothing else on the host was changed.
 - Pull request 1369, which held invented quotes and counts, was closed
@@ -26,12 +27,16 @@ Two things the fixing corrected in the audit itself:
   owner on 2026-11-23,** before anything was written: filming first with a
   sentence drafted from the video, and a state dropdown in place of the typed
   place. The start form keeps its typed sentence, typed place and email. The
-  gap was on the other side: a company is shown only the country. Pull
-  request 1407 lets a company be shown the state, or the city and state, and
-  ships switched off until the owner writes the sentence a site agrees to.
+  gap was on the other side: a company was shown only the country. The owner
+  then chose city and state and approved the sentence a site agrees to. Pull
+  request 1407 added the rule switched off, and pull request 1410 turned it on
+  after the Pipeline deploy, with one changed sentence in the Privacy Policy
+  (version 2026-11-23.1). It applies to jobs started under the new sentence.
+  Another session's pull request 1414 makes the start form send a picked
+  place's city and state, without which no job would have carried them.
 
 
-## Blueprint-WebApp: 36 merged
+## Blueprint-WebApp: 38 merged
 
 | Pull request | What changed | Findings |
 |---|---|---|
@@ -70,7 +75,9 @@ Two things the fixing corrected in the audit itself:
 | [1407](https://github.com/ognjhunt/Blueprint-WebApp/pull/1407) | A company can be shown the job's state, or its city and state, once a recording statement allows it; nothing changes until the owner adds one | B-04 |
 | [1408](https://github.com/ognjhunt/Blueprint-WebApp/pull/1408) | The company application is four fields, agrees to nothing, and tells the applicant when the answer comes | Owner's OBC PR 1 item (no audit finding id was given for this lane). I confirmed in the code: server/routes/robot-team-access.ts required robot/workWanted ... |
 | [1409](https://github.com/ognjhunt/Blueprint-WebApp/pull/1409) | A deployment company signs in by an emailed link, with no password | Owner's OBC PR 2 item. I confirmed that RobotTeamSignUpFlow required a password of at least 8 characters unless the company used Google, and that the ... |
+| [1410](https://github.com/ognjhunt/Blueprint-WebApp/pull/1410) | A site's sharing sentence names the city and state, and a company sees them for a job recorded under it | OBL2 (show_finding.py returned 'not found' for OBL2; the item text and owner permission were the specification). Added commit c681d05e: Privacy Policy ... |
 | [1411](https://github.com/ognjhunt/Blueprint-WebApp/pull/1411) | No person renews an expired job grant any more; the job ends its paid work with what it has | G-10; ledger GL21 GL22 DL40 FL16 (verdict DELETE). The defect is confirmed in the code. The renewal changed only expires_at_epoch, consent.accepted_at_epoch ... |
+| [1412](https://github.com/ognjhunt/Blueprint-WebApp/pull/1412) | The sitemap no longer lists /how-it-works, which redirects to the home page |  |
 
 ## BlueprintCapturePipeline: 16 merged
 
@@ -93,31 +100,22 @@ Two things the fixing corrected in the audit itself:
 | [3699](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/3699) | The operator door no longer has a command to confirm a job's success thresholds | D-13 (ledger rows DL38 and GL60). Checked against the code before removing anything. binding() only accepts a proposal_only authority over exactly the ... |
 | [3700](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/3700) | No person extends a job's work window any more; a job whose window ends, ends its paid work with what it has | G-10 (ledger rows DL40, GL21 and FL16; owner question 21). Checked that an extension moves only time: every reader takes the caps, attempt count, providers, ... |
 
-## Opened and not merged when this was written (1)
-
-| Pull request | Repository | What it changes |
-|---|---|---|
-| [1410](https://github.com/ognjhunt/Blueprint-WebApp/pull/1410) | Blueprint-WebApp | A site's sharing sentence names the city and state, and a company sees them for a job recorded under it |
-
 ## Still needs the owner
 
-Nothing below can be done by a pull request or through the operator door,
-except row 2, which is scheduled.
+Nothing below can be done by a pull request or through the operator door.
 
 | # | Step | Why |
 |---|---|---|
 | 1 | Ask the approved company to sign in and accept the Terms, invite three to five more, and post one US job under the current sharing statement. | No company can see a job yet, so the loop still has not run once. |
-| 2 | Pipeline window deploy of `main`. The owner asked for it on 2026-11-23; it is requested through the operator door when the window opens at 15:00 UTC. | Everything merged in the Pipeline waits for it: the sound-free video first, the room shipped as the simulation, the settlement fix, parked jobs that retry, the new statement version. After it, pull request 1410 merges and a company sees the city and state of a job started under the new sentence. |
-| 3 | Delete the RunPod key file on the host and close the account. | The money guard stays red until the key is gone. The door cannot delete a secret. |
-| 4 | Install the standing approval for deletion after a withdrawal at `/etc/blueprint/website-withdrawal-deletion-approval.json`. | Until then the Pipeline deletes nothing after a withdrawal. |
-| 5 | Set up the backup bucket and key for the control plane. | Job state and money records on the one host have no backup. |
-| 6 | Decide December's account limit. | It returns to $300 on 1 December, and costs with no job behind them run close to that. |
-| 7 | Upgrade the installed operator door as root. | The door changes in pull request 3693 and in the two approval removals reach the host only by a root upgrade. |
-| 8 | Decide whether the Privacy Policy change of 2026-11-23 is material. | The policy promises account holders an email before a material change. The change applies only to jobs started under the new sentence. Any email is the owner's to send. |
-| 9 | Edit the Privacy Policy's cookie and processor wording. | It still describes analytics, marketing cookies and a choice the site no longer offers. |
-| 10 | Keep or drop the date in the application receipt ("We'll email you our answer within three working days."). | The owner approved it, and it contradicts the standing rule in `client/src/AGENTS.md` ("Make no promise"). The reminder to the owner also comes on day three, when the answer is already due. Either drop the date, or keep it, move the reminder to day two and add the exception to the rule. |
-| 11 | Say whether the sitemap may drop `/how-it-works`. | The page now redirects to the home page; a protected test pins the sitemap entry. |
-| 12 | Say whether stored production data in retired collections may be deleted. | The code that wrote it is gone; deleting retained data needs the owner's word. |
+| 2 | Delete the RunPod key file on the host and close the account. | The money guard fails on every run until the key is gone; it is the one failed unit on the host. The door cannot delete a secret. |
+| 3 | Install the standing approval for deletion after a withdrawal at `/etc/blueprint/website-withdrawal-deletion-approval.json`. | Until then the Pipeline deletes nothing after a withdrawal. |
+| 4 | Set up the backup bucket and key for the control plane. | Job state and money records on the one host have no backup. |
+| 5 | Decide December's account limit. | It returns to $300 on 1 December, and costs with no job behind them run close to that. On 2026-11-23 the guard counted $302.04 of November's $400 and forecast the limit for 30 November. |
+| 6 | Upgrade the installed operator door as root. | The door changes in pull requests 3693, 3699 and 3700 reach the host only by a root upgrade. Until then the two removed commands are still accepted and would fail. |
+| 7 | Decide whether the Privacy Policy change of 2026-11-23 is material. | The policy promises account holders an email before a material change. The change applies only to jobs started under the new sentence. Any email is the owner's to send. |
+| 8 | Edit the Privacy Policy's cookie and processor wording. | It still describes analytics, marketing cookies and a choice the site no longer offers. |
+| 9 | Keep or drop the date in the application receipt ("We'll email you our answer within three working days."). | The owner approved it, and it contradicts the standing rule in `client/src/AGENTS.md` ("Make no promise"). The reminder to the owner also comes on day three, when the answer is already due. Either drop the date, or keep it, move the reminder to day two and add the exception to the rule. |
+| 10 | Say whether stored production data in retired collections may be deleted. | The code that wrote it is gone; deleting retained data needs the owner's word. |
 
 Known and left as they are:
 
@@ -131,12 +129,15 @@ Known and left as they are:
   Privacy versions under which Anthropic may be used for that step. It stops
   at 2026-11-18, so later jobs use OpenAI. Nothing is refused or blurred.
   Adding versions is a privacy decision.
+- **One follow-up is unblocked and not done.** The website route that the
+  window-extension command called can go now that the Pipeline no longer
+  calls it, keeping every reader of extension records.
 - **Money still held.** A launch that rented a machine and was torn down
   keeps its full hold, because no kept record proves what it spent.
 
 ## What each pull request leaves for the owner
 
-From each worker's report. Rows that said "none" are left out.
+From each worker's report, as written when its pull request opened. Rows that said "none" are left out. Two notes are since settled: the sitemap entry named under 1406 was removed by pull request 1412, and 1410 merged after the Pipeline deploy it waited for.
 
 | Pull request | For the owner |
 |---|---|
