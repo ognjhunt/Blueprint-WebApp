@@ -35,7 +35,6 @@ test("terms make the beta free, with no early trial and no Blueprint fee", async
 test("the beta page reaches the header on mobile without a horizontal scrollbar", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Reject all", exact: true }).click();
   await page.getByRole("link", { name: "Questions", exact: true }).click();
 
   await expect(page).toHaveURL(/\/beta$/);
