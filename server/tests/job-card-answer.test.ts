@@ -25,7 +25,7 @@ const seams = vi.hoisted(() => ({
   managed: vi.fn(async (): Promise<{ managedEvidence: unknown[] }> => ({ managedEvidence: [] })),
 }));
 vi.mock("../utils/robotTeamLibraryAccess", () => ({ libraryAccessForRequest: vi.fn(async () => ({
-  gated: true, status: seams.allowed ? "approved" : "none", signedIn: seams.allowed, emailVerified: seams.allowed,
+  status: seams.allowed ? "approved" : "none", signedIn: seams.allowed, emailVerified: seams.allowed,
   allowed: seams.allowed, staff: false })) }));
 vi.mock("../utils/siteAnswer", async importOriginal => {
   const actual = await importOriginal<typeof import("../utils/siteAnswer")>();
@@ -119,7 +119,11 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(body.item.answerHeadline).toBe(summary.headline);
     // The card's own fields are the anonymised draft, as before.
     expect(body.item.title).toBe("Carton palletizing opportunity");
-    const text = JSON.stringify(body);
+    // The card carries the site's own sentence as the job page shows it, its known name and organisation removed.
+    const { sentence, ...rest } = body.item;
+    expect(sentence).toContain("stacks cartons from the conveyor by the loading dock onto the pallet");
+    for (const word of PRIVATE.filter(word => word !== "conveyor by the loading dock")) expect(sentence).not.toContain(word);
+    const text = JSON.stringify({ ...body, item: rest });
     for (const word of PRIVATE) expect(text).not.toContain(word);
     expect(text).not.toMatch(/\byour\b/i);
   });

@@ -543,15 +543,14 @@ it.each(["not_now", "needs_conversation"])("funds a %s job marked when it was cr
   await expect(loadWebsiteSceneSponsorship("req1", true)).resolves.toMatchObject({ request_id: "req1" });
 });
 
-it("still refuses a job uploaded after the change when no account owns its video", async () => {
+it("funds a job uploaded after the change though no account owns its video", async () => {
   const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
   sponsoredCapture();
   const record = store.rows.get("inboundRequests/req1");
   record.site_task_triage = { disposition: "not_now" };
   record.scene_screen_gate_ended = sceneScreenGateEndedMarker("req1", new Date().toISOString());
   delete record.account_owner_uid;
-  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_unclaimed");
-  expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toBeUndefined();
+  await expect(loadWebsiteSceneSponsorship("req1", true)).resolves.toMatchObject({ request_id: "req1" });
 });
 
 it("does not release a held job from a marker for another capture or a malformed one", async () => {
@@ -591,9 +590,6 @@ it("funds only the exact owner-authorized exploratory development site without q
   process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS = JSON.stringify([sha("a")]);
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_not_qualified");
   process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS = JSON.stringify([context.context_digest]);
-  delete record.account_owner_uid;
-  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_unclaimed");
-  record.account_owner_uid = "site-owner-uid";
   const grant = await loadWebsiteSceneSponsorship("req1", true);
   expect(grant).toMatchObject({ sponsor: "blueprint", preparation_max_total_spend_usd: 25,
     upstream_max_spend_usd: 5, max_total_spend_usd: 20,
@@ -655,11 +651,9 @@ it("refuses exploratory test when any other gate is marginal, blocked or unanswe
     .toThrow("website_scene_site_not_qualified");
 });
 
-it("funds no scene until the site is saved to an account", async () => {
+it("funds a scene whether or not the site saved the job to an account", async () => {
   sponsoredCapture();
   delete store.rows.get("inboundRequests/req1").account_owner_uid;
-  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_unclaimed");
-  store.rows.get("inboundRequests/req1").account_owner_uid = "site-owner-uid";
   await expect(loadWebsiteSceneSponsorship("req1", true)).resolves.toMatchObject({ sponsor: "blueprint" });
 });
 

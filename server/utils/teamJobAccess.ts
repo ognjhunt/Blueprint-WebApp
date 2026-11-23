@@ -27,18 +27,14 @@
  *
  * Every field read here is stored in plaintext, so pass the record as stored.
  */
-import { sceneScreenGateEnded } from "./sceneScreenGate";
 import type { TaskListingDetails, TeamEvaluationTerms } from "../../client/src/types/taskBrowse";
 import type { InboundRequest } from "../types/inbound-request";
-import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { listingDetailsForSentence, sharedJobListing } from "./taskListingDetails";
 import { SHARING_RECORDING_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
+import { recordingStatementShares } from "./jobSharedListing";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { operatorListingHold, operatorListingPaused } from "./operatorListing";
+import { operatorListingHold } from "./operatorListing";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
-import { coverageEvidenceFrom } from "./captureCoverageEvidence";
-import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
-import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";
 import { isInternalTestJob } from "./internalTestJob";
 import { recordedWebsiteJobNoGrantEnding } from "./websiteJobWindowEnding";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
@@ -79,8 +75,8 @@ export type TeamJobClosedReason =
   | "rights_needs_review"
   /** No current recording grant covers building and evaluating the scene. */
   | "recording_consent_missing"
-  /** The scene has not been shown to run an evaluation yet. */
-  | "scene_not_runnable"
+  /** Listed, but the company simulation of the current capture is not stored yet (`storedCompanySimulation`). */
+  | "simulation_not_ready"
   /** The required company video is not available for this capture. */
   | "video_required"
   /**
@@ -95,71 +91,6 @@ export type TeamJobAccess =
   | { listed: true; evaluationAvailable: true; reason: null; details: TaskListingDetails };
 
 type RecordLike = InboundRequest | Record<string, unknown> | null | undefined;
-
-function hasBuiltScene(request: Record<string, any>): boolean {
-  return Boolean(request.pipeline?.artifacts?.worldlabs_world_manifest_uri);
-}
-
-/**
- * Whether a site's scene can run an evaluation: confirmed, reconstructed and
- * proven runnable.
- *
- * ## What decides
- *
- * - **A scene has to exist.** A world manifest proves reconstruction.
- * - **The operator has to have confirmed the brief.** Otherwise the gates are
- *   our reading of their evidence rather than their answers, and a description
- *   alone could inflate supply.
- * - **Every binding gate has to be answered**, which `assessReadiness` checks
- *   (an answer the site disclosed as unknown counts).
- * - **An evaluation has to be able to run against the scene.**
- *   `sceneRunnableReadiness` requires an internal proof that our harness can
- *   load and step it, and fails closed: unverified is held back.
- *
- * The four-conditions screen's disposition decides nothing for a job whose
- * video arrived after the owner's decision of 2026-11-11 (`sceneScreenGateEnded`);
- * it stays a note for staff. A job uploaded before it still needs `qualified`,
- * until the owner decides about those. The site's consent, its listing and its
- * own pause are checked by `teamJobAccess` around this.
- *
- * Measured coverage is used where we have it, and the old inference where we
- * do not: a built scene means coverage sufficed, which is true by
- * construction. What this must never do is read "nobody checked" as "does not
- * cover", because that would silently drop supply.
- */
-/** The old screen still holds only jobs uploaded before the owner's decision of 2026-11-11. */
-export function screenAllowsSupply(request: Record<string, any>): boolean {
-  return request.site_task_triage?.disposition === "qualified"
-    || sceneScreenGateEnded(request, typeof request.requestId === "string" ? request.requestId : "");
-}
-
-export function isRunnableTask(request: InboundRequest): boolean {
-  // Runs (robot teams running their own software, "later") still respect a site's pause: it no longer hides the job
-  // from companies (must-fix 3), but it keeps stopping paid runs, which is the conservative reading.
-  if (request.request?.buyerType === "robot_team" || operatorListingPaused(request)
-    || !screenAllowsSupply(request as unknown as Record<string, any>)) return false;
-  const measured = coverageEvidenceFrom(request as never);
-  const readiness = assessReadiness({
-    answers: gateAnswersOnFile(request),
-    captureMode: request.request?.capture_mode ?? null,
-    briefDrafted: true,
-    briefConfirmed: Boolean(request.site_task_brief_confirmed_at),
-    evidence: {
-      hasAny: true,
-      hasVisual: true,
-      explainsTask: true,
-      coversScene: measured?.coversScene ?? true,
-      missingCoverage: measured?.missingCoverage,
-    },
-    reconstructed: hasBuiltScene(request as unknown as Record<string, any>),
-    // Gates a site left open when it confirmed its task at submission are
-    // disclosed unknowns, never a stop (owner decision 2026-11-07).
-    disclosedUnknown: disclosedUnknownGates(request),
-  });
-  if (!readiness.isSupply) return false;
-  // Site-ready is not run-ready: see `sceneRunnableReadiness`.
-  return sceneRunnableReadiness(request.evaluation_readiness).runnable;
-}
 
 /** A retired-dossier choice narrower than the beta's card, if the record carries one. */
 function legacyRestriction(raw: Record<string, any>): TeamJobClosedReason | null {
@@ -192,13 +123,8 @@ export interface TeamJobAccessContext {
   brief?: { summary?: string | null; confirmedAtIso?: string | null } | null;
   /** The stored preparation state of the job's current capture (`website_preparation.status.state`), or null. */
   preparationState?: string | null;
-}
-
-/** The recording grant stands and was given under a statement that shares the job. */
-export function recordingSharesJob(raw: Record<string, any>): boolean {
-  const grant = raw.request?.consent_attestation;
-  return Boolean(grant) && grant.granted === true && RECORDING_VERSIONS_THAT_SHARE.includes(String(grant.statement_version))
-    && !grant.revoked_at_iso && !grant.withdrawn_at_iso;
+  /** The company simulation of the current capture is stored (`storedCompanySimulation`). Absent reads as not ready. */
+  companySimulationReady?: boolean;
 }
 
 /** The site closed its job: a run closure on record for any capture. */
@@ -217,7 +143,7 @@ function briefHasSentence(brief: TeamJobAccessContext["brief"]): boolean {
 /**
  * The one predicate: may approved deployment companies see this job? `listed` decides whether it appears anywhere a
  * company looks (the library, the job's page, every media route, the response route, introductions and the automatic
- * send). `evaluationAvailable` is kept for older readers; it is never true for a job that is not listed.
+ * send). `evaluationAvailable` (a job card's "Ready") is true once a listed job's company simulation is stored.
  */
 export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext = {}): TeamJobAccess {
   const raw = (record ?? {}) as Record<string, any>;
@@ -250,7 +176,7 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
     return closed("development_only");
   const legacy = legacyRestriction(raw);
   if (legacy) return closed(legacy);
-  if (!recordingSharesJob(raw)) return closed("older_statement");
+  if (!recordingStatementShares(raw)) return closed("older_statement");
   const listing = sharedJobListing(raw);
   if (!listing) return closed("not_listed");
   if (context.brief !== undefined && !briefHasSentence(context.brief)) return closed("no_job_sentence");
@@ -258,8 +184,9 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
   const details = listingDetailsForSentence(listing.details, context.brief?.summary);
   if (!rights.derived_scene_generation_allowed)
     return { listed: true, evaluationAvailable: false, reason: "recording_consent_missing", details };
-  if (!isRunnableTask(raw as InboundRequest))
-    return { listed: true, evaluationAvailable: false, reason: "scene_not_runnable", details };
+  // A job card's "Ready" is the company simulation itself, never the retired trial's runnable proof.
+  if (context.companySimulationReady !== true)
+    return { listed: true, evaluationAvailable: false, reason: "simulation_not_ready", details };
   return { listed: true, evaluationAvailable: true, reason: null, details };
 }
 
@@ -290,7 +217,10 @@ export async function loadCompanyJobAccess(requestId: string, given?: Record<str
   const clip = storedCompanyClip(session, captureId);
   const privateClip = clip?.permission_basis === "internal_test";
   const companyVideoReady = Boolean(clip) && !privateClip;
-  return { record, access: teamJobAccess(record, { brief: briefForAccess, preparationState, companyVideoReady }), brief, session };
+  const { storedCompanySimulation } = await import("./websiteCompanySimulation");
+  const companySimulationReady = Boolean(storedCompanySimulation(session, captureId));
+  return { record, access: teamJobAccess(record, { brief: briefForAccess, preparationState, companyVideoReady,
+    companySimulationReady }), brief, session };
 }
 
 /** The card image route, when the site approved a thumbnail with its card. */

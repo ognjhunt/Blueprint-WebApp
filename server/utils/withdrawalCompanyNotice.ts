@@ -1,14 +1,15 @@
 /**
  * The deletion notice the Terms and Privacy Policy promise (review M4; planner, 2026-11-12, 18:00Z): when a site's
- * withdrawal is first recorded, ONE email to EVERY company the job was sent to (its standing `companySends` rows),
- * whatever that company's state now (suspended, Terms not accepted, a technology partner), asking it to delete any
- * copy it saved; never to a company it was not sent to (planner, 19:50Z, G6). Outbox kind `job_withdrawn_company`, one row per job and company
+ * withdrawal is first recorded, ONE email to EVERY company the job was sent to (its standing `companySends` rows) or
+ * that opened it (its `companyViews` rows: a company approved after the send finds the job in Find jobs), whatever
+ * that company's state now (suspended, Terms not accepted, a technology partner), asking it to delete any copy it
+ * saved. The Terms promise "any company that saved a copy" (audit M-01). Outbox kind `job_withdrawn_company`, one row per job and company
  * (idempotency key `{requestId}:job_withdrawn_company:{companyId}`).
  *
  * It carries nothing of the site: no name, address, contact or the site's own sentence. Only the date the job was sent
  * and the job's category title as companies saw it (`listingDetailsForSentence`): a closed category, never free text.
  * It is a notice, not an update, so it is sent whatever the company's optional-updates choice is. At dispatch
- * (`withdrawalNoticeIsCurrent`) it is checked only that the job was sent to that company.
+ * (`withdrawalNoticeIsCurrent`) it is checked only that the job was sent to or opened by that company.
  *
  * The rows are planned inside the withdrawal's own transaction (`recordWebsiteCaptureWithdrawal`): all reads first,
  * then the writes, so the notice is as durable as the withdrawal itself.
@@ -23,6 +24,11 @@ export const WITHDRAWAL_COMPANY_SUBJECT = "A job you were sent has been withdraw
 /** The job is named as Find jobs and its page name it (`jobTitleForDisplay`), never by a stored "… opportunity" title. */
 export const withdrawalCompanyBody = (date: string, title: string) =>
   `A site has withdrawn a job you were sent on ${date}: ${jobTitleForDisplay(title)}. It is no longer listed in Find jobs. `
+  + "If you saved its video or its simulation, delete your copy now.";
+/** For a company that opened the job without being sent it: the same notice, saying when it opened the job. */
+export const WITHDRAWAL_COMPANY_OPENED_SUBJECT = "A job you opened has been withdrawn";
+export const withdrawalCompanyOpenedBody = (date: string, title: string) =>
+  `A site has withdrawn a job you opened on ${date}: ${jobTitleForDisplay(title)}. It is no longer listed in Find jobs. `
   + "If you saved its video or its simulation, delete your copy now.";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,7 +50,7 @@ function dateInWords(iso: string): string {
 
 /**
  * Reads only (call before the transaction's first write): the outbox rows to create, one per company the job was
- * sent to that has no row yet. The caller creates them with `tx.set(row.ref, row.data)`.
+ * sent to or that opened it, that has no row yet. The caller creates them with `tx.set(row.ref, row.data)`.
  */
 export async function planWithdrawalCompanyNotices(tx: Tx, requestId: string, record: Record<string, any> | undefined):
   Promise<Array<{ ref: FirebaseFirestore.DocumentReference; data: Record<string, unknown> }>> {
@@ -60,25 +66,37 @@ export async function planWithdrawalCompanyNotices(tx: Tx, requestId: string, re
     const earlier = firstSent.get(row.companyId);
     if (earlier === undefined || (at && at < earlier)) firstSent.set(row.companyId, at);
   }
-  if (firstSent.size === 0) return [];
+  // Every company that opened the job (a company approved after the send was never on the send list).
+  const views = await tx.get(store.collection("inboundRequests").doc(requestId).collection("companyViews").limit(5000));
+  const firstOpened = new Map<string, string>();
+  for (const view of views.docs) {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(view.id) || firstSent.has(view.id)) continue;
+    const at = view.data()?.openedAtIso;
+    firstOpened.set(view.id, typeof at === "string" ? at : "");
+  }
+  if (firstSent.size === 0 && firstOpened.size === 0) return [];
   const { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } = await import("./captureOutbox");
   // The brief's sentence, read only to choose the closed category a job shared before its sentence existed now shows.
   const brief = (await tx.get(store.collection("siteTaskBriefs").doc(requestId))).data();
   const title = categoryTitleOf(record, typeof brief?.summary === "string" ? brief.summary : null);
   const planned: Array<{ ref: FirebaseFirestore.DocumentReference; data: Record<string, unknown> }> = [];
-  for (const [companyId, sentAtIso] of [...firstSent.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+  const notices = [...[...firstSent.entries()].map(([companyId, at]) => ({ companyId, at, opened: false })),
+    ...[...firstOpened.entries()].map(([companyId, at]) => ({ companyId, at, opened: true }))]
+    .sort((a, b) => a.companyId.localeCompare(b.companyId));
+  for (const { companyId, at, opened } of notices) {
     const company = (await tx.get(store.collection("robotTeamAccess").doc(companyId))).data();
     const to = typeof company?.email === "string" ? company.email.trim().toLowerCase() : "";
     if (!EMAIL.test(to)) continue;
     const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(withdrawalCompanyKey(requestId, companyId));
     if ((await tx.get(ref)).exists) continue;
     planned.push({ ref, data: buildOutboxEntry({ idempotencyKey: ref.id, requestId, kind: WITHDRAWAL_COMPANY_KIND as never, to,
-      subject: WITHDRAWAL_COMPANY_SUBJECT, body: withdrawalCompanyBody(dateInWords(sentAtIso), title), replyTo: "hello@tryblueprint.io" }) as unknown as Record<string, unknown> });
+      subject: opened ? WITHDRAWAL_COMPANY_OPENED_SUBJECT : WITHDRAWAL_COMPANY_SUBJECT,
+      body: (opened ? withdrawalCompanyOpenedBody : withdrawalCompanyBody)(dateInWords(at), title), replyTo: "hello@tryblueprint.io" }) as unknown as Record<string, unknown> });
   }
   return planned;
 }
 
-/** The dispatch check: sent only to a company the job was sent to (a standing send), whatever its state. Every other kind passes. */
+/** The dispatch check: sent only to a company the job was sent to (a standing send) or that opened it, whatever its state. Every other kind passes. */
 export async function withdrawalNoticeIsCurrent(entry: { kind: string; requestId: string; idempotencyKey?: string },
   tx?: Tx): Promise<boolean> {
   if (entry.kind !== WITHDRAWAL_COMPANY_KIND) return true;
@@ -87,5 +105,8 @@ export async function withdrawalNoticeIsCurrent(entry: { kind: string; requestId
   if (!companyId || !db) return false;
   const sends = db.collection("inboundRequests").doc(entry.requestId).collection("companySends").limit(5000);
   const rows = tx ? await tx.get(sends) : await sends.get();
-  return rows.docs.some(doc => doc.data()?.companyId === companyId && !doc.data()?.voidedAtIso);
+  if (rows.docs.some(doc => doc.data()?.companyId === companyId && !doc.data()?.voidedAtIso)) return true;
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(companyId)) return false;
+  const view = db.collection("inboundRequests").doc(entry.requestId).collection("companyViews").doc(companyId);
+  return (tx ? await tx.get(view) : await view.get()).exists;
 }

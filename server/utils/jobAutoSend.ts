@@ -8,19 +8,21 @@
  * The site gets no email of its own here: its job link email already said the job goes to approved deployment
  *   companies once the video is in, and how to stop (ledger AL38, 2026-11-23).
  * - writes `company_auto_send = { schemaVersion: 1, sentAtIso, count }` on the job, so it happens once.
- * A job with no approved deployment company yet is left for a later pass. A company approved later sees listed jobs in
- * its library; it is not emailed about them. A worker sweep catches any moment that was missed.
+ * A job with no approved deployment company yet is left for a later pass. A company that accepts the Terms after a job
+ * was sent sees it in its library and gets ONE email about the jobs open to it (`emailOpenJobsToCompany`, audit B-03).
+ * A worker sweep catches any moment that was missed.
  *
- * Nothing identifying the site is read or written here: the email carries the job's link only.
+ * Nothing identifying the site is written here: the email carries the kind of job, the country and the job's link.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { COMPANY_SENDS_COLLECTION, companyJobUrl } from "./jobCompanies";
 import { companyMaySeeJobs } from "./companyTerms";
-import { newJobEmail } from "./robotTeamAccessEmails";
+import { newJobEmail, openJobsEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
+import { countryOf } from "./companyJobPage";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
@@ -87,12 +89,13 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
     }
     const sentAtIso = now().toISOString();
     const jobUrl = companyJobUrl(requestId);
+    const country = await countryOf(record);
     for (const company of companies) {
       tx.set(jobRef.collection(COMPANY_SENDS_COLLECTION).doc(`system-${company.id}`), { schemaVersion: 1, companyId: company.id,
         sentAtIso, sentBy: "system", sentByEmail: null });
     }
     for (const company of emailed) {
-      const message = newJobEmail({ to: company.email, jobUrl });
+      const message = newJobEmail({ to: company.email, jobUrl, kind: access.details.taskFamily, country });
       tx.create(store.collection(CAPTURE_OUTBOX_COLLECTION).doc(newJobAlertKey(requestId, company.id)), buildOutboxEntry({
         idempotencyKey: newJobAlertKey(requestId, company.id), requestId, kind: "robot_team_new_task", to: company.email,
         subject: message.subject, body: message.body, replyTo: "hello@tryblueprint.io",
@@ -110,6 +113,55 @@ export async function sendJobToCompaniesIfListed(requestId: string): Promise<Aut
   catch (error) {
     logger.warn({ error, requestId }, "Automatic send did not run; the sweep will try again");
     return null;
+  }
+}
+
+const OPEN_JOBS_PAGE = 200;
+
+export const openJobsKey = (companyId: string) => `robot_team_open_jobs:${companyId}`;
+
+/**
+ * Once per company, right after it accepts the Terms (audit B-03): when a listed job was already sent before it could
+ * see jobs, one email points it to Find jobs. It goes through the new-job email's own dispatch gate (`jobAlertIsCurrent`:
+ * that job still listed, the company approved with the Terms accepted, job emails not turned off, not suppressed).
+ * A job not yet sent is left to the send itself, which now includes this company. Best effort: never throws.
+ */
+export async function emailOpenJobsToCompany(companyId: string): Promise<boolean> {
+  if (!db || isPullRequestPreview() || !/^[a-f0-9]{64}$/.test(companyId)) return false;
+  const store = db;
+  try {
+    const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(openJobsKey(companyId));
+    if ((await ref.get()).exists) return false;
+    const company = (await store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId).get()).data() as RobotTeamAccessRecord | undefined;
+    const email = String(company?.email ?? "").trim().toLowerCase();
+    if (!company || !companyMaySeeJobs(company) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
+    // Every page of shared jobs is read until one qualifies: a full first page of withdrawn or already-sent jobs
+    // must not hide an open one behind it.
+    let jobId: string | null = null;
+    let after: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+    while (!jobId) {
+      let query = store.collection("inboundRequests")
+        .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).orderBy("__name__").limit(OPEN_JOBS_PAGE);
+      if (after) query = query.startAfter(after);
+      const jobs = await query.get();
+      for (const doc of jobs.docs) {
+        if (!doc.data()?.[AUTO_SEND_FIELD]?.sentAtIso) continue;
+        const sent = await doc.ref.collection(COMPANY_SENDS_COLLECTION).where("companyId", "==", companyId).limit(1).get();
+        if (!sent.empty) continue;
+        if ((await loadCompanyJobAccess(doc.id, doc.data())).access.listed) { jobId = doc.id; break; }
+      }
+      if (jobs.docs.length < OPEN_JOBS_PAGE) break;
+      after = jobs.docs[jobs.docs.length - 1];
+    }
+    if (!jobId) return false;
+    const message = openJobsEmail({ to: email });
+    await ref.create(buildOutboxEntry({ idempotencyKey: ref.id, requestId: jobId, kind: "robot_team_new_task", to: email,
+      subject: message.subject, body: message.body, replyTo: "hello@tryblueprint.io",
+      jobAlert: { schema: NEW_JOB_ALERT_SCHEMA, jobId, companyId } }));
+    return true;
+  } catch (error) {
+    logger.warn({ error }, "Could not queue the open-jobs email for a company");
+    return false;
   }
 }
 

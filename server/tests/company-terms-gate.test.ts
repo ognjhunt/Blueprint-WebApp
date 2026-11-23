@@ -46,14 +46,14 @@ vi.mock("../utils/robotTeamLibraryAccess", async () => {
   const viewerFor = async (req: express.Request) => {
     const token = String(req.headers.authorization ?? "").replace(/^Bearer /, "");
     const account = seams.tokens.get(token);
-    if (!account) return { access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
+    if (!account) return { access: { status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
     const companyId = accessRecordId(account.email);
     const record = (await sharedFakeFirestore.collection("robotTeamAccess").doc(companyId).get()).data();
     // As the real gate (`resolveViewerAccess`): approved, and a deployment company, never a technology partner.
     const { companyMaySeeJobs } = await import("../utils/companyTerms");
     const deployment = record?.status === "approved" && record.partnerRole !== "technology";
     const allowed = companyMaySeeJobs(record);
-    return { access: { gated: true, status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false,
+    return { access: { status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false,
       ...(deployment && !allowed ? { termsRequired: true } : {}) },
       viewer: { uid: account.uid, email: account.email, companyId, staff: false } };
   };
@@ -295,7 +295,7 @@ const introduce = (alias: string) => requestIntroduction({ requestId: ID, alias,
 const SHOWN = { termsVersion: NO_FACE_BLUR_VERSION, privacyVersion: NO_FACE_BLUR_VERSION };
 const apply = (body: Record<string, unknown>) => realFetch(`${base}/api/robot-team-access/apply`, { method: "POST",
   headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Mallory", company: "Mallory Corp", robot: "arm",
-    workWanted: "pick", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
+    workWanted: "pick", website: "https://mallory.example", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
 
 describe("Privacy 2026-11-13.1 asks no approved company to agree again", () => {
   // The Terms keep 2026-11-12.2; Privacy 2026-11-13.1 changes only what may happen to jobs started from now on.

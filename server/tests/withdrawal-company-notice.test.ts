@@ -1,7 +1,7 @@
 // @vitest-environment node
 /**
  * The deletion notice the Terms promise (review M4): one email to each approved deployment company a withdrawn job was
- * sent to, in fixed words, carrying nothing of the site. OFFLINE: the real withdrawal against the fake Firestore.
+ * sent to or that opened it, in fixed words, carrying nothing of the site. OFFLINE: the real withdrawal against the fake Firestore.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
@@ -15,7 +15,7 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 vi.mock("../utils/pipelineCompanyRecheck", () => ({ recheckCaptureInBackground: vi.fn(), askPipelineToRecheckCapture: vi.fn() }));
 
 const { recordWebsiteCaptureWithdrawal } = await import("../utils/websiteCaptureWithdrawal");
-const { withdrawalNoticeIsCurrent, WITHDRAWAL_COMPANY_SUBJECT } = await import("../utils/withdrawalCompanyNotice");
+const { withdrawalNoticeIsCurrent, WITHDRAWAL_COMPANY_SUBJECT, WITHDRAWAL_COMPANY_OPENED_SUBJECT } = await import("../utils/withdrawalCompanyNotice");
 
 const ID = "req-wd";
 const PLANTED = ["SITE-NAME-PLANT", "123 PLANT STREET", "owner-plant@site.example", "+1 555 0100 PLANT", "Pat Plantsubmitter",
@@ -101,7 +101,27 @@ describe("the withdrawal's deletion notice to companies", () => {
     }
   });
 
-  it("is sent whatever the company's optional-updates choice or state, and never to a company the job was not sent to", async () => {
+  // Audit M-01: the Terms promise "any company that saved a copy". A company approved after the send opens the job from
+  // Find jobs and can save its video; it is asked to delete it too, in the same words, saying when it opened the job.
+  it("also queues the notice to every company that opened the job without being sent it, and once to one that was both", async () => {
+    state.docs.set("robotTeamAccess/late", company("Late"));
+    state.docs.set(`inboundRequests/${ID}/companyViews/late`, { openedAtIso: "2026-11-14T09:00:00.000Z" });
+    state.docs.set(`inboundRequests/${ID}/companyViews/north`, { openedAtIso: "2026-11-15T09:00:00.000Z" });
+    await recordWebsiteCaptureWithdrawal({ requestId: ID, requestedBy: "signed_owner_link", authorize: () => undefined });
+    const notices = rows().filter(row => row.kind === "job_withdrawn_company");
+    expect(notices.map(row => row.key).sort()).toEqual(["gone", "late", "north", "south", "tech"]
+      .map(companyId => `captureOutbox/${ID}:job_withdrawn_company:${companyId}`));
+    expect(notices.find(row => row.to === "late@co.example")).toMatchObject({ subject: WITHDRAWAL_COMPANY_OPENED_SUBJECT,
+      body: "A site has withdrawn a job you opened on November 14, 2026: Handle pallets. It is no longer listed in Find jobs. "
+        + "If you saved its video or its simulation, delete your copy now." });
+    expect(notices.find(row => row.to === "north@co.example")?.subject).toBe(WITHDRAWAL_COMPANY_SUBJECT);
+    const entry = (companyId: string) => ({ kind: "job_withdrawn_company", requestId: ID, idempotencyKey: `${ID}:job_withdrawn_company:${companyId}` });
+    expect(await withdrawalNoticeIsCurrent(entry("late"))).toBe(true);
+    const text = JSON.stringify(notices);
+    for (const planted of PLANTED) expect(text, planted).not.toContain(planted);
+  });
+
+  it("is sent whatever the company's optional-updates choice or state, and never to a company that was neither sent nor opened the job", async () => {
     state.docs.set("robotTeamAccess/north", company("North", { newJobAlertsOptIn: false, updatePreferences: { newJobAlerts: false } }));
     const entry = (companyId: string) => ({ kind: "job_withdrawn_company", requestId: ID, idempotencyKey: `${ID}:job_withdrawn_company:${companyId}` });
     expect(await withdrawalNoticeIsCurrent(entry("north"))).toBe(true);

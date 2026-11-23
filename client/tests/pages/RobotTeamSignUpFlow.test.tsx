@@ -33,6 +33,18 @@ describe("invitation-only account creation", () => {
     expect(mocks.workspace).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Team", organization: "Robot Co",
       workspaceType: "robot_team", acceptedTerms: true, optionalUpdates: true });
   });
+  it("asks no account details the application already gave, and asks for a name or company only when missing", async () => {
+    await openInvitation();
+    expect(screen.queryByText("Review account details")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Company")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Also email me Blueprint updates. Optional; unsubscribe anytime." })).toBeVisible();
+    cleanup();
+    mocks.invitation.mockImplementation(async (path: string) => path === "inspect" ? { ...invitation, organization: "" } : { customToken: "x" });
+    await openInvitation();
+    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Company")).toBeVisible();
+  });
   it("offers public intake without credentials or Google signup", () => {
     render(<BusinessSignUpFlow />);
     expect(screen.getByRole("heading", { name: "Access by invitation" })).toBeVisible();

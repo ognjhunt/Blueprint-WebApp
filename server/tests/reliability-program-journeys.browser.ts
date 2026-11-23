@@ -21,7 +21,7 @@ vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async (params: { to: string;
   providers.sent.push({to: params.to, subject: params.subject}); return { sent: true, provider: "local_sink", messageId: `fixture-${providers.sent.length}` };
 }) }));
 vi.mock("../utils/slack", () => ({ notifySlackInboundRequest: vi.fn(async () => false),
-  notifySlackFootageNeedsReview: vi.fn(async () => false), notifySlackScreeningCallNeeded: vi.fn(async () => false) }));
+}));
 vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ ok: true, persisted: false })) }));
 vi.mock("../utils/rate-limit-redis", () => ({ getRateLimitRedisClient: () => null }));
 vi.mock("../agents/private-evidence", () => ({ hydrateAgentEvidence: vi.fn(async value => value) }));
