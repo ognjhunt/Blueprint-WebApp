@@ -23,7 +23,6 @@ import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminRobotTeamsRouter from "./routes/admin-robot-teams";
 import { resendWebhookHandler } from "./routes/resend-webhook";
-import analyticsIngestRouter from "./routes/analytics-ingest";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import internalCaptureTestbedsRouter from "./routes/internal-capture-testbeds";
 import internalBetaPolicyScreeningRouter from "./routes/internal-beta-policy-screening";
@@ -107,7 +106,6 @@ export function registerRoutes(app: Express) {
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
   app.use("/api/errors", csrfProtection, errorsRouter);
-  app.use("/api/analytics", csrfProtection, analyticsIngestRouter);
   // Public endpoints (no Firebase auth required).
   app.post("/api/growth/webhooks/resend", resendWebhookHandler);
   app.use("/api/growth/email", emailPreferencesRouter);

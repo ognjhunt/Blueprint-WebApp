@@ -53,7 +53,6 @@ vi.mock("../utils/slack", async (importOriginal) => ({
   notifySlackInboundRequest: vi.fn(async () => undefined),
   sendSlackMessage: vi.fn(async () => ({ sent: false })),
 }));
-vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ ok: true })) }));
 vi.mock("../utils/intakeOpsNotice", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../utils/intakeOpsNotice")>()),
   deliverIntakeOpsNoticeAtIntake: vi.fn(async () => ({ channels: { slack: "skipped" } })),

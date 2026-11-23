@@ -4,18 +4,10 @@ import { sanitizeTelemetry } from "./invitationPrivacy";
 /**
  * Error Tracking Service
  *
- * A lightweight error tracking implementation that can be connected to
- * external services like Sentry, LogRocket, or custom backends.
- *
- * To connect to Sentry:
- * 1. Install: npm install @sentry/react
- * 2. Set VITE_SENTRY_DSN in your .env
- * 3. Optionally enable the smoke test helper via VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST
+ * Errors go to Blueprint's own error log (`/api/errors`), sanitized. No
+ * third-party error service is loaded (the Sentry loader was removed).
+ * The smoke test helper is enabled via VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST.
  */
-
-// Loaded on demand so the Sentry SDK (~80 kB) is not in the bundle every
-// marketing page downloads before it can render.
-type SentryModule = typeof import("@sentry/react");
 
 interface ErrorContext {
   componentStack?: string;
@@ -38,44 +30,18 @@ interface BreadcrumbData {
 
 class ErrorTrackingService {
   private isInitialized = false;
-  private dsn: string | null = null;
   private environment: string = "development";
   private breadcrumbs: BreadcrumbData[] = [];
   private maxBreadcrumbs = 100;
   private errorQueue: Array<{ error: Error; context: ErrorContext }> = [];
-  private sentryEnabled = false;
-  private sentry: SentryModule | null = null;
-  private sentryPending: Array<(sentry: SentryModule) => void> = [];
 
   /**
    * Initialize the error tracking service
    */
-  init(options?: { dsn?: string; environment?: string }) {
+  init(options?: { environment?: string }) {
     if (this.isInitialized) return;
 
-    this.dsn = options?.dsn || import.meta.env.VITE_SENTRY_DSN || null;
     this.environment = options?.environment || import.meta.env.MODE || "development";
-
-    if (this.dsn) {
-      const dsn = this.dsn;
-      const environment = this.environment;
-      this.sentryEnabled = true;
-      void import("@sentry/react")
-        .then((sentry) => {
-          sentry.init({
-            dsn, environment, enabled: true, sendDefaultPii: false,
-            replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 0,
-            beforeSend: (event: Record<string, unknown>) => sanitizeTelemetry(event),
-            beforeBreadcrumb: (breadcrumb: Record<string, unknown>) => sanitizeTelemetry(breadcrumb),
-          });
-          this.sentry = sentry;
-          for (const apply of this.sentryPending.splice(0)) apply(sentry);
-        })
-        .catch(() => {
-          this.sentryEnabled = false;
-          this.sentryPending = [];
-        });
-    }
 
     // Set up global error handlers
     this.setupGlobalHandlers();
@@ -171,13 +137,10 @@ class ErrorTrackingService {
       console.groupEnd();
     }
 
-    // If DSN is configured, send to error tracking service
-    const eventId = this.sendToBackend(error, context);
-
-    // Also send to our own API for logging
+    // Send to our own API for logging
     this.sendToOwnApi(sanitizeTelemetry(errorData));
 
-    return eventId;
+    return undefined;
   }
 
   /**
@@ -197,13 +160,6 @@ class ErrorTrackingService {
       level: data.level || "info",
     });
 
-    this.withSentry((sentry) => sentry.addBreadcrumb({
-      category: safeData.category,
-      message: safeData.message,
-      level: safeData.level,
-      data: safeData.data,
-    }));
-
     // Keep only the last N breadcrumbs
     if (this.breadcrumbs.length > this.maxBreadcrumbs) {
       this.breadcrumbs = this.breadcrumbs.slice(-this.maxBreadcrumbs);
@@ -221,57 +177,6 @@ class ErrorTrackingService {
         message: "Authenticated user identified",
       });
     }
-
-    this.withSentry((sentry) => sentry.setUser(user?.id ? { id: user.id } : null));
-  }
-
-  /** Runs now if the SDK has loaded, otherwise once it has (bounded). */
-  private withSentry(apply: (sentry: SentryModule) => void) {
-    if (!this.sentryEnabled) return;
-    if (this.sentry) {
-      apply(this.sentry);
-    } else if (this.sentryPending.length < this.maxBreadcrumbs) {
-      this.sentryPending.push(apply);
-    }
-  }
-
-  /**
-   * Send error data to external tracking service
-   */
-  private sendToBackend(error: Error, context: ErrorContext) {
-    if (!this.sentryEnabled) {
-      return undefined;
-    }
-
-    let eventId: string | undefined;
-    this.withSentry((sentry) => sentry.withScope((scope) => {
-      if (context.level) {
-        scope.setLevel(context.level);
-      }
-
-      if (context.tags) {
-        scope.setTags(context.tags);
-      }
-
-      if (context.extra) {
-        scope.setExtras(context.extra);
-      }
-
-      if (context.user) {
-        scope.setUser(context.user.id ? { id: context.user.id } : null);
-      }
-
-      if (context.componentStack) {
-        scope.setContext("react", {
-          componentStack: context.componentStack,
-        });
-      }
-
-      eventId = sentry.captureException(error);
-    }));
-
-    // Undefined until the SDK has loaded; the event is still sent once it has.
-    return eventId;
   }
 
   /**
@@ -333,7 +238,7 @@ class ErrorTrackingService {
   }
 
   runSmokeTest() {
-    return this.captureException(new Error("Sentry smoke test"), {
+    return this.captureException(new Error("Error tracking smoke test"), {
       tags: { smoke_test: "true" },
       extra: { source: "errorTracking.runSmokeTest" },
       level: "error",

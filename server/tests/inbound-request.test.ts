@@ -11,7 +11,6 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAccept
 
 const sendEmail = vi.hoisted(() => vi.fn());
 const notifySlackInboundRequest = vi.hoisted(() => vi.fn());
-const logGrowthEvent = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true, persisted: false }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
@@ -26,10 +25,6 @@ vi.mock("../utils/email", () => ({
 
 vi.mock("../utils/slack", () => ({
   notifySlackInboundRequest,
-}));
-
-vi.mock("../utils/growth-events", () => ({
-  logGrowthEvent,
 }));
 
 vi.mock("../utils/rate-limit-redis", () => ({
@@ -303,8 +298,6 @@ afterEach(() => {
   process.env.NODE_ENV = originalNodeEnv;
   sendEmail.mockReset();
   notifySlackInboundRequest.mockReset();
-  logGrowthEvent.mockReset();
-  logGrowthEvent.mockResolvedValue({ ok: true, persisted: false });
 
   if (fs.existsSync(devLogPath)) {
     fs.unlinkSync(devLogPath);
@@ -579,30 +572,6 @@ describe("inbound request route", () => {
       expect(savedRequest?.structured_intake?.proof_path_summary).toMatch(/site-task and decision path/i);
       expect(savedRequest?.structured_intake?.calendar_summary).toMatch(/recommended/i);
       expect(savedRequest?.ops_automation?.recommended_path).toBe("intake_then_recommended_scoping_call");
-      expect(logGrowthEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "robot_team_fit_checked",
-          source: "server:inbound_request",
-          properties: expect.objectContaining({
-            request_id: requestId,
-            exact_site_classification: "exact_site",
-            commercial_request_path: "world_model",
-            adjacent_site_allowed: false,
-            proof_path_preference: "exact_site_required",
-            proof_ready_outcome: "proof_ready_intake",
-            proof_readiness_score: 100,
-            has_metric_thresholds: true,
-            has_safety_constraints: true,
-            has_evidence_validation_needs: true,
-          }),
-          user: null,
-        }),
-      );
-      const fitEvent = logGrowthEvent.mock.calls
-        .map(([event]) => event)
-        .find((event) => event.event === "robot_team_fit_checked");
-      expect(JSON.stringify(fitEvent?.properties)).not.toContain("AMR fleet");
-      expect(JSON.stringify(fitEvent?.properties)).not.toContain("Simulator traces");
     } finally {
       await stopServer(server);
     }
@@ -795,22 +764,6 @@ describe("inbound request route", () => {
       expect(savedRequest?.structured_intake?.routing_summary).toMatch(/site-operator-partnership-agent/i);
       expect(savedRequest?.structured_intake?.calendar_summary).toMatch(/required/i);
       expect(savedRequest?.structured_intake?.proof_path_summary).toMatch(/operator/i);
-      expect(logGrowthEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "site_operator_claim_checked",
-          source: "server:inbound_request",
-          properties: expect.objectContaining({
-            request_id: requestId,
-            site_operator_claim_outcome: "site_claim_access_boundary_ready",
-            access_boundary_outcome: "access_boundary_defined",
-            site_claim_readiness_score: 100,
-            has_access_rules: true,
-            has_privacy_security_boundary: true,
-            has_commercialization_boundary: true,
-          }),
-          user: null,
-        }),
-      );
     } finally {
       await stopServer(server);
     }

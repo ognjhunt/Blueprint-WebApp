@@ -232,14 +232,6 @@ requireCheckWithWaiver(
   "RESEND_API_KEY and RESEND_FROM_EMAIL are required for autonomous post-signup email.",
 );
 
-const experimentAutorolloutEnabled = automationFlags.BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED;
-if (experimentAutorolloutEnabled) {
-  warnCheck(
-    isTruthy(process.env.BLUEPRINT_ANALYTICS_INGEST_ENABLED),
-    "BLUEPRINT_ANALYTICS_INGEST_ENABLED is recommended so experiment autorollout has a first-party growth event stream to evaluate.",
-  );
-}
-
 const researchOutboundEnabled = automationFlags.BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED;
 if (researchOutboundEnabled) {
   warnCheck(Boolean(envValue("FIREHOSE_API_TOKEN")), "FIREHOSE_API_TOKEN is required for full autonomous research outbound functionality.");

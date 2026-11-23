@@ -22,7 +22,6 @@ vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async (params: { to: string;
 }) }));
 vi.mock("../utils/slack", () => ({ notifySlackInboundRequest: vi.fn(async () => false),
 }));
-vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ ok: true, persisted: false })) }));
 vi.mock("../utils/rate-limit-redis", () => ({ getRateLimitRedisClient: () => null }));
 vi.mock("../agents/private-evidence", () => ({ hydrateAgentEvidence: vi.fn(async value => value) }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: vi.fn(async () => { providers.calls++; return { status: "completed", output: {

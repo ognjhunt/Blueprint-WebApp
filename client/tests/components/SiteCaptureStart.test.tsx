@@ -26,7 +26,6 @@ function chooseCountry(value: "us" | "non_us") {
 }
 
 
-vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
 vi.mock("@/lib/csrf", () => ({
   withCsrfHeader: async (headers: Record<string, string>) => headers,
 }));

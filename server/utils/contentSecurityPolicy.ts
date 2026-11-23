@@ -1,12 +1,3 @@
-export function derivePostHogAssetHost(host: string | undefined | null) {
-  const value = String(host || "").trim();
-  if (!value) {
-    return null;
-  }
-
-  return value.replace("://us.i.posthog.com", "://us-assets.i.posthog.com");
-}
-
 /**
  * Every inline script the production site serves, by CSP hash. There is no
  * 'unsafe-inline' in production script-src: an injected <script> runs only if
@@ -27,7 +18,6 @@ export const INLINE_SCRIPT_HASHES = [
 
 type ContentSecurityPolicyOptions = {
   isProduction: boolean;
-  posthogHost?: string | null;
   /**
    * Firebase App Check's reCAPTCHA Enterprise provider (on when
    * VITE_FIREBASE_APPCHECK_SITE_KEY is set). Its token exchange already fits
@@ -51,27 +41,18 @@ function uniqueNonEmpty(values: Array<string | null | undefined>) {
 
 export function buildContentSecurityPolicy({
   isProduction,
-  posthogHost,
   recaptchaEnterprise = false,
 }: ContentSecurityPolicyOptions) {
-  const analyticsConnectAllowlist = uniqueNonEmpty([
-    posthogHost,
-    derivePostHogAssetHost(posthogHost),
-  ]);
-
   const cspScriptAllowlist = uniqueNonEmpty([
     "https://cdnjs.cloudflare.com",
     "https://apis.google.com",
     "https://accounts.google.com",
-    "https://www.googletagmanager.com",
     "https://maps.googleapis.com",
     "https://maps.gstatic.com",
-    derivePostHogAssetHost(posthogHost),
     ...(recaptchaEnterprise ? RECAPTCHA_SCRIPT_HOSTS : []),
   ]);
 
   const cspConnectAllowlist = uniqueNonEmpty([
-    ...analyticsConnectAllowlist,
     // The keyless geocoder the location field falls back to when there is no
     // Google Maps key. Google's own hosts are already allowed below. Without
     // this, the free provider is blocked and the field silently loses its

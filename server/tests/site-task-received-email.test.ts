@@ -27,7 +27,6 @@ vi.mock("../utils/field-encryption", () => ({
 }));
 vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => ({ sent: true })) }));
 vi.mock("../utils/slack", () => ({ notifySlackInboundRequest: vi.fn(async () => undefined) }));
-vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ ok: true })) }));
 vi.mock("../utils/rate-limit-redis", () => ({ getRateLimitRedisClient: () => null }));
 vi.mock("../utils/siteTaskBrief", () => ({
   TASK_BRIEFS_COLLECTION: "siteTaskBriefs",
