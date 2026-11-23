@@ -261,7 +261,7 @@ test.describe("desktop", () => {
     const companyJobPath = `/jobs/${requestId}`;
     const companyJobLink = new URL(companyJobPath, ORIGIN).href;
     await companyPage.goto(companyJobPath);
-    await expect(companyPage.getByRole("heading", { name: "Sign in to see this job" })).toBeVisible();
+    await expect(companyPage.getByRole("heading", { name: "Apply to see this job" })).toBeVisible();
     await expect(companyPage.locator("body")).not.toContainText("Pick up the sealed carton");
     const signInLink = companyPage.getByRole("main").getByRole("link", { name: "Sign in", exact: true });
     const signInPath = `/sign-in?next=${encodeURIComponent(companyJobPath)}`;

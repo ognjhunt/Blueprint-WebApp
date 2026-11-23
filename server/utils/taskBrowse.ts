@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
 import { jobTitleForDisplay, type LibraryJobStage, type PublicLiveJob, type TaskBrowseCard, type TaskCardDetail } from "../../client/src/types/taskBrowse";
@@ -7,7 +8,9 @@ import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, thumbnailSourceO
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { companyJobHeadline, companyPlaceOf, countryOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
 import { readJobFacts } from "./jobFacts";
-import { rateInWords } from "../../client/src/lib/companyJobPage";
+import { publicJobKind, rateInWords } from "../../client/src/lib/companyJobPage";
+import { KINDS_OF_JOB_TYPE } from "../../client/src/lib/jobFacts";
+import { jobReadingOf } from "./siteRobotFit";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { storedCompanySimulation } from "./websiteCompanySimulation";
 
@@ -103,6 +106,27 @@ export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boole
  * Never the site's words, its state or city, its video, an answer or the job's id: each site agreed to share its job
  * only with deployment companies Blueprint has approved.
  */
+/**
+ * A live job's public reference: an HMAC of its id, never the id itself, so the public list names no job a company
+ * could look up elsewhere. The row opens `/jobs/<ref>`; the job page resolves it to the job only for an approved company
+ * (`resolvePublicLiveJobRef`), and a visitor who is not signed in is asked to apply and comes back to the same address.
+ * Null when no signing secret is configured: the row is then shown without a link.
+ */
+export const PUBLIC_LIVE_JOB_REF = /^l-[a-f0-9]{32}$/;
+export function publicLiveJobRef(id: string): string | null {
+  const secret = String(process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET || "").trim();
+  return secret ? `l-${createHmac("sha256", secret).update(`public-live-job:${id}`).digest("hex").slice(0, 32)}` : null;
+}
+
+/** The job a public reference names, while it is still listed; null otherwise. Read for an approved company only. */
+export async function resolvePublicLiveJobRef(ref: string): Promise<string | null> {
+  if (!db || !PUBLIC_LIVE_JOB_REF.test(ref)) return null;
+  const snapshot = await db.collection("inboundRequests")
+    .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).get();
+  const match = snapshot.docs.find(doc => publicLiveJobRef(doc.id) === ref);
+  return match ? match.id : null;
+}
+
 export async function listPublicLiveJobs(): Promise<PublicLiveJob[]> {
   if (!db) throw new Error("Task library unavailable");
   const snapshot = await db.collection("inboundRequests")
@@ -114,7 +138,11 @@ export async function listPublicLiveJobs(): Promise<PublicLiveJob[]> {
     if (!listed || !/^\d{4}-\d{2}-\d{2}/.test(String(listed.publishedAtIso ?? ""))) return null;
     const raw = record as unknown as Record<string, any>;
     const { captureId } = siteWalkthroughIdentity(doc.id, raw);
-    return { kind: jobTitleForDisplay(listed.title), country: await countryOf(raw).catch(() => null),
+    // The video reading's kind of job where the keyword category says less (owner, 2026-11-23): fixed words only.
+    const { kind, kindKey } = publicJobKind({ taskFamily: listed.taskFamily, categoryTitle: jobTitleForDisplay(listed.title),
+      readerKind: jobReadingOf(raw)?.kind ?? null, categoryKinds: KINDS_OF_JOB_TYPE[listed.taskFamily] });
+    const ref = publicLiveJobRef(doc.id);
+    return { ...(ref ? { ref } : {}), kind, kindKey, country: await countryOf(raw).catch(() => null),
       postedOn: listed.publishedAtIso.slice(0, 10), simulationReady: Boolean(storedCompanySimulation(session, captureId)) };
   }));
   return jobs.filter((job): job is PublicLiveJob => job !== null)

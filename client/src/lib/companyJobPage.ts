@@ -63,6 +63,31 @@ export function jobHeadline({ kind, object, actions, taskFamily, fallback }: Hea
   }
 }
 
+/** The public label for each kind the video reading can give: a category, never the site's words or its object. */
+export const PUBLIC_KIND_LABELS: Readonly<Record<ReaderJobKind, string>> = {
+  pick_and_place: "Pick and place job", palletizing: "Palletizing job", machine_tending: "Machine tending job",
+  transport: "Moving things between places", other: "Other hands-on job",
+};
+const GENERIC_CATEGORY_TITLES = new Set(["Automation job"]);
+const CATEGORY_KINDS: Readonly<Record<string, ReaderJobKind>> = {
+  Palletizing: "palletizing", Depalletizing: "palletizing", "Pallet handling": "palletizing", "Machine tending": "machine_tending",
+  "Material handling": "pick_and_place", "Case packing": "pick_and_place", Packaging: "pick_and_place",
+  "Dish handling": "pick_and_place", "Quality inspection": "pick_and_place",
+};
+
+/**
+ * A live job's kind as anyone may read it on /jobs (owner, 2026-11-23): the keyword category ("Palletize cartons") when
+ * it is specific and the video reading agrees with it, else the reading's kind ("Pick and place job"), else the category.
+ * Only fixed words: never the site's sentence, its object or anything the video shows of the site.
+ */
+export function publicJobKind(input: { taskFamily: string; categoryTitle: string; readerKind: ReaderJobKind | null;
+  categoryKinds?: readonly ReaderJobKind[] }): { kind: string; kindKey: ReaderJobKind } {
+  const specific = !GENERIC_CATEGORY_TITLES.has(input.categoryTitle) && input.taskFamily !== "Other";
+  const agrees = input.readerKind !== null && (input.categoryKinds ?? []).includes(input.readerKind);
+  if (input.readerKind && !(specific && agrees)) return { kind: PUBLIC_KIND_LABELS[input.readerKind], kindKey: input.readerKind };
+  return { kind: input.categoryTitle, kindKey: input.readerKind ?? CATEGORY_KINDS[input.taskFamily] ?? "other" };
+}
+
 /** One line of the fit summary: the site's own answer, "Not sure", or "Not stated". */
 export interface FitSummaryRow {
   key: JobFactKey | "object";

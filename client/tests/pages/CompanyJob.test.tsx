@@ -187,12 +187,15 @@ describe("the company's page for one job", () => {
   it("signs a visitor back into this job and fetches nothing while signed out", async () => {
     auth.currentUser = null;
     render(<CompanyJob />);
-    expect(await screen.findByRole("heading", { name: "Sign in to see this job" })).toBeInTheDocument();
+    // A tap on a public live job (owner, 2026-11-23): what the job holds, the one step to see it, and the way back here.
+    expect(await screen.findByRole("heading", { name: "Apply to see this job" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
     const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
+    expect(main.getByRole("link", { name: "Apply to see this job" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
+    expect(within(main.getByRole("list", { name: "What an approved company sees" })).getAllByRole("listitem")).toHaveLength(4);
+    expect(main.getByText(/brings you back to this job/)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
     expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
-    expect(main.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -317,7 +320,7 @@ describe("opening a job from its email", () => {
     auth.currentUser = null;
     linkSignIn.mockRejectedValue(new Error("This sign-in link no longer works."));
     render(<CompanyJob />);
-    expect(await screen.findByText("Sign in to see this job")).toBeTruthy();
+    expect(await screen.findByText("Apply to see this job", { selector: "h1" })).toBeTruthy();
     expect(screen.getByRole("status").textContent).toBe("This sign-in link no longer works. Ask for a new one on the sign-in page.");
     expect(screen.getAllByRole("link", { name: "Sign in" }).some(link => link.getAttribute("href")?.startsWith("/sign-in"))).toBe(true);
   });

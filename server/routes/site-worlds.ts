@@ -138,7 +138,11 @@ router.get("/jobs/:taskId", async (req, res) => {
     const { access, viewer } = await companyViewerForRequest(req);
     if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed || !viewer) return res.status(404).json({ error: "This job is not available.", access });
-    const page = await loadCompanyJobPage(String(req.params.taskId), { companyId: viewer.companyId });
+    // A public live job's reference (`publicLiveJobRef`) opens its job for an approved company, and only for one.
+    const asked = String(req.params.taskId);
+    const { PUBLIC_LIVE_JOB_REF, resolvePublicLiveJobRef } = await import("../utils/taskBrowse");
+    const taskId = PUBLIC_LIVE_JOB_REF.test(asked) ? await resolvePublicLiveJobRef(asked) : asked;
+    const page = taskId ? await loadCompanyJobPage(taskId, { companyId: viewer.companyId }) : null;
     if (!page) return res.status(404).json({ error: "This job is not available.", access });
     if (!viewer.staff) await recordCompanyJobView(page.id, viewer.companyId);
     return res.json({ item: page, access });

@@ -20,7 +20,7 @@ export default function Partners() {
     <div className="bare-page bare-forms">
       <div className="bare-company">
         <BareScreen className="bare-company-intro">
-          <BareBig as="h1" sub="Review real jobs, each with the site's video and description. When a site asks to meet, we introduce you.">{PARTNERS_TITLE}</BareBig>
+          <BareBig as="h1" sub="Review real jobs, each with the site's video and description. Apply to the ones you can do; when a site accepts you, we introduce you both.">{PARTNERS_TITLE}</BareBig>
           <p className="bare-company-access"><a href="#sample-job">See a sample job</a></p>
           <p className="bare-company-access">Already approved? <a href="/contact/robot-team">See jobs</a>.</p>
         </BareScreen>

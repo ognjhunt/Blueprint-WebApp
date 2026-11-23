@@ -415,7 +415,7 @@
 .live-jobs h2 { margin: 6px 0 4px; font-size: clamp(24px, 3.2vw, 32px); font-weight: 650; letter-spacing: -.035em; line-height: 1.15; }
 .live-jobs .live-jobs-lead { margin: 0 0 14px; color: var(--ms-muted); }
 .live-jobs ul { display: grid; gap: 8px; margin: 0 0 14px; padding: 0; list-style: none; }
-.live-jobs li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; border: 1px solid #c9cec1;
+.live-jobs li.live-jobs-unused { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; border: 1px solid #c9cec1;
   border-radius: 10px; background: #fff; }
 .live-jobs li span { color: var(--ms-muted); font-size: 14px; }
 .live-jobs a { color: var(--ms-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
@@ -507,3 +507,33 @@
 .site-compare tbody th { font-weight: 650; }
 .site-compare .bare-helper { margin-top: 6px; }
 .site-estimate-label { font-size: 12.5px; }
+
+/* Each public live job is one row that opens its page: a picture for its kind (never the site's own thumbnail), the kind
+   and its facts, and "See job". The whole row is the link. */
+.live-jobs li { list-style: none; }
+.live-jobs .live-job {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 12px 14px;
+  border: 1px solid #c9cec1;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ms-ink);
+  text-decoration: none;
+  font-weight: 400;
+}
+.live-jobs a.live-job:hover { border-color: var(--ms-green); box-shadow: 0 1px 2px rgba(34, 37, 30, .06), 0 6px 16px rgba(34, 37, 30, .06); }
+.live-jobs a.live-job:focus-visible { outline: 2px solid var(--ms-green); outline-offset: 2px; }
+.live-job-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: #eef1e8; color: var(--ms-green); }
+.live-job-text { display: grid; gap: 2px; min-width: 0; }
+.live-job-text strong { font-size: 16px; font-weight: 650; }
+.live-job-text span { color: var(--ms-muted); font-size: 14px; overflow-wrap: anywhere; }
+.live-job-open { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ms-green); white-space: nowrap; }
+.company-job-gate ul { margin: 6px 0 14px; padding-left: 20px; }
+.company-job-gate li + li { margin-top: 4px; }
+@media (max-width: 520px) {
+  .live-jobs .live-job { grid-template-columns: auto minmax(0, 1fr); }
+  .live-job-open { grid-column: 2; }
+}

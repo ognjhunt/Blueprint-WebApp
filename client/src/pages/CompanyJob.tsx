@@ -18,6 +18,18 @@ import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
 import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, NO_SUCCESS_RULE, type FitSummaryRow } from "@/lib/companyJobPage";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } from "@/lib/companySignInLink";
+import { COMPANY_CHECK_RULE_SENTENCE } from "@/lib/companyCheck";
+
+/** The job page for a visitor who is not signed in: what the job holds and how to see it (owner, 2026-11-23). */
+export const GATE_HEADING = "Apply to see this job";
+export const GATE_WHAT_YOU_SEE = "The site shared this job with the robot deployment companies Blueprint approves. Approved companies see:";
+export const GATE_UNLOCKS = [
+  "The site's video of the job, without sound, and its description",
+  "Its answers about weight, size, rate and hours",
+  "A first look at which kinds of robot most likely fit",
+  "A simulation of the site to test in your own tools, when it is ready",
+] as const;
+export const GATE_RETURN = "Once you're approved, the link we email you brings you back to this job.";
 
 /** Said while the sound-free copy of the site's video is not ready. */
 /** The job library: the signed-in list on the companies' page, at its own section. */
@@ -100,16 +112,24 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         const body = await response.json() as { item?: CompanyJobPage };
         if (!body.item) throw new Error("invalid");
         setPage(body.item); setState("ready");
+        // Opened from a public live job's reference: the address becomes the job's own.
+        if (body.item.id !== jobId && typeof window !== "undefined")
+          window.history.replaceState(window.history.state, "", `/jobs/${encodeURIComponent(body.item.id)}${window.location.search}`);
       }).catch(() => { if (!cancelled) setState("error"); });
     return () => { cancelled = true; };
   }, [jobId, user?.uid, retry, auth?.loading, linkState]);
 
   if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
   if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
-  if (state === "signed_out") return <div className="bare-screen company-job"><h1>Sign in to see this job</h1>
+  // Signed out (owner, 2026-11-23: a tap on a public live job): what the job holds, the one step to see it, and the way
+  // back here. Nothing of the job itself is shown: the site agreed to share it with approved companies only.
+  if (state === "signed_out") return <div className="bare-screen company-job company-job-gate"><h1>{GATE_HEADING}</h1>
     {linkState === "ended" && <p role="status">{SIGN_IN_LINK_ENDED.replace(" on this page.", " on the sign-in page.")}</p>}
-    <p><a className="ms-button" href={signInHref}>Sign in</a></p>
-    <p><a href={companyApplicationHref(jobId)}>Apply to see jobs</a></p></div>;
+    <p>{GATE_WHAT_YOU_SEE}</p>
+    <ul aria-label="What an approved company sees">{GATE_UNLOCKS.map(line => <li key={line}>{line}</li>)}</ul>
+    <p className="ms-field-hint">{COMPANY_CHECK_RULE_SENTENCE} {GATE_RETURN}</p>
+    <p><a className="ms-button" href={companyApplicationHref(jobId)}>Apply to see this job</a></p>
+    <p>Already approved? <a href={signInHref}>Sign in</a></p></div>;
   if (state === "missing" && access && (access.status === "applied" || (access.status === "approved" && !access.emailVerified)))
     return <div className="bare-screen company-job"><RobotTeamEarlyAccess access={access} email={user?.email ?? null}
       returnTo={companyJobReturnPath(`/jobs/${jobId}`) ?? JOB_LIBRARY_URL} onVerified={() => setRetry(value => value + 1)} /></div>;

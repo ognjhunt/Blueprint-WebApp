@@ -434,12 +434,42 @@ describe("the company's page for one job (E3)", () => {
   it("lists a shared job publicly by its kind, country, day and simulation state only", async () => {
     const { listPublicLiveJobs } = await import("../utils/taskBrowse");
     const jobs = await listPublicLiveJobs();
-    expect(jobs).toEqual([{ kind: "Palletize cartons", country: "United States", postedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-      simulationReady: expect.any(Boolean) }]);
+    expect(jobs).toEqual([{ ref: expect.stringMatching(/^l-[a-f0-9]{32}$/), kind: "Palletize cartons", kindKey: "palletizing",
+      country: "United States", postedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), simulationReady: expect.any(Boolean) }]);
     const text = JSON.stringify(jobs);
     expectNoSiteIn("the public live jobs", text);
     expect(text).not.toContain(ID);
     expect(text).not.toMatch(/Stack 12 kg|pallet\. Call|\[removed\]/);
+  });
+
+  // Owner, 2026-11-23: a tap on a public live job opens it for an approved company, and asks anyone else to apply.
+  it("opens a public live job's reference as the job for an approved company only, and never names the job's id", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    const [job] = await listPublicLiveJobs();
+    const open = async (record: { email: string }) => {
+      const response = await realFetch(`${base}/api/site-worlds/jobs/${job.ref}`, { headers: signIn(record) });
+      return { status: response.status, body: await response.json() as Record<string, any> };
+    };
+    const north = await open(NORTH);
+    expect(north.status).toBe(200);
+    expect(north.body.item.id).toBe(ID);
+    expect((await open(PENDING)).status).toBe(404);
+    expect((await realFetch(`${base}/api/site-worlds/jobs/${job.ref}`)).status).toBe(404);
+    // A reference no listed job has, and a job that left the list, open nothing.
+    const other = await realFetch(`${base}/api/site-worlds/jobs/l-${"0".repeat(32)}`, { headers: signIn(NORTH) });
+    expect(other.status).toBe(404);
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    state.docs.set(`inboundRequests/${ID}`, { ...record, capture_rights: { ...(record.capture_rights ?? {}), consent_revoked: true } });
+    expect((await open(NORTH)).status).toBe(404);
+  });
+
+  it("names a public live job by the video reading's kind when the category says less", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    patchJob({ walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "transport", object: "linen cart" } } });
+    const [job] = await listPublicLiveJobs();
+    // The reading disagrees with the keyword category, so its kind is said; never its object.
+    expect(job).toMatchObject({ kind: "Moving things between places", kindKey: "transport" });
+    expect(JSON.stringify(job)).not.toMatch(/linen/);
   });
 
   it("lists nothing publicly for a job companies cannot see", async () => {

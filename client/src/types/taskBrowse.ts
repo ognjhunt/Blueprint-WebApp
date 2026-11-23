@@ -243,8 +243,15 @@ export interface CompanyJobPage {
 
 /** A live job as anyone reads it on /jobs (`server/utils/taskBrowse.ts`, `listPublicLiveJobs`). */
 export interface PublicLiveJob {
-  /** The kind of job, from Blueprint's fixed categories ("Palletize cartons"); never the site's words. */
+  /**
+   * The job's public reference (never its id): the row opens `/jobs/<ref>`, which an approved company reads as the job and
+   * anyone else is asked to apply for. Absent when the server has no signing secret.
+   */
+  ref?: string;
+  /** The kind of job, from Blueprint's fixed categories ("Palletize cartons", "Pick and place job"); never the site's words. */
   kind: string;
+  /** The fixed kind the label and the row's picture follow (the video reading's, else the category's). */
+  kindKey: "pick_and_place" | "palletizing" | "machine_tending" | "transport" | "other";
   /** The country only, or null. */
   country: string | null;
   /** The day the job was shared, YYYY-MM-DD. */
