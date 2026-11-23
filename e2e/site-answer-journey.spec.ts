@@ -111,12 +111,12 @@ async function startWithVideo(page: Page, email: string, address: string) {
   // The statements the site accepts by starting, at their current versions (video: v4 for both).
   expect(body.consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
   expect(body.descriptionAuthority).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
-  // A typed place with no suggestion picked sends no structured place.
-  expect(body.siteLocationMetadata).toBeUndefined();
   expect((await answered).status()).toBeLessThan(300);
   await expect(page.getByRole("heading", { name: "We have your video.", exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("button", { name: /share my job/i })).toHaveCount(0);
   const link = page.getByRole("link", { name: "Open my job", exact: true });
+  // A typed place with no suggestion picked sends no structured place.
+  expect(body.siteLocationMetadata).toBeUndefined();
   return { link, ...jobOf((await link.getAttribute("href"))!) };
 }
 
