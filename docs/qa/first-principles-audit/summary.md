@@ -2,7 +2,7 @@
 
 2026-11-22. Both repositories, judged against one line: "Post a job for
 robots. Film one repetitive job and find out who wants to deploy robots for
-it." Nothing in either repository was changed. Evidence for every sentence
+it." Nothing in either repository was changed. (Since then the fixes have shipped: see `what-shipped.md`. This page is the audit as it stood.) Evidence for every sentence
 here is in `findings.md` under the id in brackets.
 
 ## Where things stand

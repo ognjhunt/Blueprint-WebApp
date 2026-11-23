@@ -1,6 +1,6 @@
 # Plan: three waves of small PRs
 
-2026-11-22. Nothing here is done yet. The audit changed nothing. Each row is
+2026-11-22. Nothing here is done yet. The audit changed nothing. (Since then the fixes have shipped: see `what-shipped.md`. This page is the audit as it stood.) Each row is
 one small PR, or one owner step. Ids in brackets are in `findings.md`.
 
 **Checks.** "WebApp checks" means `npm run check`, `npx vitest run

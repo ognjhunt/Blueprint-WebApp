@@ -5,7 +5,8 @@ An audit of Blueprint-WebApp and BlueprintCapturePipeline against one line:
 deploy robots for it." It changed nothing in either repository. Fixes ship in
 later pull requests the owner approves.
 
-Start with `summary.md`.
+Start with `summary.md`. The fixes have since shipped: `what-shipped.md` lists every pull request, what was
+left and what still needs the owner.
 
 | File | What it is |
 |---|---|
@@ -18,6 +19,8 @@ Start with `summary.md`.
 | `demo-script.md` | The five-minute investor walkthrough, fallbacks, pre-flight list, fact sheet |
 | `plan.md` | Three waves of small pull requests, with checks and where the owner's OK is needed |
 | `owner-questions.md` | 28 decisions only the owner can make, each with a recommendation |
+| `what-shipped.md` | Added 2026-11-23: every fix pull request after the audit, what was not done and why, and what still needs the owner |
+| `ledger-actions.md` | What happened to each of the 254 delete, merge and simplify verdicts |
 | `requirements-ledger.md` | "Do we really need it?" for 429 steps, fields, rules, stages and timers |
 | `inventory.md` | The map: every route, screen, email, API route, timer, stage, unit and flag |
 | `evidence/` | Production counts (counts and timestamps only) with the scripts that read them; baseline test results |
