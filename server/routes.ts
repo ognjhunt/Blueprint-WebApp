@@ -25,7 +25,6 @@ import inboundRequestRouter from "./routes/inbound-request";
 import adminRobotTeamsRouter from "./routes/admin-robot-teams";
 import { resendWebhookHandler } from "./routes/resend-webhook";
 import analyticsIngestRouter from "./routes/analytics-ingest";
-import experimentsRouter from "./routes/experiments";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import internalCaptureTestbedsRouter from "./routes/internal-capture-testbeds";
 import internalBetaPolicyScreeningRouter from "./routes/internal-beta-policy-screening";
@@ -65,7 +64,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/job-workflow", csrfProtection, jobWorkflowRouter);
   app.use("/api/internal", internalJobEvidenceRouter);
   app.use("/api/account-deletion", csrfProtection, verifyFirebaseToken, accountDeletionRouter);
-  app.use("/api/experiments", experimentsRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
   app.use("/api/internal/pipeline", internalCaptureTestbedsRouter);
   app.use("/api/internal/pipeline", internalBetaPolicyScreeningRouter);
@@ -139,6 +137,7 @@ export function registerRoutes(app: Express) {
     "/api/capture-uploads",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     captureUploadsRouter,
   );
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);

@@ -14,12 +14,6 @@ const withCsrfHeaderMock = vi.hoisted(() =>
     "X-CSRF-Token": "test-csrf-token",
   })),
 );
-const getActiveExperimentAssignmentsMock = vi.hoisted(() =>
-  vi.fn(() => ({
-    home_hero_variant: "variant-a",
-  })),
-);
-const getOrCreateExperimentAnonymousIdMock = vi.hoisted(() => vi.fn(() => "anon-test"));
 const posthogMock = vi.hoisted(() => ({
   init: vi.fn(),
   capture: vi.fn(),
@@ -34,11 +28,6 @@ vi.mock("posthog-js", () => ({
 
 vi.mock("@/lib/csrf", () => ({
   withCsrfHeader: withCsrfHeaderMock,
-}));
-
-vi.mock("@/lib/experiments", () => ({
-  getActiveExperimentAssignments: getActiveExperimentAssignmentsMock,
-  getOrCreateExperimentAnonymousId: getOrCreateExperimentAnonymousIdMock,
 }));
 
 async function flushAnalytics() {
@@ -71,8 +60,6 @@ describe("analytics contract", () => {
     posthogMock.opt_in_capturing.mockClear();
     posthogMock.opt_out_capturing.mockClear();
     withCsrfHeaderMock.mockClear();
-    getActiveExperimentAssignmentsMock.mockClear();
-    getOrCreateExperimentAnonymousIdMock.mockClear();
   });
 
   afterEach(() => {
@@ -106,6 +93,8 @@ describe("analytics contract", () => {
 
     const payload = parseAnalyticsPayload();
     expect(payload.event).toBe("business_signup_started");
+    expect(payload).not.toHaveProperty("experiments");
+    expect((payload as { anonymousId?: unknown }).anonymousId).toBe(window.localStorage.getItem("bp.analytics.anonymousId"));
     expect(payload.properties).toMatchObject({
       default_requested_lane: "deeper_evaluation",
       requested_lane_count: 1,

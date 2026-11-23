@@ -134,11 +134,16 @@ describe("sweepOutcomeQuestions", () => {
     expect((await sweepOutcomeQuestions({ now: at(45) })).queued).toBe(0);
   });
 
-  it("sends nothing after a withdrawal, or while the job is not visible", async () => {
+  it("sends nothing after a withdrawal", async () => {
     seedJob("req-1", { request: { buyerType: "site_operator", consent_attestation: { withdrawn_at_iso: at(5).toISOString() } } }); seedIntro("req-1");
-    seedJob("req-2", { testListed: false }); seedIntro("req-2");
+    seedJob("req-2", { capture_withdrawal: { requested_at_iso: at(5).toISOString() } }); seedIntro("req-2");
     expect((await sweepOutcomeQuestions({ now: at(14) })).queued).toBe(0);
     expect(outbox()).toHaveLength(0);
+  });
+
+  it("still asks both sides after the site closed its job or the job left the companies' list", async () => {
+    seedJob("req-1", { testListed: false }); seedIntro("req-1");
+    expect((await sweepOutcomeQuestions({ now: at(14) })).queued).toBe(2);
   });
 
   it("asks only a side it has an address for, about a counterpart it has a name for", async () => {
@@ -297,6 +302,8 @@ describe("the outbox's check before it sends", () => {
     expect(await outcomeQuestionIsCurrent(entry)).toBe(false);
     seedIntro();
     seedJob("req-1", { testListed: false });
+    expect(await outcomeQuestionIsCurrent(entry)).toBe(true);
+    seedJob("req-1", { capture_withdrawal: { requested_at_iso: at(5).toISOString() } });
     expect(await outcomeQuestionIsCurrent(entry)).toBe(false);
     seedJob("req-1", { request: { buyerType: "site_operator", consent_attestation: { withdrawn_at_iso: at(5).toISOString() } } });
     expect(await outcomeQuestionIsCurrent(entry)).toBe(false);
