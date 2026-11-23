@@ -922,6 +922,14 @@ describe("capture-first workspace intake", () => {
     expect((await api("/capture-start", "site-1", { ...capture, siteLocation, taskStatement: "", hasExistingFootage: true })).status).toBe(201);
     expect(state.intakes.at(-1).body).toMatchObject({ siteName: "", siteLocation: "", captureRegion: "us", taskStatement: "" });
   });
+  it("passes a picked place's city, state and country to the intake, and drops any other part", async () => {
+    const siteLocationMetadata = { source: "google_places", city: "Austin", state: "Texas", country: "US" };
+    expect((await api("/capture-start", "site-1", { ...capture, siteLocationMetadata: { ...siteLocationMetadata,
+      formattedAddress: "12 Main Street, Austin, TX 78701", postalCode: "78701", placeId: "ChIJfixture", lat: 30.2, lng: -97.7 } })).status).toBe(201);
+    expect(state.intakes.at(-1).body.siteLocationMetadata).toEqual(siteLocationMetadata);
+    expect((await api("/capture-start", "site-1", { ...capture, requestId: "capture-typed" })).status).toBe(201);
+    expect(state.intakes.at(-1).body.siteLocationMetadata).toBeUndefined();
+  });
   it("requires the address only for a Blueprint filming visit", async () => {
     expect((await api("/capture-start", "site-1", { ...capture, siteLocation: "", captureMode: "site_visit" })).status).toBe(400);
     expect(state.intakes).toHaveLength(0);

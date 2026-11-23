@@ -115,6 +115,8 @@ async function startWithVideo(page: Page, email: string, address: string) {
   await expect(page.getByRole("heading", { name: "We have your video.", exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("button", { name: /share my job/i })).toHaveCount(0);
   const link = page.getByRole("link", { name: "Open my job", exact: true });
+  // A typed place with no suggestion picked sends no structured place.
+  expect(body.siteLocationMetadata).toBeUndefined();
   return { link, ...jobOf((await link.getAttribute("href"))!) };
 }
 

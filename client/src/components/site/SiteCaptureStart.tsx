@@ -6,6 +6,7 @@ import { flushSync } from "react-dom";
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
 import { LocationAutocomplete, type ChosenPlace } from "@/components/site/LocationAutocomplete";
+import { siteLocationParts, validSiteLocationParts, type SiteLocationParts } from "@/lib/placeParts";
 import {
   captureRegionHeldNotice,
   captureRegionNotice,
@@ -80,7 +81,8 @@ function formatBytes(bytes: number) {
 }
 
 
-type RestorableDraft = { location?: string; region: CaptureRegion | ""; regionManuallySet: boolean; regionFromPlace?: string };
+type RestorableDraft = { location?: string; region: CaptureRegion | ""; regionManuallySet: boolean; regionFromPlace?: string;
+  placeParts?: SiteLocationParts };
 /**
  * The place label a restored country came from, when the draft's address still reads exactly that label: the country
  * was taken from a chosen suggestion or "Use my location" and the text has not been edited since. Typed text never
@@ -88,6 +90,8 @@ type RestorableDraft = { location?: string; region: CaptureRegion | ""; regionMa
  */
 const restoredPlace = (draft: RestorableDraft) =>
   !draft.regionManuallySet && draft.region && draft.regionFromPlace && draft.regionFromPlace === draft.location ? draft.regionFromPlace : null;
+/** That place's structured parts, restored exactly when its label is (`restoredPlace`). */
+const restoredPlaceParts = (draft: RestorableDraft) => (restoredPlace(draft) ? validSiteLocationParts(draft.placeParts) : null);
 const restoredRegion = (draft: RestorableDraft) => (draft.regionManuallySet || restoredPlace(draft) ? draft.region : "");
 const restoredCountryAsked = (draft: { location?: string; regionManuallySet: boolean }) =>
   Boolean(draft.regionManuallySet) || Boolean(draft.location?.trim());
@@ -277,6 +281,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
   const [regionManuallySet, setRegionManuallySet] = useState(initial.draft.regionManuallySet);
   // The label of the place whose country `region` holds, saved with the draft so a reload can keep it.
   const [regionPlace, setRegionPlace] = useState<string | null>(restoredPlace(initial.draft));
+  // That place's structured city, state and country, sent as `siteLocationMetadata`. Typed text never sets it.
+  const [placeParts, setPlaceParts] = useState<SiteLocationParts | null>(restoredPlaceParts(initial.draft));
   // Recording permission needs a country, not a street address. An explicit
   // country can stand alone; changing the address rechecks that declaration.
   const [countryMissing, setCountryMissing] = useState(false);
@@ -340,6 +346,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
     requestId.current = other.requestId; retryToken.current = other.retryToken;
     setMethod(other.draft.method === "upload" ? "upload" : "phone"); setRegion(restoredRegion(other.draft));
     setRegionManuallySet(other.draft.regionManuallySet); setRegionPlace(restoredPlace(other.draft));
+    setPlaceParts(restoredPlaceParts(other.draft));
     setCountryAsked(restoredCountryAsked(other.draft));
     setPending(other.pending);
     if (changed && resetChanged) {
@@ -359,9 +366,10 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
       regionManuallySet: place ? false : regionManuallySet,
       ...((place ? (place.countryCode ? place.label : null) : regionManuallySet ? null : regionPlace) ? {
         regionFromPlace: place ? place.label : regionPlace! } : {}),
+      ...((place ? siteLocationParts(place) : placeParts) ? { placeParts: place ? siteLocationParts(place)! : placeParts! } : {}),
     } });
   }
-  useEffect(() => { retainDraft(); }, [interactive, method, region, regionManuallySet, regionPlace]);
+  useEffect(() => { retainDraft(); }, [interactive, method, region, regionManuallySet, regionPlace, placeParts]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey || operationInFlight.current) return;
@@ -388,7 +396,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setPending(null); setState({ status: "idle" }); setEmailError(null); setEmailHint(null); setTaskError(null); setClaudeConsent(false); setSolAgentsConsent(false);
-      setMethod("phone"); setRegion(""); setRegionManuallySet(false); setRegionPlace(null); setCountryMissing(false); setCountryAsked(false);
+      setMethod("phone"); setRegion(""); setRegionManuallySet(false); setRegionPlace(null); setPlaceParts(null); setCountryMissing(false); setCountryAsked(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
     } catch {
@@ -480,6 +488,8 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           requestedLanes: [],
           siteName: location,
           siteLocation: location,
+          // The picked place's city, state and country from the provider's own parts; never from typed text.
+          ...(placeParts && regionPlace?.trim() === location ? { siteLocationMetadata: placeParts } : {}),
           taskStatement: read("startTask"),
           taskDescription: read("startTask"),
           // Typing the task in the site's own words is the brief's confirmation
@@ -908,6 +918,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
               setRegionManuallySet(false);
               setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
               setRegionPlace(place?.countryCode ? place.label : null);
+              setPlaceParts(place?.countryCode ? siteLocationParts(place) : null);
               if (place) retainDraft(place);
             }}
             onInputChange={(text) => {
@@ -917,6 +928,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
               setRegionManuallySet(false);
               setRegion("");
               setRegionPlace(null);
+              setPlaceParts(null);
               if (text.trim()) setCountryAsked(true);
             }}
           />
@@ -931,6 +943,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
                 setRegion(event.target.value as CaptureRegion | "");
                 setRegionManuallySet(true);
                 setRegionPlace(null);
+                setPlaceParts(null);
                 setCountryMissing(false);
               }}>
               <option value="">Choose the site country</option>
