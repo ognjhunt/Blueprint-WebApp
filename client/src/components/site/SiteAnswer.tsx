@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
 import { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY, type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
@@ -230,6 +230,13 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [requested, setRequested] = useState<string[]>([]);
+  // "Introduction requested." holds only until the server reads the introduction back. Once it no longer offers the
+  // button, the request is on record, so a later cancellation that may be asked again shows the button again.
+  useEffect(() => {
+    if (!isSiteCompanyActivity(activity)) return;
+    setRequested(current => current.filter(alias => activity.entries.some(entry =>
+      entry.kind === "answered" && entry.alias === alias && entry.canIntroduce === true)));
+  }, [activity]);
   if (!isSiteCompanyActivity(activity)) return null;
   async function introduce(alias: string) {
     if (busy) return;

@@ -8,6 +8,9 @@
  * set: `requestIntroduction` reads it first and refuses a pair already on record, so an event is recorded once and
  * never rewritten, even if its introduction record were gone. The party is the company (`companyId`); a site is never
  * the party to an event. An introduction cancelled at dispatch marks its event `status: "void"` (kept, never counted).
+ * One cancelled because Blueprint's own email to the company failed may be asked for again: each attempt after the first
+ * has its own event (`attempt`, and an id ending `-a{attempt}`), so the void one is never rewritten.
+ * `madeAtIso` is written when the company's email is sent: the moment the introduction was actually made.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 
@@ -23,18 +26,25 @@ export interface BillableEvent {
   status: "recorded_no_price" | "void";
   voidedAtIso?: string;
   voidReason?: string;
+  /** The attempt for this pair, from 1, after an earlier one was cancelled by a failed email; absent on the first. */
+  attempt?: number;
+  /** When the company's introduction email was sent, so the company holds the site's details. */
+  madeAtIso?: string;
 }
 
-export const billableEventId = (requestId: string, companyId: string) => `introduction-${requestId}-${companyId}`;
+export const billableEventId = (requestId: string, companyId: string, attempt = 0) =>
+  `introduction-${requestId}-${companyId}${attempt > 0 ? `-a${attempt}` : ""}`;
 
-/** The one event slot for a job and a company, for a transaction to read before it writes. */
-export function billableEventRef(requestId: string, companyId: string): FirebaseFirestore.DocumentReference {
+/** The one event slot for a job, a company and an attempt, for a transaction to read before it writes. */
+export function billableEventRef(requestId: string, companyId: string, attempt = 0): FirebaseFirestore.DocumentReference {
   if (!db) throw new Error("billable_events_store_unavailable");
-  return db.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(requestId, companyId));
+  return db.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(requestId, companyId, attempt));
 }
 
-export function buildIntroductionBillableEvent(requestId: string, companyId: string, atIso: string): BillableEvent & { status: "recorded_no_price" } {
-  return { kind: "introduction", requestId, companyId, atIso, priceUsd: null, status: "recorded_no_price" };
+export function buildIntroductionBillableEvent(requestId: string, companyId: string, atIso: string, attempt = 0):
+  BillableEvent & { status: "recorded_no_price" } {
+  return { kind: "introduction", requestId, companyId, atIso, priceUsd: null, status: "recorded_no_price",
+    ...(attempt > 0 ? { attempt } : {}) };
 }
 
 /**
@@ -42,7 +52,7 @@ export function buildIntroductionBillableEvent(requestId: string, companyId: str
  * an event already on record makes the transaction fail rather than be overwritten.
  */
 export function writeIntroductionBillableEvent(tx: FirebaseFirestore.Transaction, event: BillableEvent): void {
-  tx.create(billableEventRef(event.requestId, event.companyId), event);
+  tx.create(billableEventRef(event.requestId, event.companyId, event.attempt ?? 0), event);
 }
 
 /** A job's billable events, for the admin console. */
