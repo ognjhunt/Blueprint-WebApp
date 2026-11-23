@@ -137,7 +137,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
         const simulationStatus = ready ? "Ready to test" : item.simulationStage && item.simulationStage !== "simulation_built"
           ? libraryStageLabels[item.simulationStage] : null;
         return <li key={item.id} id={`job-${item.id}`} className="opportunity-card">
-          {item.thumbnailUrl ? <TaskThumbnail src={item.thumbnailUrl} title={title} taskFamily={item.taskFamily} />
+          {item.thumbnailUrl ? <TaskThumbnail src={item.thumbnailUrl} title={title} taskFamily={item.taskFamily} source={item.thumbnailSource} />
             : <span className="opportunity-icon" aria-hidden="true"><Box size={24} strokeWidth={1.5} /></span>}
           <div className="opportunity-content">
             <h2 id={`job-title-${item.id}`}>{title}</h2>

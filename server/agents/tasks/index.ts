@@ -5,6 +5,7 @@ import { siteTaskBriefReadingTask } from "./site-task-brief-reading";
 import { captureCoverageTask } from "./capture-coverage";
 import { robotFitRankingTask } from "./robot-fit-ranking";
 import { siteTaskFollowUpTask } from "./site-task-follow-up";
+import { companyWebsiteCheckTask } from "./company-website-check";
 
 export const taskDefinitions = {
   site_video_evidence: siteVideoEvidenceTask,
@@ -13,6 +14,7 @@ export const taskDefinitions = {
   capture_coverage: captureCoverageTask,
   robot_fit_ranking: robotFitRankingTask,
   site_task_follow_up: siteTaskFollowUpTask,
+  company_website_check: companyWebsiteCheckTask,
 } satisfies Record<AgentTaskKind, StructuredTaskDefinition<any, any>>;
 
 export function getTaskDefinition<TInput = unknown, TOutput = unknown>(

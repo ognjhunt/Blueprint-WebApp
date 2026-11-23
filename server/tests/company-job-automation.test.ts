@@ -316,6 +316,138 @@ describe("the company's page for one job (E3)", () => {
     expect(outbox().find(row => row.kind === "job_clarification")).toMatchObject({ status: "sent" });
   });
 
+  // Owner, 2026-11-23: every job has a thumbnail, a frame of its video until the Pipeline renders its simulation.
+  it("makes the job's thumbnail from its company clip, serves it to approved companies, and drops it on withdrawal", async () => {
+    const thumbnail = await import("../utils/jobThumbnail");
+    const { createRequire } = await import("node:module");
+    const { PNG } = createRequire(import.meta.url)("pngjs") as { PNG: { sync: { write: (image: object) => Buffer } } };
+    const frame = PNG.sync.write({ width: 48, height: 30, data: Buffer.alloc(48 * 30 * 4, 120) });
+    const downloads: string[] = [];
+    const deps = { now: () => new Date("2026-11-23T12:00:00.000Z"),
+      downloadClip: async (jobId: string, clip: { digest: string }) => { downloads.push(`${jobId}:${clip.digest}`); return true; },
+      extractFrame: async (_file: string, start: number) => { expect(start).toBeGreaterThanOrEqual(0); return frame; } };
+    expect((await page()).body.item.thumbnailUrl).toBeNull();
+    expect(await thumbnail.makeJobThumbnail(ID, deps)).toBe("made");
+    expect(downloads).toEqual([`${ID}:${companyClip().digest}`]);
+    const stored = state.docs.get(`taskThumbnails/${ID}`) as Record<string, any>;
+    expect(stored).toMatchObject({ consentVersion: thumbnail.JOB_THUMBNAIL_VERSION, source: "company_clip_frame", clipDigest: companyClip().digest });
+    expect((state.docs.get(`inboundRequests/${ID}`) as Record<string, any>).public_task_listing.thumbnailDigest).toBe(stored.digest);
+    // Made once: the same clip is not read again.
+    expect(await thumbnail.makeJobThumbnail(ID, deps)).toBe("current");
+    expect(downloads).toHaveLength(1);
+    // The page gives this company's ticketed address: a browser loads it as an image or poster with no sign-in token.
+    const url = (await page()).body.item.thumbnailUrl as string;
+    expect(url).toMatch(new RegExp(`^/api/site-worlds/tasks/${ID}/thumbnail\\?viewer=${sha(NORTH.email)}&expires=\\d+&signature=`));
+    const served = await realFetch(`${base}${url}`);
+    expect(served.status).toBe(200);
+    expect(Buffer.from(await served.arrayBuffer()).toString("base64")).toBe(stored.pngBase64);
+    // A forged or another company's ticket, and the bare address with no token, give nothing.
+    expect((await realFetch(`${base}${url.replace(/signature=[^&]+/, "signature=forged")}`)).status).toBe(404);
+    expect((await realFetch(`${base}${url.replace(sha(NORTH.email), sha(SOUTH.email))}`)).status).toBe(404);
+    expect((await realFetch(`${base}/api/site-worlds/tasks/${ID}/thumbnail`)).status).toBe(404);
+    // The library's card carries the same kind of address; the bearer route still works for a signed-in caller.
+    const card = ((await list()).body.items as Array<Record<string, any>>).find(item => item.id === ID)!;
+    expect(card.thumbnailUrl).toMatch(/thumbnail\?viewer=/);
+    expect((await realFetch(`${base}/api/site-worlds/tasks/${ID}/thumbnail`, { headers: signIn(NORTH) })).status).toBe(200);
+    // A company that may no longer see jobs gets nothing from a ticket it was given earlier.
+    const north = state.docs.get(`robotTeamAccess/${sha(NORTH.email)}`) as Record<string, any>;
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, { ...north, status: "declined" });
+    expect((await realFetch(`${base}${url}`)).status).toBe(404);
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, north);
+    await thumbnail.deleteJobThumbnail(ID);
+    expect(state.docs.get(`taskThumbnails/${ID}`)).toBeUndefined();
+    expect((await page()).body.item.thumbnailUrl).toBeNull();
+  });
+
+  // Thumbnails step 2: a render of the job's simulation takes the place of the frame.
+  it("keeps the Pipeline's render of the simulation as the thumbnail, over a frame, once, and refuses a stale or forged one", async () => {
+    const thumbnail = await import("../utils/jobThumbnail");
+    const { createHash } = await import("node:crypto");
+    const { createRequire } = await import("node:module");
+    const { PNG } = createRequire(import.meta.url)("pngjs") as { PNG: { sync: { write: (image: object) => Buffer } } };
+    const sha = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+    const frameDeps = { now: () => new Date(), downloadClip: async () => true,
+      extractFrame: async () => PNG.sync.write({ width: 8, height: 5, data: Buffer.alloc(8 * 5 * 4, 9) }) };
+    expect(await thumbnail.makeJobThumbnail(ID, frameDeps)).toBe("made");
+    const render = PNG.sync.write({ width: 48, height: 27, data: Buffer.alloc(48 * 27 * 4, 200) });
+    const sent = { schema_version: "website_job_thumbnail.v1" as const, capture_id: CAPTURE, source: "simulation_render" as const,
+      camera: "scene_preview_start_view" as const, scene_preview_digest: scenePreview().preview_digest, width: 48, height: 27,
+      png_base64: render.toString("base64"), digest: sha(render) };
+    const record = (value = sent) => thumbnail.recordJobThumbnailRender(ID, `site-${ID}`, CAPTURE, value);
+    expect(await record()).toEqual({ schema_version: "website_job_thumbnail_acceptance.v1", accepted: true, digest: sent.digest });
+    const stored = state.docs.get(`taskThumbnails/${ID}`) as Record<string, any>;
+    expect(stored).toMatchObject({ source: "simulation_render", sourceDigest: sent.digest, scenePreviewDigest: sent.scene_preview_digest });
+    const listing = (state.docs.get(`inboundRequests/${ID}`) as Record<string, any>).public_task_listing;
+    expect(listing).toMatchObject({ thumbnailDigest: stored.digest, thumbnailSource: "simulation_render" });
+    expect((await page()).body.item).toMatchObject({ thumbnailUrl: expect.stringMatching(/thumbnail\?viewer=/), thumbnailSource: "simulation_render" });
+    // The same render again is accepted once; a frame never replaces a render.
+    expect(await record()).toMatchObject({ accepted: true });
+    expect(await thumbnail.makeJobThumbnail(ID, frameDeps)).toBe("current");
+    expect((state.docs.get(`taskThumbnails/${ID}`) as Record<string, any>).source).toBe("simulation_render");
+    // Not of the current scene preview, bytes that do not match the digest, or another capture: refused.
+    await expect(record({ ...sent, scene_preview_digest: `sha256:${"0".repeat(64)}` })).rejects.toThrow("website_job_thumbnail_stale");
+    await expect(record({ ...sent, digest: `sha256:${"1".repeat(64)}` })).rejects.toThrow("website_job_thumbnail_digest_invalid");
+    await expect(thumbnail.recordJobThumbnailRender(ID, `site-${ID}`, "walkthrough-other", sent)).rejects.toThrow("task_context_capture_mismatch");
+  });
+
+  it("passes over jobs whose thumbnail cannot be made, so later jobs are still caught up", async () => {
+    const thumbnail = await import("../utils/jobThumbnail");
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    // Three listed jobs read before this one whose thumbnail cannot be made, and this one, which can (read last).
+    state.docs.delete(`inboundRequests/${ID}`);
+    for (const id of ["aaa-1", "aaa-2", "aaa-3"]) state.docs.set(`inboundRequests/${id}`, structuredClone(record));
+    state.docs.set(`inboundRequests/${ID}`, record);
+    let clock = Date.parse("2026-11-23T12:00:00.000Z");
+    const deps = { now: () => new Date(clock), downloadClip: async () => true, extractFrame: async () => null };
+    const tried: string[] = [];
+    const make = async (jobId: string) => { tried.push(jobId); return jobId === ID ? "made" as const : "unavailable" as const; };
+    expect(await thumbnail.sweepJobThumbnails(deps, make)).toBe(0);
+    expect(tried).toEqual(["aaa-1", "aaa-2", "aaa-3"]);
+    // The three that failed wait their six hours; the next pass reaches this job.
+    expect(await thumbnail.sweepJobThumbnails(deps, make)).toBe(1);
+    expect(tried.slice(3)).toEqual([ID]);
+    // Six hours on, the failed ones are tried again.
+    clock += thumbnail.JOB_THUMBNAIL_RETRY_AFTER_MS;
+    await thumbnail.sweepJobThumbnails(deps, make);
+    expect(tried.slice(4)).toEqual(["aaa-1", "aaa-2", "aaa-3"]);
+    expect(state.docs.get(`${thumbnail.JOB_THUMBNAIL_ATTEMPTS_COLLECTION}/aaa-1`)).toMatchObject({ failedAtIso: new Date(clock).toISOString() });
+  });
+
+  it("makes no thumbnail for a job companies cannot see, and catches up listed jobs without one", async () => {
+    const thumbnail = await import("../utils/jobThumbnail");
+    const { createRequire } = await import("node:module");
+    const { PNG } = createRequire(import.meta.url)("pngjs") as { PNG: { sync: { write: (image: object) => Buffer } } };
+    const deps = { now: () => new Date(), downloadClip: async () => true,
+      extractFrame: async () => PNG.sync.write({ width: 8, height: 5, data: Buffer.alloc(8 * 5 * 4, 9) }) };
+    expect(await thumbnail.sweepJobThumbnails(deps)).toBe(1);
+    expect(await thumbnail.sweepJobThumbnails(deps)).toBe(0);
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    state.docs.delete(`taskThumbnails/${ID}`);
+    state.docs.set(`inboundRequests/${ID}`, { ...record, capture_rights: { ...(record.capture_rights ?? {}), consent_revoked: true },
+      public_task_listing: { ...record.public_task_listing, thumbnailDigest: null } });
+    expect(await thumbnail.makeJobThumbnail(ID, deps)).toBe("not_listed");
+    expect(state.docs.get(`taskThumbnails/${ID}`)).toBeUndefined();
+  });
+
+  // Owner, 2026-11-23: anyone may see on /jobs that real jobs exist, but only what Blueprint derives about each.
+  it("lists a shared job publicly by its kind, country, day and simulation state only", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    const jobs = await listPublicLiveJobs();
+    expect(jobs).toEqual([{ kind: "Palletize cartons", country: "United States", postedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      simulationReady: expect.any(Boolean) }]);
+    const text = JSON.stringify(jobs);
+    expectNoSiteIn("the public live jobs", text);
+    expect(text).not.toContain(ID);
+    expect(text).not.toMatch(/Stack 12 kg|pallet\. Call|\[removed\]/);
+  });
+
+  it("lists nothing publicly for a job companies cannot see", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    state.docs.set(`inboundRequests/${ID}`, { ...record, capture_rights: { ...(record.capture_rights ?? {}), consent_revoked: true } });
+    expect(await listPublicLiveJobs()).toEqual([]);
+  });
+
   // Owner, 2026-11-23: the company reads the answers to the questions the site was asked, chosen by the reading's kind.
   it("says the answers to the questions the video reading's kind of job chose, not the keyword match's", async () => {
     state.docs.set(`inboundRequests/${ID}`, job({
@@ -611,7 +743,15 @@ describe("the automatic send (E4)", () => {
     // The kind of job and the country, never the site (ledger BL49).
     expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint: Palletizing" });
     // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
-    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\?link=\S+\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    // Owner, 2026-11-23: the job's link signs that company in on the way, once, for a week, and opens this job.
+    const { verifyAccountSignInToken } = await import("../utils/request-review-auth");
+    for (const alert of alerts) {
+      const link = decodeURIComponent(/\/jobs\/req-e2\?link=(\S+)/.exec(alert.body)![1]);
+      const payload = verifyAccountSignInToken(link)!;
+      expect(payload).toMatchObject({ kind: "account_sign_in", email: alert.to, sourceId: sha(alert.to), job: ID });
+      expect(payload.exp * 1000 - Date.now()).toBeGreaterThan(6 * 24 * 3600 * 1000);
+    }
     // The unsubscribe line names the emails it stops, never the scope's internal name.
     expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+\/api\/growth\/email\/unsubscribe\?token=[A-Za-z0-9_-]+$/);
     // The link carries a sealed token: no address in it.

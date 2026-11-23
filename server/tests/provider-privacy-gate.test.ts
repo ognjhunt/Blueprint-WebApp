@@ -207,7 +207,8 @@ describe("the gate wherever a provider is chosen for a lane", () => {
       vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
       const { resolved } = await lanes({ ANTHROPIC_API_KEY: "x", [leftOver]: "x" });
       for (const [kind, resolution] of Object.entries(resolved)) {
-        if (kind === "robot_capability_extraction" || kind === "runtime_smoke_test") {
+        // Lanes of public material only (a company's own home page among them) may go to Anthropic.
+        if (kind === "robot_capability_extraction" || kind === "runtime_smoke_test" || kind === "company_website_check") {
           expect(resolution.provider, kind).toBe("anthropic_agent_sdk"); continue;
         }
         if (kind === "operator_thread") { expect(resolution.fails_closed, kind).toBe("no_permitted_provider"); continue; }

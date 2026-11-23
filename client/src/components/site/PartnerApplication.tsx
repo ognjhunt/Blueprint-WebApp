@@ -3,6 +3,11 @@ import { ArrowRight } from "lucide-react";
 import { PRIVACY_URL } from "@/lib/legalAcceptance";
 import { applyForEarlyAccess, EarlyAccessApplicationError } from "@/lib/robotTeamAccess";
 import { companyJobReturnPath } from "@/lib/authReturnPath";
+import { COMPANY_CHECK_RULE_SENTENCE } from "@/lib/companyCheck";
+
+/** The saved application, while the automatic check runs (owner direction 2026-11-23). */
+export const APPLICATION_SAVED_LINES = "We're checking your company against that rule now. If it meets the rule, you'll get your approval email shortly. "
+  + "Otherwise we'll email you our answer within three working days. Once approved, you get an email for each new job.";
 
 /**
  * The one application a deployment company sends to see jobs (on `/partners`; `/contact/robot-team` points here). Four
@@ -48,14 +53,14 @@ export function PartnerApplication() {
   if (state === "saved") return (
     <div className="ms-partner-receipt" role="status">
       <h2 ref={savedHeading} tabIndex={-1}>Your application is saved.</h2>
-      <p>We'll email you our answer within three working days. Once approved, you get an email for each new job.</p>
+      <p>{APPLICATION_SAVED_LINES}</p>
     </div>
   );
 
   return (
     <form className="ms-form ms-partner-form" onSubmit={submit} method="post" aria-label="Deployment company application">
       <h2>Apply to see jobs</h2>
-      <p>We approve each company before it sees jobs. Once approved, you get an email for each new job. Nothing is charged today.</p>
+      <p>{COMPANY_CHECK_RULE_SENTENCE} Once approved, you get an email for each new job. Nothing is charged today.</p>
       <fieldset disabled={!interactive || state === "sending"}>
         <legend className="sr-only">Your company</legend>
         <div className="ms-form-row">

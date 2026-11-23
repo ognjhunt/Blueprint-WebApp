@@ -72,22 +72,31 @@ export function verifyAccountInvitationToken(token: string): AccountInvitationPa
 
 /**
  * A deployment company's emailed sign-in link: single use (the `jti` is spent on redemption, `companySignInLink.ts`),
- * 15 minutes, and bound to its approved access record (`sourceId`, `revision`). Its own `kind`, so it is never accepted
- * as an invitation, a review link or a claim link, and none of those is accepted as it.
+ * and bound to its approved access record (`sourceId`, `revision`). Its own `kind`, so it is never accepted as an
+ * invitation, a review link or a claim link, and none of those is accepted as it. Asked for on the sign-in page it lasts
+ * 15 minutes; in a new-job email it names the job (`job`) and lasts a week (owner, 2026-11-23: no sign-in step between
+ * a job email and the job).
  */
 export interface AccountSignInPayload {
   kind: "account_sign_in";
   email: string;
   sourceId: string;
   revision: string;
+  /** The job a new-job email's link opens, as a request id. */
+  job?: string;
   jti: string;
   exp: number;
 }
 export const ACCOUNT_SIGN_IN_TTL_SECONDS = 15 * 60;
+/** A new-job email's sign-in link: one week, so it still works when the email is read days later. */
+export const JOB_EMAIL_SIGN_IN_TTL_SECONDS = 7 * 24 * 60 * 60;
+const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;
 
-export function createAccountSignInToken(link: Omit<AccountSignInPayload, "kind" | "exp" | "jti">) {
+export function createAccountSignInToken(link: Omit<AccountSignInPayload, "kind" | "exp" | "jti">,
+  ttlSeconds = ACCOUNT_SIGN_IN_TTL_SECONDS) {
+  if (link.job !== undefined && !JOB_ID.test(link.job)) throw new Error("account_sign_in_job_invalid");
   const serialized = JSON.stringify({ ...link, kind: "account_sign_in", jti: crypto.randomBytes(16).toString("hex"),
-    exp: Math.floor(Date.now() / 1000) + ACCOUNT_SIGN_IN_TTL_SECONDS });
+    exp: Math.floor(Date.now() / 1000) + ttlSeconds });
   return `${toBase64Url(serialized)}.${signPayload(serialized)}`;
 }
 
@@ -103,6 +112,7 @@ export function verifyAccountSignInToken(token: string): AccountSignInPayload | 
       || typeof payload.email !== "string" || !payload.email.includes("@")
       || typeof payload.sourceId !== "string" || !/^[a-f0-9]{64}$/.test(payload.sourceId)
       || typeof payload.revision !== "string" || !payload.revision
+      || (payload.job !== undefined && (typeof payload.job !== "string" || !JOB_ID.test(payload.job)))
       || typeof payload.jti !== "string" || !/^[a-f0-9]{32}$/.test(payload.jti)) return null;
     return payload;
   } catch { return null; }

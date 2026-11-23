@@ -7,7 +7,7 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { workspaceRequest } from "@/lib/workspace";
 import { invitationRequest, type AccountInvitation } from "@/lib/accountInvitation";
 import { friendlyAuthError } from "@/lib/siteClaim";
-import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { PRIVACY_URL, PRIVACY_VERSION, TERMS_URL, TERMS_VERSION } from "@/lib/legalAcceptance";
 import { authReturnPath } from "@/lib/authReturnPath";
 
 /**
@@ -40,7 +40,9 @@ export default function RobotTeamSignUpFlow() {
   async function finish(user: User) {
     if (!invitation || user.email?.trim().toLowerCase() !== invitation.email) throw new Error("Sign in with the email address on your Blueprint invitation.");
     account.current = user;
-    await workspaceRequest(user, "/setup", "POST", { name: name.trim(), organization: organization.trim(), workspaceType: invitation.workspaceType, acceptedTerms: true });
+    // The versions this page shows: the one tick records the company's agreement too (`workspace.ts` setup).
+    await workspaceRequest(user, "/setup", "POST", { name: name.trim(), organization: organization.trim(), workspaceType: invitation.workspaceType,
+      acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
     const returnTo = authReturnPath(invitation.returnTo) ?? "/contact/robot-team";
     if (!user.emailVerified) await sendEmailVerification(user, { url: new URL(returnTo, window.location.origin).toString() });
     window.location.assign(returnTo);

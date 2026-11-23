@@ -31,6 +31,7 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
   site_video_evidence: "SITE_VIDEO_EVIDENCE_MODEL",
   robot_fit_ranking: "ROBOT_FIT_RANKING_MODEL",
   site_task_follow_up: "SITE_TASK_FOLLOW_UP_MODEL",
+  company_website_check: "COMPANY_WEBSITE_CHECK_MODEL",
 };
 
 /**
@@ -147,6 +148,8 @@ const TASK_REASONING_EFFORT: Partial<Record<AgentTaskKind, OpenAiReasoningEffort
   // The follow-up picker chooses up to three ids from a short list: the small
   // tier at low effort, as it ran before it went through the runtime.
   site_task_follow_up: "low",
+  // One home page and a yes, no or unclear with a quote: the small tier at low effort.
+  company_website_check: "low",
 };
 
 /**
@@ -159,6 +162,7 @@ const TASK_REASONING_EFFORT: Partial<Record<AgentTaskKind, OpenAiReasoningEffort
  */
 const TASK_OPENAI_FIXED_DEFAULTS: Partial<Record<AgentTaskKind, { model: string }>> = {
   site_task_follow_up: { model: "gpt-6-luna" },
+  company_website_check: { model: "gpt-6-luna" },
 };
 
 function normalizeEffort(value: string | undefined | null): OpenAiReasoningEffort | null {
@@ -484,6 +488,8 @@ const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> 
   robot_fit_ranking: "openai_responses",
   // A site's own task text, at the small tier (gpt-6-luna by default).
   site_task_follow_up: "openai_responses",
+  // A company's public home page, at the small tier (gpt-6-luna by default).
+  company_website_check: "openai_responses",
 };
 
 /**

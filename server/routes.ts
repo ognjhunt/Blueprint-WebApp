@@ -37,6 +37,7 @@ import siteTaskBriefRouter from "./routes/site-task-brief";
 import siteClaimRouter from "./routes/site-claim";
 import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
 import siteWorldsRouter from "./routes/site-worlds";
+import publicLiveJobsRouter from "./routes/public-live-jobs";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { requireAdminRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
@@ -97,6 +98,8 @@ export function registerRoutes(app: Express) {
     adminRobotTeamAccessRouter,
   );
   app.use("/api/site-worlds", siteWorldsRouter);
+  // The live jobs anyone may see on /jobs: kind, country, day and whether the simulation is ready, nothing else.
+  app.use("/api/public/live-jobs", publicLiveJobsRouter);
   app.use("/api/website-atlas-preview-downloads", websiteAtlasPreviewDownloadsRouter);
   app.use("/api/website-atlas-preview-views", websiteAtlasPreviewViewsRouter);
   app.use("/api/website-destination-pictures", websiteDestinationPicturesRouter);

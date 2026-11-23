@@ -13,6 +13,9 @@ vi.mock("@/contexts/AuthContext", () => ({ useOptionalAuth: () => auth }));
 vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async (_user: unknown, headers: Record<string, string> = {}) => headers }));
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 vi.mock("wouter", () => ({ useParams: () => ({ jobId: "job-1" }) }));
+const linkSignIn = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/companySignInLink", async (actual) => ({ ...(await actual<typeof import("@/lib/companySignInLink")>()),
+  signInWithCompanyLink: linkSignIn }));
 
 const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK } = await import("@/pages/CompanyJob");
 
@@ -214,3 +217,34 @@ describe("the company's page for one job", () => {
   });
 });
 
+// Owner, 2026-11-23: a new-job email's link signs a signed-out company in on the way to the job.
+describe("opening a job from its email", () => {
+  beforeEach(() => { linkSignIn.mockReset(); window.history.replaceState(null, "", "/jobs/job-1?link=emailed-token&from=q%3Dx"); });
+
+  it("signs a signed-out company in with the link, and takes the link out of the address bar", async () => {
+    auth.currentUser = null;
+    linkSignIn.mockReturnValue(new Promise(() => undefined));
+    render(<CompanyJob />);
+    await waitFor(() => expect(linkSignIn).toHaveBeenCalledWith("emailed-token"));
+    expect(window.location.search).toBe("?from=q%3Dx");
+    expect(screen.queryByText("Sign in to see this job")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("Loading…");
+  });
+
+  it("leaves the link unspent for a company that is already signed in, and opens the job", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    render(<CompanyJob />);
+    await waitFor(() => expect(fetchMock.mock.calls[0][0]).toBe("/api/site-worlds/jobs/job-1"));
+    expect(linkSignIn).not.toHaveBeenCalled();
+    expect(window.location.search).toBe("?from=q%3Dx");
+  });
+
+  it("says the link no longer works and offers sign-in when it was used or expired", async () => {
+    auth.currentUser = null;
+    linkSignIn.mockRejectedValue(new Error("This sign-in link no longer works."));
+    render(<CompanyJob />);
+    expect(await screen.findByText("Sign in to see this job")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("This sign-in link no longer works. Ask for a new one on the sign-in page.");
+    expect(screen.getAllByRole("link", { name: "Sign in" }).some(link => link.getAttribute("href")?.startsWith("/sign-in"))).toBe(true);
+  });
+});

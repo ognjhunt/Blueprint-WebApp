@@ -26,6 +26,7 @@ import { countryOf } from "./companyJobPage";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
+import { createAccountSignInToken, JOB_EMAIL_SIGN_IN_TTL_SECONDS } from "./request-review-auth";
 import { recordWorkerLoopPass } from "./workerHeartbeat";
 
 export const AUTO_SEND_FIELD = "company_auto_send";
@@ -77,7 +78,7 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
       .sort((a, b) => a.id.localeCompare(b.id));
     if (!companies.length) return { sent: false, reason: "no_companies" };
     // Reads first: each company's saved preference and suppression, and the site's notice row.
-    const emailed: Array<{ id: string; email: string }> = [];
+    const emailed: Array<{ id: string; email: string; revision: string | null }> = [];
     for (const company of companies) {
       const email = String(company.data.email ?? "").trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) continue;
@@ -86,7 +87,7 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
       if (!companyWantsJobEmails(company.data, user)) continue;
       const suppression = (await tx.get(store.collection("email_suppressions").doc(email))).data();
       if (suppressedForJobAlerts(suppression)) continue;
-      emailed.push({ id: company.id, email });
+      emailed.push({ id: company.id, email, revision: typeof company.data.decidedAtIso === "string" ? company.data.decidedAtIso : null });
     }
     const sentAtIso = now().toISOString();
     const jobUrl = companyJobUrl(requestId);
@@ -96,7 +97,8 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
         sentAtIso, sentBy: "system", sentByEmail: null });
     }
     for (const company of emailed) {
-      const message = newJobEmail({ to: company.email, jobUrl, kind: access.details.taskFamily, country });
+      const message = newJobEmail({ to: company.email, jobUrl: jobEmailUrl(jobUrl, requestId, company), kind: access.details.taskFamily,
+        country });
       tx.create(store.collection(CAPTURE_OUTBOX_COLLECTION).doc(newJobAlertKey(requestId, company.id)), buildOutboxEntry({
         idempotencyKey: newJobAlertKey(requestId, company.id), requestId, kind: "robot_team_new_task", to: company.email,
         subject: message.subject, body: message.body, replyTo: "hello@tryblueprint.io",
@@ -105,6 +107,18 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
     tx.set(jobRef, { [AUTO_SEND_FIELD]: { schemaVersion: 1, sentAtIso, count: companies.length } }, { merge: true });
     return { sent: true, count: companies.length, emailed: emailed.length, sentAtIso };
   });
+}
+
+/**
+ * The job's page with this company's one-use sign-in link for it (owner, 2026-11-23): a company that is not signed in
+ * is signed in on the way, and one that is goes straight to the job (`CompanyJob.tsx`). The link is bound to the
+ * company's approved record and its decision, so a withdrawn or re-decided approval ends it.
+ */
+export function jobEmailUrl(jobUrl: string, jobId: string, company: { id: string; email: string; revision: string | null }): string {
+  if (!company.revision) return jobUrl;
+  const token = createAccountSignInToken({ email: company.email, sourceId: company.id, revision: company.revision, job: jobId },
+    JOB_EMAIL_SIGN_IN_TTL_SECONDS);
+  return `${jobUrl}?link=${encodeURIComponent(token)}`;
 }
 
 /** Best effort, for a caller at the moment a job may have become listed: never throws. */

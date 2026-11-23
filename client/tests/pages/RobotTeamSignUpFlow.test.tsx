@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import BusinessSignUpFlow from "@/pages/RobotTeamSignUpFlow";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legalAcceptance";
 const mocks = vi.hoisted(() => ({ invitation: vi.fn(), google: vi.fn(), custom: vi.fn(), verify: vi.fn(), workspace: vi.fn(), assign: vi.fn() }));
 vi.mock("@/lib/accountInvitation", () => ({ invitationRequest: mocks.invitation }));
 vi.mock("firebase/auth", () => ({ signInWithCustomToken: mocks.custom, sendEmailVerification: mocks.verify }));
@@ -26,7 +27,7 @@ describe("invitation-only account creation", () => {
     await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/jobs/carton-job"));
     expect(mocks.verify).toHaveBeenCalledWith(user, { url: `${window.location.origin}/jobs/carton-job` });
     expect(mocks.workspace).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Team", organization: "Robot Co",
-      workspaceType: "robot_team", acceptedTerms: true });
+      workspaceType: "robot_team", acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
   });
   it("asks no account details the application already gave, and asks for a name or company only when missing", async () => {
     await openInvitation();
@@ -80,7 +81,8 @@ describe("invitation-only account creation", () => {
     await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
     expect(mocks.invitation).toHaveBeenCalledWith("redeem", "signed-invitation", { mode: "link", acceptedTerms: true });
     expect(mocks.custom).toHaveBeenCalledWith({}, "server-created-session");
-    expect(mocks.workspace).toHaveBeenCalledWith(invited, "/setup", "POST", { name: "Team", organization: "Robot Co", workspaceType: "robot_team", acceptedTerms: true });
+    expect(mocks.workspace).toHaveBeenCalledWith(invited, "/setup", "POST", { name: "Team", organization: "Robot Co", workspaceType: "robot_team",
+      acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
     expect(mocks.verify).not.toHaveBeenCalled();
   });
   it("sends no one back to apply: the page without an invitation offers a new link to approved teams", () => {

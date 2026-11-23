@@ -30,6 +30,8 @@ export interface TaskBrowseCard extends TaskListingDetails {
   evaluationAvailable: boolean;
   publishedAtIso: string;
   thumbnailUrl: string | null;
+  /** What the thumbnail is, when there is one: a render of the job's simulation, or a frame of its video. */
+  thumbnailSource?: "simulation_render" | "company_clip_frame";
   /** The company's page for this job (`/jobs/:jobId`). */
   jobUrl?: string;
   /**
@@ -190,6 +192,10 @@ export interface CompanyJobPage {
    * with its description only, so there is no video yet.
    */
   video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" };
+  /** The job's thumbnail (`server/utils/jobThumbnail.ts`), shown before the video plays; null until made. */
+  thumbnailUrl?: string | null;
+  /** What the thumbnail is: a render of the job's simulation, or a frame of its video. */
+  thumbnailSource?: "simulation_render" | "company_clip_frame" | null;
   /** "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet". */
   simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */
@@ -214,4 +220,16 @@ export interface CompanyJobPage {
   clarification?: { question: string; answer: string };
   /** The line under the form, and the version recorded with an answer. */
   responseStatement: { version: string; text: string };
+}
+
+/** A live job as anyone reads it on /jobs (`server/utils/taskBrowse.ts`, `listPublicLiveJobs`). */
+export interface PublicLiveJob {
+  /** The kind of job, from Blueprint's fixed categories ("Palletize cartons"); never the site's words. */
+  kind: string;
+  /** The country only, or null. */
+  country: string | null;
+  /** The day the job was shared, YYYY-MM-DD. */
+  postedOn: string;
+  /** An approved company can download the job's simulation now. */
+  simulationReady: boolean;
 }

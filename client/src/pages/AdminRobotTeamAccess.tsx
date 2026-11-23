@@ -6,6 +6,7 @@ import { Button, Card, Eyebrow, StatusChip } from "@/components/blueprint";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { companyCheckReasonWords, type CompanyCheck } from "@/lib/companyCheck";
 
 type Application = {
   id: string;
@@ -32,7 +33,20 @@ type Application = {
   decidedAtIso: string | null;
   decidedBy: string | null;
   decisionNote: string | null;
+  /** The automatic check on a new application (owner direction 2026-11-23). */
+  companyCheck?: CompanyCheck | null;
 };
+
+/** What the automatic check found, so the one-press decision has its reasoning in front of it. */
+function CompanyCheckSummary({ check }: { check: CompanyCheck }) {
+  return <div className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body" aria-label="Automatic check">
+    <p className="runway-meta">Automatic check · {new Date(check.checkedAtIso).toLocaleString()}</p>
+    <p className="mt-1 text-runway-text">{check.outcome === "approved" ? "Approved by the published rule." : "Needs you."}</p>
+    {check.reasons.length ? <ul className="mt-1 grid gap-1">{check.reasons.map(reason => <li key={reason}>✗ {companyCheckReasonWords(reason)}</li>)}</ul> : null}
+    {check.modelReason ? <p className="mt-1"><span className="runway-meta">Model ({check.modelAnswer ?? "no answer"}): </span>{check.modelReason}</p> : null}
+    {check.evidenceQuote ? <p className="mt-1"><span className="runway-meta">On the website: </span>“{check.evidenceQuote}”</p> : null}
+  </div>;
+}
 
 function statusTone(status: Application["status"]) {
   if (status === "approved") return "proof" as const;
@@ -262,6 +276,7 @@ export default function AdminRobotTeamAccess() {
                   ))}
                 </ul>
               ) : null}
+              {application.companyCheck ? <CompanyCheckSummary check={application.companyCheck} /> : null}
               {application.decisionNote ? <p className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body">{application.decisionNote}{application.decidedBy ? ` — ${application.decidedBy}` : ""}</p> : null}
               <div className="flex flex-wrap gap-3 border-t border-line pt-4">
                 {application.status === "approved" && <Button variant="secondary" onClick={() => void refreshInvitation(application)}>Get invitation link</Button>}

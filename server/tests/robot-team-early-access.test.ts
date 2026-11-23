@@ -37,6 +37,12 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../utils/slack", () => ({ notifySlackRobotTeamAccessApplication: slack }));
 vi.mock("../utils/email", () => ({ sendEmail }));
+// The automatic company check has its own tests (company-check.test.ts); here it only rings the bell, as it does.
+const companyCheck = vi.hoisted(() => vi.fn(async (record: { email: string }) => {
+  const { notifySlackRobotTeamAccessApplication } = await import("../utils/slack");
+  await notifySlackRobotTeamAccessApplication({ email: record.email, autoApproved: false });
+}));
+vi.mock("../utils/companyCheck", () => ({ checkNewCompanyApplication: companyCheck }));
 // The per-address limit would otherwise carry across tests from one address.
 vi.mock("express-rate-limit", () => ({
   default: () => (_req: unknown, _res: unknown, next: () => void) => next(),
@@ -136,6 +142,7 @@ beforeEach(async () => {
   state.docs.clear();
   tokens.clear();
   slack.mockClear();
+  companyCheck.mockClear();
   await withApp();
 });
 
@@ -378,7 +385,9 @@ describe("the review queue", () => {
 });
 
 describe("an application has no fit checklist", () => {
-  it("is left to a person, with no checklist on the record or the bell", async () => {
+  // Owner direction 2026-11-23: a new deployment company goes to the automatic check (company-check.test.ts) once,
+  // after the answer; the route itself approves nothing and stores no checklist.
+  it("answers at once, hands a new deployment company to the automatic check, and stores no checklist", async () => {
     listedSite("site-1");
     vi.stubEnv("BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS", "1");
     const response = await fetch(`${base}/api/robot-team-access/apply`, {
@@ -389,8 +398,25 @@ describe("an application has no fit checklist", () => {
     expect(record).toMatchObject({ status: "applied", decidedBy: null });
     expect(record).not.toHaveProperty("fit");
     expect([...state.docs.keys()].some(key => key.startsWith("captureOutbox/robot_team_access_approved"))).toBe(false);
-    expect(slack).toHaveBeenCalledWith(expect.objectContaining({ company: "Arm Co", autoApproved: false }));
+    await vi.waitFor(() => expect(companyCheck).toHaveBeenCalledTimes(1));
+    expect(companyCheck).toHaveBeenCalledWith(expect.objectContaining({ email: "ada@arm.example", status: "applied" }));
     expect(slack.mock.calls[0][0]).not.toHaveProperty("fit");
+  });
+
+  it("gives a technology partner the plain bell and no automatic check", async () => {
+    const response = await fetch(`${base}/api/robot-team-access/apply`, {
+      method: "POST", headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify({ ...form, partnerRole: "technology" }),
+    });
+    expect(response.status).toBe(202);
+    await vi.waitFor(() => expect(slack).toHaveBeenCalledWith({ email: "ada@arm.example", autoApproved: false }));
+    expect(companyCheck).not.toHaveBeenCalled();
+  });
+
+  it("checks only a new application: applying again while pending starts no second check", async () => {
+    const post = () => fetch(`${base}/api/robot-team-access/apply`, {
+      method: "POST", headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify(form) });
+    await post(); await post();
+    await vi.waitFor(() => expect(companyCheck).toHaveBeenCalledTimes(1));
   });
 });
 

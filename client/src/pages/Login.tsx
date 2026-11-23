@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authReturnPath } from "@/lib/authReturnPath";
 import { friendlyAuthError } from "@/lib/siteClaim";
 import { withCsrfHeader } from "@/lib/csrf";
+import { SIGN_IN_LINK_ENDED, signInWithCompanyLink } from "@/lib/companySignInLink";
 import { Helmet } from "@/lib/helmet";
 
 interface ValidationErrors {
@@ -78,18 +79,13 @@ export default function Login() {
     setIsLoading(true);
     void (async () => {
       try {
-        const response = await fetch("/api/robot-team-access/sign-in-link/redeem", { method: "POST", credentials: "include",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }), body: JSON.stringify({ link }) });
-        const data = await response.json().catch(() => ({})) as { customToken?: string; returnTo?: string; error?: string };
-        if (!response.ok || !data.customToken) throw new Error(data.error || "This sign-in link no longer works. Ask for a new one on this page.");
-        const [{ signInWithCustomToken }, firebase] = await Promise.all([import("firebase/auth"), import("@/lib/firebase")]);
-        await signInWithCustomToken(firebase.auth, data.customToken);
+        const returnTo = await signInWithCompanyLink(link);
         // A job the company was opening in this tab comes first; the emailed link's own destination otherwise.
         let saved: string | null = null;
         try { saved = sessionStorage.getItem("redirectAfterAuth"); sessionStorage.removeItem("redirectAfterAuth"); } catch { saved = null; }
-        window.location.assign(authReturnPath(saved) ?? authReturnPath(data.returnTo ?? null) ?? "/contact/robot-team");
+        window.location.assign(authReturnPath(saved) ?? authReturnPath(returnTo) ?? "/contact/robot-team");
       } catch (error) {
-        setAuthError(error instanceof Error ? error.message : "This sign-in link no longer works. Ask for a new one on this page.");
+        setAuthError(error instanceof Error ? error.message : SIGN_IN_LINK_ENDED);
         setIsLoading(false);
       }
     })();

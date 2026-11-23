@@ -1,10 +1,11 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
-import type { LibraryJobStage, TaskBrowseCard, TaskCardDetail } from "../../client/src/types/taskBrowse";
+import { jobTitleForDisplay, type LibraryJobStage, type PublicLiveJob, type TaskBrowseCard, type TaskCardDetail } from "../../client/src/types/taskBrowse";
+export type { PublicLiveJob } from "../../client/src/types/taskBrowse";
 import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
-import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
+import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, thumbnailSourceOf, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
-import { companyPlaceOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
+import { companyPlaceOf, countryOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { storedCompanySimulation } from "./websiteCompanySimulation";
 
@@ -25,7 +26,8 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest, decide
   return { ...access.details, id, stage: ready ? "ready" : captured ? "preparing" : "capture",
     evaluationAvailable: ready,
     publishedAtIso: raw.public_task_listing.approvedAtIso, jobUrl: `/jobs/${encodeURIComponent(id)}`,
-    thumbnailUrl: taskThumbnailUrl(id, record) };
+    thumbnailUrl: taskThumbnailUrl(id, record),
+    ...(taskThumbnailUrl(id, record) ? { thumbnailSource: thumbnailSourceOf(record) } : {}) };
 }
 
 /**
@@ -88,6 +90,31 @@ export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boole
   }));
   return cards.filter((card): card is TaskBrowseCard => card !== null)
     .sort((a, b) => b.publishedAtIso.localeCompare(a.publishedAtIso) || a.id.localeCompare(b.id));
+}
+
+/**
+ * The live jobs as anyone sees them on /jobs (owner, 2026-11-23: let deployment companies see that real jobs exist
+ * before they apply). Exactly the jobs approved companies see (`teamJobAccess`), each with only what Blueprint itself
+ * derives: its kind from the fixed categories, the country, the day it was shared and whether its simulation is ready.
+ * Never the site's words, its state or city, its video, an answer or the job's id: each site agreed to share its job
+ * only with deployment companies Blueprint has approved.
+ */
+export async function listPublicLiveJobs(): Promise<PublicLiveJob[]> {
+  if (!db) throw new Error("Task library unavailable");
+  const snapshot = await db.collection("inboundRequests")
+    .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).get();
+  const jobs = await Promise.all(snapshot.docs.map(async (doc): Promise<PublicLiveJob | null> => {
+    const record = doc.data() as InboundRequest;
+    const { access, session } = await loadCompanyJobAccess(doc.id, record);
+    const listed = projectTaskBrowseCard(doc.id, record, access);
+    if (!listed || !/^\d{4}-\d{2}-\d{2}/.test(String(listed.publishedAtIso ?? ""))) return null;
+    const raw = record as unknown as Record<string, any>;
+    const { captureId } = siteWalkthroughIdentity(doc.id, raw);
+    return { kind: jobTitleForDisplay(listed.title), country: await countryOf(raw).catch(() => null),
+      postedOn: listed.publishedAtIso.slice(0, 10), simulationReady: Boolean(storedCompanySimulation(session, captureId)) };
+  }));
+  return jobs.filter((job): job is PublicLiveJob => job !== null)
+    .sort((a, b) => b.postedOn.localeCompare(a.postedOn) || a.kind.localeCompare(b.kind));
 }
 
 /** One listed card as an approved company opens it, with the answer when the site shared it. Null when not listed. */

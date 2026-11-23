@@ -1,11 +1,12 @@
 /**
  * Early access for robot teams.
  *
- * Blueprint opens to robot teams a few at a time. Until a team is approved
- * (by a person for the invited beta) it sees no site tasks: not
- * the library, not a plan, not the site catalog. A person approves an
- * application, recorded server-side in a collection clients cannot read or
- * write, because a flag on `users/{uid}` would be client-writable.
+ * Until a company is approved it sees no site tasks: not the library, not a
+ * plan, not the site catalog. A new deployment company's application is
+ * approved at once by the published rule when the rule settles it
+ * (`companyCheck.ts`, owner direction 2026-11-23); otherwise a person approves
+ * it. Either way the approval is recorded server-side in a collection clients
+ * cannot read or write, because a flag on `users/{uid}` would be client-writable.
  *
  * The approval then belongs to the team, not to an email address. When the
  * approved, verified account first signs in (or registers with its invitation)
@@ -28,6 +29,7 @@ import { getRobotTeam, registerSelfServeTeam } from "./robotTeamRegistry";
 import { bindTeamToAccount, teamsForAccount, type AccountHolder } from "./robotTeamAccounts";
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
 import type { AccessEmailNotification } from "./robotTeamAccessEmails";
+import type { CompanyCheck } from "../../client/src/lib/companyCheck";
 
 export const ROBOT_TEAM_ACCESS_COLLECTION = "robotTeamAccess";
 
@@ -73,6 +75,8 @@ export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
   termsAcceptedByUid?: string;
   /** On applications before 2026-11-23 only: what the unsigned form showed. Never lets a company see a job. */
   applicationTermsAcceptance?: unknown;
+  /** The automatic check on a new application (`companyCheck.ts`): approved by the published rule, or why it needs the owner. */
+  companyCheck?: CompanyCheck;
 }
 
 /** What a viewer of the task library is allowed to see, and why. */
@@ -137,9 +141,12 @@ export async function recordAccessApplication(
       return { record: prior, created: false, unchanged: true as const, notification: NO_ACCESS_EMAIL };
     }
     const returnToJob = application.returnToJob ?? prior?.returnToJob;
+    // The automatic check stays with the application it checked: the same email and website.
+    const keptCheck = prior?.companyCheck && (prior.website ?? null) === (application.website ?? null) ? prior.companyCheck : null;
     const record: RobotTeamAccessRecord = {
       ...application,
       ...(returnToJob ? { returnToJob } : {}),
+      ...(keptCheck ? { companyCheck: keptCheck } : {}),
       partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
       // Job emails start on once approved (owner, 2026-11-20).
       newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? true,
@@ -165,6 +172,10 @@ export async function decideAccessApplication(params: {
   status: Exclude<RobotTeamAccessStatus, "applied">;
   note: string | null;
   decidedBy: string;
+  /** Decide only while this holds for the stored record (the automatic check: still the application it checked). */
+  guard?: (prior: RobotTeamAccessRecord) => boolean;
+  /** Fields written with the decision (the automatic check's record). */
+  extra?: Partial<Pick<RobotTeamAccessRecord, "companyCheck">>;
 }): Promise<{ record: RobotTeamAccessRecord; notification: AccessEmailNotification } | null> {
   if (!db) throw new Error("firestore_unavailable");
   const { prepareAccessEmail, NO_ACCESS_EMAIL } = await import("./robotTeamAccessEmails");
@@ -173,6 +184,7 @@ export async function decideAccessApplication(params: {
     const snap = await tx.get(ref);
     if (!snap.exists) return null;
     const prior = snap.data() as RobotTeamAccessRecord;
+    if (params.guard && !params.guard(prior)) return null;
     // Replaying the same decision keeps its invitation revision and notice key.
     // A new decision must be newer even if two decisions share a clock tick.
     const unchanged = prior.status === params.status && prior.decidedAtIso && prior.decidedBy;
@@ -183,6 +195,7 @@ export async function decideAccessApplication(params: {
       decidedBy: unchanged ? prior.decidedBy : params.decidedBy,
       decisionNote: params.note,
       updatedAtIso: now,
+      ...(params.extra ?? {}),
     };
     const record = { ...prior, ...update };
     // An approval is emailed, and a declined applicant gets one fixed email (owner, 2026-11-23). Withdrawing an earlier

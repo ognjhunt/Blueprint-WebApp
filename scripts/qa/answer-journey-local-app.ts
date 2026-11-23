@@ -157,11 +157,12 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
   if (!/^demo-blueprint-reliability(?:-a|-b)?\.appspot\.com$/.test(bucketName)) throw new Error('Demo bucket required');
   const [{ csrfProtection }, { default: verifyFirebaseToken }, { requireAdminRole }, { default: jobWorkflow }, { default: siteWorlds },
     { default: companyMedia }, { default: robotTeamAccess }, { default: adminRobotTeamAccess }, { default: jobOutcomes },
-    { default: workspace }, { default: jobFacts }, queue, { default: admin }] = await Promise.all([
+    { default: workspace }, { default: jobFacts }, queue, { default: admin }, { default: publicLiveJobs }] = await Promise.all([
     import('../../server/middleware/csrf'), import('../../server/middleware/verifyFirebaseToken'), import('../../server/middleware/requireAdminRole'),
     import('../../server/routes/job-workflow'), import('../../server/routes/site-worlds'), import('../../server/routes/company-media'),
     import('../../server/routes/robot-team-access'), import('../../server/routes/admin-robot-team-access'), import('../../server/routes/job-outcomes'),
     import('../../server/routes/workspace'), import('../../server/routes/job-facts'), import('../../server/utils/captureCoverageQueue'), import('firebase-admin'),
+    import('../../server/routes/public-live-jobs'),
   ]);
   // The app the product's firebaseAdmin module initialized against the emulators.
   const firebaseApp = admin.apps[0];
@@ -187,6 +188,8 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
   app.use('/api/robot-team-access', csrfProtection, robotTeamAccess);
   app.use('/api/admin/robot-team-access', csrfProtection, verifyFirebaseToken, requireAdminRole, adminRobotTeamAccess);
   app.use('/api/site-worlds', siteWorlds);
+  // The live jobs anyone may see on /jobs, read by the companies' page (owner, 2026-11-23).
+  app.use('/api/public/live-jobs', publicLiveJobs);
 
   // Runs the production entry point once and waits for its single pass to finish.
   // The queue walks pending reviews ten at a time from a stored cursor, so a job can need more

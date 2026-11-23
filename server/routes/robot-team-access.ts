@@ -1,9 +1,10 @@
 /**
  * The robot-team early-access application.
  *
- * Public and CSRF-protected. It records the application and rings the team's
- * Slack. A person grants access
- * in `/admin/robot-team-access`; nothing approves an application automatically.
+ * Public and CSRF-protected. It records the application, checks a new deployment
+ * company against the published rule (`utils/companyCheck.ts`: approved at once
+ * when the rule settles it) and rings the team's Slack with the result. A person
+ * decides everything else in `/admin/robot-team-access`, with one press.
  */
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
@@ -21,6 +22,7 @@ import { shownVersionsCount } from "../../client/src/lib/legalAcceptance";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
+import { checkNewCompanyApplication } from "../utils/companyCheck";
 import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
 
 const router = Router();
@@ -58,14 +60,18 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
     const { record, created, unchanged, notification } = await recordAccessApplication(application);
     // A decided record is left as it is, and the answer is the same as for a new application (G1).
     if (unchanged) return res.status(202).json({ status: "applied", notificationStatus: "not_requested" });
-    // Registration records interest; only the existing staff decision/invite routes grant admission.
-    const current = record;
-    const autoApproved = false;
     // No receipt by email: the page says the application was received and when the answer comes (owner, 2026-11-23).
+    // A new deployment company is checked against the published rule once, after this answer (owner direction
+    // 2026-11-23: approval in minutes, not days); the check rings Slack with what it found. A technology partner is
+    // never approved by the rule and gets the plain bell.
     if (created) {
-      void notifySlackRobotTeamAccessApplication({ ...current, autoApproved }).catch(() => undefined);
+      if (record.partnerRole === "technology") {
+        void notifySlackRobotTeamAccessApplication({ email: record.email, autoApproved: false }).catch(() => undefined);
+      } else {
+        void checkNewCompanyApplication(record).catch(() => undefined);
+      }
     }
-    return res.status(202).json({ status: current.status, notificationStatus: notification.status });
+    return res.status(202).json({ status: record.status, notificationStatus: notification.status });
   } catch (error) {
     logger.error({ error }, "Could not record a robot-team application");
     return res.status(503).json({ error: "The application could not be saved. Try again shortly.", code: "application_unavailable" });
