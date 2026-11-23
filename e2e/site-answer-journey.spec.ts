@@ -154,7 +154,8 @@ async function expectFirstLook(page: Page) {
   await expect(firstLook.getByText(/^On paper, the robot most likely to fit: .+\.$/)).toBeVisible({ timeout: 45_000 });
   await expect(firstLook.getByText("From published specifications and where it has been used.", { exact: true })).toBeVisible();
   await expect(firstLook).toContainText(/How sure are we\?/);
-  await expect(companies(page)).toContainText("Posted for approved deployment companies");
+  // Posted only once an approved company may see jobs (L1-N1); an earlier test in this run may have approved one.
+  await expect(companies(page)).toContainText(/Posted for approved deployment companies|no approved company can see it yet/);
   await expect(answer(page)).not.toContainText(/answered on|Introduce us|early trial|Simulation test/i);
   await expect(page.getByRole("button", { name: /share my job/i })).toHaveCount(0);
 }
@@ -184,6 +185,8 @@ test.describe("desktop", () => {
     await publishCompanyClip(request, requestId);
     await page.reload();
     await expectFirstLook(page);
+    // No company has applied yet in this run, so the job is not called posted (L1-N1).
+    await expect(companies(page)).toContainText("Your job is ready for deployment companies, but no approved company can see it yet.");
     expect((await jobRecord(request, requestId)).access).toMatchObject({ listed: true });
     await expect(companies(page)).toContainText("Viewed by 0 companies");
     await expect(companies(page)).toContainText("0 responses");
@@ -322,6 +325,7 @@ test.describe("desktop", () => {
     // 4. The site sees the answer under the alias, never the company's name, and nothing is introduced yet.
     await page.reload();
     const entries = companies(page);
+    await expect(entries).toContainText("Posted for approved deployment companies", { timeout: 30_000 });
     await expect(entries).toContainText("Viewed by 1 company", { timeout: 30_000 });
     await expect(entries).toContainText("1 response");
     const companyReply = entries.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });

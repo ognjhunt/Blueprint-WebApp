@@ -34,6 +34,28 @@ export type AutoSendResult =
 const isPullRequestPreview = () => process.env.IS_PULL_REQUEST?.trim().toLowerCase() === "true";
 
 
+/** Whether a robotTeamAccess row is one the automatic send would send to: a valid id and `companyMaySeeJobs`. */
+const companyRowMaySeeJobs = (row: { id: string; data: RobotTeamAccessRecord }) =>
+  /^[a-f0-9]{64}$/.test(row.id) && companyMaySeeJobs(row.data);
+
+const ANY_COMPANY_CACHE_MS = 60_000;
+let anyCompanyCache: { atMs: number; value: boolean } | null = null;
+/**
+ * Whether at least one approved deployment company may see jobs right now, by the same rule the automatic send uses.
+ * The site's job page says its job is posted only when this holds. A yes is cached for a minute, since every page view
+ * asks; a no is read again each time, so the page says posted as soon as a company accepts the Terms.
+ */
+export async function anyCompanyMaySeeJobs(nowMs = Date.now()): Promise<boolean> {
+  if (anyCompanyCache && nowMs - anyCompanyCache.atMs < ANY_COMPANY_CACHE_MS) return anyCompanyCache.value;
+  if (!db) return false;
+  const approved = await db.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved").get();
+  const value = approved.docs.some(doc => companyRowMaySeeJobs({ id: doc.id, data: (doc.data() ?? {}) as RobotTeamAccessRecord }));
+  anyCompanyCache = value ? { atMs: nowMs, value } : null;
+  return value;
+}
+/** For tests: forget the cached answer. */
+export function resetAnyCompanyMaySeeJobsCache() { anyCompanyCache = null; }
+
 /** Send one job to every approved deployment company, once. Idempotent: a second call finds the marker and does nothing. */
 export async function sendJobToApprovedCompanies(requestId: string, now: () => Date = () => new Date()): Promise<AutoSendResult> {
   if (!db) return { sent: false, reason: "store_unavailable" };
@@ -49,7 +71,7 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
       .map(doc => ({ id: doc.id, data: (doc.data() ?? {}) as RobotTeamAccessRecord }))
       // Only companies that may see jobs: approved, deployment, and the current Terms accepted. A company that has not
       // accepted gets no row, no email and is not counted; once it accepts, the job is in its library like any other.
-      .filter(row => /^[a-f0-9]{64}$/.test(row.id) && companyMaySeeJobs(row.data))
+      .filter(companyRowMaySeeJobs)
       .sort((a, b) => a.id.localeCompare(b.id));
     if (!companies.length) return { sent: false, reason: "no_companies" };
     // Reads first: each company's saved preference and suppression, and the site's notice row.

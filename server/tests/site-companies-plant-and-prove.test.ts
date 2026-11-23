@@ -124,6 +124,7 @@ async function introduce(alias: string, scope: "owner" | "film" = "owner",
 
 beforeEach(async () => {
   state.docs.clear();
+  (await import("../utils/jobAutoSend")).resetAnyCompanyMaySeeJobsCache();
   introductions.forced = null;
   seed();
   const app = express();
@@ -136,6 +137,13 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await new Promise<void>((resolve, reject) => server.close(error => (error ? reject(error) : resolve())));
+});
+
+describe("the site is told its job is posted only when a company may see it (L1-N1)", () => {
+  it("says no company can see it while no approved company has accepted the current Terms signed in", async () => {
+    for (const record of [NORTH, SOUTH]) state.docs.set(`robotTeamAccess/${sha(record.email)}`, { ...record, termsAcceptedByUid: null });
+    expect((await siteStatus()).body.answer.sharing).toEqual({ state: "visible", sharedAtIso: AT, noCompanyCanSee: true });
+  });
 });
 
 describe("the site's status payload, before and after an introduction", () => {
