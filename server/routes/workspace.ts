@@ -563,6 +563,13 @@ router.post(
     const input = z.object({
       requestId: id,
       siteLocation: z.string().trim().max(300).default(""),
+      // The picked place's structured parts, as the start form sends them (`siteLocationParts`); any other key is dropped.
+      siteLocationMetadata: z.object({
+        source: z.enum(["google_places", "photon"]),
+        city: z.string().trim().max(100).optional(),
+        state: z.string().trim().max(100).optional(),
+        country: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
+      }).optional(),
       taskStatement: z.string().trim().max(2000).default(""),
       siteTaskSpec: z.object({
         jobFrequency: z.string().trim().max(120).optional(),

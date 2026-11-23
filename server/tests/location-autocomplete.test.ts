@@ -86,7 +86,7 @@ describe("server-side Places autocomplete", () => {
   it("terminates the same billing session with structured country details only", async () => {
     provider({ addressComponents: [{ types: ["country", "political"], shortText: "de" }], otherDetails: "omit" });
     const response = await get("/country", { placeId: "ChIJfixture", sessionToken: token });
-    expect(await response.json()).toEqual({ countryCode: "DE" });
+    expect(await response.json()).toEqual({ countryCode: "DE", city: null, state: null });
     const [url, init] = providerFetch.mock.calls[0];
     expect(new URL(url).searchParams.get("sessionToken")).toBe(token);
     expect(init.headers["X-Goog-FieldMask"]).toBe("addressComponents");
@@ -94,7 +94,22 @@ describe("server-side Places autocomplete", () => {
 
   it("does not infer US when structured country is absent", async () => {
     provider({ addressComponents: [] });
-    expect(await (await get("/country", { placeId: "ChIJfixture", sessionToken: token })).json()).toEqual({ countryCode: null });
+    expect(await (await get("/country", { placeId: "ChIJfixture", sessionToken: token })).json()).toEqual({ countryCode: null, city: null, state: null });
+  });
+
+  it("gives the picked place's city and state, never its postal code or street", async () => {
+    provider({ addressComponents: [
+      { types: ["street_number"], longText: "12", shortText: "12" },
+      { types: ["route"], longText: "Main Street", shortText: "Main St" },
+      { types: ["locality", "political"], longText: "Austin", shortText: "Austin" },
+      { types: ["administrative_area_level_2", "political"], longText: "Travis County", shortText: "Travis County" },
+      { types: ["administrative_area_level_1", "political"], longText: "Texas", shortText: "TX" },
+      { types: ["country", "political"], longText: "United States", shortText: "US" },
+      { types: ["postal_code"], longText: "78701", shortText: "78701" },
+    ] });
+    const body = await (await get("/country", { placeId: "ChIJfixture", sessionToken: token })).json();
+    expect(body).toEqual({ countryCode: "US", city: "Austin", state: "Texas" });
+    expect(JSON.stringify(body)).not.toMatch(/Main|78701|Travis|12/);
   });
 
   it("supports a dedicated Places credential before the Gemini fallback", async () => {

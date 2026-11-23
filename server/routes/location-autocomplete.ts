@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { getConfiguredEnvValue } from "../config/env";
+import { googlePlaceParts } from "../../client/src/lib/placeParts";
 
 const router = Router();
 const sessionPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -102,9 +103,9 @@ router.get("/country", async (req, res) => {
     const query = new URLSearchParams({ sessionToken, languageCode: "en" });
     const result = await placesRequest(`places/${encodeURIComponent(placeId)}?${query}`, key, "addressComponents");
     if (!result.ok) { res.status(502).json({ code: result.code }); return; }
-    const country = result.payload.addressComponents?.find((part: { types?: string[] }) => part.types?.includes("country"));
-    const code = typeof country?.shortText === "string" ? country.shortText.trim().toUpperCase() : "";
-    res.json({ countryCode: /^[A-Z]{2}$/.test(code) ? code : null });
+    // The city, state and country only (`googlePlaceParts`): never the postal code or any street part.
+    const parts = googlePlaceParts(result.payload.addressComponents);
+    res.json({ countryCode: parts.country, city: parts.city, state: parts.state });
   } catch {
     res.status(502).json({ code: "provider_unavailable" });
   }
