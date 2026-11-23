@@ -434,12 +434,42 @@ describe("the company's page for one job (E3)", () => {
   it("lists a shared job publicly by its kind, country, day and simulation state only", async () => {
     const { listPublicLiveJobs } = await import("../utils/taskBrowse");
     const jobs = await listPublicLiveJobs();
-    expect(jobs).toEqual([{ kind: "Palletize cartons", country: "United States", postedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-      simulationReady: expect.any(Boolean) }]);
+    expect(jobs).toEqual([{ ref: expect.stringMatching(/^l-[a-f0-9]{32}$/), kind: "Palletize cartons", kindKey: "palletizing",
+      country: "United States", postedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), simulationReady: expect.any(Boolean) }]);
     const text = JSON.stringify(jobs);
     expectNoSiteIn("the public live jobs", text);
     expect(text).not.toContain(ID);
     expect(text).not.toMatch(/Stack 12 kg|pallet\. Call|\[removed\]/);
+  });
+
+  // Owner, 2026-11-23: a tap on a public live job opens it for an approved company, and asks anyone else to apply.
+  it("opens a public live job's reference as the job for an approved company only, and never names the job's id", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    const [job] = await listPublicLiveJobs();
+    const open = async (record: { email: string }) => {
+      const response = await realFetch(`${base}/api/site-worlds/jobs/${job.ref}`, { headers: signIn(record) });
+      return { status: response.status, body: await response.json() as Record<string, any> };
+    };
+    const north = await open(NORTH);
+    expect(north.status).toBe(200);
+    expect(north.body.item.id).toBe(ID);
+    expect((await open(PENDING)).status).toBe(404);
+    expect((await realFetch(`${base}/api/site-worlds/jobs/${job.ref}`)).status).toBe(404);
+    // A reference no listed job has, and a job that left the list, open nothing.
+    const other = await realFetch(`${base}/api/site-worlds/jobs/l-${"0".repeat(32)}`, { headers: signIn(NORTH) });
+    expect(other.status).toBe(404);
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    state.docs.set(`inboundRequests/${ID}`, { ...record, capture_rights: { ...(record.capture_rights ?? {}), consent_revoked: true } });
+    expect((await open(NORTH)).status).toBe(404);
+  });
+
+  it("names a public live job by the video reading's kind when the category says less", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    patchJob({ walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "transport", object: "linen cart" } } });
+    const [job] = await listPublicLiveJobs();
+    // The reading disagrees with the keyword category, so its kind is said; never its object.
+    expect(job).toMatchObject({ kind: "Moving things between places", kindKey: "transport" });
+    expect(JSON.stringify(job)).not.toMatch(/linen/);
   });
 
   it("lists nothing publicly for a job companies cannot see", async () => {
@@ -564,6 +594,38 @@ describe("the company's page for one job (E3)", () => {
     expect(replaced.questionId).not.toBe(first.questionId);
     expect(replaced.state).toBe("open");
     expect(outbox().filter(row => row.kind === "site_reply_reminder")).toHaveLength(0);
+  });
+
+  // Owner, 2026-11-23 ("yes build it this way"): an application at a glance, with an optional estimate before a visit.
+  it("shows the site an application's charging, estimate, similar jobs and visit note, and never in an email", async () => {
+    const glance = { chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 }, similarJobs: "6_20",
+      visitMustConfirm: `Conveyor height at the end of the line. Call ${NORTH.email}.`, startWindow: "within_month" };
+    expect((await answer(NORTH, { state: "interested", details: glance })).status).toBe(200);
+    await deliverOutbox({ limit: 50 });
+    const entry = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(entry).toMatchObject({ details: { chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 },
+      similarJobs: "6_20", startWindow: "within_month" } });
+    // The company's words lose its contact details, as its reason does.
+    expect(entry?.kind === "answered" && entry.details?.visitMustConfirm).toMatch(/^Conveyor height at the end of the line\. Call \[removed\]\.$/);
+    // No email to the site carries the estimate or the way of charging.
+    for (const row of outbox()) expect(`${row.subject} ${row.body}`).not.toMatch(/\$|12,000|subscription/i);
+    // Under the earlier line the company never agreed the site sees an estimate: it is left out, the rest stays.
+    const ref = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    state.docs.set(ref, { ...(state.docs.get(ref) as Record<string, any>), statementVersion: "company-response-2026-11-23" });
+    const older = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(older?.kind === "answered" && older.details?.estimate).toBeFalsy();
+    expect(older).toMatchObject({ details: { chargeModel: "subscription", similarJobs: "6_20" } });
+  });
+
+  it("keeps the application's fields only with an application, and refuses an estimate it cannot read", async () => {
+    const glance = { chargeModel: "per_hour", estimate: { lowUsd: 30, highUsd: 45 }, similarJobs: "1_5" };
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How tall is the pallet?", details: glance })).status).toBe(200);
+    const stored = state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>;
+    expect(stored.details ?? {}).not.toHaveProperty("estimate");
+    expect(stored.details ?? {}).not.toHaveProperty("chargeModel");
+    for (const details of [{ estimate: { lowUsd: 30, highUsd: 45 } }, { chargeModel: "undecided", estimate: { lowUsd: 30, highUsd: 45 } },
+      { chargeModel: "per_hour", estimate: { lowUsd: 45, highUsd: 30 } }, { chargeModel: "per_hour", estimate: { lowUsd: 0.5, highUsd: 30 } }])
+      expect((await answer(SOUTH, { state: "interested", details })).status).toBe(400);
   });
 
   it("closes a reply window with no email when the question was answered or changed first", async () => {
@@ -1338,8 +1400,9 @@ describe("review findings (must-fix and should-fix)", () => {
   });
 
   it("must-fix 5: the consent line names both answers, and the company's email states its own stored answer", async () => {
-    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site sees your company's name and website with your answer. If you apply or "
-      + "answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs.");
+    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site sees your company's name and website with your answer, and any estimate you "
+      + "give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we "
+      + "give the site your contact details, and give you theirs.");
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
     await interested(SOUTH);

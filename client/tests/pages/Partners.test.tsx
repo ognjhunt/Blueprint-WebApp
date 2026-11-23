@@ -7,7 +7,7 @@ describe("the page for deployment companies", () => {
   it("explains the offer and gives new and approved companies their own next step", () => {
     render(<Partners />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Find jobs for the robots you deploy.");
-    expect(screen.getByText(/When a site asks to meet, we introduce you/)).toBeVisible();
+    expect(screen.getByText(/Apply to the ones you can do; when a site accepts you, we introduce you both\./)).toBeVisible();
     expect(screen.getByText(/Review real jobs, each with the site's video and description\./)).toBeVisible();
     expect(screen.getByRole("link", { name: "See jobs" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.getByRole("form", { name: "Deployment company application" })).toBeVisible();

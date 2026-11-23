@@ -18,6 +18,7 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
+import { CHARGE_MODELS, ESTIMATE_MAX_USD, SIMILAR_JOBS, VISIT_NOTE_LIMIT } from "../../client/src/lib/companyResponses";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, TESTED_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
@@ -41,7 +42,14 @@ const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
     verified: z.string().trim().min(1).max(COMPANY_QUESTION_LIMIT).optional(),
     question: z.string().trim().min(4).max(COMPANY_QUESTION_LIMIT).optional(),
     startWindow: z.enum(COMPANY_START_WINDOWS).optional(),
-  }).strict().optional(),
+    // An application at a glance (owner, 2026-11-23): how the company charges, an optional estimate before a site visit
+    // in whole US dollars (never a quote), how many similar jobs it has done, and what a visit must confirm.
+    chargeModel: z.enum(CHARGE_MODELS).optional(),
+    estimate: z.object({ lowUsd: z.number().int().min(1).max(ESTIMATE_MAX_USD), highUsd: z.number().int().min(1).max(ESTIMATE_MAX_USD) })
+      .strict().refine(value => value.lowUsd <= value.highUsd).optional(),
+    similarJobs: z.enum(SIMILAR_JOBS).optional(),
+    visitMustConfirm: z.string().trim().min(1).max(VISIT_NOTE_LIMIT).optional(),
+  }).strict().refine(value => !value.estimate || (value.chargeModel !== undefined && value.chargeModel !== "undecided")).optional(),
   // The line the company saw under the form (E5); stored on the answer.
   statementVersion: z.literal(COMPANY_RESPONSE_STATEMENT_VERSION) }).strict();
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
@@ -72,7 +80,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
         return res.status(409).json({ error: "This job has no simulation to test yet." });
     }
     const row = { state: input.data.state, inputs: input.data.inputs, statementVersion: input.data.statementVersion,
-      ...(input.data.details && input.data.state !== "declined" ? { details: input.data.details } : {}),
+      ...(input.data.details && input.data.state !== "declined" ? { details: applicationDetailsFor(input.data.state, input.data.details) } : {}),
       email: user.email.toLowerCase(), company: access.company, submittedBy: user.uid,
       recordedBy: "company" as const, updatedAtIso: new Date().toISOString() };
     const companyId = accessRecordId(user.email);
@@ -107,6 +115,13 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
 });
 
+/** The application's own fields are kept only with an application (Apply or Tested it: can do); the rest as given. */
+function applicationDetailsFor(state: CompanyResponseState, details: Record<string, unknown>): Record<string, unknown> {
+  if (INTRODUCIBLE_RESPONSE_STATES.includes(state)) return details;
+  const { chargeModel: _charge, estimate: _estimate, similarJobs: _similar, visitMustConfirm: _visit, ...rest } = details;
+  return rest;
+}
+
 /** After an answer, one sentence saying what happens next. */
 function answerNextStep(state: CompanyResponseState): string {
   if (INTRODUCIBLE_RESPONSE_STATES.includes(state))
@@ -123,7 +138,11 @@ router.get("/jobs/:taskId", async (req, res) => {
     const { access, viewer } = await companyViewerForRequest(req);
     if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed || !viewer) return res.status(404).json({ error: "This job is not available.", access });
-    const page = await loadCompanyJobPage(String(req.params.taskId), { companyId: viewer.companyId });
+    // A public live job's reference (`publicLiveJobRef`) opens its job for an approved company, and only for one.
+    const asked = String(req.params.taskId);
+    const { PUBLIC_LIVE_JOB_REF, resolvePublicLiveJobRef } = await import("../utils/taskBrowse");
+    const taskId = PUBLIC_LIVE_JOB_REF.test(asked) ? await resolvePublicLiveJobRef(asked) : asked;
+    const page = taskId ? await loadCompanyJobPage(taskId, { companyId: viewer.companyId }) : null;
     if (!page) return res.status(404).json({ error: "This job is not available.", access });
     if (!viewer.staff) await recordCompanyJobView(page.id, viewer.companyId);
     return res.json({ item: page, access });

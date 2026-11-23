@@ -44,6 +44,8 @@ function annexRow(label: string): string {
 // website with each answer and its reason, with its contact details taken out; the site gets the contact details only
 // when it accepts the company, and an answer given before November 23, 2026 stays under an alias. The other promises
 // stay word for word.
+// Terms 2026-11-23.3 (owner, 2026-11-23: "yes build it this way"): two sentences on the estimate a company may give with
+// its answer; the Privacy Policy keeps 2026-11-23.2, and every promise below stays word for word on both pages.
 const PROMISES = {
   sharing: "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.",
   contacts: "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.",
@@ -110,6 +112,19 @@ describe("a company's name", () => {
     expect(rolePrivacyAnnex.find(role => role.title === "Deployment companies")?.body).toContain(PROMISES.companyApplication);
     expect(termsText).toContain(PROMISES.companyApplication);
     expect(termsText).toContain("A deployment company's answer reaches you with its name and website, with its contact details taken out. An answer given before November 23, 2026 reaches you under an alias.");
+  });
+});
+
+// Terms 2026-11-23.3: a deployment company may give an estimate with its answer. The Terms tell the site, beside how an
+// answer reaches it, that the estimate is the company's own, given before a site visit, not a quote, and that Blueprint
+// does not check or guarantee it; they tell the company, beside what a site sees of its answer, that the site sees it as
+// an estimate before a site visit, not a quote. Blueprint states no price of its own.
+describe("a company's estimate", () => {
+  it("is the company's own, before a site visit and not a quote, in the section for sites and the section for companies", () => {
+    const items = (number: string) => termsSections.find(section => section.title.startsWith(number))?.items ?? [];
+    expect(items("3.").join("\n")).toContain("An answer given before November 23, 2026 reaches you under an alias. An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it.");
+    expect(items("4.")).toContain(`${PROMISES.companyApplication} If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.`);
+    expect(privacyText).not.toMatch(/not a quote/);
   });
 });
 

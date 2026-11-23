@@ -52,6 +52,13 @@ const ALLOWED: readonly Allowance[] = [
     sentence: /^Blueprint's total liability for all claims .* and \$100\.$/, reason: "the Terms' liability cap, not a price" },
   { file: /^client\/src\/pages\/Privacy\w*\.tsx$/, rule: "a payment element", sentence: /^Stripe$/,
     reason: "the processor the privacy policy names for payment records made before the free beta" },
+  // Owner, 2026-11-23 ("yes build it this way"): an application says how the company charges for its own work, with an
+  // optional estimate before a site visit. Its options name the company's way of charging, never a Blueprint price; an
+  // estimate's amounts are the company's own numbers, shown only on the site's job page and labelled "not a quote".
+  { file: /^client\/src\/lib\/companyResponses\.ts$/, rule: "a rate", sentence: /^Monthly subscription$/,
+    reason: "how a deployment company charges for its own work, chosen by the company; not a Blueprint price" },
+  { file: /^client\/src\/lib\/companyResponses\.ts$/, rule: "a payment element", sentence: /^Monthly subscription$/,
+    reason: "how a deployment company charges for its own work, chosen by the company; not a Blueprint price (payment word)" },
 ];
 
 function filesUnder(dir: string): string[] {

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { COMPANY_APPLICATION_VERSION } from "@/lib/legalAcceptance";
+import { COMPANY_APPLICATION_VERSION, COMPANY_ESTIMATE_TERMS_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyJobPage } from "@/types/taskBrowse";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
@@ -17,7 +17,7 @@ const linkSignIn = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/companySignInLink", async (actual) => ({ ...(await actual<typeof import("@/lib/companySignInLink")>()),
   signInWithCompanyLink: linkSignIn }));
 
-const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK } = await import("@/pages/CompanyJob");
+const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK, typedEstimate } = await import("@/pages/CompanyJob");
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
@@ -108,6 +108,53 @@ describe("the company's page for one job", () => {
     expect(await screen.findByText("The site has not replied yet. Its reply date was November 15, 2026, and we reminded it.")).toBeInTheDocument();
   });
 
+  it("sends an application at a glance, with an optional estimate in the unit of how the company charges", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Your response" });
+    fireEvent.click(within(form).getByLabelText("Apply"));
+    const glance = within(form).getByRole("group", { name: "Your application at a glance" });
+    fireEvent.change(within(glance).getByLabelText("How you charge"), { target: { value: "subscription" } });
+    expect(within(glance).getByText("Estimate, in US dollars a month")).toBeVisible();
+    fireEvent.change(within(glance).getByLabelText("From"), { target: { value: "12,000" } });
+    fireEvent.change(within(glance).getByLabelText("To"), { target: { value: "$18000" } });
+    fireEvent.change(within(glance).getByLabelText("Similar jobs you have done"), { target: { value: "6_20" } });
+    fireEvent.change(within(glance).getByLabelText("What a visit must confirm"), { target: { value: "Conveyor height." } });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved." }) });
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
+    expect(JSON.parse(String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body)).details).toEqual({
+      chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 }, similarJobs: "6_20", visitMustConfirm: "Conveyor height." });
+  });
+
+  // Review of #1426: an estimate hidden by changing how the company charges never blocks the application.
+  it("leaves out an estimate hidden by changing how the company charges, and still applies", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Your response" });
+    fireEvent.click(within(form).getByLabelText("Apply"));
+    const glance = within(form).getByRole("group", { name: "Your application at a glance" });
+    fireEvent.change(within(glance).getByLabelText("How you charge"), { target: { value: "per_hour" } });
+    fireEvent.change(within(glance).getByLabelText("From"), { target: { value: "40" } });
+    fireEvent.change(within(glance).getByLabelText("To"), { target: { value: "30" } });
+    fireEvent.change(within(glance).getByLabelText("How you charge"), { target: { value: "undecided" } });
+    expect(within(glance).queryByLabelText("From")).toBeNull();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved." }) });
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
+    expect(JSON.parse(String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body)).details).toEqual({ chargeModel: "undecided" });
+  });
+
+  it("reads an estimate as whole dollars, low to high, and refuses one it cannot read", () => {
+    expect(typedEstimate("per_hour", "", "")).toBeNull();
+    expect(typedEstimate("per_hour", "30", "")).toEqual({ lowUsd: 30, highUsd: 30 });
+    expect(typedEstimate("purchase", "$120,000", "150000")).toEqual({ lowUsd: 120000, highUsd: 150000 });
+    expect(typedEstimate("purchase", "150000", "120000")).toBe("invalid");
+    expect(typedEstimate("per_hour", "12.5", "20")).toBe("invalid");
+    expect(typedEstimate("undecided", "10", "20")).toBe("invalid");
+    expect(typedEstimate(undefined, "10", "20")).toBe("invalid");
+  });
+
   it("names the answer just saved, never the one it replaced", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ myAnswer: { state: "needs_something",
       inputs: "A second gripper.", updatedAtIso: "2026-11-12T10:00:00.000Z", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION } }) }) });
@@ -158,13 +205,34 @@ describe("the company's page for one job", () => {
   it("signs a visitor back into this job and fetches nothing while signed out", async () => {
     auth.currentUser = null;
     render(<CompanyJob />);
-    expect(await screen.findByRole("heading", { name: "Sign in to see this job" })).toBeInTheDocument();
+    // A tap on a public live job (owner, 2026-11-23): what the job holds, the one step to see it, and the way back here.
+    expect(await screen.findByRole("heading", { name: "Apply to see this job" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
     const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
+    // The four-field application is right here, pointed back at this job (no extra page to find).
+    expect(main.getByRole("form", { name: "Deployment company application" })).toBeInTheDocument();
+    expect(within(main.getByRole("list", { name: "What an approved company sees" })).getAllByRole("listitem")).toHaveLength(4);
+    expect(main.getByText(/brings you back to this job/)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
     expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
-    expect(main.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends the application from a job's gated page with that job to return to", async () => {
+    auth.currentUser = null;
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Deployment company application" });
+    await waitFor(() => expect(within(form).getByLabelText("Your name")).toBeEnabled());
+    fireEvent.change(within(form).getByLabelText("Your name"), { target: { value: "Ada Lovelace" } });
+    fireEvent.change(within(form).getByLabelText("Work email"), { target: { value: "ada@arm.example" } });
+    fireEvent.change(within(form).getByLabelText("Company"), { target: { value: "Arm Co" } });
+    fireEvent.change(within(form).getByLabelText("Company website"), { target: { value: "https://arm.example" } });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ status: "applied", notificationStatus: "queued" }) });
+    fireEvent.submit(form);
+    await screen.findByText("Your application is saved.");
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/api/robot-team-access/apply");
+    expect(JSON.parse(String(init.body))).toMatchObject({ returnToJob: "/jobs/job-1", email: "ada@arm.example" });
   });
 
   it("says the job is not available when the server refuses it", async () => {
@@ -258,7 +326,7 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("Two shifts", { selector: ".opportunity-meta span" })).toBeInTheDocument();
     const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(path).toBe("/api/robot-team-access/accept-terms");
-    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: COMPANY_APPLICATION_VERSION, privacyVersion: COMPANY_APPLICATION_VERSION });
+    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: COMPANY_ESTIMATE_TERMS_VERSION, privacyVersion: COMPANY_APPLICATION_VERSION });
   });
 });
 
@@ -288,7 +356,7 @@ describe("opening a job from its email", () => {
     auth.currentUser = null;
     linkSignIn.mockRejectedValue(new Error("This sign-in link no longer works."));
     render(<CompanyJob />);
-    expect(await screen.findByText("Sign in to see this job")).toBeTruthy();
+    expect(await screen.findByText("Apply to see this job", { selector: "h1" })).toBeTruthy();
     expect(screen.getByRole("status").textContent).toBe("This sign-in link no longer works. Ask for a new one on the sign-in page.");
     expect(screen.getAllByRole("link", { name: "Sign in" }).some(link => link.getAttribute("href")?.startsWith("/sign-in"))).toBe(true);
   });

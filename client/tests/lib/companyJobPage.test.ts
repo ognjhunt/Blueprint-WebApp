@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VISIT_MUST_CONFIRM, answerSpeedInWords, fitSummary, jobHeadline, rateInWords, visitMustConfirm } from "@/lib/companyJobPage";
+import { VISIT_MUST_CONFIRM, answerSpeedInWords, fitSummary, jobHeadline, publicJobKind, rateInWords, visitMustConfirm } from "@/lib/companyJobPage";
 import { READER_JOB_KINDS } from "@/lib/jobFacts";
 
 /**
@@ -66,6 +66,21 @@ describe("what a visit must confirm", () => {
     expect(visitMustConfirm(null, "Other")).toBe(VISIT_MUST_CONFIRM.other);
     // The reading's kind wins over the keyword match.
     expect(visitMustConfirm("transport", "Palletizing")).toBe(VISIT_MUST_CONFIRM.transport);
+  });
+});
+
+describe("a public live job's kind", () => {
+  it("keeps a specific category the reading agrees with, and otherwise says the reading's kind in fixed words", () => {
+    expect(publicJobKind({ taskFamily: "Palletizing", categoryTitle: "Palletize items", readerKind: "palletizing",
+      categoryKinds: ["palletizing"] })).toEqual({ kind: "Palletize items", kindKey: "palletizing" });
+    expect(publicJobKind({ taskFamily: "Other", categoryTitle: "Automation job", readerKind: "pick_and_place" }))
+      .toEqual({ kind: "Pick and place job", kindKey: "pick_and_place" });
+    expect(publicJobKind({ taskFamily: "Palletizing", categoryTitle: "Palletize items", readerKind: "transport",
+      categoryKinds: ["palletizing"] })).toEqual({ kind: "Moving things between places", kindKey: "transport" });
+    expect(publicJobKind({ taskFamily: "Machine tending", categoryTitle: "Load or unload a machine", readerKind: null }))
+      .toEqual({ kind: "Load or unload a machine", kindKey: "machine_tending" });
+    expect(publicJobKind({ taskFamily: "Other", categoryTitle: "Automation job", readerKind: null }))
+      .toEqual({ kind: "Automation job", kindKey: "other" });
   });
 });
 

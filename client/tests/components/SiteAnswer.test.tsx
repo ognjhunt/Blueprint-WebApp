@@ -679,6 +679,31 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByText("Reply")).toBeVisible();
   });
 
+  it("compares applicants side by side, with each estimate labelled as before a site visit and not a quote", () => {
+    const applied = { ...activity, entries: [
+      { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const, canIntroduce: true,
+        applicant: { name: "Northwind Robotics", website: "https://northwind.example" },
+        details: { chargeModel: "subscription" as const, estimate: { lowUsd: 12000, highUsd: 18000 }, similarJobs: "6_20" as const,
+          startWindow: "within_month" as const, visitMustConfirm: "Conveyor height." } },
+      { kind: "answered" as const, alias: "Company B", atIso: "2026-11-14T09:00:00.000Z", state: "interested" as const, canIntroduce: true },
+    ] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: applied }} />);
+    const table = within(companies()).getByRole("table", { name: "Compare applicants" });
+    expect(within(table).getAllByRole("row").map(row => row.textContent)).toEqual([
+      "ApplicantChargesEstimateSimilar jobs doneEarliest start",
+      "Northwind RoboticsMonthly subscription$12,000 to $18,000 a month6 to 20Within a month",
+      "Company BNot givenNot givenNot givenNot given"]);
+    expect(within(companies()).getByText(/Estimates are each company's own, before a site visit\. They are not quotes/)).toBeVisible();
+    // The card says the same, the estimate with its label.
+    expect(lines()[0]).toContain("Estimate$12,000 to $18,000 a month Estimate before a site visit. Not a quote.");
+    expect(lines()[0]).toContain("A visit must confirmConveyor height.");
+  });
+
+  it("shows no comparison for a single applicant", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);
+    expect(within(companies()).queryByRole("table")).toBeNull();
+  });
+
   it("lets the site mark a visit after an introduction, shows the date with Undo, and moves the tracker on", async () => {
     const introduced = { ...activity, introductions: { used: 1 }, entries: [
       { ...activity.entries[1], canIntroduce: false, introducedAtIso: "2026-11-14T09:00:00.000Z",

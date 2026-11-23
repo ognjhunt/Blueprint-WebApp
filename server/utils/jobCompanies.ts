@@ -37,7 +37,8 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
-  COMPANY_NAME_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, replyByIso, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
+  COMPANY_NAME_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, replyByIso,
+  CHARGE_MODELS, COMPANY_ESTIMATE_STATEMENT_VERSIONS, SIMILAR_JOBS, isApplicationEstimate, type CompanyReplyDetails, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
   type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
@@ -403,6 +404,23 @@ export function applicantShownToSite(answer: Data | null | undefined, company: D
  * not shown. The automatic send is one count line (`sent`), not one entry per company. In date order; a send before an
  * answer at the same instant.
  */
+/**
+ * An application at a glance, as the site may read it (owner, 2026-11-23): how the company charges, how many similar
+ * jobs it has done and what a visit must confirm (its identity taken out of those words), and the estimate only under a
+ * line that says the site sees it (`COMPANY_ESTIMATE_STATEMENT_VERSIONS`). Only for an application, never another answer.
+ */
+function applicationAtAGlance(answer: Data, identity: ReturnType<typeof knownCompanyIdentity>): Partial<CompanyReplyDetails> {
+  if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer.state)) return {};
+  const details = (answer.details && typeof answer.details === "object" ? answer.details : {}) as Data;
+  const chargeModel = CHARGE_MODELS.find(model => model === details.chargeModel);
+  const similarJobs = SIMILAR_JOBS.find(band => band === details.similarJobs);
+  const visit = typeof details.visitMustConfirm === "string" ? siteReasonOf({ ...answer, inputs: details.visitMustConfirm }, identity) : null;
+  const estimate = chargeModel && chargeModel !== "undecided" && COMPANY_ESTIMATE_STATEMENT_VERSIONS.includes(String(answer.statementVersion))
+    && isApplicationEstimate(details.estimate) ? { lowUsd: details.estimate.lowUsd, highUsd: details.estimate.highUsd } : null;
+  return { ...(chargeModel ? { chargeModel } : {}), ...(estimate ? { estimate } : {}), ...(similarJobs ? { similarJobs } : {}),
+    ...(visit ? { visitMustConfirm: visit } : {}) };
+}
+
 /** The site's own marks after an introduction: the dates it said a visit happened and a pilot was agreed. */
 function progressOf(intro: Data): { visitAtIso?: string; pilotAtIso?: string } | null {
   const raw = intro.progress && typeof intro.progress === "object" ? intro.progress as Data : {};
@@ -460,6 +478,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const details = answerWordsMayReachSite(response.data) ? {
       ...(verified ? { verified } : {}),
       ...(COMPANY_START_WINDOWS.some(window => window === startWindow) ? { startWindow } : {}),
+      ...applicationAtAGlance(response.data, identity),
     } : {};
     const applicant = applicantShownToSite(response.data, input.companies?.get(response.id));
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,

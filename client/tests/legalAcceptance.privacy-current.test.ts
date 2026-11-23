@@ -23,6 +23,8 @@ const DECIDE = "The Privacy Policy version changed. Decide in EARLIER_PRIVACY_VE
 // counted before it still count, and nobody is asked again. Privacy 2026-11-23.2 (a company applies; a site sees its
 // name and website, under the answer line the company answered under; owner, 2026-11-23) changes nothing for an
 // existing account: 2026-11-23.1 and every version that counted before it still count, and nobody is asked again.
+// Terms 2026-11-23.3 (an estimate a company gives is its own, not a quote; owner, 2026-11-23) leaves the Privacy Policy
+// at 2026-11-23.2: the same Privacy versions count beside it as beside Terms 2026-11-23.2.
 describe("Privacy versions that still count beside the current Terms", () => {
   it("is exactly the current version, 2026-11-23.1, 2026-11-21.1, 2026-11-19.1, 2026-11-17.1, 2026-11-13.1 and 2026-11-12.2", () => {
     expect(PRIVACY_VERSION, DECIDE).toBe(COMPANY_APPLICATION_VERSION);
@@ -34,7 +36,7 @@ describe("Privacy versions that still count beside the current Terms", () => {
 
   it("counts an acceptance of the current version, 2026-11-23.1, 2026-11-21.1, 2026-11-19.1, 2026-11-17.1, 2026-11-13.1 or 2026-11-12.2 beside a Terms version that counts, and no other", () => {
     const after = legalEffectiveAtMs(COMPANY_APPLICATION_VERSION) + 10 * 3_600_000;
-    for (const terms of [TERMS_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, "2026-11-12.2"]) {
+    for (const terms of [TERMS_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, "2026-11-12.2"]) {
       for (const privacy of [COMPANY_APPLICATION_VERSION, CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION,
         "2026-11-13.1", "2026-11-12.2"])
         expect(acceptedVersionsAreCurrent(terms, privacy, after), `${terms} ${privacy}`).toBe(true);

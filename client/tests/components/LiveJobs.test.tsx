@@ -19,6 +19,22 @@ describe("LiveJobs", () => {
     expect(screen.getByRole("link", { name: "Apply to see jobs" }).getAttribute("href")).toBe("#partner-application");
   });
 
+  // Owner, 2026-11-23: each row opens its job, with a picture for its kind in place of the site's own thumbnail.
+  it("makes each row with a reference one link to the job, and leaves a row without one as text", async () => {
+    const ref = `l-${"a".repeat(32)}`;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ jobs: [
+      { ref, kind: "Palletizing job", kindKey: "palletizing", country: "United States", postedOn: "2026-11-20", simulationReady: true },
+      { ref: "req-1", kind: "Pick and place job", kindKey: "pick_and_place", country: null, postedOn: "2026-11-18", simulationReady: false },
+    ] }), { status: 200 })));
+    render(<LiveJobs />);
+    const link = await screen.findByRole("link", { name: /Palletizing job/ });
+    expect(link.getAttribute("href")).toBe(`/jobs/${ref}`);
+    expect(link.textContent).toContain("See job");
+    expect(link.querySelector(".live-job-icon svg")).not.toBeNull();
+    // A value that is not a public reference (an id) is never made into a link.
+    expect(screen.queryByRole("link", { name: /Pick and place job/ })).toBeNull();
+  });
+
   it("shows nothing while there are no live jobs, or when the list cannot be read", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ jobs: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

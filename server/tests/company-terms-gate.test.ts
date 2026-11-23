@@ -8,8 +8,8 @@
  * reads are fakes. (The viewer gate itself, unmocked, is pinned in `robot-team-early-access.test.ts`.)
  */
 import express from "express";
-import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION }
-  from "../../client/src/lib/legalAcceptance";
+import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, COMPANY_ESTIMATE_TERMS_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION,
+  NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -378,6 +378,26 @@ describe("the application Terms and Privacy ask no approved company to agree aga
   it("a company that was already asked again is still asked", () => {
     expect(companyMaySeeJobs(record("2026-11-12.1", COMPANY_APPLICATION_VERSION) as never)).toBe(false);
     expect(companyMaySeeJobs(record(COMPANY_APPLICATION_VERSION, "2026-11-02.1") as never)).toBe(false);
+  });
+});
+
+describe("the estimate Terms ask no approved company to agree again", () => {
+  // Owner, 2026-11-23 ("yes build it this way"): Terms 2026-11-23.3 say that an estimate a company gives with its answer is
+  // its own, given before a site visit, and not a quote; the Privacy Policy keeps 2026-11-23.2. An estimate reaches a site
+  // only under the answer line it was given under, `company-response-2026-11-23.2`, not under the Terms (as a company's
+  // name does under `company-response-2026-11-23`), so every acceptance that let a company see jobs before still does.
+  const record = (termsVersion: string, privacyVersion: string) => ({ status: "approved", partnerRole: "deployment",
+    termsAcceptedByUid: "uid-company", termsAcceptance: { ...currentTermsAcceptance(), terms_version: termsVersion, privacy_version: privacyVersion } });
+  it("a company holding any acceptance that counted under Terms and Privacy 2026-11-23.2 keeps seeing jobs", () => {
+    for (const terms of ["2026-11-12.2", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, COMPANY_APPLICATION_VERSION,
+      COMPANY_ESTIMATE_TERMS_VERSION])
+      for (const privacy of ["2026-11-12.2", "2026-11-13.1", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION,
+        COMPANY_APPLICATION_VERSION])
+        expect(companyMaySeeJobs(record(terms, privacy) as never), `${terms} ${privacy}`).toBe(true);
+  });
+  it("a company that was already asked again is still asked", () => {
+    expect(companyMaySeeJobs(record("2026-11-12.1", COMPANY_APPLICATION_VERSION) as never)).toBe(false);
+    expect(companyMaySeeJobs(record(COMPANY_ESTIMATE_TERMS_VERSION, "2026-11-02.1") as never)).toBe(false);
   });
 });
 
