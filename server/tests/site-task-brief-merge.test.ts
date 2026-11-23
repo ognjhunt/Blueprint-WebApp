@@ -212,12 +212,13 @@ describe("naming an unnamed job", () => {
     await saveBrief(draftBrief({ requestId: REQUEST, captureMode: "self_capture", summary: PLACEHOLDER_TASK_SUMMARY, proposed: [] }));
     sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, {});
   }
-  it("names a placeholder brief and screens its task family", async () => {
+  // Owner direction 2026-11-23: a new brief's family is the Pipeline's reading, never a keyword guess.
+  it("names a placeholder brief and leaves its task family to the Pipeline's reading", async () => {
     await placeholderBrief();
     const named = await nameUnnamedTask({ requestId: REQUEST,
       summary: "Pick up the glass vase and place it at the other end of the table" });
     expect(named).toMatchObject({ summary: "Pick up the glass vase and place it at the other end of the table",
-      taskFamily: "rigid_pick_and_place" });
+      taskFamily: "general_task", taskFamilyFromReading: true });
     expect(await getBrief(REQUEST)).toMatchObject({ summary: named!.summary, confirmedAtIso: null });
   });
   it("never replaces a named job, touches a confirmed brief, or accepts an empty line", async () => {

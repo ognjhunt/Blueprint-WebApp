@@ -111,6 +111,13 @@ export interface SiteTaskBriefRecord {
   summary: string;
   /** Native preparation hint; general_task keeps unresolved tasks out of narrower scorers. */
   taskFamily?: "rigid_pick_and_place" | "articulated_open_close" | "general_task";
+  /**
+   * Set on every brief started from 2026-11-23 (owner direction that day: no keyword match decides what the job is).
+   * Its task family is never guessed from the site's sentence: it is `general_task`, so the Pipeline reads the whole
+   * job from the site's words and its video itself (its word-checked task semantics) and chooses the route. A brief
+   * without it keeps the family its preparation was sealed with, so no running job's task context changes.
+   */
+  taskFamilyFromReading?: true;
   /** What we read, and what each reading rests on. */
   proposed: ProposedGateAnswer[];
   /**
@@ -184,6 +191,15 @@ export class BriefSummaryRequiredError extends Error {
  * submission and suggest a question; whether a site is ready for a capture or a
  * sale follows explicit rules, or nobody can say afterwards why it was.
  */
+/**
+ * The task family a brief records: `general_task` for a brief the Pipeline's reading decides
+ * (`taskFamilyFromReading`), otherwise the keyword screen's kind as before.
+ */
+export function briefTaskFamily(brief: Pick<SiteTaskBriefRecord, "taskFamilyFromReading">,
+  text: { summary: string; successDefinition?: string | null }): NonNullable<SiteTaskBriefRecord["taskFamily"]> {
+  return brief.taskFamilyFromReading ? "general_task" : screenTaskScope(text).kind ?? "general_task";
+}
+
 export function draftBrief(params: {
   requestId: string;
   summary: string;
@@ -201,7 +217,8 @@ export function draftBrief(params: {
   return {
     requestId: params.requestId,
     summary: params.summary,
-    taskFamily: screenTaskScope({ summary: params.summary }).kind ?? "general_task",
+    taskFamily: "general_task",
+    taskFamilyFromReading: true,
     proposed: params.proposed.filter((answer) =>
       binding.some((field) => field.id === answer.fieldId),
     ),
@@ -266,7 +283,7 @@ export function briefConfirmedAtSubmission(params: {
   });
   return {
     ...draft,
-    taskFamily: screenTaskScope({ summary, successDefinition: params.successCriteria?.successDefinition }).kind ?? "general_task",
+    taskFamily: briefTaskFamily(draft, { summary, successDefinition: params.successCriteria?.successDefinition }),
     draftedAtIso: params.submittedAtIso,
     confirmedAtIso: params.submittedAtIso,
     confirmedBy: params.confirmedBy,
@@ -527,7 +544,7 @@ export async function mergeBriefProposals(params: {
       unresolved: unresolvedGates(brief.captureMode, proposed),
       draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
     };
-    next.taskFamily = screenTaskScope({ summary: next.summary, successDefinition: next.successCriteria?.successDefinition }).kind ?? "general_task";
+    next.taskFamily = briefTaskFamily(next, { summary: next.summary, successDefinition: next.successCriteria?.successDefinition });
     const grant = requestSnapshot.data()?.website_scene_sponsorship;
     if (grant && await movesGrantedTask(transaction, params.requestId, requestSnapshot.data()!, grant, brief, next)) {
       if (sourceNote) transaction.set(sourceNote.ref, { ...sourceNote.value, state: "grant_review_required" });
@@ -598,7 +615,7 @@ export async function reviseBriefTask(params: {
       ...brief,
       summary,
       successCriteria,
-      taskFamily: screenTaskScope({ summary, successDefinition: successCriteria?.successDefinition }).kind ?? "general_task",
+      taskFamily: briefTaskFamily(brief, { summary, successDefinition: successCriteria?.successDefinition }),
       confirmedAtIso: null,
       confirmedBy: null,
       lastTaskEdit: { atIso, by: params.revisedBy, clearedConfirmedAtIso: brief.confirmedAtIso ?? null },
@@ -725,7 +742,7 @@ export async function confirmBrief(params: {
   });
   const { sources, scope } = projection;
 
-  confirmed.taskFamily = scope.kind ?? "general_task";
+  confirmed.taskFamily = confirmed.taskFamilyFromReading ? "general_task" : scope.kind ?? "general_task";
 
   const requestedScope = { summary, answers, unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null, pilotIntent: confirmed.pilotIntent ?? null };
   const priorScope = { summary: brief.summary, answers: brief.operatorAnswers ?? {}, unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null, pilotIntent: brief.pilotIntent ?? null };

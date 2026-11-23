@@ -586,7 +586,8 @@ describe("a brief from before confirm-at-upload keeps its behaviour", () => {
     const draft = structuredClone(doc(`siteTaskBriefs/${jobId}`));
     expect(draft).toMatchObject({ confirmedAtIso: null, confirmedBy: null });
     expect(Object.keys(draft).sort()).toEqual(["captureMode", "confirmedAtIso", "confirmedBy", "draftedAtIso", "draftedFrom",
-      "operatorAnswers", "operatorUnknown", "proposed", "requestId", "successCriteria", "summary", "taskFamily", "unresolved"]);
+      "operatorAnswers", "operatorUnknown", "proposed", "requestId", "successCriteria", "summary", "taskFamily", "taskFamilyFromReading",
+      "unresolved"]);
     // Unconfirmed, a follow-up answer fills its success target exactly as before, and confirms nothing.
     const answer = (value: string) => fetch(`${base}/api/site-task-brief/${token}/follow-up`, { method: "POST",
       headers: { "content-type": "application/json" }, body: JSON.stringify({ questionId: "success_target", answer: value }) });

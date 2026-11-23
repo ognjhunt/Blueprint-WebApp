@@ -70,7 +70,7 @@ describe("naming the job in one line", () => {
     const named = await name("Pick up the glass vase and place it at the other end of the table");
     expect(named.status).toBe(200);
     expect((await named.json()).brief.summary).toBe("Pick up the glass vase and place it at the other end of the table");
-    expect(await getBrief("req-1")).toMatchObject({ taskFamily: "rigid_pick_and_place", confirmedAtIso: null });
+    expect(await getBrief("req-1")).toMatchObject({ taskFamily: "general_task", taskFamilyFromReading: true, confirmedAtIso: null });
     expect((await name("Move the bins")).status).toBe(409);
     expect((await read()).taskStatementNeeded).toBe(false);
   });
