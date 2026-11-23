@@ -4,7 +4,7 @@
  * passed, and the physical pilot is agreed between the site and the team.
  */
 import { describe, expect, it, vi } from "vitest";
-import { LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "@/lib/legalAcceptance";
+import { CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "@/lib/legalAcceptance";
 
 import {
   betaRetentionSchedule,
@@ -21,6 +21,7 @@ import {
   OLDER_PRIVACY_VERSION,
   OLDER_TERMS_VERSION,
   PRIOR_PRIVACY_VERSION,
+  PAST_PRIVACY_VERSION,
   PRIOR_TERMS_VERSION,
   PREVIOUS_PRIVACY_VERSION,
   PREVIOUS_TERMS_VERSION,
@@ -77,19 +78,23 @@ describe("terms for the free beta", () => {
     // on 2026-11-19 (Terms and Privacy 2026-11-19.1), effective at once; it only narrows, so earlier acceptances keep
     // counting. Owner, 2026-11-21: the launch-copy legal edits approved (Terms and Privacy 2026-11-21.1), effective at
     // once; they correct the documents to what the Service already does and ask nothing new, so earlier acceptances keep
-    // counting. The version published ahead for November 25 never took effect.
+    // counting. The version published ahead for November 25 never took effect. Owner, 2026-11-23: "yes to the privacy
+    // wording" (Privacy 2026-11-23.1, one sentence: a company sees the city, state and country of a job), effective at
+    // once; the Terms keep 2026-11-21.1 and earlier acceptances keep counting.
     expect(TERMS_VERSION).toBe(LAUNCH_COPY_VERSION);
-    expect(PRIVACY_VERSION).toBe(LAUNCH_COPY_VERSION);
+    expect(PRIVACY_VERSION).toBe(CITY_STATE_PRIVACY_VERSION);
     expect(ANNOUNCED_SUPERSEDED_VERSION).toBe("2026-11-25.1");
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION]);
-    expect([OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual([NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION]);
-    expect([FORMER_TERMS_VERSION, FORMER_PRIVACY_VERSION]).toEqual(["2026-11-12.2", "2026-11-13.1"]);
-    expect([PRIOR_TERMS_VERSION, PRIOR_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-12.2"]);
-    const now = legalEffectiveAtMs(LAUNCH_COPY_VERSION) + 10 * 3_600_000;
+    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION]);
+    expect([OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual([NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION]);
+    expect([FORMER_TERMS_VERSION, FORMER_PRIVACY_VERSION]).toEqual(["2026-11-12.2", NO_FACE_BLUR_VERSION]);
+    expect([PRIOR_TERMS_VERSION, PRIOR_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-13.1"]);
+    expect(PAST_PRIVACY_VERSION).toBe("2026-11-12.2");
+    const now = legalEffectiveAtMs(CITY_STATE_PRIVACY_VERSION) + 10 * 3_600_000;
     // Accepted before this release: still current, nothing is asked again.
     for (const [termsVersion, privacyVersion] of [["2026-11-12.2", "2026-11-12.2"], ["2026-11-12.2", "2026-11-13.1"],
       ["2026-11-12.2", NO_FACE_BLUR_VERSION], [NO_FACE_BLUR_VERSION, "2026-11-13.1"], [NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION],
-      [NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION], [LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION]])
+      [NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION], [LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION],
+      [LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION]])
       expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, now), `${termsVersion} ${privacyVersion}`).toBe(true);
     // What was already asked again stays asked: Terms 2026-11-12.1 and older, with any Privacy version.
     expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-12.1", now)).toBe(false);
@@ -99,8 +104,8 @@ describe("terms for the free beta", () => {
     expect(acceptedVersionsAreCurrent("2026-11-12.2", "2026-11-02.1", now)).toBe(false);
     expect(acceptedVersionsAreCurrent(LAUNCH_COPY_VERSION, "2026-11-12.1", now)).toBe(false);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 21, 2026");
-    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 21, 2026");
-    expect(legalUpdatePending(legalEffectiveAtMs(LAUNCH_COPY_VERSION))).toBe(false);
+    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 23, 2026");
+    expect(legalUpdatePending(legalEffectiveAtMs(CITY_STATE_PRIVACY_VERSION))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {

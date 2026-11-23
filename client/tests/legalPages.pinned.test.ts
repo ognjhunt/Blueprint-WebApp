@@ -12,8 +12,8 @@ import { previousTermsSections as terms17Sections } from "@/pages/TermsOlder";
 import { previousTermsSections as terms122Sections } from "@/pages/TermsFormer";
 import { previousTermsSections as terms121Sections } from "@/pages/TermsPrior";
 import {
-  ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, EARLIER_TERMS_VERSION, FORMER_PRIVACY_VERSION, FORMER_TERMS_VERSION, LAUNCH_COPY_VERSION,
-  LEGAL_PAGE_DIGESTS, LEGAL_PAGE_DIGEST_VERSIONS, NO_EARLY_TRIAL_VERSION, OLDER_PRIVACY_VERSION, OLDER_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION,
+  ANNOUNCED_SUPERSEDED_VERSION, CITY_STATE_PRIVACY_VERSION, EARLIER_PRIVACY_VERSION, EARLIER_TERMS_VERSION, FORMER_PRIVACY_VERSION, FORMER_TERMS_VERSION, LAUNCH_COPY_VERSION,
+  LEGAL_PAGE_DIGESTS, LEGAL_PAGE_DIGEST_VERSIONS, NO_EARLY_TRIAL_VERSION, OLDER_PRIVACY_VERSION, OLDER_TERMS_VERSION, PAST_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION,
   PREVIOUS_TERMS_VERSION, PRIOR_PRIVACY_VERSION, PRIOR_TERMS_VERSION, PRIVACY_VERSION, TERMS_VERSION, legalEffectiveDate,
 } from "@/lib/legalAcceptance";
 
@@ -60,7 +60,7 @@ describe("legal pages are pinned to their versions", () => {
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsEarlier.tsx"]).toEqual({ version: "2026-11-02.1",
       sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" });
-    // The Privacy Policy moved to 2026-11-12.2 with its text unchanged; that text is now kept at `PrivacyPrior.tsx`.
+    // The Privacy Policy moved to 2026-11-12.2 with its text unchanged; that text is now kept at `PrivacyPast.tsx`.
   });
 
   // Owner decision 1 of 2026-11-13: Anthropic may process a site's job like OpenAI, for jobs started and requests sent
@@ -68,11 +68,11 @@ describe("legal pages are pinned to their versions", () => {
   // Anthropic row and the "AI in the Service" paragraph. Every other row stays word for word, the DeepSeek row
   // included (the Paperclip operations agents in this repository still default to it). The Terms do not change at all
   // and keep their id 2026-11-12.2 (planner: nobody agrees again to text that did not change).
-  // Since 2026-11-21.1 the 2026-11-13.1 page is kept byte for byte at `PrivacyFormer.tsx` and the 2026-11-12.2 page at
-  // `PrivacyPrior.tsx`.
+  // Since Privacy 2026-11-23.1 the 2026-11-13.1 page is kept byte for byte at `PrivacyPrior.tsx` and the 2026-11-12.2 page at
+  // `PrivacyPast.tsx`.
   it("Privacy 2026-11-13.1 changes only two AI rows and the AI paragraph; nothing on the Terms pages changes", () => {
     const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
-    const previous = read("client/src/pages/PrivacyPrior.tsx"), current = read("client/src/pages/PrivacyFormer.tsx");
+    const previous = read("client/src/pages/PrivacyPast.tsx"), current = read("client/src/pages/PrivacyPrior.tsx");
     const body = (source: string) => source.slice(source.indexOf("const SHARING_SENTENCE") === -1
       ? 0 : source.indexOf("SHARING_SENTENCE ="), source.indexOf("export default function"))
       .replace(/^export const /gm, "const ");
@@ -99,9 +99,9 @@ describe("legal pages are pinned to their versions", () => {
     expect(current).toContain('["DeepSeek", "Drafting and sorting internal work, where we configure it"]');
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrior.tsx"]).toEqual({ version: "2026-11-12.1",
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"]).toEqual({ version: "2026-11-12.2",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPast.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyFormer.tsx"].version).toBe("2026-11-13.1");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"].version).toBe("2026-11-13.1");
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyEarlier.tsx"]).toEqual({ version: "2026-11-02.1",
       sha256: "cad7fcac5cc1ec468ab74471a13a5e61a208b697deafd97b4039f01ab38eab3c" });
   });
@@ -134,27 +134,27 @@ describe("legal pages are pinned to their versions", () => {
       "under the version of this policy effective November 13, 2026, or a later one, by Anthropic, with Google Gemini\n          reviewing the footage;"];
     const shell = (source: string) => source.slice(source.indexOf("SHARING_SENTENCE ="), source.indexOf("export default function"))
       .replace(/^export const /gm, "const ");
-    let expected = shell(read("client/src/pages/PrivacyFormer.tsx"));
+    let expected = shell(read("client/src/pages/PrivacyPrior.tsx"));
     for (const [from, to] of privacyChanges) {
       expect(expected.split(from), from).toHaveLength(2);
       expected = expected.replace(from, to);
     }
-    const privacy = read("client/src/pages/PrivacyOlder.tsx");
+    const privacy = read("client/src/pages/PrivacyFormer.tsx");
     expect(shell(privacy)).toBe(expected);
     // Everything after the effective-date line and the note is the same, but for the AI paragraph's version name.
     const body = (source: string) => source.slice(source.indexOf("        This policy explains how"));
     expect(body(privacy).length).toBeGreaterThan(1000);
-    expect(body(read("client/src/pages/PrivacyFormer.tsx")).split(paragraphChange[0])).toHaveLength(2);
-    expect(body(privacy)).toBe(body(read("client/src/pages/PrivacyFormer.tsx")).replace(paragraphChange[0], paragraphChange[1]));
+    expect(body(read("client/src/pages/PrivacyPrior.tsx")).split(paragraphChange[0])).toHaveLength(2);
+    expect(body(privacy)).toBe(body(read("client/src/pages/PrivacyPrior.tsx")).replace(paragraphChange[0], paragraphChange[1]));
     const TERMS_FROM = "We do not remove people from the footage or from frames taken from it; we blur faces only in the frames we send to World Labs to rebuild the work area.";
     const TERMS_TO = "We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under an earlier version of our Privacy Policy, we still blur faces in the frames we send to World Labs to rebuild the work area.";
     const previousTerms = JSON.stringify(terms122Sections);
     expect(previousTerms.split(TERMS_FROM)).toHaveLength(2);
     expect(previousTerms.replace(TERMS_FROM, TERMS_TO)).toBe(JSON.stringify(terms17Sections));
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsFormer.tsx"].version).toBe("2026-11-12.2");
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyFormer.tsx"].version).toBe("2026-11-13.1");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"].version).toBe("2026-11-13.1");
     // The pages before it are the pages of 2026-11-13 before this change, word for word in their sections and copy.
-    const previousPrivacy = read("client/src/pages/PrivacyFormer.tsx");
+    const previousPrivacy = read("client/src/pages/PrivacyPrior.tsx");
     for (const [from] of privacyChanges) expect(previousPrivacy).toContain(from);
   });
 
@@ -182,7 +182,7 @@ describe("legal pages are pinned to their versions", () => {
       "simulation, what counts as the job done and our first look, only so they can judge"];
     const shell = (source: string) => source.slice(source.indexOf("SHARING_SENTENCE ="), source.indexOf("export default function"))
       .replace(/^export const /gm, "const ");
-    const previousPrivacy = read("client/src/pages/PrivacyOlder.tsx"), privacy = read("client/src/pages/PrivacyPrevious.tsx");
+    const previousPrivacy = read("client/src/pages/PrivacyFormer.tsx"), privacy = read("client/src/pages/PrivacyOlder.tsx");
     let expected = shell(previousPrivacy);
     for (const [from, to, count] of privacyChanges) {
       expect(expected.split(from), from).toHaveLength(count + 1);
@@ -217,10 +217,11 @@ describe("legal pages are pinned to their versions", () => {
     // Nothing on the 2026-11-19.1 pages says Blueprint runs, keeps or shares an early trial.
     for (const text of [privacy, read("client/src/pages/TermsPrevious.tsx")]) expect(text).not.toMatch(/early trial|robot software/i);
 
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION]);
-    expect([OLDER_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual(["2026-11-17.1", "2026-11-17.1"]);
+    // Since Privacy 2026-11-23.1 the Privacy slots sit one place further down than the Terms slots.
+    expect([PREVIOUS_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual([NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION]);
+    expect([OLDER_TERMS_VERSION, FORMER_PRIVACY_VERSION]).toEqual(["2026-11-17.1", "2026-11-17.1"]);
     expect(legalEffectiveDate(PREVIOUS_TERMS_VERSION)).toBe("November 19, 2026");
-    expect(legalEffectiveDate(PREVIOUS_PRIVACY_VERSION)).toBe("November 19, 2026");
+    expect(legalEffectiveDate(OLDER_PRIVACY_VERSION)).toBe("November 19, 2026");
   });
 
   // Owner, 2026-11-21: the launch-copy legal edits approved. Terms and Privacy 2026-11-21.1 correct both documents to what
@@ -337,7 +338,7 @@ describe("legal pages are pinned to their versions", () => {
     ];
     const shell = (source: string) => source.slice(source.indexOf("SHARING_SENTENCE ="), source.indexOf("export default function"))
       .replace(/^export const /gm, "const ");
-    const previousPrivacy = read("client/src/pages/PrivacyPrevious.tsx"), privacy = read("client/src/pages/Privacy.tsx");
+    const previousPrivacy = read("client/src/pages/PrivacyOlder.tsx"), privacy = read("client/src/pages/PrivacyPrevious.tsx");
     let expected = shell(previousPrivacy);
     for (const [from, to, count] of privacyChanges) {
       expect(expected.split(from), from).toHaveLength(count + 1);
@@ -360,29 +361,61 @@ describe("legal pages are pinned to their versions", () => {
     expect(read("client/src/pages/Terms.tsx")).not.toMatch(/refund/i);
 
     expect(TERMS_VERSION).toBe(LAUNCH_COPY_VERSION);
-    expect(PRIVACY_VERSION).toBe(LAUNCH_COPY_VERSION);
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-19.1", "2026-11-19.1"]);
+    expect(PREVIOUS_PRIVACY_VERSION).toBe(LAUNCH_COPY_VERSION);
+    expect([PREVIOUS_TERMS_VERSION, OLDER_PRIVACY_VERSION]).toEqual(["2026-11-19.1", "2026-11-19.1"]);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 21, 2026");
-    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 21, 2026");
+    expect(legalEffectiveDate(PREVIOUS_PRIVACY_VERSION)).toBe("November 21, 2026");
     // The pages that moved are kept byte for byte: their digests are the ones they had before the move.
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsOlder.tsx"]).toEqual({ version: "2026-11-17.1",
       sha256: "cb7276aa54fa2044a391900ce89ac1a23c64a0a088bbc7b2de4104390d6135c9" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyOlder.tsx"]).toEqual({ version: "2026-11-17.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyFormer.tsx"]).toEqual({ version: "2026-11-17.1",
       sha256: "dd1cf7021b9bcd521dd82d75051649d6a1ec176580d74f22b3870cb9de8db229" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsFormer.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyFormer.tsx"]).toEqual({ version: "2026-11-13.1",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"]).toEqual({ version: "2026-11-13.1",
       sha256: "cc64b063dc906beb69ba2e7ddcdd02cadaf2e27e86c0b59157478cc038eb8099" });
     expect(LEGAL_PAGE_DIGESTS["client/src/pages/TermsPrior.tsx"]).toEqual({ version: "2026-11-12.1",
       sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" });
-    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"]).toEqual({ version: "2026-11-12.2",
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPast.tsx"]).toEqual({ version: "2026-11-12.2",
+      sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" });
+  });
+
+  // Owner, 2026-11-23: "yes to the privacy wording". Privacy 2026-11-23.1 changes the Location row's second sentence and
+  // nothing else; the Terms do not change. The previous Privacy page keeps the 2026-11-21.1 text word for word: only
+  // the page shell differs, as for every previous page. The Privacy pages that moved are kept byte for byte.
+  it("Privacy 2026-11-23.1 changes only the Location sentence; the previous page keeps the 2026-11-21.1 text", () => {
+    const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
+    const FROM = "A deployment company sees the country of the job, not the address you typed.";
+    const TO = "A deployment company sees the city, state and country of the job, not the address you typed.";
+    const shell = (source: string) => source.slice(source.indexOf("SHARING_SENTENCE ="), source.indexOf("export default function"))
+      .replace(/^export const /gm, "const ");
+    const body = (source: string) => source.slice(source.indexOf("        This policy explains how"));
+    const previousPrivacy = read("client/src/pages/PrivacyPrevious.tsx"), privacy = read("client/src/pages/Privacy.tsx");
+    expect(shell(previousPrivacy).split(FROM)).toHaveLength(2);
+    expect(shell(privacy)).toBe(shell(previousPrivacy).replace(FROM, TO));
+    expect(body(privacy).length).toBeGreaterThan(1000);
+    expect(body(privacy)).toBe(body(previousPrivacy));
+    expect(privacy).not.toContain(FROM);
+
+    expect(PRIVACY_VERSION).toBe(CITY_STATE_PRIVACY_VERSION);
+    expect(PRIVACY_VERSION).toBe("2026-11-23.1");
+    expect(legalEffectiveDate(PRIVACY_VERSION)).toBe("November 23, 2026");
+    expect([TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual([LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION]);
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/Terms.tsx"].sha256).toBe("290048f513dda46ec15c3aa9f3246f53161e53aec053346e3f1f61d72d037b0a");
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyOlder.tsx"]).toEqual({ version: "2026-11-19.1",
+      sha256: "4bea76fcde690b85752bd60bf7396a270d369921e698dab056b683d561922ccf" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyFormer.tsx"]).toEqual({ version: "2026-11-17.1",
+      sha256: "dd1cf7021b9bcd521dd82d75051649d6a1ec176580d74f22b3870cb9de8db229" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPrior.tsx"]).toEqual({ version: "2026-11-13.1",
+      sha256: "cc64b063dc906beb69ba2e7ddcdd02cadaf2e27e86c0b59157478cc038eb8099" });
+    expect(LEGAL_PAGE_DIGESTS["client/src/pages/PrivacyPast.tsx"]).toEqual({ version: "2026-11-12.2",
       sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" });
   });
 
   it("each digest was recorded against the version now in force for its page", () => {
     expect({ terms: TERMS_VERSION, privacy: PRIVACY_VERSION, previousTerms: PREVIOUS_TERMS_VERSION, previousPrivacy: PREVIOUS_PRIVACY_VERSION,
       olderTerms: OLDER_TERMS_VERSION, olderPrivacy: OLDER_PRIVACY_VERSION, formerTerms: FORMER_TERMS_VERSION, formerPrivacy: FORMER_PRIVACY_VERSION,
-      priorTerms: PRIOR_TERMS_VERSION, priorPrivacy: PRIOR_PRIVACY_VERSION, announced: ANNOUNCED_SUPERSEDED_VERSION, earlierTerms: EARLIER_TERMS_VERSION, earlierPrivacy: EARLIER_PRIVACY_VERSION },
+      priorTerms: PRIOR_TERMS_VERSION, priorPrivacy: PRIOR_PRIVACY_VERSION, pastPrivacy: PAST_PRIVACY_VERSION, announced: ANNOUNCED_SUPERSEDED_VERSION, earlierTerms: EARLIER_TERMS_VERSION, earlierPrivacy: EARLIER_PRIVACY_VERSION },
       "a legal version changed without recording its page's new digest; a change needs a new version approved by the owner")
       .toEqual(LEGAL_PAGE_DIGEST_VERSIONS);
   });

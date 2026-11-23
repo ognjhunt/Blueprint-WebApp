@@ -12,7 +12,7 @@ import path from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import {
-  RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT, RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_VERSIONS,
+  RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT, RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V6, RECORDING_RIGHTS_STATEMENT_VERSIONS,
 } from "@/lib/recordingRightsStatement";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
 import { INTRODUCTION_REQUEST_STATEMENT, INTRODUCTION_REQUEST_STATEMENT_VERSION, introduceSentence } from "@/lib/siteIntroductions";
@@ -20,7 +20,7 @@ import { DESCRIPTION_AUTHORITY_STATEMENTS, DESCRIPTION_AUTHORITY_VERSIONS } from
 import { TASK_CONFIRMATION_STATEMENTS, TASK_CONFIRMATION_VERSIONS } from "@/lib/taskConfirmationStatement";
 import { CURRENT_UPDATE_PREFERENCES_VERSION } from "@/types/updatePreferences";
 import { JOB_CARD_ANSWER_STATEMENTS, JOB_CARD_ANSWER_STATEMENT_VERSIONS } from "@/lib/jobCardAnswerConsent";
-import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 } from "@/lib/siteStartConsent";
+import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4, SITE_START_CONSENT_WITH_VIDEO_V6 } from "@/lib/siteStartConsent";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const sourceText = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8").replace(/\s+/g, " ");
@@ -44,6 +44,11 @@ const CONSTANT_STATEMENTS = [
   { name: "start form, no video, shares the job", version: "2026-11-12.v5", actual: SITE_START_CONSENT_NO_VIDEO_V5, text: "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. We share your job with robot deployment companies we've approved." },
   { name: "description authority", version: "2026-11-12.v4", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-12.v4"], text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved." },
   { name: "description authority", version: "2026-11-12.v5", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-12.v5"], text: "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. We share your job with robot deployment companies we've approved." },
+  // The place a company sees (owner, 2026-11-23: "city and state, yes to the wording"): the sharing sentence names the
+  // city and state, on the start form with a video, on a job's page and on the upload page. v4 stays for its records.
+  { name: "recording rights, shares the job with its city and state", version: "2026-11-23.v6", actual: RECORDING_RIGHTS_STATEMENT_V6, text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved." },
+  { name: "start form, with video, shares the job with its city and state", version: "2026-11-23.v6", actual: SITE_START_CONSENT_WITH_VIDEO_V6, text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved." },
+  { name: "description authority", version: "2026-11-23.v6", actual: DESCRIPTION_AUTHORITY_STATEMENTS["2026-11-23.v6"], text: "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved." },
   // A deployment company's answer (PACKAGE_E E5), recorded on every answer.
   { name: "company response", version: "company-response-2026-11-12", actual: COMPANY_RESPONSE_STATEMENT_VERSION === "company-response-2026-11-12" ? COMPANY_RESPONSE_STATEMENT : "", text: "The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs." },
   // The site's agreement beside "Introduce us" (planner, 2026-11-12, 18:25Z): the recorded text is the template.
@@ -181,8 +186,8 @@ describe("recorded statements keep their exact text under their version", () => 
     for (const version of [...DESCRIPTION_AUTHORITY_VERSIONS, ...JOB_CARD_ANSWER_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSION])
       expect(CONSTANT_STATEMENTS.some(row => row.version === version), version).toBe(true);
     // The closed sets themselves: a new version must be added here, and to the rows above, on purpose.
-    expect([...RECORDING_RIGHTS_STATEMENT_VERSIONS]).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4"]);
-    expect([...DESCRIPTION_AUTHORITY_VERSIONS]).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-12.v5"]);
+    expect([...RECORDING_RIGHTS_STATEMENT_VERSIONS]).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-23.v6"]);
+    expect([...DESCRIPTION_AUTHORITY_VERSIONS]).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-12.v5", "2026-11-23.v6"]);
   });
 
   it("shows the introduction statement word for word beside the button, and the button records its version", () => {
@@ -193,15 +198,15 @@ describe("recorded statements keep their exact text under their version", () => 
   });
 
   it("shows the sharing statement word for word on every surface that records it", () => {
-    // The start form shows the v4 recording or v3 private-draft terms. The job page shows and records v4.
+    // The start form shows the v6 recording or v3 private-draft terms. The job page shows and records v6.
     const start = sourceText("client/src/components/site/SiteCaptureStart.tsx");
-    expect(start).toMatch(/SITE_START_CONSENT_WITH_VIDEO_V4 : SITE_START_CONSENT_NO_VIDEO\b/);
-    expect(start).toMatch(/RECORDING_RIGHTS_STATEMENT_V4_VERSION/);
-    expect(start).toMatch(/DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION\b/);
+    expect(start).toMatch(/SITE_START_CONSENT_WITH_VIDEO_V6 : SITE_START_CONSENT_NO_VIDEO\b/);
+    expect(start).toMatch(/RECORDING_RIGHTS_STATEMENT_V6_VERSION/);
+    expect(start).toMatch(/DESCRIPTION_AUTHORITY_WITH_VIDEO_V6_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION\b/);
     for (const file of ["client/src/components/site/SiteAnswer.tsx", "client/src/pages/SelfCaptureUpload.tsx"]) {
       const source = sourceText(file);
-      expect(source, file).toMatch(/\{RECORDING_RIGHTS_STATEMENT_V4\}|helper=\{RECORDING_RIGHTS_STATEMENT_V4\}/);
-      expect(source, file).toMatch(/statementVersion: RECORDING_RIGHTS_STATEMENT_V4_VERSION/);
+      expect(source, file).toMatch(/\{RECORDING_RIGHTS_STATEMENT_V6\}|helper=\{RECORDING_RIGHTS_STATEMENT_V6\}/);
+      expect(source, file).toMatch(/statementVersion: RECORDING_RIGHTS_STATEMENT_V6_VERSION/);
     }
   });
 

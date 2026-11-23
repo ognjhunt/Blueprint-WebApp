@@ -117,10 +117,10 @@ export const RECORDING_VERSIONS_THAT_SHARE: readonly string[] = SHARING_RECORDIN
 
 /**
  * How much of the place a company may see, by the recording statement version the site accepted: "state" shows the
- * state and country, "city" the city, state and country. A version not listed shows the country alone. Empty until the
- * owner writes a statement version whose wording names the place and adds it here (`companyPlaceOf`).
+ * state and country, "city" the city, state and country. A version not listed shows the country alone (`companyPlaceOf`).
+ * Recording statement 2026-11-23.v6 names "the city and state it is in" (owner, 2026-11-23); v4 and older do not.
  */
-export const RECORDING_VERSION_PLACE_LEVEL: Readonly<Record<string, "state" | "city">> = {};
+export const RECORDING_VERSION_PLACE_LEVEL: Readonly<Record<string, "state" | "city">> = { "2026-11-23.v6": "city" };
 
 /** The facts `teamJobAccess` needs that live outside the job record. Absent fields are not checked (see the header). */
 export interface TeamJobAccessContext {

@@ -20,7 +20,7 @@ const FIND = "Share my job";
 /** An older job's page (PACKAGE_D D1.3): what changed, recording statement v4, and the one button that agrees to it. */
 const OLDER = "Not shared yet.";
 const AGREE = "Agree and send my job";
-const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
+const V6 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved.";
 const SHARED = "Posted for approved deployment companies";
 /** A shared job the read shows has gone to no company yet. */
 /** The recorded statement, word for word: only the words around it changed. */
@@ -108,10 +108,10 @@ test("the job page leads with deployment companies and the first look, and shows
   await expect(page.getByText("Blueprint will update this job as the work progresses.", { exact: true })).toHaveCount(0);
   await expect(page.locator(".bare-button, .ms-button").filter({ visible: true })).toHaveText([AGREE]);
   await expect(page.getByRole("button", { name: FIND })).toHaveCount(0);
-  // The recorded statement (30 words), the share question, the first look's source and the limits line may not be
-  // dropped, and a drafted job sentence adds its own. This pins it from growing. (140 before 2026-11-12, when the
-  // test result led and the first look sat behind Details.)
-  expect(await visibleWords(page)).toBeLessThanOrEqual(160);
+  // The recorded statement (47 words since v6 named the city and state, 2026-11-23, 7 more than v4), the share question, the first
+  // look's source and the limits line may not be dropped, and a drafted job sentence adds its own. This pins it from
+  // growing. (140 before 2026-11-12, when the test result led and the first look sat behind Details; 160 under v4.)
+  expect(await visibleWords(page)).toBeLessThanOrEqual(167);
   const jobText = await job.textContent();
   expect(jobText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256|payload|anonymi[sz]ed|AI robot|paper check|which did best/i);
 
@@ -161,18 +161,18 @@ test("while the simulation of the site is being built, the page says so, with th
 
 // Sharing is the service (2026-11-12): an older job's page offers recording statement v4 once; agreeing records v4 on
 // the existing recording-consent route and the job is then shared.
-test("an older job agrees to v4 once, under the sentence itself, and is then shared", async ({ page }) => {
+test("an older job agrees to v6 once, under the sentence itself, and is then shared", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { consents, unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
   const button = page.getByRole("button", { name: AGREE, exact: true });
   await expect(button).toBeVisible();
-  await expect(page.getByText(V4, { exact: true })).toBeVisible();
-  await expect(button).toHaveAttribute("aria-describedby", await page.getByText(V4, { exact: true }).getAttribute("id") ?? "");
+  await expect(page.getByText(V6, { exact: true })).toBeVisible();
+  await expect(button).toHaveAttribute("aria-describedby", await page.getByText(V6, { exact: true }).getAttribute("id") ?? "");
   await button.dblclick();
   await expect(page.getByText(SHARED, { exact: true })).toBeVisible();
   await expect(button).toHaveCount(0);
-  expect(consents).toEqual([{ csrf: "fixture", body: { granted: true, statementVersion: "2026-11-12.v4" } }]);
+  expect(consents).toEqual([{ csrf: "fixture", body: { granted: true, statementVersion: "2026-11-23.v6" } }]);
   await page.reload();
   await expect(page.getByText(SHARED, { exact: true })).toBeVisible();
   await expect(button).toHaveCount(0);

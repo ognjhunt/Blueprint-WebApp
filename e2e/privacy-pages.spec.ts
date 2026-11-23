@@ -32,3 +32,18 @@ test("privacy page offers deletion and shows optional analytics off until permis
   await expect(page.getByRole("link", { name: "previous version", exact: true })).toHaveAttribute("href", "/privacy/previous");
   await expect(page.getByRole("link", { name: "Refunds", exact: true })).toHaveCount(0);
 });
+
+// Privacy 2026-11-23.1 (owner, 2026-11-23: "yes to the privacy wording"): the Location row names the city, state and
+// country a company sees. The 2026-11-21.1 text, with the country alone, is kept as the previous version.
+test("privacy page says a company sees the city, state and country; the previous version keeps the country alone", async ({ page }) => {
+  await page.goto("/privacy");
+  const article = page.locator("article");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText("A deployment company sees the city, state and country of the job, not the address you typed.");
+  await expect(article).not.toContainText("A deployment company sees the country of the job, not the address you typed.");
+  await page.getByRole("link", { name: "previous version", exact: true }).click();
+  await expect(page).toHaveURL(/\/privacy\/previous$/);
+  await expect(article).toContainText("Previous version, effective November 21, 2026");
+  await expect(article).toContainText("A deployment company sees the country of the job, not the address you typed.");
+  await expect(article).not.toContainText("city, state and country");
+});

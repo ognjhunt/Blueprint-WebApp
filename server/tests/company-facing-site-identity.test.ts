@@ -365,6 +365,22 @@ describe("before the site asks for an introduction, nothing a company receives n
     expect(JSON.parse((await get(`/api/site-worlds/tasks/${ID}`, auth)).text).item.sentence).toBe(page.sentence);
   });
 
+  // Recording statement 2026-11-23.v6 names "the city and state it is in" (owner, 2026-11-23): a job recorded under it
+  // shows a company its city and state, on the job page and on its card; the address, postal code and name never.
+  it("a job recorded under v6 shows its city and state on the job page and its card, and nothing more of the place", async () => {
+    const v6 = plantedJob();
+    v6.request.consent_attestation = { ...sharedRecordingGrant(), statement_version: "2026-11-23.v6" };
+    state.docs.set(`inboundRequests/${ID}`, v6);
+    const auth = signIn(NORTH);
+    const page = JSON.parse((await get(`/api/site-worlds/jobs/${ID}`, auth)).text).item;
+    expect(page.country).toBe("Glimmerton, OR, United States");
+    const card = JSON.parse((await get("/api/site-worlds/tasks", auth)).text).items.find((entry: { id: string }) => entry.id === ID);
+    expect(card.region).toBe("Glimmerton, OR, United States");
+    for (const text of [JSON.stringify(page), JSON.stringify(card)]) {
+      for (const planted of PLANTED.filter(value => value !== SITE.city)) expect(text).not.toContain(planted);
+    }
+  });
+
   it("the answer route's reply, and the email it queues (to the site, under an alias)", async () => {
     const reply = await answer(NORTH);
     expect(reply.status).toBe(200);

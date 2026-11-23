@@ -108,9 +108,9 @@ async function startWithVideo(page: Page, email: string, address: string) {
     && /\/api\/(inbound-request|workspace\/capture-start)$/.test(new URL(response.url()).pathname));
   await send.click();
   const body = (await posted).postDataJSON();
-  // The statements the site accepts by starting, at their current versions (video: v4 for both).
-  expect(body.consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
-  expect(body.descriptionAuthority).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
+  // The statements the site accepts by starting, at their current versions (video: v6 for both).
+  expect(body.consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-23.v6" });
+  expect(body.descriptionAuthority).toEqual({ granted: true, statementVersion: "2026-11-23.v6" });
   expect((await answered).status()).toBeLessThan(300);
   await expect(page.getByRole("heading", { name: "We have your video.", exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("button", { name: /share my job/i })).toHaveCount(0);

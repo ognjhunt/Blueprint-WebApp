@@ -206,14 +206,14 @@ for (const device of ["desktop", "mobile"] as const) {
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
       await expect(page.getByRole("button", { name: /Open the camera|Choose or record|Upload a video file/ })).toHaveCount(0);
       await shot("capture-before-permission");
-      // Recording statement v4, word for word, above the one button that agrees to it.
-      await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.", { exact: true })).toBeVisible();
+      // Recording statement v6, word for word, above the one button that agrees to it.
+      await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved.", { exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Agree and continue" }).click();
       await expect(page.getByRole("button", { name: /Choose or record a video|Upload a video file/ })).toBeVisible();
       await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)" })).toHaveCount(0);
       await expect(page.getByRole("heading", { name: "Delivery proposals", exact: true })).toHaveCount(0);
       expect(mutations.map(row => row.path)).toEqual(["/api/inbound-request", `/api/self-capture/uploads/${token}/recording-consent`]);
-      expect(mutations[1].body).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
+      expect(mutations[1].body).toEqual({ granted: true, statementVersion: "2026-11-23.v6" });
       expect(errors).toEqual([]);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
       expect(overflow).toBe(false);

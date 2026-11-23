@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import SelfCaptureUpload, { LAST_STATUS_HOLD_MS, SCENE_LINK_KEEP_MS, STATUS_POLL_TIMEOUT_MS } from "@/pages/SelfCaptureUpload";
-import { RECORDING_RIGHTS_STATEMENT_V4 } from "@/lib/recordingRightsStatement";
+import { RECORDING_RIGHTS_STATEMENT_V6 } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 import { allZeroEvaluation, cannotAssessAnswer, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
@@ -438,14 +438,14 @@ describe("video first owner return", () => {
     expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
     // Said before the grant: people in the work area are told, and sound is not analysed.
     expect(screen.getByText(/Tell people nearby that the video goes to Blueprint and to deployment companies we approve\. Avoid conversations: we remove the sound\./)).toBeInTheDocument();
-    // Recording statement v4, word for word, directly above the one button that agrees to it (2026-11-12): pressing it is the act.
+    // Recording statement v6, word for word, directly above the one button that agrees to it (2026-11-12): pressing it is the act.
     const button = screen.getByRole("button", { name: "Agree and continue" });
     expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
     // The line is exactly the sentence its version records.
     // Nothing to withdraw yet: no recording permission given and no video, so "Stop using my video" is not offered.
     expect(screen.queryByText("Stop using my video")).toBeNull();
     expect(screen.queryByText("Withdraw recording permission")).toBeNull();
-    expect(within(permission).getByText(RECORDING_RIGHTS_STATEMENT_V4)).toBeVisible();
+    expect(within(permission).getByText(RECORDING_RIGHTS_STATEMENT_V6)).toBeVisible();
     expect(within(permission).queryByRole("checkbox")).toBeNull();
     expect(permission).not.toHaveTextContent(/robot teams/i);
     fireEvent.click(button);
@@ -453,7 +453,7 @@ describe("video first owner return", () => {
     const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
     expect(posts).toHaveLength(1);
     expect(posts[0][0]).toContain("/recording-consent");
-    expect(JSON.parse(posts[0][1]!.body as string)).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
+    expect(JSON.parse(posts[0][1]!.body as string)).toEqual({ granted: true, statementVersion: "2026-11-23.v6" });
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
   });

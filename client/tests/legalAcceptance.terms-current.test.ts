@@ -5,7 +5,7 @@
  * A deployment company's side (`companyMaySeeJobs`) is in `server/tests/company-terms-gate.test.ts`.
  */
 import { describe, expect, it } from "vitest";
-import { LAUNCH_COPY_VERSION, LEGAL_VERSIONS_THAT_ASK_AGAIN, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, legalEffectiveAtMs,
+import { CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, LEGAL_VERSIONS_THAT_ASK_AGAIN, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, legalEffectiveAtMs,
   versionsStillCounting } from "@/lib/legalAcceptance";
 import { PRIOR_TERMS_VERSION, PAIRS_A_PAGE_SHOWED, PREVIOUS_TERMS_VERSION, PRIVACY_VERSION, TERMS_VERSION, TERMS_VERSIONS_CURRENT,
   acceptedVersionsAreCurrent, buildLegalAcceptanceRecord, isCurrentLegalAcceptance, shownVersionsCount } from "@/lib/legalAcceptance";
@@ -32,7 +32,7 @@ describe("Terms versions that still count", () => {
   });
 
   it("keeps an account's acceptance of Terms 2026-11-19.1, 2026-11-17.1 or 2026-11-12.2 current, and still asks whoever accepted an older version", () => {
-    for (const privacy of ["2026-11-12.2", "2026-11-13.1", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION]) {
+    for (const privacy of ["2026-11-12.2", "2026-11-13.1", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION]) {
       expect(acceptedVersionsAreCurrent("2026-11-12.2", privacy, AFTER), privacy).toBe(true);
       expect(acceptedVersionsAreCurrent(NO_FACE_BLUR_VERSION, privacy, AFTER), privacy).toBe(true);
       expect(acceptedVersionsAreCurrent(NO_EARLY_TRIAL_VERSION, privacy, AFTER), privacy).toBe(true);
@@ -43,9 +43,9 @@ describe("Terms versions that still count", () => {
   });
 
   it("records the new versions for a new acceptance, and leaves an earlier recorded acceptance as it is", () => {
-    expect(buildLegalAcceptanceRecord({ acceptedAt: "now" })).toMatchObject({ terms_version: LAUNCH_COPY_VERSION, privacy_version: LAUNCH_COPY_VERSION });
+    expect(buildLegalAcceptanceRecord({ acceptedAt: "now" })).toMatchObject({ terms_version: LAUNCH_COPY_VERSION, privacy_version: CITY_STATE_PRIVACY_VERSION });
     for (const earlier of [acceptance("2026-11-12.2", "2026-11-13.1"), acceptance(NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION),
-      acceptance(NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION)]) {
+      acceptance(NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION), acceptance(LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION)]) {
       const kept = structuredClone(earlier);
       expect(isCurrentLegalAcceptance(earlier)).toBe(true);
       expect(earlier).toEqual(kept);
@@ -58,6 +58,12 @@ describe("Terms versions that still count", () => {
 describe("the versions a form may record", () => {
   it("records exactly a pair a page showed, and refuses a pair no page showed", () => {
     expect(PAIRS_A_PAGE_SHOWED[0]).toEqual({ terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION });
+    // A start under Privacy 2026-11-23.1 records the current pair: Terms 2026-11-21.1 beside Privacy 2026-11-23.1. A form
+    // opened before Privacy 2026-11-23.1 still records the 2026-11-21.1 pair it showed.
+    expect(shownVersionsCount(LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION, AFTER))
+      .toEqual({ terms_version: LAUNCH_COPY_VERSION, privacy_version: CITY_STATE_PRIVACY_VERSION });
+    expect(shownVersionsCount(LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION, AFTER))
+      .toEqual({ terms_version: LAUNCH_COPY_VERSION, privacy_version: LAUNCH_COPY_VERSION });
     // A form opened before 2026-11-21.1 still records the 2026-11-19.1 pair it showed, and one opened before 2026-11-19.1
     // the 2026-11-17.1 pair.
     expect(shownVersionsCount(NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION, AFTER))
@@ -70,7 +76,7 @@ describe("the versions a form may record", () => {
       [NO_FACE_BLUR_VERSION, "2026-11-12.2"], ["2026-11-12.1", "2026-11-12.1"], ["2026-11-12.2", "2026-11-02.1"],
       [NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION], [NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION], ["2026-11-12.2", NO_EARLY_TRIAL_VERSION],
       [NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION], [LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION], [NO_FACE_BLUR_VERSION, LAUNCH_COPY_VERSION],
-      ["2026-11-12.2", LAUNCH_COPY_VERSION]])
+      ["2026-11-12.2", LAUNCH_COPY_VERSION], [NO_EARLY_TRIAL_VERSION, CITY_STATE_PRIVACY_VERSION]])
       expect(shownVersionsCount(terms, privacy, AFTER), `${terms} ${privacy}`).toBeNull();
     // An account that holds such a pair from before is still current: the check is on what a form may record.
     expect(acceptedVersionsAreCurrent(NO_FACE_BLUR_VERSION, "2026-11-13.1", AFTER)).toBe(true);

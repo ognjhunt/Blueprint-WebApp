@@ -41,7 +41,7 @@ import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/componen
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
 import { FILM_AROUND_THE_JOB, FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE, FOOTAGE_UPLOAD_NOTICE_BESIDE_FILMING } from "@/lib/footageNotice";
-import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
+import { RECORDING_RIGHTS_STATEMENT_V6, RECORDING_RIGHTS_STATEMENT_V6_VERSION } from "@/lib/recordingRightsStatement";
 import { withCsrfHeader } from "@/lib/csrf";
 import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo, type VideoUploadResult } from "@/lib/selfCaptureVideo";
 
@@ -308,7 +308,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         // The version of the exact sentence shown above the button (recording v4: the job is shared with the
         // deployment companies Blueprint approves, so the server writes the listing record with it).
-        body: JSON.stringify({ granted: true, statementVersion: RECORDING_RIGHTS_STATEMENT_V4_VERSION }),
+        body: JSON.stringify({ granted: true, statementVersion: RECORDING_RIGHTS_STATEMENT_V6_VERSION }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.ok) throw new Error(result?.error || "We could not save your permission. Try again shortly.");
@@ -994,8 +994,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               <h2>Record your job</h2>
               <p className="ms-field-hint">A video is required to post your job and build its simulation.</p>
               <p className="ms-field-hint">{FILMING_NOTICE}</p>
-              {/* Recording statement v4, the one sentence a site agrees to with its video; pressing the button is the act. */}
-              <p data-consent-line>{RECORDING_RIGHTS_STATEMENT_V4}</p>
+              {/* Recording statement v6, the one sentence a site agrees to with its video; pressing the button is the act. */}
+              <p data-consent-line>{RECORDING_RIGHTS_STATEMENT_V6}</p>
               <button type="button" className="ms-button" disabled={savingConsent} onClick={() => void confirmRecordingConsent()}>
                 {savingConsent ? "Saving permission…" : RECORDING_CONSENT_AGREE}
               </button>

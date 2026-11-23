@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { LAUNCH_COPY_VERSION } from "@/lib/legalAcceptance";
+import { CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyJobPage } from "@/types/taskBrowse";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
@@ -210,7 +210,7 @@ describe("the company's page for one job", () => {
     expect(await screen.findByRole("heading", { name: "Palletize cartons" })).toBeInTheDocument();
     const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(path).toBe("/api/robot-team-access/accept-terms");
-    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: LAUNCH_COPY_VERSION, privacyVersion: LAUNCH_COPY_VERSION });
+    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: LAUNCH_COPY_VERSION, privacyVersion: CITY_STATE_PRIVACY_VERSION });
   });
 });
 

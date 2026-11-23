@@ -4,6 +4,7 @@ import {
   DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION,
   DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION,
   DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION,
+  DESCRIPTION_AUTHORITY_WITH_VIDEO_V6_VERSION,
   DESCRIPTION_AUTHORITY_STATEMENT,
   DESCRIPTION_AUTHORITY_STATEMENTS,
   DESCRIPTION_AUTHORITY_VERSION,
@@ -11,7 +12,7 @@ import {
   DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION,
   isDescriptionAuthorityVersion,
 } from "@/lib/siteSubmissionAuthority";
-import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 } from "@/lib/siteStartConsent";
+import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4, SITE_START_CONSENT_WITH_VIDEO_V6 } from "@/lib/siteStartConsent";
 
 /**
  * A stored description authority names the exact sentence the site saw where it pressed. The start form's one line
@@ -29,7 +30,10 @@ describe("description authority statement", () => {
       "2026-11-11.v3": SITE_START_CONSENT_NO_VIDEO,
       "2026-11-12.v4": SITE_START_CONSENT_WITH_VIDEO_V4,
       "2026-11-12.v5": SITE_START_CONSENT_NO_VIDEO_V5,
+      "2026-11-23.v6": SITE_START_CONSENT_WITH_VIDEO_V6,
     });
+    // The place a company sees (2026-11-23): with a video, the start form records v6, the same sentence as recording v6.
+    expect(DESCRIPTION_AUTHORITY_WITH_VIDEO_V6_VERSION).toBe("2026-11-23.v6");
     // Sharing is the service (2026-11-12): the start form records these now.
     expect(DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION).toBe("2026-11-12.v4");
     expect(DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION).toBe("2026-11-12.v5");
@@ -41,8 +45,8 @@ describe("description authority statement", () => {
     expect(SITE_START_CONSENT_NO_VIDEO).not.toMatch(/film/);
   });
 
-  it("accepts exactly the five versions", () => {
-    expect(DESCRIPTION_AUTHORITY_VERSIONS).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-12.v5"]);
+  it("accepts exactly the six versions", () => {
+    expect(DESCRIPTION_AUTHORITY_VERSIONS).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-12.v5", "2026-11-23.v6"]);
     for (const version of DESCRIPTION_AUTHORITY_VERSIONS) expect(isDescriptionAuthorityVersion(version)).toBe(true);
     for (const other of ["2026-10-06.v2", "2026-11-11.v4", "2026-11-12.v3", "2026-11-02.v2", " 2026-10-06.v1", "", null, undefined, 1]) {
       expect(isDescriptionAuthorityVersion(other)).toBe(false);

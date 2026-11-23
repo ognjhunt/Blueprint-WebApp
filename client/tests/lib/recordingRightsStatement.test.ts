@@ -6,6 +6,8 @@ import {
   RECORDING_RIGHTS_STATEMENT_SHORT_VERSION,
   RECORDING_RIGHTS_STATEMENT_V4,
   RECORDING_RIGHTS_STATEMENT_V4_VERSION,
+  RECORDING_RIGHTS_STATEMENT_V6,
+  RECORDING_RIGHTS_STATEMENT_V6_VERSION,
   RECORDING_RIGHTS_STATEMENT_VERSION,
   isSharingRecordingStatementVersion,
   RECORDING_RIGHTS_STATEMENT_VERSIONS,
@@ -45,8 +47,18 @@ describe("recording-rights statement", () => {
     for (const older of ["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v5", "", null]) expect(isSharingRecordingStatementVersion(older)).toBe(false);
   });
 
-  it("accepts exactly v1, v2, the start form's v3 and v4, so older records and pages stay valid", () => {
-    expect(RECORDING_RIGHTS_STATEMENT_VERSIONS).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4"]);
+  // The place a company sees (owner, 2026-11-23): the same sentence naming the city and state. It shares the job, and v4
+  // still does for the records made under it.
+  it("pins v6, the sharing sentence that names the city and state, and v4 still shares", () => {
+    expect(RECORDING_RIGHTS_STATEMENT_V6_VERSION).toBe("2026-11-23.v6");
+    expect(RECORDING_RIGHTS_STATEMENT_V6).toBe("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. "
+      + "We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved.");
+    expect(isSharingRecordingStatementVersion("2026-11-23.v6")).toBe(true);
+    expect(isSharingRecordingStatementVersion("2026-11-12.v4")).toBe(true);
+  });
+
+  it("accepts exactly v1, v2, the start form's v3, v4 and v6, so older records and pages stay valid", () => {
+    expect(RECORDING_RIGHTS_STATEMENT_VERSIONS).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-23.v6"]);
     for (const version of RECORDING_RIGHTS_STATEMENT_VERSIONS) expect(isRecordingRightsStatementVersion(version)).toBe(true);
     for (const other of ["2026-11-02.v3", "2026-11-11.v2", "2026-09-18.v2", "2026-11-02.V2", " 2026-11-02.v2", "2026-11-02.v2 ", "",
       "2026-10-06.v1", "2026-09-24.v1", null, undefined, 2, ["2026-11-02.v2"], { version: "2026-11-02.v2" }]) {

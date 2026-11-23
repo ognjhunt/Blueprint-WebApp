@@ -18,10 +18,10 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
 import { PRIVACY_URL, PRIVACY_VERSION, TERMS_URL, TERMS_VERSION } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
-import { DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION, DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION, DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION } from "@/lib/siteSubmissionAuthority";
-import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_V4_VERSION, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
+import { DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION, DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION, DESCRIPTION_AUTHORITY_WITH_VIDEO_V6_VERSION } from "@/lib/siteSubmissionAuthority";
+import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_V6_VERSION, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
-import { AGREEING_ALSO_LINE, SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4, START_FORM_SHORT_CONSENT } from "@/lib/siteStartConsent";
+import { AGREEING_ALSO_LINE, SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V6, START_FORM_SHORT_CONSENT } from "@/lib/siteStartConsent";
 import { BareBack, BareButton, BareGroup, BareLabel, BareLinks, BareNotice, BareScreen, BareTicks } from "@/components/bare/Bare";
 import { BareCheck, BareField, BareFile, BareInput, BareProgress, BareSelect, BareSubmit, BareTextarea, describedBy } from "@/components/bare/BareForm";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -113,8 +113,8 @@ export function pendingStatementsCurrent(body: string, shortConsent: boolean = S
       consentAttestation?: { statementVersion?: unknown } | null };
     const withVideo = sent.descriptionOnly === false;
     const description = !shortConsent ? DESCRIPTION_AUTHORITY_VERSION
-      : withVideo ? DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION;
-    const recording = withVideo ? (shortConsent ? RECORDING_RIGHTS_STATEMENT_V4_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION) : null;
+      : withVideo ? DESCRIPTION_AUTHORITY_WITH_VIDEO_V6_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION;
+    const recording = withVideo ? (shortConsent ? RECORDING_RIGHTS_STATEMENT_V6_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION) : null;
     return sent.descriptionAuthority?.statementVersion === description && (sent.consentAttestation?.statementVersion ?? null) === recording;
   } catch {
     return false;
@@ -516,11 +516,11 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           descriptionAuthority: {
             granted: true,
             statementVersion: !START_FORM_SHORT_CONSENT ? DESCRIPTION_AUTHORITY_VERSION
-              : footageWanted ? DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION,
+              : footageWanted ? DESCRIPTION_AUTHORITY_WITH_VIDEO_V6_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION,
           },
           consentAttestation: footageWanted ? {
             granted: true,
-            statementVersion: START_FORM_SHORT_CONSENT ? RECORDING_RIGHTS_STATEMENT_V4_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION,
+            statementVersion: START_FORM_SHORT_CONSENT ? RECORDING_RIGHTS_STATEMENT_V6_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION,
           } : null,
           ...(DEVELOPMENT_AUTHORING_ENTRY && claudeAuthoringRequested ? { claudeAuthoringConsent: {
             granted: claudeConsent,
@@ -816,7 +816,7 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
   }
 
   const sendsVideo = method === "upload" && region !== "non_us";
-  const consentLine = sendsVideo ? SITE_START_CONSENT_WITH_VIDEO_V4 : SITE_START_CONSENT_NO_VIDEO;
+  const consentLine = sendsVideo ? SITE_START_CONSENT_WITH_VIDEO_V6 : SITE_START_CONSENT_NO_VIDEO;
   const submitLabel = sendsVideo ? "Send video" : region === "non_us" ? "Save my job" : "Next: film the job";
   // The country select shows once asked (above), while the address has given no country or the person chose one.
   const showCountry = countryAsked && (!region || regionManuallySet);
