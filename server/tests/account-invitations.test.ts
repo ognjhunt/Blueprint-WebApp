@@ -29,7 +29,7 @@ describe("approval before account creation", () => {
     const expired = createAccountInvitationToken({ email, workspaceType: "robot_team", sourceId: accessRecordId(email), revision: approved.decidedAtIso! }, -1);
     for (const token of ["", `${valid}x`, `${valid}.extra`, expired, createSiteClaimToken("site-1")]) {
       expect(verifyAccountInvitationToken(token)).toBeNull();
-      await expect(redeemAccountInvitation(token, "password", "password123")).rejects.toMatchObject({ status: 403 });
+      await expect(redeemAccountInvitation(token, "link")).rejects.toMatchObject({ status: 403 });
     }
     expect(auth.createUser).not.toHaveBeenCalled();
   });
@@ -42,10 +42,11 @@ describe("approval before account creation", () => {
     await expect(redeemAccountInvitation(token, "google")).rejects.toMatchObject({ status: 403 });
     expect(auth.createUser).not.toHaveBeenCalled();
   });
-  it("uses the intended job and application preferences from the approved record", async () => {
+  it("uses the intended job from the approved record", async () => {
     const token = robotTeamAccountInvitation(approved);
     state.docs.set(robotRef, { ...approved, returnToJob: "/jobs/carton-job", optionalUpdates: true });
-    await expect(resolveAccountInvitation(token)).resolves.toMatchObject({ returnTo: "/jobs/carton-job", optionalUpdates: true });
+    await expect(resolveAccountInvitation(token)).resolves.toMatchObject({ returnTo: "/jobs/carton-job" });
+    await expect(resolveAccountInvitation(token)).resolves.not.toHaveProperty("optionalUpdates");
     state.docs.set(robotRef, { ...approved, returnToJob: "//outside.example/jobs/carton-job" });
     await expect(resolveAccountInvitation(token)).resolves.toMatchObject({ returnTo: "/contact/robot-team" });
   });
@@ -56,15 +57,23 @@ describe("approval before account creation", () => {
     const forgedRole = createAccountInvitationToken({ email, workspaceType: "site_operator", sourceId: accessRecordId(email), revision: approved.decidedAtIso! });
     await expect(resolveAccountInvitation(forgedRole)).rejects.toMatchObject({ status: 403 });
   });
-  it("provisions an approved password account on the server, verified by the invitation it was emailed", async () => {
-    expect(await redeemAccountInvitation(robotTeamAccountInvitation(approved), "password", "password123")).toEqual({ customToken: "custom-session" });
-    expect(auth.createUser).toHaveBeenCalledWith({ uid: `invited_${accessRecordId(email)}`, email, emailVerified: true, displayName: "Team", password: "password123" });
+  it("creates the approved account with no password and signs it in, verified by the invitation it was emailed", async () => {
+    expect(await redeemAccountInvitation(robotTeamAccountInvitation(approved), "link")).toEqual({ customToken: "custom-session" });
+    expect(auth.createUser).toHaveBeenCalledWith({ uid: `invited_${accessRecordId(email)}`, email, emailVerified: true, displayName: "Team" });
     expect(auth.createCustomToken).toHaveBeenCalledWith(`invited_${accessRecordId(email)}`);
+  });
+
+  it("signs in once: when the account exists, the invitation gives no session", async () => {
+    const token = robotTeamAccountInvitation(approved);
+    expect(await redeemAccountInvitation(token, "link")).toEqual({ customToken: "custom-session" });
+    auth.getUserByEmail.mockResolvedValue({ uid: `invited_${accessRecordId(email)}` });
+    await expect(redeemAccountInvitation(token, "link")).rejects.toMatchObject({ status: 409, code: "account_already_exists" });
+    expect(auth.createCustomToken).toHaveBeenCalledTimes(1);
   });
   it("never replaces existing credentials or returns a session for Google preparation", async () => {
     auth.getUserByEmail.mockResolvedValue({ uid: "existing-user" });
     const token = robotTeamAccountInvitation(approved);
-    await expect(redeemAccountInvitation(token, "password", "replacement123")).rejects.toMatchObject({ status: 409 });
+    await expect(redeemAccountInvitation(token, "link")).rejects.toMatchObject({ status: 409 });
     expect(await redeemAccountInvitation(token, "google")).toEqual({ ready: true });
     expect(auth.createUser).not.toHaveBeenCalled(); expect(auth.createCustomToken).not.toHaveBeenCalled();
   });
@@ -86,13 +95,13 @@ describe("public invitation endpoints", () => {
   afterEach(async () => { await new Promise<void>(resolve => server.close(() => resolve())); });
   async function post(path: string, body: Record<string, unknown>, extra: Record<string, string> = {}) { return fetch(`${base}/${path}`, { method: "POST", headers: { "Content-Type": "application/json", cookie: "csrf_token=proof", "x-csrf-token": "proof", ...extra }, body: JSON.stringify(body) }); }
   it("requires CSRF before any account is provisioned", async () => {
-    const response = await post("redeem", { invitation: robotTeamAccountInvitation(approved), mode: "password", password: "password123", acceptedTerms: true }, { "x-csrf-token": "wrong" });
+    const response = await post("redeem", { invitation: robotTeamAccountInvitation(approved), mode: "link", acceptedTerms: true }, { "x-csrf-token": "wrong" });
     expect(response.status).toBe(403);
     expect(auth.createUser).not.toHaveBeenCalled();
   });
   it("denies signup without an invitation and rejects extra email/role overrides or absent terms", async () => {
     const invitation = robotTeamAccountInvitation(approved);
-    for (const body of [{ mode: "password", password: "password123", acceptedTerms: true }, { invitation, mode: "google", email: "attacker@example.com", acceptedTerms: true }, { invitation, mode: "google", workspaceType: "site_operator", acceptedTerms: true }, { invitation, mode: "google" }]) {
+    for (const body of [{ mode: "link", acceptedTerms: true }, { invitation, mode: "password", password: "password123", acceptedTerms: true }, { invitation, mode: "google", email: "attacker@example.com", acceptedTerms: true }, { invitation, mode: "google", workspaceType: "site_operator", acceptedTerms: true }, { invitation, mode: "google" }]) {
       expect((await post("redeem", body)).status).toBe(400);
     }
     expect(auth.createUser).not.toHaveBeenCalled();
@@ -100,7 +109,7 @@ describe("public invitation endpoints", () => {
   it("returns only the invited setup details, without the approval revision or a session", async () => {
     const response = await post("inspect", { invitation: robotTeamAccountInvitation(approved) });
     expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/contact/robot-team", optionalUpdates: false });
+    expect(await response.json()).toEqual({ email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/contact/robot-team" });
     expect(auth.createUser).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
-import { signInWithCustomToken, signInWithEmailAndPassword, sendEmailVerification, type User } from "firebase/auth";
+import { ArrowRight } from "lucide-react";
+import { signInWithCustomToken, sendEmailVerification, type User } from "firebase/auth";
 import { Helmet } from "@/lib/helmet";
 import { SEO } from "@/components/SEO";
 import { AuthLayout } from "@/components/auth/AuthLayout";
@@ -10,17 +10,17 @@ import { friendlyAuthError } from "@/lib/siteClaim";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { authReturnPath } from "@/lib/authReturnPath";
 
-/** Public URLs collect interest; only a current server-approved invitation shows credentials. */
+/**
+ * Public URLs collect interest; only a current server-approved invitation shows the setup. The invitation reached this
+ * address, so "Create account" signs it in with no password (owner, 2026-11-23); Google still works.
+ */
 export default function RobotTeamSignUpFlow() {
   const [token] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("invitation") || "");
   const [invitation, setInvitation] = useState<AccountInvitation | null>(null);
   const [checking, setChecking] = useState(Boolean(token));
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
-  const [password, setPassword] = useState("");
   const [terms, setTerms] = useState(false);
-  const [optionalUpdates, setOptionalUpdates] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const account = useRef<User | null>(null);
@@ -32,7 +32,6 @@ export default function RobotTeamSignUpFlow() {
     invitationRequest<AccountInvitation>("inspect", token).then(data => {
       if (!active) return;
       setInvitation(data); setName(data.name); setOrganization(data.organization);
-      setOptionalUpdates(data.optionalUpdates === true);
       void import("@/lib/firebase").catch(() => undefined);
     }).catch(failure => { if (active) setError(failure.message); }).finally(() => { if (active) setChecking(false); });
     return () => { active = false; };
@@ -41,7 +40,7 @@ export default function RobotTeamSignUpFlow() {
   async function finish(user: User) {
     if (!invitation || user.email?.trim().toLowerCase() !== invitation.email) throw new Error("Sign in with the email address on your Blueprint invitation.");
     account.current = user;
-    await workspaceRequest(user, "/setup", "POST", { name: name.trim(), organization: organization.trim(), workspaceType: invitation.workspaceType, acceptedTerms: true, optionalUpdates });
+    await workspaceRequest(user, "/setup", "POST", { name: name.trim(), organization: organization.trim(), workspaceType: invitation.workspaceType, acceptedTerms: true });
     const returnTo = authReturnPath(invitation.returnTo) ?? "/contact/robot-team";
     if (!user.emailVerified) await sendEmailVerification(user, { url: new URL(returnTo, window.location.origin).toString() });
     window.location.assign(returnTo);
@@ -50,7 +49,6 @@ export default function RobotTeamSignUpFlow() {
     if (pending.current || !invitation) return;
     setError("");
     if (!terms || !name.trim() || !organization.trim()) { setError("Enter your name and company, and agree to the Terms and Privacy Policy."); return; }
-    if (!google && !account.current && password.length < 8) { setError("Use at least 8 characters for your password."); return; }
     pending.current = true; setBusy(true);
     try {
       const firebase = await import("@/lib/firebase");
@@ -60,14 +58,10 @@ export default function RobotTeamSignUpFlow() {
       } else {
         let user = account.current;
         if (!user) {
-          try {
-            const data = await invitationRequest<{ customToken: string }>("redeem", token, { mode: "password", password, acceptedTerms: true });
-            user = (await signInWithCustomToken(firebase.auth, data.customToken)).user;
-          } catch (failure: any) {
-            if (failure.code !== "account_already_exists") throw failure;
-            user = (await signInWithEmailAndPassword(firebase.auth, invitation.email, password)).user;
-          }
-          account.current = user; setPassword("");
+          // An address that already has an account signs in on the sign-in page (password, Google or an emailed link).
+          const data = await invitationRequest<{ customToken: string }>("redeem", token, { mode: "link", acceptedTerms: true });
+          user = (await signInWithCustomToken(firebase.auth, data.customToken)).user;
+          account.current = user;
         }
         await finish(user);
       }
@@ -97,8 +91,6 @@ export default function RobotTeamSignUpFlow() {
           {!invitation.name && <div><label htmlFor="contactName">Your name</label><input id="contactName" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={160} disabled={busy} /></div>}
           {!invitation.organization && <div><label htmlFor="organizationName">Company</label><input id="organizationName" value={organization} onChange={e => setOrganization(e.target.value)} autoComplete="organization" maxLength={160} disabled={busy} /></div>}
           <p className="auth-signup-note">You get an email for each new job. You can turn these off in Settings.</p>
-          <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={busy} /><span>Also email me Blueprint updates. Optional; unsubscribe anytime.</span></label>
-          {!account.current && <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} minLength={8} autoComplete="new-password" disabled={busy} /><button type="button" disabled={busy} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p className="auth-signup-note">At least 8 characters. Skip this field to use Google.</p></div>}
           <label className="auth-signup-consent"><input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)} disabled={busy} /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this company’s account.</span></label>
           <button className="auth-primary" type="submit" disabled={busy}>{busy ? "Saving…" : account.current ? "Finish setup" : "Create account"}<ArrowRight size={18} aria-hidden="true" /></button>
         </form>

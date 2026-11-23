@@ -80,6 +80,8 @@ export type OutboxKind =
   | "robot_team_access_approved"
   /** Company: its application was declined; one fixed email, no reasons (owner, 2026-11-23). */
   | "robot_team_access_declined"
+  /** Company: a sign-in link it asked for on the sign-in page; single use, 15 minutes (`companySignInLink.ts`). */
+  | "robot_team_sign_in_link"
   /** Company: a new job, to an approved deployment company that asked for job emails (E4): once per job. */
   | "robot_team_new_task"
   /** Company: the site answered its question on the job page. */

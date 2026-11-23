@@ -16,6 +16,7 @@ import {
   requestAccessInvitation,
 } from "../utils/robotTeamEarlyAccess";
 import { recordCompanyTermsAcceptance } from "../utils/companyTerms";
+import { CompanySignInLinkError, redeemCompanySignInLink, requestCompanySignInLink } from "../utils/companySignInLink";
 import { shownVersionsCount } from "../../client/src/lib/legalAcceptance";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
@@ -90,6 +91,40 @@ router.post("/invitation", applyLimiter, async (req: Request, res: Response) => 
     return res.status(503).json({ error: "The link could not be sent. Try again shortly.", code: "invitation_request_unavailable" });
   }
   return res.status(202).json({ ok: true, message: "If that address is approved, check its inbox for your invitation. If it does not arrive, contact hello@tryblueprint.io." });
+});
+
+/**
+ * "Email me a sign-in link" (owner, 2026-11-23): the same answer whether or not the address is an approved company's,
+ * and the same rate limit as the application. The link itself is single use and lasts 15 minutes.
+ */
+export const SIGN_IN_LINK_ANSWER = { ok: true,
+  message: "If that address belongs to an approved deployment company, we have emailed it a sign-in link. It works once, for 15 minutes." };
+router.post("/sign-in-link", applyLimiter, async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
+  const parsed = invitationRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Enter a valid email address.", code: "sign_in_link_request_invalid" });
+  try {
+    await requestCompanySignInLink(parsed.data.email);
+  } catch (error) {
+    logger.warn({ error }, "Could not queue a company sign-in link");
+    return res.status(503).json({ error: "The link could not be sent. Try again shortly.", code: "sign_in_link_unavailable" });
+  }
+  return res.status(202).json(SIGN_IN_LINK_ANSWER);
+});
+
+const signInLinkRedeemSchema = z.object({ link: z.string().min(1).max(2000) }).strict();
+router.post("/sign-in-link/redeem", applyLimiter, async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
+  res.set("Referrer-Policy", "no-referrer");
+  const parsed = signInLinkRedeemSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "This sign-in link no longer works. Ask for a new one on this page.", code: "sign_in_link_invalid" });
+  try {
+    return res.json(await redeemCompanySignInLink(parsed.data.link));
+  } catch (error) {
+    if (error instanceof CompanySignInLinkError) return res.status(error.status).json({ error: error.message, code: error.code });
+    logger.warn({ error }, "Could not redeem a company sign-in link");
+    return res.status(503).json({ error: "Sign-in is temporarily unavailable. Try again shortly.", code: "sign_in_link_unavailable" });
+  }
 });
 
 /**
