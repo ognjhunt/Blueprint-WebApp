@@ -588,6 +588,19 @@ describe("the deployment companies section, with sends, answers and introduction
       body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12" }) }));
   });
 
+  it("offers Introduce us again on the open page when an introduction it requested is later cancelled and may be asked again", async () => {
+    fetchMock.mockResolvedValue(response({ ok: true, introducedAtIso: "2026-11-14T09:00:00.000Z" }));
+    const page = (companies: typeof activity) => <SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies }} />;
+    const { rerender } = render(page(activity));
+    fireEvent.click(within(companies()).getByRole("button", { name: "Introduce us" }));
+    expect(await within(companies()).findByText("Introduction requested.")).toBeVisible();
+    // The server reads the introduction back, then Blueprint's own email to the company fails (F-03).
+    rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], canIntroduce: false }] }));
+    rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], canIntroduce: true, introductionCancelled: true } as never] }));
+    expect(within(companies()).getByRole("button", { name: "Introduce us" })).toBeEnabled();
+    expect(within(companies()).queryByText("Introduction requested.")).toBeNull();
+  });
+
   it.each([
     ["not_listed", "Your job is not in front of deployment companies right now, so we cannot make an introduction."],
     ["not_interested", "This company has not answered Interested, so we cannot introduce you."],
