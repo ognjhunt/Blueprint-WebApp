@@ -9,19 +9,17 @@ import type { UpdatePreferences } from "@/types/updatePreferences";
  */
 const stored: UpdatePreferences = {
   newsletter: false, newJobAlerts: false,
-  interests: { regions: ["Texas"] }, declaredCategories: { taskFamilies: ["Palletizing"] }, requirements: { noTraining: true },
   source: "settings", updatedAtIso: "2026-11-19T10:00:00.000Z", version: "optional-updates-v2",
 };
 
 describe("Settings email choices", () => {
-  it("shows a deployment company both boxes and saves what it sees, keeping the stored targeting as it was", () => {
+  it("shows a deployment company both boxes and saves what it sees and nothing else", () => {
     const save = vi.fn();
     render(<UpdatePreferencesForm preferences={stored} pending={false} save={save} jobEmails />);
     expect(screen.getByRole("heading", { name: "Emails" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: "Email me about each new job" }));
     fireEvent.click(screen.getByRole("button", { name: "Save email choices" }));
-    expect(save).toHaveBeenCalledWith({ newsletter: false, newJobAlerts: true, interests: { regions: ["Texas"] },
-      declaredCategories: { taskFamilies: ["Palletizing"] }, requirements: { noTraining: true } });
+    expect(save).toHaveBeenCalledWith({ newsletter: false, newJobAlerts: true });
   });
 
   it("does not show a site the job-email box, and leaves its stored value alone", () => {

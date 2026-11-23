@@ -13,7 +13,7 @@ import { buildUpdatePreferences, effectiveUpdatePreferences, savedUpdatePreferen
 import type { UpdatePreferences } from "../../client/src/types/updatePreferences";
 
 const saved = (source: UpdatePreferences["source"], newJobAlerts: boolean, version: UpdatePreferences["version"] = "optional-updates-v1") =>
-  ({ newsletter: false, newJobAlerts, interests: {}, declaredCategories: {}, requirements: {}, source,
+  ({ newsletter: false, newJobAlerts, source,
     updatedAtIso: "2026-11-03T00:00:00.000Z", version }) as UpdatePreferences;
 
 describe("the job-email switch Settings shows", () => {
@@ -35,9 +35,11 @@ describe("the job-email switch Settings shows", () => {
   });
 
   it("writes new choices as v2 and still reads v1 records", () => {
-    expect(buildUpdatePreferences({ newsletter: false, newJobAlerts: true, interests: {}, declaredCategories: {}, requirements: {} },
-      "settings").version).toBe("optional-updates-v3");
+    expect(buildUpdatePreferences({ newsletter: false, newJobAlerts: true }, "settings").version).toBe("optional-updates-v3");
     expect(savedUpdatePreferences(saved("settings", false, "optional-updates-v1"))).not.toBeNull();
     expect(savedUpdatePreferences({ ...saved("settings", false), version: "optional-updates-v0" })).toBeNull();
+    // Targeting fields an older record still holds had no effect: they are dropped when read.
+    expect(savedUpdatePreferences({ ...saved("settings", true, "optional-updates-v2"), interests: { regions: ["Texas"] }, requirements: {} }))
+      .toEqual(saved("settings", true, "optional-updates-v2"));
   });
 });

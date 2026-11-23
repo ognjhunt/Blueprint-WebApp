@@ -247,3 +247,11 @@ test("refuses a viewer link that does not come from Blueprint's view route", asy
     "This 3D preview link is not valid. Open the preview again from your job page.");
   await expect(page.getByRole("link", { name: "Back to your jobs" })).toHaveAttribute("href", "/app");
 });
+
+test("takes a deployment company back to the job's page, which opened the viewer in the same tab", async ({ page }) => {
+  await page.route("**/api/website-atlas-preview-views/**", route =>
+    route.fulfill({ status: 503, json: { error: "3D preview is unavailable", code: "website_atlas_preview_unavailable" } }));
+  const scene = `${SCENE}&viewer=${"a".repeat(64)}`;
+  await page.goto(`/splat-viewer/index.html?${new URLSearchParams({ content: scene })}`);
+  await expect(page.getByRole("link", { name: "Back to the job" })).toHaveAttribute("href", "/jobs/fixture-request");
+});

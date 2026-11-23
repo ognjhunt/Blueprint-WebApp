@@ -5,7 +5,8 @@
  * A deployment company's side (`companyMaySeeJobs`) is in `server/tests/company-terms-gate.test.ts`.
  */
 import { describe, expect, it } from "vitest";
-import { LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, legalEffectiveAtMs } from "@/lib/legalAcceptance";
+import { LAUNCH_COPY_VERSION, LEGAL_VERSIONS_THAT_ASK_AGAIN, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, legalEffectiveAtMs,
+  versionsStillCounting } from "@/lib/legalAcceptance";
 import { PRIOR_TERMS_VERSION, PAIRS_A_PAGE_SHOWED, PREVIOUS_TERMS_VERSION, PRIVACY_VERSION, TERMS_VERSION, TERMS_VERSIONS_CURRENT,
   acceptedVersionsAreCurrent, buildLegalAcceptanceRecord, isCurrentLegalAcceptance, shownVersionsCount } from "@/lib/legalAcceptance";
 
@@ -74,4 +75,22 @@ describe("the versions a form may record", () => {
     // An account that holds such a pair from before is still current: the check is on what a form may record.
     expect(acceptedVersionsAreCurrent(NO_FACE_BLUR_VERSION, "2026-11-13.1", AFTER)).toBe(true);
   });
+});
+
+// Audit G-13: a new Terms or Privacy version keeps counting earlier acceptances unless it is marked as asking again.
+describe("a new version with no decision written", () => {
+  const earlier = { [NO_EARLY_TRIAL_VERSION]: [NO_FACE_BLUR_VERSION, "2026-11-12.2"] };
+  it("keeps counting the previous version and what counted beside it", () => {
+    expect([...versionsStillCounting("2099-01-01.1", NO_EARLY_TRIAL_VERSION, earlier, new Set())].sort())
+      .toEqual(["2026-11-12.2", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, "2099-01-01.1"]);
+  });
+  it("asks everyone again when it is marked as asking again", () => {
+    expect([...versionsStillCounting("2099-01-01.1", NO_EARLY_TRIAL_VERSION, earlier, new Set(["2099-01-01.1"]))])
+      .toEqual(["2099-01-01.1"]);
+  });
+  it("follows a written decision over the default", () => {
+    expect([...versionsStillCounting(NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, earlier, new Set())].sort())
+      .toEqual(["2026-11-12.2", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION]);
+  });
+  it("marks no current version as asking again", () => expect([...LEGAL_VERSIONS_THAT_ASK_AGAIN]).toEqual([]));
 });

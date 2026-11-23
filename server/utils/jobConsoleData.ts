@@ -64,7 +64,7 @@ function sitePageLine(outlook: JobOutlook): string | null {
   if (outlook.sentence) return outlook.sentence;
   if (outlook.phase === "reading") return READING_LINE;
   if (outlook.phase === "building") return SIMULATION_BUILDING;
-  if (outlook.phase === "testing" || outlook.phase === "result") return SIMULATION_READY;
+  if (outlook.phase === "simulation_ready") return SIMULATION_READY;
   return null;
 }
 
@@ -77,7 +77,7 @@ function sitePageLine(outlook: JobOutlook): string | null {
 export function standingOf(input: { outlook: JobOutlook | null; packageBuilt: boolean; videoReceived: boolean;
   waitsOnBlueprint: string[] }): { phase: AdminJobRow["phase"]; phrase: string; siteSees: string | null } {
   const { outlook, packageBuilt } = input;
-  const agrees = outlook?.phase === "testing" || outlook?.phase === "result";
+  const agrees = outlook?.phase === "simulation_ready";
   let phrase: string;
   let siteSees: string | null = outlook?.sentence ?? null;
   if (packageBuilt) {

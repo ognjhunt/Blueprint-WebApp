@@ -8,13 +8,12 @@
  * - `building`: on the way to a simulation and no ending recorded (before the Pipeline's first status, preparing,
  *   waiting on capacity, awaiting inputs, a retryable failure, handed off, a scene built with no run yet, and any
  *   state that is unknown or unreadable).
- * - `testing`: the simulation of the site is ready (its company simulation package is published), or a run is queued
- *   with a plan or running, and no ending recorded.
- * - `result`: a published test result scored at least one AI robot.
+ * - `simulation_ready`: the simulation of the site is ready, and no ending recorded. There is no "testing" or "result"
+ *   phase: Blueprint runs no robot software in the simulation (dropped 2026-11-14; ledger AL29).
  * - `no_test`: an ending is recorded and no result exists; the paper check is the answer, with `sentence`.
  * - `ended_by_site`: the site withdrew recording permission or closed the run; never building, never an answer email.
  *
- * Holds that retry by themselves are not endings (a scene outcome that is a wait). The job window bounds `building` and `testing`: once its ending is recorded the
+ * Holds that retry by themselves are not endings (a scene outcome that is a wait). The job window bounds `building` and `simulation_ready`: once its ending is recorded the
  * job is `no_test`.
  */
 import { RUN_ENDED_WITHOUT_RESULT, testNotRunLine, type SimulationProof } from "../../client/src/lib/simulationProof";
@@ -67,18 +66,11 @@ export interface JobOutlookInput {
 export const LIVE_RUN_GRACE_SECONDS = 6 * 60 * 60;
 
 /**
- * Whether a finished test scored at least one AI robot: only that is a result. A finished test that scored none is an
- * ending ("no AI robot could be scored"), never a result.
- */
-export const proofScoredAnyRobot = (proof: SimulationProof | null | undefined) =>
-  proof?.state === "done" && proof.options.options.some(option => option.scored > 0);
-
-/**
  * The outlook from what the job's records say. Pure.
  *
  * Rule (review, 2026-11-11): when unsure, the job is still being worked on. Only a positively recorded ending gives
  * the site its answer (the paper check, the button, the paper email). Every other state, missing value, unreadable
- * record or state name never seen before is `building` or `testing`. The recorded endings, and only these:
+ * record or state name never seen before is `building` or `simulation_ready`. The recorded endings, and only these:
  * - recording permission withdrawn; the run closed by the owner (the site's own: `ended_by_site`);
  * - a finished evaluation: a result when it scored an AI robot, else "no AI robot could be scored";
  * - an evaluation record in a terminal state, or held (`could_not_run`);
@@ -95,23 +87,14 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   // The site's own endings come first: never building, never an answer.
   if (input.consentRevoked === true) return outlook("ended_by_site", "permission_withdrawn");
   if (input.closedByOwner === true) return outlook("ended_by_site", "closed_by_owner");
-  const proof = input.proof;
-  const working = (): JobOutlook => {
-    const testing = proof?.state === "running" || (proof?.state === "preparing" && proof.options.entered > 0)
-      || input.scene?.state === "ready" || proof?.state === "done";
-    return testing ? outlook("testing")
-      : outlook("building", input.preparation?.state === "failed_retryable" || input.scene?.attemptFailed ? "step_failed" : null);
-  };
+  const working = (): JobOutlook => input.scene?.state === "ready" ? outlook("simulation_ready")
+    : outlook("building", input.preparation?.state === "failed_retryable" || input.scene?.attemptFailed ? "step_failed" : null);
   // Ordered by where each fact lives (review, 2026-11-11): the facts recorded on the website's side first (above, the
-  // site's own endings; then a published scored result; then every recorded ending). A read that failed elsewhere
-  // (`uncertain`) never hides one of them; it only keeps a job with none of them working.
-  if (proofScoredAnyRobot(proof)) return outlook("result");
+  // site's own endings; then every recorded ending). A read that failed elsewhere (`uncertain`) never hides one of
+  // them; it only keeps a job with none of them working.
   const ending = recordedEndingOf(input);
   if (ending?.reason === "spending_cap_reached") return ending;
   if (!input.answer || input.answer.state === "reading") return outlook("reading");
-  // A live run is testing, whatever the clock says: the window's end stops it through its own authority, and the run's
-  // terminal record then says so (`window_ended_during_test`).
-  if (liveRun(input)) return outlook("testing");
   // Waiting for the site to name its job: neither building nor an ending.
   return ending ?? (input.awaitsSiteSentence === true ? outlook("waiting_on_site", "task_not_named") : working());
 }
@@ -143,7 +126,6 @@ export function recordedEndingOf(input: JobOutlookInput): JobOutlook | null {
 function recordedEnding(input: JobOutlookInput,
   outlook: (phase: JobPhase, reason?: JobOutlookReason | null, sentence?: string | null) => JobOutlook): JobOutlook | null {
   const { proof, answer } = input;
-  if (proofScoredAnyRobot(proof)) return null;
   if (proof?.state === "done") return outlook("no_test", "no_ai_robot_scored", testNotRunLine(proof) ?? undefined);
   if (proof?.state === "could_not_run") {
     const ended = proof.headline === RUN_ENDED_WITHOUT_RESULT;
@@ -172,7 +154,7 @@ function recordedEnding(input: JobOutlookInput,
 }
 
 export { outlookHasAnswer } from "../../client/src/lib/jobOutlook";
-const RECORDED_PHASES: ReadonlySet<string> = new Set(["ended_by_site", "result", "no_test"]);
+const RECORDED_PHASES: ReadonlySet<string> = new Set(["ended_by_site", "no_test"]);
 
 /** The answer's part of the outlook input. */
 export const outlookAnswerOf = (answer: SiteAnswer | null | undefined): JobOutlookInput["answer"] => answer
@@ -296,6 +278,6 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
     preparation, scene, proof, uncertain,
   };
   const outlook = jobOutlook(input);
-  // A recorded fact (the site's own ending, a result, a recorded ending) is certain whatever else could not be read.
+  // A recorded fact (the site's own ending, a recorded ending) is certain whatever else could not be read.
   return { outlook, certain: !uncertain || RECORDED_PHASES.has(outlook.phase), ending: recordedEndingOf(input), resultUnknown };
 }

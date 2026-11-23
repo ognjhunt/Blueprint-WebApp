@@ -21,7 +21,7 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({
 const siteRow: AdminJobRow = { requestId: "job-a", sentence: "Stack cartons onto the pallet.", internalTest: null,
   phase: "building", standing: "Building the simulation", receivedAtIso: "2026-11-17T08:00:00.000Z" };
 const testRow: AdminJobRow = { requestId: "job-t", sentence: "Pick the mug up.", internalTest: { label: "mug to tray" },
-  phase: "testing", standing: "Simulation ready", receivedAtIso: "2026-11-16T18:00:00.000Z" };
+  phase: "simulation_ready", standing: "Simulation ready", receivedAtIso: "2026-11-16T18:00:00.000Z" };
 
 const siteJob: AdminJobDetail = {
   requestId: "job-a",
@@ -35,7 +35,7 @@ const siteJob: AdminJobDetail = {
 const testJob: AdminJobDetail = {
   requestId: "job-t",
   job: { sentence: "Pick the mug up.", drafted: false, site: null, internalTest: { label: "mug to tray" } },
-  standing: { phase: "testing", phrase: "Simulation ready", siteSees: null, companies: null,
+  standing: { phase: "simulation_ready", phrase: "Simulation ready", siteSees: null, companies: null,
     pipeline: "The Pipeline reports: the simulation package is published." },
   simulationPackageUrl: "/api/admin/jobs/job-t/simulation.zip",
   simulationPackage: { files: ["README.txt", "scene.usda"], sizeBytes: 2_000_000, builtAtIso: "2026-11-16T21:40:00.000Z" },

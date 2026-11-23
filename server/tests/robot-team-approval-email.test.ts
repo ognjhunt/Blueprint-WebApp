@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: null }));
 vi.mock("../utils/accountInvitations", () => ({ robotTeamAccountInvitation: () => "invitation-fixture" }));
-const { accessApprovedEmail, introductionCompanyEmail } = await import("../utils/robotTeamAccessEmails");
+vi.stubEnv("BLUEPRINT_FOUNDER_CALL_URL", "https://cal.example/blueprint");
+const { accessApprovedEmail, introductionCompanyEmail, newJobEmail } = await import("../utils/robotTeamAccessEmails");
 
 // Review, 2026-11-12: the company approval email says where the jobs are and what a company can do there today.
 // Launch copy (2026-11-20, e-009 to e-011): the account link is its own button, the list is "Find jobs", and the
@@ -19,6 +20,8 @@ describe("the deployment company approval email", () => {
       + "The link works only for this email address and expires in 7 days. If it expires, get a new one at https://tryblueprint.io/contact/robot-team.");
     expect(email.body).not.toMatch(/summar|job library|bound to|guarantee|in a minute/i);
     expect(email.body).toContain("\nNothing is charged today.\n");
+    // No "book a call" line (ledger BL22), whatever the environment holds.
+    expect(email.body).not.toMatch(/a call would help|book one/i);
     expect(email.body).not.toMatch(/workspace|want to test at|new-job alerts|in Settings|evaluation|\$\s?\d/i);
     // The doctrine's words: an approved deployment company, never a "team" invited to a "beta" (journey audit, 2026-11-20).
     expect(email.subject).toBe("Your company is approved to see jobs on Blueprint");
@@ -26,6 +29,17 @@ describe("the deployment company approval email", () => {
       ? "Following our conversation, your company is approved as a deployment company on Blueprint."
       : "Your company is approved as a deployment company on Blueprint.");
     expect(`${email.subject}\n${email.body}`).not.toMatch(/\bbeta\b|your team/i);
+  });
+});
+
+describe("the new-job email", () => {
+  it("names the kind of job and the country, and leaves out a kind it does not have", () => {
+    const named = newJobEmail({ to: "ada@example.com", jobUrl: "https://tryblueprint.io/jobs/req-1", kind: "Pallet handling", country: "United States" });
+    expect(named.subject).toBe("New job on Blueprint: Pallet handling");
+    expect(named.body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Pallet handling\nCountry: United States\n\nOpen the job:\nhttps:\/\/tryblueprint\.io\/jobs\/req-1\n/);
+    const plain = newJobEmail({ to: "ada@example.com", jobUrl: "https://tryblueprint.io/jobs/req-1", kind: "Other", country: null });
+    expect(plain.subject).toBe("New job on Blueprint");
+    expect(plain.body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nOpen the job:\n/);
   });
 });
 

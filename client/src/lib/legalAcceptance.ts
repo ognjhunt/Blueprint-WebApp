@@ -317,9 +317,9 @@ export interface LegalAcceptanceRecord<TAcceptedAt = unknown> {
  * For a Privacy Policy version, the earlier versions whose acceptance, recorded beside the current Terms, still
  * counts. An earlier version may be listed ONLY when the newer version changes nothing for existing accounts: its
  * changes concern only jobs started and requests sent from then on, so nobody needs to agree again (2026-11-13.1
- * replaced 2026-11-12.2 that way). Keyed by the version that decided it, so a new PRIVACY_VERSION inherits nothing:
- * until its own entry is written, only the new version counts (everyone is asked again), and
- * `client/tests/legalAcceptance.privacy-current.test.ts` fails, asking for the decision. A Terms change still asks.
+ * replaced 2026-11-12.2 that way). Keyed by the version that decided it. A new PRIVACY_VERSION with no entry here keeps
+ * counting what counted for PREVIOUS_PRIVACY_VERSION (audit G-13), unless it is listed in `LEGAL_VERSIONS_THAT_ASK_AGAIN`;
+ * `client/tests/legalAcceptance.privacy-current.test.ts` pins the result.
  */
 const EARLIER_PRIVACY_VERSIONS_STILL_COUNTING: Readonly<Record<string, readonly string[]>> = {
   "2026-11-13.1": ["2026-11-12.2"],
@@ -333,16 +333,36 @@ const EARLIER_PRIVACY_VERSIONS_STILL_COUNTING: Readonly<Record<string, readonly 
   // version that counted beside the current Terms before it still counts, and nobody is asked again.
   [LAUNCH_COPY_VERSION]: [NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, "2026-11-13.1", "2026-11-12.2"],
 };
+
+/**
+ * Terms or Privacy versions that ask everyone again (audit G-13, owner decision pending): an earlier acceptance does not
+ * count for them. A version that changes what a deployment company may do with a job MUST be listed here, or its
+ * acceptance would bind companies that never agreed to it. Any other new version keeps counting earlier acceptances.
+ */
+export const LEGAL_VERSIONS_THAT_ASK_AGAIN: ReadonlySet<string> = new Set<string>([]);
+
+/**
+ * The versions that count beside `version`: its own entry when one is written; else, unless it asks again, the
+ * previous version and what counted for that one; else only itself.
+ */
+export function versionsStillCounting(version: string, previous: string,
+  earlier: Readonly<Record<string, readonly string[]>>, asksAgain: ReadonlySet<string> = LEGAL_VERSIONS_THAT_ASK_AGAIN): Set<string> {
+  const decided = earlier[version];
+  if (decided) return new Set([version, ...decided]);
+  if (asksAgain.has(version) || previous === version) return new Set([version]);
+  return new Set([version, previous, ...(earlier[previous] ?? [])]);
+}
+
 export const PRIVACY_VERSIONS_CURRENT_WITH_TERMS: ReadonlySet<string> =
-  new Set([PRIVACY_VERSION, ...(EARLIER_PRIVACY_VERSIONS_STILL_COUNTING[PRIVACY_VERSION] ?? [])]);
+  versionsStillCounting(PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, EARLIER_PRIVACY_VERSIONS_STILL_COUNTING);
 
 /**
  * For a Terms version, the earlier Terms versions whose acceptance still counts. Until 2026-11-17.1 every Terms change
  * asked everyone again; an earlier version may be listed ONLY when the newer Terms change nothing for existing accounts
- * and deployment companies: their changes concern only jobs started from then on. Keyed by the version that decided it,
- * so a new TERMS_VERSION inherits nothing: until its own entry is written, only the new version counts (everyone,
- * deployment companies included, is asked again; `server/utils/companyTerms.ts`), and
- * `client/tests/legalAcceptance.terms-current.test.ts` fails, asking for the decision.
+ * and deployment companies: their changes concern only jobs started from then on. Keyed by the version that decided it.
+ * A new TERMS_VERSION with no entry here keeps counting what counted for PREVIOUS_TERMS_VERSION (audit G-13), unless it
+ * is listed in `LEGAL_VERSIONS_THAT_ASK_AGAIN` (then everyone, deployment companies included, is asked again;
+ * `server/utils/companyTerms.ts`); `client/tests/legalAcceptance.terms-current.test.ts` pins the result.
  */
 const EARLIER_TERMS_VERSIONS_STILL_COUNTING: Readonly<Record<string, readonly string[]>> = {
   // 2026-11-17.1 changes only what happens to jobs started under it (no face blurring), so an account or a deployment
@@ -358,7 +378,7 @@ const EARLIER_TERMS_VERSIONS_STILL_COUNTING: Readonly<Record<string, readonly st
   [LAUNCH_COPY_VERSION]: [NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, "2026-11-12.2"],
 };
 export const TERMS_VERSIONS_CURRENT: ReadonlySet<string> =
-  new Set([TERMS_VERSION, ...(EARLIER_TERMS_VERSIONS_STILL_COUNTING[TERMS_VERSION] ?? [])]);
+  versionsStillCounting(TERMS_VERSION, PREVIOUS_TERMS_VERSION, EARLIER_TERMS_VERSIONS_STILL_COUNTING);
 
 export function acceptedVersionsAreCurrent(terms: unknown, privacy: unknown, nowMs = Date.now()): boolean {
   // Each document on its own: the current version counts; while a document's update is announced but not yet in

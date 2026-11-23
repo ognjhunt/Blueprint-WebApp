@@ -258,8 +258,19 @@ describe("the job page's status follows each waiting stage", () => {
     await pipelineSync(jobId, { runnable: false });
     expect(await pageWait(token)).toEqual(building);
 
-    // Launchable and scoreable: robot teams can take it up, on no promised date.
+    // Launchable and scoreable is the retired trial's proof: it no longer opens the job on its own.
     await pipelineSync(jobId);
+    expect(await pageWait(token)).toEqual(building);
+
+    // The company simulation is stored: deployment companies can take it up, on no promised date.
+    const captureId = `walkthrough-${jobId}`;
+    const simulation: Record<string, unknown> = { schema_version: "website_company_simulation.v1", capture_id: captureId,
+      simulation_revision: `sha256:${"4".repeat(64)}`, state: "ready", format: "zip_usd_scene_object_success_rule",
+      content_type: "application/zip", digest: `sha256:${"5".repeat(64)}`, size_bytes: 1, files: ["scene.usda"],
+      permission_basis: "site_sharing_statement", statement_version: "2026-11-12.v4", updated_at_epoch: 1_794_000_000 };
+    const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
+    state.docs.set(`captureUploadSessions/${captureId}`, { ...state.docs.get(`captureUploadSessions/${captureId}`),
+      company_simulation: { ...simulation, simulation_digest: crossRuntimeArtifactDigest(simulation, "simulation_digest") } });
     const awaitingTeams = "awaiting_teams";
     expect(await pageWait(token)).toEqual(awaitingTeams);
   });

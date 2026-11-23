@@ -15,8 +15,8 @@
  * application stays approved. Approvals given before this binding existed are
  * bound to the account's teams the first time they are used.
  *
- * `BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS` no longer opens anything: since jobs are shared in full (2026-11-12), the
- * library, a job's page and its media need a signed-in, verified, approved account whatever the setting says.
+ * Since jobs are shared in full (2026-11-12), the library, a job's page and its media need a signed-in, verified,
+ * approved account. There is no switch that opens them.
  */
 import { createHash } from "node:crypto";
 
@@ -36,7 +36,6 @@ export type RobotTeamAccessStatus = "applied" | "approved" | "declined";
 
 export interface RobotTeamAccessApplication {
   partnerRole?: "deployment" | "technology" | null;
-  supportedSystems?: string | null;
   optionalUpdates?: boolean;
   returnToJob?: string;
   name: string;
@@ -46,10 +45,6 @@ export interface RobotTeamAccessApplication {
   robot: string;
   workWanted: string;
   region: string | null;
-  /** Private, provider-supplied starting point; never a binding site quote. */
-  pilotPackage?: string | null;
-  /** A site or customer the team would want to test at: a lead for the site side. */
-  testSite?: string | null;
 }
 
 export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
@@ -81,8 +76,6 @@ export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
 
 /** What a viewer of the task library is allowed to see, and why. */
 export interface LibraryAccess {
-  /** False once the library is opened to everyone. */
-  gated: boolean;
   /** "approved" is the only status that sees tasks. */
   status: RobotTeamAccessStatus | "none";
   signedIn: boolean;
@@ -106,14 +99,6 @@ export const EARLY_ACCESS_REQUIRED = {
   },
 } as const;
 
-const OPEN_VALUES = new Set(["0", "false", "no", "off", "open"]);
-
-/** On unless explicitly opened, so a missing variable never exposes sites. */
-export function isRobotTeamEarlyAccessGated(): boolean {
-  const value = String(process.env.BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS ?? "").trim().toLowerCase();
-  return !OPEN_VALUES.has(value);
-}
-
 export function normalizeAccessEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -135,7 +120,7 @@ export async function getAccessRecordForEmail(email: string | null | undefined):
  */
 export async function recordAccessApplication(
   application: RobotTeamAccessApplication,
-  options: { fit?: AccessFit | null; applicationTermsAcceptance?: unknown } = {},
+  options: { applicationTermsAcceptance?: unknown } = {},
 ): Promise<{ record: RobotTeamAccessRecord; created: boolean; unchanged?: true; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
   const { NO_ACCESS_EMAIL } = await import("./robotTeamAccessEmails");
@@ -156,17 +141,13 @@ export async function recordAccessApplication(
       ...application,
       ...(returnToJob ? { returnToJob } : {}),
       partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
-      supportedSystems: application.supportedSystems === undefined ? prior?.supportedSystems ?? null : application.supportedSystems,
       // Job emails start on once approved (owner, 2026-11-20); the form's one box is Blueprint updates only.
       newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? true,
       ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : !prior && application.optionalUpdates !== undefined
-        ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: true, interests: {}, declaredCategories: {}, requirements: {} }, "application") } : {}),
+        ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: true }, "application") } : {}),
       ...(prior?.preferencesAccountUid ? { preferencesAccountUid: prior.preferencesAccountUid } : {}),
       email,
-      testSite: application.testSite === undefined ? prior?.testSite ?? null : application.testSite,
-      pilotPackage: application.pilotPackage === undefined ? prior?.pilotPackage ?? null : application.pilotPackage,
       source: prior?.source ?? "application",
-      fit: options.fit ?? null,
       status: "applied",
       appliedAtIso: prior?.appliedAtIso ?? now,
       updatedAtIso: now,
@@ -253,10 +234,7 @@ export async function inviteRobotTeam(params: {
       robot: prior?.robot ?? "",
       workWanted: prior?.workWanted ?? params.note ?? "",
       region: prior?.region ?? null,
-      testSite: prior?.testSite ?? null,
-      pilotPackage: prior?.pilotPackage ?? null,
       partnerRole: prior?.partnerRole ?? null,
-      supportedSystems: prior?.supportedSystems ?? null,
       source: prior?.source ?? "invite",
       fit: prior?.fit ?? null,
       status: "approved",
@@ -449,14 +427,13 @@ async function ensureApprovedTeamOnce(holder: AccountHolder): Promise<string | n
  * first use.
  */
 export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<LibraryAccess> {
-  const gated = isRobotTeamEarlyAccessGated();
   const signedIn = Boolean(viewer);
   const emailVerified = Boolean(viewer?.emailVerified);
   const staff = Boolean(viewer?.isOps);
-  if (staff) return { gated, status: "approved", signedIn, emailVerified, allowed: true, staff };
-  // Jobs are shared in full with approved deployment companies (2026-11-12), so the open value of
-  // BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS never admits anyone: every viewer must be signed in, verified and approved.
-  if (!viewer) return { gated, status: "none", signedIn, emailVerified, allowed: false, staff };
+  if (staff) return { status: "approved", signedIn, emailVerified, allowed: true, staff };
+  // Jobs are shared in full with approved deployment companies (2026-11-12): every viewer must be signed in, verified
+  // and approved.
+  if (!viewer) return { status: "none", signedIn, emailVerified, allowed: false, staff };
 
   let record: RobotTeamAccessRecord | null = null;
   try {
@@ -486,7 +463,7 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
       }
     }
   }
-  return { gated, status, signedIn, emailVerified, allowed, staff, ...(termsRequired ? { termsRequired } : {}) };
+  return { status, signedIn, emailVerified, allowed, staff, ...(termsRequired ? { termsRequired } : {}) };
 }
 
 /**

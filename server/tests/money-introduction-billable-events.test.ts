@@ -45,11 +45,11 @@ vi.mock("../utils/robotTeamLibraryAccess", async () => {
   const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
   const viewerFor = async (req: express.Request) => {
     const account = seams.tokens.get(String(req.headers.authorization ?? "").replace(/^Bearer /, ""));
-    if (!account) return { access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
+    if (!account) return { access: { status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
     const companyId = accessRecordId(account.email);
     const record = (await sharedFakeFirestore.collection("robotTeamAccess").doc(companyId).get()).data();
     const { companyMaySeeJobs } = await import("../utils/companyTerms");
-    return { access: { gated: true, status: record?.status ?? "none", signedIn: true, emailVerified: true,
+    return { access: { status: record?.status ?? "none", signedIn: true, emailVerified: true,
       allowed: companyMaySeeJobs(record), staff: false }, viewer: { uid: account.uid, email: account.email, companyId, staff: false } };
   };
   return { companyViewerForRequest: viewerFor, libraryAccessForRequest: async (req: express.Request) => (await viewerFor(req)).access };

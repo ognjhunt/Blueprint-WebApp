@@ -2,7 +2,11 @@
  * The job's outlook, as the server decides it once (`server/utils/jobOutlook.ts`) for the job page, the sharing
  * routes and every answer email. The page shows the screen for the phase and never works it out itself.
  */
-export type JobPhase = "reading" | "building" | "testing" | "result" | "no_test" | "ended_by_site"
+/**
+ * Blueprint runs no robot software in the simulation (the early trial was dropped on 2026-11-14), so there is no
+ * "testing" or "result" phase: a built simulation is `simulation_ready` (ledger AL29).
+ */
+export type JobPhase = "reading" | "building" | "simulation_ready" | "no_test" | "ended_by_site"
   /** The job waits for the site to say what the robot should do in one sentence (review, 2026-11-12). */
   | "waiting_on_site";
 export type JobOutlookReason =
@@ -67,8 +71,7 @@ export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_h
 export const OUTLOOK_HOLDS: ReadonlySet<JobOutlookReason> = new Set(["run_held", "scene_held"]);
 
 /**
- * Whether the phase has settled what the site sees: a trial result, or the first look after an ending. It gates no
- * sharing: there is no share step (2026-11-12), so no sentence says why sharing waits.
+ * Whether the phase has settled what the site sees: the first look after an ending. It gates no sharing: there is no
+ * share step (2026-11-12), so no sentence says why sharing waits.
  */
-export const outlookHasAnswer = (outlook: Pick<JobOutlook, "phase">) =>
-  outlook.phase === "result" || outlook.phase === "no_test";
+export const outlookHasAnswer = (outlook: Pick<JobOutlook, "phase">) => outlook.phase === "no_test";

@@ -33,7 +33,7 @@ describe("the job library's label for where a job's simulation stands", () => {
   });
   it("says simulation built once the Pipeline rebuilt the scene, or the trial ran in it", async () => {
     expect(await libraryJobStage("job", { pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://x" } } })).toBe("simulation_built");
-    outlook.value = { outlook: { phase: "result", reason: null }, certain: true };
+    outlook.value = { outlook: { phase: "simulation_ready", reason: null }, certain: true };
     expect(await stage()).toBe("simulation_built");
   });
   it("shows nothing for a held job, another ending, or any state it cannot read for certain", async () => {

@@ -98,7 +98,6 @@ import { FOLLOW_UP_IDS, FOLLOW_UP_QUESTIONS, selectFollowUps, type FollowUpId } 
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
-import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { CUSTOMER_JOB_EMAIL_IDENTITY } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
@@ -387,7 +386,14 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
     // The screen gates nothing for a job filmed after 2026-11-11: its status follows the outlook, not the screen.
     screenGateEnded: sceneScreenGateEnded(data, requestId),
     // Stored plaintext fields, which is what the access predicate reads.
-    jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
+    jobAccess: await (async () => {
+      // Whether the company simulation is stored decides "open" (a job card's Ready); an unreadable session reads as not.
+      const companySimulationReady = await Promise.all([import("../utils/websiteCompanySimulation"),
+        db.collection("captureUploadSessions").doc(websiteIdentity.captureId).get()])
+        .then(([{ storedCompanySimulation }, session]) => Boolean(storedCompanySimulation(session.data(), websiteIdentity.captureId)))
+        .catch(() => false);
+      try { return teamJobAccess(data, { companySimulationReady }); } catch { return null; }
+    })(),
     recommended: Boolean(data.pilot_recommendation),
     workspace_task: (data.workspace_task as { terms?: unknown } | undefined) ?? null,
     site_task_scope: (data.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
@@ -1059,21 +1065,16 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     }
 
     // A job from before the owner's decision of 2026-11-11 that needs a call
-    // gets no scene until ops records the call, so ops has to hear about it:
-    // the request carries the next step and Slack rings. For a marked job both
-    // are a note: its scene is built whatever the screen says. Best-effort;
-    // neither may fail the operator's confirmation.
+    // gets no scene until ops records the call: the request carries the next
+    // step (no Slack bell since 2026-11-22). For a marked job it is a note: its
+    // scene is built whatever the screen says. Best-effort; it may not fail the
+    // operator's confirmation.
     if (!result.reusedConfirmation && !briefUnclear && result.disposition === "needs_conversation" && db) {
-      const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
-        .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
-        .catch(() => []);
       void db.collection("inboundRequests").doc(payload.requestId)
         .set({ ops: { next_step: screenGateEnded
           ? "Note only: the screen left questions open. The scene is built whatever it says; answers or a call can still sharpen the test."
           : "Review the owner’s written clarification or book a screening call, then record the outcome under Screening." } }, { merge: true })
         .catch((error) => logger.warn({ error, requestId: payload.requestId }, "Could not set screening call next step"));
-      void notifySlackScreeningCallNeeded({ requestId: payload.requestId, openQuestions: agenda, screenGateEnded })
-        .catch(() => undefined);
     }
 
     return res.status(200).json({

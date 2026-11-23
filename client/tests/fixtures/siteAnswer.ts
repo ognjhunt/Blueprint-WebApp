@@ -229,8 +229,8 @@ export function serverOutlookFor(answer: { state: string; reason?: string | null
   if (answer.state === "cannot_assess") return { phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." };
   const test = testResultOf(view);
   const state = (view as { state?: string } | null)?.state;
-  if (test?.kind === "testing" || state === "running") return { phase: "testing", reason: null, sentence: null };
-  if (test) return { phase: "result", reason: null, sentence: null };
+  if (test?.kind === "testing" || state === "running") return { phase: "simulation_ready", reason: null, sentence: null };
+  if (test) return { phase: "simulation_ready", reason: null, sentence: null };
   if (state === "preparing") return { phase: "building", reason: null, sentence: null };
   return { phase: "no_test", reason: null, sentence: testNotRunLine(view) };
 }

@@ -17,12 +17,11 @@ vi.mock("../utils/email", () => ({ sendEmail }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 const { projectTaskBrowseCard, listTaskBrowseCards } = await import("../utils/taskBrowse");
 const { approvedTaskDetails, listingDetailsForSentence, sharedJobListing, taskListingSchema } = await import("../utils/taskListingDetails");
-const { isRunnableTask } = await import("../utils/teamJobAccess");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 // Sharing follows the job's outlook (review, 2026-11-11). These tests are about cards on jobs that have an answer,
 // so the outlook is a test result unless a test sets another phase.
-const outlookPhase = vi.hoisted(() => ({ value: "result" as string }));
+const outlookPhase = vi.hoisted(() => ({ value: "simulation_ready" as string }));
 vi.mock("../utils/jobOutlook", async importOriginal => ({ ...await importOriginal<typeof import("../utils/jobOutlook")>(),
   loadJobOutlookDecision: vi.fn(async () => ({ outlook: { phase: outlookPhase.value, reason: null, sentence: null }, certain: true })) }));
 const publicRouter = (await import("../routes/site-worlds")).default;
@@ -38,14 +37,14 @@ const record = (patch: Record<string, unknown> = {}) => ({
   pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://private/scene.json" } },
   evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" }, ...patch,
 } as unknown as InboundRequest);
-beforeEach(() => { outlookPhase.value = "result"; state.docs.clear(); sendEmail.mockReset().mockResolvedValue({ sent: true, messageId: "fake", provider: "fake" }); });
+beforeEach(() => { outlookPhase.value = "simulation_ready"; state.docs.clear(); sendEmail.mockReset().mockResolvedValue({ sent: true, messageId: "fake", provider: "fake" }); });
 afterEach(() => vi.useRealTimers());
 
 describe("public task disclosure", () => {
   it("publishes only the closed category of the job, with no contact, intake, storage, footage or stored free text", () => {
     const card = projectTaskBrowseCard("req1", record());
     // The stored title is free text, so the card shows the neutral category (2026-11-12: never trust stored text).
-    expect(card).toMatchObject({ title: "Job opportunity", opportunity: "open", evaluationAvailable: true, stage: "ready" });
+    expect(card).toMatchObject({ title: "Job opportunity", opportunity: "open", evaluationAvailable: false, stage: "preparing" });
     expect(card).not.toHaveProperty("costUsd");
     expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs|Move cartons|US Midwest|Warehouse|Sealed cartons/);
   });
@@ -87,22 +86,22 @@ describe("public task disclosure", () => {
   ])("does not expose unconsented, closed, development or restricted records: %j", patch => {
     expect(projectTaskBrowseCard("req1", record(patch))).toBeNull();
   });
-  it("public interest in a pilot cannot make an unproven scene runnable", () => {
-    const source = record({ evaluation_readiness: null });
-    expect(projectTaskBrowseCard("req1", source)).toMatchObject({ stage: "preparing", evaluationAvailable: false });
-    expect(isRunnableTask(source)).toBe(false);
+  it("does not read Ready from the retired runnable proof: only the stored company simulation makes a card Ready", () => {
+    // The fixture carries the retired runnable proof; without a stored company simulation the card is not Ready.
+    expect(projectTaskBrowseCard("req1", record())).toMatchObject({ stage: "preparing", evaluationAvailable: false });
+    expect(projectTaskBrowseCard("req1", record({ evaluation_readiness: null }), { companySimulationReady: true }))
+      .toMatchObject({ stage: "ready", evaluationAvailable: true });
   });
   it("shows capture progress separately and keeps closed scenes out of paid supply", () => {
     // The fixture's video arrived (its admission record is on file), so it is past "capture"; with no video it is not.
-    expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "preparing", evaluationAvailable: false });
+    expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "preparing" });
     expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null, capture_privacy_screen: undefined })))
-      .toMatchObject({ stage: "capture", evaluationAvailable: false });
-    // A pause no longer hides the job from companies (must-fix 3) but still keeps it out of paid runs, as does a close.
-    expect(isRunnableTask(record({ workspace_task: { archived: true } }))).toBe(false);
-    expect(isRunnableTask(record({ workspace_task: { paused: true } }))).toBe(false);
+      .toMatchObject({ stage: "capture" });
+    // A close still closes the job.
+    expect(projectTaskBrowseCard("req1", record({ workspace_task: { archived: true } }))).toBeNull();
   });
-  it("lists a ready job", () => {
-    expect(projectTaskBrowseCard("req1", record())).toMatchObject({ id: "req1", stage: "ready" });
+  it("lists a shared job", () => {
+    expect(projectTaskBrowseCard("req1", record())).toMatchObject({ id: "req1", stage: "preparing" });
   });
   it("does not wait on an upload-time privacy decision: no screen has held a video since 2026-09-24", () => {
     expect(projectTaskBrowseCard("req1", record({ capture_privacy_screen: { eligibility: "rejected", proceeded: false } })))
@@ -118,6 +117,25 @@ describe("public task disclosure", () => {
     state.docs.set("inboundRequests/req1", record({ public_task_listing: { enabled: false } }) as never);
     expect(await listTaskBrowseCards()).toEqual([]);
     expect(approvedTaskDetails(record({ public_task_listing: {} }))).toBeNull();
+  });
+
+  it("reads every listed job, more than 200, newest shared first and then by id", async () => {
+    const ids = Array.from({ length: 205 }, (_, index) => `req${index + 1}`);
+    for (const [index, id] of ids.entries()) {
+      state.docs.set(`siteTaskBriefs/${id}`, { requestId: id, summary: "Move cartons from the conveyor to a pallet" } as never);
+      const base = record();
+      // Two jobs per day, so jobs shared at the same moment are ordered by id.
+      const approvedAtIso = new Date(Date.UTC(2026, 10, 1) + Math.floor(index / 2) * 86_400_000).toISOString();
+      state.docs.set(`inboundRequests/${id}`, { ...base, public_task_listing: { ...base.public_task_listing, approvedAtIso } } as never);
+      state.docs.set(`captureUploadSessions/walkthrough-${id}`, { company_clip: sharedCompanyClip(`walkthrough-${id}`) });
+    }
+    const cards = await listTaskBrowseCards();
+    expect(cards).toHaveLength(205);
+    expect(cards.slice(0, 3).map(card => card.id)).toEqual(["req205", "req203", "req204"]);
+    const order = cards.map(card => `${card.publishedAtIso}|${card.id}`);
+    expect(cards.every((card, index) => index === 0 || cards[index - 1].publishedAtIso > card.publishedAtIso
+      || (cards[index - 1].publishedAtIso === card.publishedAtIso && cards[index - 1].id < card.id))).toBe(true);
+    expect(new Set(order).size).toBe(205);
   });
 });
 

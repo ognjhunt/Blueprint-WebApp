@@ -35,7 +35,9 @@ test("on a small phone both entry points are visible before scrolling", async ({
   await start.click();
   await expect(page.getByRole("form", { name: "Start a job" })).toBeVisible();
   await companies.click();
-  await expect(page.getByRole("heading", { name: "Apply to see jobs" })).toBeInViewport();
+  // Find jobs opens on what a company gets; the sample job comes before the application.
+  await expect(page.getByRole("heading", { name: "Find jobs for the robots you deploy.", level: 1 })).toBeInViewport();
+  await expect(page.getByRole("link", { name: "See a sample job" })).toBeInViewport();
   await page.getByRole("link", { name: "See jobs", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Apply to see jobs", level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/jobs#partner-application");

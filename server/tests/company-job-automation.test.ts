@@ -56,14 +56,14 @@ vi.mock("../utils/robotTeamLibraryAccess", async () => {
   const viewerFor = async (req: express.Request) => {
     const token = String(req.headers.authorization ?? "").replace(/^Bearer /, "");
     const account = seams.tokens.get(token);
-    if (!account) return { access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
+    if (!account) return { access: { status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false }, viewer: null };
     const companyId = accessRecordId(account.email);
     const record = (await sharedFakeFirestore.collection("robotTeamAccess").doc(companyId).get()).data();
     // As the real gate (`resolveViewerAccess`): approved, and a deployment company, never a technology partner.
     const { companyMaySeeJobs } = await import("../utils/companyTerms");
     const deployment = record?.status === "approved" && record.partnerRole !== "technology";
     const allowed = companyMaySeeJobs(record);
-    return { access: { gated: true, status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false,
+    return { access: { status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false,
       ...(deployment && !allowed ? { termsRequired: true } : {}) },
       viewer: { uid: account.uid, email: account.email, companyId, staff: false } };
   };
@@ -600,9 +600,10 @@ describe("the automatic send (E4)", () => {
     expect(sends.every(([key, value]) => (value as any).sentBy === "system" && key.endsWith(`system-${(value as any).companyId}`))).toBe(true);
     const alerts = outbox().filter(row => row.kind === "robot_team_new_task");
     expect(alerts.map(row => row.to).sort()).toEqual([NORTH, SOUTH, EAST, WEST].map(record => record.email).sort());
-    expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint" });
+    // The kind of job and the country, never the site (ledger BL49).
+    expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint: Palletizing" });
     // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
-    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
     // The unsubscribe line names the emails it stops, never the scope's internal name.
     expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+\/api\/growth\/email\/unsubscribe\?token=[A-Za-z0-9_-]+$/);
     // The link carries a sealed token: no address in it.
@@ -631,7 +632,7 @@ describe("the automatic send (E4)", () => {
       .some(record => record.email === to)).sort()).toEqual([NORTH, SOUTH, EAST].map(record => record.email).sort());
     // e-004, e-008: the job is the company's button ("Open the job"); the commercial footer stays in the text part, and the
     // HTML part shows the layout's own footer with its "Unsubscribe" link, not a raw link carrying the reader's address.
-    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint")!;
+    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint: Palletizing")!;
     const html = String(alert.html), text = String(alert.text);
     expect(text).toMatch(/\n\n--\n.+\nPrivacy: https:\/\/\S+\/privacy\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+$/);
     expect(html).toContain(">Open the job</a>");
@@ -863,6 +864,33 @@ describe("introductions (E6) and money (E7)", () => {
     expect(JSON.stringify(row)).not.toContain(SITE.email);
   });
 
+  // Audit G-06: Blueprint's own work window ending stops paid work only; it no longer cancels an introduction the site
+  // pressed. Every rights hold, the withdrawal and Blueprint's hold still do.
+  it("lets an introduction the site pressed go ahead when only Blueprint's work window ended, and still stops it for every hold", async () => {
+    await interested(NORTH);
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION },
+      { siteEmail })).toMatchObject({ ok: true });
+    const { introductionMayProceed } = await import("../utils/jobIntroductionGate");
+    const companyId = sha(NORTH.email);
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+      website_preparation: { selector: { request_id: ID, capture_id: CAPTURE }, status: { state: "authority_ended" } } });
+    // An authority end while the recorded grant still allows the work (the window ran out) keeps the job listed (G-01).
+    expect(await introductionMayProceed(ID, companyId)).toEqual({ ok: true });
+    patchJob({ website_scene_sponsorship: { expires_at_epoch: Math.floor(Date.now() / 1000) - 3600 } });
+    expect(await introductionMayProceed(ID, companyId)).toEqual({ ok: true });
+    const base = structuredClone(jobDoc());
+    for (const [name, patch] of [
+      ["a rights hold under review", { evaluation_readiness: { rights_review_status: "needs_review" } }],
+      ["a rights block", { pipeline: { rights_review_status: "blocked" } }],
+      ["Blueprint's hold", { operator_listing_hold: { held: true, atIso: "2026-11-12T12:00:00.000Z", by: "ops" } }],
+      ["the site's close", { website_run_closures: { [CAPTURE]: { closed_at_iso: "2026-11-12T12:00:00.000Z" } } }],
+      ["the site's withdrawal", { consent_revoked: true }],
+    ] as Array<[string, Record<string, unknown>]>) {
+      state.docs.set(`inboundRequests/${ID}`, { ...structuredClone(base), ...patch });
+      expect((await introductionMayProceed(ID, companyId)).ok, name).toBe(false);
+    }
+  });
+
   it("cancels the company's introduction email at dispatch once the site has withdrawn", async () => {
     await interested(NORTH);
     await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail });
@@ -889,6 +917,14 @@ describe("the simulation download and the tested answers (E9)", () => {
     expect((await page()).body.item.simulationDownload).toEqual({ state: "not_finished" });
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(409);
     expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toBe(false);
+  });
+
+  it("reads Ready on the job card only once the company simulation is stored, never from the retired runnable proof", async () => {
+    const before = (await list()).body.items[0];
+    expect(before).toMatchObject({ evaluationAvailable: false, simulationDownloadAvailable: false });
+    expect(before.stage).not.toBe("ready");
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    expect((await list()).body.items[0]).toMatchObject({ stage: "ready", evaluationAvailable: true, simulationDownloadAvailable: true });
   });
 
   it("serves the package to the viewer's ticket only, accepts a tested answer, and introduces on tested_can_do", async () => {
@@ -1561,6 +1597,37 @@ describe("a company must accept the current Terms and Privacy Policy before it s
     expect(seams.sendEmail.mock.calls.map(([message]) => message.to)).not.toContain(NORTH.email);
     // And no new introduction can be asked for it.
     expect((await loadSiteCompanyActivity(ID)).entries.find(entry => entry.alias === "Company A")).toMatchObject({ canIntroduce: false });
+  });
+
+  // Audit B-03: a company that accepts after a job was sent is emailed once about the jobs open to it. The accept route
+  // calls `emailOpenJobsToCompany` after recording the acceptance (its rate limit leaves no room for more calls here).
+  it("emails a company that accepts after a job was sent, once, through the new-job email's dispatch gate", async () => {
+    const { emailOpenJobsToCompany } = await import("../utils/jobAutoSend");
+    withoutTerms({ termsAcceptance: undefined });
+    await sendJobToApprovedCompanies(ID);
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(false);
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, NORTH);
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(true);
+    const open = outbox().filter(row => row.key === `robot_team_open_jobs:${sha(NORTH.email)}`);
+    expect(open).toHaveLength(1);
+    expect(open[0]).toMatchObject({ kind: "robot_team_new_task", to: NORTH.email, subject: "Jobs on Blueprint you can open now",
+      jobAlert: { jobId: ID, companyId: sha(NORTH.email) } });
+    expect(open[0].body).toMatch(/^Sites posted jobs before you could see them\. Open Find jobs to see each job packet and respond\.\n\nFind jobs:\nhttps:\/\/\S+\/contact\/robot-team\n/);
+    expectNoSiteIn("the open-jobs email", JSON.stringify(open));
+    const { jobAlertIsCurrent } = await import("../utils/newJobAlerts");
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    expect(await sharedFakeFirestore.runTransaction(tx => jobAlertIsCurrent(open[0] as never, tx as never))).toBe(true);
+    // Once: a second acceptance adds nothing.
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(false);
+    expect(outbox().filter(row => row.key.startsWith("robot_team_open_jobs:"))).toHaveLength(1);
+  });
+
+  it("sends no open-jobs email when no job was sent yet, or to a company that was on every send", async () => {
+    const { emailOpenJobsToCompany } = await import("../utils/jobAutoSend");
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(false);
+    await sendJobToApprovedCompanies(ID);
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(false);
+    expect(outbox().filter(row => row.key.startsWith("robot_team_open_jobs:"))).toHaveLength(0);
   });
 });
 

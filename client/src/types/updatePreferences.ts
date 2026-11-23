@@ -10,16 +10,11 @@ export const targetingCategoriesSchema = z.object({
   taskFamilies: categories.optional(), capabilities: categories.optional(),
 }).strict();
 export type TargetingCategories = z.infer<typeof targetingCategoriesSchema>;
-export const retentionRequirementsSchema = z.object({
-  maxRetentionDays: z.number().int().min(0).max(36500).optional(),
-  noTraining: z.boolean().optional(), requiredRightsScopes: categories.optional(),
-}).strict();
+// The two email switches. Targeting fields stored on older records (interests, categories, requirements) had no screen
+// and no effect; they are dropped when read, never sent back.
 export const updatePreferencesInputSchema = z.object({
   newsletter: z.boolean(), newJobAlerts: z.boolean(),
-  interests: targetingCategoriesSchema.default({}),
-  declaredCategories: targetingCategoriesSchema.default({}),
-  requirements: retentionRequirementsSchema.default({}),
-}).strict();
+});
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesInputSchema>;
 /**
  * v1: one box bundled job emails with Blueprint updates, off unless ticked. v2 (owner, 2026-11-20): job emails are on

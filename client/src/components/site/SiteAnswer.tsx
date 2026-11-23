@@ -408,7 +408,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
   const notices = scopeLines(answer);
   const reading = answer.state === "reading" || phase === "reading";
   // An answer that cannot be checked stays as it is, unless the job is still being built or its simulation is ready.
-  const cannot = answer.state === "cannot_assess" && phase !== "building" && phase !== "testing" && phase !== "result";
+  const cannot = answer.state === "cannot_assess" && phase !== "building" && phase !== "simulation_ready";
 
   const endedBySite = phase === "ended_by_site" ? (outlook?.reason === "permission_withdrawn" ? "withdrawn" as const : "closed" as const) : null;
   const companies = <JobCompanyResponses token={token} sharing={answer.sharing} activity={answer.companies} onChanged={onIntroductionRequested} ended={endedBySite} />;
@@ -476,7 +476,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
   const notRun = cannot || !ended ? null : outlook?.sentence ?? null;
   const simulationLine = outlook?.reason === "spending_cap_reached" ? outlook.sentence
     : phase === "building" ? (outlook?.reason === "step_failed" && outlook.sentence ? outlook.sentence : SIMULATION_BUILDING)
-    : phase === "testing" || phase === "result" ? SIMULATION_READY
+    : phase === "simulation_ready" ? SIMULATION_READY
     : phase === "waiting_on_site" ? outlook?.sentence ?? "Tell us in one sentence what the robot should do, so we can build the simulation of your job."
     : notRun;
   const rule = successRule?.trim() ? doneMeans(successRule) : null;

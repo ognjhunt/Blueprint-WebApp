@@ -8,12 +8,6 @@ import type { RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 
 const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
 
-/** Where an approved team books its call, or null to ask them to reply instead. */
-function founderCallUrl(): string | null {
-  const value = String(process.env.BLUEPRINT_FOUNDER_CALL_URL || "").trim();
-  return /^https:\/\/\S+$/.test(value) ? value : null;
-}
-
 function firstName(name: string): string | null {
   return name.trim().split(/\s+/)[0] || null;
 }
@@ -24,7 +18,6 @@ export type AccessEmailKind = "robot_team_access_approved";
 export function accessApprovedEmail(record: RobotTeamAccessRecord) {
   const base = APP_URL();
   const invited = record.source === "invite";
-  const call = founderCallUrl();
   return {
     // The doctrine's words (journey audit, 2026-11-20): an approved deployment company, not a team invited to a beta.
     subject: "Your company is approved to see jobs on Blueprint",
@@ -49,12 +42,6 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
       "Find jobs:",
       `${base}/contact/robot-team`,
       "",
-      ...(invited ? [] : [
-        call
-          ? `If a call would help, book one here: ${call}`
-          : "If a call would help, say so in your reply and we will find a time.",
-        "",
-      ]),
       "Nothing is charged today.",
       "",
       EMAIL_SIGN_OFF,
@@ -147,19 +134,38 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
     write: () => { transaction.create(ref, entry); } };
 }
 
-/** The new-job email's fixed words (package E, E4). Nothing about the site: no name, place, contact or sentence. */
+/**
+ * The new-job email (package E, E4): the kind of job and the country, never the site's name, place, contact or
+ * sentence. A job without a kind ("Other") or a country leaves that line out.
+ */
 export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
 // True of a job sent with its description only as of a filmed one (statement v5 lists both). The answers themselves
 // are on the job's page.
 export const NEW_JOB_EMAIL_BODY = "A site has posted a new job. Open it to see the job packet and respond.";
 const NEW_JOB_ALERTS_LINE = "You get an email like this for each new job. Turn them off in Settings or unsubscribe below.";
 
-/** The email an approved deployment company that asked for job emails gets when a job is shared: the job's link only. */
-export function newJobEmail(params: { to: string; jobUrl: string }) {
+/** The email an approved deployment company that asked for job emails gets when a job is shared. */
+export function newJobEmail(params: { to: string; jobUrl: string; kind?: string | null; country?: string | null }) {
+  const kind = params.kind?.trim() && params.kind.trim() !== "Other" ? params.kind.trim() : null;
+  const country = params.country?.trim() || null;
+  const facts = [...(kind ? [`Kind of job: ${kind}`] : []), ...(country ? [`Country: ${country}`] : [])];
   return {
-    subject: NEW_JOB_EMAIL_SUBJECT,
-    body: appendCommercialEmailFooter({ text: [NEW_JOB_EMAIL_BODY, "", "Open the job:", params.jobUrl, "", NEW_JOB_ALERTS_LINE].join("\n"),
-      email: params.to, scope: "optional_updates" }),
+    subject: kind ? `${NEW_JOB_EMAIL_SUBJECT}: ${kind}` : NEW_JOB_EMAIL_SUBJECT,
+    body: appendCommercialEmailFooter({ text: [NEW_JOB_EMAIL_BODY, ...(facts.length ? ["", ...facts] : []), "", "Open the job:",
+      params.jobUrl, "", NEW_JOB_ALERTS_LINE].join("\n"), email: params.to, scope: "optional_updates" }),
+  };
+}
+
+/** Audit B-03: the one email to a company that accepted the Terms after jobs were sent. Nothing about any site. */
+export const OPEN_JOBS_EMAIL_SUBJECT = "Jobs on Blueprint you can open now";
+export const OPEN_JOBS_EMAIL_BODY = "Sites posted jobs before you could see them. Open Find jobs to see each job packet and respond.";
+
+/** Sent once per company (`emailOpenJobsToCompany`), with the Find jobs link only. */
+export function openJobsEmail(params: { to: string }) {
+  return {
+    subject: OPEN_JOBS_EMAIL_SUBJECT,
+    body: appendCommercialEmailFooter({ text: [OPEN_JOBS_EMAIL_BODY, "", "Find jobs:", `${APP_URL()}/contact/robot-team`, "",
+      NEW_JOB_ALERTS_LINE].join("\n"), email: params.to, scope: "optional_updates" }),
   };
 }
 

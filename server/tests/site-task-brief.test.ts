@@ -550,19 +550,6 @@ describe("the confirmation projection", () => {
     expect(project({ [marginal.id]: marginal.options.find((option) => option.verdict === "marginal")!.value })).toBe("needs_conversation");
   });
 
-  it("admits a submission-confirmed job with unasked gates to evaluation, and an older one with the same gates not", async () => {
-    const { projectConfirmationOntoJob } = await import("../utils/siteTaskBrief");
-    const { isRunnableTask } = await import("../utils/teamJobAccess");
-    const job = (brief: Parameters<typeof projectConfirmationOntoJob>[0]["brief"]) => ({
-      request: { buyerType: "site_operator", capture_mode: "self_capture" },
-      ...projectConfirmationOntoJob({ brief, answers: {}, confirmedAt: consent.recordedAtIso, atIso: consent.recordedAtIso }).jobFields,
-      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://fixture/scene/world/manifest.json" } },
-      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "cleared" },
-    });
-    expect(isRunnableTask(job({ ...base, submissionConsent: consent }) as never)).toBe(true);
-    expect(isRunnableTask(job(base) as never)).toBe(false);
-  });
-
   it("lets a disclosed unknown block neither a recording nor an evaluation, and only when it is disclosed", async () => {
     const { assessReadiness } = await import("../../client/src/lib/siteTaskReadiness");
     const input = { answers: {}, captureMode: "self_capture", briefDrafted: true, briefConfirmed: true,
