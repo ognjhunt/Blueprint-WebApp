@@ -14,8 +14,6 @@ const withCsrfHeaderMock = vi.hoisted(() =>
     "X-CSRF-Token": "test-csrf-token",
   })),
 );
-const getActiveExperimentAssignmentsMock = vi.hoisted(() => vi.fn(() => ({})));
-const getOrCreateExperimentAnonymousIdMock = vi.hoisted(() => vi.fn(() => "anon-test"));
 const posthogMock = vi.hoisted(() => ({
   init: vi.fn(),
   capture: vi.fn(),
@@ -30,11 +28,6 @@ vi.mock("posthog-js", () => ({
 
 vi.mock("../src/lib/csrf", () => ({
   withCsrfHeader: withCsrfHeaderMock,
-}));
-
-vi.mock("../src/lib/experiments", () => ({
-  getActiveExperimentAssignments: getActiveExperimentAssignmentsMock,
-  getOrCreateExperimentAnonymousId: getOrCreateExperimentAnonymousIdMock,
 }));
 
 async function flushAnalytics() {
@@ -62,8 +55,6 @@ describe("Austin Proof-Motion Analytics Events", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("gtag", undefined);
     withCsrfHeaderMock.mockClear();
-    getActiveExperimentAssignmentsMock.mockClear();
-    getOrCreateExperimentAnonymousIdMock.mockClear();
   });
 
   afterEach(() => {

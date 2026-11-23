@@ -14,7 +14,7 @@ describe("operator invitation delivery status", () => {
     ["sent", "Approval saved. Sign-up email sent."],
     ["needs_attention", "Approval saved. Invitation delivery needs attention; check the outbox before retrying."],
   ])("shows %s for an already approved team instead of claiming inbox delivery", async (notificationStatus, message) => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirm = vi.spyOn(window, "confirm");
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => ({ ok: true,
       json: async () => init?.method === "POST" ? { alreadyApproved: true, notificationStatus }
         : { applications: [], count: 0 },
@@ -26,5 +26,6 @@ describe("operator invitation delivery status", () => {
     fireEvent.submit(screen.getByRole("form", { name: "Invite a team" }));
     expect(await screen.findByText(message)).toBeInTheDocument();
     expect(screen.queryByText(/They have the sign-up email|Already approved; nothing sent/)).toBeNull();
+    expect(confirm).not.toHaveBeenCalled();
   });
 });

@@ -32,7 +32,8 @@ import { HELD_STATUS } from "./jobIntroductionGate";
 import { introductionCompanyEmail, type IntroductionSiteDetails } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
-import { introductionCompanyKey, INTRODUCTION_COMPANY_KIND } from "./jobIntroductionGate";
+import { introductionAttemptOf, introductionCompanyKey, introductionSiteEmailKey, INTRODUCTION_COMPANY_KIND,
+  RETRYABLE_CANCEL_REASONS } from "./jobIntroductionGate";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { decryptFieldValue } from "./field-encryption";
 import { sealShared } from "./introductionShared";
@@ -43,7 +44,8 @@ export type IntroductionRefusal = "statement_not_current" | "not_listed" | "not_
 export type IntroductionResult = { ok: true; introducedAtIso: string } | { ok: false; reason: IntroductionRefusal };
 
 export const INTRODUCTION_SITE_KIND = "introduction_made_site";
-export const introductionSiteKey = (requestId: string, companyId: string) => `${requestId}:${INTRODUCTION_SITE_KIND}:${companyId}`;
+export const introductionSiteKey = (requestId: string, companyId: string, attempt = 0) =>
+  introductionSiteEmailKey(requestId, companyId, attempt);
 
 /** The site's email in the site side's words (`introductionSiteEmail.ts`). Injectable for tests. */
 export type SiteIntroductionEmail = (input: { jobUrl: string;
@@ -110,16 +112,21 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     if (!record || !access.listed) return { ok: false, reason: "not_listed" };
     const companyId = letter ? Object.entries(storedAliases(record)).find(([, value]) => value === letter)?.[0] : undefined;
     if (!companyId) return { ok: false, reason: "not_interested" };
-    const [companySnap, answerSnap, introSnap, introductions, eventSnap] = [
+    const [companySnap, answerSnap, introSnap, introductions] = [
       await tx.get(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId)),
       await tx.get(jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(companyId)),
       await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId)),
-      await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(INTRODUCTION_READ_LIMIT)),
-      await tx.get(billableEventRef(input.requestId, companyId))];
-    // One introduction per company per job. One cancelled at dispatch (G3) is not made again: its emails' keys are spent.
-    // The billable event is the money record of the pair: one on record (even void, even without its introduction
-    // record) refuses too, so a pair is never recorded twice and an event is never rewritten.
-    if (introSnap.exists || eventSnap.exists) return { ok: false, reason: "already_introduced" };
+      await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(INTRODUCTION_READ_LIMIT))];
+    // One introduction per company per job. One cancelled at dispatch (G3) is not made again, except when Blueprint's
+    // own email to the company failed or was never sent (`RETRYABLE_CANCEL_REASONS`): then the site may press again, and
+    // the new attempt has its own emails' keys and its own billable event; the earlier event stays void.
+    const earlier = introSnap.data();
+    const retry = introSnap.exists && typeof earlier?.cancelledAtIso === "string" && RETRYABLE_CANCEL_REASONS.has(String(earlier?.cancelReason));
+    if (introSnap.exists && !retry) return { ok: false, reason: "already_introduced" };
+    const attempt = retry ? introductionAttemptOf(earlier) + 1 : 0;
+    // The billable event is the money record of the attempt: one on record (even void, even without its introduction
+    // record) refuses too, so an attempt is never recorded twice and an event is never rewritten.
+    if ((await tx.get(billableEventRef(input.requestId, companyId, attempt))).exists) return { ok: false, reason: "already_introduced" };
     const company = companySnap.data() as RobotTeamAccessRecord | undefined;
     if (!company || !companyMaySeeJobs(company)) return { ok: false, reason: "company_not_approved" };
     const answer = answerSnap.data();
@@ -134,13 +141,15 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     const companyShared = { company: text(company.company) ?? "", contactName: text(company.name) ?? "", email: companyEmail,
       ...(text(company.website) ? { website: text(company.website)! } : {}) };
     const site = await siteDetailsOf(record, decrypt);
-    const companyRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionCompanyKey(input.requestId, companyId));
-    const siteRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionSiteKey(input.requestId, companyId));
+    const companyRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionCompanyKey(input.requestId, companyId, attempt));
+    const siteRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionSiteKey(input.requestId, companyId, attempt));
     const [companyRow, siteRow] = [await tx.get(companyRowRef), await tx.get(siteRowRef)];
     const requestedAtIso = now().toISOString();
     tx.set(jobRef, { introductions_used: used + 1 }, { merge: true });
-    tx.create(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId), { schemaVersion: 1, alias: letter, requestedAtIso,
-      by: input.actor,
+    // A retry replaces the cancelled record (its details were already removed); the void event keeps the earlier attempt.
+    const introRef = jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId);
+    tx[retry ? "set" : "create"](introRef, { schemaVersion: 1, alias: letter, requestedAtIso,
+      by: input.actor, ...(attempt > 0 ? { attempt } : {}),
       // Not personal, so stored plainly: the recorded statement the site agreed to by pressing the button.
       statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION,
       // Both sides' details are encrypted at rest on this record (`introductionShared.ts`). The emails below use the plain
@@ -148,7 +157,7 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       siteShared: await sealShared({ name: site.name, contactName: site.contactName, email: site.email, phone: site.phone,
         location: site.location }),
       companyShared: await sealShared(companyShared), outcomes: [] });
-    writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso));
+    writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso, attempt));
     if (!companyRow.exists && EMAIL.test(companyEmail)) {
       const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName,
         answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState] });

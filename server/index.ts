@@ -11,6 +11,7 @@ import { privateWorkLogPath } from "./utils/blueprintWorkLogPrivacy";
 import { startOutboxPump } from "./utils/captureOutbox";
 import { setupVite, serveStatic } from "./vite";
 import { refuseUpgrades } from "./utils/websocketUpgrades";
+import { createRequestBodyDeadline } from "./utils/requestBodyDeadline";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
 import { describeInviteeAllowlist } from "./utils/inviteeAllowlist";
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
@@ -196,6 +197,8 @@ const authLimiter = createRateLimiter({
 // Configure middleware
 // Firebase redirects must return to a helper on this same origin. Register
 // before body parsing and app CSP so the upstream helper stays byte-for-byte.
+// Node's server-wide requestTimeout is off (see createServer below); this keeps 300 s everywhere but the video upload.
+app.use(createRequestBodyDeadline());
 app.use("/__/auth", firebaseAuthProxy);
 const defaultBodyLimit = env.API_BODY_LIMIT || "1mb";
 // An app capture bundle plan lists every file of one Raw V3.2 recording — a
@@ -349,6 +352,8 @@ app.use((req, res, next) => {
 (async () => {
   registerRoutes(app);
   const server = createServer(app);
+  // Body time limits are per route in `createRequestBodyDeadline`; headersTimeout still applies here.
+  server.requestTimeout = 0;
   // Every WebSocket upgrade is refused, except the Vite dev server's HMR socket in development (`websocketUpgrades.ts`).
   let viteHmr = false;
   server.on("upgrade", refuseUpgrades({ viteHmr: () => viteHmr }));

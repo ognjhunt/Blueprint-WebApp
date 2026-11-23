@@ -1133,6 +1133,9 @@ async function siteCompanyStatus(params: StatusAnswerParams | null) {
     const sharing = jobSharingOf(params.request, access);
     if (sharing.state === "preparing" || (sharing.state === "not_shared" && !sharing.olderStatement && !params.videoReceived))
       sharing.videoReceived = params.videoReceived;
+    // "Posted" only when at least one approved company may see jobs (the automatic send's own rule).
+    if (sharing.state === "visible" && !await import("../utils/jobAutoSend").then(({ anyCompanyMaySeeJobs }) => anyCompanyMaySeeJobs()))
+      sharing.noCompanyCanSee = true;
     const companies = sharing.state === "not_shared" ? undefined
       : await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
         .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; });

@@ -146,7 +146,6 @@ const retiredSurfaceRedirects: Array<[string, string]> = [
   ["/app/packs/source-one/policy-canary", "/partners"],
   ["/app/entitlements", "/partners"],
   ["/app/history", "/"],
-  ["/admin/company-metrics", "/"],
   ["/ops/spend", "/"],
   ["/internal/design-system", "/"],
   // The last removal round (2026-11-12): the printed readiness brief.

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { logger } from "../logger";
 // New-intake notices are link-only and live in ./intakeOpsNotice.ts. The old
 // block-kit notifier that copied name, email, company, site and task text
@@ -81,14 +82,14 @@ export async function notifySlackCapturePrivacyEscalation(options: {
   return sendSlackMessage(text, webhookUrl);
 }
 
+/**
+ * The bell for a new company application: that a company applied, and one link
+ * to its card on the approvals page. No applicant name or email goes to Slack;
+ * the page is behind the admin role and approving there is one press.
+ */
 export async function notifySlackRobotTeamAccessApplication(options: {
-  name: string;
-  company: string;
   email: string;
-  robot: string;
-  workWanted: string;
-  testSite?: string | null;
-  fit?: { checks: Array<{ label: string; passed: boolean; detail: string }> } | null;
+  fit?: unknown;
   autoApproved?: boolean;
 }): Promise<{ sent: boolean; error?: unknown }> {
   const webhookUrl =
@@ -97,16 +98,10 @@ export async function notifySlackRobotTeamAccessApplication(options: {
     logger.warn("No Slack webhook configured; a robot-team application has no bell");
     return { sent: false };
   }
-  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/robot-team-access`;
-  const fit = options.fit?.checks.map((check) => `${check.passed ? ":white_check_mark:" : ":x:"} ${check.label}: ${check.detail}`) ?? [];
-  const text = [
-    `:robot_face: *Robot-team early-access application${options.autoApproved ? " (auto-approved: clear fit)" : ""}* — ${options.name}, ${options.company} (${options.email})`,
-    `Robot: ${options.robot}`,
-    `Wants to test on: ${options.workWanted}`,
-    ...(options.testSite ? [`Site lead — would test at: ${options.testSite}`] : []),
-    ...fit,
-    `${options.autoApproved ? "Book the call" : "Review"}: ${adminUrl}`,
-  ].join("\n");
+  // The same id as accessRecordId(): the application's record id, not the email.
+  const id = createHash("sha256").update(options.email.trim().toLowerCase()).digest("hex");
+  const pageUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/robot-team-access?application=${id}`;
+  const text = `:robot_face: *A deployment company applied.* Approve or not yet: ${pageUrl}`;
   return sendSlackMessage(text, webhookUrl);
 }
 

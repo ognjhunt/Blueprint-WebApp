@@ -51,8 +51,7 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/app/policies": "/partners",
   "/app/data": "/partners",
   "/app/entitlements": "/partners",
-  // Operator pages V1 does not need: the CEO metrics screen and the designers' reference.
-  "/admin/company-metrics": "/",
+  // Operator pages V1 does not need: the designers' reference.
   "/ops/spend": "/",
   "/internal/design-system": "/",
   // The last removal round (2026-11-12): one "Your jobs" list at /app replaces the signed-in job pages (every site email
