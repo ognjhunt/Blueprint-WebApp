@@ -298,6 +298,11 @@ describe("recording an agreement through the admin route", () => {
     expect(stored().supplyAgreement).toBeUndefined();
   });
 
+  it("no longer answers the capability-proposal queue, which nothing called", async () => {
+    expect((await fetch(`${base}/proposals`, { headers: { "x-fixture-identity": "founder" } })).status).toBe(404);
+    expect((await post("/proposals/proposal-1", { accept: true })).status).toBe(404);
+  });
+
   it("takes the recorder from the session, never from the body", async () => {
     const forged = await post("/team-a/supply-agreement", { terms: [{ ...ALL_TERMS[0], recordedBy: "someone-else" }], evidenceHeld: true });
     expect(forged.status).toBe(400);

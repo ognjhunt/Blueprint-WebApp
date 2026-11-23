@@ -41,7 +41,7 @@ vi.mock("../logger", () => ({
 
 vi.mock("../utils/email", () => ({ sendEmail: sendEmailMock }));
 
-const { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries, startOutboxPump } = await import("../utils/captureOutbox");
+const { deliverOutbox, enqueueOutbox, outboxSendIdentity, reconcileOutboxDeliveries, startOutboxPump } = await import("../utils/captureOutbox");
 const { enqueueAccountNotice, assessAccountNoticeRecipient, renderAccountNotice } = await import("../utils/accountNotice");
 const { providerIdempotencyKey } = await import("../utils/captureOutboxRetry");
 
@@ -219,6 +219,19 @@ describe("delivery sends what is pending, once", () => {
     const sent = sendEmailMock.mock.calls[0][0];
     expect(sent.text).toMatch(/^b\n\n--\nBlueprint Robotics, Inc\. · 6801 Burnet Rd/);
     expect(sent.html).toContain("Blueprint Robotics, Inc. · 6801 Burnet Rd, Austin, TX 78757");
+  });
+
+  it("sends an introduction email with the other side as Reply-To, and every other message with Blueprint's", () => {
+    // A reply to "Meet {company}" or to the site's introduction reaches the other side, whose address the body already gives.
+    for (const kind of ["introduction_made_company", "introduction_made_site"]) {
+      expect(outboxSendIdentity({ kind, replyTo: "ops@north.example" }))
+        .toEqual({ fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "ops@north.example" });
+      for (const replyTo of [null, undefined, "", "not an address"]) {
+        expect(outboxSendIdentity({ kind, replyTo }).replyTo, `${kind} with ${String(replyTo)}`).toBe("hello@tryblueprint.io");
+      }
+    }
+    // A stored Reply-To on any other kind is not used: those replies come to Blueprint.
+    expect(outboxSendIdentity({ kind: "task_received", replyTo: "ops@tryblueprint.io" }).replyTo).toBe("hello@tryblueprint.io");
   });
 
   it("does not send a message it already sent", async () => {

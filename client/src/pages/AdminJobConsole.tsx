@@ -13,11 +13,12 @@ import { BareBack, BareButton, BareLead, BareMenu, BareNotice, BareRows, BareScr
 import { JobCompaniesConsole } from "@/components/admin/JobCompaniesConsole";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
 import { JobWorkflowPanel } from "@/components/admin/JobWorkflowPanel";
+import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
 import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import type { AdminJobDetail, AdminJobListResponse, AdminJobRow, AdminJobStop } from "@/types/jobConsole";
+import type { AdminJobDetail, AdminJobListResponse, AdminJobRow, AdminJobStop, AdminJobTotals } from "@/types/jobConsole";
 
 /** A time in words, in the viewer's own zone; null when the record holds none that reads. */
 export function timeInWords(value: string | null | undefined, withTime = true): string | null {
@@ -288,15 +289,66 @@ function JobPage({ requestId, onBack }: { requestId: string; onBack: () => void 
       <BareMenu label="Staff tools" items={[
         ...(job.internalTest ? [] : [{ key: "companies", label: "Deployment companies", body:
           <StaffTool id={`${requestId}:companies`} label="Deployment companies">{() => <JobCompaniesConsole requestId={requestId} currentUser={api.currentUser}
-            // A hold, a send or an answer changes the sharing line, the stops and the events above: read them again.
+            // A hold changes the sharing line, the stops and the events above: read them again.
             onChanged={() => void queryClient.invalidateQueries({ queryKey: ["admin-job-console", "detail", requestId] })} />}</StaffTool> }]),
         { key: "measurements", label: "Site measurements", body:
           <StaffTool id={`${requestId}:measurements`} label="Site measurements">{() => <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />}</StaffTool> },
         { key: "evidence", label: "Evidence questions", body:
           <StaffTool id={`${requestId}:evidence`} label="Evidence questions">{() => <JobWorkflowPanel requestId={requestId} currentUser={api.currentUser} />}</StaffTool> },
+        { key: "robot-fit", label: "Robot fit", body:
+          <StaffTool id={`${requestId}:robot-fit`} label="Robot fit">{() => <RobotFitConsole requestId={requestId} currentUser={api.currentUser} />}</StaffTool> },
       ]} />
     </BareRows>
   </>;
+}
+
+/** The owner's totals in one line; a number that could not be read says so. */
+export function totalsLine(totals: AdminJobTotals): string {
+  const n = (value: number | null) => value == null ? "?" : String(value);
+  return [
+    `${totals.siteJobs} site jobs (${totals.siteJobsThisWeek} in the last 7 days)`,
+    `${n(totals.withVideo)} with a video`,
+    `${n(totals.shownToCompanies)} shown to companies`,
+    `${n(totals.answered)} with an answer`,
+    `${n(totals.introductionsAsked)} introductions asked`,
+    `${n(totals.introductionsMade)} made`,
+    `${n(totals.outcomeAnswers)} outcome answers`,
+    `${n(totals.billableEvents)} billable events`,
+  ].join(" · ");
+}
+
+/** The totals strip and the billable events CSV, fetched with the admin's sign-in (an address alone cannot carry it). */
+function JobTotals() {
+  const api = useAdminFetch();
+  const [error, setError] = useState<string | null>(null);
+  const totals = useQuery({ queryKey: ["admin-job-console", "totals"], enabled: Boolean(api.currentUser),
+    queryFn: () => api.get<AdminJobTotals>("/api/admin/jobs/totals") });
+  async function downloadCsv() {
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/jobs/billable-events.csv", {
+        credentials: "include",
+        headers: await withFirebaseAuthHeaders(api.currentUser, await withCsrfHeader({})),
+      });
+      if (!response.ok) throw new Error(`Download failed (${response.status})`);
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = "billable-events.csv";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), PACKAGE_URL_REVOKE_DELAY_MS);
+    } catch (caught) {
+      setError((caught as Error).message);
+    }
+  }
+  // The CSV reads only the billable events, so it stays available while the totals load or fail.
+  const line = totals.data ? totalsLine(totals.data) : totals.error ? "The totals are unavailable." : "Loading totals…";
+  return <p className="bare-helper" aria-label="Totals">
+    {line} · <button type="button" className="bare-quiet-button" onClick={() => void downloadCsv()}>Billable events (CSV)</button>
+    {error ? <span role="alert"> {error}</span> : null}
+  </p>;
 }
 
 function JobList({ onOpen }: { onOpen: (requestId: string) => void }) {
@@ -317,6 +369,7 @@ function JobList({ onOpen }: { onOpen: (requestId: string) => void }) {
 
   return <>
     <h1>Jobs</h1>
+    <JobTotals />
     {jobs.isLoading ? <p className="bare-helper" role="status">Loading jobs…</p> : null}
     {jobs.error ? <BareNotice role="alert">{(jobs.error as Error).message}</BareNotice> : null}
     {!jobs.isLoading && !jobs.error && !rows.length ? <p className="bare-helper">No jobs yet.</p> : null}

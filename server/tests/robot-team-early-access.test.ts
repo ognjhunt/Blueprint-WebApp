@@ -299,7 +299,7 @@ describe("the review queue", () => {
     return fetch(`${base}/api/admin/robot-team-access/${id}/decision`, {
       method: "POST",
       headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
-      body: JSON.stringify({ status, prerequisitesReviewed: status === "approved" }),
+      body: JSON.stringify({ status }),
     });
   }
 
@@ -307,6 +307,8 @@ describe("the review queue", () => {
     tokens.set("team", { uid: "u1", email: "ada@arm.example", email_verified: true });
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer team", ...CSRF } });
     expect(response.status).toBe(403);
+    // One press approves, and only for staff: the decision route still needs the admin role.
+    expect((await decide("team", early.accessRecordId("ada@arm.example"), "approved")).status).toBe(403);
   });
 
   it("approves once, emails the next step, and the approved email then sees the library", async () => {
@@ -357,7 +359,7 @@ describe("the review queue", () => {
     listedSite("site-1");
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer ops", ...CSRF } });
     expect(await response.json()).toMatchObject({
-      library: { listedTaskCount: 1, autoApproveMinimumTasks: null, openSuggestedAtTasks: 10 },
+      library: { listedTaskCount: 1, autoApproveMinimumTasks: null },
     });
   });
 });
@@ -375,7 +377,7 @@ describe("the fit checklist", () => {
     expect(record.testSite).toBe("Our pilot warehouse in Ohio");
     expect(record.fit).toMatchObject({ clearFit: true, listedTaskCount: 0 });
     expect(record.fit.checks.map((check: { id: string; passed: boolean }) => [check.id, check.passed])).toEqual([
-      ["work_email", true], ["website_matches_email", true], ["open_tasks_in_region", false],
+      ["work_email", true], ["website_matches_email", true],
     ]);
     expect(outbox("")).toHaveLength(0);
     expect(slack).toHaveBeenCalledWith(expect.objectContaining({ testSite: "Our pilot warehouse in Ohio", autoApproved: false }));
@@ -388,9 +390,8 @@ describe("the fit checklist", () => {
     const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
     expect(record).toMatchObject({ status: "applied", decidedBy: null });
     expect(outbox("robot_team_access_approved")).toHaveLength(0);
-    // A shared job's card carries no free-text region since 2026-11-12 (the company page shows the country only), so
-    // the region check cannot match a card; it never decided an approval.
-    expect(record.fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: false });
+    // The region check could never match a shared job's card (country only since 2026-11-12), so it is gone.
+    expect(record.fit.checks.map((check: { id: string }) => check.id)).toEqual(["work_email", "website_matches_email"]);
   });
 
   it("leaves anything short of a clear fit, or a switched-off rule, to a person", async () => {
@@ -409,7 +410,7 @@ describe("inviting a team after a call", () => {
   const invite = (token: string, body: Record<string, unknown>) => fetch(`${base}/api/admin/robot-team-access/invites`, {
     method: "POST",
     headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
-    body: JSON.stringify({ ...body, prerequisitesReviewed: true }),
+    body: JSON.stringify(body),
   });
 
   it("grants that email access, sends one sign-up email, and is staff-only", async () => {
@@ -475,10 +476,10 @@ describe("access decisions and their durable email intent", () => {
     body: JSON.stringify(body),
   });
   const invite = () => post("/api/admin/robot-team-access/invites", {
-    name: "Ada", email, company: "Arm Co", prerequisitesReviewed: true,
+    name: "Ada", email, company: "Arm Co",
   });
   const decide = () => post(`/api/admin/robot-team-access/${early.accessRecordId(email)}/decision`, {
-    status: "approved", prerequisitesReviewed: true,
+    status: "approved",
   });
   const resend = () => post("/api/robot-team-access/invitation", { email });
 

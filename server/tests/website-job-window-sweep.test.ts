@@ -128,7 +128,7 @@ describe("a job past its window with no outcome", () => {
     expect({ ...job(), website_job_window_ending: undefined }).toEqual({ ...before, website_job_window_ending: undefined });
     expect(outbox()).toEqual([]);
     expect(JOB_WINDOW_ENDING_MESSAGE).toBe("The simulation of your site has stopped because the time for this job ran out. "
-      + "It was not finished, and no more work will run on this job. Your first look stays on your job page. To try again, start a new job.");
+      + "It was not finished, and no more work will run on this job. Your first look stays on your job page.");
     expect(await page()).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null, stage: null });
 
     // Twice more: still one ending, and nothing sent.

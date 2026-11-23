@@ -14,7 +14,7 @@
 import type { RobotTeamAccessApplication } from "./robotTeamEarlyAccess";
 
 export interface AccessFitCheck {
-  id: "work_email" | "website_matches_email" | "open_tasks_in_region";
+  id: "work_email" | "website_matches_email";
   label: string;
   passed: boolean;
   detail: string;
@@ -56,10 +56,6 @@ function sameOrganization(host: string, domain: string): boolean {
   return host === domain || host.endsWith(`.${domain}`) || domain.endsWith(`.${host}`);
 }
 
-function words(value: string): Set<string> {
-  return new Set(value.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 1));
-}
-
 export function assessAccessFit(
   application: Pick<RobotTeamAccessApplication, "email" | "website" | "region">,
   listed: ListedTask[],
@@ -69,10 +65,6 @@ export function assessAccessFit(
   const workEmail = Boolean(domain) && !FREE_MAIL.has(domain);
   const host = websiteHost(application.website);
   const matches = Boolean(host && workEmail && sameOrganization(host, domain));
-  const region = words(application.region || "");
-  const inRegion = region.size
-    ? listed.filter((task) => [...words(task.region)].some((word) => region.has(word)))
-    : [];
 
   const checks: AccessFitCheck[] = [
     {
@@ -89,16 +81,6 @@ export function assessAccessFit(
         ? "No website given"
         : matches ? `${host} matches ${domain}` : `${host} does not match ${domain}`,
     },
-    {
-      id: "open_tasks_in_region",
-      label: "Open site jobs in their region",
-      passed: inRegion.length > 0,
-      detail: !region.size
-        ? "No region given"
-        : inRegion.length
-          ? `${inRegion.length} listed: ${inRegion.slice(0, 3).map((task) => task.title).join("; ")}`
-          : `None of ${listed.length} listed job${listed.length === 1 ? "" : "s"} mention ${application.region}`,
-    },
   ];
   return {
     checks,
@@ -108,8 +90,6 @@ export function assessAccessFit(
   };
 }
 
-/** At this many listed tasks, browsing may be worth discussing with the owner. */
-export const OPEN_LIBRARY_SUGGESTED_AT_TASKS = 10;
 const THIN_LIBRARY_TASKS = 5;
 
 /** Compatibility metadata: invited beta admission always needs a person's decision. */
