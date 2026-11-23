@@ -372,11 +372,19 @@ function companyEvents(companies: AdminJobCompanies | null): AdminJobEvent[] {
     if (row.latestOutcome?.atIso) events.push({ key: `outcome-${row.companyId}`, atIso: row.latestOutcome.atIso,
       text: `After the introduction to ${name(row)}, the ${row.latestOutcome.by === "site" ? "site" : "company"} said: ${row.latestOutcome.label}` });
   }
-  // Each introduction is recorded as a billable event: said as recorded or voided, never with a price.
-  for (const event of companies.billableEvents ?? []) if (event.atIso)
-    events.push({ key: `billable-${event.id}`, atIso: event.atIso, text: event.status === "void"
-      ? `Billable event for the introduction to ${name(event)}: voided`
-      : `Billable event recorded for the introduction to ${name(event)}` });
+  // Each introduction is recorded as a billable event: said as recorded or voided, never with a price. It counts only
+  // once the introduction is made (owner, 2026-11-23); one not made yet says so, so the state is seen, not counted.
+  for (const event of companies.billableEvents ?? []) {
+    const made = event.status !== "void" && Boolean(event.madeAtIso);
+    if (event.atIso)
+      events.push({ key: `billable-${event.id}`, atIso: event.atIso, text: event.status === "void"
+        ? `Billable event for the introduction to ${name(event)}: voided`
+        : made ? `Billable event recorded for the introduction to ${name(event)}`
+          : `Billable event recorded for the introduction to ${name(event)}; not made yet, so not counted` });
+    if (made && event.madeAtIso)
+      events.push({ key: `billable-made-${event.id}`, atIso: event.madeAtIso,
+        text: `The introduction to ${name(event)} was made; its billable event counts` });
+  }
   return events;
 }
 

@@ -16,7 +16,7 @@
  * confirmed or for staff to share it.
  */
 import {
-  ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, sceneOutrankedNote,
+  ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_NOT_READ, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, sceneOutrankedNote,
   UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, UNKNOWN_SCENE_NOT_COVERED, UNKNOWN_TRANSPORT,
   type AnswerBasis, type AnswerCheck, type AnswerEvidence, type AnswerRobot, type AnswerVerdict, type JobFamily,
   type JobSharing, type SiteAnswer,
@@ -751,6 +751,16 @@ function coverageDone(request: Record<string, any>, inputs: RobotFitInputs): boo
 }
 
 /**
+ * The video reading ended without a first look and nothing will read the video again by itself: it ended (the video
+ * could not be read, the job's window or its spending cap ended it) or it was parked after its automatic reads failed.
+ * "We're watching your video." is then untrue. A requeued reading is pending again and is still being read.
+ */
+function readingEnded(request: Record<string, any>): boolean {
+  const review = request.capture_coverage_review;
+  return isRecord(review) && (review.state === "ended" || review.state === "review_required") && request.capture_coverage_pending !== true;
+}
+
+/**
  * The answer, or null while there is nothing to answer from (no video and no
  * number) or once recording consent is withdrawn. Pure: the same inputs always
  * give the same answer, and junk inputs give a smaller answer, never an error.
@@ -815,9 +825,13 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
 
   if (scope.otherKind) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: reasonOtherKind(scope.otherActions) });
   if (scope.transport && !readingObject(request)) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_GOING_ONLY });
-  if (!coverageDone(request, fitInputs) && !siteNumbers) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
+  // A reading that ended without a first look is said as it is; the job goes on without one.
+  const notRead = () => finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_NOT_READ });
+  if (!coverageDone(request, fitInputs) && !siteNumbers)
+    return readingEnded(request) ? notRead() : finish({ ...base, state: "reading", headline: HEADLINE_READING });
   if (!facts.distance && !facts.mass && !facts.size) {
-    if (!coverageDone(request, fitInputs)) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
+    if (!coverageDone(request, fitInputs))
+      return readingEnded(request) ? notRead() : finish({ ...base, state: "reading", headline: HEADLINE_READING });
     return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_UNSIZED });
   }
 

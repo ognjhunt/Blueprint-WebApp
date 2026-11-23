@@ -193,10 +193,24 @@ describe("the site's status payload, before and after an introduction", () => {
     state.docs.set(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`, { schemaVersion: 1, alias: "A", requestedAtIso: "2026-11-12T12:00:00.000Z",
       by: "site", siteShared: { name: "SITE-NAME-PLANT", email: "owner@site.example" },
       companyShared: { company: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website }, outcomes: [] });
+    // Asked, but the company's email has not been sent in any state short of sent: not introduced, no details (H2).
+    const companyRowKey = `captureOutbox/${ID}:introduction_made_company:${sha(NORTH.email)}`;
+    for (const status of [null, "pending", "claimed", "dispatching", "unknown", "failed"]) {
+      if (status === null) state.docs.delete(companyRowKey);
+      else state.docs.set(companyRowKey, { kind: "introduction_made_company", requestId: ID, status, sentAtIso: null });
+      const before = await siteStatus();
+      const asked = before.body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.alias === "Company A");
+      expect(asked, `company row ${status}`).toMatchObject({ introductionPending: true });
+      expect(asked).not.toHaveProperty("company");
+      expect(asked).not.toHaveProperty("introducedAtIso");
+      expectNone(`status with the company's email ${status}`, before.raw, [NORTH.company, NORTH.email, NORTH.name, NORTH.website]);
+    }
+    state.docs.set(companyRowKey, { kind: "introduction_made_company", requestId: ID, status: "sent", sentAtIso: "2026-11-12T12:01:00.000Z" });
     const { raw, body } = await siteStatus();
     const north = body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.alias === "Company A");
     expect(north.company).toEqual({ name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website });
-    expect(north.introducedAtIso).toBe("2026-11-12T12:00:00.000Z");
+    expect(north.introducedAtIso).toBe("2026-11-12T12:01:00.000Z");
+    expect(north).not.toHaveProperty("introductionPending");
     expect(body.answer.companies.introductions).toEqual({ used: 1 });
     // The company's words as written, its robot, region and the operator's note never reach the site, even after.
     expectNone("status after the introduction", raw, [WORDS.north, NORTH.robot, NORTH.region, NORTH.decisionNote, ...SOUTH_PLANTED]);

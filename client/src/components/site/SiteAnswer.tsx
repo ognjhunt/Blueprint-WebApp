@@ -15,7 +15,7 @@ import {
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
-  ALSO_INVOLVES_PREFIX, FIRST_LOOK_SOURCE, REASON_UNSIZED, LIMITS_JOB_PAGE, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP,
+  ALSO_INVOLVES_PREFIX, FIRST_LOOK_SOURCE, REASON_NOT_READ, REASON_UNSIZED, LIMITS_JOB_PAGE, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP,
   firstLookSentence, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
@@ -233,7 +233,7 @@ function AnswerReason({ entry }: { entry: AnsweredEntry }) {
       (reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
         : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
     {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.question && !entry.company && !entry.introducedAtIso
-      && <p className="bare-helper">{introductionIfChanged(shownName(entry))}</p>}
+      && !entry.introductionPending && <p className="bare-helper">{introductionIfChanged(shownName(entry))}</p>}
   </>;
 }
 
@@ -354,6 +354,9 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           alias={entry.alias} question={entry.question} onChanged={onIntroduced} />}
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
           && <><IntroducedDetails entry={entry} /><IntroductionProgress token={token} entry={entry} onChanged={onIntroduced} /></>}
+        {/* Asked, not made yet: the company's email has not been sent, so the site is told it is in progress (H2). */}
+        {entry.kind === "answered" && !entry.company && entry.introductionPending === true
+          && <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
@@ -488,7 +491,9 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
     <p className="bare-helper">{READING_HELPER}</p>
   </BareGroup>;
   else if (answer.state === "cannot_assess") {
-    const fix = answer.reason === REASON_UNSIZED ? onUpdateVideo && { label: NEW_VIDEO_LABEL, run: onUpdateVideo } : onEditJob && { label: EDIT_JOB_LABEL, run: onEditJob };
+    // An unread video is not fixed by editing the job: no button is offered for it.
+    const fix = answer.reason === REASON_UNSIZED ? onUpdateVideo && { label: NEW_VIDEO_LABEL, run: onUpdateVideo }
+      : answer.reason === REASON_NOT_READ ? null : onEditJob && { label: EDIT_JOB_LABEL, run: onEditJob };
     const reason = cannotLine(answer.reason);
     firstLook = <>
       <BareGroup>

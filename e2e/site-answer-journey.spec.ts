@@ -374,8 +374,11 @@ test.describe("desktop", () => {
     const reply = await introduced;
     expect(reply.status(), await reply.text()).toBe(200);
     expect(reply.request().postDataJSON()).toEqual({ alias: "A", statementVersion: "introduction-request-2026-11-12" });
-    await expect(entries).toContainText(new RegExp(`You accepted ${company.name} on .+\\.`), { timeout: 30_000 });
-    await expect(entries.getByRole("link", { name: company.email })).toBeVisible();
+    // Nothing has been sent yet: the company's email waits for the outbox, and the introduction is made only once it
+    // is sent (H2). The site's page must not say it was introduced before then.
+    await page.reload();
+    await expect(entries.getByRole("button", { name: "Accept" })).toHaveCount(0);
+    await expect(entries).not.toContainText("You accepted");
 
     const introEmails = (await outbox(request, requestId)).filter(item => item.kind.startsWith("introduction_"));
     expect(introEmails.map(item => [item.kind, item.to]).sort()).toEqual([
@@ -388,6 +391,10 @@ test.describe("desktop", () => {
     expect(toSite.body).toContain(company.email);
     // Both emails are actually sent, each with the other side as Reply-To, not only queued.
     const delivered = await deliverOutbox(request);
+    await page.reload();
+    await expect(entries).toContainText(new RegExp(`You accepted ${company.name} on .+\\.`), { timeout: 30_000 });
+    await expect(entries.getByRole("link", { name: company.email })).toBeVisible();
+    await expect(entries.getByRole("link", { name: company.email })).toBeVisible();
     const sentTo = (email: string) => delivered.filter(mail => mail.to.includes(email.toLowerCase()));
     expect(sentTo(company.email).map(mail => mail.replyTo)).toContain(site.email.toLowerCase());
     expect(sentTo(site.email).map(mail => mail.replyTo)).toContain(company.email.toLowerCase());
@@ -475,6 +482,34 @@ test.describe("phone", () => {
     await expectFirstLook(page);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
+    expect(missing).toEqual([]);
+  });
+  test("the video model refuses for lack of credit, then answers: the reading waits without using its attempts and the first look comes", async ({ page, request }) => {
+    const missing: string[] = [];
+    await localOnly(page.context(), missing);
+    // The provider refuses the first three calls, as an account with no credit left does (HTTP 429).
+    const refuse = await request.post(`${ORIGIN}/api/reliability/video-model-refuses?calls=3`);
+    expect(refuse.ok()).toBe(true);
+    const stamp = Date.now();
+    const { link, requestId } = await startWithVideo(page, `core-journey-outage-${stamp}@example.invalid`, `14 Outage Street ${stamp}`);
+    await link.click();
+    // While the provider refuses, the reading stays pending: the site reads that its video is being watched.
+    expect((await tick(request, requestId)).finished).toBe(false);
+    await page.reload();
+    await expect(answer(page).getByText("We're watching your video.", { exact: true })).toBeVisible();
+    // Each back-off passes; three refusals later the provider answers. No refusal used one of the three attempts.
+    let finished = false;
+    for (let wait = 0; wait < 5 && !finished; wait++) {
+      const elapsed = await request.post(`${ORIGIN}/api/reliability/provider-wait-elapsed?requestId=${encodeURIComponent(requestId)}`);
+      expect(elapsed.ok()).toBe(true);
+      const { attempts } = await elapsed.json() as { attempts: number[] };
+      expect(attempts.every(count => count === 0)).toBe(true);
+      finished = (await tick(request, requestId)).finished;
+    }
+    expect(finished).toBe(true);
+    await publishCompanyClip(request, requestId);
+    await page.reload();
+    await expectFirstLook(page);
     expect(missing).toEqual([]);
   });
 });

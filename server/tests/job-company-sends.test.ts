@@ -303,7 +303,16 @@ describe("what the site receives", () => {
       headers: { "content-type": "application/json", cookie: "csrf_token=c1-test", "x-csrf-token": "c1-test" } });
     expect(response.status, await response.clone().text()).toBe(200);
     const after = (await siteStatus()).body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.kind === "answered");
-    expect(after).toMatchObject({ alias: "Company A", canIntroduce: false, introducedAtIso: expect.any(String) });
+    // Asked, not made: the company's email has not been sent yet (H2).
+    expect(after).toMatchObject({ alias: "Company A", canIntroduce: false, introductionPending: true });
+    expect(after).not.toHaveProperty("introducedAtIso");
+    expect(after).not.toHaveProperty("company");
+    await deliverOutbox();
+    const made = (await siteStatus()).body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.kind === "answered");
+    expect(made).toMatchObject({ alias: "Company A", canIntroduce: false, introducedAtIso: expect.any(String),
+      // This file mocks decryption, so the details' contents are pinned in company-job-automation and plant-and-prove.
+      company: expect.any(Object) });
+    expect(made).not.toHaveProperty("introductionPending");
     expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toMatchObject({ alias: "A", by: "site" });
   });
 

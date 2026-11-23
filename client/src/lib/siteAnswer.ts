@@ -182,6 +182,11 @@ export const TIGHT_FIT_SENTENCE = "This is a tight fit.";
 export const UNKNOWN_SCENE_NOT_COVERED = "Your video does not show the whole work area.";
 /** Why a finished reading gave nothing to size; the answer email keys on it, and the page offers a new video. */
 export const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
+/**
+ * Why there is no first look: the video reading ended without one, because the video could not be read or every
+ * automatic read of it failed (`server/utils/captureCoverageQueue.ts`). The job goes on without it.
+ */
+export const REASON_NOT_READ = "We couldn't read your video, so this job has no first look.";
 
 /** A line of `unknowns` that changes what the answer covers: shown with the answer, never folded away. */
 export function isScopeNote(line: string): boolean {
