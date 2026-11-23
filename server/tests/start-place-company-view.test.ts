@@ -18,10 +18,16 @@ vi.mock("../utils/email", () => ({ sendEmail: vi.fn() }));
 vi.mock("../utils/slack", () => ({ notifySlackInboundRequest: vi.fn() }));
 vi.mock("../utils/rate-limit-redis", () => ({ getRateLimitRedisClient: () => null }));
 
-const devLogPath = path.join(os.tmpdir(), "blueprint-dev-inbound-requests.jsonl");
 const originalNodeEnv = process.env.NODE_ENV;
+/** This file's own temp directory: the route's development log lands here, where no other test file can unlink it. */
+let privateTmpDir = "";
+let devLogPath = "";
 
 beforeEach(() => {
+  privateTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "start-place-company-view-"));
+  // The route reads os.tmpdir() (TMPDIR on Linux) when it loads, after `vi.resetModules()` in `storedJob`.
+  vi.stubEnv("TMPDIR", privateTmpDir);
+  devLogPath = path.join(os.tmpdir(), "blueprint-dev-inbound-requests.jsonl");
   process.env.NODE_ENV = "development";
   vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY", Buffer.alloc(32, 7).toString("base64"));
   vi.stubEnv("FIELD_ENCRYPTION_KMS_KEY_NAME", "");
@@ -29,6 +35,7 @@ beforeEach(() => {
 afterEach(() => {
   process.env.NODE_ENV = originalNodeEnv;
   vi.unstubAllEnvs();
+  fs.rmSync(privateTmpDir, { recursive: true, force: true });
 });
 
 /** The body the start form sends for a job with a video (`SiteCaptureStart.tsx`), with or without a picked place. */
