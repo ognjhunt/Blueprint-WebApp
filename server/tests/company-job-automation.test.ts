@@ -540,6 +540,32 @@ describe("the company's page for one job (E3)", () => {
     expect((await page()).body.item.pendingQuestion).toBeUndefined();
   });
 
+  // Review of #1425: a new question replaces the window under the same id; a pass that read the old one leaves it open.
+  it("leaves a newer question's window open when the sweep read the one it replaced", async () => {
+    const { remindUnansweredQuestions, SITE_REPLY_WINDOWS } = await import("../utils/siteReplyReminders");
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const key = `${SITE_REPLY_WINDOWS}/${ID}__${sha(NORTH.email)}`;
+    const first = state.docs.get(key) as Record<string, any>;
+    const due = Date.parse(first.replyByIso);
+    // The sweep reads the first window; before its transaction, the company asks a new question.
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const realRun = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+    let swapped = false;
+    const spy = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementation(async (fn: never) => {
+      if (!swapped) {
+        swapped = true;
+        expect((await answer(NORTH, { state: "needs_something", inputs: "What height is the pallet?" })).status).toBe(200);
+      }
+      return realRun(fn);
+    });
+    expect(await remindUnansweredQuestions(due)).toBe(0);
+    spy.mockRestore();
+    const replaced = state.docs.get(key) as Record<string, any>;
+    expect(replaced.questionId).not.toBe(first.questionId);
+    expect(replaced.state).toBe("open");
+    expect(outbox().filter(row => row.kind === "site_reply_reminder")).toHaveLength(0);
+  });
+
   it("closes a reply window with no email when the question was answered or changed first", async () => {
     const { remindUnansweredQuestions, SITE_REPLY_WINDOWS } = await import("../utils/siteReplyReminders");
     expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);

@@ -71,6 +71,10 @@ export async function remindUnansweredQuestions(nowMs = Date.now()): Promise<num
         const windowRef = store.collection(SITE_REPLY_WINDOWS).doc(window.id);
         const replyRef = store.collection("inboundRequests").doc(window.jobId).collection(RESPONSES).doc(window.companyId);
         const outboxRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(siteReplyReminderKey(window.jobId, window.questionId));
+        // The window as it stands now: a company that asked a new question since the sweep read it has a new window
+        // under the same id, which this pass leaves alone (its own date comes).
+        const current = (await tx.get(windowRef)).data();
+        if (current?.state !== "open" || current.questionId !== window.questionId) return false;
         const { record, access } = await loadCompanyJobAccess(window.jobId, undefined, tx);
         const reply = (await tx.get(replyRef)).data();
         const already = (await tx.get(outboxRef)).exists;
