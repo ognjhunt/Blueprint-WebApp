@@ -16,6 +16,12 @@
  *
  * A job in flight across the switch is counted the same way: every row it holds or settled before counts
  * against the cap, read exactly as before. A job already past it admits nothing more.
+ *
+ * Owner decision 2026-11-23: the build plan's first object is built inside the scene intake's allowance, and each
+ * further object it generates (ARTISAN, its $12 per-object cap) reserves that cap as one more OpenAI preparation
+ * reservation, in the plan's order (Pipeline `website_build_budget`). This check admits each while it fits; one
+ * refused here, or by the native ledger's paid-request count (which refuses with the same code), and every
+ * lower-ranked generated one, the Pipeline keeps as filmed, named, as "the job reached its limit on paid work".
  */
 import capContract from "../../contracts/pipeline/website-job-spend-cap.v1.json";
 import { parseBetaPolicyScreeningPublication, screeningMoneyMicros, SCREENING_LEGACY_SITE_LIMIT_USD } from "./betaPolicyScreeningContract";
