@@ -14,8 +14,7 @@ are the owner's to write; nothing is written to production.
 | In a pull request now | 29 |
 | Done | 3 |
 | Partly done | 1 |
-| Ledger lane, started | 80 |
-| Ledger lane, queued | 90 |
+| Ledger lane, started | 170 |
 | Owner writes it | 4 |
 | Owner step on the host | 5 |
 | Owner step | 2 |
@@ -72,7 +71,7 @@ are the owner's to write; nothing is written to production.
 |---|---|---|---|
 | VL25 | DELETE | Host failed transient units and hold-expiry units | the 206 failed units are cleared; the 22 hold-expiry units and the expired hold are not |
 
-## Ledger lane, started (80)
+## Ledger lane, started (170)
 
 | Row | Verdict | Thing | Where it goes |
 |---|---|---|---|
@@ -112,7 +111,19 @@ are the owner's to write; nothing is written to production.
 | BL49 | SIMPLIFY | New-job email body with no job type or place | company way in: Find jobs, application, sign-up, job page |
 | BL52 | DELETE | Stored targeting fields (interests, categories, requirements) | company way in: Find jobs, application, sign-up, job page |
 | BL53 | DELETE | Legacy application fields kept (supportedSystems, pilotPackage, testSite) | approving a company, and staff tools and bells |
+| BL56 | DELETE | Package: `timing` (physics 120 Hz, control 15 Hz) | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
+| CL03 | SIMPLIFY | Face blur of frames sent to World Labs, by Privacy version | Pipeline: alarms that mean something, and one rule for face blur |
+| CL07 | DELETE | Recapture-coded hold (`website_registration_*`) | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
+| CL08 | DELETE | Operator `selected-handoff` / held hand-off replay | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
+| CL10 | DELETE | Pipeline's own "Blueprint-owned capture" sharing basis | Pipeline: retired lanes, their timers, limits and documents |
+| CL12 | SIMPLIFY | Release-admission check before each paid Atlas call | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
 | CL18 | DELETE | Full $18 hold for a launch that rented nothing | the first fix was wrong (five of the seven launches did rent a machine); a corrected money fix is in progress (C-03) |
+| CL24 | DELETE | Rigid robot-free probe lane, timer every 5 min | Pipeline: retired lanes, their timers, limits and documents |
+| CL25 | SIMPLIFY | Company clip and simulation pass every 60 s, forever | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
+| CL26 | SIMPLIFY | Progression tick every 1 min writing an event each time | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
+| CL30 | SIMPLIFY | Disk-budget gates (`control_plane_disk_budget_exceeded`, preallocation capacity) | Pipeline: alarms that mean something, and one rule for face blur |
+| CL31 | DELETE | Anthropic provider choice for object modelling | Pipeline: retired lanes, their timers, limits and documents |
+| CL34 | DELETE | Runbook step 13 "robot team picks its saved setup" and "raise the preparation cap" | Pipeline: retired lanes, their timers, limits and documents |
 | DL08 | DELETE | Record a send made by hand | approving a company, and staff tools and bells |
 | DL09 | DELETE | Void a send | approving a company, and staff tools and bells |
 | DL10 | DELETE | Record an answer a company emailed | approving a company, and staff tools and bells |
@@ -128,51 +139,6 @@ are the owner's to write; nothing is written to production.
 | DL24 | MERGE | Slack bell for an application | approving a company, and staff tools and bells |
 | DL25 | DELETE | Slack bell: screening call | approving a company, and staff tools and bells |
 | DL26 | DELETE | Slack bell: footage review by hand | approving a company, and staff tools and bells |
-| DL43 | DELETE | `/admin/company-metrics` redirect to `/` | approving a company, and staff tools and bells |
-| EL03 | SIMPLIFY | Tested answers on the example card | site: start form, job page, emails |
-| EL09 | SIMPLIFY | `/jobs#sample-job` deep link | company way in: Find jobs, application, sign-up, job page |
-| EL12 | DELETE | Viewer opening in a new tab | company way in: Find jobs, application, sign-up, job page |
-| EL19 | SIMPLIFY | "Introduction requested." line | site: start form, job page, emails |
-| GL11 | MERGE | Shared listing record | gates in the WebApp |
-| GL14 | DELETE | Brief confirmation step | site: start form, job page, emails |
-| GL15 | DELETE | `website_task_context_not_confirmed` as a revoking code | site: start form, job page, emails |
-| GL16 | DELETE | `/follow-up` success_target re-confirmation | site: start form, job page, emails |
-| GL23 | DELETE | `website_scene_site_unclaimed` | gates in the WebApp |
-| GL27 | DELETE | Card "Ready" from runnable proof | gates in the WebApp |
-| GL31 | SIMPLIFY | Re-acceptance on every new version by default | gates in the WebApp |
-| GL32 | SIMPLIFY | Introduction dispatch re-check of Terms and listing | gates in the WebApp |
-| ML02 | DELETE | `isRunnableTask` and `scene_not_runnable` in the listing answer | gates in the WebApp |
-| ML03 | DELETE | Legacy dossier restriction (`kept_private`, `restricted_to_named_teams`) | gates in the WebApp |
-| ML05 | DELETE | No email to companies approved later | gates in the WebApp |
-| ML06 | SIMPLIFY | Withdrawal notice only to companies with a send row | gates in the WebApp |
-| ML12 | SIMPLIFY | Library read capped at 200, unordered | company way in: Find jobs, application, sign-up, job page |
-| ML23 | SIMPLIFY | Sample job line "to download and open in your own tools" | site: start form, job page, emails |
-| ML24 | DELETE | `out_of_scope` site sentence "We can't simulate this kind of job yet." | site: start form, job page, emails |
-| OL25 | MERGE | Intake ops notice | approving a company, and staff tools and bells |
-| OL28 | MERGE | Beta monitor: preparation quiet | approving a company, and staff tools and bells |
-| OL29 | DELETE | Beta monitor: no-grant wait, over-budget extension | approving a company, and staff tools and bells |
-| OL30 | DELETE | Slack screening call needed | approving a company, and staff tools and bells |
-| OL31 | DELETE | Slack footage needs review | approving a company, and staff tools and bells |
-| OL32 | SIMPLIFY | Slack company application | approving a company, and staff tools and bells |
-| OL41 | SIMPLIFY | Admin `/admin/leads/:id` links in alerts | approving a company, and staff tools and bells |
-| VL42 | DELETE | Job-evidence panel link to /app/captures | approving a company, and staff tools and bells |
-
-## Ledger lane, queued (90)
-
-| Row | Verdict | Thing | Where it goes |
-|---|---|---|---|
-| BL56 | DELETE | Package: `timing` (physics 120 Hz, control 15 Hz) | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
-| CL03 | SIMPLIFY | Face blur of frames sent to World Labs, by Privacy version | Pipeline: alarms that mean something, and one rule for face blur |
-| CL07 | DELETE | Recapture-coded hold (`website_registration_*`) | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
-| CL08 | DELETE | Operator `selected-handoff` / held hand-off replay | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
-| CL10 | DELETE | Pipeline's own "Blueprint-owned capture" sharing basis | Pipeline: retired lanes, their timers, limits and documents |
-| CL12 | SIMPLIFY | Release-admission check before each paid Atlas call | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
-| CL24 | DELETE | Rigid robot-free probe lane, timer every 5 min | Pipeline: retired lanes, their timers, limits and documents |
-| CL25 | SIMPLIFY | Company clip and simulation pass every 60 s, forever | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
-| CL26 | SIMPLIFY | Progression tick every 1 min writing an event each time | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
-| CL30 | SIMPLIFY | Disk-budget gates (`control_plane_disk_budget_exceeded`, preallocation capacity) | Pipeline: alarms that mean something, and one rule for face blur |
-| CL31 | DELETE | Anthropic provider choice for object modelling | Pipeline: retired lanes, their timers, limits and documents |
-| CL34 | DELETE | Runbook step 13 "robot team picks its saved setup" and "raise the preparation cap" | Pipeline: retired lanes, their timers, limits and documents |
 | DL27 | DELETE | `/app/captures` page and `/api/capture-uploads` | worker, tests and retired WebApp lanes |
 | DL33 | DELETE | `beta_screening` section of door status | Pipeline: alarms that mean something, and one rule for face blur |
 | DL34 | SIMPLIFY | `failed_units` list with old experiments | Pipeline: alarms that mean something, and one rule for face blur |
@@ -180,10 +146,23 @@ are the owner's to write; nothing is written to production.
 | DL36 | SIMPLIFY | Disk usage warnings posted to the alert route | Pipeline: alarms that mean something, and one rule for face blur |
 | DL38 | DELETE | Success-threshold confirmation | Pipeline: retired lanes, their timers, limits and documents |
 | DL40 | DELETE | Scene execution window extension | Pipeline: retired lanes, their timers, limits and documents |
+| DL43 | DELETE | `/admin/company-metrics` redirect to `/` | approving a company, and staff tools and bells |
+| EL03 | SIMPLIFY | Tested answers on the example card | site: start form, job page, emails |
+| EL09 | SIMPLIFY | `/jobs#sample-job` deep link | company way in: Find jobs, application, sign-up, job page |
+| EL12 | DELETE | Viewer opening in a new tab | company way in: Find jobs, application, sign-up, job page |
+| EL19 | SIMPLIFY | "Introduction requested." line | site: start form, job page, emails |
 | EL23 | DELETE | Retired sample files and proof reel | worker, tests and retired WebApp lanes |
 | EL24 | DELETE | Live rehearsal script | worker, tests and retired WebApp lanes |
+| GL11 | MERGE | Shared listing record | gates in the WebApp |
+| GL14 | DELETE | Brief confirmation step | site: start form, job page, emails |
+| GL15 | DELETE | `website_task_context_not_confirmed` as a revoking code | site: start form, job page, emails |
+| GL16 | DELETE | `/follow-up` success_target re-confirmation | site: start form, job page, emails |
 | GL21 | DELETE | Window extension with owner approval | Pipeline: retired lanes, their timers, limits and documents |
 | GL22 | DELETE | Expired grant renewal by the owner | Pipeline: retired lanes, their timers, limits and documents |
+| GL23 | DELETE | `website_scene_site_unclaimed` | gates in the WebApp |
+| GL27 | DELETE | Card "Ready" from runnable proof | gates in the WebApp |
+| GL31 | SIMPLIFY | Re-acceptance on every new version by default | gates in the WebApp |
+| GL32 | SIMPLIFY | Introduction dispatch re-check of Terms and listing | gates in the WebApp |
 | GL39 | DELETE | Recapture stops (8 codes) | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
 | GL40 | SIMPLIFY | Hold until 2 h before window end | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
 | GL41 | SIMPLIFY | KEEP_HOLDING integrity suffixes | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
@@ -196,9 +175,16 @@ are the owner's to write; nothing is written to production.
 | GL55 | DELETE | OpenAI $560 and World Labs $450 month pages | Pipeline: retired lanes, their timers, limits and documents |
 | GL59 | DELETE | Chain preflight | Pipeline: retired lanes, their timers, limits and documents |
 | GL60 | DELETE | Owner success contract | Pipeline: retired lanes, their timers, limits and documents |
+| ML02 | DELETE | `isRunnableTask` and `scene_not_runnable` in the listing answer | gates in the WebApp |
+| ML03 | DELETE | Legacy dossier restriction (`kept_private`, `restricted_to_named_teams`) | gates in the WebApp |
+| ML05 | DELETE | No email to companies approved later | gates in the WebApp |
+| ML06 | SIMPLIFY | Withdrawal notice only to companies with a send row | gates in the WebApp |
 | ML11 | SIMPLIFY | Hand-kept Privacy versions for no-blur | Pipeline: alarms that mean something, and one rule for face blur |
+| ML12 | SIMPLIFY | Library read capped at 200, unordered | company way in: Find jobs, application, sign-up, job page |
 | ML13 | DELETE | Marketing cookie category and ad grants | analytics, cookies and stored copies |
 | ML14 | DELETE | Cookie banner while no analytics is configured | analytics, cookies and stored copies |
+| ML23 | SIMPLIFY | Sample job line "to download and open in your own tools" | site: start form, job page, emails |
+| ML24 | DELETE | `out_of_scope` site sentence "We can't simulate this kind of job yet." | site: start form, job page, emails |
 | ML25 | SIMPLIFY | Package source limited to rigid or articulated team scene | Pipeline: ship flagged instead of holding; parked jobs retry by themselves |
 | FL08 | SIMPLIFY | One worker heartbeat | worker, tests and retired WebApp lanes |
 | FL09 | DELETE | `BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER` | worker, tests and retired WebApp lanes |
@@ -222,9 +208,16 @@ are the owner's to write; nothing is written to production.
 | OL22 | DELETE | Outbox bodies kept after send | analytics, cookies and stored copies |
 | OL23 | SIMPLIFY | `agentRuns` unredacted input/output | analytics, cookies and stored copies |
 | OL24 | DELETE | `opsActionLogs` | analytics, cookies and stored copies |
+| OL25 | MERGE | Intake ops notice | approving a company, and staff tools and bells |
+| OL28 | MERGE | Beta monitor: preparation quiet | approving a company, and staff tools and bells |
+| OL29 | DELETE | Beta monitor: no-grant wait, over-budget extension | approving a company, and staff tools and bells |
+| OL30 | DELETE | Slack screening call needed | approving a company, and staff tools and bells |
+| OL31 | DELETE | Slack footage needs review | approving a company, and staff tools and bells |
+| OL32 | SIMPLIFY | Slack company application | approving a company, and staff tools and bells |
 | OL34 | SIMPLIFY | Unit failure notifier | Pipeline: alarms that mean something, and one rule for face blur |
 | OL35 | DELETE | Capacity warnings `usage_*` as alerts | Pipeline: alarms that mean something, and one rule for face blur |
 | OL39 | DELETE | Preflight 108 blockers | Pipeline: retired lanes, their timers, limits and documents |
+| OL41 | SIMPLIFY | Admin `/admin/leads/:id` links in alerts | approving a company, and staff tools and bells |
 | VL01 | DELETE | Remote episode-compilation timer, path, service | Pipeline: retired lanes, their timers, limits and documents |
 | VL02 | DELETE | Host episode-compilation units (disarmed each release) | Pipeline: retired lanes, their timers, limits and documents |
 | VL03 | DELETE | Rigid robot-free probe units | Pipeline: retired lanes, their timers, limits and documents |
@@ -246,6 +239,7 @@ are the owner's to write; nothing is written to production.
 | VL35 | DELETE | Launch-forward worker lane | worker, tests and retired WebApp lanes |
 | VL36 | DELETE | Job-evidence worker lane | worker, tests and retired WebApp lanes |
 | VL39 | DELETE | Launch submission and preparation routes | worker, tests and retired WebApp lanes |
+| VL42 | DELETE | Job-evidence panel link to /app/captures | approving a company, and staff tools and bells |
 | VL43 | DELETE | /app/captures page | worker, tests and retired WebApp lanes |
 | VL44 | DELETE | capture-uploads routes A31-A48 and owned-capture-atlas A167-A169 | worker, tests and retired WebApp lanes |
 | VL55 | DELETE | Three unrun intake Playwright configs | worker, tests and retired WebApp lanes |
