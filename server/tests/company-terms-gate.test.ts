@@ -295,7 +295,7 @@ const introduce = (alias: string) => requestIntroduction({ requestId: ID, alias,
 const SHOWN = { termsVersion: NO_FACE_BLUR_VERSION, privacyVersion: NO_FACE_BLUR_VERSION };
 const apply = (body: Record<string, unknown>) => realFetch(`${base}/api/robot-team-access/apply`, { method: "POST",
   headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Mallory", company: "Mallory Corp", robot: "arm",
-    workWanted: "pick", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
+    workWanted: "pick", website: "https://mallory.example", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
 
 describe("Privacy 2026-11-13.1 asks no approved company to agree again", () => {
   // The Terms keep 2026-11-12.2; Privacy 2026-11-13.1 changes only what may happen to jobs started from now on.

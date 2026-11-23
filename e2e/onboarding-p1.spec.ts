@@ -168,6 +168,7 @@ test("a robot team outside early access applies, on the one application form, in
   await form.getByLabel("Your name").fill("Ada Lovelace");
   await form.getByLabel("Work email").fill("ada@arm.example");
   await form.getByLabel("Company", { exact: true }).fill("Arm Co");
+  await form.getByLabel("Company website").fill("https://arm.example");
   await form.getByLabel("What jobs can you deliver?").fill("Tote picking");
   await form.getByLabel("Which robots do you deploy?").fill("Fixed arm with a parallel gripper");
   await form.getByLabel("Where can you deploy?").fill("Ohio");

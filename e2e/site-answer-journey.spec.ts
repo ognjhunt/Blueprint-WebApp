@@ -207,6 +207,7 @@ test.describe("desktop", () => {
     await application.getByLabel("Your name").fill(company.contact);
     await application.getByLabel("Work email").fill(company.email);
     await application.locator('input[name="company"]').fill(company.name);
+    await application.getByLabel("Company website").fill("https://quillfeather.example");
     await application.getByLabel("What jobs can you deliver?").fill("Moving cartons from conveyors to carts.");
     await application.getByLabel("Which robots do you deploy?").fill("A mobile arm that picks cartons up to 15 kg.");
     await application.getByLabel("Where can you deploy?").fill("United States");

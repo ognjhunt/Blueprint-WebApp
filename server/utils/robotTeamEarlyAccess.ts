@@ -36,7 +36,6 @@ export type RobotTeamAccessStatus = "applied" | "approved" | "declined";
 
 export interface RobotTeamAccessApplication {
   partnerRole?: "deployment" | "technology" | null;
-  supportedSystems?: string | null;
   optionalUpdates?: boolean;
   returnToJob?: string;
   name: string;
@@ -46,10 +45,6 @@ export interface RobotTeamAccessApplication {
   robot: string;
   workWanted: string;
   region: string | null;
-  /** Private, provider-supplied starting point; never a binding site quote. */
-  pilotPackage?: string | null;
-  /** A site or customer the team would want to test at: a lead for the site side. */
-  testSite?: string | null;
 }
 
 export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
@@ -135,7 +130,7 @@ export async function getAccessRecordForEmail(email: string | null | undefined):
  */
 export async function recordAccessApplication(
   application: RobotTeamAccessApplication,
-  options: { fit?: AccessFit | null; applicationTermsAcceptance?: unknown } = {},
+  options: { applicationTermsAcceptance?: unknown } = {},
 ): Promise<{ record: RobotTeamAccessRecord; created: boolean; unchanged?: true; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
   const { NO_ACCESS_EMAIL } = await import("./robotTeamAccessEmails");
@@ -156,17 +151,13 @@ export async function recordAccessApplication(
       ...application,
       ...(returnToJob ? { returnToJob } : {}),
       partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
-      supportedSystems: application.supportedSystems === undefined ? prior?.supportedSystems ?? null : application.supportedSystems,
       // Job emails start on once approved (owner, 2026-11-20); the form's one box is Blueprint updates only.
       newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? true,
       ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : !prior && application.optionalUpdates !== undefined
-        ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: true, interests: {}, declaredCategories: {}, requirements: {} }, "application") } : {}),
+        ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: true }, "application") } : {}),
       ...(prior?.preferencesAccountUid ? { preferencesAccountUid: prior.preferencesAccountUid } : {}),
       email,
-      testSite: application.testSite === undefined ? prior?.testSite ?? null : application.testSite,
-      pilotPackage: application.pilotPackage === undefined ? prior?.pilotPackage ?? null : application.pilotPackage,
       source: prior?.source ?? "application",
-      fit: options.fit ?? null,
       status: "applied",
       appliedAtIso: prior?.appliedAtIso ?? now,
       updatedAtIso: now,
@@ -253,10 +244,7 @@ export async function inviteRobotTeam(params: {
       robot: prior?.robot ?? "",
       workWanted: prior?.workWanted ?? params.note ?? "",
       region: prior?.region ?? null,
-      testSite: prior?.testSite ?? null,
-      pilotPackage: prior?.pilotPackage ?? null,
       partnerRole: prior?.partnerRole ?? null,
-      supportedSystems: prior?.supportedSystems ?? null,
       source: prior?.source ?? "invite",
       fit: prior?.fit ?? null,
       status: "approved",

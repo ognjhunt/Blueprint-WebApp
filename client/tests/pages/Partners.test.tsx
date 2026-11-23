@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import Partners from "@/pages/Partners";
 
 describe("the page for deployment companies", () => {
+  afterEach(() => { cleanup(); window.history.replaceState(null, "", "/"); });
   it("explains the offer and gives new and approved companies their own next step", () => {
     render(<Partners />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Find jobs for the robots you deploy.");
@@ -36,5 +37,17 @@ describe("the page for deployment companies", () => {
     expect(within(sample).getByText("You see no site name, address or contact details until the site asks to meet you. Then we email you both each other's details.")).toBeVisible();
     expect(sample).not.toHaveTextContent(/in a minute|busiest/);
     expect(screen.getByRole("link", { name: "See a sample job" })).toHaveAttribute("href", "#sample-job");
+  });
+
+  it("shows the sample job before the application, and /jobs#sample-job opens on the sample", () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    window.history.replaceState(null, "", "/jobs#sample-job");
+    render(<Partners />);
+    const sample = document.getElementById("sample-job")!;
+    const application = screen.getByRole("form", { name: "Deployment company application" });
+    expect(sample.compareDocumentPosition(application) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll.mock.contexts[0]).toBe(sample);
   });
 });

@@ -1,17 +1,15 @@
 /**
  * The robot-team early-access application.
  *
- * Public and CSRF-protected. It records the application with its fit
- * checklist, sends one email, and rings the team's Slack. A person grants
- * access in `/admin/robot-team-access` when a real site task fits. Fit checks
- * support that decision and never approve public registrations automatically.
+ * Public and CSRF-protected. It records the application and rings the team's
+ * Slack. A person grants access
+ * in `/admin/robot-team-access`; nothing approves an application automatically.
  */
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 
 import { logger } from "../logger";
-import { assessAccessFit } from "../utils/robotTeamAccessFit";
 import {
   accessRecordId,
   recordAccessApplication,
@@ -22,7 +20,6 @@ import { shownVersionsCount } from "../../client/src/lib/legalAcceptance";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
-import { listTaskBrowseCards } from "../utils/taskBrowse";
 import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
 
 const router = Router();
@@ -38,16 +35,13 @@ export const applicationSchema = z
     name: text(120),
     email: z.string().trim().email().max(320),
     company: text(160),
-    website: optionalText(300).refine(value => !value || /^https?:\/\//i.test(value) && URL.canParse(value), {
+    website: text(300).refine(value => /^https?:\/\//i.test(value) && URL.canParse(value), {
       message: "Use a full http:// or https:// website address.",
     }),
     robot: text(1200),
     workWanted: text(1200),
     region: optionalText(300),
     partnerRole: z.enum(["deployment", "technology"]).optional(),
-    supportedSystems: optionalText(1200),
-    pilotPackage: optionalText(1200),
-    testSite: optionalText(300),
     acceptedTerms: z.literal(true),
     // The versions the form showed (G2): a missing or stale version is refused as the accept route refuses it.
     termsVersion: z.string().max(40).optional(),
@@ -61,7 +55,7 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
   const parsed = applicationSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
-      error: "Check the form. Every field is needed except the website, which must start with https:// or http://.",
+      error: "Check the form. Every field is needed, and the website must start with https:// or http://.",
       code: "application_invalid",
     });
   }
@@ -69,19 +63,11 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
   const shown = shownVersionsCount(parsed.data.termsVersion, parsed.data.privacyVersion);
   if (!shown) return res.status(400).json(APPLICATION_TERMS_CHANGED);
   const { acceptedTerms: _accepted, termsVersion: _terms, privacyVersion: _privacy, returnToJob, ...fields } = parsed.data;
-  // The one application form (/partners) no longer asks these; a field the request leaves out keeps what the record
-  // already holds (the older forms stored them), so a pending company that applies again loses nothing.
-  const sent = (key: "supportedSystems" | "pilotPackage" | "testSite") =>
-    Object.prototype.hasOwnProperty.call(req.body, key) ? fields[key] : undefined;
-  const application = { ...fields, ...(returnToJob ? { returnToJob } : {}),
-    supportedSystems: sent("supportedSystems"), pilotPackage: sent("pilotPackage"), testSite: sent("testSite") };
+  const application = { ...fields, ...(returnToJob ? { returnToJob } : {}) };
   try {
-    // An unavailable library remains unknown to the fit checklist. Admission is manual.
-    const listed = await listTaskBrowseCards().catch(() => []);
-    const fit = assessAccessFit(application, listed.map((card) => ({ title: card.title, region: card.region })));
     // The tick on this unsigned form is recorded on the application as what it is (the versions it showed and the
     // time). It never lets a company see a job: every company agrees once, signed in, on its first visit (G1).
-    const { record, created, unchanged, notification } = await recordAccessApplication(application, { fit,
+    const { record, created, unchanged, notification } = await recordAccessApplication(application, {
       applicationTermsAcceptance: applicationTermsAcceptance(undefined, shown) });
     // A decided record is left as it is, and the answer is the same as for a new application (G1).
     if (unchanged) return res.status(202).json({ status: "applied", notificationStatus: "not_requested" });
@@ -90,7 +76,7 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
     const autoApproved = false;
     // No receipt by email: the page says the application was received (owner, 2026-11-19).
     if (created) {
-      void notifySlackRobotTeamAccessApplication({ ...current, fit, autoApproved }).catch(() => undefined);
+      void notifySlackRobotTeamAccessApplication({ ...current, autoApproved }).catch(() => undefined);
     }
     return res.status(202).json({ status: current.status, notificationStatus: notification.status });
   } catch (error) {
