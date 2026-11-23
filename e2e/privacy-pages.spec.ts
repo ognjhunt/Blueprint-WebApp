@@ -15,7 +15,6 @@ test.beforeEach(async ({ page }) => {
 test("the cost row links no refunds, and the old refunds address lands on the Terms on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/beta");
-  await page.getByRole("button", { name: "Reject all", exact: true }).click();
   const cost = page.locator("#scope");
   await expect(cost).toContainText("Free for sites.");
   await expect(cost.getByRole("link", { name: /Refunds/ })).toHaveCount(0);
