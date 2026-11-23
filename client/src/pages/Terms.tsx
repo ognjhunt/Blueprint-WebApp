@@ -46,7 +46,7 @@ export const termsSections: readonly Section[] = [
       "Avoid recording screens, documents and restricted areas where you can.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to make the job packet and the simulation, show you companies' responses, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
       SHARING_SENTENCE,
-      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you with its name and website, with its contact details taken out. An answer given before November 23, 2026 reaches you under an alias. When you accept a company that applied or answered Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.`,
+      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you with its name and website, with its contact details taken out. An answer given before November 23, 2026 reaches you under an alias. An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it. When you accept a company that applied or answered Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.`,
       COMPANY_USE_SENTENCE,
       WITHDRAWAL_SENTENCE,
       OLDER_JOB_SENTENCE,
@@ -59,7 +59,7 @@ export const termsSections: readonly Section[] = [
     title: "4. For deployment companies",
     items: [
       "A deployment company applies for an account, and Blueprint approves each company. An approved company signs in, sees the jobs sites have shared, and can answer each one: Apply, Not a fit or Need more details. Once a job's simulation can be downloaded, it can also answer Tested it: can do or Tested it: cannot yet.",
-      COMPANY_APPLICATION_SENTENCE,
+      `${COMPANY_APPLICATION_SENTENCE} If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.`,
       "You may use a job only to decide whether you can do it. You may not pass it on, use it to train software, or keep it after we ask you to delete it.",
       "Nothing is charged today.",
     ],

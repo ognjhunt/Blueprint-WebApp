@@ -4,11 +4,10 @@ import { PreviousLegalVersionNote } from "@/components/site/LegalVersionNotes";
 import { PREVIOUS_TERMS_URL, PREVIOUS_TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Terms of Service of version 2026-11-17.1, in force from 2026-11-17 until the next version replaced it
- * (owner: the early trial dropped on 2026-11-14; the Privacy Policy and Terms updated with permission given on
- * 2026-11-19). Its sections are copied word for word from `Terms.tsx` as it stood at 2026-11-17.1; the replacement
- * policy it took from another file is copied in as it stood. Do not edit the sections: they are the agreement as it
- * stood. Change Terms.tsx instead.
+ * FROZEN: the Terms of Service of version 2026-11-19.1, in force from 2026-11-19 until the next version replaced it
+ * (owner, 2026-11-21: the launch-copy legal edits approved). Its sections are copied word for word from `Terms.tsx` as
+ * it stood at 2026-11-19.1; the replacement policy it took from another file is copied in as it stood. Do not edit the
+ * sections: they are the agreement as it stood. Change Terms.tsx instead.
  */
 const pilotReplacementPolicy =
   "If a deployment company withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund.";
@@ -16,7 +15,7 @@ const pilotReplacementPolicy =
 type Section = { title: string; paragraphs?: readonly string[]; items?: readonly string[] };
 
 /** Sharing is the service (owner, 2026-11-12): the sentences every page and email say the same way. */
-const SHARING_SENTENCE = "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, our first look at which robots fit, and the result of any early trial we run.";
+const SHARING_SENTENCE = "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.";
 const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
 const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
@@ -27,10 +26,10 @@ export const previousTermsSections: readonly Section[] = [
   {
     title: "1. The Service",
     paragraphs: [
-      "Blueprint helps a site find a deployment company for one of its recurring jobs. A site gives an email and a video of the job, and can correct the short job brief we draft from the video. From the video we make a job packet: the site's description of the job, the video without its sound, our first look at which kinds of robot most likely fit, a simulation of the site with the job's object in it, and what counts as the job done. We rebuild the work area as a simulated scene and, where we can, run openly available robot software in that simulation ourselves as an early trial. Deployment companies do not run their own software on a site's job in our simulation.",
+      "Blueprint helps a site find a deployment company for one of its recurring jobs. A site gives an email and a video of the job, and can correct the short job brief we draft from the video. From the video we make a job packet: the site's description of the job, the video without its sound, our first look at which kinds of robot most likely fit, a simulation of the site with the job's object in it, and what counts as the job done. We rebuild the work area as a simulated scene. Deployment companies do not run their own software on a site's job in our simulation.",
       `${SHARING_SENTENCE} A deployment company we approved can answer: interested, not a fit, would need something, tested it: can do, or tested it: cannot yet. The site sees each answer.`,
       "The Service is in beta. Features may change, be limited, or be withdrawn, and we may pause or stop work on a job, for example to protect a site's privacy or the integrity of a result.",
-      "A simulation or early trial result is a bounded estimate from a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site, and it does not certify physical performance or safety. Any physical pilot is agreed directly between the site and the deployment company. The deployment company remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may record agreed pilot outcomes under the parties' permissions.",
+      "A simulation is a bounded estimate from a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site, and it does not certify physical performance or safety. Any physical pilot is agreed directly between the site and the deployment company. The deployment company remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may record agreed pilot outcomes under the parties' permissions.",
       "Other providers help us run the Service; our Privacy Policy lists them. Their own terms apply to the services they provide.",
     ],
   },
@@ -47,15 +46,15 @@ export const previousTermsSections: readonly Section[] = [
     items: [
       "When you submit a job description, you confirm that you are authorized to share it on behalf of the site. When you start a capture with footage, you confirm that you are authorized to record the site and to let Blueprint use the recording as these Terms describe.",
       "Task footage may show people, including hands or arms performing the task, and a phone video can also record what people nearby say. Share only footage you are authorized to share. Before recording, tell the people in the work area that you are recording and that the video will be shared with Blueprint and with the robot deployment companies we approve, and obtain any permission the law or your own policies require from people who can be seen or heard. Some laws require everyone's consent before a conversation is recorded, so avoid recording conversations and turn sound off where your camera allows. Do not submit footage if you cannot meet these conditions.",
-      "Blueprint keeps your original upload as received for the uses and retention periods in our Privacy Policy. We remove its sound before any automated review, before sending footage to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to draft the job brief, build the simulation and run our early trial. We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under an earlier version of our Privacy Policy, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound.",
+      "Blueprint keeps your original upload as received for the uses and retention periods in our Privacy Policy. We remove its sound before any automated review, before sending footage to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to draft the job brief and build the simulation. We do not remove people from the footage or from frames taken from it, and we do not blur them. For a job started under a version of our Privacy Policy published before November 17, 2026, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound.",
       "Avoid recording screens, documents and restricted areas where you can.",
-      "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to review them, build the simulation, run our early trial, show you the results, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
+      "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to review them, build the simulation, show you the results, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
       SHARING_SENTENCE,
       `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you under an alias. When you ask for an introduction to a company that answered Interested or Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.`,
       COMPANY_USE_SENTENCE,
       WITHDRAWAL_SENTENCE,
       OLDER_JOB_SENTENCE,
-      "Submitting a job, building the simulation, our early trial and sharing your job with deployment companies cost the site nothing. There is no Blueprint fee, invoice or payment step for the site.",
+      "Submitting a job, building the simulation and sharing your job with deployment companies cost the site nothing. There is no Blueprint fee, invoice or payment step for the site.",
       "Blueprint charges no fee for and takes no percentage of any pilot or deployment. If the site goes ahead, the site and the deployment company agree the physical pilot's dates, scope and any price directly, and the deployment company or its integrator contracts for the physical work.",
       `${pilotReplacementPolicy} To ask for a replacement, contact ${COMPANY.emails.hello} with your job link.`,
     ],

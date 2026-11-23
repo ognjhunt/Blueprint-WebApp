@@ -49,8 +49,9 @@ test("privacy page says a company sees the city, state and country, as the previ
 
 // Terms and Privacy 2026-11-23.2 (owner, 2026-11-23: "yes, update both"): a company applies, and a site sees its name
 // and website with each answer and accepts the companies it wants to meet; an answer given before November 23, 2026
-// stays under an alias. The previous versions (Terms 2026-11-21.1, Privacy 2026-11-23.1) keep the alias sentence.
-test("the Terms and Privacy Policy say a site sees a company's name and website and accepts it; the previous versions keep the alias", async ({ page }) => {
+// stays under an alias. The previous Privacy Policy (2026-11-23.1) keeps the alias sentence. Since Terms 2026-11-23.3 the
+// previous Terms are 2026-11-23.2, which say the same as the current Terms.
+test("the Terms and Privacy Policy say a site sees a company's name and website and accepts it; the previous Privacy Policy keeps the alias", async ({ page }) => {
   const APPLICATION = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
   const ALIAS = "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out.";
   const article = page.locator("article");
@@ -67,7 +68,28 @@ test("the Terms and Privacy Policy say a site sees a company's name and website 
   await expect(article).toContainText("An approved deployment company can answer Apply, Not a fit or Need more details.");
   await expect(article).not.toContainText(/Interested|Introduce us/);
   await page.goto("/terms/previous");
-  await expect(article).toContainText("Previous version, effective November 21, 2026");
-  await expect(article).toContainText(ALIAS);
-  await expect(article).toContainText("An approved deployment company can answer Interested, Not a fit or Need more details.");
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).toContainText(APPLICATION);
+  await expect(article).not.toContainText(ALIAS);
+});
+
+// Terms 2026-11-23.3 (owner, 2026-11-23: "yes build it this way"): a company may give an estimate with its answer. The
+// Terms say, for sites and for companies, that it is an estimate before a site visit and not a quote; the previous Terms
+// (2026-11-23.2) say nothing of it, and the Privacy Policy does not change.
+test("the Terms say a company's estimate is its own, before a site visit and not a quote; the previous Terms and the Privacy Policy do not", async ({ page }) => {
+  const SITE = "An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it.";
+  const COMPANY = "If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.";
+  const article = page.locator("article");
+  await page.goto("/terms");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText(SITE);
+  await expect(article).toContainText(COMPANY);
+  await expect(article).toContainText("This version replaced the previous version (effective November 23, 2026).");
+  await page.getByRole("link", { name: "previous version", exact: true }).click();
+  await expect(page).toHaveURL(/\/terms\/previous$/);
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).not.toContainText("not a quote");
+  await page.goto("/privacy");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).not.toContainText("not a quote");
 });

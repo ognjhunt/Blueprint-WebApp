@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { COMPANY } from "@/data/company";
 import {
   BYGONE_PRIVACY_VERSION,
+  BYGONE_TERMS_VERSION,
   EARLIER_PRIVACY_VERSION,
   EARLIER_TERMS_VERSION,
   FORMER_PRIVACY_VERSION,
@@ -60,12 +61,14 @@ const documents = {
  */
 const pastVersions: Record<LegalDocument, ReadonlyArray<{ version: string; url?: string; replacedSameDay?: true }>> = {
   terms: [
-    { version: PREVIOUS_TERMS_VERSION, url: PREVIOUS_TERMS_URL },
+    // 2026-11-23.2 was replaced by 2026-11-23.3 on the day it took effect.
+    { version: PREVIOUS_TERMS_VERSION, url: PREVIOUS_TERMS_URL, replacedSameDay: true },
     { version: OLDER_TERMS_VERSION },
     { version: FORMER_TERMS_VERSION },
     { version: PRIOR_TERMS_VERSION },
+    { version: PAST_TERMS_VERSION },
     // 2026-11-12.1 was replaced by 2026-11-12.2 on the day it took effect.
-    { version: PAST_TERMS_VERSION, replacedSameDay: true },
+    { version: BYGONE_TERMS_VERSION, replacedSameDay: true },
     { version: EARLIER_TERMS_VERSION },
   ],
   privacy: [
