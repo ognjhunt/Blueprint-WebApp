@@ -1,4 +1,4 @@
-import { SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 } from "./siteStartConsent";
+import { SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4, SITE_START_CONSENT_WITH_VIDEO_V6 } from "./siteStartConsent";
 
 /**
  * The recording-rights sentence a site attests before Blueprint takes its
@@ -46,8 +46,17 @@ export const RECORDING_RIGHTS_STATEMENT_SHORT = SITE_START_CONSENT_WITH_VIDEO;
 export const RECORDING_RIGHTS_STATEMENT_V4_VERSION = "2026-11-12.v4";
 export const RECORDING_RIGHTS_STATEMENT_V4 = SITE_START_CONSENT_WITH_VIDEO_V4;
 
+/**
+ * The same sharing sentence naming the city and state the job is in (owner, 2026-11-23). It replaces v4 on every
+ * surface; v4 stays valid, and sharing, for the records made under it. A company sees the city and state of a job
+ * recorded under v6 (`RECORDING_VERSION_PLACE_LEVEL`, `server/utils/teamJobAccess.ts`). NOTE: the Pipeline's owner read
+ * (`capture_original_owner_observer.py`) must list this version before the website records it.
+ */
+export const RECORDING_RIGHTS_STATEMENT_V6_VERSION = "2026-11-23.v6";
+export const RECORDING_RIGHTS_STATEMENT_V6 = SITE_START_CONSENT_WITH_VIDEO_V6;
+
 export const RECORDING_RIGHTS_STATEMENT_VERSIONS = ["2026-09-18.v1", RECORDING_RIGHTS_STATEMENT_VERSION, RECORDING_RIGHTS_STATEMENT_SHORT_VERSION,
-  RECORDING_RIGHTS_STATEMENT_V4_VERSION] as const;
+  RECORDING_RIGHTS_STATEMENT_V4_VERSION, RECORDING_RIGHTS_STATEMENT_V6_VERSION] as const;
 export type RecordingRightsStatementVersion = (typeof RECORDING_RIGHTS_STATEMENT_VERSIONS)[number];
 
 export function isRecordingRightsStatementVersion(value: unknown): value is RecordingRightsStatementVersion {
@@ -55,7 +64,8 @@ export function isRecordingRightsStatementVersion(value: unknown): value is Reco
 }
 
 /** The versions whose sentence says the job is shared with approved deployment companies: v4 and any later one. */
-export const SHARING_RECORDING_STATEMENT_VERSIONS: readonly RecordingRightsStatementVersion[] = [RECORDING_RIGHTS_STATEMENT_V4_VERSION];
+export const SHARING_RECORDING_STATEMENT_VERSIONS: readonly RecordingRightsStatementVersion[] = [RECORDING_RIGHTS_STATEMENT_V4_VERSION,
+  RECORDING_RIGHTS_STATEMENT_V6_VERSION];
 
 export function isSharingRecordingStatementVersion(value: unknown): boolean {
   return typeof value === "string" && (SHARING_RECORDING_STATEMENT_VERSIONS as readonly string[]).includes(value);

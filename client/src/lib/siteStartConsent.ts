@@ -33,6 +33,15 @@ export const SITE_START_CONSENT_NO_VIDEO =
 export const SITE_START_CONSENT_WITH_VIDEO_V4 =
   "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. "
   + "We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
+/**
+ * The place a company sees (owner, 2026-11-23: "city and state, yes to the wording"): the line under "Send video" from
+ * now on, recorded as recording rights and description authority `2026-11-23.v6`, and on the job page and the upload
+ * page where v4 was shown. A job recorded under it shows a company the city and state it is in; v4 stays as the record
+ * of what earlier sites agreed to, with the country alone.
+ */
+export const SITE_START_CONSENT_WITH_VIDEO_V6 =
+  "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. "
+  + "We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved.";
 /** The same where no video is sent with the form: description authority `2026-11-12.v5`. */
 export const SITE_START_CONSENT_NO_VIDEO_V5 =
   "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. "

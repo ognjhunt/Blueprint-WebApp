@@ -128,9 +128,11 @@ it("RETURN-002c: knows which statements a saved submission must carry, in both s
   expect(pendingStatementsCurrent(body("2026-10-06.v1", null), false)).toBe(true);
   expect(pendingStatementsCurrent(body("2026-11-11.v3", null), false)).toBe(false);
   expect(pendingStatementsCurrent(body("2026-10-06.v1", "2026-11-02.v2"), false)).toBe(true);
-  // Switch on: the one-line consent's versions, by whether a video is sent (2026-11-12: v4 with a video, v3 without).
+  // Switch on: the one-line consent's versions, by whether a video is sent (2026-11-23: v6 with a video, v3 without).
   expect(pendingStatementsCurrent(body("2026-11-11.v3", null), true)).toBe(true);
-  expect(pendingStatementsCurrent(body("2026-11-12.v4", "2026-11-12.v4"), true)).toBe(true);
+  expect(pendingStatementsCurrent(body("2026-11-23.v6", "2026-11-23.v6"), true)).toBe(true);
+  // A video sent under v4, saved before v6 named the city and state, must be pressed again under the new wording.
+  expect(pendingStatementsCurrent(body("2026-11-12.v4", "2026-11-12.v4"), true)).toBe(false);
   // A draft saved under the older description-sharing wording must be reviewed again.
   expect(pendingStatementsCurrent(body("2026-11-12.v5", null), true)).toBe(false);
   expect(pendingStatementsCurrent(body("2026-11-11.v2", "2026-11-11.v3"), true)).toBe(false);

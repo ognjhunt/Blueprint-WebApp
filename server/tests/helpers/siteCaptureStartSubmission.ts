@@ -31,7 +31,8 @@ export function siteCaptureStartSubmission(params: {
   /**
    * The start form with its one-line consent switched off (`START_FORM_SHORT_CONSENT`): the long statements, recording
    * 2026-11-02.v2 and description 2026-10-06.v1, which do not share the job. By default the body is what the form sends
-   * today: the one line, recording and description authority `2026-11-12.v4`, which shares the job (2026-11-12).
+   * today: the one line, recording and description authority `2026-11-23.v6`, which shares the job with its city and state
+   * (2026-11-23).
    */
   longForm?: boolean;
   /** A job that is not shared: since 2026-11-12 that is a job under the long statements (`longForm`). */
@@ -76,8 +77,8 @@ export function siteCaptureStartSubmission(params: {
     captureRegion: "us",
     hasExistingFootage: true,
     descriptionOnly: false,
-    descriptionAuthority: { granted: true, statementVersion: longForm ? "2026-10-06.v1" : "2026-11-12.v4" },
-    consentAttestation: { granted: true, statementVersion: longForm ? "2026-11-02.v2" : "2026-11-12.v4" },
+    descriptionAuthority: { granted: true, statementVersion: longForm ? "2026-10-06.v1" : "2026-11-23.v6" },
+    consentAttestation: { granted: true, statementVersion: longForm ? "2026-11-02.v2" : "2026-11-23.v6" },
     context: { sourcePageUrl: params.sourcePageUrl },
   };
 }

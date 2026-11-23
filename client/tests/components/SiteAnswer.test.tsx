@@ -34,7 +34,7 @@ const FIND = "Share my job";
 const LIMITS = "Nothing here is a test at your site. The first look checks only picking up and putting down. It does not certify performance or safety.";
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
 const SOURCE = "From published specifications and where it has been used.";
-const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
+const V6 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved.";
 /** The server's sharing state (`jobSharingOf`), as the answer carries it. */
 const VISIBLE = { sharing: { state: "visible" as const, sharedAtIso: "2026-11-10T09:00:00.000Z" }, jobCardListed: true };
 const HIDDEN = { sharing: { state: "not_visible" as const, sharedAtIso: "2026-11-10T09:00:00.000Z" }, jobCardListed: true };
@@ -248,7 +248,7 @@ describe("the job page's sections, bare bones", () => {
       if (ended) { expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible(); return; }
       expect(within(companies()).getByText(OLDER_JOB_LINES)).toBeVisible();
       expect(within(companies()).getByRole("button", { name: OLDER_JOB_AGREE })).toBeVisible();
-      expect(within(companies()).getByText(V4)).toBeVisible();
+      expect(within(companies()).getByText(V6)).toBeVisible();
       expect(companies().textContent).not.toContain("Company A");
     });
   });
@@ -454,16 +454,16 @@ describe("the first look and the simulation of the site never disagree", () => {
 
 describe("an older job takes the current statement on its page", () => {
   const older = { ...readyAnswer, sharing: { state: "not_shared" as const, sharedAtIso: null, olderStatement: true } };
-  it("records recording statement v4 and tells the site what needs to be ready before sharing", async () => {
+  it("records recording statement v6 and tells the site what needs to be ready before sharing", async () => {
     fetchMock.mockResolvedValue(response({ ok: true }));
     const changed = vi.fn();
     render(<SiteAnswer token="owner token" answer={older} onIntroductionRequested={changed} />);
     const button = within(companies()).getByRole("button", { name: OLDER_JOB_AGREE });
-    expect(within(companies()).getByText(V4)).toHaveAttribute("id", button.getAttribute("aria-describedby"));
+    expect(within(companies()).getByText(V6)).toHaveAttribute("id", button.getAttribute("aria-describedby"));
     fireEvent.click(button);
     expect(await within(companies()).findByText(PREPARING_TO_SHARE_LINE)).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/self-capture/uploads/owner%20token/recording-consent", expect.objectContaining({ method: "POST",
-      body: JSON.stringify({ granted: true, statementVersion: "2026-11-12.v4" }) }));
+      body: JSON.stringify({ granted: true, statementVersion: "2026-11-23.v6" }) }));
     expect(changed).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: OLDER_JOB_AGREE })).toBeNull();
   });

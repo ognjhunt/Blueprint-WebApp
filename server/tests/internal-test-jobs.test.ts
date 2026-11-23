@@ -748,9 +748,9 @@ describe("the owner observation reads a test job through the masked Firestore re
     const forged = { ...record, internal_test: { label: "forged", footage_id: "forged" },
       request: { ...record.request, consent_attestation: { ...record.request.consent_attestation, basis: "blueprint_internal_test" } } };
     const observed = await observe(site.jobId, forged, "scene_preparation");
-    expect(observed.consent_attestation).toEqual({ granted: true, statement_version: "2026-11-12.v4",
+    expect(observed.consent_attestation).toEqual({ granted: true, statement_version: "2026-11-23.v6",
       recorded_at_iso: record.request.consent_attestation.recorded_at_iso });
-    expect(observed.capture_rights.statement_version).toBe("2026-11-12.v4");
+    expect(observed.capture_rights.statement_version).toBe("2026-11-23.v6");
     // The marker is reported beside the rights (any marker counts); the Pipeline refuses rights with that extra key under
     // a version other than internal_test.v1, so the hand-off stops rather than sharing anything.
     expect(observed.capture_rights.internal_test).toEqual({ label: "forged", footage_id: "forged" });

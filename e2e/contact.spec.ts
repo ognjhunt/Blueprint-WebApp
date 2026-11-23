@@ -107,7 +107,7 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
     page.getByRole("button", { name: "I have a video ›", exact: true }).click(),
   ]);
   const start = page.getByRole("button", { name: "Send video", exact: true });
-  await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.").filter({ visible: true })).toHaveCount(1);
+  await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video, the simulation we build from it and the city and state it is in, with robot deployment companies we've approved.").filter({ visible: true })).toHaveCount(1);
   await expect(page.locator("#start-rights")).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: /share an anonymised summary/ })).toHaveCount(0);
   // The rest of the statements, word for word, open in place under the line (owner, 2026-11-12); the button stays put.
@@ -123,8 +123,8 @@ test("sending a video shows the sharing line, the same words one tap away, no sh
   await start.click();
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ captureRegion: "us", hasExistingFootage: true, descriptionOnly: false,
-    descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v4" },
-    consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" } });
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-23.v6" },
+    consentAttestation: { granted: true, statementVersion: "2026-11-23.v6" } });
   expect(submissions[0]).not.toHaveProperty("publicTaskListing");
 });
 

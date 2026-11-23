@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
-import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
+import { RECORDING_RIGHTS_STATEMENT_V6, RECORDING_RIGHTS_STATEMENT_V6_VERSION } from "@/lib/recordingRightsStatement";
 import { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY, type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
 
 /** The job page's lines for the phase, kept in `@/lib/jobOutlook` so staff see the same words; re-exported here. */
@@ -336,7 +336,7 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
       const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/recording-consent`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
         // The version of the exact sentence shown above the button.
-        body: JSON.stringify({ granted: true, statementVersion: RECORDING_RIGHTS_STATEMENT_V4_VERSION }),
+        body: JSON.stringify({ granted: true, statementVersion: RECORDING_RIGHTS_STATEMENT_V6_VERSION }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.ok !== true) throw new Error(typeof result?.error === "string" ? result.error : OLDER_JOB_FAILED);
@@ -361,7 +361,7 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
   </BareGroup>;
   else if (sharing.olderStatement) body = <BareGroup>
     <BareLead>{OLDER_JOB_LINES}</BareLead>
-    <BareButton onClick={() => void agree()} disabled={busy} helper={RECORDING_RIGHTS_STATEMENT_V4}>{busy ? "Saving…" : OLDER_JOB_AGREE}</BareButton>
+    <BareButton onClick={() => void agree()} disabled={busy} helper={RECORDING_RIGHTS_STATEMENT_V6}>{busy ? "Saving…" : OLDER_JOB_AGREE}</BareButton>
     {error && <p role="alert">{error}</p>}
   </BareGroup>;
   else body = <BareGroup><BareLead>{sharing.videoReceived === false ? "Send a video to post your job." : NOT_SHARED_YET}</BareLead></BareGroup>;

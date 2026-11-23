@@ -29,11 +29,18 @@ function job(place: Record<string, unknown> = {}, grant: Record<string, unknown>
 }
 
 describe("the place a company sees", () => {
-  it("ships with no statement version that shows more than the country", () => {
-    expect(RECORDING_VERSION_PLACE_LEVEL).toEqual({});
+  it("ships with one statement version that shows more than the country: v6, the city and state", () => {
+    expect(RECORDING_VERSION_PLACE_LEVEL).toEqual({ "2026-11-23.v6": "city" });
   });
 
-  it("with the shipped map, is exactly the country as today", async () => {
+  it("with the shipped map, a job recorded under v6 shows its city and state", async () => {
+    const v6 = { ...sharedRecordingGrant(), statement_version: "2026-11-23.v6" };
+    expect(await companyPlaceOf(job({}, v6))).toBe("Austin, Texas, United States");
+    expect(await companyPlaceOf(job({ city: null }, v6))).toBe("Texas, United States");
+    expect(await companyPlaceOf(job({}, { ...v6, withdrawn_at_iso: "2026-11-23T12:00:00.000Z" }))).toBe("United States");
+  });
+
+  it("with the shipped map, a job recorded under v4 still shows the country alone", async () => {
     const record = job();
     expect(await companyPlaceOf(record)).toBe(await countryOf(record));
     expect(await companyPlaceOf(record)).toBe("United States");

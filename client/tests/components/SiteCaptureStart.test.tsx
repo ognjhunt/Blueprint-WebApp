@@ -12,7 +12,7 @@ import { resetClientEnvCacheForTests } from "@/lib/client-env";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
-import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 as SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
+import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V6 as SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
 import { FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 /** The share box the start form had until 2026-11-12: sharing is now the service, said in the line under the button. */
@@ -637,7 +637,7 @@ it("asks one question about the video and sets the consent in one line under the
   expect(line.parentElement).toContainElement(agreeing);
   fireEvent.click(within(agreeing).getByText("What you're agreeing to", { selector: "summary" }));
   expect(agreeing).toHaveAttribute("open");
-  // The one line is the statement recorded (v4), shown once, word for word, right above; inside are the video notice
+  // The one line is the statement recorded (v6), shown once, word for word, right above; inside are the video notice
   // and the "also" line.
   expect(agreeing).not.toHaveTextContent(SITE_START_CONSENT_WITH_VIDEO);
   expect(within(agreeing).getByText(FOOTAGE_UPLOAD_NOTICE)).toBeVisible();
@@ -874,7 +874,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(JSON.parse(init.body)).toMatchObject({ captureMode: "self_capture", hasExistingFootage: true, captureRegion: "us" });
     expect(JSON.parse(init.body).filmerContact).toBeUndefined();
     expect(JSON.parse(init.body)).not.toHaveProperty("budgetBucket");
-    expect(JSON.parse(init.body).consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
+    expect(JSON.parse(init.body).consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-23.v6" });
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
     expect(screen.getByRole("link", { name: "Open my job" })).toHaveAttribute("href", captureUrl);
     // What comes next, without an email nobody may send: the site is emailed only when its job goes to companies, a
@@ -903,7 +903,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await screen.findByText("We have your video.", { selector: "h1" });
     const submitted = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
     expect(submitted).toMatchObject({ taskStatement: "Move sealed cartons to the dock", descriptionOnly: false, hasExistingFootage: true,
-      siteTaskGates: {}, siteTaskSpec: {}, consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" },
+      siteTaskGates: {}, siteTaskSpec: {}, consentAttestation: { granted: true, statementVersion: "2026-11-23.v6" },
       taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION } });
     expect(submitted).not.toHaveProperty("publicTaskListing");
     expect(submitted).not.toHaveProperty("successCriteria");
@@ -914,7 +914,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
   // evaluation on this job starts from this exact body, never a hand-built record.
   // It is a new guest site's body; the signed private job link authorizes upload.
   it("sends the exact body the request-step journey starts from", async () => {
-    // The journey starts from what production sends today: the one-line consent, recording v4 (shares the job).
+    // The journey starts from what production sends today: the one-line consent, recording v6 (shares the job, with its city and state).
     account.user = null;
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "done" });
@@ -925,7 +925,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
     chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
-    // No share box: the line under the button (v4) shares the job.
+    // No share box: the line under the button (v6) shares the job.
     fireEvent.submit(screen.getByRole("form"));
     await screen.findByRole("heading", { name: "We have your video." });
     const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
@@ -1271,8 +1271,8 @@ it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before subm
 });
 
 // Sharing is the service (owner, 2026-11-12): no share box. With a video the form records recording and description
-// authority v4, which share the job; without one, description authority v3; never a card grant of its own.
-it("submits under v4 with a video and v3 without one, with no share box and no card grant", async () => {
+// authority v6, which share the job; without one, description authority v3; never a card grant of its own.
+it("submits under v6 with a video and v3 without one, with no share box and no card grant", async () => {
   fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => init?.method === "POST"
     ? { ok: true, status: 201, json: async () => ({ captureUrl: "/capture-upload/tok.signed" }) }
     : String(url).includes("/status") ? { ok: true, json: async () => ({ captureReceived: false, uploadState: "not_received" }) } : photon([]));
@@ -1306,8 +1306,8 @@ it("submits under v4 with a video and v3 without one, with no share box and no c
   fireEvent.submit(screen.getByRole("form"));
   await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(2));
   const withVideo = JSON.parse(postsTo("/api/inbound-request")[1][1].body);
-  expect(withVideo).toMatchObject({ descriptionOnly: false, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v4" },
-    consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" } });
+  expect(withVideo).toMatchObject({ descriptionOnly: false, descriptionAuthority: { granted: true, statementVersion: "2026-11-23.v6" },
+    consentAttestation: { granted: true, statementVersion: "2026-11-23.v6" } });
   expect(withVideo).not.toHaveProperty("publicTaskListing");
 });
 
