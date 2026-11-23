@@ -2,7 +2,9 @@
  * The owner's totals on the staff job page (`/admin/jobs`), one line, and the billable events as CSV (finding O-06).
  * Read only. Site jobs only: an internal test job and a company's workspace evaluation are not counted.
  *
- * Where a number is a plain count, it is a Firestore count query (introductions made, billable events). The per-job
+ * Where a number is a plain count, it is a Firestore count query (introductions made). The billable events are read with
+ * their status and made time only: one counts only once its introduction is made; one recorded but not made is counted
+ * apart (owner, 2026-11-23). The per-job
  * numbers (with a video, shown to companies, with an answer) and the outcome answers need to know which job a record
  * belongs to, so they read the records with only the fields they need. Each number is best effort: one that cannot be
  * read is null, never the line.
@@ -10,7 +12,7 @@
  * The CSV carries ids and times only: no site name, address or contact, and no price.
  */
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
-import { countStandingBillableEvents, listAllBillableEvents } from "./billableEvents";
+import { listAllBillableEvents, tallyStandingBillableEvents } from "./billableEvents";
 import { CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { COMPANY_RESPONSES_COLLECTION, COMPANY_SENDS_COLLECTION, INTRODUCTIONS_COLLECTION } from "./jobCompanies";
 import { INTRODUCTION_COMPANY_KIND } from "./jobIntroductionGate";
@@ -50,7 +52,7 @@ export async function loadJobTotals(now: Date = new Date(), store: Store | null 
   const thisWeek = jobs.filter(doc => { const at = Date.parse(iso(doc.data().createdAt) ?? ""); return at >= weekStart && at <= now.getTime(); }).length;
   const jobsWith = (docs: FirebaseFirestore.QueryDocumentSnapshot[]) => new Set(docs.map(jobIdOf).filter((id): id is string => Boolean(id && ids.has(id)))).size;
 
-  const [withVideo, shownToCompanies, answered, introductions, introductionsMade, billableEvents] = await Promise.all([
+  const [withVideo, shownToCompanies, answered, introductions, introductionsMade, billable] = await Promise.all([
     best(async () => {
       if (!jobs.length) return 0;
       const refs = jobs.map(doc => db.collection("captureUploadSessions").doc(siteWalkthroughIdentity(doc.id, doc.data()).captureId));
@@ -64,7 +66,7 @@ export async function loadJobTotals(now: Date = new Date(), store: Store | null 
       .filter(doc => { const id = jobIdOf(doc); return Boolean(id && ids.has(id)); })),
     best(async () => (await db.collection(CAPTURE_OUTBOX_COLLECTION).where("kind", "==", INTRODUCTION_COMPANY_KIND)
       .where("status", "==", "sent").count().get()).data().count),
-    best(() => countStandingBillableEvents(db)),
+    best(() => tallyStandingBillableEvents(db)),
   ]);
   return {
     siteJobs: jobs.length,
@@ -76,7 +78,8 @@ export async function loadJobTotals(now: Date = new Date(), store: Store | null 
     introductionsMade,
     outcomeAnswers: introductions
       ? introductions.reduce((sum, doc) => sum + (Array.isArray(doc.data().outcomes) ? doc.data().outcomes.length : 0), 0) : null,
-    billableEvents,
+    billableEvents: billable ? billable.made : null,
+    billableEventsNotMade: billable ? billable.notMade : null,
   };
 }
 
@@ -89,7 +92,7 @@ function cell(value: unknown): string {
 
 export const BILLABLE_EVENTS_CSV_HEADER = ["event_id", "job_id", "company_id", "recorded_at", "made_at", "status"];
 
-/** Every billable event, oldest first: ids, times and status only. */
+/** Every billable event, oldest first: ids, times and status only. One recorded but not made has an empty made_at. */
 export async function billableEventsCsv(store: Store | null = dbAdmin): Promise<string> {
   const rows = (await listAllBillableEvents(store))
     .sort((a, b) => String(a.atIso ?? "").localeCompare(String(b.atIso ?? "")));
