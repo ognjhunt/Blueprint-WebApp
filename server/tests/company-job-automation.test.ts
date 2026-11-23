@@ -1567,6 +1567,37 @@ describe("a company must accept the current Terms and Privacy Policy before it s
     // And no new introduction can be asked for it.
     expect((await loadSiteCompanyActivity(ID)).entries.find(entry => entry.alias === "Company A")).toMatchObject({ canIntroduce: false });
   });
+
+  // Audit B-03: a company that accepts after a job was sent is emailed once about the jobs open to it. The accept route
+  // calls `emailOpenJobsToCompany` after recording the acceptance (its rate limit leaves no room for more calls here).
+  it("emails a company that accepts after a job was sent, once, through the new-job email's dispatch gate", async () => {
+    const { emailOpenJobsToCompany } = await import("../utils/jobAutoSend");
+    withoutTerms({ termsAcceptance: undefined });
+    await sendJobToApprovedCompanies(ID);
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(false);
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, NORTH);
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(true);
+    const open = outbox().filter(row => row.key === `robot_team_open_jobs:${sha(NORTH.email)}`);
+    expect(open).toHaveLength(1);
+    expect(open[0]).toMatchObject({ kind: "robot_team_new_task", to: NORTH.email, subject: "Jobs on Blueprint you can open now",
+      jobAlert: { jobId: ID, companyId: sha(NORTH.email) } });
+    expect(open[0].body).toMatch(/^Sites posted jobs before you could see them\. Open Find jobs to see each job packet and respond\.\n\nFind jobs:\nhttps:\/\/\S+\/contact\/robot-team\n/);
+    expectNoSiteIn("the open-jobs email", JSON.stringify(open));
+    const { jobAlertIsCurrent } = await import("../utils/newJobAlerts");
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    expect(await sharedFakeFirestore.runTransaction(tx => jobAlertIsCurrent(open[0] as never, tx as never))).toBe(true);
+    // Once: a second acceptance adds nothing.
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(false);
+    expect(outbox().filter(row => row.key.startsWith("robot_team_open_jobs:"))).toHaveLength(1);
+  });
+
+  it("sends no open-jobs email when no job was sent yet, or to a company that was on every send", async () => {
+    const { emailOpenJobsToCompany } = await import("../utils/jobAutoSend");
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(false);
+    await sendJobToApprovedCompanies(ID);
+    expect(await emailOpenJobsToCompany(sha(NORTH.email))).toBe(false);
+    expect(outbox().filter(row => row.key.startsWith("robot_team_open_jobs:"))).toHaveLength(0);
+  });
 });
 
 it("ids are the access record ids", () => expect(accessRecordId(NORTH.email)).toBe(sha(NORTH.email)));

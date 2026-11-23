@@ -155,6 +155,19 @@ export function newJobEmail(params: { to: string; jobUrl: string; kind?: string 
   };
 }
 
+/** Audit B-03: the one email to a company that accepted the Terms after jobs were sent. Nothing about any site. */
+export const OPEN_JOBS_EMAIL_SUBJECT = "Jobs on Blueprint you can open now";
+export const OPEN_JOBS_EMAIL_BODY = "Sites posted jobs before you could see them. Open Find jobs to see each job packet and respond.";
+
+/** Sent once per company (`emailOpenJobsToCompany`), with the Find jobs link only. */
+export function openJobsEmail(params: { to: string }) {
+  return {
+    subject: OPEN_JOBS_EMAIL_SUBJECT,
+    body: appendCommercialEmailFooter({ text: [OPEN_JOBS_EMAIL_BODY, "", "Find jobs:", `${APP_URL()}/contact/robot-team`, "",
+      NEW_JOB_ALERTS_LINE].join("\n"), email: params.to, scope: "optional_updates" }),
+  };
+}
+
 /** The site's details as the introduction gives them to the one company the site chose (E6). */
 export interface IntroductionSiteDetails { name: string; contactName: string | null; email: string; phone: string | null; location: string | null }
 
