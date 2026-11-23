@@ -78,7 +78,8 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
   const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const filtered = items.filter(item => {
     if (readyToTest && item.simulationDownloadAvailable !== true) return false;
-    const listing = [item.title, jobTitleForDisplay(item.title), item.sentence, item.taskFamily, item.region, item.objects, item.siteType].join(" ").toLowerCase();
+    const listing = [item.headline, item.title, jobTitleForDisplay(item.title), item.sentence, item.taskFamily, item.region, item.objects,
+      item.siteType].join(" ").toLowerCase();
     return terms.every(term => listing.includes(term));
   }).sort((left, right) => (Date.parse(right.publishedAtIso) || 0) - (Date.parse(left.publishedAtIso) || 0));
   const filtersActive = Boolean(terms.length || readyToTest);
@@ -131,7 +132,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
         <Search size={24} aria-hidden="true" />
         <h2>No jobs match these filters.</h2>
       </div> : <ul className="opportunities-list">{filtered.map(item => {
-        const title = jobTitleForDisplay(item.title);
+        const title = item.headline || jobTitleForDisplay(item.title);
         const ready = item.simulationDownloadAvailable === true;
         // No label when the stage is unknown, or built but not yet downloadable.
         const simulationStatus = ready ? "Ready to test" : item.simulationStage && item.simulationStage !== "simulation_built"
@@ -145,6 +146,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
             <div className="opportunity-meta">
               {item.taskFamily !== "Other" && item.taskFamily && <span>{item.taskFamily}</span>}
               {item.region && <span><MapPin size={14} aria-hidden="true" />{item.region}</span>}
+              {(item.headlineFacts ?? []).map(fact => <span key={fact}>{fact}</span>)}
             </div>
             {simulationStatus && <div className="opportunity-labels">
               <span className={ready ? "opportunity-label-ready" : undefined}>{simulationStatus}</span>

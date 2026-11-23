@@ -41,6 +41,10 @@ export interface TaskBrowseCard extends TaskListingDetails {
   sentence?: string;
   /** The answer's headline, only when the site chose to share its answer with the card. */
   answerHeadline?: string;
+  /** The job's title from its facts (`jobHeadline`), as its page leads with it; the category title until a reading. */
+  headline?: string;
+  /** How often and how long, when the site said ("60 to 300 times an hour", "Two shifts"). */
+  headlineFacts?: string[];
 }
 /** The card as an approved company opens it: the browse card, and the answer when the site shared it. */
 export interface TaskCardDetail extends TaskBrowseCard {

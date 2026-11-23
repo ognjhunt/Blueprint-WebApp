@@ -41,6 +41,17 @@ describe("the new-job email", () => {
     expect(plain.subject).toBe("New job on Blueprint");
     expect(plain.body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nOpen the job:\n/);
   });
+
+  // Owner, 2026-11-23: the email reads like a load alert, with the job's title and how often it runs.
+  it("leads with the job's title and how often it runs, and never makes a generic title its subject", () => {
+    const titled = newJobEmail({ to: "ada@example.com", jobUrl: "https://tryblueprint.io/jobs/req-1", kind: "Palletizing",
+      country: "United States", title: "Stack cartons on pallets", facts: ["60 to 300 times an hour", "Two shifts"] });
+    expect(titled.subject).toBe("New job on Blueprint: Stack cartons on pallets");
+    expect(titled.body).toMatch(/\n\nJob: Stack cartons on pallets\nHow often: 60 to 300 times an hour, Two shifts\nCountry: United States\n\n/);
+    const generic = newJobEmail({ to: "ada@example.com", jobUrl: "https://tryblueprint.io/jobs/req-1", kind: "Other", title: "Automation job" });
+    expect(generic.subject).toBe("New job on Blueprint");
+    expect(generic.body).not.toMatch(/Automation job/);
+  });
 });
 
 describe("the company's introduction email", () => {
