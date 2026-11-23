@@ -880,11 +880,24 @@ describe("introductions (E6) and money (E7)", () => {
     // Nothing else a company can see names the site.
     expectNoSiteIn("the page after an introduction", (await page(SOUTH)).raw);
     expectNoSiteIn("every email to a company but the chosen one", JSON.stringify(outbox().filter(row => row.to !== NORTH.email && row.to !== SITE.email)));
-    // The site's view now carries the company's details on that answer only.
+    // Nothing has been sent yet, so nothing is introduced (H2): the site's view says the request is in progress and
+    // carries none of the company's details.
+    const pending = await loadSiteCompanyActivity(ID);
+    expect(pending.introductions).toEqual({ used: 1 });
+    expect(pending.entries).toEqual([expect.objectContaining({ alias: "Company A", canIntroduce: false, introductionPending: true })]);
+    expect(pending.entries[0]).not.toHaveProperty("introducedAtIso");
+    expect(pending.entries[0]).not.toHaveProperty("company");
+    expect(JSON.stringify(pending)).not.toMatch(/North|contact@north/);
+    // Once the company's email is sent the introduction is made: the site's view carries the company's details on that
+    // answer only, dated when it was made.
+    await deliverOutbox({ limit: 50 });
+    const sentAtIso = outbox().find(row => row.kind === "introduction_made_company")!.sentAtIso;
+    expect(sentAtIso).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     const activity = await loadSiteCompanyActivity(ID);
     expect(activity.introductions).toEqual({ used: 1 });
     expect(activity.entries).toEqual([expect.objectContaining({ alias: "Company A", canIntroduce: false,
-      introducedAtIso: "2026-11-12T15:00:00.000Z", company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website } })]);
+      introducedAtIso: sentAtIso, company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website } })]);
+    expect(activity.entries[0]).not.toHaveProperty("introductionPending");
   });
 
   it("before an introduction the site sees aliases only, and may introduce each Interested company that answered under the new line", async () => {
