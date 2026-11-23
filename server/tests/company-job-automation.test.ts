@@ -30,6 +30,7 @@ import { currentTermsAcceptance, passedPrivacyScreen, sharedJobListing, sharedRe
 import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
+import { SITE_AGREED_SHARING, SITE_IDENTITY_RULE, VISIT_MUST_CONFIRM } from "../../client/src/lib/companyJobPage";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -454,6 +455,55 @@ describe("the company's page for one job (E3)", () => {
       job_facts: { route: "floors", palletPattern: "fixed", weight: "5_15kg", updatedAtIso: "2026-11-12T10:00:00.000Z" },
       walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "transport", object: "linen cart" } } }));
     expect((await page()).body.item.jobFacts).toEqual(["Where it goes: Between floors", "Weight: 5 to 15 kg (11 to 33 lb)"]);
+  });
+
+  // Owner, 2026-11-23 (research report "Robot deployment readiness needs"): the page leads with a title from the job's
+  // facts and its answers as fields, says where each box stands, and lists what a visit must confirm for this kind of job.
+  it("leads with a title from the job's facts, its answers as fields, and what a visit must confirm for its kind", async () => {
+    state.docs.set(`inboundRequests/${ID}`, job({
+      job_facts: { maxLoadedWeightKg: "14", hours: "two_shifts", updatedAtIso: "2026-11-12T10:00:00.000Z" },
+      walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "palletizing", object: "cartons" } } }));
+    const item = (await page()).body.item;
+    expect(item.headline).toBe("Stack cartons on pallets");
+    expect(item.headlineFacts).toEqual(["Two shifts"]);
+    expect(item.fitSummary.map((row: Record<string, unknown>) => [row.label, row.value, row.state])).toEqual([
+      ["Object", "cartons", "from_video"],
+      ["Heaviest loaded item", "14 kg", "stated"],
+      ["Peak incoming rate", null, "not_stated"],
+      ["Pallet pattern", null, "not_stated"],
+      ["Hours a day", "Two shifts", "stated"],
+      ["When", null, "not_stated"],
+    ]);
+    expect(item.visitMustConfirm).toEqual([...VISIT_MUST_CONFIRM.palletizing]);
+    expect(item.aboutSite).toEqual([SITE_IDENTITY_RULE, SITE_AGREED_SHARING]);
+    expect(item).not.toHaveProperty("notShown");
+    // A viewer and a first look exist in this fixture, so neither box needs a status.
+    expect(item).toMatchObject({ simulationStatus: null });
+  });
+
+  it("keeps the site's name out of the title and the fit summary when the video reading echoes it", async () => {
+    state.docs.set(`inboundRequests/${ID}`, job({
+      walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "pick_and_place", object: "ZEBRAPLANT jars" } } }));
+    const { body, raw } = await page();
+    // The reading's name carried the site's name, so the title keeps the category title rather than show it.
+    expect(body.item.headline).toBe("Palletize cartons");
+    expect(body.item.fitSummary.some((row: Record<string, unknown>) => row.key === "object")).toBe(false);
+    expectNoSiteIn("the job page payload", raw);
+  });
+
+  it("says how quickly the site answers companies' questions, from questions asked and answered on this job", async () => {
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const ref = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    const reply = state.docs.get(ref) as Record<string, any>;
+    expect(typeof reply.questionAskedAtIso).toBe("string");
+    // The same question again keeps the time it was first asked.
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?", details: { startWindow: "within_month" } })).status).toBe(200);
+    expect((state.docs.get(ref) as Record<string, any>).questionAskedAtIso).toBe(reply.questionAskedAtIso);
+    const answeredAtIso = new Date(Date.parse(reply.questionAskedAtIso) + 150 * 60_000).toISOString();
+    state.docs.set(ref, { ...(state.docs.get(ref) as Record<string, any>), siteClarification: { questionId: reply.questionId,
+      text: "About 12.", answeredAtIso } });
+    expect((await page(SOUTH)).body.item.aboutSite).toEqual([SITE_IDENTITY_RULE, SITE_AGREED_SHARING,
+      "Answers questions from companies here, usually within 3 hours."]);
   });
 
   it("shows the site's sentence with contact details removed, its answers in words, the country, the media and the form line", async () => {

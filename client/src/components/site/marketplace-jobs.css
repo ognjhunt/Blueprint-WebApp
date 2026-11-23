@@ -269,6 +269,13 @@
 .company-job-ready #answer-this-job .ms-button { align-self: start; border-radius: 8px; }
 .company-job-ready #answer-this-job textarea { border-radius: 8px; }
 .company-job-evidence { grid-column: 1 / -1; display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 16px; }
+/* The fit summary: label and answer side by side, scanned like a load post; a skipped answer reads quieter. */
+.company-fit-summary { display: grid; gap: 0; margin: 10px 0 8px; border-top: 1px solid #e3e6dd; }
+.company-fit-summary > div { display: grid; grid-template-columns: minmax(9rem, 38%) minmax(0, 1fr); gap: 12px; padding: 7px 0;
+  border-bottom: 1px solid #e3e6dd; }
+.company-fit-summary dt { font-size: 14px; font-weight: 650; }
+.company-fit-summary dd { margin: 0; overflow-wrap: anywhere; }
+.company-fit-summary .company-fit-missing dd { color: var(--ms-muted); }
 
 /* The site's next decision is the company reply. Sent dates and timings stay readable at secondary weight. */
 .bare-screen.site-job-status { max-width: 680px; }

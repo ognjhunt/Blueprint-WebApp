@@ -89,6 +89,9 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       const sameQuestion = question && priorQuestion?.text === question.text;
       const next = { ...row, firstAnsweredAtIso: firstAnswerTimestamp(prior, row.updatedAtIso),
         ...(question ? { questionId: sameQuestion ? priorQuestion.id : randomBytes(32).toString("hex") } : {}),
+        // When this question was first asked, so the company's page can say how quickly the site answers.
+        ...(question && !sameQuestion ? { questionAskedAtIso: row.updatedAtIso }
+          : sameQuestion && typeof prior?.questionAskedAtIso === "string" ? { questionAskedAtIso: prior.questionAskedAtIso } : {}),
         ...(sameQuestion && prior?.siteClarification ? { siteClarification: prior.siteClarification } : {}) };
       if (prior && humanDecisionDigest({ ...prior, firstAnsweredAtIso: next.firstAnsweredAtIso, updatedAtIso: null })
         === humanDecisionDigest({ ...next, updatedAtIso: null })) return;

@@ -21,6 +21,15 @@ const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK } = await import("
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
+  headline: "Stack cartons on pallets", headlineFacts: ["Two shifts"],
+  fitSummary: [{ key: "object", label: "Object", value: "cartons", state: "from_video" },
+    { key: "weight", label: "Weight", value: "5 to 15 kg (11 to 33 lb)", state: "stated" },
+    { key: "perHour", label: "Times an hour", value: null, state: "not_stated", estimateBelow: true },
+    { key: "hours", label: "Hours a day", value: "Two shifts", state: "stated" },
+    { key: "timing", label: "When", value: null, state: "unsure" }],
+  firstLookStatus: null, simulationStatus: null,
+  visitMustConfirm: ["How pallets arrive, where they are staged and how full ones leave."],
+  aboutSite: ["The site's name, street address and contact details come only with an introduction the site asks for."],
   publishedAtIso: "2026-11-12T10:00:00.000Z", sentence: "Stack 12 kg cartons onto the pallet. Call [removed]",
   jobFacts: ["Weight: 5 to 15 kg (11 to 33 lb)"], country: "United States",
   video: { state: "ready", url: "/api/company-media/jobs/job-1/video.mp4?x=1", width: 1280, height: 720, durationSeconds: 4 },
@@ -28,7 +37,6 @@ const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   firstLookRows: [{ verdict: "fits", text: "Fits.", robot: "Universal Robots UR20" }], myAnswer: null,
   packetFacts: { object: ["Starts: about 54 cm above the floor."], measured: ["Registration residual: 8 cm."],
     estimated: ["Weight: about 3.1 kg (0.34 to 28 kg). An estimate, not weighed."] },
-  notShown: ["No safety assessment of any robot at this site."],
   responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT }, ...overrides });
 const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); auth.currentUser = { uid: "u1", email: "team@example.test" }; });
@@ -37,13 +45,20 @@ describe("the company's page for one job", () => {
   it("shows the packet's parts and sends an answer with the recorded line", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
     render(<CompanyJob />);
-    expect(await screen.findByRole("heading", { name: "Palletize cartons" })).toBeInTheDocument();
+    // The title is built from the job's facts, not the category.
+    expect(await screen.findByRole("heading", { name: "Stack cartons on pallets" })).toBeInTheDocument();
+    expect(screen.getByText("Two shifts", { selector: ".opportunity-meta span" })).toBeInTheDocument();
     const account = within(screen.getByRole("navigation", { name: "Account" }));
     expect(account.queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(account.getByRole("link", { name: "Your account" })).toHaveAttribute("href", "/app");
     expect(fetchMock.mock.calls[0][0]).toBe("/api/site-worlds/jobs/job-1");
     expect(screen.getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
-    expect(screen.getByText("Weight: 5 to 15 kg (11 to 33 lb)")).toBeInTheDocument();
+    // At a glance: each question as a field, the skipped ones said, never dropped.
+    const glance = within(screen.getByLabelText("The site's answers"));
+    expect(glance.getByText("Weight").nextElementSibling).toHaveTextContent("5 to 15 kg (11 to 33 lb)");
+    expect(glance.getByText("Times an hour").nextElementSibling).toHaveTextContent("Not stated · Blueprint's estimate is below");
+    expect(glance.getByText("When").nextElementSibling).toHaveTextContent("Not sure");
+    expect(glance.getByText("Object").nextElementSibling).toHaveTextContent("cartons (from the video)");
     expect(screen.getByText(/United States/)).toBeInTheDocument();
     const video = screen.getByLabelText("The site's video, without sound") as HTMLVideoElement;
     expect(video.getAttribute("src")).toBe("/api/company-media/jobs/job-1/video.mp4?x=1");
@@ -57,8 +72,11 @@ describe("the company's page for one job", () => {
     expect(within(screen.getByRole("list", { name: "The object and where it goes" })).getByText("Starts: about 54 cm above the floor.")).toBeInTheDocument();
     expect(within(screen.getByRole("list", { name: "Measured" })).getByText("Registration residual: 8 cm.")).toBeInTheDocument();
     expect(within(screen.getByRole("list", { name: "Estimated" })).getByText(/An estimate, not weighed/)).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "What this job packet does not show" }))
-      .getByText("No safety assessment of any robot at this site.")).toBeInTheDocument();
+    // What a first visit must still confirm for this kind of job, and the site's identity rule.
+    expect(within(screen.getByRole("list", { name: "What a visit must confirm" }))
+      .getByText("How pallets arrive, where they are staged and how full ones leave.")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "About the site" })).getByText(/come only with an introduction/)).toBeInTheDocument();
+    expect(screen.queryByText(/does not show/)).toBeNull();
     expect(screen.queryByRole("link", { name: /download/i })).toBeNull();
 
     const form = screen.getByRole("form", { name: "Your response" });
@@ -110,6 +128,19 @@ describe("the company's page for one job", () => {
     render(<CompanyJob />);
     expect(await screen.findByText("The video is being prepared.")).toBeInTheDocument();
     expect(screen.getByText("The simulation of the site is not finished yet.")).toBeInTheDocument();
+  });
+
+  it("says where the first look and the simulation stand instead of leaving either box empty", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ firstLookRows: [],
+      firstLookStatus: "The video is being read. Our first look follows.", simulation: { state: "not_finished" },
+      simulationStatus: "The simulation is being built from the site's video." }) }) });
+    render(<CompanyJob />);
+    const firstLook = within(await screen.findByRole("region", { name: "First look" }));
+    expect(firstLook.getByRole("status")).toHaveTextContent("The video is being read. Our first look follows.");
+    expect(within(screen.getByRole("region", { name: "Simulation of the site" })).getByRole("status"))
+      .toHaveTextContent("The simulation is being built from the site's video.");
+    // No success rule from the site: the box says so rather than vanishing.
+    expect(screen.getByText("The site has not said what counts as done yet.")).toBeInTheDocument();
   });
 
   it("signs a visitor back into this job and fetches nothing while signed out", async () => {
@@ -210,7 +241,9 @@ describe("the company's page for one job", () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) });
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
     fireEvent.click(screen.getByRole("button", { name: "I agree to the Terms and Privacy Policy" }));
-    expect(await screen.findByRole("heading", { name: "Palletize cartons" })).toBeInTheDocument();
+    // The title is built from the job's facts, not the category.
+    expect(await screen.findByRole("heading", { name: "Stack cartons on pallets" })).toBeInTheDocument();
+    expect(screen.getByText("Two shifts", { selector: ".opportunity-meta span" })).toBeInTheDocument();
     const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(path).toBe("/api/robot-team-access/accept-terms");
     expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: LAUNCH_COPY_VERSION, privacyVersion: CITY_STATE_PRIVACY_VERSION });

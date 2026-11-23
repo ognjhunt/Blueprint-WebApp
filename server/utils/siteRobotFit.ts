@@ -404,6 +404,11 @@ export function jobReadingOf(request: Record<string, any> | null | undefined): J
   return { kind, object, others: object ? (estimates?.otherItemsLikely ?? []).filter(item => item !== object) : [] };
 }
 
+/** What the video reading saw done to the job's object besides carrying it (its closed list); [] before a reading. */
+export function readingActionsOf(request: Record<string, any> | null | undefined): OtherAction[] {
+  return videoEvidence({ request: request ?? null, brief: null, measurements: null })?.estimates?.otherActions ?? [];
+}
+
 export type PeopleReading = { value: People; display: string; source: RequirementSource };
 
 /** The site's own answer if it ever gave one, else what its video shows. */

@@ -115,12 +115,19 @@ test("a signed-in company opens a job from the library, watches the video and an
         publishedAtIso: "2026-11-12T10:00:00.000Z", thumbnailUrl: null, jobUrl: `/jobs/${JOB}` }] } });
     if (url.pathname === `/api/site-worlds/jobs/${JOB}`) return route.fulfill({ json: { item: {
       schemaVersion: "company_job_page.v1", id: JOB, title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
+      headline: "Stack cartons on pallets", headlineFacts: ["Two shifts"],
       publishedAtIso: "2026-11-12T10:00:00.000Z", sentence: "Stack 12 kg cartons from the conveyor onto the pallet.",
       jobFacts: ["Weight: 5 to 15 kg (11 to 33 lb)"], country: "United States",
+      fitSummary: [{ key: "weight", label: "Weight", value: "5 to 15 kg (11 to 33 lb)", state: "stated" },
+        { key: "perHour", label: "Times an hour", value: null, state: "not_stated" },
+        { key: "hours", label: "Hours a day", value: "Two shifts", state: "stated" }],
+      firstLookStatus: null, simulationStatus: "The simulation is being built from the site's video.",
+      visitMustConfirm: ["How pallets arrive, where they are staged and how full ones leave."],
+      aboutSite: ["The site's name, street address and contact details come only with an introduction the site asks for."],
       video: { state: "ready", url: videoUrl, width: 640, height: 360, durationSeconds: 1 },
       simulation: { state: "not_finished" }, firstLook: null,
       firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 20 kg.", robot: "Universal Robots UR20" }],
-      packetFacts: null, notShown: ["No safety assessment of any robot at this site."],
+      packetFacts: null,
       myAnswer: null, responseStatement: { version: "company-response-2026-11-12", text: statement } } } });
     if (url.pathname === `/api/company-media/jobs/${JOB}/video.mp4`) {
       videoRequests.push(url.search);
@@ -140,10 +147,13 @@ test("a signed-in company opens a job from the library, watches the video and an
   await expect(row.getByRole("form")).toHaveCount(0);
   await row.getByRole("link", { name: "View job" }).click();
   await expect(page).toHaveURL(new RegExp(`/jobs/${JOB}$`));
-  await expect(page.getByRole("heading", { name: "Palletize cartons" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Stack cartons on pallets" })).toBeVisible();
   await expect(page.getByText("Stack 12 kg cartons from the conveyor onto the pallet.")).toBeVisible();
-  await expect(page.getByText("Weight: 5 to 15 kg (11 to 33 lb)")).toBeVisible();
-  await expect(page.getByText("The simulation of the site is not finished yet.")).toBeVisible();
+  const glance = page.getByLabel("The site's answers");
+  await expect(glance.getByText("5 to 15 kg (11 to 33 lb)")).toBeVisible();
+  await expect(glance.getByText("Not stated")).toBeVisible();
+  await expect(page.getByText("The simulation is being built from the site's video.")).toBeVisible();
+  await expect(page.getByRole("list", { name: "What a visit must confirm" })).toBeVisible();
   const video = page.getByLabel("The site's video, without sound");
   await expect(video).toHaveAttribute("src", videoUrl);
   await expect(video).toHaveAttribute("controlsList", /nodownload/);
