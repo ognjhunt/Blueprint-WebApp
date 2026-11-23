@@ -21,6 +21,7 @@ import {
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
 import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "@/lib/jobTracker";
+import { CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATES_NOT_CHECKED, SIMILAR_JOBS_LABELS, estimateInWords } from "@/lib/companyResponses";
 import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
@@ -143,6 +144,51 @@ function cannotLine(reason: string | null): string | null {
 
 type AnsweredEntry = Extract<SiteCompanyEntry, { kind: "answered" }>;
 
+/**
+ * An application at a glance, as the site reads it (owner, 2026-11-23): how the company charges, its estimate before a
+ * site visit (labelled, never a quote), how many similar jobs it has done and what a visit must confirm, each only when
+ * the company gave it. [label, value, label beside the value].
+ */
+function applicationGlance(entry: AnsweredEntry): Array<[string, string, string | null]> {
+  const details = entry.details ?? {};
+  const estimate = details.chargeModel && details.estimate ? estimateInWords(details.chargeModel, details.estimate) : null;
+  return [
+    ...(details.chargeModel ? [["Charges", CHARGE_MODEL_LABELS[details.chargeModel], null] as [string, string, null]] : []),
+    ...(estimate ? [["Estimate", estimate, ESTIMATE_LABEL] as [string, string, string]] : []),
+    ...(details.similarJobs ? [["Similar jobs done", SIMILAR_JOBS_LABELS[details.similarJobs], null] as [string, string, null]] : []),
+    ...(details.visitMustConfirm ? [["A visit must confirm", details.visitMustConfirm, null] as [string, string, null]] : []),
+  ];
+}
+
+/**
+ * The applicants side by side, when two or more have applied (owner, 2026-11-23: "how simple will it be to decide?"):
+ * one row each, the same columns, "Not given" where a company left a field out. Accepting several is fine: the choice
+ * that matters comes after the visits.
+ */
+function CompareApplicants({ entries }: { entries: AnsweredEntry[] }) {
+  const applied = entries.filter(entry => INTRODUCIBLE_RESPONSE_STATES.includes(entry.state));
+  if (applied.length < 2) return null;
+  const NOT_GIVEN = "Not given";
+  return <div className="site-compare">
+    <table aria-label="Compare applicants">
+      <thead><tr><th scope="col">Applicant</th><th scope="col">Charges</th><th scope="col">Estimate</th>
+        <th scope="col">Similar jobs done</th><th scope="col">Earliest start</th></tr></thead>
+      <tbody>{applied.map(entry => {
+        const details = entry.details ?? {};
+        const estimate = details.chargeModel && details.estimate ? estimateInWords(details.chargeModel, details.estimate) : null;
+        return <tr key={entry.alias}>
+          <th scope="row">{shownName(entry)}</th>
+          <td>{details.chargeModel ? CHARGE_MODEL_LABELS[details.chargeModel] : NOT_GIVEN}</td>
+          <td>{estimate ?? NOT_GIVEN}</td>
+          <td>{details.similarJobs ? SIMILAR_JOBS_LABELS[details.similarJobs] : NOT_GIVEN}</td>
+          <td>{details.startWindow ? COMPANY_START_LABELS[details.startWindow] : NOT_GIVEN}</td>
+        </tr>;
+      })}</tbody>
+    </table>
+    <p className="bare-helper">{ESTIMATES_NOT_CHECKED} You can accept as many as you like and choose after meeting them.</p>
+  </div>;
+}
+
 /** The applicant as the site reads it: the company's name when its answer shows it (`applicant`), else its alias. */
 const shownName = (entry: AnsweredEntry) => entry.applicant?.name ?? entry.alias;
 
@@ -224,8 +270,11 @@ function AnswerReason({ entry }: { entry: AnsweredEntry }) {
   const reason = typeof entry.reason === "string" && entry.reason.trim() ? entry.reason.trim() : null;
   const verified = entry.details?.verified ?? (entry.state.startsWith("tested_") ? reason : null);
   const start = entry.details?.startWindow && COMPANY_START_LABELS[entry.details.startWindow];
+  const glance = applicationGlance(entry);
   return <>
-    {(verified || start) && <dl className="company-response-facts">
+    {(verified || start || glance.length > 0) && <dl className="company-response-facts">
+      {glance.map(([label, value, hint]) => <div key={label}><dt>{label}</dt><dd>{value}
+        {hint && <span className="bare-helper site-estimate-label"> {hint}</span>}</dd></div>)}
       {verified && <div><dt>What they checked</dt><dd>{verified}</dd></div>}
       {start && <div><dt>Earliest start</dt><dd>{start}</dd></div>}
     </dl>}
@@ -336,6 +385,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       </p>
       {timeToAnswer && <p className="bare-helper">Time to first response: {timeToAnswer}.</p>}
     </div>}
+    <CompareApplicants entries={activity.entries.filter((entry): entry is AnsweredEntry => entry.kind === "answered")} />
     {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Company responses">
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
         {entry.kind === "sent" ? <p className="bare-helper">{sentToCompany(entry.alias, dateInWords(entry.atIso))}</p> : <>

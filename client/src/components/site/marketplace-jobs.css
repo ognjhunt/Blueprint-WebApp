@@ -492,3 +492,18 @@
   .site-job-tracker > li::before { top: 16px; bottom: 0; left: 6px; right: auto; width: 2px; height: auto; }
 }
 .bare-screen .site-company-website { margin: 2px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+
+/* An application at a glance (the company's form), and the applicants side by side (the site's page). The table
+   scrolls inside its own box on a phone, never the page. */
+.company-application { display: grid; gap: 10px; margin: 12px 0 0; padding: 12px; border: 1px solid #d7dbd2; border-radius: 10px; }
+.company-application legend { padding: 0 4px; font-weight: 650; }
+.company-estimate { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+.company-estimate-title, .company-estimate .ms-field-hint { grid-column: 1 / -1; }
+.company-estimate-title { font-size: 14px; font-weight: 600; }
+.site-compare { margin: 12px 0; overflow-x: auto; }
+.site-compare table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 14px; }
+.site-compare th, .site-compare td { padding: 8px 10px; border-bottom: 1px solid #e3e6dd; text-align: left; vertical-align: top; }
+.site-compare thead th { font-size: 12.5px; font-weight: 650; color: var(--ms-muted); }
+.site-compare tbody th { font-weight: 650; }
+.site-compare .bare-helper { margin-top: 6px; }
+.site-estimate-label { font-size: 12.5px; }

@@ -168,7 +168,7 @@ test("a signed-in company opens a job from the library, watches the video and an
   await expect(form).toBeInViewport();
   await expect(form.getByText(statement, { exact: true })).toBeVisible();
   await form.getByLabel("Apply").check();
-  await form.getByRole("textbox").fill("We palletize cartons like these today.");
+  await form.getByRole("textbox", { name: "Note to the site" }).fill("We palletize cartons like these today.");
   await form.getByRole("button", { name: "Send" }).click();
   await expect(form.getByRole("status")).toHaveText(/^Saved\. The site sees this answer/);
   expect(answers).toEqual([{ state: "interested", inputs: "We palletize cartons like these today.", statementVersion: "company-response-2026-11-12" }]);

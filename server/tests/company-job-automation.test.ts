@@ -566,6 +566,38 @@ describe("the company's page for one job (E3)", () => {
     expect(outbox().filter(row => row.kind === "site_reply_reminder")).toHaveLength(0);
   });
 
+  // Owner, 2026-11-23 ("yes build it this way"): an application at a glance, with an optional estimate before a visit.
+  it("shows the site an application's charging, estimate, similar jobs and visit note, and never in an email", async () => {
+    const glance = { chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 }, similarJobs: "6_20",
+      visitMustConfirm: `Conveyor height at the end of the line. Call ${NORTH.email}.`, startWindow: "within_month" };
+    expect((await answer(NORTH, { state: "interested", details: glance })).status).toBe(200);
+    await deliverOutbox({ limit: 50 });
+    const entry = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(entry).toMatchObject({ details: { chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 },
+      similarJobs: "6_20", startWindow: "within_month" } });
+    // The company's words lose its contact details, as its reason does.
+    expect(entry?.kind === "answered" && entry.details?.visitMustConfirm).toMatch(/^Conveyor height at the end of the line\. Call \[removed\]\.$/);
+    // No email to the site carries the estimate or the way of charging.
+    for (const row of outbox()) expect(`${row.subject} ${row.body}`).not.toMatch(/\$|12,000|subscription/i);
+    // Under the earlier line the company never agreed the site sees an estimate: it is left out, the rest stays.
+    const ref = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    state.docs.set(ref, { ...(state.docs.get(ref) as Record<string, any>), statementVersion: "company-response-2026-11-23" });
+    const older = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(older?.kind === "answered" && older.details?.estimate).toBeFalsy();
+    expect(older).toMatchObject({ details: { chargeModel: "subscription", similarJobs: "6_20" } });
+  });
+
+  it("keeps the application's fields only with an application, and refuses an estimate it cannot read", async () => {
+    const glance = { chargeModel: "per_hour", estimate: { lowUsd: 30, highUsd: 45 }, similarJobs: "1_5" };
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How tall is the pallet?", details: glance })).status).toBe(200);
+    const stored = state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>;
+    expect(stored.details ?? {}).not.toHaveProperty("estimate");
+    expect(stored.details ?? {}).not.toHaveProperty("chargeModel");
+    for (const details of [{ estimate: { lowUsd: 30, highUsd: 45 } }, { chargeModel: "undecided", estimate: { lowUsd: 30, highUsd: 45 } },
+      { chargeModel: "per_hour", estimate: { lowUsd: 45, highUsd: 30 } }, { chargeModel: "per_hour", estimate: { lowUsd: 0.5, highUsd: 30 } }])
+      expect((await answer(SOUTH, { state: "interested", details })).status).toBe(400);
+  });
+
   it("closes a reply window with no email when the question was answered or changed first", async () => {
     const { remindUnansweredQuestions, SITE_REPLY_WINDOWS } = await import("../utils/siteReplyReminders");
     expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
@@ -1338,8 +1370,9 @@ describe("review findings (must-fix and should-fix)", () => {
   });
 
   it("must-fix 5: the consent line names both answers, and the company's email states its own stored answer", async () => {
-    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site sees your company's name and website with your answer. If you apply or "
-      + "answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs.");
+    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site sees your company's name and website with your answer, and any estimate you "
+      + "give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we "
+      + "give the site your contact details, and give you theirs.");
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
     await interested(SOUTH);

@@ -6,6 +6,8 @@ import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { withCsrfHeader } from "@/lib/csrf";
 import { companyApplicationHref, companyJobReturnPath, companyJobSignInHref } from "@/lib/authReturnPath";
+import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_UNITS, INTRODUCIBLE_RESPONSE_STATES, SIMILAR_JOBS, SIMILAR_JOBS_LABELS,
+  VISIT_NOTE_LIMIT, isApplicationEstimate, type ApplicationEstimate, type ChargeModel, type SimilarJobs } from "@/lib/companyResponses";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES, TESTED_RESPONSE_STATES,
   companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
 import { JobCardAnswer } from "@/components/site/JobCardAnswer";
@@ -222,6 +224,19 @@ function FitSummary({ rows }: { rows: FitSummaryRow[] }) {
   </div>)}</dl>;
 }
 
+/** Said when the estimate's two ends cannot be read as whole dollars from low to high. */
+export const ESTIMATE_INVALID = "Enter the estimate as whole dollars, the lower amount first, or leave both empty.";
+
+/** The typed estimate as whole dollars, null when left empty, or "invalid". Needs a way of charging that has a unit. */
+export function typedEstimate(model: ChargeModel | undefined, low: string, high: string): ApplicationEstimate | null | "invalid" {
+  const read = (value: string) => value.replace(/[$,\s]/g, "");
+  const [a, b] = [read(low), read(high)];
+  if (!a && !b) return null;
+  if (!model || !ESTIMATE_UNITS[model]) return "invalid";
+  const estimate = { lowUsd: Number(a || b), highUsd: Number(b || a) };
+  return /^\d+$/.test(a || b) && /^\d+$/.test(b || a) && isApplicationEstimate(estimate) ? estimate : "invalid";
+}
+
 /**
  * The one answer form: the answers and the company's words, with the recorded line under it (E5). Once the simulation
  * can be downloaded it also offers the two tested answers. Nothing is chosen for the company: a first answer starts
@@ -234,6 +249,9 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
   const [answer, setAnswer] = useState<CompanyResponseState | null>(prior && (tested || !TESTED_RESPONSE_STATES.includes(prior.state)) ? prior.state : null);
   const [inputs, setInputs] = useState(prior?.inputs ?? "");
   const [details, setDetails] = useState<CompanyReplyDetails>(prior?.details ?? {});
+  // The estimate's two ends as typed (whole dollars; commas allowed), kept apart from the stored numbers until sent.
+  const [estimateLow, setEstimateLow] = useState(prior?.details?.estimate ? String(prior.details.estimate.lowUsd) : "");
+  const [estimateHigh, setEstimateHigh] = useState(prior?.details?.estimate ? String(prior.details.estimate.highUsd) : "");
   // The answer on record: the page's, then the one just saved, so "You answered" never names an answer it replaced.
   const [mine, setMine] = useState(page.myAnswer);
   const testedAnswer = answer !== null && TESTED_RESPONSE_STATES.includes(answer);
@@ -244,17 +262,24 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving || !answer) return;
+    const application = INTRODUCIBLE_RESPONSE_STATES.includes(answer);
+    const estimate = application ? typedEstimate(details.chargeModel, estimateLow, estimateHigh) : null;
+    if (estimate === "invalid") { setMessage(ESTIMATE_INVALID); return; }
     setSaving(true); setMessage("");
     try {
       const question = answer === "needs_something" ? undefined : details.question?.trim() || undefined;
+      const visit = application ? details.visitMustConfirm?.trim() || undefined : undefined;
+      const sent: CompanyReplyDetails = { ...(question ? { question } : {}), ...(details.startWindow ? { startWindow: details.startWindow } : {}),
+        ...(application && details.chargeModel ? { chargeModel: details.chargeModel } : {}), ...(estimate ? { estimate } : {}),
+        ...(application && details.similarJobs ? { similarJobs: details.similarJobs } : {}), ...(visit ? { visitMustConfirm: visit } : {}) };
       const response = await fetch(`/api/site-worlds/tasks/${encodeURIComponent(jobId)}/interest`, { method: "POST", credentials: "include",
         headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
         body: JSON.stringify({ state: answer, inputs, statementVersion: page.responseStatement.version,
-          ...(answer !== "declined" && (question || details.startWindow) ? { details: { question, startWindow: details.startWindow } } : {}),
+          ...(answer !== "declined" && Object.keys(sent).length ? { details: sent } : {}),
         }) });
       const body = await response.json();
       setMessage(response.ok ? body.nextAction : body.error || "Your answer was not saved.");
-      if (response.ok) setMine({ state: answer, inputs, details, updatedAtIso: new Date().toISOString(), statementVersion: page.responseStatement.version });
+      if (response.ok) setMine({ state: answer, inputs, details: sent, updatedAtIso: new Date().toISOString(), statementVersion: page.responseStatement.version });
     } catch { setMessage("We could not reach Blueprint. Check your connection and try again."); }
     finally { setSaving(false); }
   }
@@ -262,7 +287,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
     <h2>Your response</h2>
     {mine && <p className="ms-field-hint">{mine.state === "interested" ? "You applied" : `You answered “${COMPANY_RESPONSE_LABELS[mine.state]}”`}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
-        ? " Send it again below so the site sees your company's name and website with it." : ""}</p>}
+        ? " Send it again below so the site sees your company's name, website and any estimate with it." : ""}</p>}
     {page.pendingQuestion && <p className="ms-field-hint" role="status">{Date.parse(page.pendingQuestion.replyByIso) <= Date.now()
       ? companyQuestionOverdue(dateInWords(page.pendingQuestion.replyByIso), page.pendingQuestion.reminded)
       : companyQuestionWaiting(dateInWords(page.pendingQuestion.askedAtIso), dateInWords(page.pendingQuestion.replyByIso))}</p>}
@@ -282,15 +307,42 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
           onChange={event => setInputs(event.target.value)}
           aria-describedby="company-answer-words-hint" /></label>
       <p className="ms-field-hint" id="company-answer-words-hint">{WORDS_REACH_SITE}</p>
-      {answer && answer !== "declined" && <details className="company-reply-optional">
-        <summary className="ms-inline-link">Add details</summary>
-        {answer !== "needs_something" && <label>Question for the site<input minLength={4} maxLength={COMPANY_QUESTION_LIMIT}
-          value={details.question ?? ""} onChange={event => setDetails({ ...details, question: event.target.value })} /></label>}
+      {answer && INTRODUCIBLE_RESPONSE_STATES.includes(answer) && <fieldset className="company-application" aria-describedby="company-application-hint">
+        <legend>Your application at a glance</legend>
+        <p className="ms-field-hint" id="company-application-hint">The site compares these side by side. Every field is optional.</p>
+        <label>How you charge<select value={details.chargeModel ?? ""}
+          onChange={event => setDetails({ ...details, chargeModel: (event.target.value || undefined) as ChargeModel | undefined })}>
+          <option value="">Not specified</option>
+          {CHARGE_MODELS.map(model => <option key={model} value={model}>{CHARGE_MODEL_LABELS[model]}</option>)}
+        </select></label>
+        {details.chargeModel && ESTIMATE_UNITS[details.chargeModel] && <div className="company-estimate" role="group" aria-label="Estimate before a site visit">
+          <span className="company-estimate-title">Estimate, in US dollars {ESTIMATE_UNITS[details.chargeModel]}</span>
+          <label>From<input inputMode="numeric" value={estimateLow} onChange={event => setEstimateLow(event.target.value)} /></label>
+          <label>To<input inputMode="numeric" value={estimateHigh} onChange={event => setEstimateHigh(event.target.value)} /></label>
+          <p className="ms-field-hint">{ESTIMATE_LABEL} Leave it empty if you would rather not give one before a visit.</p>
+        </div>}
+        <label>Similar jobs you have done<select value={details.similarJobs ?? ""}
+          onChange={event => setDetails({ ...details, similarJobs: (event.target.value || undefined) as SimilarJobs | undefined })}>
+          <option value="">Not specified</option>
+          {SIMILAR_JOBS.map(band => <option key={band} value={band}>{SIMILAR_JOBS_LABELS[band]}</option>)}
+        </select></label>
         <label>Earliest start<select value={details.startWindow ?? ""}
           onChange={event => setDetails({ ...details, startWindow: event.target.value as CompanyStartWindow || undefined })}>
           <option value="">Not specified</option>
           {COMPANY_START_WINDOWS.map(window => <option key={window} value={window}>{COMPANY_START_LABELS[window]}</option>)}
         </select></label>
+        <label>What a visit must confirm<input maxLength={VISIT_NOTE_LIMIT} value={details.visitMustConfirm ?? ""}
+          onChange={event => setDetails({ ...details, visitMustConfirm: event.target.value })} /></label>
+      </fieldset>}
+      {answer && answer !== "declined" && <details className="company-reply-optional">
+        <summary className="ms-inline-link">Add details</summary>
+        {answer !== "needs_something" && <label>Question for the site<input minLength={4} maxLength={COMPANY_QUESTION_LIMIT}
+          value={details.question ?? ""} onChange={event => setDetails({ ...details, question: event.target.value })} /></label>}
+        {!INTRODUCIBLE_RESPONSE_STATES.includes(answer) && <label>Earliest start<select value={details.startWindow ?? ""}
+          onChange={event => setDetails({ ...details, startWindow: event.target.value as CompanyStartWindow || undefined })}>
+          <option value="">Not specified</option>
+          {COMPANY_START_WINDOWS.map(window => <option key={window} value={window}>{COMPANY_START_LABELS[window]}</option>)}
+        </select></label>}
       </details>}
       <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send"}</button>
       {message && <p role="status">{message}</p>}

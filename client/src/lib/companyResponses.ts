@@ -47,10 +47,60 @@ export const COMPANY_START_LABELS: Record<CompanyStartWindow, string> = {
 export const COMPANY_QUESTION_LIMIT = 400;
 export const SITE_CLARIFICATION_LIMIT = 600;
 
+/**
+ * What an application tells the site at a glance (owner, 2026-11-23, from the research on what sites decide on: proof
+ * from similar jobs, how a company charges, and no cost surprises): how the company charges, an optional estimate range
+ * in US dollars before a site visit (never a quote, and never a price of Blueprint's), how many similar jobs it has done,
+ * and what a visit must confirm. Every field is optional: a company that will not give a number before a visit still
+ * applies.
+ */
+export const CHARGE_MODELS = ["purchase", "subscription", "per_hour", "per_task", "undecided"] as const;
+export type ChargeModel = (typeof CHARGE_MODELS)[number];
+export const CHARGE_MODEL_LABELS: Readonly<Record<ChargeModel, string>> = {
+  purchase: "One-time purchase", subscription: "Monthly subscription", per_hour: "Per hour of work",
+  per_task: "Per task or item", undecided: "Not decided yet",
+};
+/** The unit an estimate is in, by how the company charges; "Not decided yet" takes no estimate. */
+export const ESTIMATE_UNITS: Readonly<Record<ChargeModel, string | null>> = {
+  purchase: "in total", subscription: "a month", per_hour: "an hour", per_task: "per task or item", undecided: null,
+};
+export const SIMILAR_JOBS = ["none", "1_5", "6_20", "over_20"] as const;
+export type SimilarJobs = (typeof SIMILAR_JOBS)[number];
+export const SIMILAR_JOBS_LABELS: Readonly<Record<SimilarJobs, string>> = {
+  none: "None yet", "1_5": "1 to 5", "6_20": "6 to 20", over_20: "More than 20",
+};
+export const ESTIMATE_MAX_USD = 100_000_000;
+export const VISIT_NOTE_LIMIT = 300;
+/** Beside every estimate the site reads, and under the company's estimate fields. */
+export const ESTIMATE_LABEL = "Estimate before a site visit. Not a quote.";
+export const ESTIMATES_NOT_CHECKED = "Estimates are each company's own, before a site visit. They are not quotes, and Blueprint does not check them.";
+export interface ApplicationEstimate { lowUsd: number; highUsd: number }
+
+const usd = (value: number) => "$" + value.toLocaleString("en-US");
+
+/** "$12,000 to $18,000 a month", or "$15 an hour" when both ends are the same. */
+export function estimateInWords(model: ChargeModel, estimate: ApplicationEstimate): string | null {
+  const unit = ESTIMATE_UNITS[model];
+  if (!unit || !isApplicationEstimate(estimate)) return null;
+  const range = estimate.lowUsd === estimate.highUsd ? usd(estimate.lowUsd) : usd(estimate.lowUsd) + " to " + usd(estimate.highUsd);
+  return range + " " + unit;
+}
+
+export function isApplicationEstimate(value: unknown): value is ApplicationEstimate {
+  if (!value || typeof value !== "object") return false;
+  const { lowUsd, highUsd } = value as Record<string, unknown>;
+  return [lowUsd, highUsd].every(item => typeof item === "number" && Number.isInteger(item) && item >= 1 && item <= ESTIMATE_MAX_USD)
+    && (lowUsd as number) <= (highUsd as number);
+}
+
 export interface CompanyReplyDetails {
   verified?: string;
   question?: string;
   startWindow?: CompanyStartWindow;
+  chargeModel?: ChargeModel;
+  estimate?: ApplicationEstimate;
+  similarJobs?: SimilarJobs;
+  visitMustConfirm?: string;
 }
 
 /**
@@ -91,8 +141,17 @@ export const RESPONSE_PRIVACY_LINE = "The site is told your response, not your c
  * answer given under the 2026-11-12 line keeps its alias. Both lines say the site is told the answer, and both agree to
  * an introduction after the site accepts, so an answer under either may be accepted (`COMPANY_RESPONSE_STATEMENT_VERSIONS`).
  */
-export const COMPANY_RESPONSE_STATEMENT_VERSION = "company-response-2026-11-23";
-export const COMPANY_RESPONSE_STATEMENT = "The site sees your company's name and website with your answer. If you apply or "
+export const COMPANY_RESPONSE_STATEMENT_VERSION = "company-response-2026-11-23.2";
+export const COMPANY_RESPONSE_STATEMENT = "The site sees your company's name and website with your answer, and any estimate you "
+  + "give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we "
+  + "give the site your contact details, and give you theirs.";
+/**
+ * 2026-11-23, later the same day (owner: "yes build it this way"): an application may carry how the company charges and an
+ * optional estimate range. The current line says the site sees the estimate, as one before a site visit and not a quote;
+ * an estimate is shown only for an answer given under it (`COMPANY_ESTIMATE_STATEMENT_VERSIONS`).
+ */
+export const COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION = "company-response-2026-11-23";
+export const COMPANY_RESPONSE_STATEMENT_2026_11_23 = "The site sees your company's name and website with your answer. If you apply or "
   + "answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs.";
 /** The line of 2026-11-12, kept as the record of what an answer given under it agreed to. */
 export const COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION = "company-response-2026-11-12";
@@ -100,9 +159,12 @@ export const COMPANY_RESPONSE_STATEMENT_2026_11_12 = "The site is told your answ
   + "site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
 /** Lines under which an answer tells the site the answer and agrees to an introduction once the site accepts. */
 export const COMPANY_RESPONSE_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION,
-  COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION];
+  COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION];
 /** Lines under which the site also sees the company's name and website with the answer. */
-export const COMPANY_NAME_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION];
+export const COMPANY_NAME_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION,
+  COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION];
+/** Lines under which the site also sees the estimate an application gives. */
+export const COMPANY_ESTIMATE_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION];
 
 /** What a company sees before it has accepted the current Terms and Privacy Policy: nothing of any job, only this. */
 export const TERMS_PROMPT = "Before you see jobs, read and agree to our Terms and Privacy Policy.";
@@ -125,7 +187,7 @@ export type SiteCompanyEntry =
        * Absent when there are none the site may read (given under the older line, or nothing left once taken out).
        */
       reason?: string;
-      details?: Pick<CompanyReplyDetails, "verified" | "startWindow">;
+      details?: Pick<CompanyReplyDetails, "verified" | "startWindow" | "chargeModel" | "estimate" | "similarJobs" | "visitMustConfirm">;
       question?: { id: string; text: string; answer?: string;
         /** When the site is asked to reply by (`replyByIso`); absent for a question asked before the window existed. */
         replyByIso?: string };

@@ -17,7 +17,7 @@ const linkSignIn = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/companySignInLink", async (actual) => ({ ...(await actual<typeof import("@/lib/companySignInLink")>()),
   signInWithCompanyLink: linkSignIn }));
 
-const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK } = await import("@/pages/CompanyJob");
+const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK, typedEstimate } = await import("@/pages/CompanyJob");
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
@@ -106,6 +106,35 @@ describe("the company's page for one job", () => {
       pendingQuestion: { askedAtIso: "2026-11-12T10:00:00.000Z", replyByIso: "2026-11-15T10:00:00.000Z", reminded: true } }) }) });
     render(<CompanyJob />);
     expect(await screen.findByText("The site has not replied yet. Its reply date was November 15, 2026, and we reminded it.")).toBeInTheDocument();
+  });
+
+  it("sends an application at a glance, with an optional estimate in the unit of how the company charges", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Your response" });
+    fireEvent.click(within(form).getByLabelText("Apply"));
+    const glance = within(form).getByRole("group", { name: "Your application at a glance" });
+    fireEvent.change(within(glance).getByLabelText("How you charge"), { target: { value: "subscription" } });
+    expect(within(glance).getByText("Estimate, in US dollars a month")).toBeVisible();
+    fireEvent.change(within(glance).getByLabelText("From"), { target: { value: "12,000" } });
+    fireEvent.change(within(glance).getByLabelText("To"), { target: { value: "$18000" } });
+    fireEvent.change(within(glance).getByLabelText("Similar jobs you have done"), { target: { value: "6_20" } });
+    fireEvent.change(within(glance).getByLabelText("What a visit must confirm"), { target: { value: "Conveyor height." } });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved." }) });
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
+    expect(JSON.parse(String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body)).details).toEqual({
+      chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 }, similarJobs: "6_20", visitMustConfirm: "Conveyor height." });
+  });
+
+  it("reads an estimate as whole dollars, low to high, and refuses one it cannot read", () => {
+    expect(typedEstimate("per_hour", "", "")).toBeNull();
+    expect(typedEstimate("per_hour", "30", "")).toEqual({ lowUsd: 30, highUsd: 30 });
+    expect(typedEstimate("purchase", "$120,000", "150000")).toEqual({ lowUsd: 120000, highUsd: 150000 });
+    expect(typedEstimate("purchase", "150000", "120000")).toBe("invalid");
+    expect(typedEstimate("per_hour", "12.5", "20")).toBe("invalid");
+    expect(typedEstimate("undecided", "10", "20")).toBe("invalid");
+    expect(typedEstimate(undefined, "10", "20")).toBe("invalid");
   });
 
   it("names the answer just saved, never the one it replaced", async () => {
