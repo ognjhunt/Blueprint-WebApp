@@ -8,11 +8,11 @@ import { expect, test, type Page } from "@playwright/test";
  */
 const JOB = "job-c1";
 const NORTH = "a".repeat(64);
-const listRow = { requestId: JOB, sentence: "Stack cartons onto the pallet.", internalTest: null, phase: "testing",
+const listRow = { requestId: JOB, sentence: "Stack cartons onto the pallet.", internalTest: null, phase: "simulation_ready",
   standing: "Simulation ready", receivedAtIso: "2026-11-10T00:00:00.000Z" };
 const detail = {
   requestId: JOB, job: { sentence: "Stack cartons onto the pallet.", drafted: false, site: { name: "Dock 4", place: "Springfield" }, internalTest: null },
-  standing: { phase: "testing", phrase: "Simulation ready", siteSees: null, companies: "Shared and visible to approved companies.", pipeline: null },
+  standing: { phase: "simulation_ready", phrase: "Simulation ready", siteSees: null, companies: "Shared and visible to approved companies.", pipeline: null },
   simulationPackageUrl: null, simulationPackage: null, cost: null, stops: [],
   events: [{ key: "received", text: "Job received", atIso: "2026-11-10T00:00:00.000Z" }],
 };

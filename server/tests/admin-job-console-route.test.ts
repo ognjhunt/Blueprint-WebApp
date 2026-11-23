@@ -150,7 +150,7 @@ describe("GET /api/admin/jobs", () => {
     table("siteTaskBriefs").set("job-a", { summary: "Stack cartons onto the pallet." });
     table("inboundRequests").set("eval-1", { createdAt: "2026-10-04T00:00:00.000Z", request: { buyerType: "robot_team" },
       workspace_evaluation: { opportunityId: "job-a" } });
-    outlooks.byId.set("job-t", { phase: "testing", reason: null, sentence: null });
+    outlooks.byId.set("job-t", { phase: "simulation_ready", reason: null, sentence: null });
     outlooks.byId.set("job-b", new Error("unreadable"));
 
     const response = await fetch(baseUrl, admin);
@@ -158,7 +158,7 @@ describe("GET /api/admin/jobs", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     const body = await response.json();
     expect(body).toEqual({ nextCursor: null, jobs: [
-      { requestId: "job-t", sentence: null, internalTest: { label: "mug to tray" }, phase: "testing", standing: "Simulation ready",
+      { requestId: "job-t", sentence: null, internalTest: { label: "mug to tray" }, phase: "simulation_ready", standing: "Simulation ready",
         receivedAtIso: "2026-10-03T00:00:00.000Z" },
       { requestId: "job-a", sentence: "Stack cartons onto the pallet.", internalTest: null, phase: "building",
         standing: "Building the simulation", receivedAtIso: "2026-10-02T00:00:00.000Z" },
@@ -231,7 +231,7 @@ describe("GET /api/admin/jobs/:requestId", () => {
 
   it("returns an internal test job with its label and no site, no sharing and no company reads", async () => {
     siteJob("job-t", "2026-11-16T18:00:00.000Z", { internal_test: TEST_MARKER });
-    outlooks.byId.set("job-t", { phase: "testing", reason: null, sentence: null });
+    outlooks.byId.set("job-t", { phase: "simulation_ready", reason: null, sentence: null });
     companies.panel = { sharing: { words: "should not be read" } };
     const body = await (await fetch(`${baseUrl}/job-t`, admin)).json();
     expect(body.job).toEqual({ sentence: null, drafted: false, site: null, internalTest: { label: "mug to tray" } });

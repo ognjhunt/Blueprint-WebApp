@@ -44,7 +44,7 @@ export async function libraryJobStage(id: string, record: Record<string, any>): 
     const decision = await loadJobOutlookDecision(id);
     if (!decision.certain) return null;
     const { phase } = decision.outlook;
-    if (phase === "testing" || phase === "result") return "simulation_built";
+    if (phase === "simulation_ready") return "simulation_built";
     if (phase === "building") return "simulation_building";
     if (phase === "reading" || phase === "waiting_on_site") return "video_received";
     return null;
