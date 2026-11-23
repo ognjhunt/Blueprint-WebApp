@@ -601,12 +601,12 @@ describe("the deployment companies section, with sends, answers and introduction
     const page = (companies: typeof activity) => <SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies }} />;
     const { rerender } = render(page(activity));
     fireEvent.click(within(companies()).getByRole("button", { name: "Introduce us" }));
-    expect(await within(companies()).findByText("Introduction requested.")).toBeVisible();
+    expect(await within(companies()).findByText("We are emailing you and Company A each other's contact details.")).toBeVisible();
     // The server reads the introduction back, then Blueprint's own email to the company fails (F-03).
     rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], canIntroduce: false }] }));
     rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], canIntroduce: true, introductionCancelled: true } as never] }));
     expect(within(companies()).getByRole("button", { name: "Introduce us" })).toBeEnabled();
-    expect(within(companies()).queryByText("Introduction requested.")).toBeNull();
+    expect(within(companies()).queryByText("We are emailing you and Company A each other's contact details.")).toBeNull();
   });
 
   it.each([

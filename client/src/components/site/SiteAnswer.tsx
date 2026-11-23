@@ -230,7 +230,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [requested, setRequested] = useState<string[]>([]);
-  // "Introduction requested." holds only until the server reads the introduction back. Once it no longer offers the
+  // The "we are emailing you" line holds only until the server reads the introduction back. Once it no longer offers the
   // button, the request is on record, so a later cancellation that may be asked again shows the button again.
   useEffect(() => {
     if (!isSiteCompanyActivity(activity)) return;
