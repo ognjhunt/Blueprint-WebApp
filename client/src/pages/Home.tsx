@@ -20,7 +20,7 @@ export default function Home() {
               <BareButton href="/contact/site-operator" helper={FREE_FOR_SITES}>{START_JOB}</BareButton>
             </BareGroup>
             <BareGroup>
-              <BareSteps id="how-it-works" label="How it works" steps={HOW_STEPS.map(({ key, title }) => ({ key, title }))} />
+              <BareSteps id="how-it-works" label="How it works" steps={HOW_STEPS.map(step => ({ ...step }))} />
             </BareGroup>
           </BareScreen>
           <PilotPreview />

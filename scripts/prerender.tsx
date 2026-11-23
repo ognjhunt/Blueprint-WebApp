@@ -14,7 +14,6 @@ import { Router } from "wouter";
 import { queryClient } from "../client/src/lib/queryClient";
 import { AuthProvider } from "../client/src/contexts/AuthContext";
 import { SiteLayout } from "../client/src/components/site/SiteLayout";
-import HowItWorks from "../client/src/pages/HowItWorks";
 import Beta from "../client/src/pages/Beta";
 import Home from "../client/src/pages/Home";
 import Partners from "../client/src/pages/Partners";
@@ -86,7 +85,6 @@ const PrerenderFallbackSummary = () => (
 
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
-  { path: "/how-it-works", component: HowItWorks },
   { path: "/jobs", component: Partners },
   { path: "/partners", component: Partners },
   { path: "/beta", component: Beta },

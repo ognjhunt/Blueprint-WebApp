@@ -49,8 +49,8 @@ test("on a phone the steps are visible and How it works is one link away", async
   await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
   await expect(page.getByRole("list", { name: "How it works" })).toBeVisible();
   await page.getByRole("link", { name: "How it works", exact: true }).click();
-  await expect(page).toHaveURL(/\/how-it-works$/);
-  await expect(page.locator("h1")).toHaveText("How it works");
+  await expect(page).toHaveURL(/\/#how-it-works$/);
+  await expect(page.getByRole("list", { name: "How it works" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -78,10 +78,11 @@ test("the site page is the start form alone, on a phone too", async ({ page }) =
 test("the public pages show how sites post video and companies review jobs", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("list", { name: "How it works" })).toContainText("Film the job");
+  await expect(page.getByRole("list", { name: "How it works" })).toContainText("Use your phone to show one full round of a job that repeats.");
+  await expect(page.getByRole("list", { name: "How it works" })).toContainText("We share your video and job description with approved companies");
 
   await page.goto("/how-it-works");
-  await expect(page.getByRole("list", { name: "Steps" })).toContainText("Use your phone to show one full round of a job that repeats.");
-  await expect(page.getByRole("list", { name: "Steps" })).toContainText("We share your video and job description with approved companies");
+  await expect(page).toHaveURL(/\/#how-it-works$/);
 
   await page.goto("/partners");
   await expect(page.locator("main")).toContainText("Review real jobs, each with the site's video and description.");
