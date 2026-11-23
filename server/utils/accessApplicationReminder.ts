@@ -13,15 +13,38 @@ import { ROBOT_TEAM_ACCESS_COLLECTION } from "./robotTeamEarlyAccess";
 export const ACCESS_ANSWER_WORKING_DAYS = 3;
 const REMINDER_COLLECTION = "opsAccessApplicationReminders";
 
+const PAGE_SIZE = 200;
+const MAX_PAGES = 50;
+
 type Doc = { id: string; data: () => Record<string, unknown> | undefined };
+type Page = { startAfter: (id: string) => Page; get: () => Promise<{ docs: Doc[] }> };
 type Store = {
   collection: (name: string) => {
     where: (field: string, op: FirebaseFirestore.WhereFilterOp, value: unknown) => {
-      limit: (n: number) => { get: () => Promise<{ docs: Doc[] }> };
+      orderBy: (field: string) => { limit: (n: number) => Page };
     };
-    doc: (id: string) => { create: (data: Record<string, unknown>) => Promise<unknown> };
+    doc: (id: string) => {
+      create: (data: Record<string, unknown>) => Promise<unknown>;
+      delete: () => Promise<unknown>;
+    };
   };
 };
+
+/** Every pending application, paged by document id so none past the first page is missed. */
+async function pendingApplications(store: Store): Promise<Doc[]> {
+  const all: Doc[] = [];
+  let after: string | null = null;
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    let query = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "applied").orderBy("__name__").limit(PAGE_SIZE);
+    if (after) query = query.startAfter(after);
+    const { docs } = await query.get();
+    all.push(...docs);
+    if (docs.length < PAGE_SIZE) return all;
+    after = docs[docs.length - 1].id;
+  }
+  logger.warn({ pages: MAX_PAGES }, "Pending application scan stopped at its page bound");
+  return all;
+}
 
 /** The time `days` working days (Monday to Friday, UTC; public holidays are not counted out) after `iso`. */
 export function workingDaysAfter(iso: string, days: number): number | null {
@@ -44,7 +67,7 @@ export async function remindWaitingAccessApplications(options: {
   const store = options.store === undefined ? (dbAdmin as unknown as Store | null) : options.store;
   if (!store) return { waiting: 0, reminded: 0 };
   const nowMs = (options.now || Date.now)();
-  const { docs } = await store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "applied").limit(200).get();
+  const docs = await pendingApplications(store);
   const waiting = docs.filter((doc) => {
     const due = workingDaysAfter(String(doc.data()?.appliedAtIso ?? ""), ACCESS_ANSWER_WORKING_DAYS);
     return due !== null && due <= nowMs;
@@ -66,6 +89,14 @@ export async function remindWaitingAccessApplications(options: {
   const more = fresh.length > 10 ? [`- …and ${fresh.length - 10} more`] : [];
   const text = [`:hourglass: Blueprint: ${fresh.length} deployment company application(s) waited ${ACCESS_ANSWER_WORKING_DAYS} working days `
     + "without an answer. The applicant was told to expect one by now. Approve or not yet:", ...lines, ...more].join("\n");
-  await Promise.resolve((options.alert || sendRateLimitedOpsAlert)(`robot_team_access_waiting:${fresh[0]}`, text)).catch(() => undefined);
+  const result = await Promise.resolve((options.alert || sendRateLimitedOpsAlert)(`robot_team_access_waiting:${fresh[0]}`, text))
+    .catch(() => ({ sent: false }));
+  if (!(result as { sent?: unknown } | undefined)?.sent) {
+    // Not delivered: release the markers so the next monitor pass tries again.
+    await Promise.all(fresh.map((id) => store.collection(REMINDER_COLLECTION).doc(id).delete().catch((error: unknown) => {
+      logger.warn({ err: error, id }, "Could not release an undelivered application reminder marker");
+    })));
+    return { waiting: waiting.length, reminded: 0 };
+  }
   return { waiting: waiting.length, reminded: fresh.length };
 }
