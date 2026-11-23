@@ -119,6 +119,25 @@ describe("public task disclosure", () => {
     expect(await listTaskBrowseCards()).toEqual([]);
     expect(approvedTaskDetails(record({ public_task_listing: {} }))).toBeNull();
   });
+
+  it("reads every listed job, more than 200, newest shared first and then by id", async () => {
+    const ids = Array.from({ length: 205 }, (_, index) => `req${index + 1}`);
+    for (const [index, id] of ids.entries()) {
+      state.docs.set(`siteTaskBriefs/${id}`, { requestId: id, summary: "Move cartons from the conveyor to a pallet" } as never);
+      const base = record();
+      // Two jobs per day, so jobs shared at the same moment are ordered by id.
+      const approvedAtIso = new Date(Date.UTC(2026, 10, 1) + Math.floor(index / 2) * 86_400_000).toISOString();
+      state.docs.set(`inboundRequests/${id}`, { ...base, public_task_listing: { ...base.public_task_listing, approvedAtIso } } as never);
+      state.docs.set(`captureUploadSessions/walkthrough-${id}`, { company_clip: sharedCompanyClip(`walkthrough-${id}`) });
+    }
+    const cards = await listTaskBrowseCards();
+    expect(cards).toHaveLength(205);
+    expect(cards.slice(0, 3).map(card => card.id)).toEqual(["req205", "req203", "req204"]);
+    const order = cards.map(card => `${card.publishedAtIso}|${card.id}`);
+    expect(cards.every((card, index) => index === 0 || cards[index - 1].publishedAtIso > card.publishedAtIso
+      || (cards[index - 1].publishedAtIso === card.publishedAtIso && cards[index - 1].id < card.id))).toBe(true);
+    expect(new Set(order).size).toBe(205);
+  });
 });
 
 describe("timed check-ins are retired", () => {

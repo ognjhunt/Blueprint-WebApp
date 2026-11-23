@@ -320,13 +320,12 @@ test.describe("desktop", () => {
     await form.getByLabel("Interested").check();
     await form.getByRole("textbox", { name: "Note to the site" }).fill("We move cartons like these today.");
     await form.getByText("Add details", { exact: true }).click();
-    await form.getByLabel("What you have checked").fill("The carton weight is in our payload range.");
     await form.getByLabel("Question for the site").fill("How many cartons arrive per minute?");
     await form.getByLabel("Earliest start").selectOption("within_month");
     const sent = companyPage.waitForResponse(response => response.url().endsWith(`/api/site-worlds/tasks/${requestId}/interest`));
     await form.getByRole("button", { name: "Send response" }).click();
     expect((await sent).status()).toBe(200);
-    await expect(form.getByRole("status")).toContainText(/saved/i);
+    await expect(form.getByRole("status")).toHaveText("Saved. If the site asks to meet you, we email you both each other's name and contact details.");
 
     // Privacy hard stop: nothing the company was sent or shown names the site, its address or its contact.
     const companyPageText = await companyPage.locator("body").innerText();

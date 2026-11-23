@@ -28,9 +28,8 @@
  * (`siteActionNeeded.ts`); a wait on Blueprint runs as long as a grant's window would (`websiteJobWindowSeconds`).
  * A job waiting on the site (no finished recording, or a held job's one step) then ends with the truth: we did not
  * receive what was needed. A legacy v5 description draft with a usable brief is exempt (`descriptionOnlyJobComplete`).
- * A job waiting on Blueprint (the site did its part, no grant came) ends held, and
- * the ops monitor pages before that (`scanWebsiteJobsWaitingOnGrant`). A job whose grant arrives later is the
- * window sweep's again.
+ * A job waiting on Blueprint (the site did its part, no grant came) ends held (the ops monitor's page for that
+ * wait was retired 2026-11-22). A job whose grant arrives later is the window sweep's again.
  */
 import { LIVE_RUN_GRACE_SECONDS } from "./jobOutlook";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";

@@ -600,9 +600,10 @@ describe("the automatic send (E4)", () => {
     expect(sends.every(([key, value]) => (value as any).sentBy === "system" && key.endsWith(`system-${(value as any).companyId}`))).toBe(true);
     const alerts = outbox().filter(row => row.kind === "robot_team_new_task");
     expect(alerts.map(row => row.to).sort()).toEqual([NORTH, SOUTH, EAST, WEST].map(record => record.email).sort());
-    expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint" });
+    // The kind of job and the country, never the site (ledger BL49).
+    expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint: Palletizing" });
     // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
-    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
     // The unsubscribe line names the emails it stops, never the scope's internal name.
     expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+scope=optional_updates$/);
     expect(alerts[0].body).not.toMatch(/optional updates/i);
@@ -629,7 +630,7 @@ describe("the automatic send (E4)", () => {
       .some(record => record.email === to)).sort()).toEqual([NORTH, SOUTH, EAST].map(record => record.email).sort());
     // e-004, e-008: the job is the company's button ("Open the job"); the commercial footer stays in the text part, and the
     // HTML part shows the layout's own footer with its "Unsubscribe" link, not a raw link carrying the reader's address.
-    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint")!;
+    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint: Palletizing")!;
     const html = String(alert.html), text = String(alert.text);
     expect(text).toMatch(/\n\n--\n.+\nPrivacy: https:\/\/\S+\/privacy\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+$/);
     expect(html).toContain(">Open the job</a>");
