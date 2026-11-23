@@ -10,6 +10,7 @@ import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowser
 import { advisoryContextDigest } from "./siteAssessmentContext";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
 import type { AssessmentRecovery } from "./inferenceProgrammeAdmission";
+import { checkWebsiteJobCeiling, transactionJobLedgerReader } from "./websiteJobCeiling";
 
 const budgetFor = (captureId: string) => db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: captureId })}`);
 const digest = humanDecisionDigest;
@@ -18,6 +19,36 @@ function assertSource(request: any, captureId: string, source: unknown) {
   const privacy = privacyFor(request);
   if (!projectWebsiteCaptureRights(request).derived_scene_generation_allowed || privacy?.proceeded !== true
     || privacy.capture_id !== captureId || digest(privacy.producer_source) !== digest(source)) throw new Error("coverage_budget_source_changed");
+}
+
+/**
+ * Whether the owner of a call intent still recorded in flight has ended, failed or cancelled, so the intent can be
+ * retired: the site assessment run that made it, or the coverage reading's claim and its SDK run. Reads only; the
+ * reservation below and the requeue (`captureCoverageRequeue.ts`) both decide with it.
+ */
+export async function pendingCallOwnerEnded(tx: Transaction, prior: Record<string, any>, captureId: string): Promise<boolean> {
+  let terminal = false;
+  if (prior.run_id) {
+    const owner = (await tx.get(db!.collection("agentRuns").doc(prior.run_id))).data();
+    terminal = owner?.task_kind === "site_assessment" && ["failed", "cancelled"].includes(owner.status)
+      && (owner.metadata?.capture_id === captureId || owner.input?.input?.context?.request_id === prior.request_id);
+  } else if (prior.review_id) {
+    const owner = (await tx.get(db!.collection("captureCoverageReviews").doc(prior.review_id))).data();
+    terminal = owner?.captureId === captureId && owner.requestId === prior.request_id && owner.claim_token === prior.claim_token
+      && ["failed", "cancelled"].includes(owner.state);
+    {
+      // Older intents did not capture their SDK run ID. Reuse the same
+      // canonical session query, matching the exact persisted claim.
+      const runs = prior.owner_run_id ? [(await tx.get(db!.collection("agentRuns").doc(prior.owner_run_id))).data()]
+        : (await tx.get(db!.collection("agentRuns").where("session_key", "==", `capture_coverage:${prior.review_id}`))).docs.map(row => row.data());
+      const matching = runs.filter(run => run?.task_kind === "capture_coverage" && run.metadata?.capture_id === captureId
+        && run.metadata?.review_id === prior.review_id && run.metadata?.coverage_claim_token === prior.claim_token);
+      // A failed review cannot retire a still-running SDK owner. With no
+      // captured SDK owner, an exact terminal review is sufficient.
+      if (prior.owner_run_id || matching.length) terminal = matching.length === 1 && ["failed", "cancelled"].includes(matching[0]?.status ?? "");
+    }
+  }
+  return terminal;
 }
 
 /** A durable call intent and current claim fence. Missing usage and old
@@ -70,7 +101,7 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       if (current.length > 1) throw new Error("coverage_budget_claim_changed");
       ownerRunId = current[0]?.id ?? null;
     }
-    return { requestId, context, source, ownerRunId };
+    return { requestId, context, source, ownerRunId, request };
   };
   const spend = await reserveModelReviewSpend(reserved);
   const admitted = db.runTransaction(async tx => {
@@ -86,31 +117,15 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       if (!prior || prior.state !== "admitted" || prior.admission_token !== state.pending_token || prior.capture_id !== captureId
         || prior.request_id !== binding.requestId || !Number.isFinite(prior.reserved_usd) || prior.reserved_usd <= 0 || !distinct)
         throw new Error("coverage_budget_call_in_flight");
-      let terminal = false;
-      if (prior.run_id) {
-        const owner = (await tx.get(db!.collection("agentRuns").doc(prior.run_id))).data();
-        terminal = owner?.task_kind === "site_assessment" && ["failed", "cancelled"].includes(owner.status)
-          && (owner.metadata?.capture_id === captureId || owner.input?.input?.context?.request_id === prior.request_id);
-      } else if (prior.review_id) {
-        const owner = (await tx.get(db!.collection("captureCoverageReviews").doc(prior.review_id))).data();
-        terminal = owner?.captureId === captureId && owner.requestId === prior.request_id && owner.claim_token === prior.claim_token
-          && ["failed", "cancelled"].includes(owner.state);
-        {
-          // Older intents did not capture their SDK run ID. Reuse the same
-          // canonical session query, matching the exact persisted claim.
-          const runs = prior.owner_run_id ? [(await tx.get(db!.collection("agentRuns").doc(prior.owner_run_id))).data()]
-            : (await tx.get(db!.collection("agentRuns").where("session_key", "==", `capture_coverage:${prior.review_id}`))).docs.map(row => row.data());
-          const matching = runs.filter(run => run?.task_kind === "capture_coverage" && run.metadata?.capture_id === captureId
-            && run.metadata?.review_id === prior.review_id && run.metadata?.coverage_claim_token === prior.claim_token);
-          // A failed review cannot retire a still-running SDK owner. With no
-          // captured SDK owner, an exact terminal review is sufficient.
-          if (prior.owner_run_id || matching.length) terminal = matching.length === 1 && ["failed", "cancelled"].includes(matching[0]?.status ?? "");
-        }
-      }
-      if (!terminal) throw new Error("coverage_budget_call_in_flight");
+      if (!await pendingCallOwnerEnded(tx, prior, captureId)) throw new Error("coverage_budget_call_in_flight");
       retiredRef = ref;
     }
     const exposure = (state?.exposure_usd ?? 0) + reserved;
+    // The job's one $40 cap (owner, 2026-11-19): what the job's other ledgers hold or spent, plus everything this
+    // capture's video readings have held or spent with this call's reservation, must fit, or no paid read starts.
+    const job = await checkWebsiteJobCeiling({ record: binding.request ?? {},
+      reader: transactionJobLedgerReader(db!, tx, binding.requestId), additionalCostUsd: exposure });
+    if (job.exceeded) throw new Error("coverage_budget_job_cap_reached");
     const intent = { schema_version: "capture_inference_call.v1", admission_token: token, capture_id: captureId,
       request_id: binding.requestId, run_id: runId ?? null, owner_run_id: binding.ownerRunId, review_id: reviewId ?? null, claim_token: claim ?? null,
       provider, model, source_digest: digest(binding.source), context_digest: binding.context,
@@ -121,7 +136,8 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
     tx.set(budgetRef, { schema_version: "capture_coverage_inference_budget.v1", capture_id: captureId,
       cap_usd: state?.cap_usd ?? null, exposure_usd: exposure, calls: (state?.calls ?? 0) + 1,
       pending_token: token, ...(state ? {} : { historical_usage_status: "unreconciled" }), last_review_id: reviewId ?? null, last_assessment_run_id: runId ?? null, updated_at_ms: Date.now() }, { merge: true });
-    return { ...binding, exposure, cap: state?.cap_usd ?? null };
+    const { request: _request, ...admitted } = binding;
+    return { ...admitted, exposure, cap: state?.cap_usd ?? null };
   });
   const admission = await admitted.catch(async error => {
     await releaseModelReviewSpend(spend).catch(() => undefined);

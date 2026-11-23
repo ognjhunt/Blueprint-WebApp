@@ -94,6 +94,9 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   // them; it only keeps a job with none of them working.
   const ending = recordedEndingOf(input);
   if (ending?.reason === "spending_cap_reached") return ending;
+  // Once the job's time has run out nothing reads its video any more (`captureCoverageQueue.ts` ends the reading), so
+  // "We're watching your video." would not be true: the ending is said instead.
+  if (ending?.reason === "window_expired" || ending?.reason === "no_grant") return ending;
   if (!input.answer || input.answer.state === "reading") return outlook("reading");
   // Waiting for the site to name its job: neither building nor an ending.
   return ending ?? (input.awaitsSiteSentence === true ? outlook("waiting_on_site", "task_not_named") : working());

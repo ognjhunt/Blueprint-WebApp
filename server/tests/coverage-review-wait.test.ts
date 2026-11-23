@@ -3,8 +3,11 @@
  * Waiting for another call on the same capture is not an attempt (reference job, 2026-11-11). The video reading and
  * the site assessment share one per-capture budget record that allows one model call at a time; a reading that meets
  * a call in flight used to spend one of its three attempts on the wait, and a job could be left with no first answer
- * for good. A wait is now given back and tried again after a short delay, bounded by time; a real failure still
- * counts as before.
+ * for good. A wait is now given back and tried again after a short delay; a real failure still counts as before.
+ *
+ * A wait never parks a job (2026-11-23: a live job's reading ended three times in 3 min 22 s without reading anything,
+ * each end counted as an attempt, and the job was parked for a person although nothing had failed). It is checked
+ * again each minute, with no model call and no attempt used, until what it needs arrives or the job's window ends.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,9 +31,8 @@ import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 
-/** The bounds, as the queue sets them: a minute's delay between waits, and 30 minutes from the first claim. */
+/** The queue's delay between two checks of a wait. */
 const COVERAGE_REVIEW_WAIT_RETRY_MS = 60_000;
-const COVERAGE_REVIEW_WAIT_LIMIT_MS = 30 * 60_000;
 
 const BRIEF = { requestId: "req-1", summary: "Move the tray to the other end of the table", proposed: [] };
 const FINDING = { coversScene: false, missingCoverage: ["The far side of the table"], supplementWouldFinish: true, unreadableReasons: [], confidence: 0.9 };
@@ -98,17 +100,30 @@ describe("the video reading and a call in flight for the same capture", () => {
     expect(reviewOf()).toMatchObject({ state: "review_required", reason: "automatic_review_attempts_exhausted" });
   });
 
-  it("counts a wait only once it has lasted longer than the time bound from the first claim, with its typed reason", async () => {
+  it("reads the video when what it waits for arrives after 50 minutes of ticks, with no attempt used before the read", async () => {
+    // Until the 50th minute the reading finds the walkthrough not stored yet; then it is there and the read happens.
+    const arrives = T0 + 50 * 60_000;
+    let attemptsAtRead: unknown = null;
+    seams.review.mockImplementation(async (params: { onWaiting?: (reason: string) => void }) => {
+      if (Date.now() < arrives) { params.onWaiting?.("coverage_video_not_stored"); return null; }
+      // The claim for this read is the only attempt counted: none before it.
+      attemptsAtRead = job()!.attempts;
+      return FINDING;
+    });
+    for (let pass = 0; pass < 60 && !reviewOf(); pass++) await tickAfter(COVERAGE_REVIEW_WAIT_RETRY_MS + 1_000);
+    expect(seams.review.mock.calls.length).toBeGreaterThan(40);
+    expect(attemptsAtRead).toBe(1);
+    expect(reviewOf()).toMatchObject({ state: "completed", reason: null });
+    expect(job()).toMatchObject({ state: "completed", attempts: 1 });
+  });
+
+  it("never parks a job however long it waits, and is not checked inside its delay", async () => {
     seams.review.mockImplementation(meetsCallInFlight);
-    // Inside the bound, any number of waits leaves the reading pending.
-    for (let pass = 0; pass < 10; pass++) await tickAfter(COVERAGE_REVIEW_WAIT_RETRY_MS + 1_000);
-    expect(seams.review.mock.calls.length).toBeGreaterThan(3);
+    for (let pass = 0; pass < 100; pass++) await tickAfter(COVERAGE_REVIEW_WAIT_RETRY_MS + 1_000);
+    expect(seams.review).toHaveBeenCalledTimes(100);
     expect(reviewOf()).toBeUndefined();
-    expect(job()).toMatchObject({ attempts: 0 });
-    // Past the bound, each wait counts as a failed attempt, and the third hands the job to a person.
-    vi.setSystemTime(T0 + COVERAGE_REVIEW_WAIT_LIMIT_MS + 1_000);
-    for (let pass = 0; pass < 10 && !reviewOf(); pass++) await tickAfter(COVERAGE_REVIEW_WAIT_RETRY_MS + 1_000);
-    expect(reviewOf()).toMatchObject({ state: "review_required", reason: "automatic_review_attempts_exhausted" });
-    expect(job()).toMatchObject({ attempts: 3, wait_reason: "coverage_budget_call_in_flight", wait_counted: true });
+    expect(state.docs.get("inboundRequests/req-1")!.capture_coverage_pending).toBe(true);
+    expect(job()).toMatchObject({ state: "waiting_prerequisite", attempts: 0, wait_reason: "coverage_budget_call_in_flight" });
+    expect(job()!.wait_counted).toBeUndefined();
   });
 });

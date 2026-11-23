@@ -114,8 +114,33 @@ export function draftedTaskStatement(output: { proposed_task_statement?: string 
   return namesAnAction(statement) || screenTaskScope({ summary: statement }).supported ? statement : null;
 }
 
-/** Why a read waited rather than failed: another call for the same capture holds its one-at-a-time budget. */
-export type CoverageWaitReason = "coverage_budget_call_in_flight" | "coverage_call_running";
+/**
+ * Why a read waited rather than failed: something it needs is not there yet. Another call for the same capture holds
+ * its one-at-a-time budget, or a retained read is still running; the stored walkthrough is not in storage yet (a
+ * legacy upload still finishing); the job's brief is not on file yet. None of these is a failed read.
+ */
+export type CoverageWaitReason = "coverage_budget_call_in_flight" | "coverage_call_running" | "coverage_video_not_stored"
+  | "coverage_brief_missing";
+
+/**
+ * Why a read failed: the adapter's code (`video_fetch_failed`, `audio_strip_unavailable`, `non_json_response`, ...),
+ * or one of these. `coverage_budget_job_cap_reached` means the job's $40 cap leaves no room for another paid read;
+ * `provider_failed_after_paid_answer` means the provider answered the paid video analysis and then refused or failed
+ * a later call of the same read, so the read used its attempt (it is not an outage that is retried for free).
+ */
+export type CoverageFailureReason = string;
+export const COVERAGE_JOB_CAP_REACHED = "coverage_budget_job_cap_reached";
+export const COVERAGE_FAILED_AFTER_PAID_ANSWER = "provider_failed_after_paid_answer";
+
+/** The code at the head of a failed run's error text (`<code>: <message>`), or a plain fallback. */
+function failureCode(error: unknown): string {
+  const text = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  // The budget's own refusals are named inside the adapter's generic code (`gemini_video_failed: coverage_budget_...`).
+  const budget = /\b(coverage_budget_[a-z_]+)/.exec(text)?.[1];
+  if (budget) return budget;
+  const code = /^([a-z0-9_]{3,80})(?::|$)/.exec(text.trim())?.[1];
+  return code ?? "coverage_review_failed";
+}
 
 export async function reviewCaptureCoverage(params: {
   /** Compatibility input; coverage findings no longer request customer action. */
@@ -137,6 +162,8 @@ export async function reviewCaptureCoverage(params: {
    * that went wrong: the queue gives the attempt back and tries again on a back-off.
    */
   onProviderOutage?: (outage: ProviderOutage) => void;
+  /** Told when the read was tried and failed, with the reason. Only this counts against the retry limit. */
+  onFailed?: (reason: CoverageFailureReason) => void;
 }): Promise<CoverageFinding | null> {
   if (!isSiteVideoEvidenceEnabled()) return null;
 
@@ -144,10 +171,16 @@ export async function reviewCaptureCoverage(params: {
   try {
     videoUrl = await signWalkthroughUrl(params);
   } catch (error) {
+    // The upload this reading was bound to changed or is gone: it can never be read under this binding.
     logger.warn({ error, ...params }, "Could not sign walkthrough URL for coverage review");
+    params.onFailed?.("coverage_source_changed");
     return null;
   }
-  if (!videoUrl) return null;
+  if (!videoUrl) {
+    logger.info(params, "Coverage review waits: the walkthrough is not in storage yet");
+    params.onWaiting?.("coverage_video_not_stored");
+    return null;
+  }
 
   // The shot list is what coverage is measured against. Without a brief there
   // is no list, and a coverage verdict against an invented standard would fail
@@ -155,6 +188,7 @@ export async function reviewCaptureCoverage(params: {
   const brief = await getBrief(params.requestId).catch(() => null);
   if (!brief) {
     logger.info(params, "No task brief yet, so no shot list to measure coverage against");
+    params.onWaiting?.("coverage_brief_missing");
     return null;
   }
 
@@ -203,10 +237,27 @@ export async function reviewCaptureCoverage(params: {
       },
     });
     output = (result?.output as CaptureCoverageOutput) ?? null;
-    const outage = !output && result?.status === "failed" ? classifyProviderFailure("gemini", result.error) : null;
-    if (outage) {
-      logger.warn({ ...params, provider: outage.provider, cause: outage.cause }, "Coverage review waits: the video model refused or did not answer");
-      params.onProviderOutage?.(outage);
+    if (!output) {
+      // The video adapter catches its own errors and returns them as a failed result (`gemini-video.ts`), so a
+      // budget refusal arrives here as text, not as a thrown error.
+      const error = result?.error ?? null;
+      if (/coverage_budget_call_in_flight/.test(String(error ?? ""))) {
+        logger.info({ ...params }, "Coverage review waits: another model call for this capture is in flight");
+        params.onWaiting?.("coverage_budget_call_in_flight");
+        return null;
+      }
+      const outage = result?.status === "failed" ? classifyProviderFailure("gemini", error) : null;
+      const samples = (result?.artifacts as Record<string, unknown> | undefined)?.usage_samples;
+      // A paid answer was received in this read (the video analysis answered): a later refusal is not retried for free.
+      const paidAnswer = Array.isArray(samples) && samples.length > 0;
+      if (outage && !paidAnswer) {
+        logger.warn({ ...params, provider: outage.provider, cause: outage.cause }, "Coverage review waits: the video model refused or did not answer");
+        params.onProviderOutage?.(outage);
+        return null;
+      }
+      const reason = outage ? COVERAGE_FAILED_AFTER_PAID_ANSWER : failureCode(error ?? `coverage_${result?.status ?? "no"}_output`);
+      logger.warn({ ...params, reason }, "Coverage review failed");
+      params.onFailed?.(reason);
       return null;
     }
     }
@@ -223,6 +274,7 @@ export async function reviewCaptureCoverage(params: {
       return null;
     }
     logger.warn({ error, ...params }, "Coverage review failed");
+    params.onFailed?.(failureCode(error));
     return null;
   }
 

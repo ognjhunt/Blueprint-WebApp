@@ -34,6 +34,8 @@ import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { classifyProviderFailure, providerOutageRetryDelayMs } from "../utils/providerOutage";
+import { sealWebsiteJobWindowEnding } from "../utils/websiteJobWindowEnding";
+import { requeueExhaustedCoverageReview } from "../utils/captureCoverageRequeue";
 
 const BRIEF = { requestId: "req-1", summary: "Move the tray to the other end of the table", proposed: [] };
 const FINDING = { coversScene: true, missingCoverage: [], supplementWouldFinish: false, unreadableReasons: [], confidence: 0.9 };
@@ -52,6 +54,14 @@ function seedJob(extra: Record<string, unknown> = {}) {
   state.docs.set("siteTaskBriefs/req-1", BRIEF);
 }
 const request = () => state.docs.get("inboundRequests/req-1") as Record<string, any>;
+/** The job's grant ran out at `endedMs` and the window sweep recorded its ending, as the job page reads it. */
+function endWindow(endedMs: number) {
+  const authority = `sha256:${"b".repeat(64)}`;
+  state.docs.set("inboundRequests/req-1", { ...request(),
+    website_scene_sponsorship: { request_id: "req-1", authority_digest: authority, expires_at_epoch: endedMs / 1000 },
+    website_job_window_ending: sealWebsiteJobWindowEnding({ request_id: "req-1", authority_digest: authority,
+      window_ended_at_epoch: endedMs / 1000, recorded_at_iso: new Date(endedMs).toISOString(), notice: "none_emails_retired" }) });
+}
 const reviewOf = () => request()?.capture_coverage_review as Record<string, unknown> | undefined;
 const job = () => [...state.docs.entries()].find(([key]) => /^captureCoverageReviews\/[a-f0-9]{64}$/.test(key))?.[1] as Record<string, any> | undefined;
 
@@ -126,16 +136,29 @@ describe("the video reading during a provider outage", () => {
     seams.review.mockResolvedValue(null);
     for (let pass = 0; pass < 6 && !reviewOf(); pass++) await passAt(T0 + pass * 2 * MINUTE);
     expect(seams.review).toHaveBeenCalledTimes(3);
-    expect(reviewOf()).toMatchObject({ state: "review_required", reason: "automatic_review_attempts_exhausted", provider_outages_excluded: true });
+    expect(reviewOf()).toMatchObject({ state: "review_required", reason: "automatic_review_attempts_exhausted", waits_and_outages_excluded: true });
   });
 
-  it("stops trying once the job's window has ended", async () => {
+  it("stops trying once the job's window has ended, and ends the reading so nothing says it is still under way", async () => {
+    seedJob();
+    seams.review.mockImplementation(refused);
+    await passAt(T0);
+    endWindow(T0 + MINUTE);
+    await passAt(T0 + 3 * 60 * MINUTE);
+    expect(seams.review).toHaveBeenCalledTimes(1);
+    expect(request().capture_coverage_pending).toBe(false);
+    expect(reviewOf()).toMatchObject({ state: "ended", reason: "job_window_ended" });
+    expect(job()).toMatchObject({ state: "ended", reason: "job_window_ended" });
+  });
+
+  it("goes on trying while the window's ending is recorded for an earlier grant only (the field alone is no ending)", async () => {
     seedJob();
     seams.review.mockImplementation(refused);
     await passAt(T0);
     state.docs.set("inboundRequests/req-1", { ...request(), website_job_window_ending: { window_ended_at_epoch: T0 / 1000 } });
-    await passAt(T0 + 3 * 60 * MINUTE);
-    expect(seams.review).toHaveBeenCalledTimes(1);
+    await passAt(job()!.retry_after_ms + 1_000);
+    expect(seams.review).toHaveBeenCalledTimes(2);
+    expect(request().capture_coverage_pending).toBe(true);
   });
 
   it("tells the owner once per provider and cause, not once per pass, and again after the provider recovered", async () => {
@@ -175,13 +198,80 @@ describe("a reading parked before provider outages were retried", () => {
     expect(parked.requeue_history[0]).toMatchObject({ approved_by: null, automatic: true });
   });
 
+  /** The live record's shape: three waits in 3 min 22 s counted as attempts; no outage mark, no wait reason. */
+  function seedLiveShape() {
+    const id = seedParked();
+    const ref = `captureCoverageReviews/${id}`;
+    state.docs.set(ref, { ...state.docs.get(ref), state: "waiting_prerequisite", attempts: 3,
+      first_claimed_at_ms: T0 - 202_000, started_at: T0 - 1_000 });
+    return id;
+  }
+  /** The capture's budget still names the last call in flight, as a call that failed before recording a response leaves it. */
+  function seedPendingCall(id: string, runStatus: string) {
+    const budget = `captureCoverageReviews/budget-${humanDecisionDigest({ capture_id: "walkthrough-req-1" })}`;
+    state.docs.set(budget, { schema_version: "capture_coverage_inference_budget.v1", capture_id: "walkthrough-req-1", cap_usd: null,
+      exposure_usd: 1.818624, calls: 1, pending_token: "tok-1", last_review_id: id });
+    state.docs.set(`${budget}/calls/tok-1`, { schema_version: "capture_inference_call.v1", admission_token: "tok-1", state: "admitted",
+      capture_id: "walkthrough-req-1", request_id: "req-1", run_id: null, owner_run_id: "run-1", review_id: id, claim_token: "old",
+      reserved_usd: 1.818624 });
+    state.docs.set("agentRuns/run-1", { task_kind: "capture_coverage", status: runStatus, session_key: `capture_coverage:${id}`,
+      metadata: { capture_id: "walkthrough-req-1", review_id: id, coverage_claim_token: "old" } });
+    return budget;
+  }
+
+  it("recovers a reading parked by waits, shaped as the live record, and reads it with no one pressing anything", async () => {
+    const id = seedLiveShape();
+    seams.review.mockResolvedValue(FINDING);
+    await passAt(T0);
+    await passAt(T0 + MINUTE);
+    expect(seams.review).toHaveBeenCalledTimes(1);
+    expect(reviewOf()).toMatchObject({ review_id: id, state: "completed" });
+    expect((state.docs.get(`captureCoverageReviews/${id}`) as Record<string, any>).requeue_history)
+      .toEqual([expect.objectContaining({ automatic: true, prior_attempts: 3, prior_state: "waiting_prerequisite" })]);
+  });
+
+  it("recovers it when its last call's owner has ended but the budget still names that call in flight", async () => {
+    const id = seedLiveShape();
+    seedPendingCall(id, "failed");
+    seams.review.mockResolvedValue(FINDING);
+    await passAt(T0);
+    await passAt(T0 + MINUTE);
+    expect(seams.review).toHaveBeenCalledTimes(1);
+    expect(reviewOf()).toMatchObject({ review_id: id, state: "completed" });
+  });
+
+  it("does not recover it while its last call's owner may still be running", async () => {
+    seedPendingCall(seedLiveShape(), "running");
+    await passAt(T0);
+    expect(reviewOf()).toMatchObject({ state: "review_required" });
+    expect(seams.review).not.toHaveBeenCalled();
+  });
+
+  it("recovers a reading by itself once at most, and never uses the owner's two requeues for it", async () => {
+    const id = seedLiveShape();
+    seams.review.mockResolvedValue(null);
+    // Recovered, then three reads that went wrong park it again, this time marked.
+    await passAt(T0);
+    expect(reviewOf()).toMatchObject({ state: "requeued", reason: "automatic_parked_reading_recovery" });
+    for (let pass = 1; pass < 10 && reviewOf()?.state !== "review_required"; pass++) await passAt(T0 + pass * 2 * MINUTE);
+    expect(seams.review).toHaveBeenCalledTimes(3);
+    expect(reviewOf()).toMatchObject({ state: "review_required", waits_and_outages_excluded: true });
+    // Even unmarked, a reading already recovered once is not recovered by the queue again.
+    state.docs.set("inboundRequests/req-1", { ...request(), capture_coverage_review: { review_id: id, state: "review_required",
+      reason: "automatic_review_attempts_exhausted" } });
+    expect((await requeueExhaustedCoverageReview("req-1", { apply: true, automatic: true })).reason).toBe("requeue_limit_reached");
+    const approval = { approvedBy: "owner-uid", approvalEvidence: "owner said so" };
+    expect((await requeueExhaustedCoverageReview("req-1", { apply: true, approval })).outcome).toBe("requeued");
+  });
+
   it("is left alone when its window has ended, or when it was parked by readings that went wrong", async () => {
-    seedParked({ website_job_window_ending: { window_ended_at_epoch: T0 / 1000 } });
+    seedParked();
+    endWindow(T0 - MINUTE);
     await passAt(T0);
     expect(reviewOf()).toMatchObject({ state: "review_required" });
     state.docs.clear();
     const id = seedParked();
-    state.docs.set("inboundRequests/req-1", { ...request(), capture_coverage_review: { ...reviewOf(), provider_outages_excluded: true } });
+    state.docs.set("inboundRequests/req-1", { ...request(), capture_coverage_review: { ...reviewOf(), waits_and_outages_excluded: true } });
     await passAt(T0);
     expect(reviewOf()).toMatchObject({ review_id: id, state: "review_required" });
     expect(seams.review).not.toHaveBeenCalled();

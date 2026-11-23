@@ -11,8 +11,12 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { CAPTURE_MODE_NOT_CONVERTED, CAPTURE_MODE_NOT_CONVERTED_DETAIL, authorizeCaptureUpload } from "./captureUploadAuthorization";
 import { COVERAGE_REVIEW_MAX_ATTEMPTS, coverageClearanceRefusal, type CoverageClearanceRefusal } from "./captureCoverageQueue";
+import { pendingCallOwnerEnded } from "./captureCoverageInferenceBudget";
 
-/** A reading can be requeued at most this many times in its life: each attempt can buy a paid model call. */
+/**
+ * A reading can be requeued by the owner at most this many times in its life: each attempt can buy a paid model call.
+ * The queue's own one-time recovery of a reading parked by waits (`automatic`) is not one of them.
+ */
 export const COVERAGE_REVIEW_MAX_REQUEUES = 2;
 /** Where each applied requeue's audit record is kept, under its own digest. */
 export const COVERAGE_REQUEUE_AUDIT_COLLECTION = "captureCoverageRequeueAudits";
@@ -41,7 +45,7 @@ export type CoverageRequeueApproval = { approvedBy: string; approvalEvidence: st
 const plain = (value: unknown) => (value === undefined ? null : value);
 const del = () => admin.firestore.FieldValue.delete();
 /** Wait fields the queue's wait handling writes; the requeued reading starts its wait window afresh. */
-const WAIT_FIELDS = ["wait_reason", "wait_counted", "retry_after_ms", "first_claimed_at_ms"] as const;
+const WAIT_FIELDS = ["wait_reason", "wait_counted", "retry_after_ms", "first_claimed_at_ms", "first_waited_at_ms"] as const;
 
 /**
  * Requeue the reading named on `requestId`'s `capture_coverage_review`, or say why not. `apply` false (the default) is
@@ -50,8 +54,9 @@ const WAIT_FIELDS = ["wait_reason", "wait_counted", "retry_after_ms", "first_cla
 export async function requeueExhaustedCoverageReview(requestId: string, options: { apply?: boolean;
   approval?: CoverageRequeueApproval; now?: number;
   /**
-   * The queue's own recovery of a reading parked before provider outages stopped using attempts
-   * (`captureCoverageQueue.ts`): no person approves it, and it is recorded as automatic. Every other check is the same.
+   * The queue's own recovery of a reading parked before waits and provider outages stopped using attempts
+   * (`captureCoverageQueue.ts`): no person approves it, it is recorded as automatic, it happens at most once per
+   * reading and it does not use one of the owner's requeues. Every other check is the same.
    */
   automatic?: boolean } = {}): Promise<CoverageRequeueResult> {
   if (!db) throw new Error("coverage_store_unavailable");
@@ -108,7 +113,9 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
       return refuse("requeue_history_unreadable");
     const history: Record<string, unknown>[] = job!.requeue_history ?? [];
     const flags = history.length ? [`This reading was requeued ${history.length} time(s) before.`] : [];
-    if (!record("requeue_bound", history.length < COVERAGE_REVIEW_MAX_REQUEUES)) return refuse("requeue_limit_reached");
+    const ownerRequeues = history.filter(entry => entry?.automatic !== true).length;
+    if (!record("requeue_bound", automatic ? !history.some(entry => entry?.automatic === true)
+      : ownerRequeues < COVERAGE_REVIEW_MAX_REQUEUES)) return refuse("requeue_limit_reached");
     const clearance = coverageClearanceRefusal(request, briefSnap.data(), binding, job!.captureId);
     for (const name of ["recording_consent_not_current", "privacy_decision_not_proceeded", "capture_changed", "source_changed",
       "brief_changed"] as const) {
@@ -127,8 +134,10 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
     const pendingCall = budget?.pending_token
       ? (await tx.get(budgetRef.collection("calls").doc(String(budget.pending_token)))).data() : null;
     // The budget allows one model call per capture at a time and refuses a new one while any is recorded in flight.
-    // A requeued reading would only wait on it, count its waits after 30 minutes and use up a requeue: refused instead.
-    if (!record("no_model_call_in_flight", !budget?.pending_token)) {
+    // A call whose owner has ended (the reservation's own ownership check) is retired by the next reservation, so it
+    // does not stop the requeue. One whose owner may still be running does: the requeued reading would only wait on it.
+    const ownerEnded = pendingCall ? await pendingCallOwnerEnded(tx, pendingCall, job!.captureId) : false;
+    if (!record("no_model_call_in_flight", !budget?.pending_token || ownerEnded)) {
       const owner = pendingCall?.review_id === reviewId ? "this reading's own earlier call"
         : pendingCall?.review_id ? "another reading of this capture" : pendingCall?.run_id ? "the site assessment" : "an unreadable call record";
       return refuse("model_call_in_flight", [...flags, `A model call for this capture is recorded in flight (${owner}, state ${
@@ -146,7 +155,7 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
     const historyEntry = { requeued_at_iso: nowIso, approved_by: auditPayload.approved_by,
       approval_evidence: auditPayload.approval_evidence, automatic, prior_attempts: attempts, prior_state: prior.state, audit_digest: auditDigest };
     const coverageRequest = params ?? { requestId, sceneId: job!.sceneId, captureId: job!.captureId };
-    const requeuedReview = { review_id: reviewId, state: REQUEUED_STATE, reason: automatic ? "automatic_provider_outage_recovery" : "owner_approved_requeue" };
+    const requeuedReview = { review_id: reviewId, state: REQUEUED_STATE, reason: automatic ? "automatic_parked_reading_recovery" : "owner_approved_requeue" };
 
     const jobDoc = `captureCoverageReviews/${reviewId}`, requestDoc = `inboundRequests/${requestId}`;
     const changes: CoverageRequeueChange[] = [
@@ -161,7 +170,8 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
       { document: requestDoc, field: "capture_coverage_review", from: { review_id: reviewId, state: review.state, reason: review.reason },
         to: requeuedReview },
       { document: `${COVERAGE_REQUEUE_AUDIT_COLLECTION}/${auditDigest}`, field: "(new audit record)", from: null,
-        to: `requeue ${history.length + 1} of at most ${COVERAGE_REVIEW_MAX_REQUEUES}` },
+        to: automatic ? "automatic recovery (once; not one of the owner's requeues)"
+          : `requeue ${ownerRequeues + 1} of at most ${COVERAGE_REVIEW_MAX_REQUEUES}` },
     ];
     const audit = { collection: COVERAGE_REQUEUE_AUDIT_COLLECTION, id: auditDigest, digest: auditDigest };
     if (!apply) return { outcome: "would_requeue", checks, changes, flags, audit };
