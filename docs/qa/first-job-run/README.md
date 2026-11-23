@@ -18,6 +18,18 @@ The audit this follows is in pull request 1374
 
 For a session that picks this up. Newest first.
 
+- 2026-11-23 15:06Z. The Pipeline deploy of `8feb4e9` is running; another
+  operator requested it at 15:00:09Z (door request
+  `20261123T150009Z-deploy-556fb13c`), so this session did not stack a second
+  one. The website is on `a65e3e8` with the gap 1 fix. Pull request 1415 (gap
+  2) waits for its last check. A pre-flight workflow traces four stretches of
+  the path on fixtures and emulators. Owner decisions at about 15:04Z, for
+  this run only: Pipeline fixes may deploy as they merge, outside the window
+  (the door still holds a deploy while a paid stage runs); workers may pull the
+  internal test jobs' stored files (`itest-…`) for replays. Next: confirm the
+  deploy; merge 1415 and 1410; confirm `/version.json`; recount; submit job 1
+  with the Mixkit clip, place picked from the suggestions. Job 2 (the CC0
+  warehouse walk-through, typed place) goes in only after job 1 is listed.
 - 2026-11-23 14:32Z. Pull request 1414 (gap 1) is merged; its deploy to the
   website is not confirmed yet (`/version.json` still `043d2fc`). The owner
   said at about 13:45Z to merge pull request 1410 after the Pipeline deploy,
@@ -189,7 +201,29 @@ Found by reading, before the job was sent.
   shown it once a statement allows the city. With a city stored, the existing
   redaction also removes the city's name from the site's sentence as companies
   read it, although the place line shows the city.
-- **Verified.** Not yet.
+- **Verified.** On the live form at 14:49Z (release `a65e3e8`), with nothing
+  sent: after picking "Austin, Texas" the form's own saved draft holds
+  `{"source":"google_places","city":"Austin","state":"Texas","country":"US"}`.
+  Still to verify on the test job: the request body, and the place line a
+  company reads.
+
+### Gap 2. A new test on main failed at random
+
+Found while test-merging pull request 1410 onto main after gap 1 merged.
+
+- **What.** `server/tests/start-place-company-view.test.ts`, added by pull
+  request 1414, failed about one run in five. A test that fails at random
+  blocks any pull request, and a red main does not deploy.
+- **Evidence.** It read the start route's development log at a fixed path
+  under the temp folder (`start-place-company-view.test.ts:21`), and
+  `server/tests/inbound-request.test.ts:302-303` deletes that same path in its
+  set-up. Run together 25 times on `a65e3e8`: 4 failures, each
+  `ENOENT … /tmp/blueprint-dev-inbound-requests.jsonl`.
+- **Fix.** Pull request 1415: the test points `TMPDIR` at its own fresh folder
+  before it loads the route. One test file; no product code; no assertion
+  changed.
+- **Verified.** The same 25 runs after the change: 0 failures. Merge pending
+  its last check.
 
 ## What still needs the owner
 
