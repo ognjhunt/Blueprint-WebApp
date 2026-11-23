@@ -34,7 +34,7 @@ import {
 import { RobotFitError, getAdminRobotFit, rankTeamsForJob } from "../utils/siteRobotFit";
 import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import {
-  JobCompaniesError, loadAdminJobCompanies, recordCompanyResponseByOperator, recordCompanySend, setOperatorListingHold, voidCompanySend,
+  JobCompaniesError, loadAdminJobCompanies, setOperatorListingHold,
   type OperatorActor,
 } from "../utils/jobCompanies";
 
@@ -309,7 +309,7 @@ router.post("/:requestId/robot-fit/ranking", async (req: Request, res: Response)
 /* ------------------------------------------------------- deployment companies */
 
 function jobCompaniesErrorResponse(res: Response, error: JobCompaniesError) {
-  const status = error.code === "job_not_found" || error.code === "send_not_found" ? 404
+  const status = error.code === "job_not_found" ? 404
     : error.code === "store_unavailable" ? 503 : 409;
   return res.status(status).json({ code: error.code, error: error.message });
 }
@@ -335,80 +335,17 @@ router.get("/:requestId/companies", async (req: Request, res: Response) => {
   }
 });
 
-const companyId = z.string().regex(/^[a-f0-9]{64}$/);
-const sendBody = z.object({ companyId }).strict();
-
-/** Record that the operator sent this job's library address to an approved deployment company, from their own mailbox. */
-router.post("/:requestId/companies/sends", async (req: Request, res: Response) => {
-  const parsed = requestId.safeParse(req.params.requestId);
-  const body = sendBody.safeParse(req.body);
-  if (!parsed.success || !body.success) return res.status(400).json({ error: "Choose an approved deployment company." });
-  try {
-    const actor = operatorOf(res);
-    const send = await recordCompanySend(parsed.data, body.data.companyId, actor);
-    logger.info({ requestId: parsed.data, actor: actor.uid, sendId: send.sendId, alias: send.alias }, "Company send recorded");
-    res.set("Cache-Control", "no-store");
-    return res.json({ send });
-  } catch (error) {
-    if (error instanceof JobCompaniesError) return jobCompaniesErrorResponse(res, error);
-    logger.error({ err: error, requestId: parsed.data }, "Company send failed");
-    return res.status(503).json({ error: "The send could not be recorded. Try again." });
-  }
-});
-
-const sendId = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
-
-/** Void a mistaken send: it stays on record and the site no longer sees it. */
-router.post("/:requestId/companies/sends/:sendId/void", async (req: Request, res: Response) => {
-  const parsed = requestId.safeParse(req.params.requestId);
-  const send = sendId.safeParse(req.params.sendId);
-  if (!parsed.success || !send.success || (req.body && Object.keys(req.body).length)) return res.status(400).json({ error: "Invalid send." });
-  try {
-    const actor = operatorOf(res);
-    const voided = await voidCompanySend(parsed.data, send.data, actor);
-    logger.info({ requestId: parsed.data, actor: actor.uid, sendId: send.data }, "Company send voided");
-    res.set("Cache-Control", "no-store");
-    return res.json({ voided });
-  } catch (error) {
-    if (error instanceof JobCompaniesError) return jobCompaniesErrorResponse(res, error);
-    logger.error({ err: error, requestId: parsed.data }, "Company send void failed");
-    return res.status(503).json({ error: "The send could not be voided. Try again." });
-  }
-});
-
-const responseBody = z.object({
-  companyId,
-  // A tested answer is the company's own, on the job's page (E9); an operator records only the three others.
-  state: z.enum(["interested", "declined", "needs_something"]),
-  inputs: z.string().trim().max(2000).default(""),
-}).strict();
-
-/** Record an answer a company gave by email, about a job Blueprint sent it: their words for Blueprint only. */
-router.post("/:requestId/companies/responses", async (req: Request, res: Response) => {
-  const parsed = requestId.safeParse(req.params.requestId);
-  const body = responseBody.safeParse(req.body);
-  if (!parsed.success || !body.success) return res.status(400).json({ error: "Choose the company and its answer." });
-  try {
-    const actor = operatorOf(res);
-    const recorded = await recordCompanyResponseByOperator(parsed.data, { companyId: body.data.companyId, state: body.data.state,
-      inputs: body.data.inputs }, actor);
-    logger.info({ requestId: parsed.data, actor: actor.uid, alias: recorded.alias, state: body.data.state }, "Company response recorded by operator");
-    res.set("Cache-Control", "no-store");
-    return res.json({ response: recorded });
-  } catch (error) {
-    if (error instanceof JobCompaniesError) return jobCompaniesErrorResponse(res, error);
-    logger.error({ err: error, requestId: parsed.data }, "Company response record failed");
-    return res.status(503).json({ error: "The answer could not be recorded. Try again." });
-  }
-});
-
-const holdBody = z.object({ held: z.boolean(), reason: z.string().trim().max(500).optional() }).strict();
+// Stopping needs a reason (the only staff stop for a privacy or rights problem); showing again needs none.
+const holdBody = z.discriminatedUnion("held", [
+  z.object({ held: z.literal(true), reason: z.string().trim().min(1).max(500) }).strict(),
+  z.object({ held: z.literal(false), reason: z.string().trim().max(500).optional() }).strict(),
+]);
 
 /** "Stop showing this job to companies" / "Show again": Blueprint's own hold, read by `teamJobAccess`. */
 router.post("/:requestId/companies/hold", async (req: Request, res: Response) => {
   const parsed = requestId.safeParse(req.params.requestId);
   const body = holdBody.safeParse(req.body);
-  if (!parsed.success || !body.success) return res.status(400).json({ error: "Send whether to stop showing this job to companies." });
+  if (!parsed.success || !body.success) return res.status(400).json({ error: "Say why this job should stop being shown to companies." });
   try {
     const actor = operatorOf(res);
     const hold = await setOperatorListingHold(parsed.data, body.data.held, body.data.reason || null, actor);

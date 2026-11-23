@@ -1,19 +1,17 @@
 /**
- * Deployment companies, the staff tool on the admin job page (package C1, 2026-11-12): the writes that exist nowhere
- * else. Record a send made by hand from staff's own mailbox (with the job's library address to paste), void a
- * mistaken one, record an answer a company sent by email, and stop showing the job to every company, or show it again.
- * Where the job stands with companies, and every send, answer and introduction with its time, are on the page itself.
+ * Deployment companies, the staff tool on the admin job page (package C1, 2026-11-12): the sends and answers on record,
+ * read only, and the one staff write: stop showing the job to every company, with a reason, or show it again. Staff no
+ * longer record a send, void one or record an emailed answer (2026-11-22): sends are automatic and companies answer on
+ * the job's page.
  *
- * The site is told each send and answer under an alias ("Company A") and a fixed label, with the company's words with
- * its name and contact details taken out, never its name. An answer recorded here is shown to the site like any other,
- * with "Introduce us" beside Interested. "Stop showing this job to companies" holds the job back from every company
- * (the library card and the response form close, and the site's page says it is not visible right now) until "Show
- * again". Every write records who and when.
+ * "Stop showing this job to companies" is the staff stop for a privacy or rights problem: it holds the job back from
+ * every company (the library card and the response form close, and the site's page says it is not visible right now)
+ * until "Show again". Every write records who and when.
  */
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
-import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, elapsedSince, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, elapsedSince } from "@/lib/companyResponses";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { AdminJobCompanies } from "@/types/jobCompanies";
@@ -35,7 +33,6 @@ export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
-  const [copied, setCopied] = useState(false);
   const base = `/api/admin/jobs/${encodeURIComponent(requestId)}/companies`;
   // Only the latest read is applied: an older read that finishes late never replaces what an action just wrote.
   const latestLoad = useRef(0);
@@ -88,32 +85,6 @@ export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
 
   const panel = loaded.status === "ready" ? loaded.panel : null;
   const firstResponseElapsed = elapsedSince(panel?.startedAtIso, panel?.firstAnswerAtIso);
-  const visible = panel?.sharing.state === "shared_visible";
-  // An emailed answer is recorded only for a company with a standing (not voided) send; the route refuses any other.
-  const sentTo = panel ? panel.companies.filter(company => panel.sends.some(send => send.companyId === company.id && !send.voidedAtIso)) : [];
-
-  async function onSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const companyId = String(new FormData(form).get("companyId") || "");
-    if (!companyId) { setActionError("Choose an approved deployment company."); return; }
-    if (await act("/sends", { companyId }, "The send could not be recorded")) form.reset();
-  }
-
-  async function onResponse(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const companyId = String(data.get("companyId") || "");
-    const state = String(data.get("state") || "") as CompanyResponseState;
-    if (!companyId) { setActionError("Choose the company that answered."); return; }
-    if (await act("/responses", { companyId, state, inputs: String(data.get("inputs") || "") },
-      "The answer could not be recorded")) form.reset();
-  }
-
-  async function copyAddress(url: string) {
-    try { await navigator.clipboard.writeText(url); setCopied(true); } catch { setCopied(false); }
-  }
 
   return (
     <section aria-label="Deployment companies" className="admin-job-tool">
@@ -136,29 +107,11 @@ export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
         </div> : <form className="ms-form" aria-label="Stop showing this job to companies" onSubmit={event => {
           event.preventDefault();
           const reason = String(new FormData(event.currentTarget).get("reason") || "").trim();
-          void act("/hold", reason ? { held: true, reason } : { held: true }, "The hold could not be changed");
+          void act("/hold", { held: true, reason }, "The hold could not be changed");
         }}>
-          <label>Why (staff only, optional)<input name="reason" maxLength={500} /></label>
+          <label>Why (staff only)<input name="reason" required maxLength={500} /></label>
           <button type="submit" className="ms-button" disabled={busy}>Stop showing this job to companies</button>
         </form>}
-
-        <form className="ms-form" aria-label="Record a send" onSubmit={event => void onSend(event)}>
-          <h4 className="bare-rows-title">Record a send made by hand</h4>
-          <p className="ms-field-hint">
-            The job's page, to paste in your email (a company opens it signed in):{" "}
-            <code aria-label="Job library address">{panel.libraryUrl}</code>{" "}
-            <button type="button" className="bare-quiet-button" onClick={() => void copyAddress(panel.libraryUrl)}>{copied ? "Copied" : "Copy"}</button>
-          </p>
-          {!visible ? <p className="ms-field-hint">A send can be recorded only while the job is shared and visible to companies.</p> : null}
-          {!panel.companies.length ? <p className="ms-field-hint">No deployment company is approved yet.</p> : null}
-          <label>Approved deployment company
-            <select name="companyId" defaultValue="" disabled={!visible || panel.consentRevoked}>
-              <option value="" disabled>Choose a company</option>
-              {panel.companies.map(company => <option key={company.id} value={company.id}>{company.company || company.email} · {company.email}</option>)}
-            </select>
-          </label>
-          <button type="submit" className="ms-button" disabled={busy || !visible || panel.consentRevoked}>Record the send</button>
-        </form>
 
         <section aria-label="Sends">
           <h4 className="bare-rows-title">Sends</h4>
@@ -168,9 +121,7 @@ export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
                 {send.company ?? send.companyId}{send.alias ? ` (Company ${send.alias} to the site)` : ""}, {dateLabel(send.sentAtIso)}
                 {send.sentBy === "system" ? ", automatic" : send.sentBy ? `, by ${send.sentBy}` : ""}
               </span>
-              {send.voidedAtIso ? <span className="bare-helper"> Voided {dateLabel(send.voidedAtIso)}{send.voidedBy ? ` by ${send.voidedBy}` : ""}</span>
-                : <> <button type="button" className="bare-quiet-button" disabled={busy}
-                  onClick={() => void act(`/sends/${encodeURIComponent(send.sendId)}/void`, {}, "The send could not be voided")}>Void</button></>}
+              {send.voidedAtIso ? <span className="bare-helper"> Voided {dateLabel(send.voidedAtIso)}{send.voidedBy ? ` by ${send.voidedBy}` : ""}</span> : null}
             </li>)}
           </ul>}
         </section>
@@ -188,27 +139,6 @@ export function JobCompaniesConsole({ requestId, currentUser, onChanged }: {
           </ul>}
         </section>
 
-        <form className="ms-form" aria-label="Record a response" onSubmit={event => void onResponse(event)}>
-          <h4 className="bare-rows-title">Record an answer a company sent by email</h4>
-          {!sentTo.length ? <p className="ms-field-hint">Record a send first: an answer is recorded only for a company the job was sent to.</p> : null}
-          <label>Company (one this job was sent to)
-            <select name="companyId" defaultValue="" disabled={panel.consentRevoked}>
-              <option value="" disabled>Choose a company</option>
-              {sentTo.map(company => <option key={company.id} value={company.id}>{company.company || company.email} · {company.email}</option>)}
-            </select>
-          </label>
-          <label>Answer
-            <select name="state" defaultValue="interested" disabled={panel.consentRevoked}>
-              {/* A tested answer is the company's own, on the job's page, after downloading the simulation (E9). */}
-              {COMPANY_RESPONSE_STATES.filter(state => !TESTED_RESPONSE_STATES.includes(state)).map(state =>
-                <option key={state} value={state}>{COMPANY_RESPONSE_LABELS[state]}</option>)}
-            </select>
-          </label>
-          <label>Their words (the site reads them, with the company's name and contact details taken out)
-            <textarea name="inputs" maxLength={2000} disabled={panel.consentRevoked} />
-          </label>
-          <button type="submit" className="ms-button" disabled={busy || panel.consentRevoked}>Record the answer</button>
-        </form>
         {actionError ? <p role="alert" className="bare-notice">{actionError}</p> : null}
       </> : null}
     </section>
