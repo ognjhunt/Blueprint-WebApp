@@ -273,12 +273,15 @@
 /* The site's next decision is the company reply. Sent dates and timings stay readable at secondary weight. */
 .bare-screen.site-job-status { max-width: 680px; }
 .bare-screen.site-job-status .bare-job { display: block; max-width: 64ch; font-size: 16px; line-height: 1.5; }
+/* The two cards on the job page (where the job stands, and the quick questions) are white on the paper background, with
+   a firmer edge, so they read as separate blocks rather than blending into the page. */
 .bare-screen .site-company-panel {
   margin-top: 24px;
   padding: clamp(16px, 3vw, 24px);
-  border: 1px solid #d7dbd2;
+  border: 1px solid #c9cec1;
   border-radius: 14px;
-  background: #fdfdf8;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(34, 37, 30, .05), 0 6px 18px rgba(34, 37, 30, .04);
 }
 
 .site-company-panel h2 { font-size: 21px; font-weight: 670; letter-spacing: -.025em; line-height: 1.2; }
@@ -339,11 +342,42 @@
 .site-job-company-entries .bare-action .bare-helper { margin-top: 6px; max-width: 58ch; }
 .site-job-status .site-job-facts {
   padding: clamp(16px, 3vw, 22px);
-  border: 1px solid #d7dbd2;
+  border: 1px solid #c9cec1;
+  border-left: 4px solid var(--ms-green);
   border-radius: 12px;
-  background: #fafaf4;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(34, 37, 30, .05), 0 6px 18px rgba(34, 37, 30, .04);
 }
-.site-job-status .site-job-facts h2 { font-weight: 650; }
+/* The heading is the frame, the question is the thing to read: small and green over large and dark. */
+.site-job-facts .site-job-facts-heading { margin: 0 0 10px; color: var(--ms-green); font-size: 14px; font-weight: 650; letter-spacing: 0; }
+.site-job-facts .site-job-fact-question { margin: 0 0 12px; color: var(--ms-ink); font-size: 19px; font-weight: 650; line-height: 1.3; letter-spacing: -.01em; }
+.site-job-facts .site-job-fact-hint { margin: -6px 0 12px; }
+.site-job-fact-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.site-job-fact-choice {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid #a7ac9f;
+  border-radius: 999px;
+  background: var(--ms-paper);
+  color: var(--ms-ink);
+  font: inherit;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.site-job-fact-choice:hover { border-color: var(--ms-green); background: #e9eee4; }
+.site-job-fact-choice[aria-pressed="true"] { border-color: var(--ms-green); background: var(--ms-green); color: #f6f5ef; font-weight: 600; }
+.site-job-fact-choice[aria-disabled="true"] { cursor: progress; }
+.site-job-fact-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.site-job-fact-progress { display: inline-flex; align-items: center; gap: 10px; }
+.site-job-fact-progress .ms-field-hint { margin: 0; }
+.site-job-fact-bar { display: inline-block; width: 72px; height: 4px; overflow: hidden; border-radius: 2px; background: #e1e4db; }
+.site-job-fact-bar > span { display: block; height: 100%; border-radius: 2px; background: var(--ms-green); }
+.site-job-facts .ms-inline-link { padding: 0; border: 0; background: none; color: var(--ms-green); font: inherit; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.site-job-facts .site-job-fact-skip { min-height: 44px; padding: 0 4px; color: var(--ms-muted); font-size: 14px; }
+.site-job-facts .site-job-fact-skip:hover { color: var(--ms-ink); }
 .ms-form.ms-job-number { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-bottom: 10px; }
 .ms-job-number input { max-width: 10ch; }
 .site-job-status .site-job-facts p[role="status"]:empty { display: none; }

@@ -4,6 +4,7 @@ import { TaskOutcomeNotice } from "@/components/site/TaskOutcomeNotice";
 import type { TaskOutcome } from "@/types/taskOutcome";
 import { isLikelyPhone } from "@/lib/device";
 import { JobFacts } from "@/components/site/JobFacts";
+import { sanitizeJobObject, type JobObject } from "@/lib/jobFacts";
 import type { FirstLookWords } from "@/lib/firstLookWords";
 import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
 import { TaskDestinationAnswered, TaskDestinationChoice, isDestinationChoice, type TaskDestinationChoiceView } from "@/components/site/TaskDestinationChoice";
@@ -66,6 +67,8 @@ type TaskStatus = {
   sceneViewUrl?: string | null;
   /** The site's tap answers to the few quick questions (PACKAGE_E E1), for the owner only. */
   jobFacts?: unknown;
+  /** What the video reading calls the job's object, so the quick questions can name it; for the owner only. */
+  jobObject?: JobObject | null;
   /** The first look as the Pipeline's published table words it, for the owner only. */
   firstLookTable?: FirstLookWords | null;
   /** The server holds a recording, whichever device sent it. */
@@ -583,6 +586,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             // An outlook that missed the server's deadline is not a new phase: the last good one stays, within the hold.
             outlook: keptOutlook ? currentStatus.current?.outlook ?? null : outlookLate ? null : data.outlook ?? null,
             jobFacts: data.scope === "owner" ? data.jobFacts ?? null : null,
+            jobObject: data.scope === "owner" ? sanitizeJobObject(data.jobObject) : null,
             firstLookTable: data.scope === "owner" && data.firstLookTable && Array.isArray(data.firstLookTable.rows) ? data.firstLookTable : null,
             captureReceived: data.captureReceived === true,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
@@ -879,7 +883,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // Only for a shared job: a job under an older statement has no company to answer yet, and its page asks for v4 first.
   const taskFamily = status?.companyStatus?.taskFamily ?? anonymizedOpportunityDraft(jobSentence ?? "").taskFamily;
   const jobFacts = answer && scope === "owner" && !withdrawn && answer.sharing?.state !== "not_shared"
-    ? <JobFacts key={taskFamily} token={token} facts={status?.jobFacts as never} taskFamily={taskFamily} /> : null;
+    ? <JobFacts key={taskFamily} token={token} facts={status?.jobFacts as never} taskFamily={taskFamily}
+      jobObject={status?.jobObject ?? null} /> : null;
   const siteActionWaiting = answer?.sharing?.olderStatement === true || !quietCard || Boolean(taskStatementForm);
   const settingsOpen = scope === "owner" && (link.status === "valid" || link.status === "held");
   const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || undefined}

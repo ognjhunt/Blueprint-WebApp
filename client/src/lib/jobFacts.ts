@@ -123,11 +123,15 @@ export function jobFactKeysForType(taskFamily: string | undefined): readonly Job
   return taskFamily && Object.hasOwn(QUESTIONS_BY_JOB_TYPE, taskFamily) ? QUESTIONS_BY_JOB_TYPE[taskFamily]! : GENERAL_JOB_FACT_KEYS;
 }
 
-/** The question as the site reads it on its job page. */
+/**
+ * The question as the site reads it on its job page, before the video reading names the job's object
+ * (`jobFactQuestion` names it once it does). Weight and size ask for the heaviest and the biggest, since a job may
+ * handle more than one thing; how often asks for times the job is done, which fits any kind of job.
+ */
 export const JOB_FACT_QUESTIONS: Readonly<Record<JobFactKey, string>> = {
-  weight: "How heavy is the item?",
-  size: "How big is it, on its longest side?",
-  perHour: "How many an hour?",
+  weight: "How heavy is the heaviest thing the robot handles?",
+  size: "How big is the biggest thing the robot handles, on its longest side?",
+  perHour: "How many times an hour is the job done?",
   hours: "How many hours a day does this job run?",
   timing: "When would you want this?",
   peakPerMinute: "How many items arrive per minute at the busiest time?",
@@ -142,11 +146,60 @@ export const JOB_FACT_QUESTIONS: Readonly<Record<JobFactKey, string>> = {
   inspectionTarget: "What should the inspection catch?",
 };
 
+/**
+ * What the video reading calls the job's main object ("cake batter"), and the other kinds of item it says the job
+ * probably handles too, as plain noun phrases. Only on the site's own status read; the questions use it for their words.
+ */
+export interface JobObject { name: string; others: string[] }
+
+/** The status read's `jobObject`, or null: a short name and at most five short other names, nothing else. */
+export function sanitizeJobObject(value: unknown): JobObject | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const short = (item: unknown): item is string => typeof item === "string" && item.trim().length > 0 && item.length <= 60;
+  if (!short(raw.name)) return null;
+  return { name: raw.name.trim(), others: (Array.isArray(raw.others) ? raw.others : []).filter(short).map(item => item.trim()).slice(0, 5) };
+}
+
+const PLURAL_WORDS = new Set(["people", "children", "men", "women", "feet", "teeth", "mice", "geese"]);
+/** A name that reads as plural ("cardboard boxes", but not "glass" or "chassis"), so its question says "are". */
+export function looksPlural(name: string): boolean {
+  const last = name.trim().split(/\s+/).pop()?.toLowerCase() ?? "";
+  return PLURAL_WORDS.has(last) || (/[^s]s$/.test(last) && !/(?:us|is|ics)$/.test(last));
+}
+
+const listInWords = (items: readonly string[]) =>
+  items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0] ?? "";
+
+/**
+ * The question in the site's words, naming the job's object once the video reading names it: "How heavy is the cake
+ * batter?" rather than "the item". Weight and size only; the other questions read the same for any object. Without a
+ * name, the question asks for the heaviest or biggest thing the robot handles.
+ */
+export function jobFactQuestion(key: JobFactKey, object?: JobObject | null): string {
+  if ((key !== "weight" && key !== "size") || !object?.name) return JOB_FACT_QUESTIONS[key];
+  const plural = looksPlural(object.name);
+  return key === "weight"
+    ? `How heavy ${plural ? "are" : "is"} the ${object.name}?`
+    : `How big ${plural ? "are" : "is"} the ${object.name}, on ${plural ? "their" : "its"} longest side?`;
+}
+
+/**
+ * A line under a named weight or size question when the answer could mean more than one thing: other kinds of item the
+ * reading says the job probably handles, or a plural object. The answer is then for the heaviest or the biggest.
+ */
+export function jobFactQuestionHint(key: JobFactKey, object?: JobObject | null): string | null {
+  if ((key !== "weight" && key !== "size") || !object?.name) return null;
+  const most = key === "weight" ? "heaviest" : "biggest";
+  if (object.others.length) return `Your video suggests the job may also handle ${listInWords(object.others)}. Answer for the ${most}.`;
+  return looksPlural(object.name) ? `If they vary, answer for the ${most}.` : null;
+}
+
 /** The same answer as a company reads it, one short label per line. */
 export const JOB_FACT_SHORT_LABELS: Readonly<Record<JobFactKey, string>> = {
   weight: "Weight",
   size: "Size, longest side",
-  perHour: "How many an hour",
+  perHour: "Times an hour",
   hours: "Hours a day",
   timing: "When",
   peakPerMinute: "Peak incoming rate",

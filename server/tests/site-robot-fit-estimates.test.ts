@@ -33,7 +33,7 @@ vi.mock("../utils/pilotRecommendationEvidence", async (importOriginal) => ({
   isQualifiedRecommendationEvidence: (evidence: { qualified?: boolean } | null | undefined) => evidence?.qualified === true,
 }));
 
-const { computeRobotFitJob, jobFactsOf, videoEvidence } = await import("../utils/siteRobotFit");
+const { computeRobotFitJob, jobFactsOf, jobObjectOf, videoEvidence } = await import("../utils/siteRobotFit");
 type Inputs = import("../utils/siteRobotFit").RobotFitInputs;
 
 const NOW = "2026-10-20T12:00:00.000Z";
@@ -160,5 +160,29 @@ describe("the people-nearby answer, wherever it comes from", () => {
       .toMatchObject({ value: "nearby", source: "site_stated" });
     expect(people(withVideo({ people: "working_in_the_space" }))).toMatchObject({ value: "shared", source: "video_observed" });
     expect(people(withVideo({ people: "performing_the_task" }))).toBeNull();
+  });
+});
+
+// Owner, 2026-11-23: the site's quick questions name the object ("How heavy is the cake batter?"), from the reading.
+describe("the job's object for the site's own questions", () => {
+  const reading = (estimates: Record<string, unknown>) => ({ walkthrough_job_estimates: { capture_id: "walkthrough-job-1", job_estimates: estimates } });
+
+  it("gives the reading's object and the other kinds of item it names, as plain noun phrases", () => {
+    expect(jobObjectOf(reading({ object: "Cake batter", other_items_likely: ["Frosting", "cake batter", "https://x.example"] })))
+      .toEqual({ name: "cake batter", others: ["frosting"] });
+  });
+
+  it("gives nothing until a reading names an object, and never a link or a robot", () => {
+    expect(jobObjectOf(null)).toBeNull();
+    expect(jobObjectOf({})).toBeNull();
+    expect(jobObjectOf(reading({ object: null }))).toBeNull();
+    expect(jobObjectOf(reading({ object: "https://x.example/box" }))).toBeNull();
+    expect(jobObjectOf(reading({ object: "Robot arm" }))).toBeNull();
+  });
+
+  it("reads an intake link's object only from a usable reading", () => {
+    const link = (status: string) => ({ site_video_evidence: { status, footage_status: "usable", job_estimates: { object: "tote" } } });
+    expect(jobObjectOf(link("analysed"))).toEqual({ name: "tote", others: [] });
+    expect(jobObjectOf(link("failed"))).toBeNull();
   });
 });

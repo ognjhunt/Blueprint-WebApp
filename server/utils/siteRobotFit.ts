@@ -359,6 +359,23 @@ export function videoEvidence(inputs: RobotFitInputs): {
   };
 }
 
+/**
+ * What the video reading calls the job's main object, and the other kinds of item it says the job probably handles,
+ * as plain noun phrases (`itemName`: no link, code or robot name). The site's own job page words its quick questions
+ * with them ("How heavy is the cake batter?"). Walkthrough reading first, then a usable link reading; null until one
+ * names an object.
+ */
+export function jobObjectOf(request: Record<string, any> | null | undefined): { name: string; others: string[] } | null {
+  const walkthrough = (request?.walkthrough_job_estimates as { job_estimates?: unknown } | null | undefined)?.job_estimates;
+  const link = usableReading(request?.site_video_evidence)?.job_estimates;
+  const objectOf = (estimates: unknown) => estimates && typeof estimates === "object" ? itemName((estimates as Record<string, unknown>).object) : null;
+  const name = objectOf(walkthrough) ?? objectOf(link);
+  if (!name) return null;
+  const others = (videoEvidence({ request: request ?? null, brief: null, measurements: null })?.estimates?.otherItemsLikely ?? [])
+    .filter(item => item !== name);
+  return { name, others };
+}
+
 export type PeopleReading = { value: People; display: string; source: RequirementSource };
 
 /** The site's own answer if it ever gave one, else what its video shows. */

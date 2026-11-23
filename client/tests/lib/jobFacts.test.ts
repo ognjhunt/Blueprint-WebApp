@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  JOB_FACT_CHOICES, JOB_FACT_KEYS, NOT_SURE_LABEL, isJobFactCode, jobFactKeysForType, jobFactsInWords, sanitizeJobFacts, weightLowerBoundKg, weightUpperBoundKg,
+  JOB_FACT_CHOICES, JOB_FACT_KEYS, NOT_SURE_LABEL, isJobFactCode, jobFactKeysForType, jobFactQuestion, jobFactQuestionHint, jobFactsInWords,
+  looksPlural, sanitizeJobFacts, sanitizeJobObject, weightLowerBoundKg, weightUpperBoundKg,
 } from "@/lib/jobFacts";
 import { outcomeThanksSentence } from "@/pages/JobOutcomeThanks";
 
@@ -34,6 +35,33 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
     expect(isJobFactCode("itemsPerCase", "1.5")).toBe(false);
     expect(isJobFactCode("machineCycleSeconds", "15 kg")).toBe(false);
     expect(weightUpperBoundKg({ weight: "5_15kg", maxLoadedWeightKg: "11.25" })).toBe(11.25);
+  });
+
+  // Owner, 2026-11-23: more descriptive than "the item".
+  it("names the video reading's object in the weight and size questions, and asks for the heaviest without one", () => {
+    expect(jobFactQuestion("weight")).toBe("How heavy is the heaviest thing the robot handles?");
+    expect(jobFactQuestion("weight", { name: "cake batter", others: [] })).toBe("How heavy is the cake batter?");
+    expect(jobFactQuestion("size", { name: "cake batter", others: [] })).toBe("How big is the cake batter, on its longest side?");
+    expect(jobFactQuestion("size", { name: "cardboard boxes", others: [] })).toBe("How big are the cardboard boxes, on their longest side?");
+    expect(jobFactQuestion("perHour", { name: "cake batter", others: [] })).toBe("How many times an hour is the job done?");
+    expect(jobFactQuestionHint("weight", { name: "cardboard boxes", others: [] })).toBe("If they vary, answer for the heaviest.");
+    expect(jobFactQuestionHint("size", { name: "tote", others: ["bin"] })).toBe("Your video suggests the job may also handle bin. Answer for the biggest.");
+    expect(jobFactQuestionHint("weight", { name: "tote", others: [] })).toBeNull();
+    expect(jobFactQuestionHint("hours", { name: "totes", others: ["bins"] })).toBeNull();
+    expect(jobFactsInWords({ perHour: "60_300" })).toEqual(["Times an hour: 60 to 300"]);
+  });
+
+  it("reads plural names as plural, and words ending in s that are not plural as singular", () => {
+    expect(["boxes", "cardboard boxes", "dishes", "people", "parts"].map(looksPlural)).toEqual([true, true, true, true, true]);
+    expect(["glass", "chassis", "cake batter", "bus", "electronics"].map(looksPlural)).toEqual([false, false, false, false, false]);
+  });
+
+  it("keeps only a short name and short other names from the status read", () => {
+    expect(sanitizeJobObject({ name: " tote ", others: ["bin", 3, "x".repeat(61)], extra: true })).toEqual({ name: "tote", others: ["bin"] });
+    expect(sanitizeJobObject({ name: "" })).toBeNull();
+    expect(sanitizeJobObject({ name: "x".repeat(61) })).toBeNull();
+    expect(sanitizeJobObject("tote")).toBeNull();
+    expect(sanitizeJobObject(null)).toBeNull();
   });
 
   it("labels show both units", () => {
