@@ -16,9 +16,9 @@ host with the next window deploy.
 
 | Status | Rows |
 |---|---|
-| Done | 138 |
+| Done | 144 |
 | Partly done | 9 |
-| In a pull request now | 7 |
+| In a pull request now | 1 |
 | Left, with a reason | 45 |
 | Not taken up | 5 |
 | Owner writes it | 4 |
@@ -30,7 +30,7 @@ host with the next window deploy.
 | Demo practice, no code | 8 |
 | **All** | **254** |
 
-## Done (138)
+## Done (144)
 
 | Row | Verdict | Thing | What happened |
 |---|---|---|---|
@@ -91,6 +91,8 @@ host with the next window deploy.
 | DL26 | DELETE | Slack bell: footage review by hand | approving a company, and staff tools and bells: pull requests 1378, 1387, 1391 |
 | DL27 | DELETE | `/app/captures` page and `/api/capture-uploads` | worker, tests and retired WebApp lanes: pull requests 1400, 1402 |
 | DL36 | SIMPLIFY | Disk usage warnings posted to the alert route | Pipeline: alarms that mean something, and one rule for face blur: pull requests 3693, 3695 |
+| DL38 | DELETE | Success-threshold confirmation | Pipeline: no owner confirmation of success thresholds: pull requests 3699, 3700 |
+| DL40 | DELETE | Scene execution window extension | no hand approval to extend a job's window (both repositories): pull request 1411 |
 | DL43 | DELETE | `/admin/company-metrics` redirect to `/` | approving a company, and staff tools and bells: pull requests 1378, 1387, 1391 |
 | EL03 | SIMPLIFY | Tested answers on the example card | site: start form, job page, emails: pull requests 1398, 1399, 1403 |
 | EL09 | SIMPLIFY | `/jobs#sample-job` deep link | company way in: Find jobs, application, sign-up, job page: pull requests 1385, 1389, 1393, 1394 |
@@ -100,6 +102,8 @@ host with the next window deploy.
 | EL21 | DELETE | Invented counts and quotes | pull request 1369 closed unmerged |
 | EL24 | DELETE | Live rehearsal script | worker, tests and retired WebApp lanes: pull requests 1400, 1402 |
 | GL18 | DELETE | Blueprint's 7-day window as a listing stop | listing and site wording lane: pull requests 1376, 1379, 1382, 1384 |
+| GL21 | DELETE | Window extension with owner approval | no hand approval to extend a job's window (both repositories): pull request 1411 |
+| GL22 | DELETE | Expired grant renewal by the owner | no hand approval to extend a job's window (both repositories): pull request 1411 |
 | GL23 | DELETE | `website_scene_site_unclaimed` | gates in the WebApp: pull requests 1395, 1396, 1397 |
 | GL27 | DELETE | Card "Ready" from runnable proof | gates in the WebApp: pull requests 1395, 1396, 1397 |
 | GL31 | SIMPLIFY | Re-acceptance on every new version by default | gates in the WebApp: pull requests 1395, 1396, 1397 |
@@ -111,6 +115,7 @@ host with the next window deploy.
 | GL45 | SIMPLIFY | Revocation receipt without a reason | Pipeline: alarms that mean something, and one rule for face blur: pull requests 3693, 3695 |
 | GL49 | DELETE | Screening $30 / $4 | Pipeline: retired lanes, their timers, limits and documents: pull requests 3694, 3696 |
 | GL55 | DELETE | OpenAI $560 and World Labs $450 month pages | Pipeline: retired lanes, their timers, limits and documents: pull requests 3694, 3696 |
+| GL60 | DELETE | Owner success contract | Pipeline: no owner confirmation of success thresholds: pull requests 3699, 3700 |
 | ML02 | DELETE | `isRunnableTask` and `scene_not_runnable` in the listing answer | gates in the WebApp: pull requests 1395, 1396, 1397 |
 | ML05 | DELETE | No email to companies approved later | gates in the WebApp: pull requests 1395, 1396, 1397 |
 | ML06 | SIMPLIFY | Withdrawal notice only to companies with a send row | gates in the WebApp: pull requests 1395, 1396, 1397 |
@@ -130,6 +135,7 @@ host with the next window deploy.
 | FL13 | DELETE | Stall alarm "not_configured is quiet" | Pipeline: alarms that mean something, and one rule for face blur: pull requests 3693, 3695 |
 | FL14 | SIMPLIFY | 4xx = "cannot succeed" for 401/402/403 | a key or billing refusal waits as an outage: pull request 3692 |
 | FL15 | DELETE | Atlas per-job operator reopen | parked room builds retry by themselves: pull request 3692 |
+| FL16 | DELETE | Scene execution window extension | no hand approval to extend a job's window (both repositories): pull request 1411 |
 | FL17 | SIMPLIFY | Preparation "six retries, then left as it is" | parked room builds retry by themselves: pull request 3692 |
 | FL20 | DELETE | Hand-copied Privacy version lists (two) | Pipeline: alarms that mean something, and one rule for face blur: pull requests 3693, 3695 |
 | FL24 | MERGE | Three intake browser suites outside CI | worker, tests and retired WebApp lanes: pull requests 1400, 1402 |
@@ -187,17 +193,11 @@ host with the next window deploy.
 | GL39 | DELETE | Recapture stops (8 codes) | six of the eight codes ship the room flagged (pull request 3690); two still ask for a new video because no room exists when they are found |
 | VL25 | DELETE | Host failed transient units and hold-expiry units | the 206 failed units are cleared; the 22 hold-expiry units and the expired hold are not |
 
-## In a pull request now (7)
+## In a pull request now (1)
 
 | Row | Verdict | Thing | What happened |
 |---|---|---|---|
 | BL35 | SIMPLIFY | Job page: country only | the owner chose city and state on 2026-11-23 and approved the sentence a site agrees to; 1410 merges after the Pipeline deploy: pull requests 1407, 1410 |
-| DL38 | DELETE | Success-threshold confirmation | Pipeline: no owner confirmation of success thresholds: a lane is working on it |
-| DL40 | DELETE | Scene execution window extension | no hand approval to extend a job's window (both repositories): a lane is working on it |
-| GL21 | DELETE | Window extension with owner approval | no hand approval to extend a job's window (both repositories): a lane is working on it |
-| GL22 | DELETE | Expired grant renewal by the owner | no hand approval to extend a job's window (both repositories): a lane is working on it |
-| GL60 | DELETE | Owner success contract | Pipeline: no owner confirmation of success thresholds: a lane is working on it |
-| FL16 | DELETE | Scene execution window extension | no hand approval to extend a job's window (both repositories): a lane is working on it |
 
 ## Left, with a reason (45)
 
