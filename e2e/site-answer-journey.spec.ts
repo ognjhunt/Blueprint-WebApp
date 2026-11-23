@@ -473,4 +473,32 @@ test.describe("phone", () => {
     expect(overflow).toBeLessThanOrEqual(0);
     expect(missing).toEqual([]);
   });
+  test("the video model refuses for lack of credit, then answers: the reading waits without using its attempts and the first look comes", async ({ page, request }) => {
+    const missing: string[] = [];
+    await localOnly(page.context(), missing);
+    // The provider refuses the first three calls, as an account with no credit left does (HTTP 429).
+    const refuse = await request.post(`${ORIGIN}/api/reliability/video-model-refuses?calls=3`);
+    expect(refuse.ok()).toBe(true);
+    const stamp = Date.now();
+    const { link, requestId } = await startWithVideo(page, `core-journey-outage-${stamp}@example.invalid`, `14 Outage Street ${stamp}`);
+    await link.click();
+    // While the provider refuses, the reading stays pending: the site reads that its video is being watched.
+    expect((await tick(request, requestId)).finished).toBe(false);
+    await page.reload();
+    await expect(answer(page).getByText("We're watching your video.", { exact: true })).toBeVisible();
+    // Each back-off passes; three refusals later the provider answers. No refusal used one of the three attempts.
+    let finished = false;
+    for (let wait = 0; wait < 5 && !finished; wait++) {
+      const elapsed = await request.post(`${ORIGIN}/api/reliability/provider-wait-elapsed?requestId=${encodeURIComponent(requestId)}`);
+      expect(elapsed.ok()).toBe(true);
+      const { attempts } = await elapsed.json() as { attempts: number[] };
+      expect(attempts.every(count => count === 0)).toBe(true);
+      finished = (await tick(request, requestId)).finished;
+    }
+    expect(finished).toBe(true);
+    await publishCompanyClip(request, requestId);
+    await page.reload();
+    await expectFirstLook(page);
+    expect(missing).toEqual([]);
+  });
 });
