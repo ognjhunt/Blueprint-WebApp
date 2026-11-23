@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
+import { CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
 import express from "express";
 import { createServer } from "http";
 import fs from "node:fs";
@@ -824,8 +824,11 @@ describe("inbound request route", () => {
   // so the Pipeline still blurs it; only a job started from the current form is under 2026-11-17.1. Since 2026-11-19.1
   // (no early trial) a form opened before it records the 2026-11-17.1 pair it showed, which still counts. Since
   // 2026-11-21.1 (launch copy) a form opened before it records the 2026-11-19.1 pair it showed, which still counts.
+  // Since Privacy 2026-11-23.1 (a company sees the city and state) a start under it records Terms 2026-11-21.1 beside
+  // Privacy 2026-11-23.1, and a form opened before it records the 2026-11-21.1 pair it showed, which still counts.
   it.each([
-    ["the current form", { termsVersion: LAUNCH_COPY_VERSION, privacyVersion: LAUNCH_COPY_VERSION }, [LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION]],
+    ["the current form", { termsVersion: LAUNCH_COPY_VERSION, privacyVersion: CITY_STATE_PRIVACY_VERSION }, [LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION]],
+    ["a form opened before Privacy 2026-11-23.1", { termsVersion: LAUNCH_COPY_VERSION, privacyVersion: LAUNCH_COPY_VERSION }, [LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION]],
     ["a form opened before the launch-copy version", { termsVersion: NO_EARLY_TRIAL_VERSION, privacyVersion: NO_EARLY_TRIAL_VERSION }, [NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION]],
     ["a form opened before the no-early-trial version", { termsVersion: NO_FACE_BLUR_VERSION, privacyVersion: NO_FACE_BLUR_VERSION }, [NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION]],
     ["a form opened before the no-blur version", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" }, ["2026-11-12.2", "2026-11-13.1"]],
@@ -861,7 +864,7 @@ describe("inbound request route", () => {
       // The job's version for the Privacy gate: the one the form showed, written once, at submission.
       expect(savedRequest?.privacy_version_at_submission).toBe(expected[1]);
       expect(Number.isNaN(Date.parse(String(savedRequest?.terms_acceptance?.accepted_at ?? "")))).toBe(false);
-      expect([TERMS_VERSION, PRIVACY_VERSION]).toEqual([LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION]);
+      expect([TERMS_VERSION, PRIVACY_VERSION]).toEqual([LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION]);
     } finally {
       await stopServer(server);
     }
@@ -870,7 +873,8 @@ describe("inbound request route", () => {
   it.each([
     ["an older Privacy version", { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-02.1" }],
     ["an older Terms version", { termsVersion: "2026-11-12.1", privacyVersion: "2026-11-13.1" }],
-    ["an older Terms version beside the current Privacy Policy", { termsVersion: "2026-11-12.1", privacyVersion: LAUNCH_COPY_VERSION }],
+    ["an older Terms version beside the current Privacy Policy", { termsVersion: "2026-11-12.1", privacyVersion: CITY_STATE_PRIVACY_VERSION }],
+    ["the current Privacy Policy beside a Terms version no page showed it with", { termsVersion: NO_EARLY_TRIAL_VERSION, privacyVersion: CITY_STATE_PRIVACY_VERSION }],
     ["unknown versions", { termsVersion: "client-supplied-stale", privacyVersion: "client-supplied-stale" }],
   ])("refuses a form that showed %s, recording nothing", async (_label, versions) => {
     process.env.NODE_ENV = "development";

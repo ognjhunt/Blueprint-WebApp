@@ -13,6 +13,7 @@ import {
   PREVIOUS_TERMS_URL,
   PREVIOUS_TERMS_VERSION,
   PRIOR_PRIVACY_VERSION,
+  PAST_PRIVACY_VERSION,
   PRIOR_TERMS_VERSION,
   PRIVACY_URL,
   PRIVACY_VERSION,
@@ -68,8 +69,9 @@ const pastVersions: Record<LegalDocument, ReadonlyArray<{ version: string; url?:
     { version: PREVIOUS_PRIVACY_VERSION, url: PREVIOUS_PRIVACY_URL },
     { version: OLDER_PRIVACY_VERSION },
     { version: FORMER_PRIVACY_VERSION },
-    // 2026-11-12.2 has the same words as 2026-11-12.1, in force from the same day: one entry.
     { version: PRIOR_PRIVACY_VERSION },
+    // 2026-11-12.2 has the same words as 2026-11-12.1, in force from the same day: one entry.
+    { version: PAST_PRIVACY_VERSION },
     { version: EARLIER_PRIVACY_VERSION },
   ],
 };
