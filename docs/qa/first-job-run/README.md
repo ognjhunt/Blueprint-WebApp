@@ -18,6 +18,19 @@ The audit this follows is in pull request 1374
 
 For a session that picks this up. Newest first.
 
+- 2026-11-23 15:40Z. Job 1 is on the host and its room build is in flight.
+  Its sound-free video is not built yet (gap 3). Nine fixes are with workers
+  in two workflows (`fix-preflight-gaps-1`: six; `fix-preflight-gaps-2`:
+  three), branches `claude/dreamy-hamilton-qn8lm4-<slug>` in each repository,
+  one pull request each; see "Gaps found before the job reached them". For
+  each pull request: read the worker's report, check CI and the automated
+  review, merge; a WebApp merge deploys; Pipeline merges deploy through the
+  door as they land (owner, 15:04Z), and each Pipeline deploy restarts job 1's
+  attempt in flight. Owner decisions at about 15:35Z ("yes to both"): a built
+  room ships flagged at once in every case; a billable event counts only once
+  the introduction is made. Watchers running in this session: job 1's clip,
+  and internal test job `itest-917ca852…`'s first retry on the new release.
+  Job 2 is not sent.
 - 2026-11-23 15:24Z. **Job 1 is submitted** (15:21:20Z). Ids: request
   `capture-ceba4511-bfca-4a22-8fdc-0ffae40d27c3`, capture
   `walkthrough-capture-ceba4511-…`, scene `site-capture-ceba4511-…`. The host
@@ -174,6 +187,10 @@ Times are UTC.
 | 2026-11-23 15:21:20 | **Submitted.** The site pressed Send on the live start form: HTTP 201. Recorded: statement and description authority `2026-11-23.v6`, Terms `2026-11-21.1`, Privacy `2026-11-23.1`, country `us`, place `{"source":"google_places","city":"Austin","state":"Texas","country":"US"}`. The hidden bot field was left empty and nothing refused the browser. | the form's own `POST /api/inbound-request` body and its response `Date` header |
 | 2026-11-23 15:21:32 | The video was received: `POST /api/self-capture/uploads/<token>` 201; the page read "We have your video." at 15:21:33. 12 s for 77 MB. | browser log of the visit |
 | 2026-11-23 15:21:57 | The site's job page: "Video received. We're preparing your job for posting." and, under First look, "We're watching your video." No sideways scroll at 390 px (`scrollWidth` 390). | `evidence/site-job-page-at-submit-1280.png`, `-390.png` |
+| 2026-11-23 15:22:49 to 15:22:51 | The hand-off reached the host, 77 s after the video was received. | host files' times through the door: `deliveries/` 15:22:49, `pipeline_handoff.json` 15:22:51 |
+| 2026-11-23 15:22:53 to 15:22:55 | The Pipeline run started; preflight took 1.1 s, materialization 0.8 s; the capture pipeline stage started 15:22:55. | `pipeline/run_summary.json` `stage_timings` |
+| 2026-11-23 15:22:55 | The room build was queued; its first step was in flight from 15:22:58. | `pipeline/atlas/preview_job.json`: `enqueued_at_epoch`, `step_in_flight.since_epoch` |
+| 2026-11-23 15:23:44 | "Your Blueprint job link" reached the site address, 2 min 24 s after Send. It tells a site that already sent its video that a video is required (gap 11). | Gmail, the message's `date` and text |
 
 ## Gaps
 
@@ -243,9 +260,42 @@ Found while test-merging pull request 1410 onto main after gap 1 merged.
 - **Verified.** The same 25 runs after the change: 0 failures. Merge pending
   its last check.
 
+### Gaps found before the job reached them (pre-flight, 15:05Z to 15:28Z)
+
+Four workers each took one stretch of the path and ran the real code on
+fixtures and emulators. A finding counted only with a failing test, a command
+and its output, or an exact file and line. Each row gets its own pull request;
+"Verified" is filled when the fix is seen working.
+
+| # | What | Evidence | Fix | Status |
+|---|---|---|---|---|
+| 3 | The sound-free video is built last in the room-build unit, behind every job's paid room steps. | `website_atlas_preview.py` `main()` order (about :1203-1208); `OnUnitInactiveSec=60s`. Live on job 1: hand-off 15:22:51Z, the pass busy with the job's first room step from 15:22:58Z, no clip at 15:31Z. | Pipeline, `…-publish-before-atlas`: the cheap, rights-gated passes run first and again after the room steps. | with a worker |
+| 4 | A finished job's simulation package is built at the very end of the same unit. | same file; estimated 10 to 30 min typical, about 2 h worst | same pull request as 3 (one cause) | with a worker |
+| 5 | A provider's own 500, 504 or 429 is read as a refusal: the job waits 15 min, then 1 h. | failing test, 5 cases (`…-pf-provider-500-waits`); `website_preparation_retry.py:68-69` | Pipeline, `…-provider-5xx-outage` | with a worker |
+| 6 | The hand-off listener runs up to six other jobs' re-runs before it pulls a new job. | `pubsub_handoff_scene_operations.py:485-518`, pull at about :531 | Pipeline, `…-listener-new-first` | queued |
+| 7 | A built room never ships when the object path is unclear (no scene intent, build never queued, block with no hold): nothing for 24 h, then only a log line. | failing test, 6 cases (`…-pf-floor-never-ships`); `website_company_simulation.py:433-500` | Pipeline, `…-floor-ships-unclear`. Owner: yes, 15:35Z. | with a worker |
+| 8 | When preparation stops on a blocker that is not privacy, rights or money, the built room ships only after the first retry cycle, about 46 h. | `website_scene_handoff.py` `first_retry_cycle_spent`; `job_retry_policy.py:60` (166,500 s). Live example: internal test job `itest-917ca852…`, room built 2026-11-20, 74 failed preparations, no simulation. | Pipeline, `…-floor-on-blocked-preparation`. Owner: yes, 15:35Z (replaces the timing approved 2026-11-22). | with a worker |
+| 9 | The site's page says "You were introduced to …" and shows the company's details at the press, before the company's email is sent. | failing test (`…-pf-introduced-before-made`); `server/utils/jobCompanies.ts:417-446` | WebApp, `…-introduced-when-made` | queued |
+| 10 | A billable event counts before the introduction is made; an introduction whose company email has an unknown outcome, on a job then withdrawn, stays counted for good. | emulator run; `server/utils/billableEvents.ts:70`, `ownerTotals.ts:66-67` | WebApp, `…-billable-when-made`: count only events with a made time, list the others separately. Owner: yes, 15:35Z. | queued |
+| 11 | The job link email tells a site that already sent its video "A video is required to post your job." | read in the test site's mailbox, 15:23:44Z; `server/utils/taskLifecycleNotifications.ts` | WebApp, `…-job-link-email-video` | queued |
+| 12 | A company's video stops seeking 15 min after the page loads: the ticket in its address expires and the player never asks for a new one. | `taskEvaluationResultDownloadTicket.ts:3`, `company-media.ts:94-95`, `CompanyJob.tsx:139` (read; the worker confirms with a test first) | WebApp, `…-video-ticket-refresh` | queued |
+| 13 | The hand-off listener works on one job at a time. It was inside job 1's preparation from 15:22:39Z, so another job's retry due 15:28:59Z had not run by 15:31Z, and a second upload would wait the same way. | `door journal blueprint-pubsub-handoff-listener.service`: started 15:22:39Z, no "Finished" by 15:31Z; the other job's ledger still at attempt 74 | Needs a design: jobs side by side touch paid admission and the host's 4 CPUs. Not assigned. | measuring |
+
+Run by the pre-flight and found working: the Pipeline's real clip for a job
+under `2026-11-23.v6` is accepted by the website's real route (two sources,
+landscape and portrait); a 10-bit HEVC portrait `.mov` with rotation and sound
+comes out as a sound-free H.264 clip; the emulator journey on the 1410 branch.
+
 ## What still needs the owner
 
 - Done 13:21Z: Approve on the test company's application.
+- Decided 15:04Z, this run only: Pipeline fixes deploy as they merge; workers
+  may pull internal test jobs' files for replays.
+- Decided 15:35Z: a built room ships flagged at once in every case; a billable
+  event counts only once the introduction is made.
+- Open: whether an introduction whose company email has an unknown outcome is
+  ever settled once the job is withdrawn (the second half of gap 10).
+- Open: gap 13, jobs handled one at a time by the listener.
 - The upload hand-off function (`extractFrames`) lives in the
   `BlueprintCapture` repository, which this session may not read (adding it
   was refused by the session's permissions). If a job under the new statement
