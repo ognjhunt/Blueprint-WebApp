@@ -74,7 +74,8 @@ const cases: Array<[string, Keys, string, string, string]> = [
   ["both keys", { openai: true, anthropic: true }, "openai_responses", "openai_responses", "openai_responses"],
   ["no key", {}, "openai_responses", "openai_responses", "codex_local"],
 ];
-const PUBLIC_LANES: AgentTaskKind[] = [];
+// A deployment company's own public home page (tasks/company-website-check.ts, owner direction 2026-11-23).
+const PUBLIC_LANES: AgentTaskKind[] = ["company_website_check"];
 const STAFF_LANES: AgentTaskKind[] = [];
 
 function keyEnv(keys: Keys, leftOver: boolean): Record<string, string> {

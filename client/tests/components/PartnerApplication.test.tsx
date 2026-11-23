@@ -39,8 +39,16 @@ describe("the one company application", () => {
       partnerRole: "deployment", name: "Alex Example", email: "alex@example.com", company: "Example Robotics", website: "https://example.com",
     }));
     expect(screen.getByRole("heading", { name: "Your application is saved." })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("We'll email you our answer within three working days.");
+    // Owner direction 2026-11-23: the published rule approves at once when it settles it; otherwise three working days.
+    expect(screen.getByRole("status")).toHaveTextContent("We're checking your company against that rule now.");
+    expect(screen.getByRole("status")).toHaveTextContent("Otherwise we'll email you our answer within three working days.");
     expect(screen.getByRole("status").textContent).not.toMatch(/contact you when|when a job and what you do fit/i);
+  });
+
+  it("states the published approval rule on the form", () => {
+    render(<PartnerApplication />);
+    expect(screen.getByRole("form", { name: "Deployment company application" })).toHaveTextContent(
+      "We approve a company at once when its work email is at its website's domain and the website shows it deploys robots. Otherwise we look ourselves.");
   });
 
   it("keeps the entries when saving fails, and permits a retry", async () => {

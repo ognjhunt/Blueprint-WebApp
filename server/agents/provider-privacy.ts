@@ -60,6 +60,8 @@ export const LANE_DATA_CLASSES: Record<AgentTaskKind, DataClassRow> = {
     source: "tasks/robot-fit-ranking.ts: one site's job with Blueprint's research notes on robot teams" },
   site_task_follow_up: { classes: ["site_job_text"],
     source: "tasks/site-task-follow-up.ts: the site's task statement, its brief summary and item labels" },
+  company_website_check: { classes: ["public_material"],
+    source: "tasks/company-website-check.ts: a deployment company's own public home page and its host, nothing the applicant typed" },
 };
 
 /**

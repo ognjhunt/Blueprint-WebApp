@@ -45,6 +45,15 @@ No person at Blueprint stands between a site's video and an introduction. When a
 approved companies on its own, the site presses Introduce us, and the follow-up
 questions are sent.
 
+Owner direction, 2026-11-23: approval in minutes, not days. Blueprint still
+approves a company once, now by a published rule checked automatically
+(`server/utils/companyCheck.ts`): a new deployment company is approved at once
+when its work email is at its website's domain and that website shows it
+deploys robots (a model reads the page; plain code checks the domain, the
+model's quote on the page and a daily cap). The owner decides, with one press,
+every application the rule does not settle, with the check's reasons in front
+of them. A technology partner is never approved by the rule.
+
 This repo is the site side: start a job with an email and a video, see the
 first look, the simulation of your site, where the job stands and the
 responses. A person who works at the site films the job on their own phone

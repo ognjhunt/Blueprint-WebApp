@@ -171,7 +171,7 @@ test("a robot team outside early access applies, on the one application form, in
   await form.getByLabel("Company website").fill("https://arm.example");
   await form.getByRole("button", { name: "Apply" }).click();
   await expect(page.getByRole("heading", { name: "Your application is saved." })).toBeVisible();
-  await expect(page.getByText("We'll email you our answer within three working days.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Otherwise we'll email you our answer within three working days.", { exact: false })).toBeVisible();
   // Four fields, and nothing agreed on the form (owner, 2026-11-23).
   expect(mutations.at(-1)).toEqual({ path: "/api/robot-team-access/apply", body: { name: "Ada Lovelace", email: "ada@arm.example",
     company: "Arm Co", website: "https://arm.example", partnerRole: "deployment" } });

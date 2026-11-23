@@ -35,7 +35,9 @@ export type AgentTaskKind =
   /** Ranks researched robot teams for one site job from their notes; internal, quote-checked. */
   | "robot_fit_ranking"
   /** Picks follow-up question topics for a site after it sent its task (tasks/site-task-follow-up.ts). */
-  | "site_task_follow_up";
+  | "site_task_follow_up"
+  /** Whether a deployment company's own home page shows it deploys robots (tasks/company-website-check.ts). */
+  | "company_website_check";
 
 export type AgentRunStatus =
   | "queued"

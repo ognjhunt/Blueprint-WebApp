@@ -83,14 +83,15 @@ export async function notifySlackCapturePrivacyEscalation(options: {
 }
 
 /**
- * The bell for a new company application: that a company applied, and one link
- * to its card on the approvals page. No applicant name or email goes to Slack;
- * the page is behind the admin role and approving there is one press.
+ * The bell for a new company application, and one link to its card on the approvals page. With the automatic check's
+ * result (`companyCheck.ts`): "approved automatically", or "needs you" with the reasons in words. No applicant name or
+ * email goes to Slack; the page is behind the admin role and approving there is one press.
  */
 export async function notifySlackRobotTeamAccessApplication(options: {
   email: string;
   fit?: unknown;
   autoApproved?: boolean;
+  check?: { outcome: "approved" | "needs_owner"; reasons: string[] };
 }): Promise<{ sent: boolean; error?: unknown }> {
   const webhookUrl =
     process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
@@ -101,7 +102,13 @@ export async function notifySlackRobotTeamAccessApplication(options: {
   // The same id as accessRecordId(): the application's record id, not the email.
   const id = createHash("sha256").update(options.email.trim().toLowerCase()).digest("hex");
   const pageUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/robot-team-access?application=${id}`;
-  const text = `:robot_face: *A deployment company applied.* Approve or not yet: ${pageUrl}`;
+  const { companyCheckReasonWords } = await import("../../client/src/lib/companyCheck");
+  const why = options.check?.reasons.length ? ` ${options.check.reasons.map(companyCheckReasonWords).join(" ")}` : "";
+  const text = options.check?.outcome === "approved"
+    ? `:white_check_mark: *A deployment company was approved automatically* (work email at its website's domain, and the website shows it deploys robots). See it: ${pageUrl}`
+    : options.check
+      ? `:robot_face: *A deployment company applied and needs you.*${why} Approve or not yet: ${pageUrl}`
+      : `:robot_face: *A deployment company applied.* Approve or not yet: ${pageUrl}`;
   return sendSlackMessage(text, webhookUrl);
 }
 
