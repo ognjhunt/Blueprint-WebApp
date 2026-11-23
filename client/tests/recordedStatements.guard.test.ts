@@ -62,13 +62,10 @@ const CONSTANT_STATEMENTS = [
  * word and an appended sentence both fail. A `{expression}` child renders as `{…}`.
  */
 const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; text: string }> = [
-  // v2 (owner, 2026-11-20): job emails are on for every approved company; the one box is Blueprint updates only.
-  { version: "optional-updates-v2", file: "client/src/components/site/PartnerApplication.tsx", tag: "label",
-    text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
   // v3 (launch copy, owner approval in the consent pull request): the sign-up box says the application's words; the
-  // new-job fact sits on its own line above it; the Settings switch says what it sends.
-  { version: "optional-updates-v3", file: "client/src/components/site/PartnerApplication.tsx", tag: "label",
-    text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
+  // new-job fact sits on its own line above it; the Settings switch says what it sends. The application's own box
+  // (optional-updates-v2 and v3, the same words) was removed on 2026-11-23 (owner); it is recorded as retired once no
+  // page says these words any more.
   { version: "optional-updates-v3", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
     text: "Also email me Blueprint updates. Optional; unsubscribe anytime." },
   { version: "optional-updates-v1", file: "client/src/components/workspace/UpdatePreferencesForm.tsx", tag: "label", text: "Blueprint news and updates" },
@@ -79,10 +76,8 @@ const INLINE_STATEMENTS: Array<{ version: string; file: string; tag: string; tex
     text: "For this development test, I authorize Blueprint to send selected frames and task evidence from this recording to Anthropic for Claude Opus 5.5 3D authoring. Blueprint pays the bounded provider cost; this does not train a model on my recording. See Anthropic’s commercial API terms." },
   { version: "2026-09-24.v1", file: "client/src/components/site/SiteCaptureStart.tsx", tag: "BareCheck",
     text: "For this development test, I authorize Blueprint to send selected frames and task evidence to OpenAI for GPT-6.1 Sol managed-agent 3D authoring. The agent session can retain that evidence until it is deleted under the configured provider policy. Blueprint pays the bounded provider cost." },
-  // v2 (launch copy, owner approval in the consent pull request): the application drops "Application notices are
-  // separate from optional updates."; sign-up says "company" for "organization". The v1 texts are SUPERSEDED_IN_PLACE.
-  { version: "terms and privacy acceptance v2", file: "client/src/components/site/PartnerApplication.tsx", tag: "p",
-    text: "By applying, you agree to our Terms of Service and Privacy Policy." },
+  // v2 (launch copy, owner approval in the consent pull request): sign-up says "company" for "organization". The v1
+  // text is SUPERSEDED_IN_PLACE.
   { version: "terms and privacy acceptance v2", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
     text: "I agree to the Terms and Privacy Policy and am authorized to create this company’s account." },
 ];
@@ -103,6 +98,11 @@ const RETIRED_INLINE_STATEMENTS = [
     text: "Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime." },
   { version: "optional-updates-v1", was: "client/src/pages/RobotTeamSignUpFlow.tsx",
     text: "Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime." },
+  // The application agrees to nothing since 2026-11-23 (owner): a Privacy Policy link sits beside Apply instead.
+  { version: "terms and privacy acceptance v2", was: "client/src/components/site/PartnerApplication.tsx",
+    text: "By applying, you agree to our Terms of Service and Privacy Policy." },
+  { version: "terms and privacy acceptance", was: "client/src/components/site/PartnerApplication.tsx",
+    text: "By applying, you agree to our Terms of Service and Privacy Policy. Application notices are separate from optional updates." },
   { version: "public-task-card-v1", was: "client/src/components/site/SiteCaptureStart.tsx",
     text: "Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)" },
   { version: "public-task-card-v1", was: "client/src/components/site/PublicTaskListing.tsx",
@@ -115,8 +115,6 @@ const RETIRED_INLINE_STATEMENTS = [
  * element that carried each one must no longer say it, and the newer version is pinned in INLINE_STATEMENTS.
  */
 const SUPERSEDED_IN_PLACE = [
-  { version: "terms and privacy acceptance", file: "client/src/components/site/PartnerApplication.tsx", tag: "p",
-    text: "By applying, you agree to our Terms of Service and Privacy Policy. Application notices are separate from optional updates." },
   { version: "terms and privacy acceptance", file: "client/src/pages/RobotTeamSignUpFlow.tsx", tag: "label",
     text: "I agree to the Terms and Privacy Policy and am authorized to create this organization’s account." },
 ];
@@ -253,8 +251,9 @@ describe("recorded statements keep their exact text under their version", () => 
   });
 
   it("knows every optional-updates surface: a new one must be added to the table above", () => {
-    // RobotTeamEarlyAccess.tsx carried its own application until 2026-11-20; it now points to the one on /partners.
-    const surfaces = ["client/src/components/site/PartnerApplication.tsx", "client/src/pages/RobotTeamSignUpFlow.tsx"];
+    // RobotTeamEarlyAccess.tsx carried its own application until 2026-11-20; it now points to the one on /partners. The
+    // application's own box was removed on 2026-11-23 (owner).
+    const surfaces = ["client/src/pages/RobotTeamSignUpFlow.tsx"];
     for (const file of surfaces) expect(sourceText(file)).toMatch(/optionalUpdates/);
     const pinned = new Set(INLINE_STATEMENTS.filter(row => row.version === CURRENT_UPDATE_PREFERENCES_VERSION).map(row => row.file));
     for (const file of surfaces) expect(pinned.has(file), file).toBe(true);

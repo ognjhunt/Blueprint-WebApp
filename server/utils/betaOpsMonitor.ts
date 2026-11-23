@@ -34,7 +34,9 @@ import {
  *  6. alerts once per website capture whose preparation went quiet (no status
  *     since upload, or one state too long) or ended, and once per website
  *     scene that stopped after hand-off (websitePreparationOpsAlerts), and once
- *     per job safety-limit or unreadable-spend marker (scanOverBudgetWebsiteJobs).
+ *     per job safety-limit or unreadable-spend marker (scanOverBudgetWebsiteJobs);
+ *  7. reminds the owner once per deployment company application that waited
+ *     three working days without an answer (accessApplicationReminder).
  *
  * Retired 2026-11-22: the no-grant wait page and the over-budget extension
  * report (grants and the extension are gone).
@@ -397,12 +399,14 @@ export async function runBetaOpsMonitorPass() {
     // 6. website captures whose preparation went quiet or ended (beta L3/L6).
     scanWebsitePreparations(),
     scanUnknownOutboxOutcomes(),
+    // 7. a deployment company application that waited three working days: one reminder to the owner.
+    import("./accessApplicationReminder").then(({ remindWaitingAccessApplications }) => remindWaitingAccessApplications()),
   ]);
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
       logger.warn(
         { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan",
-          "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan"][index] },
+          "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan", "access_application_reminder"][index] },
         "Beta ops monitor step failed",
       );
     }

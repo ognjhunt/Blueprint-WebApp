@@ -169,13 +169,12 @@ test("a robot team outside early access applies, on the one application form, in
   await form.getByLabel("Work email").fill("ada@arm.example");
   await form.getByLabel("Company", { exact: true }).fill("Arm Co");
   await form.getByLabel("Company website").fill("https://arm.example");
-  await form.getByLabel("What jobs can you deliver?").fill("Tote picking");
-  await form.getByLabel("Which robots do you deploy?").fill("Fixed arm with a parallel gripper");
-  await form.getByLabel("Where can you deploy?").fill("Ohio");
   await form.getByRole("button", { name: "Apply" }).click();
   await expect(page.getByRole("heading", { name: "Your application is saved." })).toBeVisible();
-  expect(mutations.at(-1)).toMatchObject({ path: "/api/robot-team-access/apply", body: { name: "Ada Lovelace", email: "ada@arm.example",
-    partnerRole: "deployment", region: "Ohio", acceptedTerms: true } });
+  await expect(page.getByText("We'll email you our answer within three working days.", { exact: false })).toBeVisible();
+  // Four fields, and nothing agreed on the form (owner, 2026-11-23).
+  expect(mutations.at(-1)).toEqual({ path: "/api/robot-team-access/apply", body: { name: "Ada Lovelace", email: "ada@arm.example",
+    company: "Arm Co", website: "https://arm.example", partnerRole: "deployment" } });
   await screenshot(page, "early-access-applied");
 });
 

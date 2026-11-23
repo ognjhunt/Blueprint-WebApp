@@ -32,7 +32,7 @@ export function recordHasCurrentTerms(record: { termsAcceptance?: unknown } | nu
  * Approved, a deployment company, and the current Terms accepted AS A SIGNED-IN ACT of its own: the acceptance carries
  * the accepting user's id (`termsAcceptedByUid`), written only by the signed-in accept route or copied by
  * `syncCompanyTerms` from that same person's signed-in account acceptance. The tick on the unsigned application form
- * (`applicationTermsAcceptance`) never satisfies it (planner, 19:50Z, G1).
+ * (`applicationTermsAcceptance`, on applications before 2026-11-23 only) never satisfies it (planner, 19:50Z, G1).
  */
 export function companyMaySeeJobs(record: AccessLike): boolean {
   return record?.status === "approved" && record.partnerRole !== "technology" && recordHasCurrentTerms(record)
@@ -43,11 +43,6 @@ export function companyMaySeeJobs(record: AccessLike): boolean {
 /** Approved and a deployment company, whatever its Terms state: who an outcome question may still go to (G4). */
 export function isApprovedDeploymentCompanyRecord(record: AccessLike): boolean {
   return record?.status === "approved" && record.partnerRole !== "technology";
-}
-
-/** What the application form showed and the applicant ticked, with the time: stored on the application only. */
-export function applicationTermsAcceptance(nowIso = new Date().toISOString(), shown?: ShownLegalVersions | null) {
-  return buildLegalAcceptanceRecord({ acceptedAt: nowIso, shown });
 }
 
 /**

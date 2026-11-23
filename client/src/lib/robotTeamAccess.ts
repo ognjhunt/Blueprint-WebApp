@@ -1,5 +1,4 @@
 import { withCsrfHeader } from "@/lib/csrf";
-import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legalAcceptance";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { User } from "firebase/auth";
 
@@ -49,11 +48,6 @@ export interface EarlyAccessApplication {
   email: string;
   company: string;
   website: string;
-  robot: string;
-  workWanted: string;
-  region?: string;
-  acceptedTerms: true;
-  optionalUpdates?: boolean;
   returnToJob?: string;
 }
 
@@ -77,8 +71,7 @@ export async function applyForEarlyAccess(application: EarlyAccessApplication): 
   const response = await fetch("/api/robot-team-access/apply", {
     method: "POST",
     headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-    // The versions of the Terms and Privacy Policy the form shows, recorded on the application as what was shown.
-    body: JSON.stringify({ ...application, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }),
+    body: JSON.stringify(application),
   });
   const body = (await response.json().catch(() => ({}))) as {
     status?: LibraryAccess["status"]; notificationStatus?: AccessNotificationStatus; error?: string;
