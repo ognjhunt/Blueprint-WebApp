@@ -273,7 +273,6 @@ describe("video first owner return", () => {
       await flush(6000);
       expect(sceneLink()).toBeVisible();
       fireEvent.click(screen.getByText("Stop using my video"));
-      fireEvent.click(screen.getByRole("button", { name: "Stop using my video…" }));
       fireEvent.click(screen.getByRole("button", { name: "Yes, stop using my video" }));
       await flush();
       expect(screen.getByText("Video withdrawn.")).toBeInTheDocument();
@@ -534,7 +533,6 @@ describe("video first owner return", () => {
     expect(await screen.findByText("A video is required to post your job and build its simulation.")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Introduce us" })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByText("Withdraw my job"));
-    fireEvent.click(screen.getByRole("button", { name: "Withdraw job…" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw job" }));
     expect(await screen.findByText("Job withdrawn.")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Introduce us" })).not.toBeInTheDocument();
@@ -563,7 +561,6 @@ describe("video first owner return", () => {
     // The way to stop is on the Job settings screen, one tap from the page.
     fireEvent.click(await screen.findByRole("button", { name: "Job settings ›" }));
     fireEvent.click(await screen.findByText("Stop using my video"));
-    fireEvent.click(screen.getByRole("button", { name: "Stop using my video…" }));
     expect(fetchMock.mock.calls.some(call => String(call[0]).endsWith("/withdrawal") && call[1]?.method === "POST")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Yes, stop using my video" }));
     expect(await screen.findByText("Video withdrawn.")).toBeInTheDocument();
@@ -1452,13 +1449,14 @@ describe("the site's answer leads its job page", () => {
     expect([...container.querySelectorAll(".bare-button, .ms-button")].map(button => button.textContent)).toEqual([]);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.queryByText("Video received.")).toBeNull();
+    // The way to stop sits on the job page itself, closed: one tap opens the question, a second confirms (ledger AL43).
+    expect(screen.getByText("Stop using my video", { selector: "summary" }).closest("details")).not.toHaveAttribute("open");
     fireEvent.click(screen.getByRole("button", { name: "Job settings ›" }));
     expect(window.location.hash).toBe("#settings");
     expect(await screen.findByRole("heading", { level: 1, name: "Job settings" })).toBeVisible();
     const settings = screen.getByRole("list", { name: "Job settings" });
     expect(within(settings).getAllByRole("listitem").map(item => item.querySelector("summary, a, button")?.textContent)).toEqual([
-      "Send a new video", "Change my job description", "Contact Blueprint about this job", "Stop using my video"]);
-    expect(within(settings).getByText("Stop using my video").closest("details")).not.toHaveAttribute("open");
+      "Send a new video", "Change my job description", "Contact Blueprint about this job"]);
     expect(screen.queryByRole("region", { name: "Your job" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     await screen.findByRole("region", { name: "Your job" });
@@ -1628,7 +1626,8 @@ describe("the site's answer leads its job page", () => {
     expect(await screen.findByRole("region", { name: "Robot fit" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Your job" })).toBeNull();
     expect(screen.getByText(CONFIRM_STEP)).toBeInTheDocument();
-    expect(screen.getByText("Blueprint will update this job as the work progresses.")).toBeVisible();
+    // The filler "will update" line is gone (ledger AL31).
+    expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
   });
 
   it("never shows the answer on a film-only link", async () => {

@@ -584,6 +584,8 @@ describe("the deployment companies section, with sends, answers and introduction
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} onIntroductionRequested={changed} />);
     fireEvent.click(within(companies()).getByRole("button", { name: "Introduce us" }));
     await waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
+    // One plain sentence says both sides are being emailed (ledger EL19).
+    expect(await within(companies()).findByText("We are emailing you and Company A each other's contact details.")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({ method: "POST",
       body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12" }) }));
   });
