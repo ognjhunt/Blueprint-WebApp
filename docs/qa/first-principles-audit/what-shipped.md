@@ -7,7 +7,7 @@ the rest comes from each worker's report.
 
 - **Blueprint-WebApp: 38 merged.** A merge to `main` with green
   checks deploys the website and its worker, so these are live.
-- **BlueprintCapturePipeline: 16 merged.** They reached
+- **BlueprintCapturePipeline: 17 merged.** They reached
   the host with the window deploy of 2026-11-23 (release `8feb4e9`, done at
   15:11 UTC), which the owner asked for. Door code is the exception: it waits
   for a root upgrade of the operator door.
@@ -79,7 +79,7 @@ Two things the fixing corrected in the audit itself:
 | [1411](https://github.com/ognjhunt/Blueprint-WebApp/pull/1411) | No person renews an expired job grant any more; the job ends its paid work with what it has | G-10; ledger GL21 GL22 DL40 FL16 (verdict DELETE). The defect is confirmed in the code. The renewal changed only expires_at_epoch, consent.accepted_at_epoch ... |
 | [1412](https://github.com/ognjhunt/Blueprint-WebApp/pull/1412) | The sitemap no longer lists /how-it-works, which redirects to the home page |  |
 
-## BlueprintCapturePipeline: 16 merged
+## BlueprintCapturePipeline: 17 merged
 
 | Pull request | What changed | Findings |
 |---|---|---|
@@ -99,6 +99,7 @@ Two things the fixing corrected in the audit itself:
 | [3698](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/3698) | The Pipeline accepts the recording statement that names the job's city and state (2026-11-23.v6) | There was no audit finding for this item. It is the owner's 2026-11-23 approval of statement 2026-11-23.v6. I confirmed that the owner read builds its list ... |
 | [3699](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/3699) | The operator door no longer has a command to confirm a job's success thresholds | D-13 (ledger rows DL38 and GL60). Checked against the code before removing anything. binding() only accepts a proposal_only authority over exactly the ... |
 | [3700](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/3700) | No person extends a job's work window any more; a job whose window ends, ends its paid work with what it has | G-10 (ledger rows DL40, GL21 and FL16; owner question 21). Checked that an extension moves only time: every reader takes the caps, attempt count, providers, ... |
+| [3701](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/3701) | Record the 2026-11-23 window deploy of 8feb4e9 |  |
 
 ## Still needs the owner
 
