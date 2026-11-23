@@ -18,12 +18,18 @@ The audit this follows is in pull request 1374
 
 For a session that picks this up. Newest first.
 
-- 2026-11-23 13:35Z. Waiting for: the owner's Approve press on the test
-  company; the Pipeline deploy window at 15:00Z; the footage worker. Nothing
-  is submitted yet. Next steps in order: deploy `origin/main` through the
-  door at 15:00Z, confirm it, answer the open review thread on pull request
-  1410 and merge it, confirm `/version.json`, recount companies and listable
-  real jobs, then submit the job.
+- 2026-11-23 13:35Z. The test company is approved, signed in and has
+  accepted the Terms. Nothing is submitted yet. Two workers are running: one
+  looks for a Mixkit clip under its free licence, one fixes gap 1 on branch
+  `claude/dreamy-hamilton-qn8lm4-place-city-state`. A check-in is scheduled
+  for 15:00Z. Next steps in order: deploy `origin/main` through the door at
+  15:00Z and confirm it; answer the open review thread on pull request 1410
+  and merge it; merge the gap 1 fix once its checks are green; confirm
+  `/version.json`; recount companies and listable real jobs; submit the job,
+  picking the place from the suggestions so the city and state are stored.
+  The company's browser profile and the scripts are in the session's
+  scratchpad and do not survive the session: a new session asks for a fresh
+  sign-in link on `/sign-in` (read from the company test address).
 
 ## Test values
 
@@ -44,6 +50,24 @@ the test job is read as counts and timings only.
 Not chosen yet. This section will hold the clip's source page, its licence
 with the line read on the source, the file's sha256, and whether any face is
 recognisable.
+
+Looked at and not used, 2026-11-23 13:20Z to 13:30Z:
+
+- **Coverr** (two stockroom clips that show the job). Its licence page says
+  "Nothing from Coverr may be used to train, fine-tune, distill or evaluate AI
+  models, or go into a dataset for that purpose." This run sends frames to
+  model providers and is itself a test. Not used, so that no rights question
+  is open.
+- **Mixkit items under its "Stock Video Restricted License"** ("720p Version
+  for Personal Use only"): not a reuse licence.
+- **Pexels, Pixabay, the Wikimedia Commons API**: each refused an automated
+  request from this network (HTTP 403, 403, 429). Not retried; no bot check
+  was worked around.
+- **Internet Archive, "Baggage unloading"** (CC0): filmed through a terminal
+  window, an airline's name on every cart.
+- **Internet Archive, "Warehouse of Old Electronics Equipment"** (CC0,
+  uploaded by its author in 2011): a real handheld walk through a packed
+  warehouse, 640x480 and very shaky, nobody doing a job. Kept as the fallback.
 
 ## Before the job was sent (read-only checks)
 
@@ -78,16 +102,46 @@ Times are UTC.
 | When | What | Source |
 |---|---|---|
 | 2026-11-23 13:17:50 | The test company applied through the live `/jobs` form: HTTP 202, "Your application is saved." | the form's own POST to `/api/robot-team-access/apply` and its response `Date` header; `evidence/company-application-receipt-1280.png` |
+| 2026-11-23 13:21:39 | The owner approved it in one press. | the invitation's `revision` time in the approval email; count over `robotTeamAccess`: `approved: 2` at 13:22:21 |
+| 2026-11-23 13:21:43 | The approval email reached the company address: "Your company is approved to see jobs on Blueprint". 3 min 53 s after the application. | Gmail, the message's `date` |
+| 2026-11-23 13:23:05 to 13:23:09 | The company opened the link in that email, ticked "I agree to the Terms and Privacy Policy", pressed Create account, and was signed in with no password and taken to Find jobs: "No jobs yet. New jobs appear here when their video is ready." | browser log of the visit: `POST /api/account-invitations/redeem` 200, `POST /api/workspace/setup` 200, `GET /api/site-worlds/tasks` 200; `evidence/company-find-jobs-empty-1280.png` |
+| 2026-11-23 13:24 | The company's record holds a signed-in acceptance of Terms 2026-11-21.1 and Privacy 2026-11-21.1. Companies that may see jobs: 1, the test company. | count over `robotTeamAccess`: `approved_with_signed_in_terms_uid: 1` |
 
 ## Gaps
 
-None recorded yet. Each gap gets: what, evidence, the fix (pull request), how
-it was verified.
+Each gap gets: what, evidence, the fix (pull request), how it was verified.
+
+### Gap 1. The start form drops the place's city and state
+
+Found by reading, before the job was sent.
+
+- **What.** A company can be shown "City, State, United States" only from the
+  job's stored city and state. No form stores them, so every job shows a
+  company the country alone, whatever statement the site accepted. Pull
+  request 1410 alone would not change that.
+- **Evidence.** `companyPlaceOf` reads only
+  `request.siteLocationMetadata.state` and `.city`
+  (`server/utils/companyJobPage.ts:117-128`). The start form's payload carries
+  `siteName`, `siteLocation` and `captureRegion` and no `siteLocationMetadata`
+  (`client/src/components/site/SiteCaptureStart.tsx:481-497`);
+  `git grep -l siteLocationMetadata origin/main -- client/src` lists only
+  `client/src/lib/firebase.ts` and `client/src/types/inbound-request.ts`, and
+  the same on the 1410 branch. On the live form, picking "Austin, Texas"
+  already asks Google for the place's parts (`GetPlace`) and keeps only the
+  country (`LocationAutocomplete.tsx:103-104`).
+- **Fix.** In progress on `claude/dreamy-hamilton-qn8lm4-place-city-state`:
+  the form sends the picked place's city, state and country; a typed place
+  with no pick gives the state only, from a closed list, never a city from
+  free text.
+- **Verified.** Not yet.
 
 ## What still needs the owner
 
-- Press Approve on the test company's application
-  (`/admin/robot-team-access`, the one record in state `applied`).
+- Done 13:21Z: Approve on the test company's application.
+- The upload hand-off function (`extractFrames`) lives in the
+  `BlueprintCapture` repository, which this session may not read (adding it
+  was refused by the session's permissions). If a job under the new statement
+  stops at the hand-off, the cause may be there.
 - One other company is approved and has never signed in. If it signs in and
   accepts the Terms while the test job is listed, it sees the test job and is
   emailed about it.
