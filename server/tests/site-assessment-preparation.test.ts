@@ -171,8 +171,7 @@ function prepOptions() {
 }
 import { projectWebsiteTaskContext, confirmationParentContextDigests } from "../utils/websiteTaskContext";
 import { projectWebsiteCaptureRights } from "../utils/websiteCaptureRights";
-import { validateWebsiteSponsoredIntake, currentWebsitePreparationStatusContext, renewExpiredWebsiteSceneSponsorship,
-  SPONSORSHIP_RENEWAL_ACK } from "../utils/websiteSceneSponsorship";
+import { validateWebsiteSponsoredIntake, currentWebsitePreparationStatusContext } from "../utils/websiteSceneSponsorship";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { sceneIntakeCommand, sceneDigest, processSceneIntakeQueue } from "../utils/taskEvaluationSceneIntake";
 it("v2 explicit current preparation admits unknown task/account without confirming or charging the site",async()=>{
@@ -207,64 +206,8 @@ it("v2 current preparation grant never becomes a default/evaluation grant or ren
   try {await expect(loadWebsiteSceneSponsorship("one",false)).rejects.toThrow("consent_expired");}
   finally {vi.restoreAllMocks();}
   expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(first);
-});
-it("sponsor-approved renewal re-issues an expired preparation grant under its identical policy and keeps reservations",async()=>{
-  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:first.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
-  const spend={task_context_digest:first.task_context_digest,allocation_binding_digest:`sha256:${"d".repeat(64)}`,
-    resource_class:"gpu_render" as const,provider:"vast" as const,maximum_cost_usd:1,request_count:1};
-  await reserveWebsitePreparationSpend("one",spend);
-  const renew=(extra:Record<string,unknown>={})=>renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",
-    approval_reference:"owner chat approval",ack:SPONSORSHIP_RENEWAL_ACK,apply:true,...extra});
-  await expect(renew()).rejects.toThrow("website_scene_sponsorship_renewal_not_expired");
-  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
-  try {
-    await expect(loadWebsiteSceneSponsorship("one",false)).rejects.toThrow("consent_expired");
-    await expect(renew({approved_by:"someone-else"})).rejects.toThrow("website_scene_sponsorship_renewal_unauthorized");
-    await expect(renew({ack:"yes"})).rejects.toThrow("website_scene_sponsorship_renewal_unacknowledged");
-    const preview=await renew({apply:false});
-    expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(first);
-    const renewed=await renew();
-    expect(renewed).toEqual(preview);
-    expect(renewed).toMatchObject({policy_digest:first.policy_digest,task_context_digest:first.task_context_digest,
-      preparation_max_total_spend_usd:first.preparation_max_total_spend_usd,max_paid_attempts:first.max_paid_attempts,
-      consent:{task_confirmed:false},renewal:{parent_authority_digest:first.authority_digest,approved_by:"blueprint"}});
-    expect(renewed.expires_at_epoch).toBeCloseTo(first.expires_at_epoch+10+3600,3);
-    const stored=state.docs.get("inboundRequests/one") as any;
-    expect(stored.website_scene_sponsorship_history).toEqual([first]);
-    expect(Object.keys(stored.website_preparation_reservations)).toHaveLength(1);
-    expect(await loadWebsiteSceneSponsorship("one",false)).toMatchObject({authority_digest:renewed.authority_digest});
-    // The job's cap still counts the reservation made under the expired grant: $1 + $39.000001 is past $40.
-    await expect(reserveWebsitePreparationSpend("one",{...spend,allocation_binding_digest:`sha256:${"e".repeat(64)}`,
-      task_context_digest:renewed.task_context_digest,maximum_cost_usd:39.000001})).rejects.toThrow("website_scene_preparation_budget_exhausted");
-    await expect(renew()).rejects.toThrow("website_scene_sponsorship_renewal_not_expired");
-  } finally {vi.restoreAllMocks();}
-});
-it.each([
-  ["issued before grants named them", true],
-  ["issued naming them", false],
-])("renewal keeps a grant's Privacy version and statements exactly as the grant %s",async(_name,legacy)=>{
-  seed(packet(),false,false);
-  (state.docs.get("inboundRequests/one") as any).privacy_version_at_submission="2026-11-13.1";
-  let first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  expect(first).toMatchObject({privacy_policy_version:"2026-11-13.1",site_consents:[]});
-  if(legacy){
-    const {authority_digest:_d,privacy_policy_version:_p,site_consents:_s,...payload}=first;
-    first={...payload,authority_digest:crossRuntimeDigest(payload)};
-    (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=first;
-  }
-  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:first.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
-  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
-  try {
-    const renewed=await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",
-      approval_reference:"owner chat approval",ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
-    const stored=(state.docs.get("inboundRequests/one") as any).website_scene_sponsorship;
-    expect(stored.authority_digest).toBe(renewed.authority_digest);
-    for(const field of ["privacy_policy_version","site_consents"]) expect(stored[field],field).toEqual(first[field]);
-    expect(stored).not.toHaveProperty("anthropic_provider_terms_reference");
-    const {authority_digest,...payload}=stored;
-    expect(crossRuntimeDigest(payload)).toBe(authority_digest);
-  } finally {vi.restoreAllMocks();}
+  // No person re-issues an expired grant any more (2026-11-23): the job ends its paid work with what it has.
+  expect(await import("../utils/websiteSceneSponsorship")).not.toHaveProperty("renewExpiredWebsiteSceneSponsorship");
 });
 // The shape (keys and value types) of the grants this code issues equals that of grants today's Pipeline loader
 // accepted (fixtures/pipeline-accepted-website-grants.json, recorded by the Group E review): an OpenAI grant never
@@ -291,128 +234,6 @@ it.each([
   if(grant.authoring_provider==="openai") expect(grant).not.toHaveProperty("anthropic_provider_terms_reference");
   expect(grant.site_consents).toEqual(claude?[{statement_version:"2026-09-24.v1",provider:"anthropic",model:"claude-opus-5-5"}]:[]);
   if(version) expect(grant.privacy_policy_version).toBe(version); else expect(grant).not.toHaveProperty("privacy_policy_version");
-});
-it("renewal carries the owner's request-limit amendment to the renewed grant and archives the original",async()=>{
-  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:first.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
-  const original=await amendWebsitePreparationRequestLimit("one",{authority_digest:first.authority_digest,
-    max_requests:first.max_paid_attempts+2,approved_by:"blueprint",approval_reference:"owner raised the request limit"},true);
-  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
-  try {
-    const before=structuredClone(state.docs.get("inboundRequests/one"));
-    const preview=await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",
-      approval_reference:"owner chat approval",ack:SPONSORSHIP_RENEWAL_ACK,apply:false});
-    expect(state.docs.get("inboundRequests/one")).toEqual(before);
-    expect(preview.preparation_amendments).toMatchObject({archived:[original],
-      carried:{website_preparation_limit_amendment:{authority_digest:preview.authority_digest,
-        max_requests:first.max_paid_attempts+2}},effective_limits:{max_requests:first.max_paid_attempts+2},
-      history_length_before:0,history_length_after:1});
-    const renewed=await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",
-      approval_reference:"owner chat approval",ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
-    expect(renewed).toEqual(preview);
-    const stored=state.docs.get("inboundRequests/one") as any;
-    expect(stored.website_preparation_amendment_history).toEqual([original]);
-    expect(stored.website_preparation_limit_amendment).toMatchObject({authority_digest:renewed.authority_digest,
-      max_requests:first.max_paid_attempts+2,approved_by:"blueprint"});
-    expect(stored.website_preparation_limit_amendment.approval_reference).toContain(original.amendment_digest);
-    // The carried limit is live under the renewed grant: more requests than the grant's own limit.
-    await expect(reserveWebsitePreparationSpend("one",{task_context_digest:renewed.task_context_digest,
-      allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",
-      maximum_cost_usd:0.1,request_count:first.max_paid_attempts+1})).resolves.toMatchObject({status:"admitted"});
-  } finally {vi.restoreAllMocks();}
-});
-it("renewal carries chained request amendments, leaves a pre-switch spend amendment as it was, and resets no reservation",async()=>{
-  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:first.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
-  const approve={authority_digest:first.authority_digest,approved_by:"blueprint",approval_reference:"owner amendment"};
-  const limit=await amendWebsitePreparationRequestLimit("one",{...approve,max_requests:first.max_paid_attempts+1},true);
-  const extension=await amendWebsitePreparationRequestLimit("one",{...approve,max_requests:first.max_paid_attempts+2},true);
-  // An owner's upstream spend amendment from before 2026-11-19: kept on the record, read by nothing.
-  const spend={...approve,upstream_max_spend_usd:first.upstream_max_spend_usd*2,approved_at_epoch:1,amendment_digest:`sha256:${"9".repeat(64)}`};
-  (state.docs.get("inboundRequests/one") as any).website_preparation_spend_amendment=spend;
-  const reservation={task_context_digest:first.task_context_digest,allocation_binding_digest:`sha256:${"d".repeat(64)}`,
-    resource_class:"gpu_render" as const,provider:"vast" as const,maximum_cost_usd:1,request_count:1};
-  await reserveWebsitePreparationSpend("one",reservation);
-  const before=structuredClone(state.docs.get("inboundRequests/one"));
-  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
-  try {
-    const input={approved_by:"blueprint",approval_reference:"owner renewal",ack:SPONSORSHIP_RENEWAL_ACK};
-    const preview=await renewExpiredWebsiteSceneSponsorship("one",{...input,apply:false});
-    expect(state.docs.get("inboundRequests/one")).toEqual(before);
-    expect(preview.preparation_amendments).toMatchObject({archived:[limit,extension],
-      effective_limits:{max_requests:first.max_paid_attempts+2},history_length_before:0,history_length_after:2});
-    expect(preview.preparation_amendments.effective_limits).not.toHaveProperty("upstream_max_spend_usd");
-    const renewed=await renewExpiredWebsiteSceneSponsorship("one",{...input,apply:true});
-    expect(renewed).toEqual(preview);
-    const stored=state.docs.get("inboundRequests/one") as any;
-    expect(stored.website_preparation_limit_extension.prior_amendment_digest)
-      .toBe(stored.website_preparation_limit_amendment.amendment_digest);
-    expect(stored.website_preparation_reservations).toEqual(before?.website_preparation_reservations);
-    expect(stored.website_preparation_spend_amendment).toEqual(spend);
-    await expect(reserveWebsitePreparationSpend("one",{...reservation,maximum_cost_usd:39.000001,
-      allocation_binding_digest:`sha256:${"e".repeat(64)}`})).rejects.toThrow("website_scene_preparation_budget_exhausted");
-  } finally {vi.restoreAllMocks();}
-});
-it("renewal refuses an amendment that no longer verifies and writes nothing",async()=>{
-  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  await amendWebsitePreparationRequestLimit("one",{authority_digest:first.authority_digest,max_requests:first.max_paid_attempts+2,
-    approved_by:"blueprint",approval_reference:"owner raised the request limit"},true);
-  (state.docs.get("inboundRequests/one") as any).website_preparation_limit_amendment.max_requests=32;
-  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
-  try {await expect(renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
-    ack:SPONSORSHIP_RENEWAL_ACK,apply:true})).rejects.toThrow("website_preparation_amendment_invalid");}
-  finally {vi.restoreAllMocks();}
-  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(first);
-  expect(state.docs.get("inboundRequests/one")).not.toHaveProperty("website_preparation_amendment_history");
-});
-it("renewal refuses to re-scope a grant whose task changed after expiry",async()=>{
-  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  (state.docs.get("siteTaskBriefs/one") as any).summary="Move bins and stack crates";
-  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
-  try {await expect(renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
-    ack:SPONSORSHIP_RENEWAL_ACK,apply:true})).rejects.toThrow("website_scene_sponsorship_renewal_scope_changed");}
-  finally {vi.restoreAllMocks();}
-  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(first);
-});
-it("renewal migrates only a proven legacy digest containing an unphotographed suggestion",async()=>{
-  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  const item={itemId:"dish",label:"Dishs",locationNote:null,quantityHint:null,basis:"suggested",images:[]};
-  state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[item]});
-  const brief=state.docs.get("siteTaskBriefs/one") as any;
-  const {context_digest:_context,...context}=projectWebsiteTaskContext(brief,projectWebsiteCaptureRights(state.docs.get("inboundRequests/one")),{purpose:"scene_preparation"});
-  const oldContext=crossRuntimeDigest({...context,task_items:[{item_id:"dish",label:"Dishs",location_note:null,quantity_hint:null,basis:"suggested",images:[]}]});
-  const {authority_digest:_authority,...payload}=first;
-  const legacy={...payload,task_context_digest:oldContext};
-  const original={...legacy,authority_digest:crossRuntimeDigest(legacy)};
-  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=original;
-  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
-  try {
-    const input={approved_by:"blueprint",approval_reference:"owner renewal",ack:SPONSORSHIP_RENEWAL_ACK};
-    const before=structuredClone(state.docs.get("inboundRequests/one"));
-    const preview=await renewExpiredWebsiteSceneSponsorship("one",{...input,apply:false});
-    expect(state.docs.get("inboundRequests/one")).toEqual(before);
-    expect(preview).toMatchObject({task_context_digest:first.task_context_digest,
-      task_context_projection_migration:{from:oldContext,to:first.task_context_digest,basis:"unphotographed_suggestions_excluded"}});
-    // A changed suggestion, an owner statement or a photo cannot pass as the retained projection.
-    for(const change of [{label:"Changed suggestion"},{basis:"owner_stated"},
-      {images:[{imageId:"photo",storagePath:"scenes/site-one/items/dish/a.png",uploadedAtIso:"2026-10-08"}]}]) {
-      state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[{...item,...change}]});
-      await expect(renewExpiredWebsiteSceneSponsorship("one",{...input,apply:true})).rejects.toThrow("website_scene_sponsorship_renewal_scope_changed");
-      expect(state.docs.get("inboundRequests/one")).toEqual(before);
-    }
-    state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[item]});
-    expect(await renewExpiredWebsiteSceneSponsorship("one",{...input,apply:true})).toEqual(preview);
-    expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship_history).toEqual([original]);
-  } finally {vi.restoreAllMocks();}
-});
-it("renewal refuses a grant whose recorded policy cannot be rebuilt",async()=>{
-  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  const {authority_digest:_d,...payload}=first;const forged={...payload,policy_digest:`sha256:${"f".repeat(64)}`};
-  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship={...forged,authority_digest:crossRuntimeDigest(forged)};
-  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
-  try {await expect(renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
-    ack:SPONSORSHIP_RENEWAL_ACK,apply:true})).rejects.toThrow("website_scene_sponsorship_renewal_policy_unproven");}
-  finally {vi.restoreAllMocks();}
 });
 it("v2 current preparation spend uses purpose context and preserves unknown reservations",async()=>{
   seed(packet(),false,false);const grant=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
@@ -648,20 +469,6 @@ it("a new grant names one scene-configuration retry and the intake accepts 0 or 
   expect(()=>validateWebsiteSponsoredIntake(retries(0),earlier)).not.toThrow();
   expect(()=>validateWebsiteSponsoredIntake(retries(1),earlier)).toThrow("website_scene_sponsorship_binding_invalid");
 });
-it("renewing a grant issued before the retry allowance restores it without one",async()=>{
-  seed(packet(),false,false);const issued=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
-  const {authority_digest:_digest,scene_configuration_max_retries:_retries,...payload}=issued;
-  const legacy={...payload,authority_digest:crossRuntimeDigest(payload)};
-  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=legacy;
-  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:legacy.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
-  vi.spyOn(Date,"now").mockReturnValue((legacy.expires_at_epoch+10)*1000);
-  try {
-    const renewed=await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",
-      approval_reference:"owner chat approval",ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
-    expect(renewed).not.toHaveProperty("scene_configuration_max_retries");
-    expect(renewed.renewal).toMatchObject({parent_authority_digest:legacy.authority_digest});
-  } finally {vi.restoreAllMocks();}
-});
 // Owner decision 2026-11-19, "One cap at $40": the job's cap is the only dollar stop; the grant's own figures
 // (upstream, Atlas allowance), owner rows, grant policies, the automatic extension and the $100 safety limit raise
 // or stop nothing. The account's monthly limit is the host's, checked before the Pipeline asks.
@@ -727,18 +534,6 @@ it("a grant past its expiry admits nothing",async()=>{
       expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"consent_expired"});
     });
   } finally {vi.restoreAllMocks();}
-});
-it("a renewal keeps what the expired grant named, so a grant from before the switch renews unchanged",async()=>{
-  const {grant}=await budgetJob();
-  const renew=()=>renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
-    ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
-  const flagged=legacyFlagged(grant);
-  vi.spyOn(Date,"now").mockReturnValue((flagged.expires_at_epoch+10)*1000);
-  try { expect((await renew() as any).automatic_budget_extension).toBe(true); } finally {vi.restoreAllMocks();}
-  state.docs.clear();
-  const {grant:issued}=await budgetJob();
-  vi.spyOn(Date,"now").mockReturnValue((issued.expires_at_epoch+10)*1000);
-  try { expect(await renew()).not.toHaveProperty("automatic_budget_extension"); } finally {vi.restoreAllMocks();}
 });
 it("an intake names the automatic budget extension only when its grant does, and it changes nothing",async()=>{
   const {grant:unflagged}=await budgetJob();
@@ -1347,7 +1142,7 @@ it("an admission's expiry is the grant's own, or its verified window, never past
 });
 
 // capture-447ae4f4: the parent grant's intent was extended, the grant renewed, and the
-// renewal's re-issued intent extended in turn. The mirror binds the grant each intake records.
+// renewal's re-issued intent extended in turn. Past renewed grants still read this way. The mirror binds the grant each intake records.
 it("a renewed grant's own intent window is mirrored and funds a reservation; the parent's window does not",async()=>{
   seed(packet(),false,false);
   const first=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
@@ -1367,8 +1162,14 @@ it("a renewed grant's own intent window is mirrored and funds a reservation; the
   expect(await extend("scene-parent",first,"7")).toMatchObject({status:"recorded",sponsorship_window_mirrored:true});
   const clock=vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
   try {
-    await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
-      ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
+    // A grant renewed before renewal was removed (2026-11-23), as it is stored.
+    const {authority_digest:_parent,...parent}=first as any;const now=first.expires_at_epoch+10;
+    const payload={...parent,consent:{...parent.consent,accepted_at_epoch:now},
+      expires_at_epoch:now+(first.expires_at_epoch-(first as any).consent.accepted_at_epoch),
+      renewal:{parent_authority_digest:first.authority_digest,parent_expires_at_epoch:first.expires_at_epoch,
+        approved_by:"blueprint",approval_reference:"owner chat approval"}};
+    Object.assign(job(),{website_scene_sponsorship:{...payload,authority_digest:crossRuntimeDigest(payload)},
+      website_scene_sponsorship_history:[first]});
     const renewed=job().website_scene_sponsorship;
     expect(renewed.renewal.parent_authority_digest).toBe(first.authority_digest);
     clock.mockReturnValue((renewed.expires_at_epoch+3600)*1000);

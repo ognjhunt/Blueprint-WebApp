@@ -6,8 +6,8 @@
  * its reading, and is pure, so the grant reader and the job pages can use it
  * without importing the sweep.
  *
- * The ending binds the job and the exact grant. A grant the owner re-issues
- * later (`renewExpiredWebsiteSceneSponsorship`) is a new window, so an ending
+ * The ending binds the job and the exact grant. A grant re-issued before
+ * 2026-11-23 (expired-grant renewal, since removed) is a new window, so an ending
  * recorded for the old one stops speaking for the job; the job pages also show
  * it only while the window is still in the past (`websiteJobWorkWindow`), so an
  * owner-approved extension granted afterwards is honoured.
