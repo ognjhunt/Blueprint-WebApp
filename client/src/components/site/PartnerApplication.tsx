@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
-import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { PRIVACY_URL } from "@/lib/legalAcceptance";
 import { applyForEarlyAccess, EarlyAccessApplicationError } from "@/lib/robotTeamAccess";
 import { companyJobReturnPath } from "@/lib/authReturnPath";
 
 /**
- * The one application a deployment company sends to see jobs (on `/partners`; `/contact/robot-team` points here). It
- * asks only what approval by hand needs: who you are, your company and its website, what jobs you deliver with which
- * robots, and where.
+ * The one application a deployment company sends to see jobs (on `/partners`; `/contact/robot-team` points here). Four
+ * fields: your name, work email, company and company website. Nothing is agreed here; the signed-in agreement before
+ * the first job is what counts (`companyTerms.ts`).
  */
 export function PartnerApplication() {
   const [interactive, setInteractive] = useState(false);
@@ -34,11 +34,6 @@ export function PartnerApplication() {
         email: read("email"),
         company: read("company"),
         website: read("website"),
-        robot: read("robot"),
-        workWanted: read("workWanted"),
-        region: read("region"),
-        acceptedTerms: true,
-        optionalUpdates: data.get("optionalUpdates") === "on",
         ...(returnToJob ? { returnToJob } : {}),
       });
       setState("saved");
@@ -53,7 +48,7 @@ export function PartnerApplication() {
   if (state === "saved") return (
     <div className="ms-partner-receipt" role="status">
       <h2 ref={savedHeading} tabIndex={-1}>Your application is saved.</h2>
-      <p>We'll email you if your company is approved to see jobs. Once approved, you get an email for each new job.</p>
+      <p>We'll email you our answer within three working days. Once approved, you get an email for each new job.</p>
     </div>
   );
 
@@ -69,22 +64,12 @@ export function PartnerApplication() {
         </div>
         <label>Company<input name="company" autoComplete="organization" maxLength={160} required /></label>
         <label>Company website<input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} required placeholder="https://example.com" title="Enter a website beginning with https:// or http://" /></label>
-        <label>What jobs can you deliver?
-          <textarea name="workWanted" rows={2} maxLength={1200} required placeholder="For example, packing boxes" />
-        </label>
-        <label>Which robots do you deploy?
-          <textarea name="robot" rows={2} maxLength={1200} required placeholder="Robot models and software" />
-        </label>
-        <label>Where can you deploy?
-          <input name="region" maxLength={300} required placeholder="Cities, states or countries you cover" />
-        </label>
-        {/* Job emails are the service and start on once approved (owner, 2026-11-20); this box is Blueprint updates only. */}
-        <label className="ms-check-row"><input name="optionalUpdates" type="checkbox" />Also email me Blueprint updates. Optional; unsubscribe anytime.</label>
       </fieldset>
-      <p className="ms-form-note">By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.</p>
       {error && <p role="alert">{error} Your entries are still here. You can also <a href="mailto:hello@tryblueprint.io">contact us</a>.</p>}
       <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Saving…" : "Apply"}<ArrowRight size={18} aria-hidden="true" /></button>
-      <noscript><p>Enable JavaScript to apply, or email your company and its website, the robots you deploy and the jobs you deliver to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
+      {/* A notice, not a tick: nothing is agreed on this form (owner, 2026-11-23). */}
+      <p className="ms-form-note"><a href={PRIVACY_URL}>Privacy Policy</a></p>
+      <noscript><p>Enable JavaScript to apply, or email your name, your company and its website to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
     </form>
   );
 }

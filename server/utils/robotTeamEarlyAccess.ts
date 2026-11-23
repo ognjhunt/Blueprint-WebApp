@@ -23,7 +23,6 @@ import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import type { UpdatePreferences } from "../../client/src/types/updatePreferences";
-import { buildUpdatePreferences } from "./updatePreferences";
 import type { AccessFit } from "./robotTeamAccessFit";
 import { getRobotTeam, registerSelfServeTeam } from "./robotTeamRegistry";
 import { bindTeamToAccount, teamsForAccount, type AccountHolder } from "./robotTeamAccounts";
@@ -36,15 +35,17 @@ export type RobotTeamAccessStatus = "applied" | "approved" | "declined";
 
 export interface RobotTeamAccessApplication {
   partnerRole?: "deployment" | "technology" | null;
-  optionalUpdates?: boolean;
   returnToJob?: string;
   name: string;
   email: string;
   company: string;
   website: string | null;
-  robot: string;
-  workWanted: string;
-  region: string | null;
+  /** Asked on applications before 2026-11-23 only (the application is four fields now); kept readable on old records. */
+  robot?: string | null;
+  workWanted?: string | null;
+  region?: string | null;
+  /** The application's old "Blueprint updates" box, on records before 2026-11-23 only. */
+  optionalUpdates?: boolean;
 }
 
 export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
@@ -70,7 +71,7 @@ export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
    */
   termsAcceptance?: unknown;
   termsAcceptedByUid?: string;
-  /** What the unsigned application form showed and the applicant ticked: a record on the application, nothing more. */
+  /** On applications before 2026-11-23 only: what the unsigned form showed. Never lets a company see a job. */
   applicationTermsAcceptance?: unknown;
 }
 
@@ -120,7 +121,6 @@ export async function getAccessRecordForEmail(email: string | null | undefined):
  */
 export async function recordAccessApplication(
   application: RobotTeamAccessApplication,
-  options: { applicationTermsAcceptance?: unknown } = {},
 ): Promise<{ record: RobotTeamAccessRecord; created: boolean; unchanged?: true; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
   const { NO_ACCESS_EMAIL } = await import("./robotTeamAccessEmails");
@@ -141,10 +141,9 @@ export async function recordAccessApplication(
       ...application,
       ...(returnToJob ? { returnToJob } : {}),
       partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
-      // Job emails start on once approved (owner, 2026-11-20); the form's one box is Blueprint updates only.
+      // Job emails start on once approved (owner, 2026-11-20).
       newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? true,
-      ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : !prior && application.optionalUpdates !== undefined
-        ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: true }, "application") } : {}),
+      ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : {}),
       ...(prior?.preferencesAccountUid ? { preferencesAccountUid: prior.preferencesAccountUid } : {}),
       email,
       source: prior?.source ?? "application",
@@ -154,9 +153,6 @@ export async function recordAccessApplication(
       decidedAtIso: null,
       decidedBy: null,
       decisionNote: null,
-      // What the form showed and the applicant ticked, with the time: a record on the application only. It never lets a
-      // company see a job; only the signed-in "I agree" does (`companyTerms.ts`).
-      ...(options.applicationTermsAcceptance ? { applicationTermsAcceptance: options.applicationTermsAcceptance } : {}),
     };
     // No receipt by email: the form says it was received (owner, 2026-11-19).
     tx.set(ref, record);
@@ -189,9 +185,12 @@ export async function decideAccessApplication(params: {
       updatedAtIso: now,
     };
     const record = { ...prior, ...update };
-    // Only an approval is emailed (owner, 2026-11-19).
-    const notice = record.status === "approved"
-      ? await prepareAccessEmail(tx, { kind: "robot_team_access_approved", recordId: params.id, record }) : null;
+    // An approval is emailed, and a declined applicant gets one fixed email (owner, 2026-11-23). Withdrawing an earlier
+    // approval, or pressing it again, sends nothing; the decline email is queued in this same commit.
+    const declinedApplicant = record.status === "declined" && prior.status === "applied";
+    const notice = record.status === "approved" || declinedApplicant
+      ? await prepareAccessEmail(tx, { kind: record.status === "approved" ? "robot_team_access_approved"
+        : "robot_team_access_declined", recordId: params.id, record }) : null;
     tx.set(ref, update, { merge: true });
     notice?.write();
     return { record, notification: notice?.notification ?? NO_ACCESS_EMAIL };

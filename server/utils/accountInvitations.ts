@@ -1,5 +1,4 @@
 import { authAdmin } from "../../client/src/lib/firebaseAdmin";
-import { MIN_PASSWORD_LENGTH } from "../../client/src/lib/passwordPolicy";
 import { accessRecordId, getAccessRecordForEmail, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { createAccountInvitationToken, verifyAccountInvitationToken, type AccountInvitationPayload } from "./request-review-auth";
 import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
@@ -24,10 +23,7 @@ export async function resolveAccountInvitation(token: string) {
   const record = await getAccessRecordForEmail(email);
   if (!record || record.status !== "approved" || !record.decidedBy || record.decidedAtIso !== payload.revision || accessRecordId(email) !== payload.sourceId) return deny();
   return { ...payload, email, name: record.name, organization: record.company,
-    returnTo: companyJobReturnPath(record.returnToJob) ?? "/contact/robot-team",
-    // The setup form's one box is Blueprint updates (job emails are on for every approved company): never pre-ticked
-    // from the job-email flag.
-    optionalUpdates: record.updatePreferences?.newsletter ?? record.optionalUpdates ?? false };
+    returnTo: companyJobReturnPath(record.returnToJob) ?? "/contact/robot-team" };
 }
 
 /** Independent of client-writable profiles and library-open switches. */
@@ -37,16 +33,20 @@ export async function accountHasAdmission(email: string, workspaceType: AccountI
   return Boolean(record?.status === "approved" && record.decidedBy && record.decidedAtIso);
 }
 
-/** This endpoint provisions only approved robot-team accounts. Existing credentials are never replaced. */
-export async function redeemAccountInvitation(token: string, mode: "password" | "google", password?: string) {
+/**
+ * This endpoint provisions only approved robot-team accounts. Existing credentials are never replaced. `link`: the
+ * invitation was delivered to this address, so it creates the account with no password and signs it in (owner,
+ * 2026-11-23). It does so only while no account uses the address, which makes the invitation good for one sign-in: a
+ * later visit uses an emailed sign-in link (`companySignInLink.ts`), a password or Google.
+ */
+export async function redeemAccountInvitation(token: string, mode: "link" | "google") {
   const invitation = await resolveAccountInvitation(token);
   if (!authAdmin) throw new AccountInvitationError(503, "Account creation is temporarily unavailable.");
-  if (mode === "password" && (!password || password.length < MIN_PASSWORD_LENGTH)) throw new AccountInvitationError(400, `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`, "weak_password");
   let existing;
   try { existing = await authAdmin.getUserByEmail(invitation.email); }
   catch (error: any) { if (error.code !== "auth/user-not-found") throw error; }
   if (existing) {
-    if (mode === "password") throw new AccountInvitationError(409, "An account already uses this email. Sign in to continue.", "account_already_exists");
+    if (mode === "link") throw new AccountInvitationError(409, "An account already uses this email. Sign in to continue.", "account_already_exists");
     if (existing.disabled) return deny();
     return { ready: true };
   }
@@ -57,7 +57,7 @@ export async function redeemAccountInvitation(token: string, mode: "password" | 
   // account starts verified: a second verification email would only delay the
   // approved team's first workspace visit and the binding of its team.
   try {
-    await authAdmin.createUser({ uid, email: invitation.email, emailVerified: true, displayName: invitation.name || undefined, ...(mode === "password" ? { password } : {}) });
+    await authAdmin.createUser({ uid, email: invitation.email, emailVerified: true, displayName: invitation.name || undefined });
   } catch (error: any) {
     if (["auth/uid-already-exists", "auth/email-already-exists"].includes(error.code)) {
       if (mode === "google") return { ready: true };

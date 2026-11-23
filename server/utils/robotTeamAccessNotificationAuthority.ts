@@ -15,12 +15,14 @@ export async function robotTeamAccessNotificationAuthority(
   entry: Pick<OutboxEntry, "kind" | "requestId" | "idempotencyKey" | "to" | "robotTeamAccessNotice">,
   transaction: FirebaseFirestore.Transaction,
 ): Promise<"current" | "obsolete" | "review_required"> {
-  if (entry.kind !== "robot_team_access_approved") return "current";
+  if (entry.kind !== "robot_team_access_approved" && entry.kind !== "robot_team_access_declined") return "current";
+  // A decline is sent only while the record is still declined at that decision; a later approval makes it obsolete.
+  const expected = entry.kind === "robot_team_access_declined" ? "declined" : "approved";
   if (!db) return "review_required";
   const recordId = /^robot-team-access:([a-f0-9]{64})$/.exec(entry.requestId)?.[1];
   if (!recordId) return "review_required";
   const record = (await transaction.get(db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(recordId))).data();
-  if (!record || record.status !== "approved" || typeof record.email !== "string"
+  if (!record || record.status !== expected || typeof record.email !== "string"
     || normalizeAccessEmail(record.email) !== normalizeAccessEmail(entry.to)) return "obsolete";
   const revision = record.decidedAtIso;
   if (typeof revision !== "string" || !Number.isFinite(Date.parse(revision))) return "review_required";
@@ -28,7 +30,7 @@ export async function robotTeamAccessNotificationAuthority(
   const context = entry.robotTeamAccessNotice;
   if (context) {
     if (context.schemaVersion !== "robot_team_access_notice.v1" || context.recordId !== recordId
-      || context.status !== "approved" || typeof context.revision !== "string") return "review_required";
+      || context.status !== expected || typeof context.revision !== "string") return "review_required";
     return context.revision === revision ? "current" : "obsolete";
   }
   // Original receipt/decision keys contain their exact revision. Keep those

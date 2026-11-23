@@ -12,8 +12,22 @@ function firstName(name: string): string | null {
   return name.trim().split(/\s+/)[0] || null;
 }
 
-/** A company hears once about its application: when it is approved (owner, 2026-11-19). The page says the rest. */
-export type AccessEmailKind = "robot_team_access_approved";
+/**
+ * A company hears once about its application: when it is approved, or, in one fixed email with no reasons, when it is
+ * declined (owner, 2026-11-23). The page says when the answer comes.
+ */
+export type AccessEmailKind = "robot_team_access_approved" | "robot_team_access_declined";
+
+/** The one email a declined applicant gets. Fixed: no reasons, nothing from the decision note. */
+export const ACCESS_DECLINED_EMAIL_SUBJECT = "Your application to Blueprint";
+export const ACCESS_DECLINED_EMAIL_LINE = "Thank you for applying to see jobs on Blueprint. We are not able to approve your company at this time.";
+
+export function accessDeclinedEmail(record: RobotTeamAccessRecord) {
+  return {
+    subject: ACCESS_DECLINED_EMAIL_SUBJECT,
+    body: [emailGreeting(firstName(record.name)), "", ACCESS_DECLINED_EMAIL_LINE, "", EMAIL_SIGN_OFF].join("\n"),
+  };
+}
 
 export function accessApprovedEmail(record: RobotTeamAccessRecord) {
   const base = APP_URL();
@@ -116,7 +130,7 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
       write: () => undefined,
     };
   }
-  const message = accessApprovedEmail(params.record);
+  const message = params.kind === "robot_team_access_declined" ? accessDeclinedEmail(params.record) : accessApprovedEmail(params.record);
   const entry = buildOutboxEntry({
     idempotencyKey: outboxId,
     requestId: `robot-team-access:${params.recordId}`,
@@ -127,7 +141,7 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
     replyTo: "hello@tryblueprint.io",
     robotTeamAccessNotice: {
       schemaVersion: "robot_team_access_notice.v1", recordId: params.recordId,
-      status: "approved", revision: params.record.decidedAtIso!,
+      status: params.kind === "robot_team_access_declined" ? "declined" : "approved", revision: params.record.decidedAtIso!,
     },
   });
   return { notification: { status: "queued", outboxStatus: "pending", outboxId },

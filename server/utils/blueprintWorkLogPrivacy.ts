@@ -20,7 +20,8 @@ export function privateWorkLogPath(url: string): string {
   const lowered = path.toLowerCase();
   const linkRoute = SIGNED_LINK_PATH_ROUTES.find(prefix => lowered.startsWith(prefix));
   if (linkRoute) return `${linkRoute}[link]${path.slice(linkRoute.length).replace(/^[^/]*/, "")}`;
-  if (/[?&]invitation=/.test(url)) return url.split("?", 1)[0];
+  // An invitation or an emailed sign-in link (`/sign-in?link=`) is a credential: never logged.
+  if (/[?&](?:invitation|link)=/.test(url)) return url.split("?", 1)[0];
   if (url.split("?", 1)[0].startsWith("/api/location-autocomplete")) return url.split("?", 1)[0];
   if (TICKET_QUERY_ROUTES.some(prefix => url.startsWith(prefix))) return url.split("?", 1)[0];
   // An unsubscribe link's query: its token, or the address itself in a link sent before tokens.

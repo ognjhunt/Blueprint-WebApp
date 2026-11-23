@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import BusinessSignUpFlow from "@/pages/RobotTeamSignUpFlow";
-const mocks = vi.hoisted(() => ({ invitation: vi.fn(), google: vi.fn(), custom: vi.fn(), passwordSignIn: vi.fn(), verify: vi.fn(), workspace: vi.fn(), assign: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invitation: vi.fn(), google: vi.fn(), custom: vi.fn(), verify: vi.fn(), workspace: vi.fn(), assign: vi.fn() }));
 vi.mock("@/lib/accountInvitation", () => ({ invitationRequest: mocks.invitation }));
-vi.mock("firebase/auth", () => ({ signInWithCustomToken: mocks.custom, signInWithEmailAndPassword: mocks.passwordSignIn, sendEmailVerification: mocks.verify }));
+vi.mock("firebase/auth", () => ({ signInWithCustomToken: mocks.custom, sendEmailVerification: mocks.verify }));
 vi.mock("@/lib/firebase", () => ({ auth: {}, signInWithGoogle: mocks.google }));
 vi.mock("@/lib/workspace", () => ({ workspaceRequest: mocks.workspace, WorkspaceRequestError: class extends Error {} }));
 const user = { uid: "new-user", email: "team@example.com", displayName: "Team", emailVerified: false };
@@ -18,27 +18,25 @@ beforeEach(() => {
   mocks.workspace.mockResolvedValue({ ok: true }); mocks.verify.mockResolvedValue(undefined);
 });
 describe("invitation-only account creation", () => {
-  it("brings an existing unverified account back to the original job using its prefilled details", async () => {
-    mocks.invitation.mockImplementation(async path => {
-      if (path === "inspect") return { ...invitation, returnTo: "/jobs/carton-job", optionalUpdates: true };
-      throw Object.assign(new Error("Existing account"), { code: "account_already_exists" });
-    });
-    mocks.passwordSignIn.mockResolvedValue({ user });
+  it("brings an unverified account back to the original job using its prefilled details", async () => {
+    mocks.invitation.mockImplementation(async (path: string) => path === "inspect" ? { ...invitation, returnTo: "/jobs/carton-job" } : { customToken: "server-created-session" });
     await openInvitation();
     consent();
-    fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/jobs/carton-job"));
     expect(mocks.verify).toHaveBeenCalledWith(user, { url: `${window.location.origin}/jobs/carton-job` });
     expect(mocks.workspace).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Team", organization: "Robot Co",
-      workspaceType: "robot_team", acceptedTerms: true, optionalUpdates: true });
+      workspaceType: "robot_team", acceptedTerms: true });
   });
   it("asks no account details the application already gave, and asks for a name or company only when missing", async () => {
     await openInvitation();
     expect(screen.queryByText("Review account details")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Company")).not.toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Also email me Blueprint updates. Optional; unsubscribe anytime." })).toBeVisible();
+    // No password and no "Blueprint updates" box (owner, 2026-11-23): the one box is the Terms agreement.
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(screen.queryByText(/Blueprint updates/)).not.toBeInTheDocument();
     cleanup();
     mocks.invitation.mockImplementation(async (path: string) => path === "inspect" ? { ...invitation, organization: "" } : { customToken: "x" });
     await openInvitation();
@@ -73,16 +71,16 @@ describe("invitation-only account creation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
     expect(mocks.invitation).toHaveBeenCalledTimes(1); expect(mocks.google).not.toHaveBeenCalled();
   });
-  it("redeems a password invitation through the server and lands in the job library without a second verification", async () => {
+  it("signs the invited address in with no password and lands in the job library without a second verification", async () => {
     // The server creates the invited account verified: the invitation was delivered to that address.
     const invited = { ...user, emailVerified: true };
     mocks.custom.mockResolvedValue({ user: invited });
-    await openInvitation(); consent(); fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
+    await openInvitation(); consent();
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
-    expect(mocks.invitation).toHaveBeenCalledWith("redeem", "signed-invitation", { mode: "password", password: "strongpass123", acceptedTerms: true });
+    expect(mocks.invitation).toHaveBeenCalledWith("redeem", "signed-invitation", { mode: "link", acceptedTerms: true });
     expect(mocks.custom).toHaveBeenCalledWith({}, "server-created-session");
-    expect(mocks.workspace).toHaveBeenCalledWith(invited, "/setup", "POST", { name: "Team", organization: "Robot Co", workspaceType: "robot_team", acceptedTerms: true, optionalUpdates: false });
+    expect(mocks.workspace).toHaveBeenCalledWith(invited, "/setup", "POST", { name: "Team", organization: "Robot Co", workspaceType: "robot_team", acceptedTerms: true });
     expect(mocks.verify).not.toHaveBeenCalled();
   });
   it("sends no one back to apply: the page without an invitation offers a new link to approved teams", () => {
@@ -96,18 +94,18 @@ describe("invitation-only account creation", () => {
     expect(mocks.invitation).toHaveBeenCalledWith("redeem", "signed-invitation", { mode: "google", acceptedTerms: true });
     expect(mocks.workspace).not.toHaveBeenCalled();
   });
-  it("uses existing credentials on an invited account rather than replacing them", async () => {
-    mocks.invitation.mockImplementation(async path => { if (path === "inspect") return invitation; throw Object.assign(new Error("Sign in"), { code: "account_already_exists" }); });
-    mocks.passwordSignIn.mockResolvedValue({ user });
-    await openInvitation(); consent(); fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "existingpass123" } });
+  it("sends an address that already has an account to sign in, and replaces nothing", async () => {
+    mocks.invitation.mockImplementation(async path => { if (path === "inspect") return invitation;
+      throw Object.assign(new Error("An account already uses this email. Sign in to continue."), { code: "account_already_exists" }); });
+    await openInvitation(); consent();
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
-    expect(mocks.passwordSignIn).toHaveBeenCalledWith({}, user.email, "existingpass123");
-    expect(mocks.custom).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alert")).toHaveTextContent("An account already uses this email. Sign in to continue.");
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in?next=%2Fcontact%2Frobot-team");
+    expect(mocks.custom).not.toHaveBeenCalled(); expect(mocks.assign).not.toHaveBeenCalled();
   });
   it("retains the created account across a workspace retry without replacing credentials", async () => {
     mocks.workspace.mockRejectedValueOnce(new Error("Try again"));
-    await openInvitation(); consent(); fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
+    await openInvitation(); consent();
     fireEvent.click(screen.getByRole("button", { name: "Create account" })); await screen.findByRole("alert");
     fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
     await waitFor(() => expect(mocks.assign).toHaveBeenCalled());

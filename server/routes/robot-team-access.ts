@@ -15,7 +15,8 @@ import {
   recordAccessApplication,
   requestAccessInvitation,
 } from "../utils/robotTeamEarlyAccess";
-import { applicationTermsAcceptance, recordCompanyTermsAcceptance } from "../utils/companyTerms";
+import { recordCompanyTermsAcceptance } from "../utils/companyTerms";
+import { CompanySignInLinkError, redeemCompanySignInLink, requestCompanySignInLink } from "../utils/companySignInLink";
 import { shownVersionsCount } from "../../client/src/lib/legalAcceptance";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
@@ -27,8 +28,6 @@ const router = Router();
 const applyLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false });
 
 const text = (max: number) => z.string().trim().min(1).max(max);
-const optionalText = (max: number) =>
-  z.string().trim().max(max).optional().transform((value) => (value ? value : null));
 
 export const applicationSchema = z
   .object({
@@ -38,15 +37,7 @@ export const applicationSchema = z
     website: text(300).refine(value => /^https?:\/\//i.test(value) && URL.canParse(value), {
       message: "Use a full http:// or https:// website address.",
     }),
-    robot: text(1200),
-    workWanted: text(1200),
-    region: optionalText(300),
     partnerRole: z.enum(["deployment", "technology"]).optional(),
-    acceptedTerms: z.literal(true),
-    // The versions the form showed (G2): a missing or stale version is refused as the accept route refuses it.
-    termsVersion: z.string().max(40).optional(),
-    privacyVersion: z.string().max(40).optional(),
-    optionalUpdates: z.boolean().optional(),
     returnToJob: z.string().max(130).transform(path => companyJobReturnPath(path) ?? undefined).optional(),
   })
   .strict();
@@ -59,22 +50,18 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
       code: "application_invalid",
     });
   }
-  // What the form showed, recorded exactly when it still counts as current; refused otherwise.
-  const shown = shownVersionsCount(parsed.data.termsVersion, parsed.data.privacyVersion);
-  if (!shown) return res.status(400).json(APPLICATION_TERMS_CHANGED);
-  const { acceptedTerms: _accepted, termsVersion: _terms, privacyVersion: _privacy, returnToJob, ...fields } = parsed.data;
+  const { returnToJob, ...fields } = parsed.data;
   const application = { ...fields, ...(returnToJob ? { returnToJob } : {}) };
   try {
-    // The tick on this unsigned form is recorded on the application as what it is (the versions it showed and the
-    // time). It never lets a company see a job: every company agrees once, signed in, on its first visit (G1).
-    const { record, created, unchanged, notification } = await recordAccessApplication(application, {
-      applicationTermsAcceptance: applicationTermsAcceptance(undefined, shown) });
+    // Nothing is agreed on this unsigned form (owner, 2026-11-23): every company agrees once, signed in, on its first
+    // visit, before it sees any job (G1).
+    const { record, created, unchanged, notification } = await recordAccessApplication(application);
     // A decided record is left as it is, and the answer is the same as for a new application (G1).
     if (unchanged) return res.status(202).json({ status: "applied", notificationStatus: "not_requested" });
     // Registration records interest; only the existing staff decision/invite routes grant admission.
     const current = record;
     const autoApproved = false;
-    // No receipt by email: the page says the application was received (owner, 2026-11-19).
+    // No receipt by email: the page says the application was received and when the answer comes (owner, 2026-11-23).
     if (created) {
       void notifySlackRobotTeamAccessApplication({ ...current, autoApproved }).catch(() => undefined);
     }
@@ -107,13 +94,44 @@ router.post("/invitation", applyLimiter, async (req: Request, res: Response) => 
 });
 
 /**
+ * "Email me a sign-in link" (owner, 2026-11-23): the same answer whether or not the address is an approved company's,
+ * and the same rate limit as the application. The link itself is single use and lasts 15 minutes.
+ */
+export const SIGN_IN_LINK_ANSWER = { ok: true,
+  message: "If that address belongs to an approved deployment company, we have emailed it a sign-in link. It works once, for 15 minutes." };
+router.post("/sign-in-link", applyLimiter, async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
+  const parsed = invitationRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Enter a valid email address.", code: "sign_in_link_request_invalid" });
+  try {
+    await requestCompanySignInLink(parsed.data.email);
+  } catch (error) {
+    logger.warn({ error }, "Could not queue a company sign-in link");
+    return res.status(503).json({ error: "The link could not be sent. Try again shortly.", code: "sign_in_link_unavailable" });
+  }
+  return res.status(202).json(SIGN_IN_LINK_ANSWER);
+});
+
+const signInLinkRedeemSchema = z.object({ link: z.string().min(1).max(2000) }).strict();
+router.post("/sign-in-link/redeem", applyLimiter, async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
+  res.set("Referrer-Policy", "no-referrer");
+  const parsed = signInLinkRedeemSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "This sign-in link no longer works. Ask for a new one on this page.", code: "sign_in_link_invalid" });
+  try {
+    return res.json(await redeemCompanySignInLink(parsed.data.link));
+  } catch (error) {
+    if (error instanceof CompanySignInLinkError) return res.status(error.status).json({ error: error.message, code: error.code });
+    logger.warn({ error }, "Could not redeem a company sign-in link");
+    return res.status(503).json({ error: "Sign-in is temporarily unavailable. Try again shortly.", code: "sign_in_link_unavailable" });
+  }
+});
+
+/**
  * An approved deployment company accepts the current Terms and Privacy Policy before it sees any job. Recorded on its
  * account and its access record (`companyTerms.ts`), with the versions taken from the server, never the client.
  */
 const TERMS_ACCEPTANCE_INVALID = { error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" };
-/** The same refusal on the application, which has no box to tick: agreement is by applying, so the page must reload. */
-const APPLICATION_TERMS_CHANGED = { ...TERMS_ACCEPTANCE_INVALID,
-  error: "Our Terms or Privacy Policy changed. Reload the page and apply again." };
 const acceptTermsSchema = z.object({ acceptedTerms: z.literal(true), termsVersion: z.string().max(40),
   privacyVersion: z.string().max(40) }).strict();
 router.post("/accept-terms", applyLimiter, verifyFirebaseToken, async (req: Request, res: Response) => {

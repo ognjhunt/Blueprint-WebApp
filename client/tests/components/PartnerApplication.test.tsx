@@ -14,21 +14,21 @@ function completeRequiredFields() {
   fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "alex@example.com" } });
   fireEvent.change(screen.getByLabelText("Company"), { target: { value: "Example Robotics" } });
   fireEvent.change(screen.getByLabelText("Company website"), { target: { value: "https://example.com" } });
-  fireEvent.change(screen.getByLabelText("What jobs can you deliver?"), { target: { value: "Move sealed cases from totes into trays" } });
-  fireEvent.change(screen.getByLabelText("Which robots do you deploy?"), { target: { value: "Fixed arm systems with parallel grippers" } });
-  fireEvent.change(screen.getByLabelText("Where can you deploy?"), { target: { value: "Central Texas" } });
 }
 
 describe("the one company application", () => {
   beforeEach(() => application.save.mockReset());
   afterEach(cleanup);
 
-  it("asks only what approval needs and saves it through the reviewed application path", async () => {
+  it("asks four fields, agrees to nothing, and saves them through the reviewed application path", async () => {
     application.save.mockResolvedValue({ status: "applied", notificationStatus: "queued" });
     render(<PartnerApplication />);
     const form = screen.getByRole("form", { name: "Deployment company application" });
     expect([...form.querySelectorAll("input, textarea")].map(field => field.getAttribute("name")))
-      .toEqual(["name", "email", "company", "website", "workWanted", "robot", "region", "optionalUpdates"]);
+      .toEqual(["name", "email", "company", "website"]);
+    // A notice, not a tick: no box, and no sentence saying that applying agrees to anything.
+    expect(form.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(form.textContent).not.toMatch(/By applying|agree|Blueprint updates/i);
     // The website is shown and required: the approver's one automatic sign that the company is real.
     expect(screen.getByLabelText("Company website")).toBeVisible();
     expect(screen.getByLabelText("Company website")).toBeRequired();
@@ -37,11 +37,9 @@ describe("the one company application", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(application.save).toHaveBeenCalledWith({
       partnerRole: "deployment", name: "Alex Example", email: "alex@example.com", company: "Example Robotics", website: "https://example.com",
-      workWanted: "Move sealed cases from totes into trays", robot: "Fixed arm systems with parallel grippers", region: "Central Texas",
-      acceptedTerms: true, optionalUpdates: false,
     }));
     expect(screen.getByRole("heading", { name: "Your application is saved." })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("We'll email you if your company is approved to see jobs.");
+    expect(screen.getByRole("status")).toHaveTextContent("We'll email you our answer within three working days.");
     expect(screen.getByRole("status").textContent).not.toMatch(/contact you when|when a job and what you do fit/i);
   });
 

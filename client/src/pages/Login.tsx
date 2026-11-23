@@ -7,6 +7,8 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { authReturnPath } from "@/lib/authReturnPath";
 import { friendlyAuthError } from "@/lib/siteClaim";
+import { withCsrfHeader } from "@/lib/csrf";
+import { Helmet } from "@/lib/helmet";
 
 interface ValidationErrors {
   email?: string;
@@ -45,6 +47,8 @@ export default function Login() {
   const redirectChecked = useRef(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [linkStatus, setLinkStatus] = useState<string | null>(null);
+  const linkRedeemed = useRef(false);
   const { signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn } = useAuth();
   const browserLocation = typeof window === "undefined" ? null : window.location;
   const returnPath = authReturnPath(new URLSearchParams(browserLocation?.search || "").get("next"));
@@ -62,6 +66,55 @@ export default function Login() {
       }
     }
   }, [returnPath]);
+
+  // A deployment company's emailed sign-in link (`companySignInLink.ts`): spent once, then the address is signed in.
+  useEffect(() => {
+    if (linkRedeemed.current || !browserLocation) return;
+    const link = new URLSearchParams(browserLocation.search).get("link");
+    if (!link) return;
+    linkRedeemed.current = true;
+    // The link leaves the address bar before anything else loads.
+    window.history.replaceState(null, "", browserLocation.pathname);
+    setIsLoading(true);
+    void (async () => {
+      try {
+        const response = await fetch("/api/robot-team-access/sign-in-link/redeem", { method: "POST", credentials: "include",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }), body: JSON.stringify({ link }) });
+        const data = await response.json().catch(() => ({})) as { customToken?: string; returnTo?: string; error?: string };
+        if (!response.ok || !data.customToken) throw new Error(data.error || "This sign-in link no longer works. Ask for a new one on this page.");
+        const [{ signInWithCustomToken }, firebase] = await Promise.all([import("firebase/auth"), import("@/lib/firebase")]);
+        await signInWithCustomToken(firebase.auth, data.customToken);
+        // A job the company was opening in this tab comes first; the emailed link's own destination otherwise.
+        let saved: string | null = null;
+        try { saved = sessionStorage.getItem("redirectAfterAuth"); sessionStorage.removeItem("redirectAfterAuth"); } catch { saved = null; }
+        window.location.assign(authReturnPath(saved) ?? authReturnPath(data.returnTo ?? null) ?? "/contact/robot-team");
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : "This sign-in link no longer works. Ask for a new one on this page.");
+        setIsLoading(false);
+      }
+    })();
+  }, []);
+
+  const requestSignInLink = async () => {
+    const emailError = validateEmail(formData.email);
+    setErrors((current) => ({ ...current, email: emailError, password: undefined }));
+    setTouched((current) => ({ ...current, email: true }));
+    if (isLoading || emailError) return;
+    setIsLoading(true);
+    setAuthError(null);
+    setLinkStatus(null);
+    try {
+      const response = await fetch("/api/robot-team-access/sign-in-link", { method: "POST", credentials: "include",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }), body: JSON.stringify({ email: formData.email.trim() }) });
+      const data = await response.json().catch(() => ({})) as { message?: string; error?: string };
+      if (!response.ok) throw new Error(data.error || "The link could not be sent. Try again.");
+      setLinkStatus(data.message || null);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "The link could not be sent. Try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (redirectChecked.current) return;
@@ -163,6 +216,7 @@ export default function Login() {
   return (
     <AuthLayout>
       <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account." canonical="/sign-in" noIndex />
+      <Helmet><meta name="referrer" content="no-referrer" /></Helmet>
       <h1>Sign in</h1>
       <button type="button" className="auth-google" onClick={handleGoogleSignIn} disabled={isLoading || !googleReady}><GoogleMark />Continue with Google</button>
       <div className="auth-divider"><span>or</span></div>
@@ -180,6 +234,12 @@ export default function Login() {
         <a className="auth-forgot" href="/forgot-password">Forgot password?</a>
         <button type="submit" className="auth-primary" disabled={isLoading}>{isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" />Signing in…</> : <>Sign in<ArrowRight size={18} aria-hidden="true" /></>}</button>
       </form>
+      {/* Deployment companies sign in without a password: the link goes only to an approved company's address. */}
+      <div className="auth-form">
+        <p className="auth-account-link">Deployment company? Enter your email above.</p>
+        <button type="button" className="auth-google" onClick={() => void requestSignInLink()} disabled={isLoading}>Email me a sign-in link</button>
+        {linkStatus && <p role="status" className="auth-account-link">{linkStatus}</p>}
+      </div>
       {isCompanyJob
         ? <p className="auth-account-link">New deployment company? <a href="/jobs#partner-application">Apply to see jobs</a></p>
         : <>
