@@ -4,13 +4,14 @@
  * check without an import cycle.
  *
  * A question is owed 14, 45 and 90 days after the introduction, once per side per date; none once
- * either side answered "Installed" or "Not going ahead", none after the site withdrew, and none while
- * the job is not visible to companies (the whole E2 rule, `loadCompanyJobAccess`).
+ * either side answered "Installed" or "Not going ahead", and none after the site withdrew ("Stop using my
+ * video"). A site closing its job, or the job leaving the companies' list, does not end them: the introduction
+ * was already made.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { FINAL_OUTCOME_STATES, isOutcomeState, type OutcomeState } from "../../client/src/lib/jobOutcomeStates";
-import { loadCompanyJobAccess } from "./teamJobAccess";
 import { isApprovedDeploymentCompanyRecord } from "./companyTerms";
+import { isInternalTestJob } from "./internalTestJob";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { OutcomeSide } from "./jobOutcomeToken";
 
@@ -64,15 +65,13 @@ export function dueOutcomeQuestionDay(introduction: IntroductionLike | null | un
 }
 
 /**
- * The job still takes questions: the site has not withdrawn, and companies can see it under the whole
- * E2 rule (sentence, holds, authority end, the site closing the job). Inside a
- * transaction pass `tx` so every read participates.
+ * The job still takes questions: it exists, is not an internal test job, and the site has not withdrawn (a privacy stop). Whether companies
+ * can still see the job does not matter here: closing it, a hold or an authority end leaves the questions owed.
  */
-export async function jobTakesOutcomeQuestions(requestId: string, record: Record<string, unknown> | null | undefined,
-  tx?: FirebaseFirestore.Transaction): Promise<boolean> {
-  if (!record) return false;
-  if (projectWebsiteCaptureRights(record).consent_revoked) return false;
-  return (await loadCompanyJobAccess(requestId, record as Record<string, any>, tx)).access.listed;
+export async function jobTakesOutcomeQuestions(_requestId: string, record: Record<string, unknown> | null | undefined,
+  _tx?: FirebaseFirestore.Transaction): Promise<boolean> {
+  if (!record || isInternalTestJob(record)) return false;
+  return !projectWebsiteCaptureRights(record).consent_revoked && !record.capture_withdrawal;
 }
 
 /** The outbox document id of one question: fixed by job, company, side and date, so it is queued once. */

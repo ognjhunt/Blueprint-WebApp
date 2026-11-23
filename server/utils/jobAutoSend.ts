@@ -11,7 +11,7 @@
  * was sent sees it in its library and gets ONE email about the jobs open to it (`emailOpenJobsToCompany`, audit B-03).
  * A worker sweep catches any moment that was missed.
  *
- * Nothing identifying the site is read or written here: the email carries the job's link only.
+ * Nothing identifying the site is written here: the email carries the kind of job, the country and the job's link.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -21,6 +21,7 @@ import { companyMaySeeJobs } from "./companyTerms";
 import { newJobEmail, openJobsEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
+import { countryOf } from "./companyJobPage";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
@@ -34,6 +35,28 @@ export type AutoSendResult =
 
 const isPullRequestPreview = () => process.env.IS_PULL_REQUEST?.trim().toLowerCase() === "true";
 
+
+/** Whether a robotTeamAccess row is one the automatic send would send to: a valid id and `companyMaySeeJobs`. */
+const companyRowMaySeeJobs = (row: { id: string; data: RobotTeamAccessRecord }) =>
+  /^[a-f0-9]{64}$/.test(row.id) && companyMaySeeJobs(row.data);
+
+const ANY_COMPANY_CACHE_MS = 60_000;
+let anyCompanyCache: { atMs: number; value: boolean } | null = null;
+/**
+ * Whether at least one approved deployment company may see jobs right now, by the same rule the automatic send uses.
+ * The site's job page says its job is posted only when this holds. A yes is cached for a minute, since every page view
+ * asks; a no is read again each time, so the page says posted as soon as a company accepts the Terms.
+ */
+export async function anyCompanyMaySeeJobs(nowMs = Date.now()): Promise<boolean> {
+  if (anyCompanyCache && nowMs - anyCompanyCache.atMs < ANY_COMPANY_CACHE_MS) return anyCompanyCache.value;
+  if (!db) return false;
+  const approved = await db.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved").get();
+  const value = approved.docs.some(doc => companyRowMaySeeJobs({ id: doc.id, data: (doc.data() ?? {}) as RobotTeamAccessRecord }));
+  anyCompanyCache = value ? { atMs: nowMs, value } : null;
+  return value;
+}
+/** For tests: forget the cached answer. */
+export function resetAnyCompanyMaySeeJobsCache() { anyCompanyCache = null; }
 
 /** Send one job to every approved deployment company, once. Idempotent: a second call finds the marker and does nothing. */
 export async function sendJobToApprovedCompanies(requestId: string, now: () => Date = () => new Date()): Promise<AutoSendResult> {
@@ -50,7 +73,7 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
       .map(doc => ({ id: doc.id, data: (doc.data() ?? {}) as RobotTeamAccessRecord }))
       // Only companies that may see jobs: approved, deployment, and the current Terms accepted. A company that has not
       // accepted gets no row, no email and is not counted; once it accepts, the job is in its library like any other.
-      .filter(row => /^[a-f0-9]{64}$/.test(row.id) && companyMaySeeJobs(row.data))
+      .filter(companyRowMaySeeJobs)
       .sort((a, b) => a.id.localeCompare(b.id));
     if (!companies.length) return { sent: false, reason: "no_companies" };
     // Reads first: each company's saved preference and suppression, and the site's notice row.
@@ -69,12 +92,13 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
       { milestone: "job_sent", eventId: AUTO_SEND_EVENT_ID, companyCount: companies.length }, captureUrl);
     const sentAtIso = now().toISOString();
     const jobUrl = companyJobUrl(requestId);
+    const country = await countryOf(record);
     for (const company of companies) {
       tx.set(jobRef.collection(COMPANY_SENDS_COLLECTION).doc(`system-${company.id}`), { schemaVersion: 1, companyId: company.id,
         sentAtIso, sentBy: "system", sentByEmail: null });
     }
     for (const company of emailed) {
-      const message = newJobEmail({ to: company.email, jobUrl });
+      const message = newJobEmail({ to: company.email, jobUrl, kind: access.details.taskFamily, country });
       tx.create(store.collection(CAPTURE_OUTBOX_COLLECTION).doc(newJobAlertKey(requestId, company.id)), buildOutboxEntry({
         idempotencyKey: newJobAlertKey(requestId, company.id), requestId, kind: "robot_team_new_task", to: company.email,
         subject: message.subject, body: message.body, replyTo: "hello@tryblueprint.io",

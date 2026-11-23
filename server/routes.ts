@@ -11,7 +11,6 @@ import captureUploadsRouter from "./routes/capture-uploads";
 import websiteAtlasPreviewDownloadsRouter from "./routes/website-atlas-preview-downloads";
 import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views";
 import websiteDestinationPicturesRouter from "./routes/website-destination-pictures";
-import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
@@ -25,7 +24,6 @@ import inboundRequestRouter from "./routes/inbound-request";
 import adminRobotTeamsRouter from "./routes/admin-robot-teams";
 import { resendWebhookHandler } from "./routes/resend-webhook";
 import analyticsIngestRouter from "./routes/analytics-ingest";
-import experimentsRouter from "./routes/experiments";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import internalCaptureTestbedsRouter from "./routes/internal-capture-testbeds";
 import internalBetaPolicyScreeningRouter from "./routes/internal-beta-policy-screening";
@@ -65,7 +63,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/job-workflow", csrfProtection, jobWorkflowRouter);
   app.use("/api/internal", internalJobEvidenceRouter);
   app.use("/api/account-deletion", csrfProtection, verifyFirebaseToken, accountDeletionRouter);
-  app.use("/api/experiments", experimentsRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
   app.use("/api/internal/pipeline", internalCaptureTestbedsRouter);
   app.use("/api/internal/pipeline", internalBetaPolicyScreeningRouter);
@@ -139,8 +136,8 @@ export function registerRoutes(app: Express) {
     "/api/capture-uploads",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     captureUploadsRouter,
   );
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
-  app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
 }

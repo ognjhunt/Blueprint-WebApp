@@ -549,9 +549,11 @@ describe("WP-14: a waiting or ended job says what it waits on, and until when", 
     expect(ended(null).startsWith(AUTHORITY_ENDED_SENTENCE)).toBe(true);
     for (const text of [ended({ untilEpoch: null, ended: true }), ended(null)]) {
       expect(text).not.toMatch(/on hold|checks its authorization|taking longer/i);
-      expect(text).toContain("To try again, start a new job.");
       expect(text).not.toMatch(/authorized/);
     }
+    // A window ending keeps the job listed, so only a lost permission says to start again.
+    expect(ended(null)).toContain("To try again, start a new job.");
+    expect(ended({ untilEpoch: null, ended: true })).not.toMatch(/start a new job/);
   });
 });
 
@@ -564,9 +566,9 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
 
   it("builds on the WP-14 sentences and promises nothing", () => {
     expect(JOB_WINDOW_ENDING_MESSAGE.startsWith(JOB_WINDOW_ENDED_SENTENCE)).toBe(true);
-    expect(JOB_WINDOW_ENDING_MESSAGE.endsWith(PREPARATION_ENDED_NEXT)).toBe(true);
+    expect(JOB_WINDOW_ENDING_MESSAGE).not.toContain(PREPARATION_ENDED_NEXT);
     expect(JOB_WINDOW_ENDING_MESSAGE).toBe("The simulation of your site has stopped because the time for this job ran out. "
-      + "It was not finished, and no more work will run on this job. Your first look stays on your job page. To try again, start a new job.");
+      + "It was not finished, and no more work will run on this job. Your first look stays on your job page.");
     expect(JOB_WINDOW_ENDING_MESSAGE).not.toMatch(/we will|we'll|our team|review|follow up|email you|on hold|taking longer/i);
   });
 

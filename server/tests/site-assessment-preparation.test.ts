@@ -187,11 +187,11 @@ it("v2 explicit current preparation admits unknown task/account without confirmi
   const later=await loadWebsiteSceneSponsorship("one",false);
   expect(later).toEqual(grant);expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(stored);
 });
-it("v2 absent purpose leaves confirmation, site screen and account gates strict, whatever the assessment says",async()=>{
+it("v2 absent purpose leaves confirmation and site screen gates strict, whatever the assessment says",async()=>{
   seed(packet(),false,false);await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_task_context_not_confirmed");
   seed(packet(),true,true);await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_scene_site_not_qualified");
   seed(packet(),true,false);(state.docs.get("inboundRequests/one") as any).site_task_triage.disposition="qualified";
-  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_scene_site_unclaimed");
+  await expect(loadWebsiteSceneSponsorship("one",true)).resolves.toMatchObject({request_id:"one"});
 });
 it("v2 preparation cannot create a grant without the exact current expected context",async()=>{
   seed(packet(),false,false);
@@ -857,6 +857,17 @@ it("a safety-limit alert stored before the switch is still reported once; no new
   const [key,message]=alert.mock.calls[0] as unknown as [string,string];
   expect(key).toBe("website_job_safety_limit:one-safety-limit");
   expect(message).toContain("request one reached its safety limit of $100.00 ($99.75 already held or spent; $0.50 more was asked for).");
+  expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:0,alerted:0});
+});
+it("an over-budget marker from the retired budget extension is cleared without an alert (2026-11-22)",async()=>{
+  state.docs.set("opsWebsiteJobOverBudgetAlerts/one-extension",{request_id:"one",over_budget:{allowance_exceeded:true,allowance:"preparation_allowance",
+    allowance_usd:10,job_ceiling_exceeded:false,job_reserved_or_settled_before_usd:9.5},delivery:null,next_attempt_at_ms:0,alerted_at_iso:null});
+  const alert=vi.fn(async()=>({sent:true})),email=vi.fn();
+  const deps={store:(await import("./helpers/fake-firestore")).sharedFakeFirestore as any,alert,email:email as any};
+  expect((await scanOverBudgetWebsiteJobs(deps)).alerted).toBe(0);
+  expect(alert).not.toHaveBeenCalled();
+  expect(email).not.toHaveBeenCalled();
+  expect(state.docs.get("opsWebsiteJobOverBudgetAlerts/one-extension")).toMatchObject({next_attempt_at_ms:null,delivery:{state:"cancelled"}});
   expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:0,alerted:0});
 });
 import { scanOverBudgetWebsiteJobs } from "../utils/websitePreparationOpsAlerts";

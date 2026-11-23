@@ -659,7 +659,9 @@ describe("one commit point: the company's email first, then the site's, which th
     expect(order()).not.toContain("site");
     const activity = await loadSiteCompanyActivity(ID);
     const a = activity.entries.find(entry => entry.kind === "answered" && entry.alias === "Company A") as Record<string, any>;
-    expect(a).toMatchObject({ introductionCancelled: true, canIntroduce: false });
+    // Cancelled because Blueprint's own email failed or never went: the site may press Introduce us again (F-03).
+    expect(a).toMatchObject({ introductionCancelled: true,
+      canIntroduce: reason === "company_email_failed" || reason === "company_email_not_sent" });
     expect(a).not.toHaveProperty("company");
     expect(JSON.stringify(activity)).not.toMatch(/North Robotics|contact@north|Person North/);
     expect(activity.introductions.used).toBe(0);
@@ -759,8 +761,21 @@ describe("one commit point: the company's email first, then the site's, which th
     expect(state.docs.get(`inboundRequests/${ID}/introductions/${north()}`)).toMatchObject({ cancelReason: "company_email_failed" });
     expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}`)).toMatchObject({ status: "void" });
     const a = (await loadSiteCompanyActivity(ID)).entries.find(entry => entry.kind === "answered" && entry.alias === "Company A") as Record<string, any>;
-    expect(a).toMatchObject({ introductionCancelled: true, canIntroduce: false });
+    expect(a).toMatchObject({ introductionCancelled: true, canIntroduce: true });
     expect(a).not.toHaveProperty("company");
+    // The site presses again once email works: a second attempt with its own emails and event; the void one is kept.
+    seams.sendEmail.mockImplementation(async () => ({ sent: true, provider: "resend", messageId: "accepted" }) as never);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    await deliverOutbox({ limit: 50 });
+    expect(order()).toEqual(["company", "site"]);
+    expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}`)).toMatchObject({ status: "void" });
+    expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}-a1`))
+      .toMatchObject({ status: "recorded_no_price", attempt: 1, madeAtIso: expect.any(String) });
+    const after = (await loadSiteCompanyActivity(ID)).entries.find(entry => entry.kind === "answered" && entry.alias === "Company A") as Record<string, any>;
+    expect(after.company).toMatchObject({ email: NORTH.email });
+    expect(after).not.toHaveProperty("introductionCancelled");
   });
 });
 

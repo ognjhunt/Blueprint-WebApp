@@ -1,10 +1,8 @@
-import type { User } from "firebase/auth";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Clock3, RefreshCw, Send, X } from "lucide-react";
 
 import { Button, Card, Eyebrow, StatusChip } from "@/components/blueprint";
-import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -57,14 +55,12 @@ type Library = {
   listedTaskCount: number | null;
   autoApproveMinimumTasks: number | null;
   gated?: boolean;
-  openSuggestedAtTasks?: number;
 };
 
-/** Once browsing is worth it on its own, say so: opening is one Render variable. */
-function openLibraryLine(library: Library | undefined) {
-  if (!library?.gated || library.listedTaskCount === null || !library.openSuggestedAtTasks) return null;
-  if (library.listedTaskCount < library.openSuggestedAtTasks) return null;
-  return `${library.listedTaskCount} site tasks are listed, enough for teams to browse on their own. You can open the library to every robot team by setting BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS=0 on Render.`;
+/** The application the Slack bell links to (`?application=<id>`), if any. */
+function linkedApplicationId(): string | null {
+  const id = new URLSearchParams(window.location.search).get("application");
+  return id && /^[a-f0-9]{64}$/.test(id) ? id : null;
 }
 
 function libraryLine(library: Library | undefined) {
@@ -89,11 +85,10 @@ function InviteTeam({ onInvited, send }: {
     const form = event.currentTarget;
     const data = new FormData(form);
     const read = (key: string) => String(data.get(key) ?? "").trim();
-    if (!window.confirm("I reviewed the team’s capabilities, task fit, and prerequisites and approve its invitation.")) return;
     setState("sending");
     try {
       const response = await send({
-        name: read("name"), email: read("email"), company: read("company"), prerequisitesReviewed: true,
+        name: read("name"), email: read("email"), company: read("company"),
         ...(read("note") ? { note: read("note") } : {}),
       });
       if (!response.ok) throw new Error(String(response.status));
@@ -151,6 +146,12 @@ export default function AdminRobotTeamAccess() {
     },
   });
 
+  const linkedId = linkedApplicationId();
+  useEffect(() => {
+    if (!linkedId || !query.data) return;
+    document.getElementById(`application-${linkedId}`)?.scrollIntoView({ block: "start" });
+  }, [linkedId, query.data]);
+
   async function sendInvite(body: Record<string, unknown>) {
     return fetch("/api/admin/robot-team-access/invites", {
       method: "POST",
@@ -171,13 +172,8 @@ export default function AdminRobotTeamAccess() {
   }
 
   async function decide(application: Application, status: "approved" | "declined") {
-    if (status === "approved" && !window.confirm("I reviewed the team’s capabilities, task fit, and prerequisites and approve its invitation.")) return;
-    const note = window.prompt(
-      status === "approved"
-        ? "Optional note (internal). Approving emails them how to create their account."
-        : "Reason (internal, never sent).",
-      application.decisionNote ?? "",
-    );
+    // Approve is one press. "Not yet" still asks for an internal reason (never sent).
+    const note = status === "approved" ? "" : window.prompt("Reason (internal, never sent).", application.decisionNote ?? "");
     if (note === null) return;
     setUpdating(application.id);
     setError(null);
@@ -186,7 +182,7 @@ export default function AdminRobotTeamAccess() {
         method: "POST",
         credentials: "include",
         headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })),
-        body: JSON.stringify({ status, prerequisitesReviewed: status === "approved", ...(note.trim() ? { note: note.trim() } : {}) }),
+        body: JSON.stringify({ status, ...(note.trim() ? { note: note.trim() } : {}) }),
       });
       if (!response.ok) throw new Error(`The decision was not saved (${response.status})`);
       await queryClient.invalidateQueries({ queryKey: ["admin-robot-team-access"] });
@@ -202,19 +198,17 @@ export default function AdminRobotTeamAccess() {
       <div className="mx-auto max-w-[88rem]">
         <header className="flex flex-col gap-4 border-b border-line pb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <Eyebrow tone="brass" rule>Partners</Eyebrow>
-            <h1 className="mt-5 font-display text-4xl font-semibold tracking-[0.005em] text-runway-text">Partner applications</h1>
+            <Eyebrow tone="brass" rule>Deployment companies</Eyebrow>
+            <h1 className="mt-5 font-display text-4xl font-semibold tracking-[0.005em] text-runway-text">Company applications</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-runway-mute">
-              Review deployment capabilities, supported systems and task fit before approving access.
-              Approved partners see only the site jobs shared with their team after signing in with a verified email.
+              Is this a real robot deployment company? If so, press Approve.
+              Approved companies see only the site jobs shared with their team after signing in with a verified email.
             </p>
             {libraryLine(query.data?.library) ? <p className="mt-2 max-w-2xl text-sm text-runway-text">{libraryLine(query.data?.library)}</p> : null}
-            {openLibraryLine(query.data?.library) ? <p role="status" className="mt-2 max-w-2xl text-sm text-runway-text">{openLibraryLine(query.data?.library)}</p> : null}
           </div>
           <Button variant="secondary" iconLeft={<RefreshCw />} onClick={() => query.refetch()}>Refresh</Button>
         </header>
 
-        <JobDecisionReview user={currentUser} />
         <InviteTeam send={sendInvite} onInvited={() => queryClient.invalidateQueries({ queryKey: ["admin-robot-team-access"] })} />
 
         {error ? <p className="py-4 text-runway-red" role="alert">{error}</p> : null}
@@ -227,7 +221,8 @@ export default function AdminRobotTeamAccess() {
         {invitationUrl && <p role="status" className="mb-4 break-all text-sm"><a href={invitationUrl} className="underline">Open approved account invitation</a> · valid for seven days</p>}
         <section className="mt-8 grid gap-4" aria-label="Early-access applications">
           {query.data?.applications.map((application) => (
-            <Card key={application.id} pad="lg" className="flex flex-col gap-5">
+            <Card key={application.id} id={`application-${application.id}`} aria-current={application.id === linkedId ? "true" : undefined}
+              pad="lg" className={`flex flex-col gap-5${application.id === linkedId ? " ring-2 ring-runway-signal" : ""}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-runway-text">{application.name} · {application.company}</h2>
@@ -256,8 +251,8 @@ export default function AdminRobotTeamAccess() {
                 <p className="text-sm text-runway-text"><span className="runway-meta">Site lead · would test at</span> {application.testSite}</p>
               ) : null}
               {application.fit ? (
-                <ul className="grid gap-1 text-sm" aria-label="Fit checklist">
-                  {application.fit.checks.map((check) => (
+                <ul className="grid gap-1 text-sm" aria-label="Work email and website">
+                  {application.fit.checks.filter((check) => check.id !== "open_tasks_in_region").map((check) => (
                     <li key={check.id} className={check.passed ? "text-runway-text" : "text-runway-mute"}>
                       {check.passed ? "✓" : "✗"} {check.label}: {check.detail}
                     </li>
@@ -277,56 +272,4 @@ export default function AdminRobotTeamAccess() {
       </div>
     </main>
   );
-}
-
-/** Blueprint's reviewed decision on an existing job, with the customer's answers beside it. */
-function JobDecisionReview({ user }: { user: User | null }) {
-  const [requestId, setRequestId] = useState("");
-  const [loadedId, setLoadedId] = useState("");
-  const [job, setJob] = useState<any>(null);
-  const [decision, setDecision] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function request(path: string, body?: unknown) {
-    const response = await fetch(`/api/admin/robot-teams/recommendations/${encodeURIComponent(loadedId || requestId.trim())}${path}`, {
-      method: body ? "POST" : "GET", credentials: "include", headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })), ...(body ? { body: JSON.stringify(body) } : {}) });
-    const result = await response.json(); if (!response.ok) throw new Error(result.error || "The action was not confirmed."); return result;
-  }
-  async function load(event: React.FormEvent) {
-    event.preventDefault(); setBusy(true); setMessage("");
-    try {
-      // Bind edits to the job actually loaded, even if the lookup text changes.
-      const response = await fetch(`/api/admin/robot-teams/recommendations/${encodeURIComponent(requestId.trim())}`, { headers: await withFirebaseAuthHeaders(user) });
-      const result = await response.json(); if (!response.ok) throw new Error(result.error);
-      setJob(result); setLoadedId(requestId.trim());
-      setDecision({ ...(result.decision ?? {}), questionText: result.decision?.question?.text ?? "", questionReason: result.decision?.question?.reason ?? "" });
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Job unavailable"); }
-    finally { setBusy(false); }
-  }
-  async function saveDecision(event: React.FormEvent) {
-    event.preventDefault(); if (busy) return; setBusy(true); setMessage("");
-    try {
-      await request("/decision", { sourceDigest: job.decisionSourceDigest,
-        recommendation: decision.recommendation ?? "", why: decision.why ?? "",
-        decisiveUncertainty: decision.decisiveUncertainty ?? "", nextAction: decision.nextAction ?? "",
-        question: decision.questionText ? { text: decision.questionText, reason: decision.questionReason ?? "" } : null });
-      setJob(await request(""));
-      setMessage("Reviewed recommendation saved on this job. No message, model call or commitment was made.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Decision was not saved"); }
-    finally { setBusy(false); }
-  }
-  return <Card pad="lg" className="mt-8"><h2 className="text-lg font-semibold">Review an existing job</h2>
-    <form onSubmit={load} className="ms-form"><label>Job reference<input value={requestId} onChange={event => setRequestId(event.target.value)} required /></label><button className="ms-button" disabled={busy}>Load existing brief and assessment</button></form>
-    {job && <><p>Job {loadedId}. Assessment: {job.assessment?.state ?? "unavailable"}.</p>
-      <p className="ms-field-hint">Private job information is for staff review; this action does not authorize sharing footage.</p>
-      <RobotFitConsole key={loadedId} requestId={loadedId} currentUser={user} />
-      {job.interests?.map((interest: any) => <p key={interest.submittedBy}>{interest.company}: {interest.state} — {interest.inputs}</p>)}
-      {job.customerConversation?.map((answer: any) => <p key={answer.messageId}>Customer answer ({answer.receivedAt}): {answer.text}</p>)}
-      {job.customerClarification && <p>Customer answer on the job page: {job.customerClarification.explanation} — Blueprint review required.</p>}
-      <form onSubmit={saveDecision} className="ms-form" aria-label="Reviewed job recommendation"><h3>Return a decision and own the next step</h3>
-        {[["recommendation", "What we recommend"], ["why", "Why the evidence supports it"], ["decisiveUncertainty", "Decision-changing uncertainty, if any"], ["nextAction", "Smallest next action Blueprint owns"], ["questionText", "One consequential question, if needed"], ["questionReason", "Why that answer changes the next decision"]].map(([key, label]) => <label key={key}>{label}<textarea value={decision[key] ?? ""} required={["recommendation", "why", "nextAction"].includes(key)} maxLength={key.startsWith("question") ? 1000 : 2000} onChange={event => setDecision({ ...decision, [key]: event.target.value })} /></label>)}
-        <button className="ms-button" disabled={busy}>Save reviewed recommendation</button>
-      </form>
-    </>}{message && <p role="status">{message}</p>}
-  </Card>;
 }

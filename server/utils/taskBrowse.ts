@@ -4,12 +4,13 @@ import type { LibraryJobStage, TaskBrowseCard, TaskCardDetail } from "../../clie
 import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
 import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
-import { countryOf } from "./companyJobPage";
+import { countryOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { storedCompanySimulation } from "./websiteCompanySimulation";
 
 /**
- * The job card approved deployment companies see in the library: category title and stage only. Whether it appears is
+ * The job card approved deployment companies see in the library: category title and stage (the site's sentence is added
+ * in `libraryCard`). Whether it appears is
  * `teamJobAccess`. Pass the access `loadCompanyJobAccess` decided (the whole E2 rule), or a context; without either,
  * the two checks that live outside the record are skipped (see `teamJobAccess`).
  */
@@ -53,14 +54,17 @@ export async function libraryJobStage(id: string, record: Record<string, any>): 
 }
 
 async function libraryCard(card: TaskBrowseCard, record: Record<string, any>,
-  session?: FirebaseFirestore.DocumentData): Promise<TaskBrowseCard> {
+  session?: FirebaseFirestore.DocumentData, brief?: FirebaseFirestore.DocumentData): Promise<TaskBrowseCard> {
   const { captureId } = siteWalkthroughIdentity(card.id, record);
   const simulationDownloadAvailable = Boolean(storedCompanySimulation(session, captureId));
-  const [country, simulationStage] = await Promise.all([
+  const [country, simulationStage, known] = await Promise.all([
     countryOf(record),
     simulationDownloadAvailable ? "simulation_built" as const : libraryJobStage(card.id, record),
+    knownSiteIdentity(record).catch(() => null),
   ]);
-  return { ...card, region: card.region || country || "", simulationStage, simulationDownloadAvailable };
+  // The country only: never the site's name, address, city or state.
+  return { ...card, region: card.region || country || "", sentence: siteSentenceForCompany(brief, known), simulationStage,
+    simulationDownloadAvailable };
 }
 
 /**
@@ -69,28 +73,29 @@ async function libraryCard(card: TaskBrowseCard, record: Record<string, any>,
  */
 export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boolean } = {}): Promise<TaskBrowseCard[]> {
   if (!db) throw new Error("Task library unavailable");
-  // Only jobs shared under the current listing record can be listed (E2); older cards are not read at all.
+  // Only jobs shared under the current listing record can be listed (E2); older cards are not read at all. Every such
+  // job is read (no cap), and the list is put in one order below: newest shared first, then by id.
   const snapshot = await db.collection("inboundRequests")
-    .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).limit(200).get();
+    .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).get();
   const cards = await Promise.all(snapshot.docs.map(async (doc): Promise<TaskBrowseCard | null> => {
     const record = doc.data() as InboundRequest;
-    const { access, session } = await loadCompanyJobAccess(doc.id, record);
+    const { access, session, brief } = await loadCompanyJobAccess(doc.id, record);
     const listed = projectTaskBrowseCard(doc.id, record, access);
     if (!listed) return null;
-    const [card, headline] = await Promise.all([libraryCard(listed, record, session),
+    const [card, headline] = await Promise.all([libraryCard(listed, record, session, brief),
       options.withAnswerHeadlines && jobCardAnswerShared(record) ? loadJobCardAnswerHeadline(doc.id, record) : null]);
     return headline ? { ...card, answerHeadline: headline } : card;
   }));
   return cards.filter((card): card is TaskBrowseCard => card !== null)
-    .sort((a, b) => b.publishedAtIso.localeCompare(a.publishedAtIso));
+    .sort((a, b) => b.publishedAtIso.localeCompare(a.publishedAtIso) || a.id.localeCompare(b.id));
 }
 
 /** One listed card as an approved company opens it, with the answer when the site shared it. Null when not listed. */
 export async function readTaskCardDetail(id: string): Promise<TaskCardDetail | null> {
   if (!db) throw new Error("Task library unavailable");
-  const { record, access, session } = await loadCompanyJobAccess(id);
+  const { record, access, session, brief } = await loadCompanyJobAccess(id);
   const listed = record ? projectTaskBrowseCard(id, record as InboundRequest, access) : null;
   if (!listed || !record) return null;
-  const [card, answerSummary] = await Promise.all([libraryCard(listed, record as InboundRequest, session), loadJobCardAnswer(id, record)]);
+  const [card, answerSummary] = await Promise.all([libraryCard(listed, record as InboundRequest, session, brief), loadJobCardAnswer(id, record)]);
   return answerSummary ? { ...card, answerHeadline: answerSummary.headline, answerSummary } : card;
 }

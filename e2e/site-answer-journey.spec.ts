@@ -154,7 +154,8 @@ async function expectFirstLook(page: Page) {
   await expect(firstLook.getByText(/^On paper, the robot most likely to fit: .+\.$/)).toBeVisible({ timeout: 45_000 });
   await expect(firstLook.getByText("From published specifications and where it has been used.", { exact: true })).toBeVisible();
   await expect(firstLook).toContainText(/How sure are we\?/);
-  await expect(companies(page)).toContainText("Posted for approved deployment companies");
+  // Posted only once an approved company may see jobs (L1-N1); an earlier test in this run may have approved one.
+  await expect(companies(page)).toContainText(/Posted for approved deployment companies|no approved company can see it yet/);
   await expect(answer(page)).not.toContainText(/answered on|Introduce us|early trial|Simulation test/i);
   await expect(page.getByRole("button", { name: /share my job/i })).toHaveCount(0);
 }
@@ -184,6 +185,8 @@ test.describe("desktop", () => {
     await publishCompanyClip(request, requestId);
     await page.reload();
     await expectFirstLook(page);
+    // No company has applied yet in this run, so the job is not called posted (L1-N1).
+    await expect(companies(page)).toContainText("Your job is ready for deployment companies, but no approved company can see it yet.");
     expect((await jobRecord(request, requestId)).access).toMatchObject({ listed: true });
     await expect(companies(page)).toContainText("Viewed by 0 companies");
     await expect(companies(page)).toContainText("0 responses");
@@ -220,7 +223,7 @@ test.describe("desktop", () => {
     const companyId = (await import("node:crypto")).createHash("sha256").update(company.email).digest("hex");
     const staffToken = await account(request, `core-journey-staff-${stamp}@example.invalid`, "core-journey-staff-pass", { admin: true });
     const decided = await request.post(`${ORIGIN}/api/admin/robot-team-access/${companyId}/decision`, {
-      headers: { ...applyHeaders, Authorization: `Bearer ${staffToken}` }, data: { status: "approved", prerequisitesReviewed: true } });
+      headers: { ...applyHeaders, Authorization: `Bearer ${staffToken}` }, data: { status: "approved" } });
     expect(decided.status(), await decided.text()).toBe(200);
     await account(request, company.email, company.password);
 
@@ -303,13 +306,12 @@ test.describe("desktop", () => {
     await form.getByLabel("Interested").check();
     await form.getByRole("textbox", { name: "Note to the site" }).fill("We move cartons like these today.");
     await form.getByText("Add details", { exact: true }).click();
-    await form.getByLabel("What you have checked").fill("The carton weight is in our payload range.");
     await form.getByLabel("Question for the site").fill("How many cartons arrive per minute?");
     await form.getByLabel("Earliest start").selectOption("within_month");
     const sent = companyPage.waitForResponse(response => response.url().endsWith(`/api/site-worlds/tasks/${requestId}/interest`));
     await form.getByRole("button", { name: "Send response" }).click();
     expect((await sent).status()).toBe(200);
-    await expect(form.getByRole("status")).toContainText(/saved/i);
+    await expect(form.getByRole("status")).toHaveText("Saved. If the site asks to meet you, we email you both each other's name and contact details.");
 
     // Privacy hard stop: nothing the company was sent or shown names the site, its address or its contact.
     const companyPageText = await companyPage.locator("body").innerText();
@@ -322,6 +324,7 @@ test.describe("desktop", () => {
     // 4. The site sees the answer under the alias, never the company's name, and nothing is introduced yet.
     await page.reload();
     const entries = companies(page);
+    await expect(entries).toContainText("Posted for approved deployment companies", { timeout: 30_000 });
     await expect(entries).toContainText("Viewed by 1 company", { timeout: 30_000 });
     await expect(entries).toContainText("1 response");
     const companyReply = entries.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });

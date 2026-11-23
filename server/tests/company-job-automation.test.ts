@@ -470,8 +470,9 @@ const STOPS: Array<[string, () => void]> = [
     consent_attestation: { ...sharedRecordingGrant(), granted: false, revoked_at_iso: "2026-11-12T12:00:00.000Z" } } })],
   ["Blueprint's operator hold", () => patchJob({ operator_listing_hold: { held: true, atIso: "2026-11-12T12:00:00.000Z", by: "ops" } })],
   ["a rights hold", () => patchJob({ evaluation_readiness: { rights_review_status: "blocked" } })],
-  ["an authority end", () => state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
-    website_preparation: { selector: { request_id: ID, capture_id: CAPTURE }, status: { state: "authority_ended" } } })],
+  ["an authority end for a revoked source", () => { patchJob({ request: { ...jobDoc().request,
+    consent_attestation: { ...sharedRecordingGrant(), granted: false } } }); state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+    website_preparation: { selector: { request_id: ID, capture_id: CAPTURE }, status: { state: "authority_ended" } } }); }],
   ["the site closing its job", () => patchJob({ website_run_closures: { [CAPTURE]: { closed_at_iso: "2026-11-12T12:00:00.000Z" } } })],
   ["the company's approval withdrawn", () => state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, { ...NORTH, status: "declined" })],
 ];
@@ -489,6 +490,15 @@ describe("every stop closes everything a company can see (E2)", () => {
     const result = await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail: () => ({ subject: "s", body: "b" }) });
     expect(result.ok).toBe(false);
     expect(state.docs.has(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toBe(false);
+  });
+});
+
+describe("Blueprint's own work window ending is not a stop (G-01)", () => {
+  it("keeps the job's page and its answer route open when the window ends its authority", async () => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+      website_preparation: { selector: { request_id: ID, capture_id: CAPTURE }, status: { state: "authority_ended" } } });
+    expect((await page()).status).toBe(200);
+    expect((await answer(NORTH)).status).toBe(200);
   });
 });
 
@@ -590,9 +600,10 @@ describe("the automatic send (E4)", () => {
     expect(sends.every(([key, value]) => (value as any).sentBy === "system" && key.endsWith(`system-${(value as any).companyId}`))).toBe(true);
     const alerts = outbox().filter(row => row.kind === "robot_team_new_task");
     expect(alerts.map(row => row.to).sort()).toEqual([NORTH, SOUTH, EAST, WEST].map(record => record.email).sort());
-    expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint" });
+    // The kind of job and the country, never the site (ledger BL49).
+    expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint: Palletizing" });
     // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
-    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
     // The unsubscribe line names the emails it stops, never the scope's internal name.
     expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+scope=optional_updates$/);
     expect(alerts[0].body).not.toMatch(/optional updates/i);
@@ -619,7 +630,7 @@ describe("the automatic send (E4)", () => {
       .some(record => record.email === to)).sort()).toEqual([NORTH, SOUTH, EAST].map(record => record.email).sort());
     // e-004, e-008: the job is the company's button ("Open the job"); the commercial footer stays in the text part, and the
     // HTML part shows the layout's own footer with its "Unsubscribe" link, not a raw link carrying the reader's address.
-    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint")!;
+    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint: Palletizing")!;
     const html = String(alert.html), text = String(alert.text);
     expect(text).toMatch(/\n\n--\n.+\nPrivacy: https:\/\/\S+\/privacy\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+$/);
     expect(html).toContain(">Open the job</a>");
@@ -878,6 +889,14 @@ describe("the simulation download and the tested answers (E9)", () => {
     expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toBe(false);
   });
 
+  it("reads Ready on the job card only once the company simulation is stored, never from the retired runnable proof", async () => {
+    const before = (await list()).body.items[0];
+    expect(before).toMatchObject({ evaluationAvailable: false, simulationDownloadAvailable: false });
+    expect(before.stage).not.toBe("ready");
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    expect((await list()).body.items[0]).toMatchObject({ stage: "ready", evaluationAvailable: true, simulationDownloadAvailable: true });
+  });
+
   it("serves the package to the viewer's ticket only, accepts a tested answer, and introduces on tested_can_do", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     const url = (await page()).body.item.simulationDownload.url as string;
@@ -913,7 +932,6 @@ describe("the simulation download and the tested answers (E9)", () => {
 /* ----------------------------------------------------------------- the independent review's findings, as assertions */
 
 const { teamJobAccess, loadCompanyJobAccess } = await import("../utils/teamJobAccess");
-const { recordCompanySend } = await import("../utils/jobCompanies");
 
 describe("review findings (must-fix and should-fix)", () => {
   it("must-fix 1: a technology partner gets no page, no video, no download, no answer and no introduction", async () => {
@@ -1050,12 +1068,6 @@ describe("review findings (must-fix and should-fix)", () => {
     expect((await list()).raw).not.toContain(PL);
     patchJob({ request: { ...jobDoc().request, siteLocationMetadata: { country: "encrypted:GB" } } });
     expect((await page()).body.item.country).toBe("United Kingdom");
-  });
-
-  it("should-fix: an operator send uses the whole rule (no sentence: refused)", async () => {
-    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: "Your site task", confirmedAtIso: null });
-    expect((await loadCompanyJobAccess(ID)).access.listed).toBe(false);
-    await expect(recordCompanySend(ID, sha(NORTH.email), { uid: "ops", email: "ops@example.com" })).rejects.toMatchObject({ code: "not_visible" });
   });
 
   it("the introduction email names no contact when the site typed no name: never the intake's placeholders", async () => {

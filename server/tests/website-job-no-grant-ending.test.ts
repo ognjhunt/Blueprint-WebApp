@@ -42,7 +42,6 @@ vi.mock("../utils/websiteSceneSponsorship", async (original) => {
 });
 
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
-import { scanWebsiteJobsWaitingOnGrant } from "../utils/betaOpsMonitor";
 import { deliverOutbox } from "../utils/captureOutbox";
 import { JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE, JOB_NO_GRANT_SITE_ENDING_MESSAGE } from "../utils/taskPreparationOutcome";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
@@ -68,7 +67,6 @@ const at = (seconds: number) => NOW + seconds * 1000;
 const sweepAt = (seconds: number) => sweepWebsiteJobWindows({ now: () => at(seconds) });
 const alert = vi.fn(async () => ({ sent: true }));
 const opsEmail = vi.fn(async () => ({ sent: true }));
-const scanAt = (seconds: number, limit?: number) => scanWebsiteJobsWaitingOnGrant({ now: () => at(seconds), alert, email: opsEmail as never, limit });
 
 /** A site's website job with no grant, created a day before the sweep first sees it: a capture link and a brief, nothing else. */
 function seedJob(changes: Record<string, unknown> = {}, id = "job-one", brief = true) {
@@ -426,65 +424,6 @@ describe("the wait moving from the site to Blueprint", () => {
   });
 });
 
-describe("the ops page for a job waiting on Blueprint", () => {
-  it("pages once, a day in, well before the job ends held; never for a wait on the site", async () => {
-    recording.received = true;
-    seedJob();
-    recording.received = false;
-    seedJob({}, "job-site");
-    recording.received = true;
-    await sweepWebsiteJobNoGrant("job-one", at(0));
-    recording.received = false;
-    await sweepWebsiteJobNoGrant("job-site", at(0));
-    expect(await scanAt(24 * HOUR - 1)).toEqual({ due: 0, newlyAlerted: 0 });
-    expect(alert).not.toHaveBeenCalled();
-    expect(await scanAt(24 * HOUR)).toEqual({ due: 1, newlyAlerted: 1 });
-    expect(alert).toHaveBeenCalledTimes(1);
-    expect(String((alert.mock.calls[0] as unknown[])[1])).toMatch(/job-one: the site did its part by 2026-11-12T00:00:00.000Z; with no grant the job ends as held at 2026-11-19T00:00:00.000Z/);
-    expect(opsEmail).toHaveBeenCalledTimes(1);
-    expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
-    expect(job().website_job_no_grant_clock.paged_at_iso).toBe(new Date(at(24 * HOUR)).toISOString());
-    expect(await scanAt(2 * DAY)).toEqual({ due: 0, newlyAlerted: 0 });
-    expect(alert).toHaveBeenCalledTimes(1);
-    // The page's own write does not reset the clock: the job still ends on time.
-    recording.received = true;
-    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_no_notice");
-  });
-
-  it("clears a withdrawn job without a page", async () => {
-    recording.received = true;
-    seedJob();
-    await sweepWebsiteJobNoGrant("job-one", at(0));
-    Object.assign(job(), { consent_revoked: true });
-    expect(await scanAt(DAY)).toEqual({ due: 1, newlyAlerted: 0 });
-    expect(alert).not.toHaveBeenCalled();
-    expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
-  });
-
-  it("clears a job its owner closed after the clock started, without a page", async () => {
-    recording.received = true;
-    seedJob();
-    await sweepWebsiteJobNoGrant("job-one", at(0));
-    const value = { schema_version: "website_run_closure.v1", request_id: "job-one", capture_id: "walkthrough-job-one",
-      decision: "conservative_abstention", actor: "signed_owner_link", source_identity_digest: screeningSha("1"),
-      closed_at_iso: "2026-11-12T01:00:00.000Z", new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
-    Object.assign(job(), { website_run_closures: { "walkthrough-job-one": { ...value, closure_digest: crossRuntimeDigest(value) } } });
-    expect(await scanAt(DAY)).toEqual({ due: 1, newlyAlerted: 0 });
-    expect(alert).not.toHaveBeenCalled();
-    expect(opsEmail).not.toHaveBeenCalled();
-    expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
-    expect(job().website_job_no_grant_clock.paged_at_iso).toBeUndefined();
-  });
-
-  it("reports \"unknown\" when it read only a full first page, and pages the rest on the next pass", async () => {
-    recording.received = true;
-    for (const id of ["job-a", "job-b", "job-c"]) { seedJob({}, id); await sweepWebsiteJobNoGrant(id, at(0)); }
-    expect(await scanAt(DAY, 2)).toEqual({ due: "unknown", newlyAlerted: 2 });
-    expect(await scanAt(DAY, 2)).toEqual({ due: 1, newlyAlerted: 1 });
-    expect(await scanAt(DAY, 2)).toEqual({ due: 0, newlyAlerted: 0 });
-  });
-});
-
 describe("no backfill: a job that had already waited a window when the sweep first saw it", () => {
   it.each([
     ["created more than a window ago", { createdAt: new Date(NOW - (WINDOW + 1) * 1000).toISOString() }, "none_waited_before_this_change", false],
@@ -497,7 +436,6 @@ describe("no backfill: a job that had already waited a window when the sweep fir
     expect(job().website_job_no_grant_ending).toMatchObject({ notice, ended_at_epoch: NOW / 1000 });
     expect(job()).not.toHaveProperty("website_job_no_grant_clock");
     expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
-    expect(await scanAt(2 * DAY)).toEqual({ due: 0, newlyAlerted: 0 });
     for (const seconds of [WINDOW, 3 * WINDOW]) expect(await sweepAt(seconds)).toMatchObject({ ended: 0 });
     await deliverOutbox();
     expect(outbox()).toHaveLength(0);
@@ -522,7 +460,6 @@ describe("no backfill: a job that had already waited a window when the sweep fir
     const before = snapshot();
     for (const seconds of [0, 2 * DAY, WINDOW, 3 * WINDOW]) {
       expect(await sweepAt(seconds)).toEqual({ examined: 2, ended: 0, failed: 0 });
-      expect(await scanAt(seconds)).toEqual({ due: 0, newlyAlerted: 0 });
     }
     await deliverOutbox();
     expect(snapshot()).toEqual(before);

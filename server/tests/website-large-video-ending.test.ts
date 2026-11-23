@@ -43,7 +43,6 @@ vi.mock("../utils/websiteLargeVideoBlock", async (original) => ({
   }),
 }));
 
-import { scanWebsiteJobsWaitingOnGrant } from "../utils/betaOpsMonitor";
 import { deliverOutbox } from "../utils/captureOutbox";
 import { JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE, largeVideoAskOutcome,
   RECAPTURE_TITLE } from "../utils/taskPreparationOutcome";
@@ -66,7 +65,6 @@ const outbox = () => [...docs.entries()].filter(([key]) => key.startsWith("captu
 const at = (seconds: number) => NOW + seconds * 1000;
 const alert = vi.fn(async () => ({ sent: true }));
 const opsEmail = vi.fn(async () => ({ sent: true }));
-const scanAt = (seconds: number) => scanWebsiteJobsWaitingOnGrant({ now: () => at(seconds), alert, email: opsEmail as never });
 
 function seedJob(changes: Record<string, unknown> = {}) {
   const { job: record } = screeningFixture();
@@ -119,7 +117,6 @@ describe("a job whose video was too large to process", () => {
     expect(await sweepWebsiteJobNoGrant("job-one", at(2 * HOUR))).toBe("waiting");
     await sweepWebsiteJobWindows({ now: () => at(3 * HOUR) });
     await sweepWebsiteJobWindows({ now: () => at(4 * HOUR) });
-    expect(await scanAt(2 * DAY)).toEqual({ due: 0, newlyAlerted: 0 });
     expect(alert).not.toHaveBeenCalled();
     await deliverOutbox();
     await deliverOutbox();
