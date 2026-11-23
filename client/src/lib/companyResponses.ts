@@ -104,10 +104,12 @@ export type SiteCompanyEntry =
       question?: { id: string; text: string; answer?: string };
       /** The site may press "Introduce us" for this company now. */
       canIntroduce?: boolean;
-      /** When the site asked for the introduction. */
+      /** When the introduction was made: the company's introduction email was sent (H2). */
       introducedAtIso?: string;
-      /** Only after the introduction. */
+      /** Only after the introduction is made. */
       company?: IntroducedCompany;
+      /** The site asked for an introduction that is not made yet: the company's email has not been sent. */
+      introductionPending?: boolean;
       /** The site asked for an introduction that could not go ahead: the company's email never went. */
       introductionCancelled?: boolean };
 

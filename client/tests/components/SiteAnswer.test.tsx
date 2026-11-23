@@ -624,6 +624,16 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(screen.getByRole("button", { name: "Introduce us" })).toBeEnabled();
   });
 
+  it("says an introduction asked for but not made yet is in progress, with no company details and no button", () => {
+    const pending = { ...activity, introductions: { used: 1 }, entries: [activity.entries[0],
+      { ...activity.entries[1], canIntroduce: false, introductionPending: true } as never] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: pending }} />);
+    expect(within(companies()).getByText("We are emailing you and Company A each other's contact details.")).toBeVisible();
+    expect(within(companies()).queryByText(/You were introduced to/)).toBeNull();
+    expect(within(companies()).queryAllByRole("link")).toHaveLength(0);
+    expect(within(companies()).queryByRole("button", { name: "Introduce us" })).toBeNull();
+  });
+
   it("after an introduction shows that company's name and contact details, and only that company's", () => {
     const introduced = { ...activity, introductions: { used: 1 }, entries: [
       { ...activity.entries[0], canIntroduce: false },
