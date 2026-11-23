@@ -13,6 +13,15 @@
  * cannot be shown to be audio-free, nothing is sent and the caller gets an
  * `AudioStripError` whose `code` names the reason.
  *
+ * A video over the caller's `readingCopyAboveBytes` (the video reading's own
+ * bound, `gemini-video.ts`) is instead re-encoded into a smaller sound-free
+ * reading copy: its first video stream only, at most 1280 px on its long side,
+ * `READING_COPY_FPS` frames a second, H.264 in MP4. It is made from the file
+ * on disk, never from memory, one at a time in this process, bounded in time,
+ * and checked and deleted like any other copy. Callers that need the frames
+ * as uploaded (the 3D provider) never pass the option and always get the
+ * remux.
+ *
  * The binary is resolved deterministically: `BLUEPRINT_FFMPEG_PATH` when set,
  * otherwise the exact-pinned `ffmpeg-static` package. It is never looked up on
  * PATH, so production cannot quietly depend on whatever a host happens to have.
@@ -71,6 +80,8 @@ export interface AudioFreeVideo {
   readonly contentType: string;
   readonly sha256: string;
   readonly videoStreams: number;
+  /** True when this is a smaller re-encoded reading copy, not a remux of the uploaded frames. */
+  readonly readingCopy?: boolean;
   /** A fresh read of the copy; each call opens its own stream. */
   open(): ReadableStream<Uint8Array>;
   readAll(): Promise<Buffer>;
@@ -87,6 +98,37 @@ export interface AudioStripOptions {
   run?: FfmpegRunner;
   tmpDir?: string;
   timeoutMs?: number;
+  /**
+   * Above this many bytes the copy is a smaller re-encoded reading copy rather than a remux. Only a video reader whose
+   * provider samples a few frames a second passes it; without it the frames are always the uploaded ones.
+   */
+  readingCopyAboveBytes?: number;
+  /** Bounds the re-encode; defaults to `READING_COPY_TIMEOUT_MS`. */
+  readingCopyTimeoutMs?: number;
+}
+
+/**
+ * Frames a second kept in a reading copy. Every video task samples at most 2 a second (`video_sampling_fps` in
+ * `server/agents/tasks/`, all `STATIC`), and 4 keeps every one of those instants.
+ */
+export const READING_COPY_FPS = 4;
+/** The reading copy's longest side, in pixels; a smaller video keeps its own size. */
+export const READING_COPY_MAX_SIDE = 1280;
+/** A 1080p minute re-encodes in about 9 s on one core (measured, 2026-11-23); this bounds a long 4K video too. */
+export const READING_COPY_TIMEOUT_MS = 15 * 60_000;
+
+/** One re-encode at a time in this process: it is the only step here that uses a whole core. */
+let readingCopyTail: Promise<void> = Promise.resolve();
+async function oneReadingCopyAtATime<T>(work: () => Promise<T>): Promise<T> {
+  const prior = readingCopyTail;
+  let release!: () => void;
+  readingCopyTail = new Promise<void>((resolve) => { release = resolve; });
+  try {
+    await prior;
+    return await work();
+  } finally {
+    release();
+  }
 }
 
 /** Demuxer forced on input (no format guessing), muxer for the same container. */
@@ -189,7 +231,8 @@ export async function stripVideoAudio(video: VideoBytes, options: AudioStripOpti
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const dir = await mkdtemp(path.join(options.tmpDir ?? os.tmpdir(), "blueprint-video-"));
   const source = path.join(dir, `source.${container.extension}`);
-  const output = path.join(dir, `video-only.${container.extension}`);
+  let output = path.join(dir, `video-only.${container.extension}`);
+  let outputContainer = container;
   const opened = new Set<Readable>();
   let released = false;
   const cleanup = async () => {
@@ -200,14 +243,30 @@ export async function stripVideoAudio(video: VideoBytes, options: AudioStripOpti
   };
   try {
     await writeSource(video.body, source);
+    const sourceBytes = (await stat(source)).size;
+    const readingCopy = typeof options.readingCopyAboveBytes === "number" && sourceBytes > options.readingCopyAboveBytes;
     let remux: Awaited<ReturnType<FfmpegRunner>>;
     try {
-      remux = await run(binary, [
-        "-hide_banner", "-nostdin", "-loglevel", "error",
-        "-protocol_whitelist", "file", "-f", container.demuxer, "-i", source,
-        "-map", "0:v", "-c", "copy", "-an", "-sn", "-dn",
-        "-f", container.muxer, "-y", output,
-      ], { timeoutMs });
+      if (readingCopy) {
+        outputContainer = CONTAINERS["video/mp4"];
+        output = path.join(dir, "reading-copy.mp4");
+        const side = READING_COPY_MAX_SIDE;
+        remux = await oneReadingCopyAtATime(() => run(binary, [
+          "-hide_banner", "-nostdin", "-loglevel", "error", "-threads", "1",
+          "-protocol_whitelist", "file", "-f", container.demuxer, "-i", source,
+          "-map", "0:v:0", "-an", "-sn", "-dn",
+          "-vf", `fps=${READING_COPY_FPS},scale='min(${side},iw)':'min(${side},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2`,
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-pix_fmt", "yuv420p", "-threads", "1",
+          "-movflags", "+faststart", "-f", "mp4", "-y", output,
+        ], { timeoutMs: options.readingCopyTimeoutMs ?? READING_COPY_TIMEOUT_MS }));
+      } else {
+        remux = await run(binary, [
+          "-hide_banner", "-nostdin", "-loglevel", "error",
+          "-protocol_whitelist", "file", "-f", container.demuxer, "-i", source,
+          "-map", "0:v", "-c", "copy", "-an", "-sn", "-dn",
+          "-f", container.muxer, "-y", output,
+        ], { timeoutMs });
+      }
     } catch (error) {
       const missing = (error as NodeJS.ErrnoException)?.code === "ENOENT" || (error as NodeJS.ErrnoException)?.code === "EACCES";
       throw new AudioStripError(missing ? "audio_strip_unavailable" : "audio_strip_failed",
@@ -225,7 +284,7 @@ export async function stripVideoAudio(video: VideoBytes, options: AudioStripOpti
     // stream, or a listing that cannot be read means it is not sent.
     let probe: Awaited<ReturnType<FfmpegRunner>>;
     try {
-      probe = await run(binary, ["-hide_banner", "-nostdin", "-protocol_whitelist", "file", "-f", container.demuxer, "-i", output], { timeoutMs });
+      probe = await run(binary, ["-hide_banner", "-nostdin", "-protocol_whitelist", "file", "-f", outputContainer.demuxer, "-i", output], { timeoutMs });
     } catch {
       throw new AudioStripError("audio_strip_unverified", "ffmpeg could not read back the video-only copy");
     }
@@ -238,9 +297,10 @@ export async function stripVideoAudio(video: VideoBytes, options: AudioStripOpti
 
     const result: AudioFreeVideo = {
       byteLength: size,
-      contentType: container.contentType,
+      contentType: outputContainer.contentType,
       sha256: await sha256Of(output),
       videoStreams,
+      readingCopy,
       open() {
         if (released) throw new AudioStripError("audio_strip_required", "The video-only copy has been cleaned up");
         const stream = createReadStream(output);

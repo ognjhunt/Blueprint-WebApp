@@ -36,7 +36,10 @@ export interface AdminJobTotals {
   introductionsAsked: number | null;
   introductionsMade: number | null;
   outcomeAnswers: number | null;
+  /** Standing billable events whose introduction was made (the company's email was sent). Only these count. */
   billableEvents: number | null;
+  /** Billable events recorded but not made yet: shown apart, never counted. */
+  billableEventsNotMade: number | null;
 }
 
 export interface AdminJobListResponse {

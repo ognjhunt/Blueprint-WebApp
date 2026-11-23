@@ -59,7 +59,7 @@ const companies = vi.hoisted(() => ({ panel: null as null | Record<string, unkno
 vi.mock("../utils/jobCompanies", () => ({ loadAdminJobCompanies: async () => companies.panel }));
 vi.mock("../utils/ownerTotals", () => ({
   loadJobTotals: async () => ({ siteJobs: 2, siteJobsThisWeek: 1, withVideo: 1, shownToCompanies: 1, answered: 0,
-    introductionsAsked: 0, introductionsMade: 0, outcomeAnswers: 0, billableEvents: 0 }),
+    introductionsAsked: 0, introductionsMade: 0, outcomeAnswers: 0, billableEvents: 0, billableEventsNotMade: 0 }),
   billableEventsCsv: async () => '"event_id"\r\n',
 }));
 vi.mock("../utils/siteAnswer", () => ({ loadSiteAnswer: async () => null }));
@@ -315,20 +315,25 @@ describe("GET /api/admin/jobs/:requestId", () => {
     expect(rows).toEqual([["job-h", "On hold"], ["job-n", "Waiting for the video"], ["job-r", "Reading the video"]]);
   });
 
-  it("shows a cancelled introduction as cancelled, and each billable event as recorded or voided with no price", async () => {
+  it("shows a cancelled introduction as cancelled, and each billable event as made, not made yet or voided with no price", async () => {
     siteJob("job-i", "2026-10-02T00:00:00.000Z");
     companies.panel = { sharing: { words: "Shared and visible to approved companies." }, autoSend: null, sends: [], responses: [],
       introductions: [{ companyId: "c1", company: "North Robotics", alias: "A", requestedAtIso: "2026-10-03T00:00:00.000Z",
         cancelledAtIso: "2026-10-03T00:05:00.000Z", cancelReason: "company_withdrew", latestOutcome: null }],
       billableEvents: [
-        { id: "b1", kind: "introduction", companyId: "c1", company: "North Robotics", atIso: "2026-10-03T00:00:00.000Z", priceUsd: null, status: "recorded_no_price" },
+        { id: "b1", kind: "introduction", companyId: "c1", company: "North Robotics", atIso: "2026-10-03T00:00:00.000Z",
+          madeAtIso: "2026-10-03T00:01:00.000Z", priceUsd: null, status: "recorded_no_price" },
         { id: "b2", kind: "introduction", companyId: "c2", company: "South Robotics", atIso: "2026-10-04T00:00:00.000Z", priceUsd: null, status: "void" },
+        { id: "b3", kind: "introduction", companyId: "c3", company: "East Robotics", atIso: "2026-10-05T00:00:00.000Z",
+          madeAtIso: null, priceUsd: null, status: "recorded_no_price" },
       ] };
     const body = await (await fetch(`${baseUrl}/job-i`, admin)).json();
     expect(body.events.map((event: Row) => event.text)).toEqual(["Job received", "The site asked to meet North Robotics",
       "Billable event recorded for the introduction to North Robotics",
+      "The introduction to North Robotics was made; its billable event counts",
       "The introduction to North Robotics was cancelled (company withdrew); emails not yet sent for it were cancelled",
-      "Billable event for the introduction to South Robotics: voided"]);
+      "Billable event for the introduction to South Robotics: voided",
+      "Billable event recorded for the introduction to East Robotics; not made yet, so not counted"]);
     expect(JSON.stringify(body.events)).not.toMatch(/\$|USD|price/i);
   });
 

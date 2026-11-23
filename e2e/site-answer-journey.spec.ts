@@ -370,8 +370,11 @@ test.describe("desktop", () => {
     const reply = await introduced;
     expect(reply.status(), await reply.text()).toBe(200);
     expect(reply.request().postDataJSON()).toEqual({ alias: "A", statementVersion: "introduction-request-2026-11-12" });
-    await expect(entries).toContainText(new RegExp(`You were introduced to ${company.name} on .+\\.`), { timeout: 30_000 });
-    await expect(entries.getByRole("link", { name: company.email })).toBeVisible();
+    // Nothing has been sent yet: the company's email waits for the outbox, and the introduction is made only once it
+    // is sent (H2). The site's page must not say it was introduced before then.
+    await page.reload();
+    await expect(entries.getByRole("button", { name: "Introduce us" })).toHaveCount(0);
+    await expect(entries).not.toContainText("You were introduced to");
 
     const introEmails = (await outbox(request, requestId)).filter(item => item.kind.startsWith("introduction_"));
     expect(introEmails.map(item => [item.kind, item.to]).sort()).toEqual([
@@ -384,6 +387,9 @@ test.describe("desktop", () => {
     expect(toSite.body).toContain(company.email);
     // Both emails are actually sent, each with the other side as Reply-To, not only queued.
     const delivered = await deliverOutbox(request);
+    await page.reload();
+    await expect(entries).toContainText(new RegExp(`You were introduced to ${company.name} on .+\\.`), { timeout: 30_000 });
+    await expect(entries.getByRole("link", { name: company.email })).toBeVisible();
     const sentTo = (email: string) => delivered.filter(mail => mail.to.includes(email.toLowerCase()));
     expect(sentTo(company.email).map(mail => mail.replyTo)).toContain(site.email.toLowerCase());
     expect(sentTo(site.email).map(mail => mail.replyTo)).toContain(company.email.toLowerCase());

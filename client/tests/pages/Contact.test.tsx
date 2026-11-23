@@ -113,7 +113,9 @@ describe("the robot page", () => {
     }));
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "Your application is in review." })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Find jobs" })).toBeInTheDocument();
+    // The page's own heading follows the list's answer one render later (TaskBrowse tells Contact in an effect),
+    // so it is awaited, not read at once.
+    expect(await screen.findByRole("heading", { level: 1, name: "Find jobs" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Apply to see jobs" })).toBeNull();
   });
 
@@ -125,7 +127,8 @@ describe("the robot page", () => {
     }));
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "No jobs yet." })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Find jobs" })).toBeVisible();
+    // "No jobs yet." renders one commit before the page's heading and fine print follow it (see above).
+    expect(await screen.findByRole("heading", { level: 1, name: "Find jobs" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Apply" })).toBeNull();
     // An approved company is not asked to apply (journey audit, 2026-11-20), and the page says no price once.
     expect(screen.getByRole("heading", { level: 1, name: "Find jobs" })).toBeInTheDocument();

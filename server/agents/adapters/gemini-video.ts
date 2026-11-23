@@ -50,8 +50,25 @@ import { outputCorrectionEvidence, outputCorrectionPrompt, usageCount } from "./
 import { fetchPublicVideo } from "./public-video-fetch";
 import { AudioStripError, isAudioFreeVideo, stripVideoAudio, type AudioFreeVideo } from "./video-audio-strip";
 
-/** Bounds what the worker holds in memory; the Files API itself takes far more. */
+/**
+ * Bounds what the worker holds in memory for a link that does not declare its length. A link that declares it (every
+ * stored upload's signed URL) is streamed to a temporary file instead and is bounded by `MAX_STREAMED_VIDEO_BYTES`.
+ */
 const MAX_VIDEO_BYTES = 64 * 1024 * 1024;
+/**
+ * The largest streamed video the reading takes: what the start form accepts (`SELF_CAPTURE_MAX_UPLOAD_BYTES`, 2 GiB by
+ * default, `server/routes/self-capture-uploads.ts`). It bounds the temporary file on disk.
+ */
+const maxStreamedVideoBytes = () => {
+  const configured = Number(process.env.SELF_CAPTURE_MAX_UPLOAD_BYTES);
+  return Number.isSafeInteger(configured) && configured > 0 ? configured : 2 * 1024 * 1024 * 1024;
+};
+/**
+ * Above this size the copy sent to the provider is a smaller sound-free reading copy (`stripVideoAudio`): fewer
+ * frames and pixels than a phone records, still more than the video tasks sample. A smaller video is sent as uploaded,
+ * without its sound. What a reading costs depends on the video's length, not its bytes.
+ */
+export const READING_COPY_ABOVE_BYTES = 64 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 60_000;
 const ANALYSIS_TIMEOUT_MS = 5 * 60_000;
 const MAX_OUTPUT_TOKENS = 32_768;
@@ -183,7 +200,7 @@ export async function analyseAgenticVideo(input: {
   /** Recheck source/consent after upload, immediately before generation. */
   beforeGenerate?: () => Promise<void>;
 }, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
-strip: (video: VideoSource) => Promise<AudioFreeVideo> = (video) => stripVideoAudio(video)) {
+strip: (video: VideoSource) => Promise<AudioFreeVideo> = (video) => stripVideoAudio(video, { readingCopyAboveBytes: READING_COPY_ABOVE_BYTES })) {
   const owned = isAudioFreeVideo(input.video) ? null : await strip(input.video as VideoSource);
   const providerVideo = owned ?? (input.video as AudioFreeVideo);
   try {
@@ -396,10 +413,12 @@ export async function openVideo(
     }
 
     const declaredLength = Number(response.headers.get("content-length") || 0);
-    if (declaredLength > MAX_VIDEO_BYTES) {
+    // Streamed to disk, never held in memory: the bound is what the start form accepts.
+    const streamLimit = maxStreamedVideoBytes();
+    if (declaredLength > streamLimit) {
       throw new GeminiVideoError(
         "video_too_large",
-        `Task video is ${Math.round(declaredLength / 1024 / 1024)}MB; the limit is ${MAX_VIDEO_BYTES / 1024 / 1024}MB`,
+        `Task video is ${Math.round(declaredLength / 1024 / 1024)}MB; the limit is ${Math.round(streamLimit / 1024 / 1024)}MB`,
       );
     }
 
@@ -577,9 +596,9 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     retainedVideo = video;
     // Sound is removed before any budget is reserved or byte is sent; if it
     // cannot be, the run stops here with an audio_strip_* code.
-    providerVideo = await stripVideoAudio(video);
+    providerVideo = await stripVideoAudio(video, { readingCopyAboveBytes: READING_COPY_ABOVE_BYTES });
     artifacts.provider_video = { audio: "removed", bytes: providerVideo.byteLength,
-      sha256: providerVideo.sha256, content_type: providerVideo.contentType };
+      sha256: providerVideo.sha256, content_type: providerVideo.contentType, reading_copy: providerVideo.readingCopy === true };
     const prompt = task.definition.build_prompt(task.input);
     const deadline = Date.now() + ANALYSIS_TIMEOUT_MS;
     let remainingOutput = task.definition.video_max_output_tokens ?? MAX_OUTPUT_TOKENS;
