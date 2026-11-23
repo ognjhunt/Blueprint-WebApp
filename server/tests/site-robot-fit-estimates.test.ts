@@ -106,6 +106,27 @@ describe("estimates from the video", () => {
     expect(facts.size).toMatchObject({ source: "video_estimate" });
   });
 
+  // Owner, 2026-11-23: the site's answer to the quick weight question outranks the video's guess.
+  it("weighs the object by the site's quick answer ahead of an earlier band and the video's estimate", () => {
+    const answered = (jobFacts: Record<string, string>, extra: Record<string, unknown> = {}) => withVideo({ estimates: ESTIMATES },
+      { job_facts: { ...jobFacts, updatedAtIso: NOW }, request: { siteTaskSpec: { payloadWeight: "two_to_ten" } }, ...extra });
+    expect(jobFactsOf(answered({ weight: "15_30kg" })).mass).toEqual(expect.objectContaining({
+      display: "15 to 30 kg", source: "site_stated", min: 15, max: 30 }));
+    expect(jobFactsOf(answered({ weight: "under_5kg" })).mass).toMatchObject({ display: "under 5 kg", min: 0, max: 5 });
+    expect(jobFactsOf(answered({ weight: "over_30kg" })).mass).toMatchObject({ display: "over 30 kg", min: 30, max: Number.POSITIVE_INFINITY });
+    // The heaviest loaded item the site typed is more exact than its range.
+    expect(jobFactsOf(answered({ weight: "15_30kg", maxLoadedWeightKg: "22.5" })).mass).toMatchObject({ display: "22.5 kg", min: 22.5, max: 22.5 });
+    // "Not sure" is no answer: the earlier band stands.
+    expect(jobFactsOf(answered({ weight: "unsure" })).mass).toMatchObject({ display: "2–10 kg", source: "site_stated" });
+    // Without any word from the site, the video's estimate.
+    expect(jobFactsOf(withVideo({ estimates: ESTIMATES }, { job_facts: { weight: "unsure", updatedAtIso: NOW } })).mass)
+      .toMatchObject({ source: "video_estimate" });
+    // A measurement still comes first.
+    const measuredToo = inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, job_facts: { weight: "15_30kg", updatedAtIso: NOW } },
+      readings: { object_mass: reading(12, "kg", 12) } });
+    expect(jobFactsOf(measuredToo).mass).toMatchObject({ source: "site_measured", min: 12 });
+  });
+
   it("reads each estimate from the walkthrough first, then the intake link, and nothing from unusable footage", () => {
     const link = { cycle: 50, linkEstimates: { pick_to_place_m: 2, object_largest_side_m: 0.5 } };
     const both = videoEvidence(withVideo({ estimates: { pick_to_place_m: 0.9 }, ...link }));

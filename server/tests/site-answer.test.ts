@@ -121,6 +121,17 @@ describe("composeSiteAnswer", () => {
     }
   });
 
+  // Owner, 2026-11-23: the site's quick answer outranks the video's guess in the first look itself.
+  it("rules a model out on payload from the site's quick weight answer, over a lighter video estimate", () => {
+    const answered = compose({ request: { job_facts: { weight: "15_30kg", updatedAtIso: "2026-11-23T10:00:00.000Z" } } });
+    expect(answered.ruledOut.find((row) => row.name === "UR5e")).toMatchObject({ estimated: false,
+      reason: expect.stringMatching(/^Payload: your object weighs 15 to 30 kg \(you told us\)/) });
+    expect(answered.pick?.checks.find((check) => check.key === "payload")).toMatchObject({ basis: "site_stated" });
+    // "Not sure" leaves the video's estimate in place.
+    const unsure = compose({ request: { job_facts: { weight: "unsure", updatedAtIso: "2026-11-23T10:00:00.000Z" } } });
+    expect(unsure.pick?.checks.find((check) => check.key === "payload")).toMatchObject({ basis: "video_estimate" });
+  });
+
   it("rules a model out on payload from a stated weight, and from a video estimate, saying which", () => {
     const stated = compose({ brief: { requestId: "job-1", summary: "Move cartons to the shelf", operatorTaskDetails: { item_weight: "8 kg" } } });
     expect(stated.ruledOut).toContainEqual({ name: "UR5e", manufacturer: "Universal Robots", estimated: false,

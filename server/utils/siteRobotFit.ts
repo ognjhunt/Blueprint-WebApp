@@ -57,7 +57,8 @@ import {
   type RobotFormRating,
 } from "../../client/src/data/robotFit";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
-import type { JobReading } from "../../client/src/lib/jobFacts";
+import { WEIGHT_RANGE_KG, jobFactLabel, type JobReading } from "../../client/src/lib/jobFacts";
+import { readJobFacts } from "./jobFacts";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
 import { otherActionsOf, type OtherAction } from "../agents/tasks/site-video-evidence";
 import type { AgentResult, AgentTask } from "../agents/types";
@@ -214,12 +215,38 @@ export function parseStatedWeight(text: unknown): { kg: number; display: string 
   return { kg: value * factor, display: `${formatNumber(value)} ${match[2].toLowerCase()}` };
 }
 
+/**
+ * The site's answer to its quick weight question (`job_facts`, `client/src/lib/jobFacts.ts`), in the site's own words:
+ * the heaviest loaded item it typed, else the range it tapped. "Over 30 kg" has no upper bound. Null for no answer and
+ * "Not sure".
+ */
+function answeredMass(inputs: RobotFitInputs): Pick<Quantity, "display" | "min" | "max"> | null {
+  const facts = readJobFacts(inputs.request);
+  const heaviest = facts?.maxLoadedWeightKg;
+  if (heaviest && heaviest !== "unsure") {
+    const kg = Number(heaviest);
+    return { display: jobFactLabel("maxLoadedWeightKg", heaviest) ?? `${kg} kg`, min: kg, max: kg };
+  }
+  const band = facts?.weight;
+  const range = band ? WEIGHT_RANGE_KG[band] : null;
+  if (!band || !range) return null;
+  // "5 to 15 kg (11 to 33 lb)" reads "5 to 15 kg" inside a sentence that already ends in its own brackets.
+  const words = (jobFactLabel("weight", band) ?? "").replace(/\s*\([^)]*\)$/, "");
+  return { display: words.charAt(0).toLowerCase() + words.slice(1), min: range.lower, max: range.upper ?? Number.POSITIVE_INFINITY };
+}
+
+/**
+ * The object's weight, the site's own word first: its measurement, then its answer to the quick question on its job
+ * page, then a weight it typed or a band it chose earlier, and the video's estimate only when the site gave none.
+ */
 function massRequirement(inputs: RobotFitInputs): Quantity | null {
   const label = "Object weight";
   const reading = measured(inputs, "object_mass");
   if (reading && reading.si > 0) {
     return { key: "object_mass", label, display: measuredDisplay(reading), source: "site_measured", min: reading.si, max: reading.si };
   }
+  const answered = answeredMass(inputs);
+  if (answered) return { key: "object_mass", label, source: "site_stated", ...answered };
   const stated = parseStatedWeight(inputs.brief?.operatorTaskDetails?.item_weight);
   if (stated) return { key: "object_mass", label, display: stated.display, source: "site_stated", min: stated.kg, max: stated.kg };
   const band = specAnswer(inputs, "payloadWeight");
