@@ -7,7 +7,6 @@ import accountDeletionRouter from "./routes/account-deletion";
 import passwordResetRouter from "./routes/password-reset";
 import adminRobotTeamAccessRouter from "./routes/admin-robot-team-access";
 import type { Express } from "express";
-import captureUploadsRouter from "./routes/capture-uploads";
 import websiteAtlasPreviewDownloadsRouter from "./routes/website-atlas-preview-downloads";
 import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views";
 import websiteDestinationPicturesRouter from "./routes/website-destination-pictures";
@@ -44,7 +43,6 @@ import { requireAdminRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import { requireAppCheck } from "./middleware/appCheck";
 import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-task-evaluation-launch-submissions";
-import internalTaskEvaluationLaunchPreparationsRouter from "./routes/internal-task-evaluation-launch-preparations";
 import { registerRetiredCapturerRoutes } from "./utils/retiredCapturerRoutes";
 
 export function registerRoutes(app: Express) {
@@ -127,17 +125,6 @@ export function registerRoutes(app: Express) {
   app.use(
     "/api/internal/task-evaluation-launch-submissions",
     internalTaskEvaluationLaunchSubmissionsRouter,
-  );
-  app.use(
-    "/api/internal/task-evaluation-launch-preparations",
-    internalTaskEvaluationLaunchPreparationsRouter,
-  );
-  app.use(
-    "/api/capture-uploads",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    captureUploadsRouter,
   );
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
 }
