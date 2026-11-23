@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import Home from "@/pages/Home";
 import { COMPANY_RESPONSE_LABELS } from "@/lib/companyResponses";
 
-const SITES = ["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"];
+const SITES = ["Warehouse", "Café", "Lab"];
 
 describe("Site-led homepage", () => {
   it("says the outcome, shows three steps and offers one button", () => {
@@ -62,7 +62,12 @@ describe("Site-led homepage", () => {
     expect(counts.size).toBeGreaterThan(1);
     fireEvent.click(within(card).getByRole("tab", { name: "Warehouse" }));
     expect(within(card).getByRole("tabpanel")).toHaveTextContent(
-      /Picking small parcels.*6 views.*3 responses.*Company A.*Tested it: can do.*Company B.*Need more details.*Company C.*Not a fit/);
+      /Picking small parcels.*6 views.*3 responses.*Company A.*Interested.*Company B.*Need more details.*Company C.*Not a fit/);
+    // No example shows a "Tested it" answer: no company can give one until a job's simulation can be downloaded.
+    for (const tab of within(card).getAllByRole("tab")) {
+      fireEvent.click(tab);
+      expect(within(card).getByRole("tabpanel")).not.toHaveTextContent(/Tested it/);
+    }
     // One example shows the state before any answer.
     fireEvent.click(within(card).getByRole("tab", { name: "Lab" }));
     expect(within(card).getByRole("tabpanel")).toHaveTextContent(/5 views.*0 responses.*No responses yet\./);
@@ -71,9 +76,6 @@ describe("Site-led homepage", () => {
   it.each([
     ["Warehouse", /humanoid robot/i],
     ["Café", /fixed robot arm/i],
-    ["Laundromat", /wheeled humanoid/i],
-    ["Factory", /mobile manipulator/i],
-    ["Hotel", /mobile robot/i],
     ["Lab", /fixed robot arm/i],
   ])("pairs the %s example with its matching illustration", (site, embodiment) => {
     render(<Home />);
@@ -89,11 +91,11 @@ describe("Site-led homepage", () => {
     try {
       render(<Home />);
       fireEvent.click(screen.getByRole("button", { name: "Pause examples" }));
-      fireEvent.click(screen.getByRole("tab", { name: "Factory" }));
-      const art = screen.getByRole("img", { name: /factory example/i });
+      fireEvent.click(screen.getByRole("tab", { name: "Lab" }));
+      const art = screen.getByRole("img", { name: /lab example/i });
       const stillFrame = art.innerHTML;
       act(() => { vi.advanceTimersByTime(31000); });
-      expect(screen.getByRole("tab", { name: "Factory" })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: "Lab" })).toHaveAttribute("aria-selected", "true");
       expect(screen.getByRole("button", { name: "Play examples" })).toBeInTheDocument();
       expect(art.innerHTML).toBe(stillFrame);
     } finally {
@@ -110,12 +112,12 @@ describe("Site-led homepage", () => {
     try {
       render(<Home />);
       expect(screen.getByRole("button", { name: "Play examples" })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("tab", { name: "Laundromat" }));
-      const art = screen.getByRole("img", { name: /laundromat example/i });
+      fireEvent.click(screen.getByRole("tab", { name: "Café" }));
+      const art = screen.getByRole("img", { name: /café example/i });
       const stillFrame = art.innerHTML;
       act(() => { vi.advanceTimersByTime(31000); });
-      expect(screen.getByRole("tab", { name: "Laundromat" })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByRole("tabpanel")).toHaveTextContent(/folded towels/i);
+      expect(screen.getByRole("tab", { name: "Café" })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tabpanel")).toHaveTextContent(/clean cups/i);
       expect(art.innerHTML).toBe(stillFrame);
     } finally {
       matchMedia.mockRestore();
@@ -148,7 +150,7 @@ describe("Site-led homepage", () => {
       expect(screen.getByRole("tab", { name: "Café" })).toHaveAttribute("aria-selected", "true");
       act(() => screen.getByRole("tab", { name: "Café" }).blur());
       act(() => { vi.advanceTimersByTime(11000); });
-      expect(screen.getByRole("tab", { name: "Laundromat" })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: "Lab" })).toHaveAttribute("aria-selected", "true");
     } finally {
       vi.useRealTimers();
     }

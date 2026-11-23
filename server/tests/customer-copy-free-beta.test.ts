@@ -62,7 +62,7 @@ function expectClean(label: string, text: string, banned: readonly Banned[]) {
 
 describe("site lifecycle notices", () => {
   // The site's emails about its job (owner, 2026-11-19); the introduction's is built from the company's details.
-  const milestones = ["task_received", "job_sent", "company_answered"] as const;
+  const milestones = ["task_received", "company_answered"] as const;
 
   it("never introduces platform charges or assumes a city in any notice", () => {
     for (const milestone of milestones) {
@@ -72,7 +72,6 @@ describe("site lifecycle notices", () => {
           milestone,
           to: "owner@example.test",
           captureUrl: "https://tryblueprint.io/capture-upload/tok",
-          ...(milestone === "job_sent" && detail ? { companyCount: 3 } : {}),
           ...(milestone === "company_answered" ? { companyAnswerState: "needs_something" as const } : {}),
         });
         expectClean(`${milestone} (${detail ?? "no detail"})`, `${notice.subject}\n${notice.body}`, SITE_EMAIL);
