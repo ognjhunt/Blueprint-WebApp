@@ -18,6 +18,12 @@ The audit this follows is in pull request 1374
 
 For a session that picks this up. Newest first.
 
+- 2026-11-23 14:32Z. Pull request 1414 (gap 1) is merged; its deploy to the
+  website is not confirmed yet (`/version.json` still `043d2fc`). The owner
+  said at about 13:45Z to merge pull request 1410 after the Pipeline deploy,
+  and confirmed the Mixkit clip. Still to do in order: Pipeline deploy at
+  15:00Z; answer 1410's review thread and merge it; confirm `/version.json`
+  holds both; recount; submit.
 - 2026-11-23 13:35Z. The test company is approved, signed in and has
   accepted the Terms. Nothing is submitted yet. Two workers are running: one
   looks for a Mixkit clip under its free licence, one fixes gap 1 on branch
@@ -161,10 +167,28 @@ Found by reading, before the job was sent.
   the same on the 1410 branch. On the live form, picking "Austin, Texas"
   already asks Google for the place's parts (`GetPlace`) and keeps only the
   country (`LocationAutocomplete.tsx:103-104`).
-- **Fix.** In progress on `claude/dreamy-hamilton-qn8lm4-place-city-state`:
-  the form sends the picked place's city, state and country; a typed place
-  with no pick gives the state only, from a closed list, never a city from
-  free text.
+- **Fix.** Pull request 1414, merged 2026-11-23 14:31Z (`a65e3e8`). A place
+  picked from the suggestions, or "Use my location", stores its city, state
+  and two-letter country from the provider's own parts. A typed place with no
+  pick stores the state only, from a closed list of United States states,
+  never a city from free text. The signed-in start route dropped the same
+  fields silently; fixed in the same pull request. Tests: the mapping for each
+  provider, the typed-state parser with adversarial inputs, the form's request
+  body, and one server test from the start route's stored record to the
+  company's view ("Austin, Texas, United States" for a pick; "Texas, United
+  States" for typed "Acme Foods, 12 Main Street, Austin, TX").
+- **Its checks.** The automated review found nothing. The first CI run failed
+  the pull request's own new browser test: the form saves its draft a few
+  milliseconds after a pick, under a cross-tab lock, and the test reloaded
+  before that save ran. Under a 6x CPU throttle the test failed 5 of 60 runs
+  before the change and 0 of 60 after. The test now waits for the stored draft
+  to hold the pick. Not a product fault: writes never land out of order, and a
+  person cannot reload that fast.
+- **Left for the owner.** A hand-made request, not the form, can put any
+  digit-free text of up to 60 characters in the city field; a company would be
+  shown it once a statement allows the city. With a city stored, the existing
+  redaction also removes the city's name from the site's sentence as companies
+  read it, although the place line shows the city.
 - **Verified.** Not yet.
 
 ## What still needs the owner
