@@ -72,67 +72,13 @@ export async function notifySlackCapturePrivacyEscalation(options: {
     return { sent: false };
   }
 
-  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
+  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/jobs?job=${encodeURIComponent(options.requestId)}`;
   const attemptsPart =
     options.attempts !== undefined ? ` after ${options.attempts} attempts` : "";
   const text =
     `:triangular_flag_on_post: *Capture held for privacy review needs a person*` +
     `${attemptsPart} — request \`${options.requestId}\`\n${options.reason}\nOpen: ${adminUrl}`;
 
-  return sendSlackMessage(text, webhookUrl);
-}
-
-/**
- * Tell ops a confirmed site's screen left questions open.
- *
- * For a job whose video arrived after the owner's decision of 2026-11-11
- * (`screenGateEnded`) this is a note: its scene is built whatever the screen
- * says. A job uploaded before it still waits on this call for its scene, so
- * its alert says so. The request's `ops.next_step` is the record; this is the
- * bell, on the channel ops already reads.
- */
-export async function notifySlackScreeningCallNeeded(options: {
-  requestId: string;
-  openQuestions: readonly string[];
-  screenGateEnded?: boolean;
-}): Promise<{ sent: boolean; error?: unknown }> {
-  const webhookUrl =
-    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) {
-    logger.warn({ requestId: options.requestId }, "No Slack webhook configured; screening call has no bell");
-    return { sent: false };
-  }
-  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
-  const agenda = options.openQuestions.length
-    ? options.openQuestions.map((question) => `• ${question}`).join("\n")
-    : "• Unanswered gates on the brief";
-  const text =
-    (options.screenGateEnded
-      ? `:telephone_receiver: *Site screen left questions open (a note; it does not hold the scene)* — request \`${options.requestId}\`\n`
-      : `:telephone_receiver: *Site needs a screening call before its scene is built* — request \`${options.requestId}\`\n`)
-    + `${agenda}\nRecord the outcome: ${adminUrl}`;
-  return sendSlackMessage(text, webhookUrl);
-}
-
-/**
- * A walkthrough arrived and no automated footage review will read it.
- *
- * With BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED off, a person reviews coverage,
- * and the site is told so; this is how that person hears there is one to do.
- */
-export async function notifySlackFootageNeedsReview(options: {
-  requestId: string;
-}): Promise<{ sent: boolean; error?: unknown }> {
-  const webhookUrl =
-    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) {
-    logger.warn({ requestId: options.requestId }, "No Slack webhook configured; footage review has no bell");
-    return { sent: false };
-  }
-  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
-  const text =
-    `:film_frames: *Site walkthrough received — review coverage by hand* — request \`${options.requestId}\`\n`
-    + `Automated footage review is off, so the site has been told a person will review it. ${adminUrl}`;
   return sendSlackMessage(text, webhookUrl);
 }
 

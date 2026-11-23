@@ -71,8 +71,9 @@ vi.mock("../utils/siteWalkthrough", async (importOriginal) => {
   }) };
 });
 
-const notifySlackScreeningCallNeeded = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
-vi.mock("../utils/slack", () => ({ notifySlackScreeningCallNeeded }));
+// No Slack bell for a screening call (retired 2026-11-22): nothing in this route rings Slack.
+const sendSlackMessage = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
+vi.mock("../utils/slack", () => ({ sendSlackMessage }));
 
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
@@ -88,7 +89,7 @@ beforeEach(async () => {
   sharedFakeFirestoreState.docs.clear();
   storage.unreadable = false;
   notificationRead.unavailable = false;
-  notifySlackScreeningCallNeeded.mockClear();
+  sendSlackMessage.mockClear();
   vi.mocked(enqueueOutbox).mockClear();
   const app = express();
   app.use(express.json());
@@ -151,17 +152,16 @@ describe("the confirmation says what our screen decided", () => {
     expect(first.status).toBe(200);
     expect((await first.json()).disposition).toBe(disposition);
     if (disposition === "needs_conversation") {
-      await vi.waitFor(() => expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).ops?.next_step).toBeTruthy());
     }
     const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
-    const notified = notifySlackScreeningCallNeeded.mock.calls.length;
     const response = await confirm(answers);
     expect(response.status).toBe(200);
     expect((await response.json()).disposition).toBe(disposition);
     expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(before);
     // The four-conditions screen sends no email of its own (owner decision 2026-11-11).
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(0);
-    expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(notified);
+    expect(sendSlackMessage).not.toHaveBeenCalled();
   });
 
 
@@ -177,11 +177,11 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.screening.bookingUrl).toBeNull();
     expect(enqueueOutbox).not.toHaveBeenCalled();
 
-    await vi.waitFor(() => expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(1));
     await vi.waitFor(() => {
       const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>;
       expect(stored.ops?.next_step).toMatch(/screening call/);
     });
+    expect(sendSlackMessage).not.toHaveBeenCalled();
   });
 
   it("proceeds without a call once the site clears", async () => {
@@ -189,7 +189,7 @@ describe("the confirmation says what our screen decided", () => {
     const body = (await response.json()) as { disposition: string; screening: unknown };
     expect(body.disposition).toBe("qualified");
     expect(body.screening).toBeNull();
-    expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
+    expect(sendSlackMessage).not.toHaveBeenCalled();
     // No "brief confirmed" email, and no fallback one (owner decision 2026-11-11).
     expect(enqueueOutbox).not.toHaveBeenCalled();
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(0);
@@ -255,7 +255,7 @@ describe("the confirmation says what our screen decided", () => {
     // The same reply a job of a kind we score gets once the site clears: nothing about its kind, no hold, no list.
     expect(body.screening).toBeNull();
     expect(enqueueOutbox).not.toHaveBeenCalled();
-    expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
+    expect(sendSlackMessage).not.toHaveBeenCalled();
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
       site_task_scope: { schemaVersion: "site_task_scope.v1", supported: false, kind: null, reason: "deformable", demandKind: "deformable" },
     });
