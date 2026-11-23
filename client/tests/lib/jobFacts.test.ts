@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   JOB_FACT_CHOICES, JOB_FACT_KEYS, NOT_SURE_LABEL, isJobFactCode, jobFactKeysForType, jobFactQuestion, jobFactQuestionHint, jobFactsInWords,
-  looksPlural, sanitizeJobFacts, sanitizeJobObject, weightLowerBoundKg, weightUpperBoundKg,
+  jobFactKeysFor, looksPlural, sanitizeJobFacts, sanitizeJobReading, weightLowerBoundKg, weightUpperBoundKg,
 } from "@/lib/jobFacts";
 import { outcomeThanksSentence } from "@/pages/JobOutcomeThanks";
 
@@ -40,14 +40,14 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
   // Owner, 2026-11-23: more descriptive than "the item".
   it("names the video reading's object in the weight and size questions, and asks for the heaviest without one", () => {
     expect(jobFactQuestion("weight")).toBe("How heavy is the heaviest thing the robot handles?");
-    expect(jobFactQuestion("weight", { name: "cake batter", others: [] })).toBe("How heavy is the cake batter?");
-    expect(jobFactQuestion("size", { name: "cake batter", others: [] })).toBe("How big is the cake batter, on its longest side?");
-    expect(jobFactQuestion("size", { name: "cardboard boxes", others: [] })).toBe("How big are the cardboard boxes, on their longest side?");
-    expect(jobFactQuestion("perHour", { name: "cake batter", others: [] })).toBe("How many times an hour is the job done?");
-    expect(jobFactQuestionHint("weight", { name: "cardboard boxes", others: [] })).toBe("If they vary, answer for the heaviest.");
-    expect(jobFactQuestionHint("size", { name: "tote", others: ["bin"] })).toBe("Your video suggests the job may also handle bin. Answer for the biggest.");
-    expect(jobFactQuestionHint("weight", { name: "tote", others: [] })).toBeNull();
-    expect(jobFactQuestionHint("hours", { name: "totes", others: ["bins"] })).toBeNull();
+    expect(jobFactQuestion("weight", { kind: null, object: "cake batter", others: [] })).toBe("How heavy is the cake batter?");
+    expect(jobFactQuestion("size", { kind: null, object: "cake batter", others: [] })).toBe("How big is the cake batter, on its longest side?");
+    expect(jobFactQuestion("size", { kind: null, object: "cardboard boxes", others: [] })).toBe("How big are the cardboard boxes, on their longest side?");
+    expect(jobFactQuestion("perHour", { kind: null, object: "cake batter", others: [] })).toBe("How many times an hour is the job done?");
+    expect(jobFactQuestionHint("weight", { kind: null, object: "cardboard boxes", others: [] })).toBe("If they vary, answer for the heaviest.");
+    expect(jobFactQuestionHint("size", { kind: null, object: "tote", others: ["bin"] })).toBe("Your video suggests the job may also handle bin. Answer for the biggest.");
+    expect(jobFactQuestionHint("weight", { kind: null, object: "tote", others: [] })).toBeNull();
+    expect(jobFactQuestionHint("hours", { kind: null, object: "totes", others: ["bins"] })).toBeNull();
     expect(jobFactsInWords({ perHour: "60_300" })).toEqual(["Times an hour: 60 to 300"]);
   });
 
@@ -56,12 +56,45 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
     expect(["glass", "chassis", "cake batter", "bus", "electronics"].map(looksPlural)).toEqual([false, false, false, false, false]);
   });
 
-  it("keeps only a short name and short other names from the status read", () => {
-    expect(sanitizeJobObject({ name: " tote ", others: ["bin", 3, "x".repeat(61)], extra: true })).toEqual({ name: "tote", others: ["bin"] });
-    expect(sanitizeJobObject({ name: "" })).toBeNull();
-    expect(sanitizeJobObject({ name: "x".repeat(61) })).toBeNull();
-    expect(sanitizeJobObject("tote")).toBeNull();
-    expect(sanitizeJobObject(null)).toBeNull();
+  it("keeps only a known kind, a short name and short other names from the status read", () => {
+    expect(sanitizeJobReading({ kind: "transport", object: " tote ", others: ["bin", 3, "x".repeat(61)], extra: true }))
+      .toEqual({ kind: "transport", object: "tote", others: ["bin"] });
+    expect(sanitizeJobReading({ kind: "teleport", object: "tote" })).toEqual({ kind: null, object: "tote", others: [] });
+    expect(sanitizeJobReading({ kind: "other", object: "" })).toEqual({ kind: "other", object: null, others: [] });
+    expect(sanitizeJobReading({ kind: "teleport", object: "x".repeat(61) })).toBeNull();
+    expect(sanitizeJobReading("tote")).toBeNull();
+    expect(sanitizeJobReading(null)).toBeNull();
+  });
+
+  // Owner, 2026-11-23: once the video reading gives a kind of job, the kind chooses the questions.
+  it("chooses the questions from the reading's kind of job, and from the keyword match only until then", () => {
+    const reading = (kind: string | null, object: string | null = "tote") => ({ kind, object }) as never;
+    // No reading yet: the keyword match.
+    expect(jobFactKeysFor("Case packing", null)).toEqual(jobFactKeysForType("Case packing"));
+    expect(jobFactKeysFor(undefined, reading(null))).toEqual(["weight", "size", "perHour", "hours", "timing"]);
+    // Scraping batter: no weight or size, whatever the keyword match said.
+    expect(jobFactKeysFor("Other", reading("other", "cake batter"))).toEqual(["variation", "areaChange", "perHour", "hours", "timing"]);
+    expect(jobFactKeysFor("Material handling", reading("other"))).toEqual(["variation", "areaChange", "perHour", "hours", "timing"]);
+    // Moving between places: where it goes and what is on the way; no weight when nothing is carried.
+    expect(jobFactKeysFor("Material handling", reading("transport"))).toEqual(["route", "routeObstacles", "weight", "perHour", "hours", "timing"]);
+    expect(jobFactKeysFor(undefined, reading("transport", null))).toEqual(["route", "routeObstacles", "perHour", "hours", "timing"]);
+    // A keyword type of the same kind keeps its narrower questions; a disagreeing one gives way to the reading.
+    expect(jobFactKeysFor("Case packing", reading("pick_and_place"))).toEqual(jobFactKeysForType("Case packing"));
+    expect(jobFactKeysFor("Depalletizing", reading("palletizing"))).toEqual(jobFactKeysForType("Depalletizing"));
+    expect(jobFactKeysFor("Case packing", reading("palletizing"))).toEqual(jobFactKeysForType("Palletizing"));
+    expect(jobFactKeysFor("Quality inspection", reading("other"))).toEqual(jobFactKeysForType("Quality inspection"));
+    expect(jobFactKeysFor("Other", reading("machine_tending"))).toEqual(jobFactKeysForType("Machine tending"));
+  });
+
+  it("names the object in the same-every-time question, and says a company only the job's own answers", () => {
+    expect(jobFactQuestion("variation")).toBe("Is the work the same every time?");
+    expect(jobFactQuestion("variation", { object: "cake batter" })).toBe("Is the cake batter the same every time?");
+    expect(jobFactQuestion("variation", { object: "towels" })).toBe("Are the towels the same every time?");
+    const facts = { route: "floors", routeObstacles: "lifts", variation: "varies", weight: "under_5kg" };
+    expect(jobFactsInWords(facts, "Material handling", { kind: "transport", object: "linen cart" }))
+      .toEqual(["Where it goes: Between floors", "On the way: Lifts or elevators", "Weight: Under 5 kg (11 lb)"]);
+    expect(jobFactsInWords(facts, "Other", { kind: "other", object: null }))
+      .toEqual(["How much it varies: Different each time", "Weight: Under 5 kg (11 lb)"]);
   });
 
   it("labels show both units", () => {

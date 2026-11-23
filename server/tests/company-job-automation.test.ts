@@ -316,6 +316,14 @@ describe("the company's page for one job (E3)", () => {
     expect(outbox().find(row => row.kind === "job_clarification")).toMatchObject({ status: "sent" });
   });
 
+  // Owner, 2026-11-23: the company reads the answers to the questions the site was asked, chosen by the reading's kind.
+  it("says the answers to the questions the video reading's kind of job chose, not the keyword match's", async () => {
+    state.docs.set(`inboundRequests/${ID}`, job({
+      job_facts: { route: "floors", palletPattern: "fixed", weight: "5_15kg", updatedAtIso: "2026-11-12T10:00:00.000Z" },
+      walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "transport", object: "linen cart" } } }));
+    expect((await page()).body.item.jobFacts).toEqual(["Where it goes: Between floors", "Weight: 5 to 15 kg (11 to 33 lb)"]);
+  });
+
   it("shows the site's sentence with contact details removed, its answers in words, the country, the media and the form line", async () => {
     const { status, body, raw } = await page();
     expect(status).toBe(200);

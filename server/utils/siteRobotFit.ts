@@ -57,6 +57,7 @@ import {
   type RobotFormRating,
 } from "../../client/src/data/robotFit";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
+import type { JobReading } from "../../client/src/lib/jobFacts";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
 import { otherActionsOf, type OtherAction } from "../agents/tasks/site-video-evidence";
 import type { AgentResult, AgentTask } from "../agents/types";
@@ -258,7 +259,7 @@ export interface VideoEstimates {
   massKg: { low: number; high: number } | null;
   surface: "matte" | "shiny" | "transparent" | "mixed" | null;
   /** What the reader saw done to the object; null when it did not say (and on older readings). */
-  jobKind: "pick_and_place" | "palletizing" | "machine_tending" | "other" | null;
+  jobKind: "pick_and_place" | "palletizing" | "machine_tending" | "transport" | "other" | null;
   /** Anything done to the object besides carrying it, from the reader's closed list; [] on older readings. */
   otherActions: OtherAction[];
   pickToPlaceM: number | null;
@@ -275,7 +276,7 @@ function bounded(value: unknown, min: number, max: number, exclusiveMin = false)
 }
 
 const SURFACE_VALUES = new Set(["matte", "shiny", "transparent", "mixed"]);
-const JOB_KIND_VALUES = new Set(["pick_and_place", "palletizing", "machine_tending", "other"]);
+const JOB_KIND_VALUES = new Set(["pick_and_place", "palletizing", "machine_tending", "transport", "other"]);
 
 /**
  * An unseen item as a plain noun phrase, or nothing: the name reaches the site's
@@ -360,20 +361,20 @@ export function videoEvidence(inputs: RobotFitInputs): {
 }
 
 /**
- * What the video reading calls the job's main object, and the other kinds of item it says the job probably handles,
- * as plain noun phrases (`itemName`: no link, code or robot name). The site's own job page words its quick questions
- * with them ("How heavy is the cake batter?"). Walkthrough reading first, then a usable link reading; null until one
- * names an object.
+ * What the video reading says about the job, for the site's own quick questions and the company's reading of the
+ * answers (`jobFactKeysFor` in `client/src/lib/jobFacts.ts`): its kind of job, the main object and the other kinds of
+ * item it says the job probably handles, as plain noun phrases (`itemName`: no link, code or robot name). Walkthrough
+ * reading first, then a usable link reading; null until one gives a kind or names an object.
  */
-export function jobObjectOf(request: Record<string, any> | null | undefined): { name: string; others: string[] } | null {
+export function jobReadingOf(request: Record<string, any> | null | undefined): JobReading | null {
   const walkthrough = (request?.walkthrough_job_estimates as { job_estimates?: unknown } | null | undefined)?.job_estimates;
   const link = usableReading(request?.site_video_evidence)?.job_estimates;
   const objectOf = (estimates: unknown) => estimates && typeof estimates === "object" ? itemName((estimates as Record<string, unknown>).object) : null;
-  const name = objectOf(walkthrough) ?? objectOf(link);
-  if (!name) return null;
-  const others = (videoEvidence({ request: request ?? null, brief: null, measurements: null })?.estimates?.otherItemsLikely ?? [])
-    .filter(item => item !== name);
-  return { name, others };
+  const object = objectOf(walkthrough) ?? objectOf(link);
+  const estimates = videoEvidence({ request: request ?? null, brief: null, measurements: null })?.estimates ?? null;
+  const kind = estimates?.jobKind ?? null;
+  if (!object && !kind) return null;
+  return { kind, object, others: object ? (estimates?.otherItemsLikely ?? []).filter(item => item !== object) : [] };
 }
 
 export type PeopleReading = { value: People; display: string; source: RequirementSource };

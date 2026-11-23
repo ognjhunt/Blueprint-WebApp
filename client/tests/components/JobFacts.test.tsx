@@ -198,16 +198,30 @@ describe("JobFacts", () => {
 
   // Owner, 2026-11-23: name the object rather than "the item", once the video reading names it.
   it("names the job's object from the video reading", () => {
-    render(<JobFacts token="tok" facts={null} jobObject={{ name: "cake batter", others: [] }} />);
+    render(<JobFacts token="tok" facts={null} reading={{ kind: "pick_and_place", object: "cake batter", others: [] }} />);
     expect(screen.getByText("How heavy is the cake batter?")).toBeTruthy();
     expect(screen.queryByText(/answer for the heaviest/)).toBeNull();
   });
 
   it("asks for the heaviest when the reading names other items the job may handle", () => {
-    render(<JobFacts token="tok" facts={null} jobObject={{ name: "cardboard boxes", others: ["larger cartons", "bags"] }} />);
+    render(<JobFacts token="tok" facts={null} reading={{ kind: "pick_and_place", object: "cardboard boxes", others: ["larger cartons", "bags"] }} />);
     expect(screen.getByText("How heavy are the cardboard boxes?")).toBeTruthy();
     const group = screen.getByRole("group");
     expect(group).toHaveAccessibleDescription("Your video suggests the job may also handle larger cartons and bags. Answer for the heaviest.");
+  });
+
+  it("asks a job the reading says works a material, not a weight, and names the object", () => {
+    render(<JobFacts token="tok" facts={null} taskFamily="Other" reading={{ kind: "other", object: "cake batter", others: [] }} />);
+    expect(screen.getByText("Is the cake batter the same every time?")).toBeTruthy();
+    expect(screen.getByText("1 of 5")).toBeTruthy();
+    expect(screen.queryByText(/heavy/)).toBeNull();
+  });
+
+  it("asks a job that moves between places where it goes first", () => {
+    render(<JobFacts token="tok" facts={null} reading={{ kind: "transport", object: null, others: [] }} />);
+    expect(screen.getByText("Where does the robot need to go?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Between floors" })).toBeTruthy();
+    expect(screen.getByText("1 of 5")).toBeTruthy();
   });
 
   // Ported from the independent check (review-jobfacts.test.tsx).

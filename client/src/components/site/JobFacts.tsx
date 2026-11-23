@@ -2,8 +2,8 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
   JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_NUMBERS, JOB_FACTS_HEADING,
-  isJobFactCode, jobFactKeysForType, jobFactQuestion, jobFactQuestionHint, sanitizeJobFacts,
-  type JobFactKey, type JobFacts as JobFactsValue, type JobObject,
+  isJobFactCode, jobFactKeysFor, jobFactQuestion, jobFactQuestionHint, sanitizeJobFacts,
+  type JobFactKey, type JobFacts as JobFactsValue, type JobReading,
 } from "@/lib/jobFacts";
 
 export const JOB_FACTS_SAVED = "Saved";
@@ -49,14 +49,15 @@ const answersOf = (facts: unknown): Answers => {
 /**
  * The site's quick questions (PACKAGE_E E1; planner, 2026-11-12: one at a time), on its job page. Its heading and ONE
  * question, with a small progress indicator, a "Not sure" choice and a Skip. Choices save on tap. A number is saved when
- * the site submits it. Skip saves nothing and moves on. A "Change" link walks the answers again. Weight and size name
- * the job's object once the video reading names it (`jobObject`). The choices wrap at phone width. Saves through its
+ * the site submits it. Skip saves nothing and moves on. A "Change" link walks the answers again. Once the video reading
+ * gives a kind of job, the kind chooses the questions (`jobFactKeysFor`), and weight and size name the object it names
+ * (`reading`); before then the keyword match (`taskFamily`) chooses. The choices wrap at phone width. Saves through its
  * own route with the site's signed link. Blocks of different kinds sit at least 8 px apart (the job page's phone
  * layout check).
  */
-export function JobFacts({ token, facts, onSaved, taskFamily, jobObject }: {
+export function JobFacts({ token, facts, onSaved, taskFamily, reading }: {
   token: string; facts?: Partial<JobFactsValue> | null; onSaved?: (facts: JobFactsValue) => void; taskFamily?: string;
-  jobObject?: JobObject | null;
+  reading?: JobReading | null;
 }) {
   const [answers, setAnswers] = useState<Answers>(() => answersOf(facts));
   const [skipped, setSkipped] = useState<Set<JobFactKey>>(() => readSkipped(token));
@@ -70,7 +71,7 @@ export function JobFacts({ token, facts, onSaved, taskFamily, jobObject }: {
   const factsKey = JSON.stringify(answersOf(facts));
   useEffect(() => { setAnswers(JSON.parse(factsKey) as Answers); }, [factsKey]);
 
-  const keys = jobFactKeysForType(taskFamily);
+  const keys = jobFactKeysFor(taskFamily, reading);
   const total = keys.length;
   const current: JobFactKey | null = changing !== null ? keys[changing] ?? null
     : keys.find(key => !answers[key] && !skipped.has(key)) ?? null;
@@ -138,14 +139,14 @@ export function JobFacts({ token, facts, onSaved, taskFamily, jobObject }: {
     void choose(key, code);
   }
 
-  const hint = current ? jobFactQuestionHint(current, jobObject) : null;
+  const hint = current ? jobFactQuestionHint(current, reading) : null;
   const restart = () => { setChanging(0); setStatus("idle"); setMoved(count => count + 1); };
   return <section aria-labelledby={`${groupId}-heading`} className="site-job-facts" data-testid="job-facts" style={{ margin: "16px 0 24px" }}>
     <h2 id={`${groupId}-heading`} className="site-job-facts-heading">{JOB_FACTS_HEADING}</h2>
     {current ? <div role="group" aria-labelledby={`${groupId}-question`} aria-describedby={hint ? `${groupId}-hint` : undefined} key={current}>
       {/* Buttons, not radios: arrow keys never save; Enter or Space on a choice does (review S5). */}
       <p id={`${groupId}-question`} className="site-job-fact-question" ref={node => { stepRef.current = node; }} tabIndex={-1}>
-        {jobFactQuestion(current, jobObject)}</p>
+        {jobFactQuestion(current, reading)}</p>
       {hint && <p id={`${groupId}-hint`} className="ms-field-hint site-job-fact-hint">{hint}</p>}
       {numeric && <form className="ms-form ms-job-number" onSubmit={event => submitNumber(event, current)}>
         <label>{current === "maxLoadedWeightKg" ? "Weight" : numeric.unit}

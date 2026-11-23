@@ -26,7 +26,7 @@ const { composeSiteAnswer, loadSiteAnswer, UNKNOWN_JOB_KIND } = await import("..
 const { robotSpecCatalog } = await import("../utils/robotSpecCatalog");
 const { evidenceLookup, parseDeploymentEvidence } = await import("../utils/deploymentEvidence");
 const { sharedFakeFirestoreState } = await import("./helpers/fake-firestore");
-const { SITE_ANSWER_NOTE, isSiteAnswer } = await import("../../client/src/lib/siteAnswer");
+const { SITE_ANSWER_NOTE, UNKNOWN_TRANSPORT, isScopeNote, isSiteAnswer } = await import("../../client/src/lib/siteAnswer");
 type Inputs = Parameters<typeof composeSiteAnswer>[0];
 
 const NOW = "2026-11-11T12:00:00.000Z";
@@ -796,6 +796,22 @@ describe("the reader decides the kind of job; no word list does", () => {
     expect(typed("Move water bottles from the pallet to the shelf").job.family).toBeNull();
     expect(typed("Move boxes", { estimates: estimates({ job_kind: "palletizing" }) }).job).toMatchObject({ family: "palletizing", familyLabel: "palletizing" });
     expect(typed("Move boxes", { estimates: estimates({ job_kind: "pick_and_place" }) }).job).toMatchObject({ family: "pick_place", familyLabel: "pick and place" });
+  });
+
+  // Owner, 2026-11-23: the reader can say a job is mainly getting between places.
+  it("checks a job that moves things between places as the carry at each end, saying so, without calling it pick and place", () => {
+    const moving = typed("Take the linen cart to each floor", { estimates: estimates({ job_kind: "transport", object: "linen cart", pick_to_place_m: 30 }) });
+    expect(moving.state).toBe("ready");
+    expect(moving.unknowns[0]).toBe(UNKNOWN_TRANSPORT);
+    expect(isScopeNote(UNKNOWN_TRANSPORT)).toBe(true);
+    expect(moving.unknowns).not.toContain(UNKNOWN_JOB_KIND);
+    expect(moving.job).toMatchObject({ family: null, familyLabel: null });
+  });
+
+  it("cannot assess a job the reader says is only getting between places, with nothing carried", () => {
+    expect(typed("Do rounds of the warehouse at night", { estimates: estimates({ job_kind: "transport", object: null }) })).toMatchObject({
+      state: "cannot_assess", headline: "We can't check robots against this job yet.", pick: null,
+      reason: "From your video, the job is mainly getting from place to place with nothing picked up, which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again." });
   });
 
   it("reads a stored reading without the new fields on its numbers, and junk fields as none", () => {

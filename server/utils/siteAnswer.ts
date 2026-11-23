@@ -17,7 +17,7 @@
  */
 import {
   ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, sceneOutrankedNote,
-  UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, UNKNOWN_SCENE_NOT_COVERED,
+  UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, UNKNOWN_SCENE_NOT_COVERED, UNKNOWN_TRANSPORT,
   type AnswerBasis, type AnswerCheck, type AnswerEvidence, type AnswerRobot, type AnswerVerdict, type JobFamily,
   type JobSharing, type SiteAnswer,
 } from "../../client/src/lib/siteAnswer";
@@ -275,13 +275,20 @@ function alsoInvolves(actions: string[]): string {
  * Why a job the reader says is another kind cannot be checked, with what the reader saw, and the one thing the
  * site can do: a summary edit causes a new reading.
  */
+/** Why a job the reader says is only getting between places, with nothing carried, cannot be checked. */
+const REASON_GOING_ONLY = "From your video, the job is mainly getting from place to place with nothing picked up, which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.";
+
 function reasonOtherKind(actions: string[]): string {
   const seen = actions.length ? ` (${listInWords(actions)})` : "";
   return `From your video, the job looks like more than picking an object up and putting it down${seen}, which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.`;
 }
 
-const READER_FAMILY: Record<"pick_and_place" | "palletizing" | "machine_tending", JobFamily> = {
-  pick_and_place: "pick_place", palletizing: "palletizing", machine_tending: "machine_tending",
+/**
+ * A job that moves between places is checked as the carry at each end (pick and place), the one part the first look
+ * can check; its kind is not stated as pick and place, and a scope note says what the check covers.
+ */
+const READER_FAMILY: Record<"pick_and_place" | "palletizing" | "machine_tending" | "transport", JobFamily> = {
+  pick_and_place: "pick_place", palletizing: "palletizing", machine_tending: "machine_tending", transport: "pick_place",
 };
 
 interface Scope {
@@ -295,6 +302,8 @@ interface Scope {
   kindUnknown: boolean;
   /** The reader judged the job a carrying kind: only then is the kind of job stated. */
   readerJudged: boolean;
+  /** The reader says the job is mainly getting between places: only the carry at each end is checked. */
+  transport: boolean;
   multiStep: boolean;
 }
 
@@ -308,7 +317,8 @@ function scopeOf(inputs: RobotFitInputs, jobSentences: string[]): Scope {
     family: kind && kind !== "other" ? READER_FAMILY[kind] : "pick_place",
     otherActions: estimates?.otherActions ?? [],
     kindUnknown: kind === null,
-    readerJudged: kind !== null && kind !== "other",
+    readerJudged: kind !== null && kind !== "other" && kind !== "transport",
+    transport: kind === "transport",
     multiStep: jobSentences.some((sentence) => Boolean(multiStepEvidence(sentence))),
   };
 }
@@ -804,6 +814,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     ({ ...answer, basisDigest: digestOf({ ...basis, state: answer.state, ...extra }) });
 
   if (scope.otherKind) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: reasonOtherKind(scope.otherActions) });
+  if (scope.transport && !readingObject(request)) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_GOING_ONLY });
   if (!coverageDone(request, fitInputs) && !siteNumbers) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
   if (!facts.distance && !facts.mass && !facts.size) {
     if (!coverageDone(request, fitInputs)) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
@@ -848,7 +859,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     // Decided here once, so the page, the card and the emails say the same.
     sceneNote: pick && pick.sceneOverruled && pick.verdict !== "ruled_out" ? sceneOutrankedNote(pick.model.name) : null,
     approach: approachOf(fitInputs, request, pick),
-    unknowns: [...(scope.kindUnknown ? [UNKNOWN_JOB_KIND] : []), ...unknownsOf(fitInputs, job),
+    unknowns: [...(scope.kindUnknown ? [UNKNOWN_JOB_KIND] : []), ...(scope.transport ? [UNKNOWN_TRANSPORT] : []), ...unknownsOf(fitInputs, job),
       ...(scope.otherActions.length ? [alsoInvolves(scope.otherActions)] : []),
       ...(scope.multiStep ? [UNKNOWN_MULTI_STEP] : [])],
     confidence: confidenceOf(pick, job, familyLabel, scope.kindUnknown, sceneNotCovered(request)),
