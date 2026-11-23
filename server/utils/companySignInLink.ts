@@ -112,6 +112,8 @@ export async function redeemCompanySignInLink(token: string): Promise<{ customTo
     await auth.updateUser(user.uid, { emailVerified: true, ...(hasPassword ? { providersToUnlink: ["password"] } : {}) });
     await auth.revokeRefreshTokens(user.uid);
   }
+  // A new-job email's link opens its job; a link asked for on the sign-in page returns to the job it came from.
   return { customToken: await auth.createCustomToken(user.uid),
-    returnTo: companyJobReturnPath(record.returnToJob) ?? "/contact/robot-team" };
+    returnTo: (payload.job ? companyJobReturnPath(`/jobs/${payload.job}`) : null)
+      ?? companyJobReturnPath(record.returnToJob) ?? "/contact/robot-team" };
 }

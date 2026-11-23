@@ -611,7 +611,15 @@ describe("the automatic send (E4)", () => {
     // The kind of job and the country, never the site (ledger BL49).
     expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint: Palletizing" });
     // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
-    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\?link=\S+\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    // Owner, 2026-11-23: the job's link signs that company in on the way, once, for a week, and opens this job.
+    const { verifyAccountSignInToken } = await import("../utils/request-review-auth");
+    for (const alert of alerts) {
+      const link = decodeURIComponent(/\/jobs\/req-e2\?link=(\S+)/.exec(alert.body)![1]);
+      const payload = verifyAccountSignInToken(link)!;
+      expect(payload).toMatchObject({ kind: "account_sign_in", email: alert.to, sourceId: sha(alert.to), job: ID });
+      expect(payload.exp * 1000 - Date.now()).toBeGreaterThan(6 * 24 * 3600 * 1000);
+    }
     // The unsubscribe line names the emails it stops, never the scope's internal name.
     expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+\/api\/growth\/email\/unsubscribe\?token=[A-Za-z0-9_-]+$/);
     // The link carries a sealed token: no address in it.

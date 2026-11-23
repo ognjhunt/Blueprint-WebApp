@@ -14,6 +14,7 @@ import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
+import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } from "@/lib/companySignInLink";
 
 /** Said while the sound-free copy of the site's video is not ready. */
 /** The job library: the signed-in list on the companies' page, at its own section. */
@@ -55,6 +56,10 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   const [page, setPage] = useState<CompanyJobPage | null>(null);
   const [access, setAccess] = useState<LibraryAccess | null>(null);
   const [retry, setRetry] = useState(0);
+  // A new-job email's link (owner, 2026-11-23): it signs a signed-out company in on the way to this job. A company
+  // already signed in goes straight to the job and the link stays unspent.
+  const [link] = useState(takeSignInLinkFromAddress);
+  const [linkState, setLinkState] = useState<"unused" | "signing_in" | "ended">("unused");
   const from = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("from");
   const browseQuery = new URLSearchParams();
   if (from && from.length <= 1200) {
@@ -66,7 +71,14 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   }
   const backHref = browseQuery.size ? `${JOB_LIBRARY_URL}?${browseQuery}#job-${encodeURIComponent(jobId)}` : JOB_LIBRARY_URL;
   useEffect(() => {
-    if (!user) { setState(auth && !auth.loading ? "signed_out" : "loading"); return; }
+    if (!link || user || !auth || auth.loading || linkState !== "unused") return;
+    setLinkState("signing_in");
+    // Signing in changes the account, and the job loads for it below.
+    signInWithCompanyLink(link).catch(() => setLinkState("ended"));
+  }, [link, user, auth?.loading, linkState]);
+  useEffect(() => {
+    const signingIn = Boolean(link) && (linkState === "signing_in" || linkState === "unused");
+    if (!user) { setState(auth && !auth.loading && !signingIn ? "signed_out" : "loading"); return; }
     let cancelled = false;
     setState("loading");
     withFirebaseAuthHeaders(user).then(headers => fetch(`/api/site-worlds/jobs/${encodeURIComponent(jobId)}`, { headers }))
@@ -87,11 +99,12 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         setPage(body.item); setState("ready");
       }).catch(() => { if (!cancelled) setState("error"); });
     return () => { cancelled = true; };
-  }, [jobId, user?.uid, retry, auth?.loading]);
+  }, [jobId, user?.uid, retry, auth?.loading, linkState]);
 
   if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
   if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
   if (state === "signed_out") return <div className="bare-screen company-job"><h1>Sign in to see this job</h1>
+    {linkState === "ended" && <p role="status">{SIGN_IN_LINK_ENDED.replace(" on this page.", " on the sign-in page.")}</p>}
     <p><a className="ms-button" href={signInHref}>Sign in</a></p>
     <p><a href={companyApplicationHref(jobId)}>Apply to see jobs</a></p></div>;
   if (state === "missing" && access && (access.status === "applied" || (access.status === "approved" && !access.emailVerified)))

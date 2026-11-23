@@ -73,6 +73,17 @@ describe("using a sign-in link", () => {
     expect(auth.createCustomToken).toHaveBeenCalledTimes(1);
   });
 
+  // Owner, 2026-11-23: a new-job email's link signs the company in and opens that job, for a week, once.
+  it("opens the job a new-job email's link names, once, and refuses a job id that is not one", async () => {
+    auth.getUserByEmail.mockResolvedValue({ uid: "existing-user", emailVerified: true });
+    const { JOB_EMAIL_SIGN_IN_TTL_SECONDS, verifyAccountSignInToken } = await import("../utils/request-review-auth");
+    const token = createAccountSignInToken({ email, sourceId: id, revision: approved.decidedAtIso, job: "req-e2" }, JOB_EMAIL_SIGN_IN_TTL_SECONDS);
+    expect(verifyAccountSignInToken(token)!.exp * 1000 - Date.now()).toBeGreaterThan(6 * 24 * 3600 * 1000);
+    expect(await redeemCompanySignInLink(token)).toEqual({ customToken: "custom-session", returnTo: "/jobs/req-e2" });
+    await expect(redeemCompanySignInLink(token)).rejects.toMatchObject({ status: 403 });
+    expect(() => createAccountSignInToken({ email, sourceId: id, revision: approved.decidedAtIso, job: "../admin" })).toThrow();
+  });
+
   it("creates the account with no password when the address has none yet", async () => {
     await redeemCompanySignInLink(await link());
     expect(auth.createUser).toHaveBeenCalledWith({ uid: `invited_${id}`, email, emailVerified: true, displayName: "Team Person" });

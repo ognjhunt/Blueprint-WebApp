@@ -158,7 +158,10 @@ export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
 export const NEW_JOB_EMAIL_BODY = "A site has posted a new job. Open it to see the job packet and respond.";
 const NEW_JOB_ALERTS_LINE = "You get an email like this for each new job. Turn them off in Settings or unsubscribe below.";
 
-/** The email an approved deployment company that asked for job emails gets when a job is shared. */
+/**
+ * The email an approved deployment company that asked for job emails gets when a job is shared. `jobUrl` signs the
+ * company in on the way when it is not signed in already (`jobEmailUrl`), so the email leads straight to the job.
+ */
 export function newJobEmail(params: { to: string; jobUrl: string; kind?: string | null; country?: string | null }) {
   const kind = params.kind?.trim() && params.kind.trim() !== "Other" ? params.kind.trim() : null;
   const country = params.country?.trim() || null;

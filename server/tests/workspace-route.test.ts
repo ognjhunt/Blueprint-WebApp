@@ -21,6 +21,10 @@ const storage = vi.hoisted(() => ({ readable: true }));
 vi.mock("../utils/accountInvitations", () => ({ accountHasAdmission: admission }));
 // Workspace route tests exercise saved records; inference is a separate boundary.
 vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: vi.fn(async () => null) }));
+const companyTerms = vi.hoisted(() => ({ record: vi.fn(async () => true), openJobs: vi.fn(async () => true) }));
+vi.mock("../utils/companyTerms", async (original) => ({ ...(await original<typeof import("../utils/companyTerms")>()),
+  recordCompanyTermsAcceptance: companyTerms.record }));
+vi.mock("../utils/jobAutoSend", () => ({ emailOpenJobsToCompany: companyTerms.openJobs }));
 
 const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
@@ -304,6 +308,30 @@ async function api(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
+// Owner, 2026-11-23: the sign-up page's one tick is the company's agreement too, so no second prompt before a job.
+describe("a deployment company's sign-up", () => {
+  it("records the company's Terms with the versions the page showed, and only then", async () => {
+    companyTerms.record.mockClear(); companyTerms.openJobs.mockClear();
+    const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+    const body = { name: "Team", organization: "Robot Co", workspaceType: "robot_team", acceptedTerms: true };
+    // Without the versions it showed, the account's own Terms are recorded as before, and nothing more.
+    expect((await api("/setup", "operator", body)).status).toBe(200);
+    expect(companyTerms.record).not.toHaveBeenCalled();
+    expect((await api("/setup", "operator", { ...body, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION })).status).toBe(200);
+    expect(companyTerms.record).toHaveBeenCalledWith({ uid: "operator", email: "operator@example.com" },
+      accessRecordId("operator@example.com"), expect.objectContaining({ terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION }));
+    expect(companyTerms.openJobs).toHaveBeenCalledWith(accessRecordId("operator@example.com"));
+  });
+
+  it("still sets the account up when the company's record cannot take the agreement", async () => {
+    companyTerms.record.mockClear(); companyTerms.record.mockRejectedValueOnce(new Error("store down"));
+    const response = await api("/setup", "operator", { name: "Team", organization: "Robot Co", workspaceType: "robot_team",
+      acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
+    expect(response.status).toBe(200);
+    expect(companyTerms.record).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("workspace access and projections", () => {
   it.each(["legacy", "current", "stale"])("requires displayed versions for an unverified source-bound acceptance (%s)", async mode => {
     const explicit = mode === "current";

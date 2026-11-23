@@ -32,6 +32,8 @@ import type { InboundRequestStored } from "../types/inbound-request";
 import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import { accessRecordId, ensureApprovedTeamForAccount } from "../utils/robotTeamEarlyAccess";
+import { recordCompanyTermsAcceptance } from "../utils/companyTerms";
+import { emailOpenJobsToCompany } from "../utils/jobAutoSend";
 import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
@@ -255,6 +257,17 @@ router.post(
       ? await ensureApprovedTeamForAccount({ uid: auth.uid, email: text(auth.email).toLowerCase(), verified: true })
         .catch((error) => { logger.warn({ error }, "Could not bind the approved account to its team at setup"); return null; })
       : null;
+    // The sign-up page's one tick is the company's agreement too (owner, 2026-11-23), so a company that just signed up
+    // is not asked a second time before its first job. Only for the versions the page showed, on a verified account
+    // whose approved access record is its own; best effort, as the prompt on the job page still asks if this fails.
+    const shownAtSetup = input.termsVersion !== undefined || input.privacyVersion !== undefined
+      ? shownVersionsCount(input.termsVersion, input.privacyVersion) : null;
+    if (input.workspaceType === "robot_team" && input.acceptedTerms === true && shownAtSetup && auth.email_verified === true && text(auth.email)) {
+      const email = text(auth.email).toLowerCase();
+      await recordCompanyTermsAcceptance({ uid: auth.uid, email }, accessRecordId(email), shownAtSetup)
+        .then(recorded => recorded ? emailOpenJobsToCompany(accessRecordId(email)).catch(() => false) : false)
+        .catch((error) => { logger.warn({ error }, "Could not record the company's Terms at setup"); return false; });
+    }
     return res.json({ ok: true, workspaceType: input.workspaceType, ...(teamId ? { teamId } : {}) });
   }),
 );
