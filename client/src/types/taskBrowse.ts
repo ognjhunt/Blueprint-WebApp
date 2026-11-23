@@ -235,6 +235,8 @@ export interface CompanyJobPage {
   myAnswer: { state: "interested" | "declined" | "needs_something" | "tested_can_do" | "tested_cannot_yet"; inputs: string; updatedAtIso: string;
     statementVersion: string | null; details?: import("../lib/companyResponses").CompanyReplyDetails } | null;
   clarification?: { question: string; answer: string };
+  /** This company's question while the site has not replied: when it asked, the reply date, and whether we reminded. */
+  pendingQuestion?: { askedAtIso: string; replyByIso: string; reminded: boolean };
   /** The line under the form, and the version recorded with an answer. */
   responseStatement: { version: string; text: string };
 }

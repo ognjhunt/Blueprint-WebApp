@@ -21,7 +21,7 @@ import {
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
 import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "@/lib/jobTracker";
-import { COMPANY_START_LABELS, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
@@ -261,11 +261,16 @@ function ReplyQuestion({ token, alias, question, onChanged }: { token: string; a
       setError(failure instanceof Error ? failure.message : "Your answer could not be saved. Try again.");
     } finally { setBusy(false); }
   }
+  // The reply date (three days after the question): a date to aim for, never a lock (`REPLY_WINDOW_MS`).
+  const by = !shownAnswer && question.replyByIso ? question.replyByIso : null;
+  const passed = by !== null && Date.parse(by) <= Date.now();
   return <div className="company-question">
     <dl className="company-response-facts">
       <div><dt>What they need to know</dt><dd>{question.text}</dd></div>
       {shownAnswer && <div><dt>Your reply</dt><dd>{shownAnswer}</dd></div>}
     </dl>
+    {by && <p className={passed ? "bare-helper site-reply-date-passed" : "bare-helper"}>
+      {passed ? REPLY_DATE_PASSED(dateInWords(by)) : replyByLine(dateInWords(by))}</p>}
     {!shownAnswer && <details>
       <summary className="bare-inline-link">Reply</summary>
       <form className="ms-form" onSubmit={submit}>

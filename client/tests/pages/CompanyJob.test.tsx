@@ -96,6 +96,18 @@ describe("the company's page for one job", () => {
       statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION });
   });
 
+  it("tells the company when the site is asked to reply to its question, and when that date has passed", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      pendingQuestion: { askedAtIso: "2998-12-31T10:00:00.000Z", replyByIso: "2999-01-03T10:00:00.000Z", reminded: false } }) }) });
+    const { unmount } = render(<CompanyJob />);
+    expect(await screen.findByText("You asked on December 31, 2998. The site is asked to reply by January 3, 2999.")).toBeInTheDocument();
+    unmount();
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      pendingQuestion: { askedAtIso: "2026-11-12T10:00:00.000Z", replyByIso: "2026-11-15T10:00:00.000Z", reminded: true } }) }) });
+    render(<CompanyJob />);
+    expect(await screen.findByText("The site has not replied yet. Its reply date was November 15, 2026, and we reminded it.")).toBeInTheDocument();
+  });
+
   it("names the answer just saved, never the one it replaced", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ myAnswer: { state: "needs_something",
       inputs: "A second gripper.", updatedAtIso: "2026-11-12T10:00:00.000Z", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION } }) }) });

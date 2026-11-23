@@ -21,6 +21,7 @@ import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, TESTED_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
+import { recordReplyWindow } from "../utils/siteReplyReminders";
 import { questionOnReply } from "../utils/jobClarifications";
 import { recordCompanyJobView } from "../utils/companyJobViews";
 const router = Router();
@@ -98,6 +99,9 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       const prepared = await prepareCompanyAnswerInTransaction(tx, ref, taskId, current, companyId, input.data.state, captureUrl);
       prepared.write();
       tx.set(interestRef, next);
+      // A new question opens its reply window (`siteReplyReminders.ts`): a date for the site, and one reminder at it.
+      if (question && !sameQuestion && typeof next.questionId === "string")
+        recordReplyWindow(tx, { jobId: taskId, companyId, questionId: next.questionId, askedAtIso: row.updatedAtIso });
     });
     return res.json({ ok: true, state: input.data.state, nextAction: answerNextStep(input.data.state) });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }

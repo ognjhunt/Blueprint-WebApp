@@ -10,7 +10,7 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { jobTitleForDisplay, type CompanyFirstLookRow, type CompanyJobPage } from "../../client/src/types/taskBrowse";
-import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompanyResponseState } from "../../client/src/lib/companyResponses";
+import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompanyResponseState, replyByIso } from "../../client/src/lib/companyResponses";
 import { jobFactsInWords } from "../../client/src/lib/jobFacts";
 import { FIRST_LOOK_STATUS, SIMULATION_STATUS, SITE_AGREED_SHARING, SITE_IDENTITY_RULE, answerSpeedInWords, fitSummary, jobHeadline,
   rateInWords, visitMustConfirm } from "../../client/src/lib/companyJobPage";
@@ -300,6 +300,10 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
       statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null,
       ...(answerRow.details ? { details: answerRow.details } : {}) } : null,
     ...(question && clarification ? { clarification: { question: question.text, answer: clarification } } : {}),
+    // The company's own question while the site has not replied, with its reply date (`REPLY_WINDOW_MS`).
+    ...(question && !clarification && replyByIso(answerRow?.questionAskedAtIso) ? { pendingQuestion: {
+      askedAtIso: String(answerRow!.questionAskedAtIso), replyByIso: replyByIso(answerRow!.questionAskedAtIso)!,
+      reminded: answerRow?.replyReminder?.questionId === question.id } } : {}),
     responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT },
   };
 }

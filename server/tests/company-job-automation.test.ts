@@ -506,6 +506,51 @@ describe("the company's page for one job (E3)", () => {
       "Answers questions from companies here, usually within 3 hours."]);
   });
 
+  // Owner, 2026-11-23, after freight marketplaces: a pending step carries its date and one reminder, and never closes.
+  it("gives a company's question a three-day reply date, reminds the site once at it, and closes the window on a reply", async () => {
+    const { remindUnansweredQuestions, SITE_REPLY_WINDOWS, replyReminderIsCurrent } = await import("../utils/siteReplyReminders");
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const reply = state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>;
+    const replyBy = Date.parse(reply.questionAskedAtIso) + 3 * 24 * 60 * 60 * 1000;
+    const windowKey = `${SITE_REPLY_WINDOWS}/${ID}__${sha(NORTH.email)}`;
+    expect(state.docs.get(windowKey)).toMatchObject({ state: "open", questionId: reply.questionId, replyByIso: new Date(replyBy).toISOString() });
+    // The company and the site both read the date.
+    expect((await page()).body.item.pendingQuestion).toEqual({ askedAtIso: reply.questionAskedAtIso,
+      replyByIso: new Date(replyBy).toISOString(), reminded: false });
+    expect((await loadSiteCompanyActivity(ID)).entries.find(entry => entry.alias === "Company A"))
+      .toMatchObject({ question: { id: reply.questionId, replyByIso: new Date(replyBy).toISOString() } });
+    // Before the date: nothing. At it: one reminder to the site, naming no company; never a second.
+    expect(await remindUnansweredQuestions(replyBy - 1)).toBe(0);
+    expect(await remindUnansweredQuestions(replyBy)).toBe(1);
+    expect(await remindUnansweredQuestions(replyBy + 60_000)).toBe(0);
+    const reminders = outbox().filter(row => row.kind === "site_reply_reminder");
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0]).toMatchObject({ to: SITE.email, subject: "A company is waiting for your reply" });
+    expect(reminders[0].body).not.toMatch(/North|contact@/);
+    expect(state.docs.get(windowKey)).toMatchObject({ state: "reminded" });
+    expect((await page()).body.item.pendingQuestion).toMatchObject({ reminded: true });
+    // Still true at dispatch while unanswered; once the site replies, the reminder is no longer true.
+    const entry = { kind: "site_reply_reminder" as const, requestId: ID, idempotencyKey: reminders[0].key };
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const current = () => sharedFakeFirestore.runTransaction((tx: FirebaseFirestore.Transaction) => replyReminderIsCurrent(entry as never, tx));
+    expect(await current()).toBe(true);
+    state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`, { ...(state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as object),
+      siteClarification: { questionId: reply.questionId, text: "About 12.", answeredAtIso: new Date(replyBy).toISOString() } });
+    expect(await current()).toBe(false);
+    expect((await page()).body.item.pendingQuestion).toBeUndefined();
+  });
+
+  it("closes a reply window with no email when the question was answered or changed first", async () => {
+    const { remindUnansweredQuestions, SITE_REPLY_WINDOWS } = await import("../utils/siteReplyReminders");
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const asked = Date.parse((state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>).questionAskedAtIso);
+    // The company applies instead: no question is open any more.
+    expect((await answer(NORTH, { state: "interested", inputs: "We do this every day." })).status).toBe(200);
+    expect(await remindUnansweredQuestions(asked + 4 * 24 * 60 * 60 * 1000)).toBe(0);
+    expect(state.docs.get(`${SITE_REPLY_WINDOWS}/${ID}__${sha(NORTH.email)}`)).toMatchObject({ state: "closed" });
+    expect(outbox().filter(row => row.kind === "site_reply_reminder")).toHaveLength(0);
+  });
+
   it("shows the site's sentence with contact details removed, its answers in words, the country, the media and the form line", async () => {
     const { status, body, raw } = await page();
     expect(status).toBe(200);

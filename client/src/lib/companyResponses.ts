@@ -126,7 +126,9 @@ export type SiteCompanyEntry =
        */
       reason?: string;
       details?: Pick<CompanyReplyDetails, "verified" | "startWindow">;
-      question?: { id: string; text: string; answer?: string };
+      question?: { id: string; text: string; answer?: string;
+        /** When the site is asked to reply by (`replyByIso`); absent for a question asked before the window existed. */
+        replyByIso?: string };
       /**
        * The company's name and website, only for an answer given under a line that says the site sees them
        * (`COMPANY_NAME_STATEMENT_VERSIONS`); otherwise the site reads the alias.
@@ -195,3 +197,21 @@ export function isSiteCompanyActivity(value: unknown): value is SiteCompanyActiv
       && ((entry as Record<string, unknown>).kind === "sent"
         || ((entry as Record<string, unknown>).kind === "answered" && isCompanyResponseState((entry as Record<string, unknown>).state))));
 }
+
+/**
+ * The reply window on a company's question (owner, 2026-11-23, after freight marketplaces: a pending step carries its
+ * date). The site is asked to reply within three days of the question; at the date one reminder goes to the site, and
+ * after it both sides read that the date has passed. Nothing closes or is held: the site can still reply, and the
+ * company can still apply or change its answer.
+ */
+export const REPLY_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+export function replyByIso(askedAtIso: string | null | undefined): string | null {
+  const at = Date.parse(String(askedAtIso ?? ""));
+  return Number.isFinite(at) ? new Date(at + REPLY_WINDOW_MS).toISOString() : null;
+}
+export const replyByLine = (date: string) => `Please reply by ${date}.`;
+export const REPLY_DATE_PASSED = (date: string) => `The reply date, ${date}, has passed. You can still reply.`;
+/** On the company's page, while its question waits. */
+export const companyQuestionWaiting = (asked: string, by: string) => `You asked on ${asked}. The site is asked to reply by ${by}.`;
+export const companyQuestionOverdue = (by: string, reminded: boolean) =>
+  `The site has not replied yet. Its reply date was ${by}${reminded ? ", and we reminded it" : ""}.`;

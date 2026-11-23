@@ -644,6 +644,18 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(lines()[0]).not.toMatch(/Northwind|Ada/);
   });
 
+  // Owner, 2026-11-23: a company's question carries a reply date; past it, the site is told it can still reply.
+  it("shows the reply date beside a company's question, and says plainly when it has passed", () => {
+    const asking = (replyByIso: string) => ({ ...activity, entries: [{ ...activity.entries[0],
+      question: { id: "q".repeat(64), text: "How many cartons arrive per minute?", replyByIso } }] });
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: asking("2999-01-04T10:00:00.000Z") }} />);
+    expect(within(companies()).getByText("Please reply by January 4, 2999.")).toBeVisible();
+    unmount();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: asking("2026-11-15T10:00:00.000Z") }} />);
+    expect(within(companies()).getByText("The reply date, November 15, 2026, has passed. You can still reply.")).toBeVisible();
+    expect(within(companies()).getByText("Reply")).toBeVisible();
+  });
+
   it("lets the site mark a visit after an introduction, shows the date with Undo, and moves the tracker on", async () => {
     const introduced = { ...activity, introductions: { used: 1 }, entries: [
       { ...activity.entries[1], canIntroduce: false, introducedAtIso: "2026-11-14T09:00:00.000Z",

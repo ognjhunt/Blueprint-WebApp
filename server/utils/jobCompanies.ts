@@ -37,7 +37,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
-  COMPANY_NAME_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
+  COMPANY_NAME_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, replyByIso, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
   type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
@@ -464,7 +464,8 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
       ...(applicant ? { applicant } : {}),
       ...(reason ? { reason } : {}),
       ...(Object.keys(details).length ? { details } : {}),
-      ...(canAnswer ? { question: { id: question.id, text: questionText, ...(answer ? { answer } : {}) } } : {}),
+      ...(canAnswer ? { question: { id: question.id, text: questionText, ...(answer ? { answer } : {}),
+        ...(!answer && replyByIso(response.data.questionAskedAtIso) ? { replyByIso: replyByIso(response.data.questionAskedAtIso)! } : {}) } } : {}),
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
       // What the site said happened after the introduction (`markIntroductionProgress`): a visit, a pilot.
       ...(intro && progressOf(intro) ? { progress: progressOf(intro)! } : {}),
