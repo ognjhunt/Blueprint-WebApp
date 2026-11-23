@@ -1,3 +1,4 @@
+import { validSiteLocationParts, type SiteLocationParts } from "./placeParts";
 import { readDurableSiteCaptureRecovery, writeDurableSiteCaptureRecovery, retireDurableSiteCaptureRecovery, durableSiteCaptureRecoveryKeys } from "./siteCaptureDurability";
 /** Local recovery only; server authorization and saved submission remain authoritative. */
 export const SITE_CAPTURE_DRAFT_VERSION = 1;
@@ -18,6 +19,8 @@ export type SiteCaptureDraft = {
    * keeps that country only while `location` still reads exactly this label: once the text is edited, it is asked.
    */
   regionFromPlace?: string;
+  /** That place's structured city, state and country (`placeParts.ts`), kept and restored with `regionFromPlace` only. */
+  placeParts?: SiteLocationParts;
   privateHandling?: boolean;
 };
 export type SiteCaptureRecovery = {
@@ -56,6 +59,7 @@ function validSiteCaptureRecovery(input: unknown): SiteCaptureRecovery | null {
       || (draft.jobFrequency !== undefined && (typeof draft.jobFrequency !== "string" || draft.jobFrequency.length > 120))
       || (draft.successDefinition !== undefined && (typeof draft.successDefinition !== "string" || draft.successDefinition.length > 1000))
       || (draft.regionFromPlace !== undefined && (typeof draft.regionFromPlace !== "string" || draft.regionFromPlace.length > 300))
+      || (draft.placeParts !== undefined && !validSiteLocationParts(draft.placeParts))
       || (draft.purchaseReadiness !== undefined && !["", "exploring", "planning", "ready_for_proposals", "unsure"].includes(draft.purchaseReadiness))
       || !draft || !["phone", "upload", "description", "visit"].includes(draft.method)
       || !["", "us", "non_us"].includes(draft.region) || typeof draft.regionManuallySet !== "boolean"
@@ -98,11 +102,13 @@ export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureR
     }
     // Persist only the named recovery fields: no File objects or bearer URL
     // can ride along on a future caller's spread object.
-    const { task, location, email, company, method, region, regionManuallySet, regionFromPlace, privateHandling, jobFrequency, purchaseReadiness, successDefinition } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, regionFromPlace, placeParts, privateHandling, jobFrequency, purchaseReadiness, successDefinition } = value.draft;
+    const keepsPlace = Boolean(regionFromPlace && region && !regionManuallySet);
+    const parts = keepsPlace ? validSiteLocationParts(placeParts) : null;
     window.localStorage.setItem(key, JSON.stringify({
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
       draft: { task, location, email, ...(company !== undefined ? { company } : {}), method, region, regionManuallySet,
-        ...(regionFromPlace && region && !regionManuallySet ? { regionFromPlace } : {}), ...(privateHandling === true ? { privateHandling } : {}),
+        ...(keepsPlace ? { regionFromPlace } : {}), ...(parts ? { placeParts: parts } : {}), ...(privateHandling === true ? { privateHandling } : {}),
         ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}), ...(successDefinition ? { successDefinition } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     }));

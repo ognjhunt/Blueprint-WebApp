@@ -226,6 +226,7 @@ import type {
   PilotOpportunityVisibility,
 } from "../types/inbound-request";
 import { TASK_CONTEXT_IDENTITY_FIELD } from "../utils/websiteTaskContext";
+import { withTypedUsState } from "../utils/typedPlaceState";
 
 const router = Router();
 
@@ -1059,9 +1060,10 @@ export async function submitInboundRequest(req: Request, res: Response) {
     });
     const siteName = payload.siteName?.trim() || "";
     const siteLocation = payload.siteLocation?.trim() || "";
-    const siteLocationMetadata = normalizePlaceLocationMetadata(
-      payload.siteLocationMetadata
-    );
+    // A job in the United States with no structured state (a place typed, not picked) keeps the state its typed place
+    // ends with, and nothing else from the text (`withTypedUsState`).
+    const siteLocationMetadata = withTypedUsState(
+      normalizePlaceLocationMetadata(payload.siteLocationMetadata), siteLocation, payload.captureRegion);
     const taskStatement = payload.taskStatement?.trim() || "";
     // Sharing is the service (2026-11-12): there is no share box. A `publicTaskListing` sent by a page opened before
     // the change is ignored; the job is shared only when its recording statement is v4 or later (below).
