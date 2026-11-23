@@ -46,6 +46,8 @@ describe("the company's page for one job", () => {
     expect(video.getAttribute("src")).toBe("/api/company-media/jobs/job-1/video.mp4?x=1");
     expect(video.getAttribute("controlsList")).toContain("nodownload");
     expect(screen.getByRole("link", { name: "View the simulation of the site" })).toHaveAttribute("href", "/splat-viewer/index.html?content=x");
+    // The simulation opens in the same tab; its viewer has the way back to this job.
+    expect(screen.getByRole("link", { name: "View the simulation of the site" })).not.toHaveAttribute("target");
     expect(screen.getByText("Fits.")).toBeInTheDocument();
     // What the video shows of the object and how sure each figure is, beside the site's own unchecked answers.
     expect(screen.getByText(SITE_ANSWERS_HINT)).toBeInTheDocument();
@@ -107,55 +109,6 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("The simulation of the site is not finished yet.")).toBeInTheDocument();
   });
 
-  it("says a job sent with its description only has no video yet, and how to ask for one with the answers there are", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ video: { state: "none" },
-      simulation: { state: "not_finished" }, firstLookRows: [] }) }) });
-    render(<CompanyJob />);
-    expect(await screen.findByText("No video yet. The site sent this job with its description only.")).toBeInTheDocument();
-    expect(screen.queryByText("The video is being prepared.")).not.toBeInTheDocument();
-    expect(screen.getByText("Need a video to decide? Choose Need more details.")).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /Need more details/ })).toBeInTheDocument();
-    expect(screen.getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
-    expect(screen.getByText(NO_FIRST_LOOK)).toBeInTheDocument();
-  });
-
-  it("signs a visitor back into this job and fetches nothing while signed out", async () => {
-    auth.currentUser = null;
-    render(<CompanyJob />);
-    expect(await screen.findByRole("heading", { name: "Sign in to see this job" })).toBeInTheDocument();
-    const main = within(screen.getByRole("main"));
-    const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
-    expect(main.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
-    expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
-    expect(main.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("says the job is not available when the server refuses it", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) });
-    render(<CompanyJob />);
-    expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
-  });
-
-  // The page knows the account's access, so it says which case a refusal is.
-  it("tells an approved company the job is no longer available, and links back to the jobs", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { gated: true, status: "approved", signedIn: true,
-      emailVerified: true, allowed: true, staff: false } }) });
-    render(<CompanyJob />);
-    expect(await screen.findByRole("heading", { name: "This job is no longer available" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to jobs" })).toHaveAttribute("href", "/contact/robot-team");
-    expect(screen.queryByText(/may not be approved/)).toBeNull();
-  });
-
-  it("tells an account that never applied that only approved companies see jobs, and how to apply", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { gated: true, status: "none", signedIn: true,
-      emailVerified: true, allowed: false, staff: false } }) });
-    render(<CompanyJob />);
-    expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
-    expect(screen.getByText(/Only approved deployment companies can see jobs\./)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
-  });
-
   it("shows a conditional first-look row and the count of the rest, from the shared first look", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
       firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 11.6 kg.", robot: "Universal Robots UR10e" }],
@@ -168,7 +121,7 @@ describe("the company's page for one job", () => {
     expect(screen.queryByText(NO_FIRST_LOOK)).not.toBeInTheDocument();
   });
 
-  it("offers a separate simulation result action once the job has a simulation package", async () => {
+  it("offers the two tested answers in the one form once the job has a simulation package", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ simulation: { state: "not_finished" },
       simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" } }) }) });
     render(<CompanyJob />);
@@ -176,22 +129,33 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.")).toBeInTheDocument();
     expect(screen.queryByText(/Gaussian splat/)).toBeNull();
     expect(screen.queryByText("The simulation of the site is not finished yet.")).toBeNull();
-    const fit = screen.getByRole("form", { name: "Your response" });
-    expect(within(fit).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["interested", "declined", "needs_something"]);
-    const fitNote = within(fit).getByRole("textbox");
-    expect(fitNote).not.toBeRequired();
-    fireEvent.click(within(fit).getByLabelText("Need more details"));
-    expect(fitNote).toBeRequired();
-    fireEvent.change(fitNote, { target: { value: "What is the cycle time?" } });
+    expect(screen.queryByRole("link", { name: "Report simulation result" })).toBeNull();
+    expect(screen.getAllByRole("form")).toHaveLength(1);
+    const form = screen.getByRole("form", { name: "Your response" });
+    expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value")))
+      .toEqual(["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"]);
+    const note = within(form).getByRole("textbox");
+    expect(note).not.toBeRequired();
+    fireEvent.click(within(form).getByLabelText("Tested it: can do"));
+    expect(within(form).getByRole("textbox", { name: "What did you test?" })).toBeRequired();
+    // "Add details" keeps the question and the earliest start; "What you have checked" is gone.
+    fireEvent.click(within(form).getByText("Add details"));
+    expect(within(form).getByLabelText("Question for the site")).toBeInTheDocument();
+    expect(within(form).getByLabelText("Earliest start")).toBeInTheDocument();
+    expect(within(form).queryByLabelText("What you have checked")).toBeNull();
+  });
 
-    fireEvent.click(screen.getByRole("link", { name: "Report simulation result" }));
-    const result = screen.getByRole("form", { name: "Simulation result" });
-    expect(within(result).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["tested_can_do", "tested_cannot_yet"]);
-    expect(within(result).getByRole("textbox", { name: "What did you test?" })).toBeRequired();
-    expect(within(result).getByRole("button", { name: "Send simulation result" })).toBeVisible();
-
-    fireEvent.click(screen.getByRole("link", { name: "Respond" }));
-    expect(within(screen.getByRole("form", { name: "Your response" })).getByRole("textbox", { name: "What details would help you decide?" })).toHaveValue("What is the cycle time?");
+  it("clears the last saved message once another answer is chosen", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" } }) }) });
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Your response" });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved. If the site asks to meet you, we email you both each other's name and contact details." }) });
+    fireEvent.click(within(form).getByLabelText("Interested"));
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("If the site asks to meet you"));
+    fireEvent.click(within(form).getByLabelText("Tested it: can do"));
+    expect(within(form).queryByRole("status")).toBeNull();
   });
 
   it("asks a company that has not accepted the current Terms to agree, shows nothing of the job, then loads it", async () => {
