@@ -3,7 +3,7 @@
  * New applications are not assessed: a person reads the name, work email, company and website, and decides.
  */
 export interface AccessFitCheck {
-  id: "work_email" | "website_matches_email" | "open_tasks_in_region";
+  id: "work_email" | "website_matches_email";
   label: string;
   passed: boolean;
   detail: string;
@@ -17,9 +17,6 @@ export interface AccessFit {
   listedTaskCount: number;
   assessedAtIso: string;
 }
-
-/** At this many listed tasks, browsing may be worth discussing with the owner. */
-export const OPEN_LIBRARY_SUGGESTED_AT_TASKS = 10;
 
 /** Compatibility metadata: invited beta admission always needs a person's decision. */
 export function autoApproveMinimumTasks(): number | null {

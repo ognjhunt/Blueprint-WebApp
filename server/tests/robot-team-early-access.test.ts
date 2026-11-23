@@ -318,7 +318,7 @@ describe("the review queue", () => {
     return fetch(`${base}/api/admin/robot-team-access/${id}/decision`, {
       method: "POST",
       headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
-      body: JSON.stringify({ status, prerequisitesReviewed: status === "approved" }),
+      body: JSON.stringify({ status }),
     });
   }
 
@@ -326,6 +326,8 @@ describe("the review queue", () => {
     tokens.set("team", { uid: "u1", email: "ada@arm.example", email_verified: true });
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer team", ...CSRF } });
     expect(response.status).toBe(403);
+    // One press approves, and only for staff: the decision route still needs the admin role.
+    expect((await decide("team", early.accessRecordId("ada@arm.example"), "approved")).status).toBe(403);
   });
 
   it("approves once, emails the next step, and the approved email then sees the library", async () => {
@@ -376,7 +378,7 @@ describe("the review queue", () => {
     listedSite("site-1");
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer ops", ...CSRF } });
     expect(await response.json()).toMatchObject({
-      library: { listedTaskCount: 1, autoApproveMinimumTasks: null, gated: true, openSuggestedAtTasks: 10 },
+      library: { listedTaskCount: 1, autoApproveMinimumTasks: null, gated: true },
     });
   });
 });
@@ -402,7 +404,7 @@ describe("inviting a team after a call", () => {
   const invite = (token: string, body: Record<string, unknown>) => fetch(`${base}/api/admin/robot-team-access/invites`, {
     method: "POST",
     headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
-    body: JSON.stringify({ ...body, prerequisitesReviewed: true }),
+    body: JSON.stringify(body),
   });
 
   it("grants that email access, sends one sign-up email, and is staff-only", async () => {
@@ -468,10 +470,10 @@ describe("access decisions and their durable email intent", () => {
     body: JSON.stringify(body),
   });
   const invite = () => post("/api/admin/robot-team-access/invites", {
-    name: "Ada", email, company: "Arm Co", prerequisitesReviewed: true,
+    name: "Ada", email, company: "Arm Co",
   });
   const decide = () => post(`/api/admin/robot-team-access/${early.accessRecordId(email)}/decision`, {
-    status: "approved", prerequisitesReviewed: true,
+    status: "approved",
   });
   const resend = () => post("/api/robot-team-access/invitation", { email });
 

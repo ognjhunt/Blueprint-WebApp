@@ -128,7 +128,8 @@ export async function uploadSelfCaptureVideo(
       const request = new XMLHttpRequest();
       request.open("POST", `/api/self-capture/uploads/${encodeURIComponent(token)}`);
       for (const [name, value] of Object.entries(appCheckHeaders)) request.setRequestHeader(name, value);
-      request.timeout = 15 * 60 * 1000;
+      // Matches the server's one-hour limit for this route (server/utils/requestBodyDeadline.ts).
+      request.timeout = 60 * 60 * 1000;
 
       request.upload.addEventListener("progress", (event) => {
         if (!event.lengthComputable) return;

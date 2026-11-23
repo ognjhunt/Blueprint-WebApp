@@ -15,10 +15,10 @@ export async function taskLifecycleNotificationIsCurrent(
  // acceptance): the company holds the site's details and the site must be told who has them. Before that point the one
  // predicate decides (`siteIntroductionEmailState`). Checked first, so no later rule of this function can stop it.
  if(entry.kind==='introduction_made_site'){
-  const prefix=`${entry.requestId}:introduction_made_site:`;
-  if(!entry.idempotencyKey?.startsWith(prefix))return false;
-  const {siteIntroductionEmailState}=await import('./jobIntroductionGate');
-  return (await siteIntroductionEmailState(entry.requestId,entry.idempotencyKey.slice(prefix.length),transaction)).state==='go';
+  const {introductionEmailTarget,siteIntroductionEmailState}=await import('./jobIntroductionGate');
+  const target=introductionEmailTarget(entry);
+  if(!target)return false;
+  return (await siteIntroductionEmailState(entry.requestId,target.companyId,transaction,target.attempt)).state==='go';
  }
  // "Your job needs something from you": only while that exact ask is still the job's (`siteActionNeeded.ts`).
  if(entry.kind==='site_action_needed'){

@@ -261,6 +261,8 @@ export interface JobSharing {
   sharedAtIso: string | null;
   /** Not shared, and the site agreed to an older statement: its page offers the current one (recording v4) once. */
   olderStatement?: boolean;
+  /** Listed, but no approved deployment company may see jobs yet (`anyCompanyMaySeeJobs`): the page does not say posted. */
+  noCompanyCanSee?: boolean;
 }
 
 const isString = (value: unknown): value is string => typeof value === "string";
