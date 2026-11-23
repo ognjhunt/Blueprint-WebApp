@@ -253,9 +253,10 @@ export default function Privacy() {
           We share personal information with the providers below, only for the function listed and under contract.
           We also share each job with the robot deployment companies we approve. They receive the site&rsquo;s
           description of the job, its video without its sound, the simulation, what counts as the job done and our first
-          look, only to decide whether they can do the job. They are not our providers. A site&rsquo;s name, address and
-          contact details go to a company only when the site asks for an introduction to it, and the site then receives
-          the company&rsquo;s name and contact details.
+          look, only to decide whether they can do the job. They are not our providers. A site sees a company&rsquo;s name
+          and website with each answer the company gives (an answer given before November 23, 2026 stays under an
+          alias). A site&rsquo;s name, address and contact details go to a company only when the site accepts it, and the
+          site then receives the company&rsquo;s contact details.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.
         </p>

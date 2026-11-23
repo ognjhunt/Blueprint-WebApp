@@ -222,6 +222,11 @@
  *   it: can do. Answers you gave before November 23, 2026 stay under an alias.";
  * - the Privacy Policy's paragraph for deployment companies: "When a site asks for an introduction, we give you the
  *   site's name, address and contact details." becomes "When a site accepts your application, we give you ...";
+ * - the Privacy Policy's "Who we share it with": "A site's name, address and contact details go to a company only when
+ *   the site asks for an introduction to it, and the site then receives the company's name and contact details." becomes
+ *   "A site sees a company's name and website with each answer the company gives (an answer given before November 23,
+ *   2026 stays under an alias). A site's name, address and contact details go to a company only when the site accepts
+ *   it, and the site then receives the company's contact details.";
  * - the Terms name the answers by their new labels: "can answer Apply, Not a fit or Need more details." (section 1) and
  *   "can answer each one: Apply, Not a fit or Need more details." (section 4);
  * - Terms section 3: "A deployment company's answer reaches you under an alias. When you ask for an introduction to a
@@ -357,7 +362,7 @@ export const EARLIER_TERMS_VERSION = "2026-11-02.1";
  */
 export const LEGAL_PAGE_DIGESTS = {
   "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "64bb96b9772b1dc86ae32405e7111339964c5cbbfa8eff9031cb68674b0bca0f" },
-  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "0d16000d28d00540f598176c3033f4f02b29342ad654d911aeed123f834971a3" },
+  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "b15096f220f555ca9ca107d8389ffd1f0f48d1254b74613005f170346999bbb5" },
   "client/src/pages/TermsAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "2a56699800d45d0ce2d63598021799a7abbc3027612b1cdfaaf9c0c98cf2cd97" },
   "client/src/pages/PrivacyAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "ae47ecfdb9bbf404ac0d070c02816d2a99f7d4460616e8b06435fbbcb3f115f9" },
   "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "c34a330db07e8bebb525d5459a3eb86fb01b49e90a0af65b64e4f5b403bfe4dd" },

@@ -468,7 +468,16 @@ describe("legal pages are pinned to their versions", () => {
     }
     expect(shell(privacy)).toBe(expected);
     expect(body(privacy).length).toBeGreaterThan(1000);
-    expect(body(privacy)).toBe(body(previousPrivacy));
+    // "Who we share it with": a site sees a company's name and website with its answer, and its contact details on Accept.
+    const sharingFrom = `look, only to decide whether they can do the job. They are not our providers. A site&rsquo;s name, address and
+          contact details go to a company only when the site asks for an introduction to it, and the site then receives
+          the company&rsquo;s name and contact details.`;
+    const sharingTo = `look, only to decide whether they can do the job. They are not our providers. A site sees a company&rsquo;s name
+          and website with each answer the company gives (an answer given before November 23, 2026 stays under an
+          alias). A site&rsquo;s name, address and contact details go to a company only when the site accepts it, and the
+          site then receives the company&rsquo;s contact details.`;
+    expect(body(previousPrivacy).split(sharingFrom)).toHaveLength(2);
+    expect(body(privacy)).toBe(body(previousPrivacy).replace(sharingFrom, sharingTo));
     // Neither current page names the old answer or the old button, and both keep the alias only for earlier answers.
     for (const text of [read("client/src/pages/Terms.tsx"), privacy]) {
       expect(text).not.toMatch(/Interested|Introduce us|COMPANY_ALIAS_SENTENCE/);
