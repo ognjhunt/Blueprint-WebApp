@@ -356,8 +356,6 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
       task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"),
       ...(field("startSuccess") ? { successDefinition: field("startSuccess") } : {}),
       ...(recovery.current.draft.company !== undefined ? { company: recovery.current.draft.company } : {}),
-      ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
-      ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
       regionManuallySet: place ? false : regionManuallySet,
       ...((place ? (place.countryCode ? place.label : null) : regionManuallySet ? null : regionPlace) ? {
@@ -492,13 +490,9 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
           ...(read("startSuccess") ? { successCriteria: { successDefinition: read("startSuccess") } } : {}),
           // Sharing is the service (2026-11-12): no share box. The job is shared with approved deployment companies
           // because recording statement v4, the line under the button, says so; the server writes the listing record.
-          // Screening happens after the first submission. Buying context is
-          // optional and cannot turn into a gate or a spending authorization.
+          // Screening happens after the first submission.
           siteTaskGates: {},
-          siteTaskSpec: {
-            ...(String(data.get("startFrequency") ?? "").trim() ? { jobFrequency: String(data.get("startFrequency")).trim() } : {}),
-            ...(String(data.get("startReadiness") ?? "").trim() ? { purchaseReadiness: String(data.get("startReadiness")).trim() } : {}),
-          },
+          siteTaskSpec: {},
           // The site films its own job: the only capture path (owner, 2026-11-11).
           captureMode: "self_capture",
           captureRegion: region,
@@ -970,19 +964,6 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
             <BareInput id="start-success" name="startSuccess" type="text" maxLength={1000}
               defaultValue={recovery.current.draft.successDefinition ?? ""}
               placeholder="For example, the carton reaches the end of the table upright" />
-          </BareField>
-          <BareField label="How often does it happen?" htmlFor="start-frequency">
-            <BareInput id="start-frequency" name="startFrequency" type="text" maxLength={120}
-              defaultValue={recovery.current.draft.jobFrequency ?? ""}
-              placeholder="For example, 200 items per shift" />
-          </BareField>
-          <BareField label="Where are you in the process?" htmlFor="start-readiness">
-            <BareSelect id="start-readiness" name="startReadiness" defaultValue={recovery.current.draft.purchaseReadiness ?? ""}>
-              <option value="">Not sure yet</option>
-              <option value="exploring">Exploring whether automation makes sense</option>
-              <option value="planning">Planning a pilot</option>
-              <option value="ready_for_proposals">Ready to run a pilot</option>
-            </BareSelect>
           </BareField>
         </details>
 

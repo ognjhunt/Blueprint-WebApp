@@ -39,8 +39,32 @@ function defaultStore(): HeartbeatStore | null {
   return dbAdmin as unknown as HeartbeatStore | null;
 }
 
-function heartbeatRef(store: HeartbeatStore) {
-  return store.collection(OPS_HEARTBEAT_COLLECTION).doc(WORKER_HEARTBEAT_DOC);
+function heartbeatRef(store: HeartbeatStore, doc: string = WORKER_HEARTBEAT_DOC) {
+  return store.collection(OPS_HEARTBEAT_COLLECTION).doc(doc);
+}
+
+/**
+ * Each worker loop also records when its last pass finished, at
+ * opsHeartbeats/blueprint-webapp-worker--<loop>, so one loop that hangs or
+ * keeps failing is seen while the process itself still beats. The value is
+ * the loop's normal interval.
+ */
+export const WORKER_LOOPS = {
+  "automatic-send": 60_000,
+  "outcome-questions": 15 * 60_000,
+  withdrawal: 60_000,
+  deletion: 60_000,
+  "window-sweep": 60_000,
+} as const;
+export type WorkerLoop = keyof typeof WORKER_LOOPS;
+
+export function workerLoopHeartbeatDoc(loop: WorkerLoop) {
+  return `${WORKER_HEARTBEAT_DOC}--${loop}`;
+}
+
+/** A loop is overdue after three of its intervals, and never sooner than the worker heartbeat. */
+export function workerLoopStaleAfterMs(loop: WorkerLoop) {
+  return Math.max(workerHeartbeatStaleAfterMs(), 3 * WORKER_LOOPS[loop]);
 }
 
 
@@ -72,6 +96,29 @@ export async function writeWorkerHeartbeat(options: { store?: HeartbeatStore | n
   return true;
 }
 
+/** Record that one pass of a worker loop finished. Never throws. */
+export async function recordWorkerLoopPass(
+  loop: WorkerLoop,
+  options: { store?: HeartbeatStore | null; now?: () => number; env?: NodeJS.ProcessEnv } = {},
+) {
+  if (!workerHeartbeatWriterEnabled(options.env)) return false;
+  const store = options.store === undefined ? defaultStore() : options.store;
+  if (!store) return false;
+  const nowMs = (options.now || Date.now)();
+  try {
+    await heartbeatRef(store, workerLoopHeartbeatDoc(loop)).set({
+      service: WORKER_HEARTBEAT_DOC,
+      loop,
+      beat_at_ms: nowMs,
+      beat_at_iso: new Date(nowMs).toISOString(),
+    }, { merge: true });
+    return true;
+  } catch (error) {
+    logger.warn({ err: error, event: "worker_loop_heartbeat_write_failed", loop }, "Could not record a worker loop pass");
+    return false;
+  }
+}
+
 /** Start beating. Returns a stop function. */
 export function startWorkerHeartbeat(options: { intervalMs?: number; store?: HeartbeatStore | null } = {}): () => void {
   if (!workerHeartbeatWriterEnabled()) {
@@ -88,14 +135,14 @@ export function startWorkerHeartbeat(options: { intervalMs?: number; store?: Hea
   return () => clearInterval(timer);
 }
 
-export async function readWorkerHeartbeat(options: { store?: HeartbeatStore | null; now?: () => number; staleAfterMs?: number } = {}): Promise<WorkerHeartbeatReading> {
+export async function readWorkerHeartbeat(options: { store?: HeartbeatStore | null; now?: () => number; staleAfterMs?: number; doc?: string } = {}): Promise<WorkerHeartbeatReading> {
   const store = options.store === undefined ? defaultStore() : options.store;
   const staleAfterMs = options.staleAfterMs ?? workerHeartbeatStaleAfterMs();
   const empty = { ageMs: null, staleAfterMs, beatAtIso: null, revision: null };
   if (!store) return { status: "unavailable", ...empty };
   let snapshot: Awaited<ReturnType<HeartbeatDocRef["get"]>>;
   try {
-    snapshot = await heartbeatRef(store).get();
+    snapshot = await heartbeatRef(store, options.doc).get();
   } catch (error) {
     logger.warn({ err: error, event: "worker_heartbeat_read_failed" }, "Could not read the worker heartbeat");
     return { status: "unavailable", ...empty };

@@ -19,6 +19,8 @@ export const INTRODUCTION_STATEMENT_CHANGED = "The wording on this page has chan
 export const INTRODUCTION_FAILED = "We could not ask for the introduction just now. Try again shortly.";
 /** Beside an introduction cancelled before the company's email went: true by construction (H2). */
 export const INTRODUCTION_CANCELLED = "This introduction could not go ahead. We did not give them your details.";
+/** Right after Introduce us is pressed: one plain sentence that both sides are being emailed (ledger EL19). */
+export const introductionRequested = (alias: string) => `We are emailing you and ${alias} each other's contact details.`;
 export const introducedOn = (company: string, date: string) => `You were introduced to ${company} on ${date}.`;
 
 /** The refusal reasons `requestIntroduction` returns (`server/utils/jobIntroductions.ts`), each said in one plain sentence. */

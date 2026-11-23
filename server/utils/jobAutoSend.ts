@@ -5,7 +5,8 @@
  * - records one `companySends` row per approved deployment company, `sentBy: "system"`, id `system-<companyId>`;
  * - queues the new-job email (kind `robot_team_new_task`) to each of those companies that has not turned job emails
  *   off and is not suppressed (`companyWantsJobEmails`, owner 2026-11-20); the dispatch gate (`jobAlertIsCurrent`) re-checks listing, approval, preference and suppression;
- * - queues the site's one `job_sent` email ("Your job is with {n} deployment companies.");
+ * The site gets no email of its own here: its job link email already said the job goes to approved deployment
+ *   companies once the video is in, and how to stop (ledger AL38, 2026-11-23).
  * - writes `company_auto_send = { schemaVersion: 1, sentAtIso, count }` on the job, so it happens once.
  * A job with no approved deployment company yet is left for a later pass. A company that accepts the Terms after a job
  * was sent sees it in its library and gets ONE email about the jobs open to it (`emailOpenJobsToCompany`, audit B-03).
@@ -16,16 +17,16 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
-import { AUTO_SEND_EVENT_ID, COMPANY_SENDS_COLLECTION, companyJobUrl, prepareSiteNotice } from "./jobCompanies";
+import { COMPANY_SENDS_COLLECTION, companyJobUrl } from "./jobCompanies";
 import { companyMaySeeJobs } from "./companyTerms";
 import { newJobEmail, openJobsEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { countryOf } from "./companyJobPage";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
-import { captureUploadUrlFor } from "./captureUploadToken";
 import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
+import { recordWorkerLoopPass } from "./workerHeartbeat";
 
 export const AUTO_SEND_FIELD = "company_auto_send";
 
@@ -63,7 +64,6 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
   if (!db) return { sent: false, reason: "store_unavailable" };
   const store = db;
   const jobRef = store.collection("inboundRequests").doc(requestId);
-  const captureUrl = captureUploadUrlFor(requestId, "owner");
   return store.runTransaction(async (tx): Promise<AutoSendResult> => {
     const { record, access } = await loadCompanyJobAccess(requestId, undefined, tx);
     if (!record || !access.listed) return { sent: false, reason: "not_listed" };
@@ -88,8 +88,6 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
       if (suppressedForJobAlerts(suppression)) continue;
       emailed.push({ id: company.id, email });
     }
-    const siteNotice = await prepareSiteNotice(tx, requestId, record,
-      { milestone: "job_sent", eventId: AUTO_SEND_EVENT_ID, companyCount: companies.length }, captureUrl);
     const sentAtIso = now().toISOString();
     const jobUrl = companyJobUrl(requestId);
     const country = await countryOf(record);
@@ -104,7 +102,6 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
         subject: message.subject, body: message.body, replyTo: "hello@tryblueprint.io",
         jobAlert: { schema: NEW_JOB_ALERT_SCHEMA, jobId: requestId, companyId: company.id } }));
     }
-    siteNotice?.();
     tx.set(jobRef, { [AUTO_SEND_FIELD]: { schemaVersion: 1, sentAtIso, count: companies.length } }, { merge: true });
     return { sent: true, count: companies.length, emailed: emailed.length, sentAtIso };
   });
@@ -207,7 +204,7 @@ export function startAutomaticSendWorker(options: { intervalMs?: number; lease?:
     if (stopped) return;
     if (!running && lease.isLeader()) {
       running = true;
-      try { await sweepAutomaticSends(); }
+      try { await sweepAutomaticSends(); await recordWorkerLoopPass("automatic-send"); }
       catch (error) { logger.error({ err: error }, "Automatic send sweep failed; it will retry"); }
       finally { running = false; }
     }

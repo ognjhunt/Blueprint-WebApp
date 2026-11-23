@@ -620,8 +620,7 @@ async function recoverPendingBriefs(): Promise<void> {
  *
  * `recoverCaptureReviews` claims each row in a transaction with a persisted
  * 30-minute lease and at most three attempts, so a scheduler lane that also
- * runs it (BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1, or a worker outside
- * launch-forward-only mode) cannot double-process a row; the leader lease in
+ * runs it (BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1) cannot double-process a row; the leader lease in
  * startOutboxPump additionally keeps two pumps from running at once. The
  * model gate (BLUEPRINT_SITE_TASK_BRIEF_READING_ENABLED) is applied inside
  * the recovery itself, exactly as on the scheduler lane.

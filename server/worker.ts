@@ -19,13 +19,6 @@ import { startWorkerHeartbeat } from "./utils/workerHeartbeat";
 import { startAutomaticSendWorker } from "./utils/jobAutoSend";
 import { startJobOutcomeQuestionWorker } from "./utils/jobOutcomes";
 
-const launchForwardOnly = () =>
-  ["1", "true", "yes", "on"].includes(
-    String(
-      process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER || "",
-    ).trim().toLowerCase(),
-  );
-
 export type WorkerHandle = {
   stop: () => Promise<void>;
 };
@@ -33,23 +26,15 @@ export type WorkerHandle = {
 export function startWorker(): WorkerHandle {
   validateEnv();
 
-  const taskEvaluationLaunchOnly = launchForwardOnly();
-
   logger.info(
-    attachRequestMeta({
-      route: "worker",
-      taskEvaluationLaunchOnly,
-    }),
-    taskEvaluationLaunchOnly
-      ? "Blueprint worker starting: Task Evaluation launch forwarder only"
-      : "Blueprint worker starting: Task Evaluation launch forwarder and job workers",
+    attachRequestMeta({ route: "worker" }),
+    "Blueprint worker starting: Task Evaluation launch forwarder and job workers",
   );
   const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
   const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
-  // Runs in launch-forward-only mode too: deletion must not wait on the ops scheduler.
+  // Deletion must not wait on the ops scheduler.
   const stopWebsiteDeletions = startWebsiteCaptureDeletionWorker();
-  // Runs in launch-forward-only mode too: a job whose window ran out is ended and its site told
-  // even when the Pipeline is unreachable and the ops scheduler is off.
+  // A job whose window ran out is ended and its site told even when the Pipeline is unreachable and the ops scheduler is off.
   const stopWebsiteJobWindowSweep = startWebsiteJobWindowSweepWorker();
   // Every listed job goes to every approved deployment company once (package E, E4); the sweep catches a missed moment.
   const stopAutomaticSends = startAutomaticSendWorker();

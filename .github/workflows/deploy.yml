@@ -159,7 +159,6 @@ jobs:
             ['srv-d4vnmk3e5dus73aiohk0', 'BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB', true],
             ['srv-d9t8gg1t0dsc73am9q70', 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP', false, 'true'],
             ['srv-d4vnmk3e5dus73aiohk0', 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP', false, 'true'],
-            ['srv-d9t8gg1t0dsc73am9q70', 'BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER', false, 'true'],
             ['srv-d9t8gg1t0dsc73am9q70', 'NODE_OPTIONS', true, ''],
             ['srv-d4vnmk3e5dus73aiohk0', 'NODE_OPTIONS', true, ''],
           ];

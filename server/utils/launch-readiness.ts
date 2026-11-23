@@ -2,7 +2,6 @@ import { authAdmin, dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { isTruthyEnvValue } from "../config/env";
 import { getCityLaunchSenderStatus, getEmailTransportStatus } from "./email";
 import { getHostedSessionLiveStoreStatus } from "./hosted-session-live-store";
-import { getBetaCohortPolicySnapshot } from "./beta-cohort-policy";
 import { describeSiteVideoEvidenceConfig } from "./siteVideoEvidenceConfig";
 
 type LaunchCheck = {
@@ -86,7 +85,6 @@ export function buildLaunchReadinessSnapshot() {
   const liveSessionStore = getHostedSessionLiveStoreStatus();
   const emailTransport = getEmailTransportStatus();
   const cityLaunchSender = getCityLaunchSenderStatus();
-  const betaCohortPolicy = getBetaCohortPolicySnapshot();
   const fieldEncryptionReady = Boolean(
     process.env.FIELD_ENCRYPTION_MASTER_KEY?.trim()
     || process.env.FIELD_ENCRYPTION_KMS_KEY_NAME?.trim(),
@@ -126,12 +124,6 @@ export function buildLaunchReadinessSnapshot() {
   const emailReady = !emailRequired || emailTransport.configured;
   const pipelineSyncReady =
     !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
-  const betaCohortControlsReady =
-    betaCohortPolicy.enabled
-    && !betaCohortPolicy.killSwitchActive
-    && (betaCohortPolicy.inviteCap ?? 0) > 0
-    && (betaCohortPolicy.cohortDailyLimit ?? 0) > 0
-    && (firebaseAdminReady || localLaunchSmoke);
 
   const siteVideoEvidence = describeSiteVideoEvidenceConfig();
 
@@ -143,7 +135,6 @@ export function buildLaunchReadinessSnapshot() {
     email: emailReady,
     slackOpsAlerts: !slackOpsRequired || slackOpsReady,
     pipelineSync: pipelineSyncReady,
-    betaCohortControls: betaCohortControlsReady,
     siteVideoEvidence: siteVideoEvidence.ready,
   };
 
@@ -219,17 +210,6 @@ export function buildLaunchReadinessSnapshot() {
           : "Pipeline sync is enabled but PIPELINE_SYNC_TOKEN is missing."
         : "Pipeline sync is not required.",
     },
-    betaCohortControls: {
-      required: true,
-      ready: betaCohortControlsReady,
-      detail: betaCohortControlsReady
-        ? `Beta cohort controls are active with invite cap ${betaCohortPolicy.inviteCap} and daily cohort limit ${betaCohortPolicy.cohortDailyLimit}.`
-        : betaCohortPolicy.killSwitchActive || !betaCohortPolicy.enabled
-          ? "Beta cohort access is paused by BLUEPRINT_BETA_KILL_SWITCH or BLUEPRINT_BETA_ENABLED=false."
-          : !firebaseAdminReady
-            ? "Beta cohort controls require Firebase Admin / Firestore for caps and throttle state."
-            : "Beta cohort controls require positive BLUEPRINT_BETA_INVITE_CAP and BLUEPRINT_BETA_COHORT_DAILY_LIMIT.",
-    },
   };
 
   const blockers = Object.entries(launchChecks)
@@ -253,7 +233,6 @@ export function buildLaunchReadinessSnapshot() {
       emailTransport,
       pipelineSyncEnabled,
       redisRequired,
-      betaCohortPolicy,
       launchChecks,
     },
   };

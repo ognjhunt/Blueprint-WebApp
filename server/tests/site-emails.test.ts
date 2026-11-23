@@ -17,7 +17,7 @@ vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: vi.fn(async (va
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 
-const { enqueueTaskLifecycleNotification, buildTaskLifecycleNotification, HOW_TO_WITHDRAW } = await import("../utils/taskLifecycleNotifications");
+const { enqueueTaskLifecycleNotification, buildTaskLifecycleNotification, SHARING_AND_HOW_TO_STOP } = await import("../utils/taskLifecycleNotifications");
 const { RETIRED_KINDS, deliverOutbox } = await import("../utils/captureOutbox");
 
 beforeEach(() => {
@@ -67,19 +67,19 @@ describe("the site's emails", () => {
       .resolves.toEqual({ enqueued: false, reason: "consent_withdrawn" });
   });
 
-  it("says the job went to the companies, what is never shared and how to withdraw it", () => {
-    const message = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "job_sent", to: "owner@example.com",
-      eventId: "companies", companyCount: 3 });
-    expect(message).toMatchObject({ idempotencyKey: "req-1:job_sent:companies", kind: "job_sent",
-      subject: "Your job is posted" });
-    expect(message.body).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details/);
-    expect(message.body).toContain(HOW_TO_WITHDRAW);
-    // Shorter never weaker: what a withdrawal does for a copy a company already saved is said too.
-    expect(message.body).toContain("Each company it was sent to is asked to delete any copy it saved.");
-    const descriptionOnly = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "job_sent", to: "owner@example.com",
-      eventId: "companies", companyCount: 3, descriptionOnly: true });
-    expect(descriptionOnly.body).toContain("To withdraw your job, open your job page and choose Withdraw my job. It then leaves every "
-      + "company's view at once. Each company it was sent to is asked to delete any copy it saved.");
+  // The job link email says what "Your job is posted" said, so that email is no longer sent (ledger AL38).
+  it("says in the job link email where the job goes once the video is in, what is never shared and how to stop", () => {
+    const message = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received", to: "owner@example.com" });
+    expect(message).toMatchObject({ kind: "task_received", subject: "Your Blueprint job link" });
+    expect(SHARING_AND_HOW_TO_STOP).toBe("Once your video is in, your job goes to approved deployment companies. We don't share "
+      + "your name, address or contact details with a deployment company unless you ask for an introduction to it. To stop, "
+      + "open your job page and withdraw your job there. It then leaves every company's view at once, and each company it "
+      + "was sent to is asked to delete any copy it saved.");
+    expect(message.body).toContain(SHARING_AND_HOW_TO_STOP);
+    // A site outside the approved region shares nothing, so its email says nothing about sharing.
+    const outside = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received", to: "owner@example.com",
+      captureRegion: "non_us" });
+    expect(outside.body).not.toContain("approved deployment companies");
   });
 
   it("names a company's answer by its label only, never the company", () => {

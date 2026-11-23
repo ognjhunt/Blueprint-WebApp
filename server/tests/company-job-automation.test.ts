@@ -610,8 +610,8 @@ describe("the automatic send (E4)", () => {
     expect(alerts[0].body).not.toMatch(/unsubscribe\?[^\s]*(email=|%40|@)/);
     expect(alerts[0].body).not.toMatch(/optional updates/i);
     expectNoSiteIn("the new-job emails", JSON.stringify(alerts));
-    // The site's one email.
-    expect(outbox().filter(row => row.kind === "job_sent").map(row => row.key)).toEqual([`${ID}:job_sent:companies`]);
+    // No email to the site: its job link email already said where the job goes and how to stop (ledger AL38).
+    expect(outbox().filter(row => row.kind === "job_sent")).toEqual([]);
     expect(jobDoc().company_auto_send).toMatchObject({ schemaVersion: 1, count: 6 });
     // The site's page reports the count and the first date.
     expect((await loadSiteCompanyActivity(ID)).sent).toEqual({ count: 6, firstAtIso: result.sent ? result.sentAtIso : "" });
@@ -641,10 +641,9 @@ describe("the automatic send (E4)", () => {
     expect(html).toMatch(/href="https:\/\/\S+\/api\/growth\/email\/unsubscribe\?token=[A-Za-z0-9_-]+"[^>]*>Unsubscribe<\/a>/);
   });
 
-  it("tells sites with shared video how to withdraw and sends no notice for a legacy description draft", async () => {
+  it("emails the site nothing when its job is sent, and sends no notice for a legacy description draft", async () => {
     await sendJobToApprovedCompanies(ID);
-    const filmed = outbox().find(row => row.kind === "job_sent")!;
-    expect(filmed.body).toContain("choose Job settings, then Stop using my video.");
+    expect(outbox().filter(row => row.kind === "job_sent")).toEqual([]);
     state.docs.clear();
     state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, summary: SENTENCE, confirmedAtIso: null });
     // Sent with its description only (v5): the job page offers "Withdraw my job" (`SelfCaptureUpload.tsx`), not a video to stop.

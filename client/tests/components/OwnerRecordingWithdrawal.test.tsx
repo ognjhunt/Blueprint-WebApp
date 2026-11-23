@@ -34,7 +34,6 @@ describe("owner-link withdrawal", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<OwnerRecordingWithdrawal token={TOKEN} />);
     fireEvent.click(await screen.findByText("Stop using my video"));
-    fireEvent.click(screen.getByRole("button", { name: "Stop using my video…" }));
     expect(screen.getByRole("alertdialog", { name: "Stop using your video?" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
@@ -47,7 +46,6 @@ describe("owner-link withdrawal", () => {
     const onWithdrawn = vi.fn();
     render(<OwnerRecordingWithdrawal token={TOKEN} onWithdrawn={onWithdrawn} />);
     fireEvent.click(await screen.findByText("Stop using my video"));
-    fireEvent.click(screen.getByRole("button", { name: "Stop using my video…" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, stop using my video" }));
     expect(await screen.findByText("Video withdrawn.")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/We're stopping our use of your video now/);
@@ -67,7 +65,6 @@ describe("owner-link withdrawal", () => {
     vi.stubGlobal("fetch", server(null, async () => ({ ok: false, json: async () => ({ error: "We could not record your withdrawal. Nothing changed. Try again shortly." }) })));
     render(<OwnerRecordingWithdrawal token={TOKEN} />);
     fireEvent.click(await screen.findByText("Stop using my video"));
-    fireEvent.click(screen.getByRole("button", { name: "Stop using my video…" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, stop using my video" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Nothing changed");
     expect(screen.queryByText(/Uploads stopped/)).not.toBeInTheDocument();

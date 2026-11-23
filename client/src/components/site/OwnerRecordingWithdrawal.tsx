@@ -76,10 +76,11 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descrip
   /** Told when a recorded withdrawal is read back, so the page stops offering footage, edits and sharing. */
   onStatus?: () => void }) {
   const [status, setStatus] = useState<OwnerWithdrawalStatus | null>(null);
-  const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
+  const disclosure = useRef<HTMLDetailsElement>(null);
   // Held in a ref so a new callback each render never re-reads the status.
   const statusSeen = useRef(onStatus);
   statusSeen.current = onStatus;
@@ -101,7 +102,7 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descrip
     const timer = setInterval(() => { void refresh(); }, POLL_MS);
     return () => clearInterval(timer);
   }, [status, refresh]);
-  useEffect(() => { if (confirming) confirmButton.current?.focus(); }, [confirming]);
+  useEffect(() => { if (open) confirmButton.current?.focus(); }, [open]);
 
   async function withdraw() {
     if (submitting) return;
@@ -116,7 +117,6 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descrip
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.withdrawal) throw new Error(data?.error || "We could not record your withdrawal. Nothing changed. Try again shortly.");
       setStatus(data.withdrawal as OwnerWithdrawalStatus);
-      setConfirming(false);
       onWithdrawn?.();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "We could not record your withdrawal. Nothing changed. Try again shortly.");
@@ -128,18 +128,15 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descrip
   return (
     <section aria-label={descriptionOnly || status?.descriptionOnly ? "Job withdrawal" : "Recording permission"} className="owner-withdrawal">
       {status ? <WithdrawalStatusMessage status={status} /> : (
-        <details className="ms-task-interest">
+        // Two taps: opening the row asks the one confirming question at once (ledger AL43).
+        <details className="ms-task-interest" ref={disclosure}
+          onToggle={event => { const opened = (event.currentTarget as HTMLDetailsElement).open; setOpen(opened); if (opened) setError(null); }}>
           <summary>{summaryLabel}</summary>
           {descriptionOnly ? <p>Withdrawing removes your job from the deployment companies' view.</p> : <p>
             We stop using your video and take your job out of every company's view at once. No new uploads are accepted.
             {" "}{WITHDRAWN_COMPANY_COPIES} {RETAINED}
           </p>}
-          {!confirming && (
-            <button type="button" className="ms-button" onClick={() => { setError(null); setConfirming(true); }}>
-              {descriptionOnly ? "Withdraw job…" : `${STOP_USING_VIDEO_LABEL}…`}
-            </button>
-          )}
-          {confirming && (
+          {open && (
             <div role="alertdialog" aria-modal="false" aria-labelledby="withdraw-confirm-title" aria-describedby="withdraw-confirm-body">
               <h3 id="withdraw-confirm-title">{descriptionOnly ? "Withdraw your job?" : "Stop using your video?"}</h3>
               <p id="withdraw-confirm-body">
@@ -149,7 +146,7 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, descrip
               <button ref={confirmButton} type="button" className="ms-button" disabled={submitting} onClick={() => void withdraw()}>
                 {submitting ? "Withdrawing…" : descriptionOnly ? "Yes, withdraw job" : "Yes, stop using my video"}
               </button>{" "}
-              <button type="button" disabled={submitting} onClick={() => setConfirming(false)}
+              <button type="button" disabled={submitting} onClick={() => { if (disclosure.current) disclosure.current.open = false; setOpen(false); }}
                 style={{ minHeight: "44px", padding: "12px 23px", background: "transparent", color: "inherit",
                   border: "1px solid currentColor", borderRadius: "3px", fontSize: "14px" }}>
                 Cancel

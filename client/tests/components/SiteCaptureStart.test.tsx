@@ -183,9 +183,10 @@ it("opens the optional details and the statements in place, on the same screen a
 
     fireEvent.click(screen.getByText("Add details", { selector: "summary" }));
     expect(details).toHaveAttribute("open");
-    for (const label of [/What counts as success/, /How often does it happen/, /Where are you in the process/]) {
-      expect(screen.getByLabelText(label)).toBeVisible();
-    }
+    expect(screen.getByLabelText(/What counts as success/)).toBeVisible();
+    // The retired frequency and pilot questions are gone (ledger AL13, AL14).
+    expect(screen.queryByLabelText(/How often does it happen/)).toBeNull();
+    expect(screen.queryByLabelText(/Where are you in the process/)).toBeNull();
     fireEvent.click(screen.getByText("What you're agreeing to", { selector: "summary" }));
     expect(agreeing).toHaveAttribute("open");
     expect(within(agreeing).getByText(`“${TASK_CONFIRMATION_STATEMENT}”`)).toBeVisible();
@@ -1201,31 +1202,24 @@ it("restores all anonymous required fields before the first create attempt", asy
   }
 });
 
-it("preserves optional job frequency and buying stage across reload and submits them without requiring a budget", async () => {
+it("asks no frequency or buying-stage question and submits without either", async () => {
   fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true,
     json: async () => init?.method === "POST" ? { captureUrl: "/capture-upload/buying-context.signed" } : { features: [] } }));
-  const first = await renderReady(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   for (const [id, value] of [["start-task", "Move sealed cartons"], ["start-location", "Austin TX"],
-    ["start-email", "qa@example.invalid"],
-    ["start-frequency", "200 cartons each weekday"], ["start-readiness", "ready_for_proposals"]]) {
+    ["start-email", "qa@example.invalid"]]) {
     fireEvent.change(document.querySelector(`#${id}`)!, { target: { value } });
   }
   chooseCountry("us");
-  const key = siteCaptureDraftKey(null, "default");
-  await waitFor(() => expect(durability.rows.get(key)?.value.draft).toMatchObject({
-    jobFrequency: "200 cartons each weekday", purchaseReadiness: "ready_for_proposals",
-  }));
-  first.unmount();
-  await renderReady(<SiteCaptureStart />);
-  expect(document.querySelector("#start-frequency")).toHaveValue("200 cartons each weekday");
-  expect(document.querySelector("#start-readiness")).toHaveValue("ready_for_proposals");
+  expect(document.querySelector("#start-frequency")).toBeNull();
+  expect(document.querySelector("#start-readiness")).toBeNull();
   expect(document.querySelector('[name*="Budget"]')).toBeNull();
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Now film the job." });
-  expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({
-    siteTaskSpec: { jobFrequency: "200 cartons each weekday", purchaseReadiness: "ready_for_proposals" },
-    descriptionOnly: true,
-  });
+  const body = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+  expect(body).toMatchObject({ siteTaskSpec: {}, descriptionOnly: true });
+  expect(body.siteTaskSpec).not.toHaveProperty("jobFrequency");
+  expect(body.siteTaskSpec).not.toHaveProperty("purchaseReadiness");
   expect(upload.send).not.toHaveBeenCalled();
 });
 

@@ -53,7 +53,7 @@ const { default: briefRouter } = await import("../routes/site-task-brief");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { projectTaskBrowseCard } = await import("../utils/taskBrowse");
-const { projectSiteCompanyActivity, setJobCompaniesPageSizeForTests, AUTO_SEND_EVENT_ID } = await import("../utils/jobCompanies");
+const { projectSiteCompanyActivity, setJobCompaniesPageSizeForTests } = await import("../utils/jobCompanies");
 const { sendJobToApprovedCompanies } = await import("../utils/jobAutoSend");
 /** The job goes to every approved deployment company that accepted the Terms (here North and South), once. */
 const sendToCompanies = () => sendJobToApprovedCompanies(ID);
@@ -234,21 +234,21 @@ describe("what the site receives", () => {
     ]);
     expectNoCompanyIn("the site's status payload", raw);
 
-    // The emails: one for the send, one per company and answer, each by the fixed words.
+    // The emails: one per company and answer, each by the fixed words. The send itself emails the site nothing: its job
+    // link email already said where the job goes (ledger AL38).
     const subjects = sent().map(message => message.subject);
-    expect(subjects.sort()).toEqual(["A deployment company answered", "A deployment company answered", "Your job is posted"].sort());
+    expect(subjects.sort()).toEqual(["A deployment company answered", "A deployment company answered"]);
     const rows = outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered");
     expect(entries[0].question).toMatchObject({ id: expect.stringMatching(/^[a-f0-9]{64}$/), text: SOUTH_REASON });
     const questionEvent = "company_answered:A-needs_something";
     expect(rows.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:B-interested`,
-      `captureOutbox/${ID}:${questionEvent}`, `captureOutbox/${ID}:job_sent:${AUTO_SEND_EVENT_ID}`].sort());
+      `captureOutbox/${ID}:${questionEvent}`].sort());
     // A sent row no longer holds its body (cleared at send), so each body is read from the email that was sent.
     const { providerIdempotencyKey } = await import("../utils/captureOutboxRetry");
     expect(rows.every(row => row.body === "" && row.to === "" && typeof row.toDigest === "string")).toBe(true);
     const bodyOf = (key: string) => String((seams.sendEmail.mock.calls.map(([message]) => message)
       .find(message => message.idempotencyKey === providerIdempotencyKey(`${ID}:${key}`)) as { text: string }).text)
       .split("\n\n--\n")[0];
-    expect(bodyOf(`job_sent:${AUTO_SEND_EVENT_ID}`)).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any responses\.\n\nTo withdraw your job, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
     // The company's own "Need more details" carries the question the site answers on its page; North's Interested
     // answer is one the site can ask to be introduced after, so the email says how.
     expect(bodyOf(questionEvent)).toMatch(/^A deployment company needs more details about your job\. Read their question and answer it on your job page\.\n\nOpen your job:\nhttps:\/\/\S+$/);
@@ -359,10 +359,10 @@ describe("Blueprint's hold", () => {
     // The card a company sees, and its response form, close.
     expect(projectTaskBrowseCard(ID, jobDoc() as never)).toBeNull();
     expect((await companyAnswers(SOUTH, { state: "interested", inputs: WORDS.south })).status).toBe(409);
-    // The queued send email is not delivered while held.
+    // The send queues no site email (ledger AL38), so nothing is delivered while held.
     await deliverOutbox();
     expect(sent().map(message => message.subject)).not.toContain("Your job is posted");
-    expect(outbox().find(row => row.kind === "job_sent")).toMatchObject({ status: "cancelled" });
+    expect(outbox().find(row => row.kind === "job_sent")).toBeUndefined();
     // The site's page says the existing "not visible right now" sentence (its state), and still counts the send.
     const held = (await siteStatus()).body.answer;
     expect(held.sharing.state).toBe("not_visible");
@@ -420,11 +420,12 @@ const companyRows = () => [...state.docs.keys()].filter(key => key.includes("/co
 describe("the site's email is a durable intent of the activity", () => {
   it("is queued in the same transaction: the row exists as soon as the send or answer is recorded, before any delivery pass", async () => {
     await sendToCompanies();
-    expect(siteRows().map(row => [row.key, row.status])).toEqual([[`captureOutbox/${ID}:job_sent:${AUTO_SEND_EVENT_ID}`, "pending"]]);
+    // The send itself queues no site email (ledger AL38); each answer does.
+    expect(siteRows()).toEqual([]);
     await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north });
     await companyAnswers(SOUTH, { state: "declined", inputs: WORDS.south });
     expect(siteRows().map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:A-interested`,
-      `captureOutbox/${ID}:company_answered:B-declined`, `captureOutbox/${ID}:job_sent:${AUTO_SEND_EVENT_ID}`].sort());
+      `captureOutbox/${ID}:company_answered:B-declined`].sort());
     expectNoCompanyIn("the queued emails", siteEmailText());
   });
 
@@ -440,7 +441,7 @@ describe("the site's email is a durable intent of the activity", () => {
     expect((await companyAnswers(SOUTH, { state: "interested", inputs: WORDS.south })).status).toBe(409);
     expect(companyRows().sort()).toEqual([`inboundRequests/${ID}/companySends/system-${sha(NORTH.email)}`,
       `inboundRequests/${ID}/companySends/system-${sha(SOUTH.email)}`].sort());
-    expect(siteRows().map(row => row.kind)).toEqual(["job_sent"]);
+    expect(siteRows()).toEqual([]);
     expect(jobDoc().company_aliases).toBeUndefined();
   });
 
@@ -461,7 +462,7 @@ describe("the site's email is a durable intent of the activity", () => {
     await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north });
     await adminPost("/hold", { held: true, reason: "Checking the summary" });
     await deliverOutbox();
-    expect(outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered").map(row => row.status)).toEqual(["cancelled", "cancelled"]);
+    expect(outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered").map(row => row.status)).toEqual(["cancelled"]);
     await adminPost("/hold", { held: false });
     await companyAnswers(SOUTH, { state: "interested", inputs: WORDS.south });
     patchJob({ consent_revoked: true });

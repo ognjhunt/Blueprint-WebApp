@@ -66,7 +66,6 @@ const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/workspace/Overview"));
-const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
 
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
 
@@ -333,7 +332,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
   // Staff only (launch copy, 2026-11-20, f-103): the capture upload and review page is an operations tool, opened from the
   // admin job console; no customer page links it.
-  { path: "/app/captures", layout: "protected", shell: "bare", requireRoles: ADMIN_ROLES, component: AppCaptures },
 
   // 404
   { layout: "public", shell: "bare", component: NotFound },

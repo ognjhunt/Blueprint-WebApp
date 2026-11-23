@@ -14,20 +14,19 @@ import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/sit
  * many companies opened it, and up to three answers, each an alias and one of the real answer labels
  * (`COMPANY_RESPONSE_LABELS`), as the site sees them. Every site, job, count and answer is made up and the card says
  * "Example" in words at all times. No company names, product or robot names, prices, percentages or "how sure".
+ * Three examples, each leading with an answer a company can give today; "Tested it" answers need a downloadable
+ * simulation, so the card shows none of them (ledger AL02, EL03, 2026-11-23).
  */
 type Example = Illustration & { job: string; views: number; answers: CompanyResponseState[] };
 
 const job: Record<string, { job: string; views: number; answers: CompanyResponseState[] }> = {
-  Warehouse: { job: "Picking small parcels off a shelf into a tote", views: 6, answers: ["tested_can_do", "needs_something", "declined"] },
+  Warehouse: { job: "Picking small parcels off a shelf into a tote", views: 6, answers: ["interested", "needs_something", "declined"] },
   "Café": { job: "Moving clean cups from the dish rack onto a tray", views: 4, answers: ["interested", "declined"] },
-  Laundromat: { job: "Stacking folded towels onto a shelf", views: 3, answers: ["needs_something"] },
-  Factory: { job: "Placing small parts from a conveyor into a fixture", views: 8, answers: ["tested_can_do", "interested", "declined"] },
-  Hotel: { job: "Placing folded napkins onto a tray", views: 7, answers: ["interested", "needs_something"] },
   // The state before any company answers.
   Lab: { job: "Placing sample tubes into a rack", views: 5, answers: [] },
 };
 
-const examples: Example[] = scenes.map(scene => ({ ...scene, ...job[scene.site] }));
+const examples: Example[] = scenes.filter(scene => scene.site in job).map(scene => ({ ...scene, ...job[scene.site] }));
 const ALIASES = ["A", "B", "C"];
 
 export function PilotPreview() {

@@ -176,7 +176,6 @@ describe("Task Evaluation launch forward worker", () => {
 it("launch-only loop ticks enabled coverage review without broad automation and stops with the worker", async () => {
   vi.useFakeTimers();
   vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED", "true");
-  vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER", "true");
   vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "false");
   const stop=startTaskEvaluationLaunchForwardWorker();
   try {

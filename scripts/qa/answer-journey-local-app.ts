@@ -21,7 +21,10 @@
  *  - Scheduling: the production schedulers stay off; loopback-only `/api/reliability/*`
  *    routes run the same entry points on demand (`tickCoverageReviews`, `sweepAutomaticSends`,
  *    `sweepOutcomeQuestions`, `sweepWebsiteJobWindow`).
- * Email is never delivered: the outbox is only read back (`GET /api/reliability/outbox`).
+ *  - THE MAIL PROVIDER. `POST /api/reliability/deliver-outbox` runs one real outbox delivery
+ *    pass (`deliverOutbox`) with the transport configured only for that pass; requests to the
+ *    provider host are answered here and the payloads (to, Reply-To, subject) are returned.
+ *    Nothing reaches the provider and no email is delivered.
  */
 import http from 'node:http';
 import https from 'node:https';
@@ -30,6 +33,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import type { Express, Request, Response, NextFunction } from 'express';
 
 const MODEL_HOST = 'generativelanguage.googleapis.com';
+const MAIL_PROVIDER_HOST = 'api.resend.com';
 const SIGNED_READ_HOST = 'storage.googleapis.com';
 /** A public address for the guard's DNS check; the harness never opens a connection to it. */
 const SIGNED_READ_ADDRESS = '142.250.80.123';
@@ -58,6 +62,8 @@ const SYNTHETIC_TASK = 'Pick up the sealed carton from the end of the conveyor a
 const harness = {
   videoModel: { generateCalls: 0, uploads: [] as Array<{ bytes: number; contentType: string | null }>, deletes: 0 },
   signedReads: 0,
+  /** Set only while a deliver-outbox pass runs: what the outbox handed the mail provider. */
+  mailPayloads: null as null | Array<{ to: string[]; replyTo: string | null; subject: string }>,
 };
 
 function json(body: unknown, init: ResponseInit = {}) {
@@ -107,6 +113,12 @@ function installEdgeFakes(bucketName: string) {
   globalThis.fetch = ((input: any, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     if (url.hostname === MODEL_HOST) return scriptedVideoModel(url, input instanceof Request ? { method: input.method, headers: input.headers, body: input.body, ...init } : init);
+    if (url.hostname === MAIL_PROVIDER_HOST && harness.mailPayloads && url.pathname === '/emails' && typeof init?.body === 'string') {
+      const sent = JSON.parse(init.body) as { to: string | string[]; reply_to?: string | string[] | null; subject: string };
+      const replyTo = Array.isArray(sent.reply_to) ? sent.reply_to[0] ?? null : sent.reply_to ?? null;
+      harness.mailPayloads.push({ to: [sent.to].flat().map(to => String(to).toLowerCase()), replyTo, subject: sent.subject });
+      return Promise.resolve(json({ id: `harness-mail-${harness.mailPayloads.length}` }));
+    }
     return guardedFetch(input, init);
   }) as typeof fetch;
 
@@ -222,6 +234,24 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
     if (!Number.isFinite(atMs)) return res.status(400).json({ error: 'atMs required' });
     const { sweepOutcomeQuestions } = await import('../../server/utils/jobOutcomes');
     res.json(await sweepOutcomeQuestions({ now: new Date(atMs) }));
+  });
+  // One real outbox delivery pass. The transport is configured only for this pass and the provider host is answered
+  // by the harness (installEdgeFakes): the response lists what would have been handed to the provider.
+  app.post('/api/reliability/deliver-outbox', loopbackOnly, async (_req, res) => {
+    const { deliverOutbox } = await import('../../server/utils/captureOutbox');
+    const saved = { key: process.env.RESEND_API_KEY, from: process.env.RESEND_FROM_EMAIL };
+    harness.mailPayloads = [];
+    process.env.RESEND_API_KEY = 're_harness_not_a_key';
+    process.env.RESEND_FROM_EMAIL = 'harness@example.invalid';
+    try {
+      const summary = await deliverOutbox({ limit: 25 });
+      res.json({ summary, sent: harness.mailPayloads });
+    } finally {
+      harness.mailPayloads = null;
+      for (const [name, value] of [['RESEND_API_KEY', saved.key], ['RESEND_FROM_EMAIL', saved.from]] as const) {
+        if (value === undefined) delete process.env[name]; else process.env[name] = value;
+      }
+    }
   });
   // What is recorded for one job: its billable events, its company sends and introductions (ids and times only),
   // and whether approved companies may see it (the product's own predicate).
