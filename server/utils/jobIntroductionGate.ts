@@ -7,6 +7,8 @@
  * - Before that point, the one predicate `introductionMayProceed` decides for both: the introduction is on record and not
  *   cancelled, the job is not withdrawn and is still shared under the whole rule (`loadCompanyJobAccess`), and the
  *   company is an approved deployment company with a current signed-in acceptance of the Terms (`companyMaySeeJobs`).
+ *   Blueprint's own work window ending (the preparation's `authority_ended` once the window has passed) stops paid
+ *   work only: it does not cancel an introduction the site pressed (audit G-06), while every other stop still does.
  *   When it fails, the introduction is cancelled as a whole (`introductionEmailCheck`'s `cancel`, applied by the outbox
  *   in the same transaction after all its reads): both rows not yet sent are cancelled and cleared of both sides'
  *   details; the introduction record is marked cancelled with the reason and time and its sealed details are removed;
@@ -69,6 +71,8 @@ export async function introductionMayProceed(requestId: string, companyId: strin
     return { ok: false, reason: "job_withdrawn", introductionOnRecord: true };
   // Approved, a deployment company, and the current Terms accepted, signed in (`companyMaySeeJobs`).
   if (!companyMaySeeJobs(company.data())) return { ok: false, reason: "company_not_approved", introductionOnRecord: true };
+  // Blueprint's own work window ending keeps the job listed (`teamJobAccess`, finding G-01), so it passes here; an
+  // authority end for a source revocation closes the listing and stops the introduction.
   const { loadCompanyJobAccess } = await import("./teamJobAccess");
   if (!(await loadCompanyJobAccess(requestId, record as Record<string, any>, tx)).access.listed)
     return { ok: false, reason: "job_not_shared", introductionOnRecord: true };

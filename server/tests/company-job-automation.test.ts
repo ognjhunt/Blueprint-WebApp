@@ -861,6 +861,33 @@ describe("introductions (E6) and money (E7)", () => {
     expect(JSON.stringify(row)).not.toContain(SITE.email);
   });
 
+  // Audit G-06: Blueprint's own work window ending stops paid work only; it no longer cancels an introduction the site
+  // pressed. Every rights hold, the withdrawal and Blueprint's hold still do.
+  it("lets an introduction the site pressed go ahead when only Blueprint's work window ended, and still stops it for every hold", async () => {
+    await interested(NORTH);
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION },
+      { siteEmail })).toMatchObject({ ok: true });
+    const { introductionMayProceed } = await import("../utils/jobIntroductionGate");
+    const companyId = sha(NORTH.email);
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+      website_preparation: { selector: { request_id: ID, capture_id: CAPTURE }, status: { state: "authority_ended" } } });
+    // An authority end while the recorded grant still allows the work (the window ran out) keeps the job listed (G-01).
+    expect(await introductionMayProceed(ID, companyId)).toEqual({ ok: true });
+    patchJob({ website_scene_sponsorship: { expires_at_epoch: Math.floor(Date.now() / 1000) - 3600 } });
+    expect(await introductionMayProceed(ID, companyId)).toEqual({ ok: true });
+    const base = structuredClone(jobDoc());
+    for (const [name, patch] of [
+      ["a rights hold under review", { evaluation_readiness: { rights_review_status: "needs_review" } }],
+      ["a rights block", { pipeline: { rights_review_status: "blocked" } }],
+      ["Blueprint's hold", { operator_listing_hold: { held: true, atIso: "2026-11-12T12:00:00.000Z", by: "ops" } }],
+      ["the site's close", { website_run_closures: { [CAPTURE]: { closed_at_iso: "2026-11-12T12:00:00.000Z" } } }],
+      ["the site's withdrawal", { consent_revoked: true }],
+    ] as Array<[string, Record<string, unknown>]>) {
+      state.docs.set(`inboundRequests/${ID}`, { ...structuredClone(base), ...patch });
+      expect((await introductionMayProceed(ID, companyId)).ok, name).toBe(false);
+    }
+  });
+
   it("cancels the company's introduction email at dispatch once the site has withdrawn", async () => {
     await interested(NORTH);
     await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail });
