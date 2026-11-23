@@ -429,3 +429,65 @@
 .sample-job-live p { margin: 8px 0 0; }
 .sample-job-live ul + h3 { margin-top: 18px; }
 .sample-job-live .ms-button { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; border-radius: 8px; text-decoration: none; }
+
+/* Where the site's job stands, as a shipment tracker shows a load: one row of six steps on a wide screen, a column on a
+   phone. Done steps are filled green, the current one is ringed, the rest are quiet. */
+.bare-screen ol.site-job-tracker {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+  margin: 14px 0 18px;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+.site-job-tracker > li { position: relative; display: grid; align-content: start; gap: 2px; padding: 22px 8px 0 0; min-width: 0; }
+.site-job-tracker > li::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 14px;
+  right: 0;
+  height: 2px;
+  background: #d7dbd2;
+}
+.site-job-tracker > li:last-child::before { display: none; }
+.site-job-tracker > li.site-job-tracker-done::before { background: var(--ms-green); }
+.site-job-tracker-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #b9bfb2;
+  border-radius: 50%;
+  background: #fff;
+}
+.site-job-tracker-done .site-job-tracker-dot { border-color: var(--ms-green); background: var(--ms-green); }
+.site-job-tracker-current .site-job-tracker-dot { border-color: var(--ms-green); box-shadow: 0 0 0 3px #dbe9dd; }
+.site-job-tracker-label { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.site-job-tracker-upcoming .site-job-tracker-label { color: var(--ms-muted); font-weight: 550; }
+.site-job-tracker-detail { font-size: 12.5px; line-height: 1.35; color: var(--ms-ink, #22251e); overflow-wrap: anywhere; }
+.site-job-tracker-upcoming .site-job-tracker-detail { color: var(--ms-muted); }
+.site-job-tracker-date { font-size: 12px; color: var(--ms-muted); }
+
+/* Under an introduced company: the site's own marks for a visit and a pilot. */
+.site-job-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.site-job-progress-mark {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #c9cec1;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.site-job-progress-mark:hover { border-color: var(--ms-green); }
+.bare-screen .site-job-progress-done { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; }
+
+@media (max-width: 720px) {
+  .bare-screen ol.site-job-tracker { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .site-job-tracker > li { padding: 0 0 14px 26px; }
+  .site-job-tracker > li::before { top: 16px; bottom: 0; left: 6px; right: auto; width: 2px; height: auto; }
+}

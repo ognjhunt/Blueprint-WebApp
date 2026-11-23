@@ -497,7 +497,9 @@ describe("the deployment companies section, with sends, answers and introduction
     { kind: "answered" as const, alias: "Company B", atIso: "2026-11-12T09:00:00.000Z", state: "needs_something" as const, canIntroduce: false },
     { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const, canIntroduce: true },
   ] };
-  const lines = () => within(companies()).getAllByRole("listitem").map(item => item.textContent);
+  // The company responses only: the tracker above them is a list of its own (owner, 2026-11-23).
+  const responses = () => within(companies()).queryByRole("list", { name: "Company responses" });
+  const lines = () => within(responses()!).getAllByRole("listitem").map(item => item.textContent);
 
   it("shows views and replies separately and offers Introduce us only to eligible companies", () => {
     const stray = { ...activity, entries: activity.entries.map(entry => ({ ...entry, noteForSite: "NOTE-PLANT never shown.", words: "WORDS-PLANT" })) };
@@ -635,10 +637,30 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByRole("link", { name: "ada@northwind.example" })).toHaveAttribute("href", "mailto:ada@northwind.example");
     expect(within(companies()).getByText("Ada Contact")).toBeVisible();
     expect(within(companies()).getByRole("link", { name: "https://northwind.example" })).toBeVisible();
-    expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
+    // After the introduction, only the site's own marks of how it went (owner, 2026-11-23): never another introduction.
+    expect(within(companies()).queryAllByRole("button").map(button => button.textContent)).toEqual(["We had a site visit", "We agreed a pilot"]);
     // Company B, not introduced, stays an alias.
     expect(lines()[0]).toMatch(/^Company BNeed more detailsAnswered November 12, 2026/);
     expect(lines()[0]).not.toMatch(/Northwind|Ada/);
+  });
+
+  it("lets the site mark a visit after an introduction, shows the date with Undo, and moves the tracker on", async () => {
+    const introduced = { ...activity, introductions: { used: 1 }, entries: [
+      { ...activity.entries[1], canIntroduce: false, introducedAtIso: "2026-11-14T09:00:00.000Z",
+        company: { name: "Northwind Robotics", contactName: null, email: "ada@northwind.example", website: null } },
+    ] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: introduced }} />);
+    const tracker = within(companies()).getByRole("list", { name: "Where your job stands" });
+    expect(within(tracker).getAllByRole("listitem").map(item => item.className)).toEqual(["site-job-tracker-done",
+      "site-job-tracker-done", "site-job-tracker-done", "site-job-tracker-done", "site-job-tracker-current", "site-job-tracker-upcoming"]);
+    expect(within(tracker).getByText("Mark it below when a company visits")).toBeVisible();
+    fetchMock.mockResolvedValueOnce(response({ ok: true, progress: { visitAtIso: "2026-11-20T10:00:00.000Z" } }));
+    fireEvent.click(within(companies()).getByRole("button", { name: "We had a site visit" }));
+    expect(await within(companies()).findByText("Site visit on November 20, 2026")).toBeVisible();
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/api/site-task-brief/owner-token/introductions/progress");
+    expect(JSON.parse(String(init.body))).toEqual({ alias: "Company A", step: "visit", done: true });
+    expect(within(companies()).getByRole("button", { name: "Undo: Site visit on November 20, 2026" })).toBeVisible();
   });
 
   // Planner, 20:35Z, H2: an introduction cancelled before the company's email went says so, beside that answer only.
@@ -676,11 +698,11 @@ describe("the deployment companies section, with sends, answers and introduction
 
   it("shows no entry, and no list, when there is none or the shape is wrong", () => {
     const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { interested: false, entries: [] } }} />);
-    expect(within(companies()).queryByRole("list")).toBeNull();
+    expect(responses()).toBeNull();
     unmount();
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
       companies: { interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "x", state: "maybe" }] } as never }} />);
-    expect(within(companies()).queryByRole("list")).toBeNull();
+    expect(responses()).toBeNull();
     // A read of the wrong shape holds no fact about sends, so nothing is said about them.
     expect(within(companies()).queryByText("Viewed by 0 companies")).toBeNull();
   });

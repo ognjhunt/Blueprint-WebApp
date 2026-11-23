@@ -288,6 +288,31 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
   }
 });
 
+/**
+ * After an introduction, the site marks how it went: a visit happened, a pilot was agreed (or takes the mark back).
+ * The signed owner link is required, as for the introduction itself.
+ */
+router.post("/:token/introductions/progress", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
+  if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_owner_required",
+    error: "Open the owner's job link to mark this." });
+  const body = z.object({ alias: z.string().trim().regex(/^Company [A-Z]{1,3}$|^[A-Z]{1,3}$/), step: z.enum(["visit", "pilot"]),
+    done: z.boolean() }).strict().safeParse(req.body ?? {});
+  if (!body.success) return res.status(400).json({ code: "introduction_progress_invalid", error: "Press the button beside the company on your job page." });
+  try {
+    const { markIntroductionProgress } = await import("../utils/jobIntroductions");
+    const result = await markIntroductionProgress({ requestId: verified.requestId, ...body.data, alias: body.data.alias.replace(/^Company /, "") });
+    if (result.ok) return res.json({ ok: true, progress: result.progress });
+    return res.status(409).json({ ok: false, code: "introduction_progress_refused", reason: result.reason,
+      error: result.reason === "withdrawn" ? "This job was withdrawn." : "You can mark this once you've been introduced to this company." });
+  } catch (error) {
+    logger.error({ error, requestId: verified.requestId }, "Could not record how an introduction went");
+    return res.status(503).json({ ok: false, code: "introduction_progress_unavailable", error: "That could not be saved. Please try again." });
+  }
+});
+
 /** The job page's link to its scene preview in the vendored viewer, held to the same rule as a world link. */
 function scenePreviewViewUrl(requestId: string, captureId: string): string | null {
   const viewer = websiteScenePreviewViewerUrl(requestId, captureId);

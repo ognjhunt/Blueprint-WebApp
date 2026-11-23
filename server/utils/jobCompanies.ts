@@ -391,6 +391,14 @@ export function answerConsentsToIntroduction(answer: Data | null | undefined): b
  * not shown. The automatic send is one count line (`sent`), not one entry per company. In date order; a send before an
  * answer at the same instant.
  */
+/** The site's own marks after an introduction: the dates it said a visit happened and a pilot was agreed. */
+function progressOf(intro: Data): { visitAtIso?: string; pilotAtIso?: string } | null {
+  const raw = intro.progress && typeof intro.progress === "object" ? intro.progress as Data : {};
+  const progress = { ...(instant(raw.visitAtIso) ? { visitAtIso: instant(raw.visitAtIso)! } : {}),
+    ...(instant(raw.pilotAtIso) ? { pilotAtIso: instant(raw.pilotAtIso)! } : {}) };
+  return Object.keys(progress).length ? progress : null;
+}
+
 export function projectSiteCompanyActivity(input: { aliases: Record<string, string>;
   sends: ReadonlyArray<Data>; responses: ReadonlyArray<{ id: string; data: Data }>;
   startedAtIso?: string | null;
@@ -444,6 +452,8 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
       ...(Object.keys(details).length ? { details } : {}),
       ...(canAnswer ? { question: { id: question.id, text: questionText, ...(answer ? { answer } : {}) } } : {}),
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
+      // What the site said happened after the introduction (`markIntroductionProgress`): a visit, a pilot.
+      ...(intro && progressOf(intro) ? { progress: progressOf(intro)! } : {}),
       // Cancelled before the company's email went (H2), so the site's details were never given to it.
       ...(cancelled.has(response.id) ? { introductionCancelled: true } : {}) });
   }

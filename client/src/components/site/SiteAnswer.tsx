@@ -20,6 +20,7 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
+import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "@/lib/jobTracker";
 import { COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
@@ -152,6 +153,58 @@ function IntroducedDetails({ entry }: { entry: AnsweredEntry }) {
       <li><a className="ms-text-link" href={`mailto:${company.email}`}>{company.email}</a></li>
       {website && <li><a className="ms-text-link" href={website} target="_blank" rel="noreferrer noopener">{website}</a></li>}
     </ul>
+  </div>;
+}
+
+/** Where the job stands, as a shipment tracker shows a load: six steps, each done, current or still to come. */
+export function JobTracker({ sharing, activity }: { sharing: JobSharing; activity: SiteCompanyActivity | undefined }) {
+  const steps = jobTrackerSteps(sharing, isSiteCompanyActivity(activity) ? activity : undefined);
+  return <ol className="site-job-tracker" aria-label="Where your job stands">
+    {steps.map(step => <li key={step.key} className={`site-job-tracker-${step.state}`} aria-current={step.state === "current" ? "step" : undefined}>
+      <span className="site-job-tracker-dot" aria-hidden="true" />
+      <span className="site-job-tracker-label">{step.label}<span className="sr-only">{step.state === "done" ? " (done)"
+        : step.state === "current" ? " (now)" : " (to come)"}</span></span>
+      {step.detail && <span className="site-job-tracker-detail">{step.detail}</span>}
+      {step.atIso && <time className="site-job-tracker-date" dateTime={step.atIso}>{dateInWords(step.atIso)}</time>}
+    </li>)}
+  </ol>;
+}
+
+/**
+ * After an introduction, the site says how it went: a visit happened, a pilot was agreed. Blueprint cannot see either,
+ * so only this press records one, with the date it was pressed; "Undo" takes it back.
+ */
+function IntroductionProgress({ token, entry, onChanged }: { token: string; entry: AnsweredEntry; onChanged?: () => void }) {
+  const [progress, setProgress] = useState(entry.progress ?? {});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => { setProgress(entry.progress ?? {}); }, [entry.progress?.visitAtIso, entry.progress?.pilotAtIso]);
+  async function mark(step: "visit" | "pilot", done: boolean) {
+    if (busy) return;
+    setBusy(step); setError("");
+    try {
+      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introductions/progress`, {
+        method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
+        body: JSON.stringify({ alias: entry.alias, step, done }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) throw new Error(typeof result?.error === "string" ? result.error : PROGRESS_FAILED);
+      setProgress(result.progress ?? {});
+      onChanged?.();
+    } catch (failure) { setError(failure instanceof Error && failure.message ? failure.message : PROGRESS_FAILED); }
+    finally { setBusy(null); }
+  }
+  return <div className="site-job-progress" role="group" aria-label={`How it went with ${entry.alias}`}>
+    {(["visit", "pilot"] as const).map(step => {
+      const at = step === "visit" ? progress.visitAtIso : progress.pilotAtIso;
+      return at ? <p key={step} className="site-job-progress-done">
+        <span>{PROGRESS_MARK[step].done(dateInWords(at))}</span>
+        <button type="button" className="ms-inline-link" disabled={busy !== null} onClick={() => void mark(step, false)}
+          aria-label={`${PROGRESS_UNDO}: ${PROGRESS_MARK[step].done(dateInWords(at))}`}>{PROGRESS_UNDO}</button>
+      </p> : <button key={step} type="button" className="site-job-progress-mark" disabled={busy !== null}
+        onClick={() => void mark(step, true)}>{busy === step ? "Saving…" : PROGRESS_MARK[step].press}</button>;
+    })}
+    {error && <p role="alert">{error}</p>}
   </div>;
 }
 
@@ -289,7 +342,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
         {entry.kind === "answered" && entry.question && <ReplyQuestion key={entry.question.id} token={token}
           alias={entry.alias} question={entry.question} onChanged={onIntroduced} />}
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
-          && <IntroducedDetails entry={entry} />}
+          && <><IntroducedDetails entry={entry} /><IntroductionProgress token={token} entry={entry} onChanged={onIntroduced} /></>}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
@@ -365,8 +418,11 @@ export function JobCompanyResponses({ token, sharing = { state: "not_shared", sh
     {error && <p role="alert">{error}</p>}
   </BareGroup>;
   else body = <BareGroup><BareLead>{sharing.videoReceived === false ? "Send a video to post your job." : NOT_SHARED_YET}</BareLead></BareGroup>;
+  // The tracker, while the job is being posted or is posted; a withdrawn, closed or hidden job says so instead.
+  const tracked = !ends && (sharing.state === "visible" || sharing.state === "preparing");
   return <section className="site-answer-section site-company-panel" aria-labelledby="site-job-companies">
     <h2 id="site-job-companies">{SECTION_COMPANIES}</h2>
+    {tracked && <JobTracker sharing={sharing} activity={activity} />}
     {body}
   </section>;
 }

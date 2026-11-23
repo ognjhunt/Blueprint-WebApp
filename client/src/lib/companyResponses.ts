@@ -109,7 +109,9 @@ export type SiteCompanyEntry =
       /** Only after the introduction. */
       company?: IntroducedCompany;
       /** The site asked for an introduction that could not go ahead: the company's email never went. */
-      introductionCancelled?: boolean };
+      introductionCancelled?: boolean;
+      /** After the introduction, what the site said happened: the dates it marked a visit and a pilot. */
+      progress?: { visitAtIso?: string; pilotAtIso?: string } };
 
 /** What the site's job page receives about companies. */
 export interface SiteCompanyActivity {

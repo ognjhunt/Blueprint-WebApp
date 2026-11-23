@@ -1015,6 +1015,30 @@ describe("introductions (E6) and money (E7)", () => {
     expect(activity.entries.every(entry => entry.kind !== "answered" || entry.canIntroduce === false)).toBe(true);
   });
 
+  // Owner, 2026-11-23: the site's job reads like a shipment tracker; a visit and a pilot are the site's own marks.
+  it("records the site's own marks for a visit and a pilot after an introduction, and only after one", async () => {
+    await interested(NORTH, SOUTH);
+    const { markIntroductionProgress } = await import("../utils/jobIntroductions");
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "visit", done: true })).toEqual({ ok: false, reason: "not_introduced" });
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
+    const at = (iso: string) => () => new Date(iso);
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "visit", done: true }, at("2026-11-20T10:00:00.000Z")))
+      .toEqual({ ok: true, progress: { visitAtIso: "2026-11-20T10:00:00.000Z" } });
+    // Pressing again keeps the first date; a pilot is added beside it; "Undo" takes the visit back alone.
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "visit", done: true }, at("2026-11-21T10:00:00.000Z")))
+      .toEqual({ ok: true, progress: { visitAtIso: "2026-11-20T10:00:00.000Z" } });
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "pilot", done: true }, at("2026-11-22T10:00:00.000Z")))
+      .toEqual({ ok: true, progress: { visitAtIso: "2026-11-20T10:00:00.000Z", pilotAtIso: "2026-11-22T10:00:00.000Z" } });
+    const entry = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(entry).toMatchObject({ progress: { visitAtIso: "2026-11-20T10:00:00.000Z", pilotAtIso: "2026-11-22T10:00:00.000Z" } });
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "visit", done: false }))
+      .toEqual({ ok: true, progress: { pilotAtIso: "2026-11-22T10:00:00.000Z" } });
+    // A company the site was never introduced to has nothing to mark, and a withdrawn job takes no marks.
+    expect(await markIntroductionProgress({ requestId: ID, alias: "B", step: "pilot", done: true })).toEqual({ ok: false, reason: "not_introduced" });
+    patchJob({ capture_withdrawal: { requestedAtIso: "2026-11-23T00:00:00.000Z" } });
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "pilot", done: true })).toEqual({ ok: false, reason: "withdrawn" });
+  });
+
   it("clears both sides' details from the introduction emails' outbox rows once sent; a failed try keeps them for the retry", async () => {
     await interested(NORTH);
     expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }))
