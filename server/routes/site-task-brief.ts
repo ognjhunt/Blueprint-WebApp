@@ -1,6 +1,7 @@
 import { destinationPictureUrl } from "../utils/websiteDestinationPicture";
 import { placeKindOf } from "../utils/taskTargetChoiceContract";
 import { readJobFacts } from "../utils/jobFacts";
+import { jobReadingOf } from "../utils/siteRobotFit";
 import { loadFirstLookWords } from "../utils/firstLookTable";
 import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED,
   isIntroductionRefusalReason, type IntroductionRefusalReason } from "../../client/src/lib/siteIntroductions";
@@ -1420,6 +1421,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       companyStatus,
       // The site's tap answers to the few quick questions (PACKAGE_E E1), for the owner only.
       jobFacts: payload.scope === "owner" && request && !request.captureRights.consent_revoked ? readJobFacts(request.answerSource) : null,
+      // What the video reading says the job is and handles: the quick questions choose themselves by its kind and name
+      // its object ("How heavy is the cake batter?").
+      jobReading: payload.scope === "owner" && request && !request.captureRights.consent_revoked ? jobReadingOf(request.answerSource) : null,
       // The first look as the Pipeline's published table words it (conditional rows said plainly), for the owner only.
       firstLookTable,
       // The job's outlook (`jobOutlook`): the one decision the page shows its screen from, for the owner only.

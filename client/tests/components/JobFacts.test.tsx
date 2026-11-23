@@ -19,7 +19,7 @@ function savingServer(initial: Record<string, string> = {}) {
 }
 
 describe("JobFacts", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); window.sessionStorage.clear(); });
 
   it("asks a palletizing job for the heaviest load and then its peak rate", async () => {
     const fetchMock = savingServer();
@@ -44,7 +44,7 @@ describe("JobFacts", () => {
     expect(screen.getByRole("heading", { name: "A few quick questions help companies answer" })).toBeTruthy();
     const groups = screen.getAllByRole("group");
     expect(groups).toHaveLength(1);
-    expect(within(groups[0]).getByText("How heavy is the item?")).toBeTruthy();
+    expect(within(groups[0]).getByText("How heavy is the heaviest thing the robot handles?")).toBeTruthy();
     expect(within(groups[0]).getByRole("button", { name: "Not sure" })).toBeTruthy();
     expect(screen.getByText("1 of 5")).toBeTruthy();
     expect(screen.queryByRole("textbox")).toBeNull();
@@ -57,7 +57,7 @@ describe("JobFacts", () => {
     const onSaved = vi.fn();
     render(<JobFacts token="tok/1" facts={null} onSaved={onSaved} />);
     fireEvent.click(screen.getByRole("button", { name: "5 to 15 kg (11 to 33 lb)" }));
-    await waitFor(() => expect(screen.getByText("How big is it, on its longest side?")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("How big is the biggest thing the robot handles, on its longest side?")).toBeTruthy());
     expect(screen.getByText("2 of 5")).toBeTruthy();
     expect((fetchMock.mock.calls[0] as unknown as Call)[0]).toBe("/api/job-facts/tok%2F1");
     expect((fetchMock.mock.calls[0] as unknown as Call)[1].method).toBe("POST");
@@ -99,7 +99,7 @@ describe("JobFacts", () => {
     // The first unanswered question shows, and stays shown after a failed save.
     fireEvent.click(screen.getByRole("button", { name: "Fewer than 60" }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Your answer could not be saved. Try again shortly."));
-    expect(screen.getByText("How many an hour?")).toBeTruthy();
+    expect(screen.getByText("How many times an hour is the job done?")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Fewer than 60" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("status").textContent).toBe("");
   });
@@ -125,9 +125,9 @@ describe("JobFacts", () => {
     fireEvent.keyDown(first, { key: "ArrowDown" });
     expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(first);
-    await waitFor(() => expect(screen.getByText("How big is it, on its longest side?")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("How big is the biggest thing the robot handles, on its longest side?")).toBeTruthy());
     // Focus moves in an effect after the next question renders, so wait for it rather than read it in the same tick.
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByText("How big is it, on its longest side?")));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText("How big is the biggest thing the robot handles, on its longest side?")));
   });
 
   it("stays on the question when a save fails while changing an answer, and says so", async () => {
@@ -137,7 +137,7 @@ describe("JobFacts", () => {
     fireEvent.click(screen.getByRole("button", { name: "Change" }));
     fireEvent.click(screen.getByRole("button", { name: "Over 30 kg (66 lb)" }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Your answer could not be saved. Try again shortly."));
-    expect(screen.getByText("How heavy is the item?")).toBeTruthy();
+    expect(screen.getByText("How heavy is the heaviest thing the robot handles?")).toBeTruthy();
     expect(screen.getByText("1 of 5")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Under 5 kg (11 lb)" })).toHaveAttribute("aria-pressed", "true");
   });
@@ -160,6 +160,68 @@ describe("JobFacts", () => {
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(choice).not.toHaveAttribute("aria-disabled");
     expect(document.activeElement).toBe(choice);
+  });
+
+  // Owner, 2026-11-23: a question can be skipped. Nothing is saved, so a company sees no line for it.
+  it("skips a question without saving, and keeps it skipped after a reload in the same tab", async () => {
+    const fetchMock = savingServer();
+    vi.stubGlobal("fetch", fetchMock);
+    const { unmount } = render(<JobFacts token="tok" facts={null} />);
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    await waitFor(() => expect(screen.getByText("How big is the biggest thing the robot handles, on its longest side?")).toBeTruthy());
+    expect(screen.getByText("2 of 5")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+    unmount();
+    render(<JobFacts token="tok" facts={null} />);
+    expect(screen.getByText("2 of 5")).toBeTruthy();
+  });
+
+  it("says when every question was skipped, and walks them again from Answer them", async () => {
+    vi.stubGlobal("fetch", savingServer());
+    render(<JobFacts token="tok" facts={null} />);
+    for (let step = 0; step < 5; step += 1) fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    expect(screen.getByText(/You skipped these for now\./)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Answer them" }));
+    expect(screen.getByText("1 of 5")).toBeTruthy();
+  });
+
+  it("moves on from Skip while changing answers, keeping the stored answer", () => {
+    const all = { weight: "under_5kg", size: "unsure", perHour: "under_60", hours: "unsure", timing: "asap", updatedAtIso: "2026-11-12T10:00:00.000Z" };
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<JobFacts token="tok" facts={all} />);
+    fireEvent.click(screen.getByRole("button", { name: "Change" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    expect(screen.getByText("2 of 5")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // Owner, 2026-11-23: name the object rather than "the item", once the video reading names it.
+  it("names the job's object from the video reading", () => {
+    render(<JobFacts token="tok" facts={null} reading={{ kind: "pick_and_place", object: "cake batter", others: [] }} />);
+    expect(screen.getByText("How heavy is the cake batter?")).toBeTruthy();
+    expect(screen.queryByText(/answer for the heaviest/)).toBeNull();
+  });
+
+  it("asks for the heaviest when the reading names other items the job may handle", () => {
+    render(<JobFacts token="tok" facts={null} reading={{ kind: "pick_and_place", object: "cardboard boxes", others: ["larger cartons", "bags"] }} />);
+    expect(screen.getByText("How heavy are the cardboard boxes?")).toBeTruthy();
+    const group = screen.getByRole("group");
+    expect(group).toHaveAccessibleDescription("Your video suggests the job may also handle larger cartons and bags. Answer for the heaviest.");
+  });
+
+  it("asks a job the reading says works a material, not a weight, and names the object", () => {
+    render(<JobFacts token="tok" facts={null} taskFamily="Other" reading={{ kind: "other", object: "cake batter", others: [] }} />);
+    expect(screen.getByText("Is the cake batter the same every time?")).toBeTruthy();
+    expect(screen.getByText("1 of 5")).toBeTruthy();
+    expect(screen.queryByText(/heavy/)).toBeNull();
+  });
+
+  it("asks a job that moves between places where it goes first", () => {
+    render(<JobFacts token="tok" facts={null} reading={{ kind: "transport", object: null, others: [] }} />);
+    expect(screen.getByText("Where does the robot need to go?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Between floors" })).toBeTruthy();
+    expect(screen.getByText("1 of 5")).toBeTruthy();
   });
 
   // Ported from the independent check (review-jobfacts.test.tsx).

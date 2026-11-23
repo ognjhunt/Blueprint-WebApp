@@ -125,9 +125,12 @@ export function projectWebsiteTaskContext(stored: SiteTaskBriefRecord, captureRi
   // Legacy confirmed captures retain their digest. An unconfirmed proposal
   // must bind its explicit task semantics before any native preparation can
   // default it into a narrower evaluator; old ambiguous grants fail closed.
+  // A brief the Pipeline's reading decides (`taskFamilyFromReading`, every brief from 2026-11-23) is sent as
+  // general_task: the Pipeline reads the whole job, word-checked against the site's own text, rather than taking a
+  // keyword guess. Every older brief keeps the family it was sealed with, so no retained grant's digest moves.
   const inferred = screenTaskScope({ summary: brief.summary, successDefinition: brief.successCriteria?.successDefinition });
-  const family = brief.taskFamily !== undefined || !brief.confirmedAtIso || !inferred.supported
-    ? inferred.kind ?? "general_task" : undefined;
+  const family = brief.taskFamilyFromReading ? "general_task"
+    : brief.taskFamily !== undefined || !brief.confirmedAtIso || !inferred.supported ? inferred.kind ?? "general_task" : undefined;
   const value = {
     schema_version: "website_site_task_context.v1",
     ...(evidence?.purpose ? { purpose: evidence.purpose } : {}),

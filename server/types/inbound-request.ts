@@ -964,7 +964,7 @@ export interface SiteVideoJobEstimates {
   object_mass_kg_high: number | null;
   object_surface: "matte" | "shiny" | "transparent" | "mixed" | null;
   /** What is done to the object. Absent on readings made before it was asked; read as null. */
-  job_kind?: "pick_and_place" | "palletizing" | "machine_tending" | "other" | null;
+  job_kind?: "pick_and_place" | "palletizing" | "machine_tending" | "transport" | "other" | null;
   /** Anything done to the object besides carrying it, as -ing words. Absent on older readings; read as []. */
   other_actions?: string[];
   pick_to_place_m: number | null;

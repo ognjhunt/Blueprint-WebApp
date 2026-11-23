@@ -14,6 +14,7 @@ import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompa
 import { jobFactsInWords } from "../../client/src/lib/jobFacts";
 import { firstLookRowFromAnswerRobot, firstLookRowInWords } from "../../client/src/lib/firstLookWords";
 import { readJobFacts } from "./jobFacts";
+import { jobReadingOf } from "./siteRobotFit";
 import { firstLookFromStoredPreparation } from "./firstLookTable";
 import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
 import { removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
@@ -222,7 +223,8 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // not hold (`removeNamesNotHeld`): a company gets the site's name only through an introduction the site asks for.
     sentence: siteSentenceForCompany(brief, known),
     ...(successRule ? { successRule } : {}),
-    jobFacts: jobFactsInWords(facts, access.details.taskFamily),
+    // The questions the site's page asked, chosen the same way: the reading's kind of job, else the keyword match.
+    jobFacts: jobFactsInWords(facts, access.details.taskFamily, jobReadingOf(record)),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
       : { state: "preparing" },

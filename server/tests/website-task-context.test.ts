@@ -265,3 +265,23 @@ it("binds legacy confirmed novel tasks as general instead of invoking the absent
   expect(projectWebsiteTaskContext({...brief(true),summary:"Folding towels"}))
     .toMatchObject({confirmed:true,task_family:"general_task"});
 });
+
+// Owner direction 2026-11-23: no keyword match decides what a new job is; the Pipeline reads the whole job itself.
+it("sends a brief the Pipeline's reading decides as general_task, whatever its sentence matches, and leaves older briefs alone",()=>{
+  const cakeBatter="Scrape the cake batter from the mixing bowl into each baking pan on the counter.";
+  const carton="Pick up each rigid carton and place it on the table";
+  for(const summary of [cakeBatter,carton,"Move the water bottles from the pallet to the cooler","Open the cabinet door"]){
+    for(const confirmed of [false,true]){
+      expect(projectWebsiteTaskContext({...brief(confirmed),summary,taskFamily:"general_task",taskFamilyFromReading:true}),summary)
+        .toMatchObject({task_family:"general_task"});
+    }
+  }
+  // An older brief keeps the family (and so the digest) its preparation was sealed with.
+  const older={...brief(false),taskFamily:"general_task" as const,summary:carton};
+  expect(projectWebsiteTaskContext(older)).toMatchObject({task_family:"rigid_pick_and_place"});
+  expect(projectWebsiteTaskContext({...brief(true),summary:carton})).not.toHaveProperty("task_family");
+  // The marker itself never reaches the Pipeline.
+  expect(projectWebsiteTaskContext({...older,taskFamilyFromReading:true})).not.toHaveProperty("taskFamilyFromReading");
+  expect(projectWebsiteTaskContext({...older,taskFamilyFromReading:true}).context_digest)
+    .not.toBe(projectWebsiteTaskContext(older).context_digest);
+});

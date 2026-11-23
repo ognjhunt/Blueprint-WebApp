@@ -445,7 +445,8 @@ describe("a brief confirmed at submission", () => {
       confirmedAtIso: SUBMITTED, draftedAtIso: SUBMITTED, confirmedBy: "site-job-fixture",
       operatorAnswers: { sceneStability: "stable" }, operatorUnknown: [], successCriteria: null,
       submissionConsent: { statementVersion: "2026-11-07.v1", recordedAtIso: SUBMITTED },
-      taskFamily: "rigid_pick_and_place",
+      // Owner direction 2026-11-23: the Pipeline's reading decides the family, never a keyword guess.
+      taskFamily: "general_task", taskFamilyFromReading: true,
     });
     expect(brief.unresolved).not.toContain("sceneStability");
     expect(confirmedAtSubmission(brief)).toBe(true);

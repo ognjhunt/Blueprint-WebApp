@@ -166,7 +166,7 @@ const cycleMeasurementSchema = z
  */
 export const OTHER_ACTIONS = ["folding", "pouring", "wiping", "sweeping", "scrubbing", "fastening", "assembling",
   "cutting", "welding", "painting", "spraying", "sanding", "polishing", "mixing", "sewing", "tying", "peeling", "opening",
-  "closing", "pressing", "capping", "labelling", "wrapping", "inspecting", "cleaning"] as const;
+  "closing", "pressing", "capping", "labelling", "wrapping", "inspecting", "cleaning", "scraping", "scooping", "spreading"] as const;
 export type OtherAction = (typeof OTHER_ACTIONS)[number];
 const OTHER_ACTION_SET: ReadonlySet<string> = new Set(OTHER_ACTIONS);
 
@@ -187,8 +187,11 @@ export const jobEstimatesSchema = z.object({
   object_mass_kg_low: estimate(0.001, 2000),
   object_mass_kg_high: estimate(0.001, 2000),
   object_surface: z.enum(["matte", "shiny", "transparent", "mixed"]).nullable().catch(null),
-  /** What is done to the object: whether a reach-and-payload check means anything for this job. */
-  job_kind: z.enum(["pick_and_place", "palletizing", "machine_tending", "other"]).nullable().catch(null),
+  /**
+   * What the job is: whether a reach-and-payload check means anything for it, and which quick questions the site is
+   * asked (`client/src/lib/jobFacts.ts`, `READER_JOB_KINDS`).
+   */
+  job_kind: z.enum(["pick_and_place", "palletizing", "machine_tending", "transport", "other"]).nullable().catch(null),
   /** Anything done to the object besides carrying it, as -ing words ("folding"). */
   other_actions: z.unknown().optional().transform(otherActionsOf),
   /** From where the object is picked up to where it is put down. */
@@ -222,10 +225,10 @@ export const jobEstimatesField = z.any().optional().transform((value): SiteVideo
 export const JOB_ESTIMATES_INSTRUCTIONS = `Estimating the job (job_estimates):
 Blueprint never asks the site to measure anything, so estimate what a robot would need to know from what the footage shows. These are educated estimates and are always shown as estimates. They never change any other field of your answer.
 - Size things against standardized references in frame, whatever kind of site it is: a doorway (about 2 m tall), a work surface (about 0.75 to 0.9 m high), a stair riser (about 0.18 m), a floor or ceiling tile, a standard pallet (1.2 m by 1.0 m).
-- object: the main item the job handles, in a few words. object_largest_side_m: its largest side, in metres.
+- object: the main item the job handles, in a few words; null when the job handles nothing (a robot only goes somewhere). object_largest_side_m: its largest side, in metres.
 - object_mass_kg_low and object_mass_kg_high: a plausible weight range from its size, its material, how full it looks and how it is lifted (one hand or two, the effort it takes).
 - object_surface: matte, shiny, transparent or mixed, from how it looks.
-- job_kind: what is done to the object, judged from the footage and the job's description together. pick_and_place: one solid object is picked up and put down somewhere else. palletizing: boxes or bags are stacked into a shipping load, or taken off one. machine_tending: parts are loaded into or unloaded from a machine. other: the job mainly changes the object itself (it is folded, cut, joined, fastened, cleaned or coated) rather than moving it. Putting objects into a container, into a machine or onto a stack is carrying. null: the footage does not show the job.
+- job_kind: what the job is, judged from the footage and the job's description together. pick_and_place: one solid object is picked up and put down somewhere else within reach or a few steps away. palletizing: boxes or bags are stacked into a shipping load, or taken off one. machine_tending: parts are loaded into or unloaded from a machine. transport: the job is mainly getting between places more than a few steps apart: carrying, pushing or wheeling things from one room, area or floor to another (delivering, fetching, restocking), or going somewhere with nothing carried (rounds, guiding, checking). other: the job mainly changes the object itself (it is folded, cut, joined, fastened, cleaned or coated), or works a loose or liquid material (it is scooped, scraped, poured or spread), rather than carrying one solid object. Putting objects into a container, into a machine or onto a stack is carrying. null: the footage does not show the job.
 - other_actions: anything done to the object besides carrying it, using only these words: ${OTHER_ACTIONS.join(", ")}. At most three; an empty list when there is none. Never any other word.
 - pick_to_place_m: how far the object travels from where it is picked up to where it is put down. pick_height_m and place_height_m: the height above the floor of the surface it is picked from and of the one it is put on.
 - front_clearance_m: the open floor in front of the surface the object is picked from, where a robot could stand. 0 when there is none.
@@ -241,7 +244,7 @@ export const JOB_ESTIMATES_RETURN_SHAPE = {
   object_mass_kg_low: null,
   object_mass_kg_high: null,
   object_surface: "matte | shiny | transparent | mixed | null",
-  job_kind: "pick_and_place | palletizing | machine_tending | other | null",
+  job_kind: "pick_and_place | palletizing | machine_tending | transport | other | null",
   other_actions: [],
   pick_to_place_m: null,
   pick_height_m: null,

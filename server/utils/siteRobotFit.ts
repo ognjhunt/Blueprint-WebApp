@@ -57,6 +57,8 @@ import {
   type RobotFormRating,
 } from "../../client/src/data/robotFit";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
+import { WEIGHT_RANGE_KG, jobFactLabel, type JobReading } from "../../client/src/lib/jobFacts";
+import { readJobFacts } from "./jobFacts";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
 import { otherActionsOf, type OtherAction } from "../agents/tasks/site-video-evidence";
 import type { AgentResult, AgentTask } from "../agents/types";
@@ -213,12 +215,38 @@ export function parseStatedWeight(text: unknown): { kg: number; display: string 
   return { kg: value * factor, display: `${formatNumber(value)} ${match[2].toLowerCase()}` };
 }
 
+/**
+ * The site's answer to its quick weight question (`job_facts`, `client/src/lib/jobFacts.ts`), in the site's own words:
+ * the heaviest loaded item it typed, else the range it tapped. "Over 30 kg" has no upper bound. Null for no answer and
+ * "Not sure".
+ */
+function answeredMass(inputs: RobotFitInputs): Pick<Quantity, "display" | "min" | "max"> | null {
+  const facts = readJobFacts(inputs.request);
+  const heaviest = facts?.maxLoadedWeightKg;
+  if (heaviest && heaviest !== "unsure") {
+    const kg = Number(heaviest);
+    return { display: jobFactLabel("maxLoadedWeightKg", heaviest) ?? `${kg} kg`, min: kg, max: kg };
+  }
+  const band = facts?.weight;
+  const range = band ? WEIGHT_RANGE_KG[band] : null;
+  if (!band || !range) return null;
+  // "5 to 15 kg (11 to 33 lb)" reads "5 to 15 kg" inside a sentence that already ends in its own brackets.
+  const words = (jobFactLabel("weight", band) ?? "").replace(/\s*\([^)]*\)$/, "");
+  return { display: words.charAt(0).toLowerCase() + words.slice(1), min: range.lower, max: range.upper ?? Number.POSITIVE_INFINITY };
+}
+
+/**
+ * The object's weight, the site's own word first: its measurement, then its answer to the quick question on its job
+ * page, then a weight it typed or a band it chose earlier, and the video's estimate only when the site gave none.
+ */
 function massRequirement(inputs: RobotFitInputs): Quantity | null {
   const label = "Object weight";
   const reading = measured(inputs, "object_mass");
   if (reading && reading.si > 0) {
     return { key: "object_mass", label, display: measuredDisplay(reading), source: "site_measured", min: reading.si, max: reading.si };
   }
+  const answered = answeredMass(inputs);
+  if (answered) return { key: "object_mass", label, source: "site_stated", ...answered };
   const stated = parseStatedWeight(inputs.brief?.operatorTaskDetails?.item_weight);
   if (stated) return { key: "object_mass", label, display: stated.display, source: "site_stated", min: stated.kg, max: stated.kg };
   const band = specAnswer(inputs, "payloadWeight");
@@ -258,7 +286,7 @@ export interface VideoEstimates {
   massKg: { low: number; high: number } | null;
   surface: "matte" | "shiny" | "transparent" | "mixed" | null;
   /** What the reader saw done to the object; null when it did not say (and on older readings). */
-  jobKind: "pick_and_place" | "palletizing" | "machine_tending" | "other" | null;
+  jobKind: "pick_and_place" | "palletizing" | "machine_tending" | "transport" | "other" | null;
   /** Anything done to the object besides carrying it, from the reader's closed list; [] on older readings. */
   otherActions: OtherAction[];
   pickToPlaceM: number | null;
@@ -275,7 +303,7 @@ function bounded(value: unknown, min: number, max: number, exclusiveMin = false)
 }
 
 const SURFACE_VALUES = new Set(["matte", "shiny", "transparent", "mixed"]);
-const JOB_KIND_VALUES = new Set(["pick_and_place", "palletizing", "machine_tending", "other"]);
+const JOB_KIND_VALUES = new Set(["pick_and_place", "palletizing", "machine_tending", "transport", "other"]);
 
 /**
  * An unseen item as a plain noun phrase, or nothing: the name reaches the site's
@@ -357,6 +385,23 @@ export function videoEvidence(inputs: RobotFitInputs): {
     people: typeof link?.people_relationship_to_work === "string" ? link.people_relationship_to_work : null,
     estimates,
   };
+}
+
+/**
+ * What the video reading says about the job, for the site's own quick questions and the company's reading of the
+ * answers (`jobFactKeysFor` in `client/src/lib/jobFacts.ts`): its kind of job, the main object and the other kinds of
+ * item it says the job probably handles, as plain noun phrases (`itemName`: no link, code or robot name). Walkthrough
+ * reading first, then a usable link reading; null until one gives a kind or names an object.
+ */
+export function jobReadingOf(request: Record<string, any> | null | undefined): JobReading | null {
+  const walkthrough = (request?.walkthrough_job_estimates as { job_estimates?: unknown } | null | undefined)?.job_estimates;
+  const link = usableReading(request?.site_video_evidence)?.job_estimates;
+  const objectOf = (estimates: unknown) => estimates && typeof estimates === "object" ? itemName((estimates as Record<string, unknown>).object) : null;
+  const object = objectOf(walkthrough) ?? objectOf(link);
+  const estimates = videoEvidence({ request: request ?? null, brief: null, measurements: null })?.estimates ?? null;
+  const kind = estimates?.jobKind ?? null;
+  if (!object && !kind) return null;
+  return { kind, object, others: object ? (estimates?.otherItemsLikely ?? []).filter(item => item !== object) : [] };
 }
 
 export type PeopleReading = { value: People; display: string; source: RequirementSource };

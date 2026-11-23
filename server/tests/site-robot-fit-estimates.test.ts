@@ -33,7 +33,7 @@ vi.mock("../utils/pilotRecommendationEvidence", async (importOriginal) => ({
   isQualifiedRecommendationEvidence: (evidence: { qualified?: boolean } | null | undefined) => evidence?.qualified === true,
 }));
 
-const { computeRobotFitJob, jobFactsOf, videoEvidence } = await import("../utils/siteRobotFit");
+const { computeRobotFitJob, jobFactsOf, jobReadingOf, videoEvidence } = await import("../utils/siteRobotFit");
 type Inputs = import("../utils/siteRobotFit").RobotFitInputs;
 
 const NOW = "2026-10-20T12:00:00.000Z";
@@ -106,6 +106,27 @@ describe("estimates from the video", () => {
     expect(facts.size).toMatchObject({ source: "video_estimate" });
   });
 
+  // Owner, 2026-11-23: the site's answer to the quick weight question outranks the video's guess.
+  it("weighs the object by the site's quick answer ahead of an earlier band and the video's estimate", () => {
+    const answered = (jobFacts: Record<string, string>, extra: Record<string, unknown> = {}) => withVideo({ estimates: ESTIMATES },
+      { job_facts: { ...jobFacts, updatedAtIso: NOW }, request: { siteTaskSpec: { payloadWeight: "two_to_ten" } }, ...extra });
+    expect(jobFactsOf(answered({ weight: "15_30kg" })).mass).toEqual(expect.objectContaining({
+      display: "15 to 30 kg", source: "site_stated", min: 15, max: 30 }));
+    expect(jobFactsOf(answered({ weight: "under_5kg" })).mass).toMatchObject({ display: "under 5 kg", min: 0, max: 5 });
+    expect(jobFactsOf(answered({ weight: "over_30kg" })).mass).toMatchObject({ display: "over 30 kg", min: 30, max: Number.POSITIVE_INFINITY });
+    // The heaviest loaded item the site typed is more exact than its range.
+    expect(jobFactsOf(answered({ weight: "15_30kg", maxLoadedWeightKg: "22.5" })).mass).toMatchObject({ display: "22.5 kg", min: 22.5, max: 22.5 });
+    // "Not sure" is no answer: the earlier band stands.
+    expect(jobFactsOf(answered({ weight: "unsure" })).mass).toMatchObject({ display: "2–10 kg", source: "site_stated" });
+    // Without any word from the site, the video's estimate.
+    expect(jobFactsOf(withVideo({ estimates: ESTIMATES }, { job_facts: { weight: "unsure", updatedAtIso: NOW } })).mass)
+      .toMatchObject({ source: "video_estimate" });
+    // A measurement still comes first.
+    const measuredToo = inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, job_facts: { weight: "15_30kg", updatedAtIso: NOW } },
+      readings: { object_mass: reading(12, "kg", 12) } });
+    expect(jobFactsOf(measuredToo).mass).toMatchObject({ source: "site_measured", min: 12 });
+  });
+
   it("reads each estimate from the walkthrough first, then the intake link, and nothing from unusable footage", () => {
     const link = { cycle: 50, linkEstimates: { pick_to_place_m: 2, object_largest_side_m: 0.5 } };
     const both = videoEvidence(withVideo({ estimates: { pick_to_place_m: 0.9 }, ...link }));
@@ -160,5 +181,33 @@ describe("the people-nearby answer, wherever it comes from", () => {
       .toMatchObject({ value: "nearby", source: "site_stated" });
     expect(people(withVideo({ people: "working_in_the_space" }))).toMatchObject({ value: "shared", source: "video_observed" });
     expect(people(withVideo({ people: "performing_the_task" }))).toBeNull();
+  });
+});
+
+// Owner, 2026-11-23: the site's quick questions choose themselves by the reading's kind of job and name its object.
+describe("the video reading, for the site's own questions", () => {
+  const reading = (estimates: Record<string, unknown>) => ({ walkthrough_job_estimates: { capture_id: "walkthrough-job-1", job_estimates: estimates } });
+
+  it("gives the reading's kind, its object and the other kinds of item it names, as plain noun phrases", () => {
+    expect(jobReadingOf(reading({ object: "Cake batter", job_kind: "other", other_items_likely: ["Frosting", "cake batter", "https://x.example"] })))
+      .toEqual({ kind: "other", object: "cake batter", others: ["frosting"] });
+  });
+
+  it("gives a job that moves between places with nothing carried its kind and no object", () => {
+    expect(jobReadingOf(reading({ object: null, job_kind: "transport" }))).toEqual({ kind: "transport", object: null, others: [] });
+  });
+
+  it("gives nothing until a reading gives a kind or names an object, and never a link, a robot or an unknown kind", () => {
+    expect(jobReadingOf(null)).toBeNull();
+    expect(jobReadingOf({})).toBeNull();
+    expect(jobReadingOf(reading({ object: null }))).toBeNull();
+    expect(jobReadingOf(reading({ object: "https://x.example/box" }))).toBeNull();
+    expect(jobReadingOf(reading({ object: "Robot arm", job_kind: "teleport" }))).toBeNull();
+  });
+
+  it("reads an intake link's object only from a usable reading", () => {
+    const link = (status: string) => ({ site_video_evidence: { status, footage_status: "usable", job_estimates: { object: "tote" } } });
+    expect(jobReadingOf(link("analysed"))).toEqual({ kind: null, object: "tote", others: [] });
+    expect(jobReadingOf(link("failed"))).toBeNull();
   });
 });

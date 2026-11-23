@@ -168,6 +168,8 @@ export const SURENESS_STEPS: ReadonlyArray<{ filled: 1 | 2 | 3; word: string }> 
  */
 /** The reader did not say what is done to the object: said first, so the answer never passes for more than a carry. */
 export const UNKNOWN_JOB_KIND = "We could not tell from your video what is done to the object; this checks only whether a robot can pick it up and put it down.";
+/** The reader says the job is mainly getting between places: the first look checks only the carry at each end. */
+export const UNKNOWN_TRANSPORT = "Your job is mainly moving things between places; this checks only the picking up and putting down at each end.";
 /** The job's own sentence names more than one step. */
 export const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
 /** The start of the line naming what else the reader saw done to the object (from its closed list). */
@@ -183,7 +185,7 @@ export const REASON_UNSIZED = "The video did not show the job clearly enough for
 
 /** A line of `unknowns` that changes what the answer covers: shown with the answer, never folded away. */
 export function isScopeNote(line: string): boolean {
-  return line === UNKNOWN_JOB_KIND || line === UNKNOWN_MULTI_STEP
+  return line === UNKNOWN_JOB_KIND || line === UNKNOWN_MULTI_STEP || line === UNKNOWN_TRANSPORT
     || (line.startsWith(ALSO_INVOLVES_PREFIX) && line.endsWith(ALSO_INVOLVES_SUFFIX));
 }
 

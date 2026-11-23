@@ -16,7 +16,8 @@ export const JOB_FACTS_NUDGE = "A few quick answers on your job page may be all 
 
 const GENERAL_JOB_FACT_KEYS = ["weight", "size", "perHour", "hours", "timing"] as const;
 export const JOB_FACT_KEYS = [...GENERAL_JOB_FACT_KEYS, "peakPerMinute", "maxLoadedWeightKg", "palletPattern",
-  "incomingLoads", "pickupHandoff", "packPresentation", "itemsPerCase", "machineAccess", "machineCycleSeconds", "inspectionTarget"] as const;
+  "incomingLoads", "pickupHandoff", "packPresentation", "itemsPerCase", "machineAccess", "machineCycleSeconds", "inspectionTarget",
+  "route", "routeObstacles", "variation", "areaChange"] as const;
 export type JobFactKey = (typeof JOB_FACT_KEYS)[number];
 
 export const NOT_SURE_LABEL = "Not sure";
@@ -103,6 +104,33 @@ export const JOB_FACT_CHOICES = {
     { code: "multiple", label: "Several of these" },
     ...unsure,
   ],
+  route: [
+    { code: "one_room", label: "Within one room" },
+    { code: "one_floor", label: "Between rooms on one floor" },
+    { code: "floors", label: "Between floors" },
+    { code: "outdoors", label: "Outdoors or between buildings" },
+    ...unsure,
+  ],
+  routeObstacles: [
+    { code: "open", label: "Open floor only" },
+    { code: "doors", label: "Doors" },
+    { code: "lifts", label: "Lifts or elevators" },
+    { code: "ramps", label: "Slopes or ramps" },
+    { code: "several", label: "Several of these" },
+    ...unsure,
+  ],
+  variation: [
+    { code: "same", label: "Same every time" },
+    { code: "set_kinds", label: "A few set kinds" },
+    { code: "varies", label: "Different each time" },
+    ...unsure,
+  ],
+  areaChange: [
+    { code: "yes", label: "Yes" },
+    { code: "a_little", label: "A little" },
+    { code: "no", label: "No, it stays as it is" },
+    ...unsure,
+  ],
 } as const satisfies Record<JobFactKey, ReadonlyArray<{ code: string; label: string }>>;
 
 type NumericJobFactKey = "peakPerMinute" | "maxLoadedWeightKg" | "itemsPerCase" | "machineCycleSeconds";
@@ -119,15 +147,69 @@ const QUESTIONS_BY_JOB_TYPE: Readonly<Partial<Record<string, readonly JobFactKey
   "Quality inspection": ["inspectionTarget", "peakPerMinute", "hours", "timing"],
 };
 
+/** The questions for a job type the keyword match gave (`anonymizedOpportunityDraft`); the general five otherwise. */
 export function jobFactKeysForType(taskFamily: string | undefined): readonly JobFactKey[] {
   return taskFamily && Object.hasOwn(QUESTIONS_BY_JOB_TYPE, taskFamily) ? QUESTIONS_BY_JOB_TYPE[taskFamily]! : GENERAL_JOB_FACT_KEYS;
 }
 
-/** The question as the site reads it on its job page. */
+/**
+ * The kinds of job the video reading can give (`job_kind` in `server/agents/tasks/site-video-evidence.ts`). The reading
+ * watched the job and read the site's description, so once it gives a kind, the kind decides the questions.
+ */
+export const READER_JOB_KINDS = ["pick_and_place", "palletizing", "machine_tending", "transport", "other"] as const;
+export type ReaderJobKind = (typeof READER_JOB_KINDS)[number];
+
+/**
+ * The questions for each kind of job the reading gives. A job that moves between places is asked where it goes and
+ * what is on the way; a job that does something other than carrying (folding, wiping, scraping batter) is asked
+ * whether the work changes and whether its area can change, not a weight or a size.
+ */
+const QUESTIONS_BY_KIND: Readonly<Record<ReaderJobKind, readonly JobFactKey[]>> = {
+  pick_and_place: GENERAL_JOB_FACT_KEYS,
+  palletizing: QUESTIONS_BY_JOB_TYPE.Palletizing!,
+  machine_tending: QUESTIONS_BY_JOB_TYPE["Machine tending"]!,
+  transport: ["route", "routeObstacles", "weight", "perHour", "hours", "timing"],
+  other: ["variation", "areaChange", "perHour", "hours", "timing"],
+};
+
+/**
+ * The kinds each keyword job type is a narrower case of. Where the reading's kind agrees with the keyword match, the
+ * keyword's own questions stay (a case packing job is asked how many items go in a case); where they disagree, the
+ * reading wins.
+ */
+const KINDS_OF_JOB_TYPE: Readonly<Partial<Record<string, readonly ReaderJobKind[]>>> = {
+  Palletizing: ["palletizing"],
+  Depalletizing: ["palletizing"],
+  "Pallet handling": ["palletizing"],
+  "Material handling": ["pick_and_place"],
+  "Case packing": ["pick_and_place"],
+  Packaging: ["pick_and_place"],
+  "Machine tending": ["machine_tending"],
+  "Quality inspection": ["pick_and_place", "other"],
+};
+
+/**
+ * The questions for a job: from the video reading's kind once it gives one, the keyword match only until then. A job
+ * that moves between places with nothing carried is not asked a weight. The site's page and the company's page both
+ * choose with this, so they show the same questions.
+ */
+export function jobFactKeysFor(taskFamily: string | undefined, reading?: Pick<JobReading, "kind" | "object"> | null): readonly JobFactKey[] {
+  const kind = reading?.kind ?? null;
+  if (!kind) return jobFactKeysForType(taskFamily);
+  if (taskFamily && KINDS_OF_JOB_TYPE[taskFamily]?.includes(kind)) return jobFactKeysForType(taskFamily);
+  const keys = QUESTIONS_BY_KIND[kind];
+  return kind === "transport" && !reading?.object ? keys.filter(key => key !== "weight") : keys;
+}
+
+/**
+ * The question as the site reads it on its job page, before the video reading names the job's object
+ * (`jobFactQuestion` names it once it does). Weight and size ask for the heaviest and the biggest, since a job may
+ * handle more than one thing; how often asks for times the job is done, which fits any kind of job.
+ */
 export const JOB_FACT_QUESTIONS: Readonly<Record<JobFactKey, string>> = {
-  weight: "How heavy is the item?",
-  size: "How big is it, on its longest side?",
-  perHour: "How many an hour?",
+  weight: "How heavy is the heaviest thing the robot handles?",
+  size: "How big is the biggest thing the robot handles, on its longest side?",
+  perHour: "How many times an hour is the job done?",
   hours: "How many hours a day does this job run?",
   timing: "When would you want this?",
   peakPerMinute: "How many items arrive per minute at the busiest time?",
@@ -140,13 +222,72 @@ export const JOB_FACT_QUESTIONS: Readonly<Record<JobFactKey, string>> = {
   machineAccess: "Who opens the machine door or lid?",
   machineCycleSeconds: "How long is the machine’s own cycle?",
   inspectionTarget: "What should the inspection catch?",
+  route: "Where does the robot need to go?",
+  routeObstacles: "What is on the way?",
+  variation: "Is the work the same every time?",
+  areaChange: "Could the work area be changed to suit a robot?",
 };
+
+/**
+ * What the video reading says about the job: its kind, the main object ("cake batter") and the other kinds of item it
+ * says the job probably handles too, as plain noun phrases. The questions use the kind to choose themselves and the
+ * names for their words. Null until a reading gives a kind or an object.
+ */
+export interface JobReading { kind: ReaderJobKind | null; object: string | null; others: string[] }
+
+/** The status read's `jobReading`, or null: a known kind, a short name and at most five short other names, nothing else. */
+export function sanitizeJobReading(value: unknown): JobReading | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const short = (item: unknown): item is string => typeof item === "string" && item.trim().length > 0 && item.length <= 60;
+  const kind = (READER_JOB_KINDS as readonly unknown[]).includes(raw.kind) ? raw.kind as ReaderJobKind : null;
+  const object = short(raw.object) ? raw.object.trim() : null;
+  if (!kind && !object) return null;
+  return { kind, object, others: (Array.isArray(raw.others) ? raw.others : []).filter(short).map(item => item.trim()).slice(0, 5) };
+}
+
+const PLURAL_WORDS = new Set(["people", "children", "men", "women", "feet", "teeth", "mice", "geese"]);
+/** A name that reads as plural ("cardboard boxes", but not "glass" or "chassis"), so its question says "are". */
+export function looksPlural(name: string): boolean {
+  const last = name.trim().split(/\s+/).pop()?.toLowerCase() ?? "";
+  return PLURAL_WORDS.has(last) || (/[^s]s$/.test(last) && !/(?:us|is|ics)$/.test(last));
+}
+
+const listInWords = (items: readonly string[]) =>
+  items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0] ?? "";
+
+/**
+ * The question in the site's words, naming the job's object once the video reading names it: "How heavy is the cake
+ * batter?" rather than "the item". Weight, size and whether it is the same every time; the other questions read the
+ * same for any object. Without a name, the question asks for the heaviest or biggest thing the robot handles.
+ */
+export function jobFactQuestion(key: JobFactKey, reading?: Pick<JobReading, "object"> | null): string {
+  const name = reading?.object;
+  if ((key !== "weight" && key !== "size" && key !== "variation") || !name) return JOB_FACT_QUESTIONS[key];
+  const plural = looksPlural(name);
+  if (key === "variation") return `${plural ? "Are" : "Is"} the ${name} the same every time?`;
+  return key === "weight"
+    ? `How heavy ${plural ? "are" : "is"} the ${name}?`
+    : `How big ${plural ? "are" : "is"} the ${name}, on ${plural ? "their" : "its"} longest side?`;
+}
+
+/**
+ * A line under a named weight or size question when the answer could mean more than one thing: other kinds of item the
+ * reading says the job probably handles, or a plural object. The answer is then for the heaviest or the biggest.
+ */
+export function jobFactQuestionHint(key: JobFactKey, reading?: Pick<JobReading, "object" | "others"> | null): string | null {
+  const name = reading?.object;
+  if ((key !== "weight" && key !== "size") || !name) return null;
+  const most = key === "weight" ? "heaviest" : "biggest";
+  if (reading.others.length) return `Your video suggests the job may also handle ${listInWords(reading.others)}. Answer for the ${most}.`;
+  return looksPlural(name) ? `If they vary, answer for the ${most}.` : null;
+}
 
 /** The same answer as a company reads it, one short label per line. */
 export const JOB_FACT_SHORT_LABELS: Readonly<Record<JobFactKey, string>> = {
   weight: "Weight",
   size: "Size, longest side",
-  perHour: "How many an hour",
+  perHour: "Times an hour",
   hours: "Hours a day",
   timing: "When",
   peakPerMinute: "Peak incoming rate",
@@ -159,6 +300,10 @@ export const JOB_FACT_SHORT_LABELS: Readonly<Record<JobFactKey, string>> = {
   machineAccess: "Machine access",
   machineCycleSeconds: "Machine cycle",
   inspectionTarget: "Inspection target",
+  route: "Where it goes",
+  routeObstacles: "On the way",
+  variation: "How much it varies",
+  areaChange: "Work area can change",
 };
 
 export type JobFacts = { [Key in JobFactKey]?: JobFactCode<Key> } & { updatedAtIso: string };
@@ -226,12 +371,15 @@ export function sanitizeJobFacts(value: unknown): JobFacts | null {
   return { ...(facts as Omit<JobFacts, "updatedAtIso">), updatedAtIso };
 }
 
-/** The site's answers in the same words on both pages: one line per answered question, in question order. */
-export function jobFactsInWords(facts: unknown, taskFamily?: string): string[] {
+/**
+ * The site's answers in the same words on both pages: one line per answered question, in question order. Only the
+ * job's own questions (chosen as the site's page chose them, `jobFactKeysFor`) and the general five are said.
+ */
+export function jobFactsInWords(facts: unknown, taskFamily?: string, reading?: Pick<JobReading, "kind" | "object"> | null): string[] {
   const clean = sanitizeJobFacts(facts);
   if (!clean) return [];
   const lines: string[] = [];
-  const visible = taskFamily ? new Set([...jobFactKeysForType(taskFamily), ...GENERAL_JOB_FACT_KEYS]) : JOB_FACT_KEYS;
+  const visible = taskFamily || reading?.kind ? new Set([...jobFactKeysFor(taskFamily, reading), ...GENERAL_JOB_FACT_KEYS]) : JOB_FACT_KEYS;
   for (const key of visible) {
     const code = clean[key];
     const label = code ? jobFactLabel(key, code) : null;
