@@ -132,7 +132,7 @@ afterEach(() => {
 });
 
 describe("Firestore values in agent records", () => {
-  it("writes a run's, its session's, checkpoints', events' and action logs' times as timestamps, and keeps a Timestamp and a Date", async () => {
+  it("writes a run's, its session's, checkpoints' and events' times as timestamps, and keeps a Timestamp and a Date", async () => {
     const sessionCreatedAt = Timestamp.fromMillis(Date.now() - DAY);
     fake.docs.set("agentSessions", new Map([["session-1", { id: "session-1", status: "active", metadata: {},
       created_at: sessionCreatedAt, updated_at: sessionCreatedAt }]]));
@@ -151,25 +151,22 @@ describe("Firestore values in agent records", () => {
     expect(session.created_at.isEqual(sessionCreatedAt)).toBe(true);
     expect(session.updated_at).toBeInstanceOf(Timestamp);
     expect(session.updated_at.toMillis()).toBeGreaterThan(sessionCreatedAt.toMillis());
-    for (const name of ["agentCheckpoints", "agentRuntimeEvents", "opsActionLogs"]) {
+    for (const name of ["agentCheckpoints", "agentRuntimeEvents"]) {
       expect(collection(name).length).toBeGreaterThan(0);
       for (const record of collection(name)) expect(record.created_at).toBeInstanceOf(Timestamp);
     }
+    // The retired action log is no longer written.
+    expect(collection("opsActionLogs")).toHaveLength(0);
   });
 
-  it("passes a serverTimestamp sentinel, a Timestamp and a Date through the event, checkpoint and action-log writers", async () => {
+  it("passes a serverTimestamp sentinel, a Timestamp and a Date through the event and checkpoint writers", async () => {
     const at = Timestamp.fromMillis(1_763_600_000_123), on = new Date(1_763_600_000_456);
     const stamps = { at, on, requested: FieldValue.serverTimestamp() };
     const { recordRuntimeEvent } = await import("../agents/runtime-events");
     const { createAgentCheckpoint } = await import("../agents/checkpoints");
-    const { recordOpsActionLog } = await import("../agents/ops-action-logs");
     await recordRuntimeEvent({ session_id: "s", kind: "k", summary: "s", metadata: { stamps } });
     await createAgentCheckpoint({ session_id: "s", label: "l", trigger: "t", snapshot: { stamps } });
-    await recordOpsActionLog({ session_id: "s", run_id: "r", session_key: null, action_key: "a", status: "info", summary: "s",
-      provider: "openai_responses", runtime: "openai_responses", task_kind: "robot_fit_ranking", risk_level: "low", reversible: true,
-      requires_approval: false, latency_ms: null, metadata: { stamps } } as never);
-    const written = [collection("agentRuntimeEvents")[0].metadata.stamps, collection("agentCheckpoints")[0].snapshot.stamps,
-      collection("opsActionLogs")[0].metadata.stamps];
+    const written = [collection("agentRuntimeEvents")[0].metadata.stamps, collection("agentCheckpoints")[0].snapshot.stamps];
     for (const value of written) {
       expect(value.at).toBe(at);
       expect(value.on).toBe(on);

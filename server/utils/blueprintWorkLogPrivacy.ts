@@ -23,6 +23,8 @@ export function privateWorkLogPath(url: string): string {
   if (/[?&]invitation=/.test(url)) return url.split("?", 1)[0];
   if (url.split("?", 1)[0].startsWith("/api/location-autocomplete")) return url.split("?", 1)[0];
   if (TICKET_QUERY_ROUTES.some(prefix => url.startsWith(prefix))) return url.split("?", 1)[0];
+  // An unsubscribe link's query: its token, or the address itself in a link sent before tokens.
+  if (lowered.startsWith("/api/growth/email/")) return path;
   if (!url.startsWith("/api/blueprint-work/") && !url.startsWith("/app/connect/chatgpt")
     && !url.startsWith("/api/communications/gmail/oauth")) return url;
   return url.split("?", 1)[0].replace(/(\/consent\/)[^/]+/, "$1[flow]");

@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { Resend } from "resend";
 import { getConfiguredEnvValue } from "../config/env";
 import { logger } from "../logger";
-import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { recordEmailSuppression } from "../utils/email-suppression";
 
 function normalizeString(value: unknown) {
@@ -24,13 +23,14 @@ function normalizeCampaignEventType(value: unknown) {
   return raw;
 }
 
-async function ingestResendWebhook(payload: unknown, webhookId: string) {
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
+/**
+ * Only suppressions are kept: an unsubscribe, a complaint, a provider suppression or a permanent bounce stops later
+ * email to that address. Nothing else of the event (recipient, subject, payload) is stored. A replayed delivery
+ * records the same suppression again, which is an upsert.
+ */
+async function ingestResendWebhook(payload: unknown) {
   const events = Array.isArray(payload) ? payload : [payload];
-  const results: Array<Record<string, unknown>> = [];
+  let count = 0;
 
   for (const item of events) {
     const envelope = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
@@ -46,39 +46,6 @@ async function ingestResendWebhook(payload: unknown, webhookId: string) {
       null;
     const eventType = normalizeCampaignEventType(envelope.type);
     const recipient = Array.isArray(event.to) ? normalizeString(event.to[0]) : "";
-    const receivedAtIso = normalizeString(envelope.created_at) || new Date().toISOString();
-    const eventRef = db.collection("growth_campaign_events").doc(webhookId);
-    if ((await eventRef.get()).exists) continue;
-
-    await eventRef.create({
-      campaign_id: localCampaignId || "unknown",
-      local_campaign_id: localCampaignId,
-      resend_email_id: normalizeString(event.email_id),
-      event_type: eventType,
-      recipient,
-      payload: envelope,
-      received_at_iso: receivedAtIso,
-      received_at: admin.firestore.FieldValue.serverTimestamp(),
-      source: "resend",
-    });
-
-    if (localCampaignId) {
-      await db.collection("growthCampaigns").doc(localCampaignId).set(
-        {
-          event_counts: {
-            [eventType]: admin.firestore.FieldValue.increment(1),
-          },
-          response_tracking: {
-            last_event_type: eventType,
-            last_event_at: receivedAtIso,
-            last_recipient: recipient,
-          },
-          updated_at: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
-    }
-
     const bounce = event.bounce && typeof event.bounce === "object"
       ? event.bounce as Record<string, unknown>
       : {};
@@ -87,34 +54,27 @@ async function ingestResendWebhook(payload: unknown, webhookId: string) {
       || eventType === "suppressed"
       || (eventType === "bounced" && normalizeString(bounce.type).toLowerCase() === "permanent");
     if (recipient && shouldSuppress) {
-      await recordEmailSuppression({
+      const suppression = await recordEmailSuppression({
         email: recipient,
         scope: ["lifecycle", "growth_campaign"],
         reason: eventType === "complained" ? "complaint" : eventType,
         source: "resend:webhook",
         campaignId: localCampaignId,
       });
+      // Not saved: answer 500 so Resend delivers the event again.
+      if (!suppression.persisted) throw new Error("Email suppression not saved");
     }
-
-    results.push({
-      localCampaignId,
-      eventType,
-      recipient,
-    });
+    count += 1;
   }
 
-  return {
-    count: results.length,
-    results,
-  };
+  return { count };
 }
 
 /**
  * Resend delivery events, mounted at POST /api/growth/webhooks/resend (the URL
  * registered with Resend). It outlived the growth studio it was written for
- * because it carries two live duties: unsubscribes, complaints and permanent
- * bounces become email suppressions, and delivery receipts settle the status
- * of transactional notifications.
+ * because it carries one live duty: unsubscribes, complaints and permanent
+ * bounces become email suppressions. It stores nothing else of an event.
  */
 export async function resendWebhookHandler(req: Request & { rawBody?: string }, res: Response) {
   const configuredSecret = getConfiguredEnvValue("RESEND_WEBHOOK_SECRET");
@@ -146,7 +106,7 @@ export async function resendWebhookHandler(req: Request & { rawBody?: string }, 
   }
 
   try {
-    await ingestResendWebhook(event, webhookId);
+    await ingestResendWebhook(event);
     return res.status(202).json({ ok: true });
   } catch (error) {
     logger.error({ err: error }, "Failed to ingest Resend webhook");

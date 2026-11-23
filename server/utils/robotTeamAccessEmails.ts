@@ -1,5 +1,5 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxStatus } from "./captureOutbox";
+import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, outboxRecipientMatches, type OutboxStatus } from "./captureOutbox";
 import { rowAwaitsDelivery } from "./captureOutboxRetry";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 import { appendCommercialEmailFooter } from "./email-suppression";
@@ -102,7 +102,8 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
   }
   if (current.exists) {
     const row = current.data();
-    if (row?.kind !== params.kind || row.requestId !== `robot-team-access:${params.recordId}` || row.to !== params.record.email)
+    if (row?.kind !== params.kind || row.requestId !== `robot-team-access:${params.recordId}`
+      || !outboxRecipientMatches(row, params.record.email))
       throw new Error("access_notification_identity_conflict");
     const outboxStatus = ["pending", "claimed", "dispatching", "unknown", "sent", "failed", "cancelled", "review_required"]
       .includes(row.status) ? row.status as OutboxStatus : null;

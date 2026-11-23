@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin.js";
 import { COMPANY_POSTAL_LINE } from "../../client/src/data/company.js";
 
@@ -30,6 +31,44 @@ function publicAppOrigin() {
   ).replace(/\/+$/, "");
 }
 
+/** The same secret resolution as the project's other signed links (`jobOutcomeToken.ts`). */
+function unsubscribeTokenKey() {
+  const secret = (
+    process.env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET?.trim() ||
+    process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET?.trim() ||
+    process.env.PIPELINE_SYNC_TOKEN?.trim()
+  );
+  if (!secret && process.env.NODE_ENV === "production") throw new Error("Capture and review signing secret is required");
+  return crypto.createHash("sha256").update(`email_unsubscribe:${secret || "blueprint-request-review-dev-secret"}`).digest();
+}
+
+/**
+ * The unsubscribe link's token: the address and scope, sealed (AES-256-GCM) so the link neither shows the address nor
+ * can be made for another one. It does not expire: an unsubscribe link must keep working.
+ */
+export function createUnsubscribeToken(params: { email: string; scope?: EmailSuppressionScope | string | null }): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", unsubscribeTokenKey(), iv);
+  const sealed = Buffer.concat([cipher.update(JSON.stringify({ kind: "email_unsubscribe",
+    e: normalizeSuppressionEmail(params.email), s: normalizeScope(params.scope) }), "utf-8"), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), sealed]).toString("base64url");
+}
+
+export function verifyUnsubscribeToken(token: unknown): { email: string; scope: EmailSuppressionScope } | null {
+  try {
+    const value = typeof token === "string" ? token : "";
+    if (!value || value.length > 1024 || !/^[A-Za-z0-9_-]+$/.test(value)) return null;
+    const bytes = Buffer.from(value, "base64url");
+    if (bytes.length <= 28) return null;
+    const decipher = crypto.createDecipheriv("aes-256-gcm", unsubscribeTokenKey(), bytes.subarray(0, 12));
+    decipher.setAuthTag(bytes.subarray(12, 28));
+    const payload = JSON.parse(Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString("utf-8"));
+    const email = normalizeSuppressionEmail(payload?.e);
+    if (payload?.kind !== "email_unsubscribe" || !email) return null;
+    return { email, scope: normalizeScope(payload.s) };
+  } catch { return null; }
+}
+
 export function buildUnsubscribeUrl(params: {
   email: string;
   scope?: EmailSuppressionScope | string | null;
@@ -37,8 +76,7 @@ export function buildUnsubscribeUrl(params: {
   cadenceId?: string | null;
 }) {
   const url = new URL("/api/growth/email/unsubscribe", publicAppOrigin());
-  url.searchParams.set("email", normalizeSuppressionEmail(params.email));
-  url.searchParams.set("scope", normalizeScope(params.scope));
+  url.searchParams.set("token", createUnsubscribeToken(params));
   if (params.campaignId) url.searchParams.set("campaignId", params.campaignId);
   if (params.cadenceId) url.searchParams.set("cadenceId", params.cadenceId);
   return url.toString();

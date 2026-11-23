@@ -69,9 +69,12 @@ describe("a job that cannot continue without the site", () => {
     // Keyed by the capture and the ask's own words: the same ask is the same key.
     expect(key).toMatch(new RegExp(`^captureOutbox/${ID}:site_action_needed:${CAPTURE}\\.[a-f0-9]{16}$`));
     // The ask's own title is the subject (e-019); the body says what was wrong and what to do, then the private link (e-018).
-    expect(row).toMatchObject({ kind: "site_action_needed", to: "owner@site.example", subject: RECAPTURE_TITLE, status: "sent" });
-    expect(row.body.startsWith(`${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nOpen your job:\nhttps://`)).toBe(true);
-    expect(row.body).toMatch(/\/capture-upload\//);
+    // Sent, the row keeps none of the message; the email that left is checked instead.
+    expect(row).toMatchObject({ kind: "site_action_needed", to: "", subject: "", body: "", status: "sent" });
+    const email = seams.send.mock.calls[0][0] as { to: string; subject: string; text: string };
+    expect(email).toMatchObject({ to: "owner@site.example", subject: RECAPTURE_TITLE });
+    expect(email.text.startsWith(`${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nOpen your job:\nhttps://`)).toBe(true);
+    expect(email.text).toMatch(/\/capture-upload\//);
   });
 
   it("sends once per distinct ask: a new-video ask, then the job's sentence, each once", async () => {

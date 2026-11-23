@@ -47,9 +47,6 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
 });
 vi.mock("../agents/adapters/openai-responses", () => ({ runOpenAIResponsesTask }));
 vi.mock("../agents/adapters/anthropic-agent-sdk", () => ({ runAnthropicAgentSdkTask }));
-const recordOpsActionLog = vi.hoisted(() => vi.fn(async () => undefined));
-vi.mock("../agents/ops-action-logs", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../agents/ops-action-logs")>()), recordOpsActionLog }));
 
 const headers = () => new Headers({ "request-id": "req_fixture" });
 const openAiError = (status: number, type: string | undefined, code: string | undefined) =>
@@ -109,7 +106,6 @@ beforeEach(async () => {
 afterEach(() => {
   runOpenAIResponsesTask.mockReset();
   runAnthropicAgentSdkTask.mockReset();
-  recordOpsActionLog.mockClear();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.resetModules();
@@ -250,9 +246,6 @@ describe("ordered lists and the Anthropic model check (S2)", () => {
   });
 });
 
-const executeRow = () => recordOpsActionLog.mock.calls.map((call) => call[0] as Record<string, unknown>)
-  .filter((row) => row.action_key === "agent.run.execute" && row.status !== "started").at(-1);
-
 describe("a second attempt that throws", () => {
   it.each([
     ["a server error", () => Anthropic.APIError.generate(500, { type: "error", error: { type: "api_error", message: "x" } },
@@ -284,15 +277,13 @@ describe("a second attempt that throws", () => {
 });
 
 describe("a switch is visible to operators", () => {
-  it("names the provider that served the run in the action log and writes one warning", async () => {
+  it("names the provider that served the run and writes one warning", async () => {
     runOpenAIResponsesTask.mockRejectedValue(openAiError(429, "insufficient_quota", "insufficient_quota"));
     runAnthropicAgentSdkTask.mockImplementation(async (task) => completed(task));
     const { logger } = await import("../logger");
     const warn = vi.spyOn(logger, "warn");
     const error = vi.spyOn(logger, "error");
-    await runLane();
-    expect(executeRow()).toMatchObject({ provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
-      summary: expect.stringContaining("switched from openai_responses to anthropic_agent_sdk after no funds") });
+    expect(await runLane()).toMatchObject({ provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk" });
     const lines = warn.mock.calls.filter((call) => call[1] === "Agent task switched provider after no funds");
     expect(lines).toHaveLength(1);
     expect(lines[0][0]).toEqual({ runId: expect.any(String), taskKind: "robot_fit_ranking", fromProvider: "openai_responses",
@@ -304,13 +295,13 @@ describe("a switch is visible to operators", () => {
     runOpenAIResponsesTask.mockRejectedValue(openAiError(429, "insufficient_quota", "insufficient_quota"));
     const { logger } = await import("../logger");
     const error = vi.spyOn(logger, "error");
-    await runOpenAiOnly(picker);
+    const result = await runOpenAiOnly(picker);
     const lines = error.mock.calls.filter((call) => call[1] === "Agent task failed: no provider with funds");
     expect(lines).toHaveLength(1);
     expect(lines[0][0]).toMatchObject({ taskKind: "robot_fit_ranking", fromProvider: "openai_responses", toProvider: null,
       errorClass: "no_funds", httpStatus: 429, errorCode: "insufficient_quota" });
     expect(JSON.stringify(error.mock.calls)).not.toContain("Jane");
-    expect(executeRow()).toMatchObject({ provider: "openai_responses", status: "failed" });
+    expect(result).toMatchObject({ provider: "openai_responses", status: "failed" });
   });
 
   it("writes one error line when the run fails after a switch", async () => {
@@ -320,15 +311,14 @@ describe("a switch is visible to operators", () => {
     const { logger } = await import("../logger");
     const warn = vi.spyOn(logger, "warn");
     const error = vi.spyOn(logger, "error");
-    await runLane();
+    const result = await runLane();
     expect(warn.mock.calls.filter((call) => call[1] === "Agent task switched provider after no funds")).toHaveLength(1);
     const lines = error.mock.calls.filter((call) => call[1] === "Agent task failed after switching provider");
     expect(lines).toHaveLength(1);
     expect(lines[0][0]).toMatchObject({ fromProvider: "openai_responses", toProvider: "anthropic_agent_sdk",
       secondAttemptThrew: true, secondHttpStatus: 500 });
     expect(error.mock.calls.filter((call) => call[1] === "Agent task failed")).toHaveLength(0);
-    expect(executeRow()).toMatchObject({ provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", status: "failed",
-      summary: expect.stringContaining("switched from openai_responses to anthropic_agent_sdk after no funds") });
+    expect(result).toMatchObject({ provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", status: "failed" });
   });
 });
 

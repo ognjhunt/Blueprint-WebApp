@@ -138,9 +138,8 @@ const DELIVERY_LEASE_MS = 5 * 60 * 1000;
 /**
  * The two introduction emails carry both sides' names and contact details in their body (and the other side's email as
  * the reply address). The introduction record holds them encrypted at rest; the outbox row holds them in plain text
- * only until it is sent or cancelled: the same write that marks it so clears `subject`, `body` and `replyTo`. Everything else the
- * outbox needs (key, kind, recipient, status, attempts, timestamps, receipts) stays. A row not yet sent keeps its body,
- * because the sender needs it.
+ * only until it is sent or cancelled (`clearedIntroductionDetails`, which clears every kind's row). A row not yet sent
+ * keeps its body, because the sender needs it.
  */
 const INTRODUCTION_KINDS: ReadonlySet<string> = new Set(["introduction_made_company", "introduction_made_site"]);
 
@@ -153,9 +152,31 @@ export function outboxSendIdentity(entry: { kind: string; replyTo?: string | nul
     ? entry.replyTo : CUSTOMER_JOB_EMAIL_IDENTITY.replyTo;
   return { ...CUSTOMER_JOB_EMAIL_IDENTITY, replyTo };
 }
-function clearedIntroductionDetails(entry: Pick<OutboxEntry, "kind">): Row {
-  // The subject goes too: the site's one names the company ("Meet {company}").
-  return INTRODUCTION_KINDS.has(entry.kind) ? { subject: "", body: "", replyTo: null, detailsClearedAtIso: nowIso() } : {};
+/** The digest a sent or cancelled row keeps in place of its recipient, so an identity check can still match it. */
+export function outboxRecipientDigest(to: string): string {
+  return createHash("sha256").update(`captureOutbox.to:${to}`).digest("hex");
+}
+
+/** Whether a row was addressed to `to`: its address while it has one, its digest once that is cleared. */
+export function outboxRecipientMatches(row: { to?: unknown; toDigest?: unknown }, to: string): boolean {
+  return row.to === to || (row.to === "" && row.toDigest === outboxRecipientDigest(to));
+}
+
+/** The digest a sent or cancelled row keeps in place of its subject and body, so a changed message is still told apart. */
+export function outboxMessageDigest(subject: string, body: string): string {
+  return createHash("sha256").update(`captureOutbox.message:${JSON.stringify([subject, body])}`).digest("hex");
+}
+
+/**
+ * Every row, once sent or cancelled, gives up what only the send needed: the recipient's address (kept as a digest),
+ * the subject (the site's "Meet {company}" names the company), the body (a site's email ends with its signed job link)
+ * and the reply address. The subject and body are kept only as one digest. Kind, job, status, attempts, times and
+ * receipts stay.
+ */
+function clearedIntroductionDetails(entry: Pick<OutboxEntry, "to"> & Partial<Pick<OutboxEntry, "subject" | "body">>): Row {
+  return { to: "", toDigest: outboxRecipientDigest(String(entry.to ?? "")),
+    messageDigest: outboxMessageDigest(String(entry.subject ?? ""), String(entry.body ?? "")), subject: "", body: "",
+    replyTo: null, detailsClearedAtIso: nowIso() };
 }
 
 // Render previews inherit the application's bindings, but must never consume

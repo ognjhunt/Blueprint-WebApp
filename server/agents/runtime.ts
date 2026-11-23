@@ -7,7 +7,6 @@ import { LANE_DATA_CLASSES, NO_PERMITTED_PROVIDER, PRIVACY_NOT_PERMITTED, PROFIL
 import { AgentEvidenceError, hydrateAgentEvidence, persistAgentEvidence, persistAgentEvidenceFailure, requiresMutationReconciliation } from "./private-evidence";
 import { createAgentCheckpoint } from "./checkpoints";
 import { attachRequestMeta, logger } from "../logger";
-import { recordOpsActionLog } from "./ops-action-logs";
 import { recordRuntimeEvent } from "./runtime-events";
 import {
   extractAgentCostTelemetry,
@@ -35,7 +34,6 @@ import type {
   NormalizedAgentTask,
   OutcomeContract,
   OutcomeEvaluation,
-  OpsActionRiskLevel,
   PersistedAgentRun,
   PersistedAgentSession,
   ApprovalPolicy,
@@ -392,69 +390,6 @@ function shouldRequireHumanReview(
   }
 
   return params.status !== "completed";
-}
-
-function riskLevelForTask(task: NormalizedAgentTask<unknown, unknown>): OpsActionRiskLevel {
-  const sensitiveActions = task.approval_policy.sensitive_actions || [];
-  if (
-    sensitiveActions.includes("financial") ||
-    sensitiveActions.includes("payout") ||
-    sensitiveActions.includes("rights") ||
-    sensitiveActions.includes("licensing") ||
-    sensitiveActions.includes("compliance")
-  ) {
-    return "critical";
-  }
-
-  if (
-    sensitiveActions.includes("destructive") ||
-    sensitiveActions.includes("preview_release")
-  ) {
-    return "high";
-  }
-
-  if (
-    task.tool_policy.mode === "browser" ||
-    task.tool_policy.mode === "external_harness" ||
-    task.tool_policy.mode === "mixed"
-  ) {
-    return "medium";
-  }
-
-  return "low";
-}
-
-async function logRunEvent(
-  task: NormalizedAgentTask<unknown, unknown>,
-  params: {
-    runId: string;
-    sessionId?: string | null;
-    actionKey: string;
-    status: "queued" | "started" | "completed" | "failed" | "pending_approval" | "cancelled" | "info";
-    summary: string;
-    requiresApproval?: boolean;
-    latencyMs?: number;
-    metadata?: Record<string, unknown>;
-    /** The provider and runtime that served the run, when they differ from the task's (a switch on no funds). */
-    servedBy?: { provider: AgentProvider; runtime: AgentProvider } | null;
-  },
-) {
-  await recordOpsActionLog({
-    session_id: params.sessionId || task.session_id || null,
-    run_id: params.runId,
-    session_key: task.session_key || null,
-    action_key: params.actionKey,
-    status: params.status,
-    summary: params.summary,
-    provider: params.servedBy?.provider ?? task.provider,
-    runtime: params.servedBy?.runtime ?? task.runtime,
-    task_kind: task.kind,
-    risk_level: riskLevelForTask(task),
-    reversible: !task.approval_policy.sensitive_actions.includes("destructive"),
-    requires_approval: params.requiresApproval ?? false,
-    latency_ms: params.latencyMs ?? null,
-    metadata: params.metadata || {},
-  });
 }
 
 /** The per-job site assessment ended (owner decision 2026-11-11). Every path
@@ -1028,15 +963,6 @@ async function evaluatePreRunCostStop(params: {
       ],
     },
   });
-  await logRunEvent(params.task, {
-    runId: params.runId,
-    sessionId: params.sessionId || params.task.session_id || null,
-    actionKey: "agent.run.cost_guardrail",
-    status: "failed",
-    summary: error,
-    requiresApproval: true,
-    metadata,
-  });
   if (params.sessionId) {
     await recordRuntimeEvent({
       session_id: params.sessionId,
@@ -1423,17 +1349,6 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       });
     }
 
-    await logRunEvent(normalizedTaskForLogs, {
-      runId,
-      sessionId: options?.sessionId || normalizedTask.session_id || null,
-      actionKey: "agent.run.approval_required",
-      status: "pending_approval",
-      summary: approval.reason || "Run requires approval before execution",
-      requiresApproval: true,
-      metadata: {
-        sensitive_actions: normalizedTask.approval_policy.sensitive_actions,
-      },
-    });
 
     return pendingResult;
   }
@@ -1542,19 +1457,6 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     };
   }
 
-  await logRunEvent(normalizedTaskForLogs, {
-    runId,
-    sessionId: options?.sessionId || normalizedTask.session_id || null,
-    actionKey: "agent.run.execute",
-    status: "started",
-    summary: `Executing ${normalizedTask.kind}`,
-    metadata: {
-      dispatch_mode: normalizedTask.session_policy.dispatch_mode,
-      tool_mode: normalizedTask.tool_policy.mode,
-      ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
-        .resolved_startup_context as Record<string, unknown> | undefined) || {}),
-    },
-  });
 
   if (options?.sessionId) {
     const session = await getSession(options.sessionId);
@@ -1733,17 +1635,6 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       const summary = accountingOnly
         ? `Recorded agent spend in ${spendAlert.windowKey}: $${spendAlert.window.cost_usd.toFixed(4)}; spending does not gate this customer assessment.`
         : `Agent spend ${spendAlert.status} threshold in ${spendAlert.windowKey}: $${spendAlert.window.cost_usd.toFixed(4)}.`;
-      await logRunEvent(normalizedTaskForLogs, {
-        runId,
-        sessionId: options?.sessionId || normalizedTask.session_id || null,
-        actionKey: "agent.run.cost_guardrail",
-        status: !accountingOnly && spendAlert.status === "stop" ? "failed" : "info",
-        summary,
-        metadata: {
-          cost_telemetry: costTelemetry,
-          cost_guardrail: costGuardrail,
-        },
-      });
       if (options?.sessionId) {
         await recordRuntimeEvent({
           session_id: options.sessionId,
@@ -1765,25 +1656,6 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     const outcomeSummary = status === "completed"
       ? `${normalizedTask.kind} completed`
       : result.error || `${normalizedTask.kind} finished with status ${status}`;
-    await logRunEvent(normalizedTaskForLogs, {
-      runId,
-      sessionId: options?.sessionId || normalizedTask.session_id || null,
-      actionKey: "agent.run.execute",
-      status: status === "failed" ? "failed" : status === "pending_approval" ? "pending_approval" : "completed",
-      summary: failover?.to_provider
-        ? `${outcomeSummary} (switched from ${failover.from_provider} to ${failover.to_provider} after no funds)`
-        : outcomeSummary,
-      servedBy: failover ? { provider: result.provider, runtime: result.runtime } : null,
-      requiresApproval: result.requires_approval,
-      latencyMs,
-      metadata: {
-        requires_human_review: result.requires_human_review,
-        cost_telemetry: costTelemetry,
-        cost_guardrail: costGuardrail,
-        ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
-          .resolved_startup_context as Record<string, unknown> | undefined) || {}),
-      },
-    });
 
     logger.info(
       {
@@ -1842,19 +1714,6 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       "Agent task failed",
     );
 
-    await logRunEvent(normalizedTaskForLogs, {
-      runId,
-      sessionId: options?.sessionId || normalizedTask.session_id || null,
-      actionKey: "agent.run.execute",
-      status: "failed",
-      summary: message,
-      metadata: {
-        exception: true,
-        ...(redactedError ? { failure: redactedError.detail } : {}),
-        ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
-          .resolved_startup_context as Record<string, unknown> | undefined) || {}),
-      },
-    }).catch(() => undefined);
 
     if (options?.sessionId) {
       const session = await getSession(options.sessionId).catch(() => null);

@@ -4,7 +4,6 @@ import { sharedFakeFirestoreState as state, sharedFakeFirestore as db } from "./
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
   default: { firestore: { FieldValue: { serverTimestamp: () => "timestamp" } } } }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("../agents/ops-action-logs", () => ({ recordOpsActionLog: vi.fn() }));
 vi.mock("../config/env", () => ({ isSiteVideoEvidenceEnabled: () => true }));
 vi.mock("../utils/captureUploadAuthorization", () => ({ authorizeCaptureUpload: async () => ({ allowed: true }) }));
 const review = vi.hoisted(() => vi.fn());

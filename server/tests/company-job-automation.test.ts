@@ -605,7 +605,9 @@ describe("the automatic send (E4)", () => {
     // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
     expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\n\nYou get an email like this for each new job\. Turn them off in Settings /);
     // The unsubscribe line names the emails it stops, never the scope's internal name.
-    expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+scope=optional_updates$/);
+    expect(alerts[0].body).toMatch(/\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+\/api\/growth\/email\/unsubscribe\?token=[A-Za-z0-9_-]+$/);
+    // The link carries a sealed token: no address in it.
+    expect(alerts[0].body).not.toMatch(/unsubscribe\?[^\s]*(email=|%40|@)/);
     expect(alerts[0].body).not.toMatch(/optional updates/i);
     expectNoSiteIn("the new-job emails", JSON.stringify(alerts));
     // No email to the site: its job link email already said where the job goes and how to stop (ledger AL38).
@@ -636,7 +638,7 @@ describe("the automatic send (E4)", () => {
     expect(html).toContain(">Open the job</a>");
     expect(html).not.toContain("Open your job page");
     expect(html).not.toMatch(/Privacy: |Unsubscribe from |scope=optional_updates&quot;|>--</);
-    expect(html).toMatch(/href="https:\/\/\S+\/api\/growth\/email\/unsubscribe\?email=[^"]+scope=optional_updates"[^>]*>Unsubscribe<\/a>/);
+    expect(html).toMatch(/href="https:\/\/\S+\/api\/growth\/email\/unsubscribe\?token=[A-Za-z0-9_-]+"[^>]*>Unsubscribe<\/a>/);
   });
 
   it("emails the site nothing when its job is sent, and sends no notice for a legacy description draft", async () => {
@@ -680,7 +682,8 @@ describe("the automatic send (E4)", () => {
     await deliverOutbox({ limit: 50 });
     const delivered = seams.sendEmail.mock.calls.map(([message]) => String(message.to));
     expect(delivered.filter(to => to.endsWith(".example") && to.startsWith("contact@"))).toEqual([NORTH.email]);
-    const status = (to: string) => outbox().find(row => row.kind === "robot_team_new_task" && row.to === to)?.status;
+    const { outboxRecipientMatches } = await import("../utils/captureOutbox");
+    const status = (to: string) => outbox().find(row => row.kind === "robot_team_new_task" && outboxRecipientMatches(row, to))?.status;
     expect([status(SOUTH.email), status(EAST.email), status(WEST.email)]).toEqual(["cancelled", "cancelled", "cancelled"]);
   });
 });
@@ -1587,7 +1590,8 @@ describe("a company must accept the current Terms and Privacy Policy before it s
       { siteEmail })).toMatchObject({ ok: true });
     withoutTerms({ termsAcceptance: { ...currentTermsAcceptance(), terms_version: "2026-11-02.1" } });
     await deliverOutbox({ limit: 50 });
-    expect(outbox().find(row => row.kind === "robot_team_new_task" && row.to === NORTH.email)).toMatchObject({ status: "cancelled" });
+    const { outboxRecipientMatches } = await import("../utils/captureOutbox");
+    expect(outbox().find(row => row.kind === "robot_team_new_task" && outboxRecipientMatches(row, NORTH.email))).toMatchObject({ status: "cancelled", to: "", body: "" });
     expect(outbox().find(row => row.kind === "introduction_made_company")).toMatchObject({ status: "cancelled" });
     expect(seams.sendEmail.mock.calls.map(([message]) => message.to)).not.toContain(NORTH.email);
     // And no new introduction can be asked for it.

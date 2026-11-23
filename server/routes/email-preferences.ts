@@ -5,6 +5,7 @@ import {
   normalizeSuppressionEmail,
   OPTIONAL_UPDATES_EMAILS,
   recordEmailSuppression,
+  verifyUnsubscribeToken,
 } from "../utils/email-suppression";
 
 const router = Router();
@@ -61,12 +62,15 @@ main{max-width:480px;margin:0 auto}button{font:inherit;padding:12px 20px;min-hei
 const wantsHtml = (req: Request) => req.accepts(["html", "json"]) === "html";
 
 async function unsubscribeHandler(req: Request, res: Response) {
-  const email = normalizeSuppressionEmail(getParam(req, "email"));
+  // A link carries a sealed token. A link sent before it (address and scope in the query) still works.
+  const token = getParam(req, "token");
+  const sealed = token ? verifyUnsubscribeToken(token) : null;
+  const email = token ? sealed?.email ?? "" : normalizeSuppressionEmail(getParam(req, "email"));
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     if (wantsHtml(req)) return res.status(HTTP_STATUS.BAD_REQUEST).type("html").send(page(`<p>${LINK_INCOMPLETE}</p>`));
     return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Valid email is required" });
   }
-  const scope = normalizeScope(getParam(req, "scope"));
+  const scope = sealed ? sealed.scope : normalizeScope(getParam(req, "scope"));
   const campaignId = getParam(req, "campaignId") || null;
   const cadenceId = getParam(req, "cadenceId") || null;
   const words = pageWords(scope, email);
@@ -78,15 +82,15 @@ async function unsubscribeHandler(req: Request, res: Response) {
     if (req.accepts(["html", "json"]) === "json") return res.status(HTTP_STATUS.OK).json({
       ok: true, confirmationRequired: true, email, scope,
     });
-    const hidden = Object.entries({ email, scope, ...(campaignId ? { campaignId } : {}), ...(cadenceId ? { cadenceId } : {}) })
+    const hidden = Object.entries({ ...(sealed ? { token } : { email, scope }), ...(campaignId ? { campaignId } : {}), ...(cadenceId ? { cadenceId } : {}) })
       .map(([name, value]) => `<input type="hidden" name="${name}" value="${escapeHtml(value)}">`).join("");
     return res.status(HTTP_STATUS.OK).type("html").send(page(`<h1>${words.heading}</h1><p>${words.text}</p>
       <form method="post" action="/api/growth/email/unsubscribe">${hidden}<button type="submit" name="confirmation" value="unsubscribe">Unsubscribe</button></form>`));
   }
   // The form carries the exact target shown on GET. Query parameters cannot
   // substitute another recipient or scope behind a deliberate confirmation.
-  if (req.body?.confirmation !== "unsubscribe" || normalizeSuppressionEmail(req.body?.email) !== email
-    || normalizeScope(req.body?.scope) !== scope) {
+  if (req.body?.confirmation !== "unsubscribe" || (sealed ? req.body?.token !== token
+    : normalizeSuppressionEmail(req.body?.email) !== email || normalizeScope(req.body?.scope) !== scope)) {
     if (wantsHtml(req)) return res.status(HTTP_STATUS.BAD_REQUEST).type("html").send(page(`<p>${LINK_CHANGED}</p>`));
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       ok: false, error: "Confirm the matching email preference before submitting", confirmationRequired: true,
