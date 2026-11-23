@@ -199,10 +199,12 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/beta", "/jobs", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
+    ["/", "/beta", "/jobs", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(8);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(7);
+    // How it works is part of the home page and /how-it-works redirects there (owner, 2026-11-23): a sitemap lists no redirect.
+    expect(sitemap).not.toContain("<loc>https://tryblueprint.io/how-it-works</loc>");
     // Refunds left the product copy (launch copy, 2026-11-20), and the page itself left with Terms 2026-11-21.1.
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/refunds</loc>");
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/jobs-we-support</loc>");
