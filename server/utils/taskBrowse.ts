@@ -4,7 +4,7 @@ import type { LibraryJobStage, TaskBrowseCard, TaskCardDetail } from "../../clie
 import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
 import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
-import { countryOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
+import { companyPlaceOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { storedCompanySimulation } from "./websiteCompanySimulation";
 
@@ -58,11 +58,11 @@ async function libraryCard(card: TaskBrowseCard, record: Record<string, any>,
   const { captureId } = siteWalkthroughIdentity(card.id, record);
   const simulationDownloadAvailable = Boolean(storedCompanySimulation(session, captureId));
   const [country, simulationStage, known] = await Promise.all([
-    countryOf(record),
+    companyPlaceOf(record),
     simulationDownloadAvailable ? "simulation_built" as const : libraryJobStage(card.id, record),
     knownSiteIdentity(record).catch(() => null),
   ]);
-  // The country only: never the site's name, address, city or state.
+  // The country, with the state or city only as the accepted statement allows (`companyPlaceOf`): never the site's name or address.
   return { ...card, region: card.region || country || "", sentence: siteSentenceForCompany(brief, known), simulationStage,
     simulationDownloadAvailable };
 }

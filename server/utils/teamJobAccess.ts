@@ -115,6 +115,13 @@ function rightsHold(raw: Record<string, any>): TeamJobClosedReason | null {
 /** Recording statement versions whose wording shares the job with approved deployment companies (`recordingRightsStatement.ts`). */
 export const RECORDING_VERSIONS_THAT_SHARE: readonly string[] = SHARING_RECORDING_STATEMENT_VERSIONS;
 
+/**
+ * How much of the place a company may see, by the recording statement version the site accepted: "state" shows the
+ * state and country, "city" the city, state and country. A version not listed shows the country alone. Empty until the
+ * owner writes a statement version whose wording names the place and adds it here (`companyPlaceOf`).
+ */
+export const RECORDING_VERSION_PLACE_LEVEL: Readonly<Record<string, "state" | "city">> = {};
+
 /** The facts `teamJobAccess` needs that live outside the job record. Absent fields are not checked (see the header). */
 export interface TeamJobAccessContext {
   /** Verified on production reads from the current capture's stored company clip. */
