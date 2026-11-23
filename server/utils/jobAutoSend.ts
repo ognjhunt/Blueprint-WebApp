@@ -96,6 +96,8 @@ export async function sendJobToCompaniesIfListed(requestId: string): Promise<Aut
   }
 }
 
+const OPEN_JOBS_PAGE = 200;
+
 export const openJobsKey = (companyId: string) => `robot_team_open_jobs:${companyId}`;
 
 /**
@@ -113,14 +115,23 @@ export async function emailOpenJobsToCompany(companyId: string): Promise<boolean
     const company = (await store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId).get()).data() as RobotTeamAccessRecord | undefined;
     const email = String(company?.email ?? "").trim().toLowerCase();
     if (!company || !companyMaySeeJobs(company) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
-    const jobs = await store.collection("inboundRequests")
-      .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).limit(200).get();
+    // Every page of shared jobs is read until one qualifies: a full first page of withdrawn or already-sent jobs
+    // must not hide an open one behind it.
     let jobId: string | null = null;
-    for (const doc of jobs.docs) {
-      if (!doc.data()?.[AUTO_SEND_FIELD]?.sentAtIso) continue;
-      const sent = await doc.ref.collection(COMPANY_SENDS_COLLECTION).where("companyId", "==", companyId).limit(1).get();
-      if (!sent.empty) continue;
-      if ((await loadCompanyJobAccess(doc.id, doc.data())).access.listed) { jobId = doc.id; break; }
+    let after: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+    while (!jobId) {
+      let query = store.collection("inboundRequests")
+        .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).orderBy("__name__").limit(OPEN_JOBS_PAGE);
+      if (after) query = query.startAfter(after);
+      const jobs = await query.get();
+      for (const doc of jobs.docs) {
+        if (!doc.data()?.[AUTO_SEND_FIELD]?.sentAtIso) continue;
+        const sent = await doc.ref.collection(COMPANY_SENDS_COLLECTION).where("companyId", "==", companyId).limit(1).get();
+        if (!sent.empty) continue;
+        if ((await loadCompanyJobAccess(doc.id, doc.data())).access.listed) { jobId = doc.id; break; }
+      }
+      if (jobs.docs.length < OPEN_JOBS_PAGE) break;
+      after = jobs.docs[jobs.docs.length - 1];
     }
     if (!jobId) return false;
     const message = openJobsEmail({ to: email });
