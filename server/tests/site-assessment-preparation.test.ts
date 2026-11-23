@@ -1189,3 +1189,74 @@ it("a renewed grant's own intent window is mirrored and funds a reservation; the
     expect(job().website_scene_sponsorship_execution_window.intake_id).toBe("intake-renewal");
   } finally {vi.restoreAllMocks();}
 });
+// The video reading's paid calls (captureCoverageReviews/budget-*) count on the job's one $40 cap from every side: an
+// admission made after readings counts what they hold or spent, read in the same transaction, so whichever admission
+// comes last the job's total across all its ledgers never passes $40.
+import { humanDecisionDigest } from "../utils/human-reply-admission";
+import { reserveCaptureCoverageInference } from "../utils/captureCoverageInferenceBudget";
+const readingBudget=(captureId:string)=>`captureCoverageReviews/budget-${humanDecisionDigest({capture_id:captureId})}`;
+function readingsHold(usd:number,captureId="walkthrough-one") {
+  state.docs.set(readingBudget(captureId),{schema_version:"capture_coverage_inference_budget.v1",capture_id:captureId,
+    cap_usd:null,exposure_usd:usd,calls:3,pending_token:null,historical_usage_status:"unreconciled"});
+}
+it.each([
+  ["fits the cap exactly",0.6,true],
+  ["one cent past the cap",0.61,false],
+] as const)("a Pipeline preparation reservation after readings that hold 39.40 dollars: %s",async(_label,askedUsd,admitted)=>{
+  const {spend}=await budgetJob();
+  readingsHold(39.4);
+  await withSignedRoute(async send=>{
+    const response=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d",askedUsd)});
+    expect(response.status).toBe(admitted?200:409);
+    if(!admitted) expect(await response.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
+  });
+  const rows=(state.docs.get("inboundRequests/one") as any).website_preparation_reservations??{};
+  expect(Object.keys(rows)).toEqual(admitted?["d".repeat(64)]:[]);
+});
+it("counts the readings of every capture of the job, the current one and one the site replaced",async()=>{
+  const {spend}=await budgetJob();
+  readingsHold(20);
+  // An earlier video of the same job, read before the site replaced it: its review names the job.
+  state.docs.set(`captureCoverageReviews/${"e".repeat(64)}`,{requestId:"one",captureId:"walkthrough-zero",state:"completed"});
+  readingsHold(19.5,"walkthrough-zero");
+  await expect(reserveWebsitePreparationSpend("one",spend("d",0.51))).rejects.toThrow("website_scene_preparation_budget_exhausted");
+  await expect(reserveWebsitePreparationSpend("one",spend("d",0.5))).resolves.toMatchObject({status:"admitted"});
+});
+it("two preparation reservations racing after readings cannot both pass",async()=>{
+  const {spend}=await budgetJob();
+  readingsHold(39.2);
+  const results=await Promise.all(["d","e"].map(n=>reserveWebsitePreparationSpend("one",spend(n,0.5))
+    .then(row=>row.status,(error:Error)=>error.message)));
+  expect(results.sort()).toEqual(["admitted","website_scene_preparation_budget_exhausted"]);
+  expect(Object.keys((state.docs.get("inboundRequests/one") as any).website_preparation_reservations)).toHaveLength(1);
+});
+function seedReading(reviewId:string) {
+  const request=state.docs.get("inboundRequests/one") as any;
+  state.docs.set(`captureCoverageReviews/${reviewId}`,{state:"running",attempts:1,claim_token:"owned-claim",captureId:"walkthrough-one",requestId:"one",
+    binding:{source:structuredClone(request.capture_privacy_source_bound_decision.producer_source),brief_digest:humanDecisionDigest(state.docs.get("siteTaskBriefs/one"))}});
+  return {capture_id:"walkthrough-one",review_id:reviewId,coverage_claim_token:"owned-claim"};
+}
+it("a preparation reservation after a reading was admitted counts that reading's hold",async()=>{
+  const {spend}=await budgetJob();
+  readingsHold(37);
+  const call=await reserveCaptureCoverageInference("gemini-3.8-flash",seedReading("f".repeat(64)));
+  const room=Math.round((40-37-call.receipt.reserved_usd)*1_000_000)/1_000_000;
+  await expect(reserveWebsitePreparationSpend("one",spend("d",room+0.01))).rejects.toThrow("website_scene_preparation_budget_exhausted");
+  await expect(reserveWebsitePreparationSpend("one",spend("d",room))).resolves.toMatchObject({status:"admitted"});
+});
+it("a reading and a preparation reservation racing for the last dollars cannot both pass",async()=>{
+  const {spend}=await budgetJob();
+  readingsHold(37);
+  const reading=reserveCaptureCoverageInference("gemini-3.8-flash",seedReading("f".repeat(64)))
+    .then(call=>({admitted:true,reserved:call.receipt.reserved_usd}),(error:Error)=>({admitted:false,error:error.message}));
+  const preparation=reserveWebsitePreparationSpend("one",spend("d",1.2)).then(row=>row.status,(error:Error)=>error.message);
+  const [read,prepared]=await Promise.all([reading,preparation]);
+  // $37 held + $1.20 + one reading's hold is past $40: exactly one of the two starts.
+  expect([read.admitted,prepared==="admitted"].filter(Boolean)).toHaveLength(1);
+  if(prepared!=="admitted") expect(prepared).toBe("website_scene_preparation_budget_exhausted");
+  if(!read.admitted) expect(read).toMatchObject({error:"coverage_budget_job_cap_reached"});
+  const exposure=(state.docs.get(readingBudget("walkthrough-one")) as any).exposure_usd;
+  const prep=Object.values((state.docs.get("inboundRequests/one") as any).website_preparation_reservations??{})
+    .reduce((sum:number,row:any)=>sum+row.admission.maximum_cost_usd,0);
+  expect(exposure+prep).toBeLessThanOrEqual(40);
+});

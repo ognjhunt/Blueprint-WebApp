@@ -14,6 +14,10 @@
  * flagged. Nothing raises the cap: owner grants, Atlas authorization figures, grant policies, the old $100
  * safety limit and the automatic budget extension are gone.
  *
+ * The video reading's paid calls (`captureCoverageInferenceBudget.ts`) are one of these ledgers: every capture of the
+ * job counts its whole exposure, held plus settled, the figure the reading's own admission counts. So whichever
+ * admission comes last, a reading or any other, the job's total across all of them stays inside the cap.
+ *
  * A job in flight across the switch is counted the same way: every row it holds or settled before counts
  * against the cap, read exactly as before. A job already past it admits nothing more.
  */
@@ -21,6 +25,7 @@ import capContract from "../../contracts/pipeline/website-job-spend-cap.v1.json"
 import { parseBetaPolicyScreeningPublication, screeningMoneyMicros, SCREENING_LEGACY_SITE_LIMIT_USD } from "./betaPolicyScreeningContract";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { isNavigationStrategy } from "./navigationSceneIntake";
+import { humanDecisionDigest } from "./human-reply-admission";
 
 /** The most one website job may spend, in dollars: the committed figure, never a hosting setting. */
 export const WEBSITE_JOB_SPEND_CAP_USD = (() => {
@@ -43,10 +48,16 @@ export function websiteJobCeiling(): { maximum_cost_usd: number; source: "job_sp
 export type WebsiteJobLedgerReader = {
   sceneIntakes(): Promise<Array<Record<string, any>>>;
   screeningRuns(): Promise<Array<{ run: Record<string, any>; result: Record<string, any> | null }>>;
+  /** Each capture of the job with the video reading's budget record for it (null when it has none). */
+  captureReadings(): Promise<Array<{ capture_id: string; budget: Record<string, any> | null }>>;
 };
 
 type Store = { collection(name: string): any };
 type Transaction = { get(reference: any): Promise<any> };
+
+const CAPTURE_ID = /^[A-Za-z0-9._-]{1,200}$/;
+/** The video reading's budget record for one capture, as `captureCoverageInferenceBudget.ts` keys it. */
+export const captureReadingBudgetId = (captureId: string) => `budget-${humanDecisionDigest({ capture_id: captureId })}`;
 
 /** The same job queries the job pages already run (and index), inside the admission transaction. */
 export function transactionJobLedgerReader(store: Store, transaction: Transaction, requestId: string): WebsiteJobLedgerReader {
@@ -61,6 +72,21 @@ export function transactionJobLedgerReader(store: Store, transaction: Transactio
         result: typeof run.result_record_id === "string" && run.result_record_id
           ? (await transaction.get(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id))).data() ?? null
           : null })));
+    },
+    // Every capture the job has named: the one the job's privacy decision binds now (every reading is admitted only
+    // against it), each capture a reading review or a reading budget names for the job, and each video the site
+    // uploaded for it. Single-field queries on one collection; no new index.
+    captureReadings: async () => {
+      const reviews = store.collection("captureCoverageReviews");
+      const record = (await transaction.get(store.collection("inboundRequests").doc(requestId))).data() ?? {};
+      const named = (await transaction.get(reviews.where("requestId", "==", requestId))).docs.map((row: any) => row.data()?.captureId);
+      const budgets = (await transaction.get(reviews.where("request_id", "==", requestId))).docs.map((row: any) => row.data()?.capture_id);
+      const uploads = (await transaction.get(store.collection("captureUploadSessions")
+        .where("browser_pending_delivery.request_id", "==", requestId))).docs.map((row: any) => row.id);
+      const captures = [...new Set([record.capture_privacy_source_bound_decision?.capture_id, record.capture_privacy_screen?.capture_id,
+        ...named, ...budgets, ...uploads])].filter((id): id is string => typeof id === "string" && CAPTURE_ID.test(id)).sort();
+      return Promise.all(captures.map(async capture_id => ({ capture_id,
+        budget: (await transaction.get(reviews.doc(captureReadingBudgetId(capture_id)))).data() ?? null })));
     },
   };
 }
@@ -201,8 +227,18 @@ export async function websiteJobSpend(input: { record: Record<string, any>; read
   }, 0);
   const screening = screeningMicros(await input.reader.screeningRuns(), unreadable);
   readable += screening.readable;
+  // The video reading's whole exposure on each capture: what its calls hold, plus what answered calls cost past
+  // their hold. A record that cannot be read counts as unbounded, as the reading's own admission refuses it.
+  const reading = (await input.reader.captureReadings()).reduce((sum, { capture_id, budget }) => {
+    if (!budget) return sum;
+    const value = budget.capture_id === capture_id && amount(budget.exposure_usd) ? micros(budget.exposure_usd) : Infinity;
+    if (Number.isFinite(value)) readable += value;
+    else unreadable.push(`video reading of capture ${capture_id}`);
+    return sum + value;
+  }, 0);
   return { preparation_micros: preparation, native_construction_micros: native, screening_micros: screening.counted,
-    total_micros: preparation + native + screening.counted, readable_total_micros: readable, unreadable };
+    capture_reading_micros: reading, total_micros: preparation + native + screening.counted + reading,
+    readable_total_micros: readable, unreadable };
 }
 
 /** The read-only projection returned with the Atlas configuration; it authorizes nothing. */
@@ -214,6 +250,7 @@ export function websiteJobCeilingSummary(ceiling: ReturnType<typeof websiteJobCe
   return { schema_version: "website_job_ceiling.v1", maximum_cost_usd: ceiling.maximum_cost_usd,
     source: ceiling.source, preparation_cost_usd: finite(spend.preparation_micros),
     native_construction_cost_usd: finite(spend.native_construction_micros), screening_cost_usd: finite(spend.screening_micros),
+    capture_reading_cost_usd: finite(spend.capture_reading_micros),
     reserved_or_settled_cost_usd: finite(spend.total_micros),
     remaining_cost_usd: Number.isFinite(spend.total_micros) ? dollars(Math.max(0, limit - spend.total_micros)) : 0 };
 }

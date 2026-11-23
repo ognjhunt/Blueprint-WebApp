@@ -10,9 +10,9 @@ import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowser
 import { advisoryContextDigest } from "./siteAssessmentContext";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
 import type { AssessmentRecovery } from "./inferenceProgrammeAdmission";
-import { checkWebsiteJobCeiling, transactionJobLedgerReader } from "./websiteJobCeiling";
+import { captureReadingBudgetId, checkWebsiteJobCeiling, transactionJobLedgerReader } from "./websiteJobCeiling";
 
-const budgetFor = (captureId: string) => db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: captureId })}`);
+const budgetFor = (captureId: string) => db!.collection("captureCoverageReviews").doc(captureReadingBudgetId(captureId));
 const digest = humanDecisionDigest;
 const privacyFor = (request: any) => request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
 function assertSource(request: any, captureId: string, source: unknown) {
@@ -121,10 +121,11 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       retiredRef = ref;
     }
     const exposure = (state?.exposure_usd ?? 0) + reserved;
-    // The job's one $40 cap (owner, 2026-11-19): what the job's other ledgers hold or spent, plus everything this
-    // capture's video readings have held or spent with this call's reservation, must fit, or no paid read starts.
+    // The job's one $40 cap (owner, 2026-11-19): what every ledger of the job holds or spent, this capture's and
+    // every other capture's video readings among them (this capture is the one the job's privacy decision binds, so
+    // the reader counts it), plus this call's reservation, must fit, or no paid read starts.
     const job = await checkWebsiteJobCeiling({ record: binding.request ?? {},
-      reader: transactionJobLedgerReader(db!, tx, binding.requestId), additionalCostUsd: exposure });
+      reader: transactionJobLedgerReader(db!, tx, binding.requestId), additionalCostUsd: reserved });
     if (job.exceeded) throw new Error("coverage_budget_job_cap_reached");
     const intent = { schema_version: "capture_inference_call.v1", admission_token: token, capture_id: captureId,
       request_id: binding.requestId, run_id: runId ?? null, owner_run_id: binding.ownerRunId, review_id: reviewId ?? null, claim_token: claim ?? null,
@@ -133,7 +134,7 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       state: "admitted", cost_estimate_usd: null, created_at_ms: Date.now() };
     if (retiredRef) tx.set(retiredRef, { state: "unknown", retired_for_distinct_call_token: token, retired_at_ms: Date.now() }, { merge: true });
     tx.set(callRef, intent);
-    tx.set(budgetRef, { schema_version: "capture_coverage_inference_budget.v1", capture_id: captureId,
+    tx.set(budgetRef, { schema_version: "capture_coverage_inference_budget.v1", capture_id: captureId, request_id: binding.requestId,
       cap_usd: state?.cap_usd ?? null, exposure_usd: exposure, calls: (state?.calls ?? 0) + 1,
       pending_token: token, ...(state ? {} : { historical_usage_status: "unreconciled" }), last_review_id: reviewId ?? null, last_assessment_run_id: runId ?? null, updated_at_ms: Date.now() }, { merge: true });
     const { request: _request, ...admitted } = binding;

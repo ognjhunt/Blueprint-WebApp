@@ -189,7 +189,7 @@ describe("automatic consented Atlas grant", () => {
       authority: { ...stored, authorization_digest: crossRuntimeDigest(stored) }, policy: runtime,
       reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2,
       job_ceiling: { schema_version: "website_job_ceiling.v1", maximum_cost_usd: 40, source: "job_spending_cap",
-        preparation_cost_usd: 0, native_construction_cost_usd: 0, screening_cost_usd: 0,
+        preparation_cost_usd: 0, native_construction_cost_usd: 0, screening_cost_usd: 0, capture_reading_cost_usd: 0,
         reserved_or_settled_cost_usd: 0, remaining_cost_usd: 40 },
       task_context_digest: contextDigest(), source_video_digest: sha("5"), dispatch_authorized: false });
     // Byte-stable on resume, created once, and unchanged by a task edit.
@@ -738,7 +738,7 @@ describe("one cap per job (owner, 2026-10-30; one figure, $40, since 2026-11-19)
     expect(await reserveWebsitePreparationSpend("req1", atlasSpend())).toMatchObject({ status: "admitted" });
     expect((await configure({ create: false })).job_ceiling).toEqual({ schema_version: "website_job_ceiling.v1",
       maximum_cost_usd: 40, source: "job_spending_cap", preparation_cost_usd: 2, native_construction_cost_usd: 38,
-      screening_cost_usd: 0, reserved_or_settled_cost_usd: 40, remaining_cost_usd: 0 });
+      screening_cost_usd: 0, capture_reading_cost_usd: 0, reserved_or_settled_cost_usd: 40, remaining_cost_usd: 0 });
     // A failed Atlas operation World Labs never charged releases its hold.
     expect(await settleWebsitePreparationSpend("req1", atlasOutcome("1", "failed")))
       .toMatchObject({ status: "settled", actual_cost_usd: 0 });
