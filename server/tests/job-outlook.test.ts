@@ -185,7 +185,15 @@ describe("the job's outlook, from the rule", () => {
 
   it("is reading while the video is read or its answer is missing", () => {
     expect(jobOutlook(base({ answer: null })).phase).toBe("reading");
-    expect(jobOutlook(base({ answer: { state: "reading", unsized: false, reason: null }, windowEnded: true })).phase).toBe("reading");
+    expect(jobOutlook(base({ answer: { state: "reading", unsized: false, reason: null } })).phase).toBe("reading");
+  });
+
+  it("says the job's time ran out, not that the video is being watched, once nothing will read it any more", () => {
+    // The queue ends the reading when the window's ending is recorded (`captureCoverageQueue.ts`).
+    const reading = { state: "reading" as const, unsized: false, reason: null };
+    expect(jobOutlook(base({ answer: reading, windowEnded: true }))).toEqual({ phase: "no_test", reason: "window_expired",
+      sentence: "The time for this job ran out." });
+    expect(jobOutlook(base({ answer: null, noGrantEnded: true }))).toMatchObject({ phase: "no_test", reason: "no_grant" });
   });
 
   it("calls a hold a hold: only after one may a test result still come", () => {

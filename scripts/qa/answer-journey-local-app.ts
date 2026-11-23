@@ -60,7 +60,9 @@ const syntheticReading = {
 const SYNTHETIC_TASK = 'Pick up the sealed carton from the end of the conveyor and place it on the cart.';
 
 const harness = {
-  videoModel: { generateCalls: 0, uploads: [] as Array<{ bytes: number; contentType: string | null }>, deletes: 0 },
+  videoModel: { generateCalls: 0, uploads: [] as Array<{ bytes: number; contentType: string | null }>, deletes: 0,
+    /** How many of the next generation calls the scripted provider refuses as an account with no credit left (HTTP 429). */
+    refuseNext: 0, refused: 0 },
   signedReads: 0,
   /** Set only while a deliver-outbox pass runs: what the outbox handed the mail provider. */
   mailPayloads: null as null | Array<{ to: string[]; replyTo: string | null; subject: string }>,
@@ -89,6 +91,11 @@ async function scriptedVideoModel(url: URL, init: RequestInit = {}): Promise<Res
   }
   if (method === 'DELETE' && url.pathname.startsWith('/v1beta/files/')) { harness.videoModel.deletes++; return json({}); }
   if (method === 'POST' && url.pathname.endsWith(':generateContent')) {
+    if (harness.videoModel.refuseNext > 0) {
+      harness.videoModel.refuseNext--;
+      harness.videoModel.refused++;
+      return json({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'harness: no credit left on this account' } }, { status: 429 });
+    }
     harness.videoModel.generateCalls++;
     const request = JSON.parse(String(init.body || '{}'));
     const prompt: string = request.contents?.[0]?.parts?.find((part: { text?: string }) => typeof part.text === 'string')?.text ?? '';
@@ -194,6 +201,22 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
   // Runs the production entry point once and waits for its single pass to finish.
   // The queue walks pending reviews ten at a time from a stored cursor, so a job can need more
   // than one pass; with `requestId` this ticks until that job's review has left the queue.
+  // The scripted provider refuses the next `calls` generation calls, as an account with no credit left does.
+  app.post('/api/reliability/video-model-refuses', loopbackOnly, (req, res) => {
+    const calls = Number(req.query.calls);
+    if (!Number.isSafeInteger(calls) || calls < 0 || calls > 20) return res.status(400).json({ error: 'calls 0..20 required' });
+    harness.videoModel.refuseNext = calls;
+    res.json({ refuseNext: calls });
+  });
+  // Stands in for the provider back-off passing (minutes to an hour) on this one job's reading: nothing else changes.
+  app.post('/api/reliability/provider-wait-elapsed', loopbackOnly, async (req, res) => {
+    const requestId = String(req.query.requestId || '');
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(requestId)) return res.status(400).json({ error: 'requestId required' });
+    const rows = await dbAdmin.collection('captureCoverageReviews').where('requestId', '==', requestId).get();
+    const waiting = rows.docs.filter(row => row.data().state === 'waiting_provider');
+    for (const row of waiting) await row.ref.set({ retry_after_ms: 0 }, { merge: true });
+    res.json({ waiting: waiting.length, attempts: waiting.map(row => row.data().attempts), refused: harness.videoModel.refused });
+  });
   app.post('/api/reliability/tick', loopbackOnly, async (req, res) => {
     const requestId = typeof req.query.requestId === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(req.query.requestId) ? req.query.requestId : null;
     const before = harness.videoModel.generateCalls;

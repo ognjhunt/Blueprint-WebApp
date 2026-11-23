@@ -182,3 +182,32 @@ describe("provider usage normalization retains unexplained exposure",()=>{
   expect(()=>budget.authorize("gemini","gemini-3.8-flash")).not.toThrow();
  });
 });
+
+/**
+ * The video reading's paid calls count on the job's one $40 cap (owner, 2026-11-19), with the job's other ledgers: at
+ * the cap no further paid reading starts. Before, the reservation checked only the account's daily cap, so retries of a
+ * reading could spend on one job without bound.
+ */
+describe("the job's $40 cap on the video reading's paid calls", () => {
+  const budgetPath = `captureCoverageReviews/budget-${humanDecisionDigest({ capture_id: metadata.capture_id })}`;
+  const holding = (usd: number) => ({ "prep-1": { admission: { maximum_cost_usd: usd } } });
+
+  it("admits a reading while the job's other spend and this capture's readings fit under the cap", async () => {
+    sharedFakeFirestoreState.docs.get("inboundRequests/one")!.website_preparation_reservations = holding(38);
+    const call = await reserveCaptureCoverageInference("gemini-3.8-flash", metadata);
+    expect(sharedFakeFirestoreState.docs.get(budgetPath)).toMatchObject({ calls: 1, pending_token: call.receipt.admission_token });
+  });
+
+  it("starts no paid reading once the job's other spend leaves no room, and writes no call intent", async () => {
+    sharedFakeFirestoreState.docs.get("inboundRequests/one")!.website_preparation_reservations = holding(39);
+    await expect(reserveCaptureCoverageInference("gemini-3.8-flash", metadata)).rejects.toThrow("coverage_budget_job_cap_reached");
+    expect(sharedFakeFirestoreState.docs.get(budgetPath)).toBeUndefined();
+  });
+
+  it("counts every earlier reading of the capture, answered or not, so retries stop at the cap", async () => {
+    sharedFakeFirestoreState.docs.set(budgetPath, { schema_version: "capture_coverage_inference_budget.v1", capture_id: metadata.capture_id,
+      cap_usd: null, exposure_usd: 39, calls: 21, pending_token: null });
+    await expect(reserveCaptureCoverageInference("gemini-3.8-flash", metadata)).rejects.toThrow("coverage_budget_job_cap_reached");
+    expect(sharedFakeFirestoreState.docs.get(budgetPath)).toMatchObject({ exposure_usd: 39, calls: 21, pending_token: null });
+  });
+});

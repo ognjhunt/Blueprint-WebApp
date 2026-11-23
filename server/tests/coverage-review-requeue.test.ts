@@ -74,14 +74,17 @@ async function tickAfter(ms: number) {
 }
 const meetsCallInFlight = async (params: { onWaiting?: (reason: string) => void }) => { params.onWaiting?.("coverage_budget_call_in_flight"); return null; };
 
-/** The real job's fault: every attempt lost to a call in flight, past the wait bound, until the reading is exhausted. */
+/**
+ * The real job's fault, as the queue left it before waits stopped counting: every attempt lost to a call in flight
+ * (each wait counted past its old 30-minute bound) until the reading was exhausted. A wait no longer counts, so the
+ * record is written as that queue wrote it.
+ */
 async function exhaustByWaits() {
   seams.review.mockImplementation(meetsCallInFlight);
   await tickAfter(0);
-  vi.setSystemTime(T0 + 31 * 60_000);
-  for (let pass = 0; pass < 10 && reviewOf()?.state !== "review_required"; pass++) await tickAfter(61_000);
-  expect(reviewOf()).toMatchObject({ state: "review_required", reason: "automatic_review_attempts_exhausted" });
-  expect(request().capture_coverage_pending).toBe(false);
+  patchJob({ state: "waiting_prerequisite", attempts: 3, wait_reason: "coverage_budget_call_in_flight", wait_counted: true });
+  patchRequest({ capture_coverage_pending: false,
+    capture_coverage_review: { review_id: jobEntry()![0].split("/")[1], state: "review_required", reason: "automatic_review_attempts_exhausted" } });
   seams.review.mockReset();
 }
 /** Three real failed reads, as the queue counts them. */
