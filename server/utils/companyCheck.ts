@@ -236,3 +236,25 @@ export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRec
   await notifySlackRobotTeamAccessApplication({ email: record.email, autoApproved: rung?.outcome === "approved",
     ...(rung ? { check: rung } : {}) }).catch(() => undefined);
 }
+
+/** An application left unchecked this long (the server restarted mid-check, or it came before the rule) is swept. */
+export const COMPANY_CHECK_SWEEP_AFTER_MS = 10 * 60 * 1000;
+const SWEEP_PER_PASS = 5;
+const SWEEP_SCAN_LIMIT = 200;
+
+/**
+ * The ops monitor's catch-up (`betaOpsMonitor.ts`, step 8): a waiting deployment-company application with no check
+ * after ten minutes is checked now and Slack rings with what was found, as at the moment it applied. At most five
+ * a pass, oldest first; the daily cap still applies. Returns how many were checked.
+ */
+export async function sweepUncheckedCompanyApplications(nowMs = Date.now(), deps: CompanyCheckDeps = defaultDeps): Promise<number> {
+  if (!db) return 0;
+  const { docs } = await db.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "applied").limit(SWEEP_SCAN_LIMIT).get();
+  const due = docs.map(doc => ({ id: doc.id, record: doc.data() as RobotTeamAccessRecord }))
+    .filter(({ id, record }) => !record.companyCheck && record.partnerRole !== "technology" && typeof record.email === "string"
+      && accessRecordId(record.email) === id && Date.parse(String(record.appliedAtIso ?? "")) <= nowMs - COMPANY_CHECK_SWEEP_AFTER_MS)
+    .sort((a, b) => String(a.record.appliedAtIso).localeCompare(String(b.record.appliedAtIso)))
+    .slice(0, SWEEP_PER_PASS);
+  for (const { record } of due) await checkNewCompanyApplication(record, deps);
+  return due.length;
+}

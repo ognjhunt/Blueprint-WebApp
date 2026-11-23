@@ -215,3 +215,24 @@ describe("the bell", () => {
     expect(slack).toHaveBeenLastCalledWith({ email: "ada@arm.example", autoApproved: false, check: { outcome: "needs_owner", reasons: ["check_failed"] } });
   });
 });
+
+// An application the immediate check missed (a restart mid-check, or one that came before the rule) is not left
+// waiting silently: the ops monitor checks it after ten minutes and Slack rings.
+describe("the catch-up sweep", () => {
+  it("checks an unchecked waiting application after ten minutes, rings Slack, and leaves checked or newer ones alone", async () => {
+    const { id, record } = await apply();
+    const applied = Date.parse(record.appliedAtIso);
+    expect(await check.sweepUncheckedCompanyApplications(applied + 60_000, deps())).toBe(0);
+    expect(slack).not.toHaveBeenCalled();
+    expect(await check.sweepUncheckedCompanyApplications(applied + check.COMPANY_CHECK_SWEEP_AFTER_MS, deps())).toBe(1);
+    expect(stored(id)).toMatchObject({ status: "approved", companyCheck: { outcome: "approved" } });
+    expect(slack).toHaveBeenLastCalledWith({ email: "ada@arm.example", autoApproved: true, check: { outcome: "approved", reasons: [] } });
+    // Once checked (or decided), it is never checked again.
+    expect(await check.sweepUncheckedCompanyApplications(applied + 3_600_000, deps())).toBe(0);
+  });
+
+  it("never sweeps a technology partner", async () => {
+    const { record } = await apply({ partnerRole: "technology" });
+    expect(await check.sweepUncheckedCompanyApplications(Date.parse(record.appliedAtIso) + 3_600_000, deps())).toBe(0);
+  });
+});
