@@ -184,6 +184,17 @@ describe("Minimal sign in", () => {
     expect(customSignIn).toHaveBeenCalledWith({ fixture: true }, "custom");
     fetchMock.mockRestore(); assign.mockRestore();
   });
+  it("after a link sign-in, goes to the job the company was opening in this tab and clears it", async () => {
+    const assign = vi.spyOn(window.location, "assign").mockImplementation(() => undefined);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ customToken: "custom", returnTo: "/jobs/job-1" }), { status: 200 }));
+    customSignIn.mockResolvedValue({ user: { uid: "u1" } });
+    sessionStorage.setItem("redirectAfterAuth", "/jobs/job-2");
+    window.history.replaceState({}, "", "/sign-in?link=signed-link");
+    render(<Login />);
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/jobs/job-2"));
+    expect(sessionStorage.getItem("redirectAfterAuth")).toBeNull();
+    fetchMock.mockRestore(); assign.mockRestore();
+  });
   it("says a spent or expired link no longer works", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
       error: "This sign-in link no longer works. Ask for a new one on this page." }), { status: 403 }));

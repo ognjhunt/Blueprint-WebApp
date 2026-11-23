@@ -7,7 +7,8 @@
  * - The link is a signed token (`createAccountSignInToken`): 15 minutes, bound to the approved record and its decision
  *   revision, and spent on first use (a create-only marker per token id). A withdrawn or re-decided approval ends it.
  * - Redeeming it signs that address's account in with a Firebase custom token, the helper the invitation already uses.
- *   An account with a password or Google keeps them; an address with no account yet gets one, with no password.
+ *   A verified account with a password or Google keeps them; an unverified account loses its password (it may not be
+ *   the inbox owner's); an address with no account yet gets one, with no password.
  */
 import { authAdmin, dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
@@ -103,8 +104,13 @@ export async function redeemCompanySignInLink(token: string): Promise<{ customTo
       user = await auth.getUserByEmail(address);
     }
   } else if (!user.emailVerified) {
-    // The link reached this inbox, which proves the address as a verification email would.
-    await auth.updateUser(user.uid, { emailVerified: true });
+    // The link reached this inbox, which proves the address as a verification email would. An unverified account may
+    // have been made by someone else with this address and their own password, waiting for the owner to verify it
+    // (pre-account takeover): its password is removed and every session it holds is ended before it is marked verified.
+    // The owner of the inbox can set a new password with "Forgot password?".
+    const hasPassword = (user.providerData ?? []).some((provider: { providerId?: string }) => provider?.providerId === "password");
+    await auth.updateUser(user.uid, { emailVerified: true, ...(hasPassword ? { providersToUnlink: ["password"] } : {}) });
+    await auth.revokeRefreshTokens(user.uid);
   }
   return { customToken: await auth.createCustomToken(user.uid),
     returnTo: companyJobReturnPath(record.returnToJob) ?? "/contact/robot-team" };

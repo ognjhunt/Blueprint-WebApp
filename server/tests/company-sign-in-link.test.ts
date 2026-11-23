@@ -4,7 +4,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 
-const auth = vi.hoisted(() => ({ getUserByEmail: vi.fn(), createUser: vi.fn(), createCustomToken: vi.fn(), updateUser: vi.fn() }));
+const auth = vi.hoisted(() => ({ getUserByEmail: vi.fn(), createUser: vi.fn(), createCustomToken: vi.fn(), updateUser: vi.fn(), revokeRefreshTokens: vi.fn() }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
   authAdmin: auth, storageAdmin: null, default: { firestore: { FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" } } } }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
@@ -82,6 +82,23 @@ describe("using a sign-in link", () => {
     auth.getUserByEmail.mockResolvedValue({ uid: "existing-user", emailVerified: false });
     await redeemCompanySignInLink(await link());
     expect(auth.updateUser).toHaveBeenCalledWith("existing-user", { emailVerified: true });
+    expect(auth.revokeRefreshTokens).toHaveBeenCalledWith("existing-user");
+  });
+
+  it("removes the password of an unverified account and ends its sessions before verifying it (no pre-account takeover)", async () => {
+    // Someone registered the company's address with their own password before the company did; the address was never
+    // verified. The company's link must not hand that stranger a verified account.
+    auth.getUserByEmail.mockResolvedValue({ uid: "squatted", emailVerified: false, providerData: [{ providerId: "password" }] });
+    await redeemCompanySignInLink(await link());
+    expect(auth.updateUser).toHaveBeenCalledWith("squatted", { emailVerified: true, providersToUnlink: ["password"] });
+    expect(auth.revokeRefreshTokens).toHaveBeenCalledWith("squatted");
+    expect(auth.updateUser.mock.invocationCallOrder[0]).toBeLessThan(auth.createCustomToken.mock.invocationCallOrder[0]);
+  });
+
+  it("keeps a verified account's password and sessions", async () => {
+    auth.getUserByEmail.mockResolvedValue({ uid: "existing-user", emailVerified: true, providerData: [{ providerId: "password" }] });
+    await redeemCompanySignInLink(await link());
+    expect(auth.updateUser).not.toHaveBeenCalled(); expect(auth.revokeRefreshTokens).not.toHaveBeenCalled();
   });
 
   it("is refused after the approval is withdrawn or re-decided, for a disabled account, expired, tampered or of another kind", async () => {

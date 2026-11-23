@@ -84,7 +84,10 @@ export default function Login() {
         if (!response.ok || !data.customToken) throw new Error(data.error || "This sign-in link no longer works. Ask for a new one on this page.");
         const [{ signInWithCustomToken }, firebase] = await Promise.all([import("firebase/auth"), import("@/lib/firebase")]);
         await signInWithCustomToken(firebase.auth, data.customToken);
-        window.location.assign(authReturnPath(data.returnTo ?? null) ?? "/contact/robot-team");
+        // A job the company was opening in this tab comes first; the emailed link's own destination otherwise.
+        let saved: string | null = null;
+        try { saved = sessionStorage.getItem("redirectAfterAuth"); sessionStorage.removeItem("redirectAfterAuth"); } catch { saved = null; }
+        window.location.assign(authReturnPath(saved) ?? authReturnPath(data.returnTo ?? null) ?? "/contact/robot-team");
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : "This sign-in link no longer works. Ask for a new one on this page.");
         setIsLoading(false);
