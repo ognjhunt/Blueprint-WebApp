@@ -141,7 +141,6 @@ for (const width of [1440, 390]) {
     });
     await page.setViewportSize({width, height: 1000});
     await page.goto(`${siteOrigin}/contact/site-operator`);
-    await page.getByRole("button", {name: "Reject all", exact: true}).click();
     await expect(page.getByRole("heading", {name: "Start a job", exact: true})).toBeVisible();
     await page.screenshot({path: info.outputPath(`intake-before-upload-${width}.png`), fullPage: true});
     await fillSite(page);

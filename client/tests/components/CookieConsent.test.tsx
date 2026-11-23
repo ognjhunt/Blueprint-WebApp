@@ -1,149 +1,48 @@
 // @vitest-environment jsdom
 /**
- * The cookie banner is a marketing-surface affordance.
- *
- * The capture page is a tool someone was handed a link to: a consent dialog
- * covering the camera or the saved state is noise on the one page that only
- * sets essential cookies. These pin that the banner stays off that page and
- * still appears everywhere else.
+ * The website stores only what it needs to work, which needs no consent, so no
+ * banner appears on a first visit. Cookie settings still open from the footer
+ * link and the Privacy Policy, and say plainly that only essential storage is used.
  */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CookieConsent, getCookieConsent, openCookieSettings, refreshCookieConsentFromStorage } from "@/components/CookieConsent";
-
-function atPath(path: string) {
-  window.history.pushState({}, "", path);
-}
+import { CookieConsent, openCookieSettings } from "@/components/CookieConsent";
 
 beforeEach(() => {
   window.localStorage.clear();
-  refreshCookieConsentFromStorage();
   vi.useFakeTimers();
 });
 
 afterEach(() => {
   vi.runOnlyPendingTimers();
   vi.useRealTimers();
-  delete (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl;
 });
-
-function sendGlobalPrivacyControl() {
-  Object.defineProperty(navigator, "globalPrivacyControl", { value: true, configurable: true });
-}
 
 function renderAndElapse() {
   render(<CookieConsent />);
   act(() => {
-    vi.advanceTimersByTime(1600);
+    vi.advanceTimersByTime(3000);
   });
 }
 
-describe("cookie consent placement", () => {
-  it("does not cover the capture tool", () => {
-    atPath("/capture-upload/some-token");
+describe("cookie settings", () => {
+  it("shows no banner on a first visit", () => {
+    window.history.pushState({}, "", "/");
     renderAndElapse();
     expect(screen.queryByRole("region", { name: "Cookie preferences" })).not.toBeInTheDocument();
   });
 
-  it("still appears on the public site", () => {
-    atPath("/contact/site-operator");
+  it("opens from cookie settings, says only essential storage is used and offers no choice", () => {
+    window.history.pushState({}, "", "/privacy");
     renderAndElapse();
-    expect(screen.getByRole("region", { name: "Cookie preferences" })).toBeInTheDocument();
-  });
-
-  it("stays hidden once a choice is recorded, including one saved with the old Marketing choice", () => {
-    atPath("/contact/site-operator");
-    window.localStorage.setItem(
-      "blueprint_cookie_consent",
-      JSON.stringify({ analytics: false, marketing: false, necessary: true }),
-    );
-    renderAndElapse();
+    act(() => openCookieSettings());
+    const panel = screen.getByRole("region", { name: "Cookie preferences" });
+    expect(panel).toHaveTextContent(/only essential cookies and browser storage/);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Accept|Reject|Save/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close cookie settings" }));
     expect(screen.queryByRole("region", { name: "Cookie preferences" })).not.toBeInTheDocument();
-  });
-
-  it("pre-selects no optional cookies in the details", () => {
-    atPath("/contact/site-operator");
-    renderAndElapse();
-    fireEvent.click(screen.getByRole("button", { name: "Customize" }));
-    expect(screen.getByRole("checkbox", { name: /Analytics/ })).not.toBeChecked();
-    // No advertising runs, so there is no Marketing choice.
-    expect(screen.queryByRole("checkbox", { name: /Marketing/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/ads|marketing/i)).not.toBeInTheDocument();
-  });
-});
-
-describe("Global Privacy Control", () => {
-  it("does not ask: the signal already keeps optional cookies off", () => {
-    sendGlobalPrivacyControl();
-    atPath("/contact/site-operator");
-    renderAndElapse();
-    expect(screen.queryByRole("region", { name: "Cookie preferences" })).not.toBeInTheDocument();
-    expect(getCookieConsent()).toBeNull();
-  });
-
-  it("overrides an opt-in recorded without the signal", () => {
-    window.localStorage.setItem(
-      "blueprint_cookie_consent",
-      JSON.stringify({ analytics: true, marketing: true, necessary: true }),
-    );
-    sendGlobalPrivacyControl();
-    expect(getCookieConsent()).toMatchObject({ analytics: false, necessary: true });
-  });
-
-  it("still lets a visitor opt in explicitly from cookie settings", () => {
-    sendGlobalPrivacyControl();
-    atPath("/privacy");
-    renderAndElapse();
-    act(() => openCookieSettings());
-    expect(screen.getByText(/Global Privacy Control signal/)).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /Analytics/ })).not.toBeChecked();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Analytics/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
-    expect(getCookieConsent()).toMatchObject({ analytics: true, gpc: true });
-  });
-});
-
-
-describe("cookie choice resilience", () => {
-  it("asks again for malformed stored choices", () => {
-    atPath("/privacy");
-    window.localStorage.setItem("blueprint_cookie_consent", '{"analytics":"false"}');
-    renderAndElapse();
-    expect(screen.getByRole("region", { name: "Cookie preferences" })).toBeInTheDocument();
-    expect(getCookieConsent()).toBeNull();
-  });
-
-  it("allows rejection even when browser storage is blocked", () => {
-    atPath("/privacy");
-    renderAndElapse();
-    const blocked = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked"); });
-    fireEvent.click(screen.getByRole("button", { name: "Reject all", exact: true }));
-    expect(screen.queryByRole("region", { name: "Cookie preferences" })).not.toBeInTheDocument();
-    blocked.mockRestore();
-  });
-
-  it("reopens a saved opt-in and allows withdrawal", () => {
-    atPath("/privacy");
-    renderAndElapse();
-    fireEvent.click(screen.getByRole("button", { name: "Accept all", exact: true }));
-    act(() => openCookieSettings());
-    expect(screen.getByRole("checkbox", { name: /Analytics/ })).toBeChecked();
-    fireEvent.click(screen.getByRole("button", { name: "Reject all", exact: true }));
-    expect(getCookieConsent()).toMatchObject({ analytics: false });
-  });
-  it("keeps rejection effective when an old opt-in cannot be overwritten", () => {
-    atPath("/privacy");
-    window.localStorage.setItem("blueprint_cookie_consent", JSON.stringify({ analytics: true, marketing: true, necessary: true }));
-    renderAndElapse();
-    act(() => openCookieSettings());
-    const blocked = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("read only"); });
-    fireEvent.click(screen.getByRole("button", { name: "Reject all", exact: true }));
-    expect(JSON.parse(localStorage.getItem("blueprint_cookie_consent")!)).toMatchObject({ analytics: true });
-    expect(getCookieConsent()).toMatchObject({ analytics: false });
-    // Reopening/navigation reads the session choice, not the stale grant.
-    act(() => openCookieSettings());
-    expect(screen.getByRole("checkbox", { name: /Analytics/ })).not.toBeChecked();
-    blocked.mockRestore();
+    expect(window.localStorage.length).toBe(0);
   });
 });
