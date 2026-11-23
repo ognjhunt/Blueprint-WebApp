@@ -60,6 +60,7 @@ import { descriptionOnlyJobComplete, newWebsiteJobNoGrantClock, noGrantClockEnds
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { largeVideoIngestBlock } from "./websiteLargeVideoBlock";
 import { newWebsiteLargeVideoAsk, websiteLargeVideoAsk, WEBSITE_LARGE_VIDEO_ASK_FIELD, type WebsiteLargeVideoAsk } from "./websiteJobWindowEnding";
+import { recordWorkerLoopPass } from "./workerHeartbeat";
 
 const JOBS = "inboundRequests";
 const SESSIONS = "captureUploadSessions";
@@ -458,7 +459,7 @@ export async function websiteJobWindowEndingRecorded(requestId: string): Promise
 }
 
 /**
- * Runs in the worker in every mode, launch-forward-only included, under its own leader lease,
+ * Runs in the worker under its own leader lease,
  * so two processes never run a pass at once. The write is safe without the lease too: it is
  * one transaction, and the email's document id is fixed by the job.
  */
@@ -472,7 +473,7 @@ export function startWebsiteJobWindowSweepWorker(options: { intervalMs?: number;
     if (stopped) return;
     if (!running && lease.isLeader()) {
       running = true;
-      try { await sweepWebsiteJobWindows(); }
+      try { await sweepWebsiteJobWindows(); await recordWorkerLoopPass("window-sweep"); }
       catch (error) { logger.error({ err: error }, "Website job window sweep pass failed; it will retry"); }
       finally { running = false; }
     }

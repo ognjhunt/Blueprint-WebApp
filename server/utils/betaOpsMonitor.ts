@@ -7,12 +7,19 @@ import { unknownRowState } from "./captureOutboxRetry";
 import { sendEmail } from "./email";
 import { appBaseUrl, opsNoticeRecipient, sweepIntakeOpsNotices } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
-import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "./workerHeartbeat";
+import {
+  readWorkerHeartbeat,
+  WORKER_LOOPS,
+  workerLoopHeartbeatDoc,
+  workerLoopStaleAfterMs,
+  type WorkerHeartbeatReading,
+  type WorkerLoop,
+} from "./workerHeartbeat";
 
 /**
  * The beta's in-process safety net. It runs in the WEB process by default,
  * because in the deployed topology the ops scheduler runs nowhere (the web
- * process does not start it and the worker is launch-forward-only).
+ * process does not start it and the worker runs only its job loops).
  *
  * Each pass (leader-leased, so one instance at a time):
  *  1. retries/escalates intake ops notices that have not reached a person;
@@ -159,6 +166,7 @@ export function workerHeartbeatCheckEnabled(env: NodeJS.ProcessEnv = process.env
  */
 export async function checkWorkerHeartbeat(options: ConditionAlertDeps & {
   read?: () => Promise<WorkerHeartbeatReading>;
+  readLoop?: (loop: WorkerLoop) => Promise<WorkerHeartbeatReading>;
 } = {}): Promise<WorkerHeartbeatReading> {
   const reading = await (options.read || readWorkerHeartbeat)();
   if (reading.status === "unavailable") return reading;
@@ -173,8 +181,36 @@ export async function checkWorkerHeartbeat(options: ConditionAlertDeps & {
       + "withdrawals and deletions, and the other worker lanes are not running. Check the worker in Render.",
     recovered: "Blueprint: the background worker is reporting again.",
   }, options);
+  // While the worker beats, each loop must also finish a pass now and then: one loop can hang or keep failing alone.
+  if (reading.status === "fresh") {
+    const readLoop = options.readLoop
+      || ((loop: WorkerLoop) => readWorkerHeartbeat({ doc: workerLoopHeartbeatDoc(loop), staleAfterMs: workerLoopStaleAfterMs(loop) }));
+    for (const loop of Object.keys(WORKER_LOOPS) as WorkerLoop[]) {
+      const loopReading = await readLoop(loop);
+      if (loopReading.status === "unavailable") continue;
+      const lastPass = loopReading.ageMs === null
+        ? "no finished pass is on record"
+        : `its last finished pass was ${Math.round(loopReading.ageMs / 60_000)} min ago`;
+      await reportCondition(`worker_loop_stale:${loop}`, {
+        active: loopReading.status !== "fresh",
+        subject: `Worker loop ${WORKER_LOOP_LABELS[loop]} has stopped finishing`,
+        message: `Blueprint: the worker loop for ${WORKER_LOOP_LABELS[loop]} has stopped finishing passes: ${lastPass} `
+          + `(overdue after ${Math.round(loopReading.staleAfterMs / 60_000)} min) while the worker itself still reports. `
+          + "Check the worker logs in Render for that loop.",
+        recovered: `Blueprint: the worker loop for ${WORKER_LOOP_LABELS[loop]} is finishing passes again.`,
+      }, options);
+    }
+  }
   return reading;
 }
+
+const WORKER_LOOP_LABELS: Record<WorkerLoop, string> = {
+  "automatic-send": "sending listed jobs to approved deployment companies",
+  "outcome-questions": "the outcome questions after an introduction",
+  withdrawal: "recording withdrawals",
+  deletion: "deleting withdrawn videos",
+  "window-sweep": "ending jobs whose window ran out",
+};
 
 type OutboxRowAlert = {
   /** Slack headline and ops email subject, for `count` newly reported rows. */

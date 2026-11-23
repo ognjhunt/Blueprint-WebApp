@@ -456,22 +456,6 @@ no longer start anything: `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED`,
 `BLUEPRINT_CREATIVE_FACTORY_ENABLED`, `BLUEPRINT_BUYER_LIFECYCLE_ENABLED` and
 `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED`.
 
-Beta cohort controls are enforced on robot-eval buyer intake, and live
-agent checkout. The capacity limits are fail-closed configuration: a missing or
-invalid value blocks gated intake with `beta_limits_not_configured`, and `0`
-means "deliberately closed", never "unlimited". Capturer waitlist intake and
-native capture registration are switched off (410) since 2026-11-11.
-
-- `BLUEPRINT_BETA_ENABLED=true`
-- `BLUEPRINT_BETA_KILL_SWITCH=0` (`1` pauses controlled beta access and capture intake)
-- `BLUEPRINT_BETA_INVITE_CAP=100` (required; no in-code default)
-- `BLUEPRINT_BETA_COHORT_DAILY_LIMIT=25` (required; no in-code default)
-- Optional comma-separated scope controls:
-  `BLUEPRINT_BETA_ALLOWED_MARKETS`,
-  `BLUEPRINT_BETA_ALLOWED_SITE_TYPES`
-- Optional fallback cohort key:
-  `BLUEPRINT_BETA_DEFAULT_COHORT=default`
-
 - Optional market-signal provider status (reported by the growth integration
   summary): `FIREHOSE_API_TOKEN`, `FIREHOSE_BASE_URL`
 

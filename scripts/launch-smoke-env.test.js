@@ -45,15 +45,9 @@ describe("local launch smoke environment", () => {
     expect(env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER).toBe("1");
   });
 
-  it("injects safe non-zero beta limits and the local smoke readiness profile", () => {
-    const env = buildLocalSmokeEnv(
-      { BLUEPRINT_BETA_INVITE_CAP: "0", BLUEPRINT_BETA_COHORT_DAILY_LIMIT: "0" },
-      smokeArgs,
-    );
-    expect(Number(env.BLUEPRINT_BETA_INVITE_CAP)).toBeGreaterThan(0);
-    expect(Number(env.BLUEPRINT_BETA_COHORT_DAILY_LIMIT)).toBeGreaterThan(0);
+  it("injects the local smoke readiness profile", () => {
+    const env = buildLocalSmokeEnv({}, smokeArgs);
     expect(env.BLUEPRINT_LOCAL_LAUNCH_SMOKE).toBe("1");
-    expect(env.BLUEPRINT_BETA_KILL_SWITCH).toBe("0");
     expect(env.NODE_ENV).toBe("production");
     expect(env.BASE_URL).toBe("http://127.0.0.1:5055");
     expect(env.FIELD_ENCRYPTION_MASTER_KEY).toBe(smokeArgs.fieldEncryptionKey);

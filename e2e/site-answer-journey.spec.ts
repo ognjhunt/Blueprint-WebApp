@@ -131,6 +131,20 @@ async function publishCompanyClip(request: APIRequestContext, requestId: string)
 }
 
 type OutboxRow = { kind: string; status: string; subject: string; body: string; to: string; idempotencyKey: string };
+type SentMail = { to: string[]; replyTo: string | null; subject: string };
+/** Real outbox delivery passes against the harness's mail provider, until nothing more goes out. */
+async function deliverOutbox(request: APIRequestContext): Promise<SentMail[]> {
+  const sent: SentMail[] = [];
+  for (let pass = 0; pass < 5; pass++) {
+    const response = await request.post(`${ORIGIN}/api/reliability/deliver-outbox`);
+    expect(response.ok(), await response.text()).toBe(true);
+    const body = (await response.json()) as { sent: SentMail[] };
+    if (!body.sent.length && pass > 0) break;
+    sent.push(...body.sent);
+  }
+  return sent;
+}
+
 async function outbox(request: APIRequestContext, requestId: string): Promise<OutboxRow[]> {
   const response = await request.get(`${ORIGIN}/api/reliability/outbox?requestId=${encodeURIComponent(requestId)}`);
   expect(response.ok()).toBe(true);
@@ -369,10 +383,18 @@ test.describe("desktop", () => {
     expect(toCompany.body).toContain(site.address);
     expect(toSite.body).toContain(company.name);
     expect(toSite.body).toContain(company.email);
+    // Both emails are actually sent, each with the other side as Reply-To, not only queued.
+    const delivered = await deliverOutbox(request);
+    const sentTo = (email: string) => delivered.filter(mail => mail.to.includes(email.toLowerCase()));
+    expect(sentTo(company.email).map(mail => mail.replyTo)).toContain(site.email.toLowerCase());
+    expect(sentTo(site.email).map(mail => mail.replyTo)).toContain(company.email.toLowerCase());
+    expect((await outbox(request, requestId)).filter(item => item.kind.startsWith("introduction_")).map(item => item.status))
+      .toEqual(["sent", "sent"]);
     const recorded = await jobRecord(request, requestId);
     expect(recorded.introductions.map(item => item.id)).toEqual([companyId]);
     expect(recorded.billable).toEqual([{ id: `introduction-${requestId}-${companyId}`, kind: "introduction", requestId, companyId,
-      atIso: expect.any(String), priceUsd: null, status: "recorded_no_price" }]);
+      // Made once the company's email was sent (delivered above).
+      atIso: expect.any(String), madeAtIso: expect.any(String), priceUsd: null, status: "recorded_no_price" }]);
 
     // A second press records nothing new.
     const again = await page.request.post(`${ORIGIN}/api/site-task-brief/${encodeURIComponent(token)}/introductions`, {
@@ -393,6 +415,13 @@ test.describe("desktop", () => {
     expect((await outcomes(introducedAt + 14 * DAY_MS + 120_000)).queued).toBe(0);
     const questions = (await outbox(request, requestId)).filter(item => item.kind === "job_outcome_question");
     expect(questions.map(item => item.to).sort()).toEqual([company.email, site.email].sort());
+    // The follow-up questions are sent too, with Blueprint as Reply-To: the answer comes through the link.
+    const followUps = await deliverOutbox(request);
+    for (const email of [company.email, site.email]) {
+      expect(followUps.filter(mail => mail.to.includes(email.toLowerCase())).map(mail => mail.replyTo)).toEqual(["hello@tryblueprint.io"]);
+    }
+    expect((await outbox(request, requestId)).filter(item => item.kind === "job_outcome_question").map(item => item.status))
+      .toEqual(["sent", "sent"]);
     // The site answers from its email's link: a confirm page, then the thank-you page.
     const siteQuestion = questions.find(item => item.to === site.email)!;
     const outcomeLink = siteQuestion.body.match(/(http:\/\/127\.0\.0\.1:4183\/api\/job-outcomes\/\S+)/)![1];

@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 
-import { readWorkerHeartbeat, workerHeartbeatWriterEnabled, writeWorkerHeartbeat } from "../utils/workerHeartbeat";
+import {
+  readWorkerHeartbeat,
+  recordWorkerLoopPass,
+  workerHeartbeatWriterEnabled,
+  workerLoopHeartbeatDoc,
+  workerLoopStaleAfterMs,
+  writeWorkerHeartbeat,
+} from "../utils/workerHeartbeat";
 
 function memoryStore() {
   const docs = new Map<string, Record<string, unknown>>();
@@ -35,5 +42,22 @@ describe("worker heartbeat", () => {
     expect(workerHeartbeatWriterEnabled({ NODE_ENV: "production", IS_PULL_REQUEST: "true" })).toBe(false);
     expect(workerHeartbeatWriterEnabled({ NODE_ENV: "production", BLUEPRINT_WORKER_HEARTBEAT_ENABLED: "0" })).toBe(false);
     expect(workerHeartbeatWriterEnabled({ NODE_ENV: "development" })).toBe(false);
+  });
+
+  it("records each loop's finished pass in its own record, only from the deployed worker", async () => {
+    const store = memoryStore();
+    const t0 = Date.parse("2026-10-15T12:00:00Z");
+    const production = { NODE_ENV: "production" } as NodeJS.ProcessEnv;
+    await expect(recordWorkerLoopPass("deletion", { store, now: () => t0, env: { NODE_ENV: "production", IS_PULL_REQUEST: "true" } })).resolves.toBe(false);
+    expect(store.docs.size).toBe(0);
+    await expect(recordWorkerLoopPass("deletion", { store, now: () => t0, env: production })).resolves.toBe(true);
+    expect(store.docs.get("opsHeartbeats/blueprint-webapp-worker--deletion")).toMatchObject({ loop: "deletion", beat_at_ms: t0 });
+    const doc = workerLoopHeartbeatDoc("deletion");
+    await expect(readWorkerHeartbeat({ store, doc, now: () => t0 + 60_000, staleAfterMs: workerLoopStaleAfterMs("deletion") }))
+      .resolves.toMatchObject({ status: "fresh" });
+    await expect(readWorkerHeartbeat({ store, doc: workerLoopHeartbeatDoc("withdrawal"), now: () => t0 })).resolves.toMatchObject({ status: "missing" });
+    expect(workerLoopStaleAfterMs("outcome-questions")).toBe(45 * 60_000);
+    const failing = { collection: () => ({ doc: () => ({ set: async () => { throw new Error("down"); }, get: async () => ({ exists: false, data: () => undefined }) }) }) };
+    await expect(recordWorkerLoopPass("withdrawal", { store: failing, env: production })).resolves.toBe(false);
   });
 });

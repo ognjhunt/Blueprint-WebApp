@@ -26,6 +26,7 @@ import { countryOf } from "./companyJobPage";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
+import { recordWorkerLoopPass } from "./workerHeartbeat";
 
 export const AUTO_SEND_FIELD = "company_auto_send";
 
@@ -203,7 +204,7 @@ export function startAutomaticSendWorker(options: { intervalMs?: number; lease?:
     if (stopped) return;
     if (!running && lease.isLeader()) {
       running = true;
-      try { await sweepAutomaticSends(); }
+      try { await sweepAutomaticSends(); await recordWorkerLoopPass("automatic-send"); }
       catch (error) { logger.error({ err: error }, "Automatic send sweep failed; it will retry"); }
       finally { running = false; }
     }

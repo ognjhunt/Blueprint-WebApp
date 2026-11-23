@@ -105,12 +105,6 @@ export function buildLocalSmokeEnv(processEnv, { port, baseUrl, fieldEncryptionK
     FIELD_ENCRYPTION_MASTER_KEY: fieldEncryptionKey,
     // An ephemeral local signing key; never inherit production capability keys.
     BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET: randomBytes(32).toString("hex"),
-    // Safe non-zero beta limits so /health/ready exercises the real cohort
-    // policy instead of failing on zeroed caps inherited from a dev shell.
-    BLUEPRINT_BETA_INVITE_CAP: "5",
-    BLUEPRINT_BETA_COHORT_DAILY_LIMIT: "2",
-    BLUEPRINT_BETA_ENABLED: "true",
-    BLUEPRINT_BETA_KILL_SWITCH: "0",
   });
 
   for (const key of LOCAL_SMOKE_FORBIDDEN_ENV_KEYS) {

@@ -7,6 +7,7 @@ import { signedCaptureLifecycleRequest } from "./captureLifecycleForwarding";
 import { logger } from "../logger";
 import { forgetPracticeRunVideos } from "./websiteCaptureWithdrawalPracticeRunVideos";
 import { forgetWebsiteScenePreviews } from "./websiteScenePreview";
+import { recordWorkerLoopPass } from "./workerHeartbeat";
 
 /** The explicit confirmation the signed owner link must send to withdraw. */
 export const OWNER_WITHDRAWAL_CONFIRMATION = "withdraw_recording_permission" as const;
@@ -233,7 +234,7 @@ export function startWebsiteCaptureWithdrawalWorker() {
   let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
   const run = async () => {
     if (stopped) return;
-    try { await forwardWebsiteCaptureWithdrawals(); }
+    try { await forwardWebsiteCaptureWithdrawals(); await recordWorkerLoopPass("withdrawal"); }
     catch (error) { logger.error({ error }, "Website withdrawal handoff remains pending"); }
     if (!stopped) { timer = setTimeout(run, 60_000); timer.unref(); }
   };
