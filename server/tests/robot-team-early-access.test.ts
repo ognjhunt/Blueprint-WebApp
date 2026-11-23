@@ -54,15 +54,11 @@ const application = {
   email: "Ada@Arm.Example",
   company: "Arm Co",
   website: "https://arm.example",
-  robot: "Fixed arm with a parallel gripper, one diffusion policy",
-  workWanted: "Tote picking",
-  region: "US",
-  acceptedTerms: true,
 };
-/** The versions of the Terms and Privacy Policy the form shows; it sends them with every application (G2). */
+/** The versions of the Terms and Privacy Policy the signed-in agreement shows (G2). */
 const SHOWN = { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" };
-/** What the application form sends. */
-const form = { ...application, ...SHOWN };
+/** What the application form sends: four fields (owner, 2026-11-23). */
+const form = { ...application };
 
 describe("partner application roles", () => {
   it("keeps the delivery role when a pending company applies again", async () => {
@@ -220,13 +216,9 @@ describe("applying", () => {
 
     const records = [...state.docs.entries()].filter(([key]) => key.startsWith("robotTeamAccess/"));
     expect(records).toHaveLength(1);
-    expect(records[0][1]).toMatchObject({
-      email: "ada@arm.example", status: "applied",
-      // What the form showed and the applicant ticked, with the time: on the application only (G1, G2).
-      applicationTermsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-13.1",
-        terms_url: "/terms", privacy_url: "/privacy", accepted_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
-    });
-    // The tick on the unsigned form is never an acceptance that lets a company see a job.
+    expect(records[0][1]).toMatchObject({ email: "ada@arm.example", status: "applied" });
+    // Nothing is agreed on the unsigned form (owner, 2026-11-23): no acceptance of any kind is stored from it.
+    expect(records[0][1]).not.toHaveProperty("applicationTermsAcceptance");
     expect(records[0][1]).not.toHaveProperty("termsAcceptance");
     expect(records[0][1]).not.toHaveProperty("termsAcceptedByUid");
     expect([...state.docs.keys()].some(key => key.startsWith("captureOutbox/"))).toBe(false);
@@ -244,13 +236,12 @@ describe("applying", () => {
     expect([...state.docs.keys()].some(key => key.startsWith("robotTeamAccess/"))).toBe(false);
   });
 
-  it("refuses a form that does not send the versions it showed, or sends stale ones, and asks for a reload", async () => {
-    for (const body of [application, { ...form, termsVersion: "2026-11-02.1" }, { ...form, privacyVersion: "2026-11-02.1" },
-      { ...form, termsVersion: undefined }]) {
+  it("takes four fields only: the retired questions, the updates box and the Terms tick are refused", async () => {
+    for (const extra of [{ robot: "Arm" }, { workWanted: "Picking" }, { region: "US" }, { acceptedTerms: true },
+      { ...SHOWN }, { optionalUpdates: true }]) {
       const response = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST",
-        headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify(body) });
+        headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify({ ...form, ...extra }) });
       expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({ error: "Our Terms or Privacy Policy changed. Reload the page and apply again.", code: "terms_acceptance_invalid" });
     }
     expect([...state.docs.keys()].some(key => key.startsWith("robotTeamAccess/"))).toBe(false);
   });
@@ -314,9 +305,7 @@ describe("the review queue", () => {
 
   it("approves once, emails the next step, and the approved email then sees the library", async () => {
     tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
-    // As the application form records it: the tick is stored on the application only.
-    const { applicationTermsAcceptance } = await import("../utils/companyTerms");
-    await early.recordAccessApplication({ ...application, website: null, region: null }, { applicationTermsAcceptance: applicationTermsAcceptance() });
+    await early.recordAccessApplication({ ...application, website: null });
     const id = early.accessRecordId("ada@arm.example");
 
     const response = await decide("ops", id, "approved");
@@ -346,13 +335,36 @@ describe("the review queue", () => {
     expect(state.docs.get("users/u1")).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-13.1" });
   });
 
-  it("declines without an email: only an approval is emailed", async () => {
+  it("sends a declined applicant one fixed email with no reasons, and nothing when the button is pressed again", async () => {
     tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
-    await early.recordAccessApplication({ ...application, website: null, region: null });
-    const response = await decide("ops", early.accessRecordId("ada@arm.example"), "declined");
+    await early.recordAccessApplication({ ...application, website: null });
+    const id = early.accessRecordId("ada@arm.example");
+    const response = await fetch(`${base}/api/admin/robot-team-access/${id}/decision`, { method: "POST",
+      headers: { "content-type": "application/json", Authorization: "Bearer ops", ...CSRF },
+      body: JSON.stringify({ status: "declined", note: "INTERNAL-REASON" }) });
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ emailed: false, notificationStatus: "not_requested", application: { status: "declined" } });
-    expect([...state.docs.keys()].some((key) => key.startsWith("captureOutbox/"))).toBe(false);
+    expect(await response.json()).toMatchObject({ notificationStatus: "queued", application: { status: "declined" } });
+    const rows = () => [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/"));
+    expect(rows()).toHaveLength(1);
+    const [key, row] = rows()[0] as [string, { kind: string; to: string; subject: string; body: string }];
+    expect(key).toMatch(/^captureOutbox\/robot_team_access_declined:/);
+    expect(row).toMatchObject({ kind: "robot_team_access_declined", to: "ada@arm.example", subject: "Your application to Blueprint" });
+    expect(row.body).toBe("Hi Ada,\n\nThank you for applying to see jobs on Blueprint. We are not able to approve your company at this time.\n\n"
+      + row.body.split("\n\n").slice(2).join("\n\n"));
+    expect(row.body).not.toMatch(/INTERNAL-REASON/);
+    expect((await decide("ops", id, "declined")).status).toBe(200);
+    expect(rows()).toHaveLength(1);
+  });
+
+  it("sends nothing when an approval is withdrawn", async () => {
+    tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
+    await early.recordAccessApplication({ ...application, website: null });
+    const id = early.accessRecordId("ada@arm.example");
+    expect((await decide("ops", id, "approved")).status).toBe(200);
+    const before = [...state.docs.keys()].filter((key) => key.startsWith("captureOutbox/")).length;
+    const response = await decide("ops", id, "declined");
+    expect(await response.json()).toMatchObject({ notificationStatus: "not_requested" });
+    expect([...state.docs.keys()].filter((key) => key.startsWith("captureOutbox/"))).toHaveLength(before);
   });
 
   it("reports how many site tasks are listed and when auto-approval starts", async () => {
@@ -476,7 +488,7 @@ describe("access decisions and their durable email intent", () => {
 
 
   it("preserves the pending application when invitation storage fails, then commits approval and notice together", async () => {
-    await early.recordAccessApplication({ ...application, website: null, region: null });
+    await early.recordAccessApplication({ ...application, website: null });
     failOutboxWriteOnce();
     expect((await decide()).status).toBe(503);
     expect(state.docs.get(recordKey())).toMatchObject({ status: "applied", decidedAtIso: null });
@@ -524,7 +536,7 @@ describe("access decisions and their durable email intent", () => {
   });
 
   it("keeps concurrent approval retries on one decision revision and one invitation", async () => {
-    await early.recordAccessApplication({ ...application, website: null, region: null });
+    await early.recordAccessApplication({ ...application, website: null });
     const responses = await Promise.all([decide(), decide(), decide()]);
     const bodies = await Promise.all(responses.map(response => response.json()));
     expect(new Set(bodies.map(body => body.application.decidedAtIso)).size).toBe(1);

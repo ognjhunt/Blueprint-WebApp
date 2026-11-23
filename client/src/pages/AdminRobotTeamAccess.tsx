@@ -15,9 +15,10 @@ type Application = {
   partnerRole?: "deployment" | "technology" | null;
   supportedSystems?: string | null;
   website: string | null;
-  robot: string;
-  workWanted: string;
-  region: string | null;
+  /** Asked on applications before 2026-11-23 only; kept so old applications stay readable. */
+  robot?: string | null;
+  workWanted?: string | null;
+  region?: string | null;
   pilotPackage?: string | null;
   testSite?: string | null;
   source?: "application" | "invite";
@@ -239,9 +240,11 @@ export default function AdminRobotTeamAccess() {
                 </div>
               </div>
               <dl className="grid gap-3 text-sm sm:grid-cols-3">
-                <div><dt className="runway-meta">{application.partnerRole === "deployment" ? "Delivery capabilities" : "System"}</dt><dd className="mt-1 text-runway-text">{application.robot}</dd></div>
-                <div><dt className="runway-meta">{application.partnerRole === "deployment" ? "Jobs they can deliver" : "Work to assess"}</dt><dd className="mt-1 text-runway-text">{application.workWanted}</dd></div>
-                <div><dt className="runway-meta">Region · applied</dt><dd className="mt-1 text-runway-text">{application.region || "Not given"} · {new Date(application.appliedAtIso).toLocaleDateString()}</dd></div>
+                {/* The application is four fields since 2026-11-23; an older one still shows what it said. */}
+                {application.robot ? <div><dt className="runway-meta">{application.partnerRole === "deployment" ? "Delivery capabilities" : "System"}</dt><dd className="mt-1 text-runway-text">{application.robot}</dd></div> : null}
+                {application.workWanted ? <div><dt className="runway-meta">{application.partnerRole === "deployment" ? "Jobs they can deliver" : "Work to assess"}</dt><dd className="mt-1 text-runway-text">{application.workWanted}</dd></div> : null}
+                {application.region ? <div><dt className="runway-meta">Region</dt><dd className="mt-1 text-runway-text">{application.region}</dd></div> : null}
+                <div><dt className="runway-meta">Applied</dt><dd className="mt-1 text-runway-text">{new Date(application.appliedAtIso).toLocaleDateString()}</dd></div>
               </dl>
               {application.supportedSystems ? <p className="text-sm text-runway-mute"><span className="runway-meta">Supported systems: </span>{application.supportedSystems}</p> : null}
               {application.pilotPackage ? (

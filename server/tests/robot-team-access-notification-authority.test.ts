@@ -61,6 +61,26 @@ describe("manual access decision at the existing outbox dispatch boundary", () =
   });
 
 
+  it("delivers a decline only while that decline stands, and cancels it if the company is approved first", async () => {
+    const declined = (status: "declined" | "approved") => {
+      const idempotencyKey = `robot_team_access_declined:${recordId}:${revision}`;
+      state.docs.set(`captureOutbox/${idempotencyKey}`, buildOutboxEntry({ idempotencyKey, requestId: `robot-team-access:${recordId}`,
+        kind: "robot_team_access_declined", to: email, subject: "Fixture decline", body: "Fixture body", replyTo: "hello@tryblueprint.io",
+        robotTeamAccessNotice: { schemaVersion: "robot_team_access_notice.v1", recordId, status: "declined", revision } }));
+      state.docs.set(recordKey, { email, status, decidedBy: "fixture-ops", decidedAtIso: revision, appliedAtIso: revision });
+      return `captureOutbox/${idempotencyKey}`;
+    };
+    const current = declined("declined");
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(state.docs.get(current)).toMatchObject({ status: "sent" });
+    state.docs.clear(); send.mockClear();
+    const stale = declined("approved");
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+    expect(state.docs.get(stale)).toMatchObject({ status: "cancelled" });
+  });
+
   it("continues a legacy decision notice whose key proves the current revision", async () => {
     const key = notice("robot_team_access_approved", true);
     await deliverOutbox();

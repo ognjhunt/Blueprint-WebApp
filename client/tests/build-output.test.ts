@@ -139,7 +139,7 @@ describe("build output", () => {
     expect(partners).toContain('aria-label="Deployment company application"');
     // Static markup is replaced on mount; accepting input beforehand loses it.
     expect(partners).toMatch(/<fieldset disabled=""/);
-    for (const name of ["name", "email", "company", "website", "workWanted", "robot", "region"]) expect(partners).toContain(`name="${name}"`);
+    for (const name of ["name", "email", "company", "website"]) expect(partners).toContain(`name="${name}"`);
     expect(partners).toContain("mailto:hello@tryblueprint.io");
   });
 

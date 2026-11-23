@@ -222,9 +222,6 @@ test.describe("desktop", () => {
     await application.getByLabel("Work email").fill(company.email);
     await application.locator('input[name="company"]').fill(company.name);
     await application.getByLabel("Company website").fill("https://quillfeather.example");
-    await application.getByLabel("What jobs can you deliver?").fill("Moving cartons from conveyors to carts.");
-    await application.getByLabel("Which robots do you deploy?").fill("A mobile arm that picks cartons up to 15 kg.");
-    await application.getByLabel("Where can you deploy?").fill("United States");
     // No box for job emails: an approved company gets them unless it turns them off (owner, 2026-11-20).
     const applied = applicationPage.waitForResponse(response => response.url().endsWith("/api/robot-team-access/apply")
       && response.request().method() === "POST");

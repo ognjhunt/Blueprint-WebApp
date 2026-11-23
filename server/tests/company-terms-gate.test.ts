@@ -294,8 +294,8 @@ const introduce = (alias: string) => requestIntroduction({ requestId: ID, alias,
   statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
 const SHOWN = { termsVersion: NO_FACE_BLUR_VERSION, privacyVersion: NO_FACE_BLUR_VERSION };
 const apply = (body: Record<string, unknown>) => realFetch(`${base}/api/robot-team-access/apply`, { method: "POST",
-  headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Mallory", company: "Mallory Corp", robot: "arm",
-    workWanted: "pick", website: "https://mallory.example", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
+  headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Mallory", company: "Mallory Corp",
+    website: "https://mallory.example", ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
 
 describe("Privacy 2026-11-13.1 asks no approved company to agree again", () => {
   // The Terms keep 2026-11-12.2; Privacy 2026-11-13.1 changes only what may happen to jobs started from now on.
@@ -418,12 +418,12 @@ describe("T2 the unsigned application form cannot create, replace or carry an ac
     expect(pageBefore.status).not.toBe(200);
   });
 
-  it("stores what the form showed on a pending application only; it never satisfies the gate", async () => {
+  it("stores no acceptance from the form (nothing is agreed there); it never satisfies the gate", async () => {
     expect((await apply({ email: "new-company@new.example" })).status).toBe(202);
     const record = recordOf({ email: "new-company@new.example" });
-    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: NO_FACE_BLUR_VERSION, privacy_version: NO_FACE_BLUR_VERSION });
+    expect(record).not.toHaveProperty("applicationTermsAcceptance");
     expect(record).not.toHaveProperty("termsAcceptance");
-    // Even if it were approved as it stands, the application's tick would not let it see a job.
+    // Even if it were approved as it stands, nothing from the form would let it see a job.
     expect(companyMaySeeJobs({ ...record, status: "approved" } as never)).toBe(false);
   });
 });
