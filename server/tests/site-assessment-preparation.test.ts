@@ -209,6 +209,32 @@ it("v2 current preparation grant never becomes a default/evaluation grant or ren
   // No person re-issues an expired grant any more (2026-11-23): the job ends its paid work with what it has.
   expect(await import("../utils/websiteSceneSponsorship")).not.toHaveProperty("renewExpiredWebsiteSceneSponsorship");
 });
+// The shape (keys and value types) of the grants this code issues equals that of grants today's Pipeline loader
+// accepted (fixtures/pipeline-accepted-website-grants.json, recorded by the Group E review): an OpenAI grant never
+// carries Anthropic terms, whatever the job's Privacy version and whether Anthropic terms are configured.
+const shapeOf=(value:unknown):unknown=>Array.isArray(value)?value.map(shapeOf)
+  :value&&typeof value==="object"?Object.fromEntries(Object.keys(value).sort().map(key=>[key,shapeOf((value as any)[key])])):typeof value;
+it.each([
+  ["a job submitted under 2026-11-12.2, neither statement","2026-11-12.2",false,false,"openai_version_recorded"],
+  ["a job submitted under 2026-11-13.1, Anthropic terms not configured","2026-11-13.1",false,false,"openai_new_version"],
+  ["a job submitted under 2026-11-13.1, Anthropic terms configured","2026-11-13.1",true,false,"openai_new_version"],
+  ["a job with no version at submission, Anthropic terms configured",null,true,false,"openai_no_version"],
+  ["a site that accepted the Claude statement","2026-11-12.2",true,true,"claude_statement"],
+])("issues the shape today's Pipeline accepted for %s",async(_name,version,anthropicTerms,claude,fixture)=>{
+  const accepted=(await import("./fixtures/pipeline-accepted-website-grants.json")).default as Record<string,any>;
+  seed(packet(),false,false);
+  const record=state.docs.get("inboundRequests/one") as any;
+  if(version) record.privacy_version_at_submission=version;
+  if(claude){record.request.capture_region="us";record.request.claude_authoring_consent={granted:true,
+    statement_version:"2026-09-24.v1",recorded_at_iso:"2026-11-13T09:00:00.000Z"};}
+  if(anthropicTerms) vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({
+    anthropic:{digest:`sha256:${"9".repeat(64)}`,label:"Synthetic",url:"https://example.com/anthropic"}}));
+  const grant=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
+  expect(shapeOf(grant)).toEqual(shapeOf(accepted[fixture]));
+  if(grant.authoring_provider==="openai") expect(grant).not.toHaveProperty("anthropic_provider_terms_reference");
+  expect(grant.site_consents).toEqual(claude?[{statement_version:"2026-09-24.v1",provider:"anthropic",model:"claude-opus-5-5"}]:[]);
+  if(version) expect(grant.privacy_policy_version).toBe(version); else expect(grant).not.toHaveProperty("privacy_policy_version");
+});
 it("v2 current preparation spend uses purpose context and preserves unknown reservations",async()=>{
   seed(packet(),false,false);const grant=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
   vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:grant.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
