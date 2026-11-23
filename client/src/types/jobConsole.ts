@@ -96,8 +96,7 @@ export interface AdminJobDetail {
 export const ADMIN_PHASE_WORDS: Readonly<Record<JobPhase, string>> = {
   reading: "Reading the video",
   building: "Building the simulation",
-  testing: "Simulation ready",
-  result: "Simulation ready",
+  simulation_ready: "Simulation ready",
   waiting_on_site: "Waiting on the site to say what the job is",
   no_test: "Ended",
   ended_by_site: "Stopped by the site",

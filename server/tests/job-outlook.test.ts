@@ -19,7 +19,7 @@ const base = (patch: Partial<JobOutlookInput> = {}): JobOutlookInput => ({
   preparation: null, scene: null, proof: null, ...patch });
 const proofOf = (changes: Record<string, unknown>): SimulationProof =>
   projectSimulationProof({ evaluation: [{ ...winnerEvaluation, ...changes }] as never, pick: null });
-const WORKING = new Set(["building", "testing"]);
+const WORKING = new Set(["building", "simulation_ready"]);
 
 /** The recorded endings, the complete list, each with the phase and reason it must give. */
 const ENDINGS: Array<[string, Partial<JobOutlookInput>, string, string]> = [
@@ -80,14 +80,14 @@ describe("the job's outlook, from the rule", () => {
     expect(jobOutlook(base({ answer: OTHER, noGrantEnded: true }))).toEqual(jobOutlook(base({ noGrantEnded: true })));
     expect(jobOutlook(base({ preparation: { state: "authority_ended", geometryOnlyEnd: false }, windowEnded: true })).sentence)
       .toBe(jobOutlook(base({ windowEnded: true })).sentence);
-    // A published result outranks both.
-    expect(jobOutlook(base({ noGrantEnded: true, proof: proofOf({}) })).phase).toBe("result");
-    expect(jobOutlook(base({ preparation: { state: "authority_ended", geometryOnlyEnd: false }, proof: proofOf({}) })).phase).toBe("result");
   });
 
-  it("is a result only for a finished test that scored an AI robot", () => {
-    expect(jobOutlook(base({ proof: proofOf({}) })).phase).toBe("result");
-    expect(jobOutlook(base({ proof: proofOf({ state: "completed", outcome: "estimate", screening: { candidates: [] } }) })).phase).toBe("no_test");
+  // No robot software runs in the simulation (dropped 2026-11-14), so no phase says a test is running or scored (AL29).
+  it("never gives a testing or result phase: a ready simulation is simulation_ready", () => {
+    expect(jobOutlook(base({ scene: { state: "ready" } })).phase).toBe("simulation_ready");
+    expect(jobOutlook(base({ proof: proofOf({ state: "running", outcome: null }) })).phase).toBe("building");
+    expect(jobOutlook(base({ noGrantEnded: true, proof: proofOf({}) })).phase).toBe("no_test");
+    for (const [label, input] of notEndings()) expect(["testing", "result"], label).not.toContain(jobOutlook(input).phase);
   });
 
   it("is working, never an answer, for every state that is not a recorded ending, including unknown names and nulls", () => {
@@ -136,8 +136,6 @@ describe("the job's outlook, from the rule", () => {
       expect({ phase: outlook.phase, reason: outlook.reason }, `${ending} / ${state} / ${failure}`).toEqual({ phase, reason });
       combos += 1;
     }
-    for (const [state, progress] of inProgress) for (const [failure, failed] of failures)
-      expect(jobOutlook(base({ ...progress, ...failed, proof: proofOf({}) })).phase, `result / ${state} / ${failure}`).toBe("result");
     expect(combos).toBeGreaterThan(600);
   });
 
@@ -148,7 +146,7 @@ describe("the job's outlook, from the rule", () => {
     for (const endedAgo of [null, 60, LIVE_RUN_GRACE_SECONDS - 60]) {
       const outlook = jobOutlook(base({ proof: running, windowEnded: endedAgo !== null, nowEpoch: now,
         windowEndedAtEpoch: endedAgo === null ? null : now - endedAgo }));
-      expect(outlook.phase, String(endedAgo)).toBe("testing");
+      expect(outlook.phase, String(endedAgo)).toBe("building");
       expect(outlookHasAnswer(outlook)).toBe(false);
     }
     const blocked = proofOf({ state: "blocked", outcome: null, screening: { candidates: [] } });
@@ -156,7 +154,7 @@ describe("the job's outlook, from the rule", () => {
       reason: "window_ended_during_test", sentence: "The time for this job ran out." });
     // A run that ended on its own, before or after the window passed, keeps its own line.
     expect(jobOutlook(base({ windowEnded: true, windowEndedAtEpoch: 1, proof: blocked })).reason).toBe("run_ended");
-    expect(jobOutlook(base({ windowEnded: true, proof: proofOf({}) })).phase).toBe("result");
+    expect(jobOutlook(base({ windowEnded: true, proof: proofOf({}) })).phase).toBe("no_test");
   });
 
   // Review, 2026-11-11 (N1): a run is live only on a running run record within the window plus grace; a stored scene
@@ -177,10 +175,6 @@ describe("the job's outlook, from the rule", () => {
       .toMatchObject({ phase: "no_test", reason: "window_expired" });
     // The stored scene alone is never live, even inside the window.
     expect(jobOutlook(base({ scene: { state: "ready" }, windowEnded: true })).phase).toBe("no_test");
-  });
-
-  it("never reads a published scored result as an ending", () => {
-    expect(recordedEndingOf(base({ proof: proofOf({}) }))).toBeNull();
   });
 
   it("never says the time ran out for an ended authority it has no reason for, and a revoked source is the site's own", () => {

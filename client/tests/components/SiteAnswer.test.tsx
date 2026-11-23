@@ -220,7 +220,7 @@ describe("the job page's sections, bare bones", () => {
     ["with a first look", { answer: readyAnswer, proof: null, outlook: { phase: "no_test" as const, reason: "window_expired" as const,
       sentence: "The time for this job ran out." } }, false],
     ["with a trial result", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick }),
-      outlook: { phase: "result" as const, reason: null, sentence: null } }, false],
+      outlook: { phase: "simulation_ready" as const, reason: null, sentence: null } }, false],
     ["closed by its owner", { answer: readyAnswer, proof: null, outlook: { phase: "ended_by_site" as const, reason: "closed_by_owner" as const,
       sentence: "You closed this job." } }, "closed"],
     ["withdrawn", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick }),
