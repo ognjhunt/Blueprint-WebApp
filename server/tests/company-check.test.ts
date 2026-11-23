@@ -231,6 +231,18 @@ describe("the catch-up sweep", () => {
     expect(await check.sweepUncheckedCompanyApplications(applied + 3_600_000, deps())).toBe(0);
   });
 
+  it("pages past waiting applications that were already checked, so a later unchecked one is still reached", async () => {
+    const { id, record } = await apply({ email: "zed@arm.example" });
+    const applied = Date.parse(record.appliedAtIso);
+    for (let index = 0; index < 205; index += 1) {
+      const prefix = index.toString().padStart(4, "0");
+      state.docs.set(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${"0".repeat(60)}${prefix}`, { email: `checked-${prefix}@elsewhere.example`,
+        status: "applied", appliedAtIso: record.appliedAtIso, companyCheck: { outcome: "needs_owner", reasons: ["domain_mismatch"] } });
+    }
+    expect(await check.sweepUncheckedCompanyApplications(applied + 3_600_000, deps())).toBe(1);
+    expect(stored(id)).toMatchObject({ companyCheck: { outcome: "approved" } });
+  });
+
   it("never sweeps a technology partner", async () => {
     const { record } = await apply({ partnerRole: "technology" });
     expect(await check.sweepUncheckedCompanyApplications(Date.parse(record.appliedAtIso) + 3_600_000, deps())).toBe(0);

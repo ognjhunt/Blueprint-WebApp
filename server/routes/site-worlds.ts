@@ -7,6 +7,9 @@ import { companyViewerForRequest, libraryAccessForRequest } from "../utils/robot
 import { loadCompanyJobAccess } from "../utils/teamJobAccess";
 import { loadCompanyJobPage } from "../utils/companyJobPage";
 import { JOB_THUMBNAIL_VERSION } from "../utils/jobThumbnail";
+import { jobThumbnailViewUrl, verifyJobThumbnailTicket } from "../utils/jobThumbnailTicket";
+import { companyMediaRefusal } from "../utils/companyJobPage";
+import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { companyMaySeeJobs, TERMS_ACCEPTANCE_REQUIRED } from "../utils/companyTerms";
 import { TERMS_PROMPT } from "../../client/src/lib/companyResponses";
 
@@ -127,6 +130,16 @@ router.get("/tasks/:taskId/thumbnail", async (req, res) => {
   if (!db) return res.status(503).end();
   try {
     const id = String(req.params.taskId);
+    // An image or a video poster sends no sign-in token: its address carries the company's ticket instead
+    // (`jobThumbnailViewUrl`), and the company and the job are checked again on every read.
+    const viewer = typeof req.query.viewer === "string" ? req.query.viewer : null;
+    if (viewer) {
+      if (!verifyJobThumbnailTicket(id, viewer, req.query.expires, req.query.signature)) return res.status(404).end();
+      const { record } = await loadCompanyJobAccess(id);
+      if (!record || await companyMediaRefusal(id, siteWalkthroughIdentity(id, record as Record<string, any>).captureId, viewer, record))
+        return res.status(404).end();
+      return await sendJobThumbnail(res, id, record as InboundRequest, "private, max-age=600");
+    }
     // The same check as the card: a signed-in approved viewer, and the whole sharing rule. An approved deployment company
     // without the current Terms gets the same 403 as every other surface, before any job is read (G5).
     const viewerAccess = await libraryAccessForRequest(req);
@@ -134,15 +147,27 @@ router.get("/tasks/:taskId/thumbnail", async (req, res) => {
     if (!viewerAccess.allowed) return res.status(404).end();
     const { record, access } = await loadCompanyJobAccess(id);
     if (!record || !projectTaskBrowseCard(id, record as InboundRequest, access)?.thumbnailUrl) return res.status(404).end();
-    const image = (await db.collection("taskThumbnails").doc(id).get()).data();
-    // A frame of the job's company clip (`jobThumbnail.ts`), or an image stored under the older listing.
-    if (!image || (image.consentVersion !== JOB_THUMBNAIL_VERSION && image.consentVersion !== "public-task-thumbnail-v1")
-      || image.digest !== record.public_task_listing.thumbnailDigest) return res.status(404).end();
-    const bytes = Buffer.from(image.pngBase64, "base64");
-    if (createHash("sha256").update(bytes).digest("hex") !== image.digest) return res.status(404).end();
-    return res.type("png").send(bytes);
+    return await sendJobThumbnail(res, id, record as InboundRequest, "no-store");
   } catch { return res.status(503).end(); }
 });
+
+/** The stored thumbnail the listing names (`jobThumbnail.ts`, or an image stored under the older listing), checked. */
+async function sendJobThumbnail(res: Response, id: string, record: InboundRequest, cache: string) {
+  const image = (await db!.collection("taskThumbnails").doc(id).get()).data();
+  const listed = (record as unknown as Record<string, any>).public_task_listing?.thumbnailDigest;
+  if (!image || (image.consentVersion !== JOB_THUMBNAIL_VERSION && image.consentVersion !== "public-task-thumbnail-v1")
+    || !listed || image.digest !== listed) return res.status(404).end();
+  const bytes = Buffer.from(image.pngBase64, "base64");
+  if (createHash("sha256").update(bytes).digest("hex") !== image.digest) return res.status(404).end();
+  res.set("Cache-Control", cache);
+  return res.type("png").send(bytes);
+}
+
+/** A card's thumbnail as this company's browser can load it: the ticketed address (`jobThumbnailViewUrl`). */
+function withViewerThumbnail<T extends { id: string; thumbnailUrl?: string | null }>(item: T, companyId: string | null): T {
+  if (!item.thumbnailUrl) return item;
+  return { ...item, thumbnailUrl: (companyId ? jobThumbnailViewUrl(item.id, companyId) : null) ?? item.thumbnailUrl };
+}
 
 // Site task cards are for robot teams in early access. Anyone else gets no
 // items and the access state, which the page turns into the application.
@@ -150,10 +175,11 @@ router.get("/tasks", async (req, res) => {
   res.set("Cache-Control", "no-store");
   res.set("Vary", "Authorization");
   try {
-    const access = await libraryAccessForRequest(req);
+    const { access, viewer } = await companyViewerForRequest(req);
     if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed) return res.json({ items: [], access });
-    return res.json({ items: await listTaskBrowseCards({ withAnswerHeadlines: true }), access });
+    const items = await listTaskBrowseCards({ withAnswerHeadlines: true });
+    return res.json({ items: items.map(item => withViewerThumbnail(item, viewer?.companyId ?? null)), access });
   } catch { return res.status(503).json({ error: "The job library could not be loaded." }); }
 });
 
@@ -163,12 +189,12 @@ router.get("/tasks/:taskId", async (req, res) => {
   res.set("Cache-Control", "no-store");
   res.set("Vary", "Authorization");
   try {
-    const access = await libraryAccessForRequest(req);
+    const { access, viewer } = await companyViewerForRequest(req);
     if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed) return res.status(404).json({ error: "This job is not in the job library." });
     const item = await readTaskCardDetail(String(req.params.taskId));
     if (!item) return res.status(404).json({ error: "This job is not in the job library." });
-    return res.json({ item });
+    return res.json({ item: withViewerThumbnail(item, viewer?.companyId ?? null) });
   } catch { return res.status(503).json({ error: "This job could not be loaded." }); }
 });
 

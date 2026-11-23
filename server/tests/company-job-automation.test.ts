@@ -335,12 +335,25 @@ describe("the company's page for one job (E3)", () => {
     // Made once: the same clip is not read again.
     expect(await thumbnail.makeJobThumbnail(ID, deps)).toBe("current");
     expect(downloads).toHaveLength(1);
+    // The page gives this company's ticketed address: a browser loads it as an image or poster with no sign-in token.
     const url = (await page()).body.item.thumbnailUrl as string;
-    expect(url).toBe(`/api/site-worlds/tasks/${ID}/thumbnail`);
-    const served = await realFetch(`${base}${url}`, { headers: signIn(NORTH) });
+    expect(url).toMatch(new RegExp(`^/api/site-worlds/tasks/${ID}/thumbnail\\?viewer=${sha(NORTH.email)}&expires=\\d+&signature=`));
+    const served = await realFetch(`${base}${url}`);
     expect(served.status).toBe(200);
     expect(Buffer.from(await served.arrayBuffer()).toString("base64")).toBe(stored.pngBase64);
+    // A forged or another company's ticket, and the bare address with no token, give nothing.
+    expect((await realFetch(`${base}${url.replace(/signature=[^&]+/, "signature=forged")}`)).status).toBe(404);
+    expect((await realFetch(`${base}${url.replace(sha(NORTH.email), sha(SOUTH.email))}`)).status).toBe(404);
+    expect((await realFetch(`${base}/api/site-worlds/tasks/${ID}/thumbnail`)).status).toBe(404);
+    // The library's card carries the same kind of address; the bearer route still works for a signed-in caller.
+    const card = ((await list()).body.items as Array<Record<string, any>>).find(item => item.id === ID)!;
+    expect(card.thumbnailUrl).toMatch(/thumbnail\?viewer=/);
+    expect((await realFetch(`${base}/api/site-worlds/tasks/${ID}/thumbnail`, { headers: signIn(NORTH) })).status).toBe(200);
+    // A company that may no longer see jobs gets nothing from a ticket it was given earlier.
+    const north = state.docs.get(`robotTeamAccess/${sha(NORTH.email)}`) as Record<string, any>;
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, { ...north, status: "declined" });
     expect((await realFetch(`${base}${url}`)).status).toBe(404);
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, north);
     await thumbnail.deleteJobThumbnail(ID);
     expect(state.docs.get(`taskThumbnails/${ID}`)).toBeUndefined();
     expect((await page()).body.item.thumbnailUrl).toBeNull();
@@ -366,7 +379,7 @@ describe("the company's page for one job (E3)", () => {
     expect(stored).toMatchObject({ source: "simulation_render", sourceDigest: sent.digest, scenePreviewDigest: sent.scene_preview_digest });
     const listing = (state.docs.get(`inboundRequests/${ID}`) as Record<string, any>).public_task_listing;
     expect(listing).toMatchObject({ thumbnailDigest: stored.digest, thumbnailSource: "simulation_render" });
-    expect((await page()).body.item).toMatchObject({ thumbnailUrl: `/api/site-worlds/tasks/${ID}/thumbnail`, thumbnailSource: "simulation_render" });
+    expect((await page()).body.item).toMatchObject({ thumbnailUrl: expect.stringMatching(/thumbnail\?viewer=/), thumbnailSource: "simulation_render" });
     // The same render again is accepted once; a frame never replaces a render.
     expect(await record()).toMatchObject({ accepted: true });
     expect(await thumbnail.makeJobThumbnail(ID, frameDeps)).toBe("current");
@@ -375,6 +388,29 @@ describe("the company's page for one job (E3)", () => {
     await expect(record({ ...sent, scene_preview_digest: `sha256:${"0".repeat(64)}` })).rejects.toThrow("website_job_thumbnail_stale");
     await expect(record({ ...sent, digest: `sha256:${"1".repeat(64)}` })).rejects.toThrow("website_job_thumbnail_digest_invalid");
     await expect(thumbnail.recordJobThumbnailRender(ID, `site-${ID}`, "walkthrough-other", sent)).rejects.toThrow("task_context_capture_mismatch");
+  });
+
+  it("passes over jobs whose thumbnail cannot be made, so later jobs are still caught up", async () => {
+    const thumbnail = await import("../utils/jobThumbnail");
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    // Three listed jobs read before this one whose thumbnail cannot be made, and this one, which can (read last).
+    state.docs.delete(`inboundRequests/${ID}`);
+    for (const id of ["aaa-1", "aaa-2", "aaa-3"]) state.docs.set(`inboundRequests/${id}`, structuredClone(record));
+    state.docs.set(`inboundRequests/${ID}`, record);
+    let clock = Date.parse("2026-11-23T12:00:00.000Z");
+    const deps = { now: () => new Date(clock), downloadClip: async () => true, extractFrame: async () => null };
+    const tried: string[] = [];
+    const make = async (jobId: string) => { tried.push(jobId); return jobId === ID ? "made" as const : "unavailable" as const; };
+    expect(await thumbnail.sweepJobThumbnails(deps, make)).toBe(0);
+    expect(tried).toEqual(["aaa-1", "aaa-2", "aaa-3"]);
+    // The three that failed wait their six hours; the next pass reaches this job.
+    expect(await thumbnail.sweepJobThumbnails(deps, make)).toBe(1);
+    expect(tried.slice(3)).toEqual([ID]);
+    // Six hours on, the failed ones are tried again.
+    clock += thumbnail.JOB_THUMBNAIL_RETRY_AFTER_MS;
+    await thumbnail.sweepJobThumbnails(deps, make);
+    expect(tried.slice(4)).toEqual(["aaa-1", "aaa-2", "aaa-3"]);
+    expect(state.docs.get(`${thumbnail.JOB_THUMBNAIL_ATTEMPTS_COLLECTION}/aaa-1`)).toMatchObject({ failedAtIso: new Date(clock).toISOString() });
   });
 
   it("makes no thumbnail for a job companies cannot see, and catches up listed jobs without one", async () => {

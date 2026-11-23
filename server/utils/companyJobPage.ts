@@ -14,6 +14,7 @@ import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompa
 import { jobFactsInWords } from "../../client/src/lib/jobFacts";
 import { firstLookRowFromAnswerRobot, firstLookRowInWords } from "../../client/src/lib/firstLookWords";
 import { readJobFacts } from "./jobFacts";
+import { jobThumbnailViewUrl } from "./jobThumbnailTicket";
 import { jobReadingOf } from "./siteRobotFit";
 import { firstLookFromStoredPreparation } from "./firstLookTable";
 import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
@@ -228,7 +229,8 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
       : { state: "preparing" },
-    thumbnailUrl: taskThumbnailUrl(requestId, record),
+    // The ticketed address this company's browser can load as the video's poster (`jobThumbnailViewUrl`).
+    thumbnailUrl: taskThumbnailUrl(requestId, record) ? jobThumbnailViewUrl(requestId, viewer.companyId) : null,
     thumbnailSource: taskThumbnailUrl(requestId, record) ? thumbnailSourceOf(record) : null,
     simulationDownload: simulationUrl ? { state: "ready", url: simulationUrl } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },

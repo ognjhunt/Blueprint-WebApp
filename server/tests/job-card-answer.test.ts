@@ -24,9 +24,11 @@ const seams = vi.hoisted(() => ({
   answerFails: false,
   managed: vi.fn(async (): Promise<{ managedEvidence: unknown[] }> => ({ managedEvidence: [] })),
 }));
-vi.mock("../utils/robotTeamLibraryAccess", () => ({ libraryAccessForRequest: vi.fn(async () => ({
-  status: seams.allowed ? "approved" : "none", signedIn: seams.allowed, emailVerified: seams.allowed,
-  allowed: seams.allowed, staff: false })) }));
+const libraryAccess = () => ({ status: seams.allowed ? "approved" : "none", signedIn: seams.allowed, emailVerified: seams.allowed,
+  allowed: seams.allowed, staff: false });
+vi.mock("../utils/robotTeamLibraryAccess", () => ({ libraryAccessForRequest: vi.fn(async () => libraryAccess()),
+  // The card routes also name the viewer, for its thumbnail's ticketed address; these tests sign no one in.
+  companyViewerForRequest: vi.fn(async () => ({ access: libraryAccess(), viewer: null })) }));
 vi.mock("../utils/siteAnswer", async importOriginal => {
   const actual = await importOriginal<typeof import("../utils/siteAnswer")>();
   return { ...actual, loadSiteAnswer: vi.fn(async (...args: Parameters<typeof actual.loadSiteAnswer>) => {

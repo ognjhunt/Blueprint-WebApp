@@ -240,7 +240,8 @@ export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRec
 /** An application left unchecked this long (the server restarted mid-check, or it came before the rule) is swept. */
 export const COMPANY_CHECK_SWEEP_AFTER_MS = 10 * 60 * 1000;
 const SWEEP_PER_PASS = 5;
-const SWEEP_SCAN_LIMIT = 200;
+const SWEEP_PAGE_SIZE = 200;
+const SWEEP_MAX_PAGES = 50;
 
 /**
  * The ops monitor's catch-up (`betaOpsMonitor.ts`, step 8): a waiting deployment-company application with no check
@@ -249,8 +250,19 @@ const SWEEP_SCAN_LIMIT = 200;
  */
 export async function sweepUncheckedCompanyApplications(nowMs = Date.now(), deps: CompanyCheckDeps = defaultDeps): Promise<number> {
   if (!db) return 0;
-  const { docs } = await db.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "applied").limit(SWEEP_SCAN_LIMIT).get();
-  const due = docs.map(doc => ({ id: doc.id, record: doc.data() as RobotTeamAccessRecord }))
+  // Every waiting application is read, a page at a time by document id: checked ones waiting for the owner never
+  // hide an unchecked one behind them.
+  const found: Array<{ id: string; record: RobotTeamAccessRecord }> = [];
+  let after: string | null = null;
+  for (let page = 0; page < SWEEP_MAX_PAGES; page += 1) {
+    let query = db.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "applied").orderBy("__name__").limit(SWEEP_PAGE_SIZE);
+    if (after) query = query.startAfter(after);
+    const { docs } = await query.get();
+    found.push(...docs.map(doc => ({ id: doc.id, record: doc.data() as RobotTeamAccessRecord })));
+    if (docs.length < SWEEP_PAGE_SIZE) break;
+    after = docs[docs.length - 1].id;
+  }
+  const due = found
     .filter(({ id, record }) => !record.companyCheck && record.partnerRole !== "technology" && typeof record.email === "string"
       && accessRecordId(record.email) === id && Date.parse(String(record.appliedAtIso ?? "")) <= nowMs - COMPANY_CHECK_SWEEP_AFTER_MS)
     .sort((a, b) => String(a.record.appliedAtIso).localeCompare(String(b.record.appliedAtIso)))

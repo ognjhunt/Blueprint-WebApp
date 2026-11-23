@@ -173,19 +173,34 @@ export function makeJobThumbnailSoon(jobId: string): void {
   void makeJobThumbnail(jobId).catch((error) => logger.warn({ error, jobId }, "Could not make the job's thumbnail"));
 }
 
-const SWEEP_PER_PASS = 3;
+const SWEEP_ATTEMPTS_PER_PASS = 3;
+/** A job whose thumbnail could not be made is tried again after this long, so it never holds up the others. */
+export const JOB_THUMBNAIL_RETRY_AFTER_MS = 6 * 60 * 60 * 1000;
+export const JOB_THUMBNAIL_ATTEMPTS_COLLECTION = "taskThumbnailAttempts";
 
 /**
  * The ops monitor's catch-up: listed jobs with no thumbnail yet (shared before thumbnails, or whose making failed) get
- * one, at most three a pass. Returns how many were made.
+ * one. Every candidate is looked at: one not listed or without a clip costs no read of a video and is passed over;
+ * at most three a pass read a video; one that failed waits six hours before it is tried again. Returns how many were made.
  */
-export async function sweepJobThumbnails(deps: JobThumbnailDeps = defaultDeps): Promise<number> {
+export async function sweepJobThumbnails(deps: JobThumbnailDeps = defaultDeps,
+  make: (jobId: string) => Promise<JobThumbnailOutcome> = (jobId) => makeJobThumbnail(jobId, deps)): Promise<number> {
   if (!db) return 0;
-  const { docs } = await db.collection("inboundRequests")
+  const store = db;
+  const { docs } = await store.collection("inboundRequests")
     .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).get();
-  const missing = docs.filter(doc => !doc.data()?.public_task_listing?.thumbnailDigest).map(doc => doc.id).slice(0, SWEEP_PER_PASS);
-  let made = 0;
-  for (const id of missing) if (await makeJobThumbnail(id, deps) === "made") made += 1;
+  const nowMs = deps.now().getTime();
+  let attempts = 0, made = 0;
+  for (const doc of docs) {
+    if (attempts >= SWEEP_ATTEMPTS_PER_PASS) break;
+    if (doc.data()?.public_task_listing?.thumbnailDigest) continue;
+    const attemptRef = store.collection(JOB_THUMBNAIL_ATTEMPTS_COLLECTION).doc(doc.id);
+    const last = Date.parse(String((await attemptRef.get()).data()?.failedAtIso ?? ""));
+    if (Number.isFinite(last) && nowMs - last < JOB_THUMBNAIL_RETRY_AFTER_MS) continue;
+    const outcome = await make(doc.id);
+    if (outcome === "made") { made += 1; attempts += 1; await attemptRef.delete().catch(() => undefined); }
+    else if (outcome === "unavailable") { attempts += 1; await attemptRef.set({ failedAtIso: deps.now().toISOString() }); }
+  }
   return made;
 }
 
