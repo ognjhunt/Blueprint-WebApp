@@ -1,0 +1,556 @@
+{
+ "lane": "L4",
+ "name": "Deletions, dead code, tests and documents (both repositories)",
+ "candidates": [
+  {
+   "id": "F-05",
+   "title": "A picked video is sent in one request that the server cuts after 5 minutes, with no resume",
+   "dimension": "broken",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "A.5 Upload a video",
+   "evidence": [
+    "webapp:client/src/lib/selfCaptureVideo.ts:115-160 the whole file in one XMLHttpRequest POST, client timeout 15 min, no parts or resume",
+    "webapp:server/index.ts:5 http.createServer with no requestTimeout set (grep requestTimeout in server/: no match); .nvmrc = 22",
+    "cmd: node slowpost.mjs (scratch; default http.createServer on node v22.23.5, a 400 MB POST at about 640 KB/s) -> 'requestTimeout 300000', 'response 408 after s 330.011' with about 210 MB sent",
+    "webapp:server/routes/self-capture-uploads.ts:128,146-147 the route accepts up to 2 GiB"
+   ],
+   "today": "When a site picks a saved video instead of filming in the page, the browser sends the whole file in one request. Node 22 closes any request not fully received within 300 seconds, and the server does not change that. At a 10 Mbit/s phone uplink that is about 375 MB; at 5 Mbit/s about 190 MB. A longer upload fails and starts from zero on retry. A network drop or a closed tab also loses the whole upload.",
+   "should": "A picked video uploads in parts like the in-page recording does, and a retry resumes from the last stored part.",
+   "change": "FIX",
+   "proposal": "Smallest fix today: set server.requestTimeout = 0 (or 30 min) for the upload route in server/index.ts so long uploads are not cut. Then send picked files through the existing parts route (/:token/parts/:index and /parts/complete, already used by CaptureRecorder) and use the existing GET /:token/parts to skip stored parts.",
+   "user_result": "A site on an ordinary phone connection can post a 1-2 minute video it already filmed.",
+   "risk": "Longer-held connections on the single web instance; the parts route already exists and is tested by the recorder.",
+   "hard_stop": "none",
+   "verified": "unverified",
+   "verify_how": "Measured on a bare Node 22 server with the same defaults as server/index.ts (408 at 330 s). Not measured end to end through Render's proxy; a real phone upload of a 500 MB file to a staging deploy would settle it.",
+   "requirement_source": "doctrine 'video in'; the single-request design has source nobody",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "agent": "dim-fragile",
+   "lane": "L4",
+   "also_reported": []
+  },
+  {
+   "verify_how": "",
+   "needs_owner": false,
+   "live_in_production": "yes",
+   "verified": "yes",
+   "hard_stop": "none",
+   "id": "IP-03",
+   "title": "207 failed units on the host, 206 of them stale experiment runs that hide real failures",
+   "dimension": "unseen",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "Operations: door status",
+   "evidence": [
+    "door-status.json failed_units: 207 entries; only blueprint-gpu-spend-guard.service is a repo unit",
+    "cmd: door units -> 206 blueprint-* transient services (g1-841757 35, atlas 33, native 31, diagnostics 29, scene 23, policy 15, other 40) dated 2026-09-26..2026-10-27",
+    "pipeline:docs/runbooks/beta-operations.md section 7: 'Not done: reset-failed on the transient failed units (O-24)'"
+   ],
+   "today": "Anyone reading door status sees 207 failures and cannot tell that only one matters.",
+   "should": "failed_units lists only units that failed and still matter.",
+   "change": "DELETE",
+   "proposal": "In one deploy window run reset-failed on the transient units (door unit action), and make door status list repo units first and count transient ones separately.",
+   "user_result": "The owner sees one failed unit, not 207.",
+   "risk": "Losing the failure record of old experiments; their journals stay.",
+   "requirement_source": "nobody (left over from O-24)",
+   "agent": "inventory-pipeline",
+   "lane": "L4",
+   "also_reported": [
+    {
+     "id": "D-07",
+     "agent": "journey-D",
+     "title": "The status a person reads in a crisis is 135 KB, and its red lists are mostly dead experiments",
+     "severity": "P1",
+     "dimension": "unseen",
+     "evidence": [
+      "scratchpad door-status.json: failed_units 207; 137 carry a date (Sept 25, Oct 112, Nov 0); 70 undated one-off names (diagnostic, canary, -r2); only real unit among them is blueprint-gpu-spend-guard.service",
+      "same: capacity.alerts 18, all severity warn: 4 money, 3 storage_class_over_budget, 1 orphan_scratch_large, 10 usage_unclassified_root",
+      "same: paid_launch_locks 7, all held=false; holds 1, expired 2026-10-03 (founder stop, require_explicit_release)",
+      "same: capacity.stall.checks scene_progression stalled 0, atlas stalled 0"
+     ],
+     "today": "The saved status shows 18 alerts, 207 failed units, one hold and seven paid launch locks. In fact: no page-level alert, no stalled job, no held lock, a hold that expired seven weeks ago, and 206 failed units that are finished experiments. The one real problem (D-01) is buried. A person cannot tell this in a minute.",
+     "proposal": "Have the door clear failed state of transient one-off units older than 7 days (systemctl reset-failed), drop unheld locks and expired holds from the default view, and add a summary block (needs_you: [...]) at the top of door status.",
+     "hard_stop": "none"
+    },
+    {
+     "id": "V-13",
+     "agent": "dim-vestigial",
+     "title": "The host keeps 229 units the repository does not ship",
+     "severity": "P2",
+     "dimension": "vestigial",
+     "evidence": [
+      "door-units.json (inventory scratch, door units ~15:10Z): 306 units; 206 failed transient units; 11 blueprint-operator-door-hold-expiry-*.timer active/waiting and 11 matching services; blueprint-existing-policy-canary-watchdog.service",
+      "inventory 2.1 and 2.2: hold expiry timers for holds that no longer exist except one expired hold on blueprint-agent-run-dispatcher.timer, whose code left on 2026-11-15",
+      "inventory IP-03, journey D-07"
+     ],
+     "today": "The host lists 206 failed one-off experiment units, 22 hold-expiry units and a policy-canary watchdog. They fill the status the owner reads in a crisis.",
+     "proposal": "Owner, through a door unit request: systemctl reset-failed for the 206 transient units; stop and remove the 22 hold-expiry units and the canary watchdog; release the expired agent-run-dispatcher hold. Repo PR: teach the release lifecycle to reset-failed transient units older than 7 days.",
+     "hard_stop": "none"
+    }
+   ]
+  },
+  {
+   "verify_how": "",
+   "needs_owner": false,
+   "live_in_production": "yes",
+   "verified": "yes",
+   "hard_stop": "none",
+   "id": "IP-04",
+   "title": "The website job path imports 81% of the package, retired lanes included",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "effort": "L",
+   "journey_step": "Whole website job path",
+   "evidence": [
+    "cmd: python3 reach.py (scratchpad agents/inventory-pipeline) -> static web 1317 modules 581873 lines of 1621 / 715431",
+    "cmd: python3 fam.py -> on web path: policy/trial 44 mods 14,135 lines; G1 27/7,474; Astra 11/4,914; episode compilation 12/13,730; rigid probe 12/4,403; native arena 103/56,759",
+    "pipeline:src/blueprint_pipeline/vast_provider_adapter.py (10,327 lines) imports vast_policy_canary_remote_progress at line 197"
+   ],
+   "today": "Every change to the job path drags in hundreds of modules from systems the owner retired, and every test run and deploy carries them.",
+   "should": "The job path imports only what the job uses.",
+   "change": "DELETE",
+   "proposal": "Cut the boundary edges listed in the report section 9 one PR at a time, starting with constant-only imports (dispatcher cgroup cleanup -> RunPod watchdog EVIDENCE_NAME, website_robot_fit -> droid constants, website_locomotion_hold -> G1 catalog), then delete what becomes unreachable.",
+   "user_result": "Faster, safer fixes to the job path; fewer failures from code no job runs.",
+   "risk": "Static graph misses dynamic loads; each cut must run the impacted tests and a replay.",
+   "requirement_source": "owner direction 2026-11-17 ('only keep stuff that is needed'); AGENTS.md 'removed as those imports are cut'",
+   "agent": "inventory-pipeline",
+   "lane": "L4",
+   "also_reported": []
+  },
+  {
+   "verify_how": "",
+   "needs_owner": false,
+   "live_in_production": "yes",
+   "verified": "yes",
+   "hard_stop": "none",
+   "id": "IP-05",
+   "title": "Trial code is still imported by 41 live modules along 59 edges",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "Simulation build, delivery, provider adapter",
+   "evidence": [
+    "cmd: python3 boundary.py -> policy_trial 59 edges from 41 non-retired live importers into 22 modules",
+    "pipeline:src/blueprint_pipeline/task_evaluation_launch_dispatcher.py:61 imports task_evaluation_policy_run_contract (1,092 lines)",
+    "pipeline:src/blueprint_pipeline/website_robot_fit.py:99 imports droid_policy_canary_embodiment",
+    "pipeline:src/blueprint_pipeline/task_evaluation_result_delivery.py:1458 imports policy_canary_control_result_delivery",
+    "pipeline:src/blueprint_pipeline/website_rigid_feasibility.py:25 still describes checking every screening candidate embodiment (config/beta_policy_candidates.v1.json, which no code reads)"
+   ],
+   "today": "The trial ended 2026-11-14, but the paid launch path, result delivery, and robot fit still load its contracts.",
+   "should": "No live module imports trial code; AGENTS.md can drop the caveat.",
+   "change": "DELETE",
+   "proposal": "Move the few constants the live modules need into a neutral module, replace task_evaluation_policy_run_contract in the launch path with the scene-configuration subset it uses, then delete the trial modules and config/trial, config/policy_runtimes, config/beta_policy_candidates.v1.json.",
+   "user_result": "One fewer retired system in every deploy and review.",
+   "risk": "Old retained records may still be validated by these contracts (terminal index); keep a read-only reader if so.",
+   "requirement_source": "owner 2026-11-14 (trial dropped); AGENTS.md mission paragraph",
+   "agent": "inventory-pipeline",
+   "lane": "L4",
+   "also_reported": [
+    {
+     "id": "V-03",
+     "agent": "dim-vestigial",
+     "title": "Trial code cannot be deleted by name: 17 of its 59 live imports are generic helpers wearing trial names",
+     "severity": "P1",
+     "dimension": "vestigial",
+     "evidence": [
+      "cmd: /tmp/claude-0/-home-user/e3989091-e008-5b78-a9cb-b7c31a5efdb8/scratchpad/agents/dim-vestigial/cut.py policy_trial (AST over boundary.json) -> per edge imported names and lines",
+      "pipeline:src/blueprint_pipeline/task_evaluation_scene_configuration_vast.py:138 imports stage_wam_provider_bundle_object_store from wam_provider_object_store (1,994 lines, 9 live importers)",
+      "pipeline:src/blueprint_pipeline/task_evaluation_launch_activation_worker.py:1251-1268 (every activation still builds a paired policy campaign manifest; status policy_campaign_queue_materialized_no_execution)",
+      "pipeline:src/blueprint_pipeline/task_evaluation_scene_policy_capability.py:66-72 (returns [] for every scene_preparation intent with policy_candidates == [])",
+      "webapp:server/utils/taskEvaluationSceneIntake.ts:730,738 (website intents require policy_candidates.length === 0)",
+      "commits since 2026-10-23 touching the 55 trial modules: 27 (famcommits.py)"
+     ],
+     "today": "The trial was dropped on 2026-11-14, yet 41 live modules import 22 trial modules. Some of these are not trial at all: the B2 bundle staging every scene configuration uses lives in wam_provider_object_store. Others are dead branches (the capability gate passes every website intent). The launch path still builds a paired-policy campaign record for each activation. A name-based delete would break the simulation build.",
+     "proposal": "Seven small PRs in this order (full edge list in raw/dim-vestigial.md section 3): T1 move generic helpers out of trial names (17 edges, no behaviour change); T2 inline embodiment and action constants (10 edges); T3 delete the policy capability, policy binding and canary-result gates (11 edges); T4 cut trial branches from result delivery and the arena bundle (6 edges); T5 cut trial probes from the Vast adapter and arm reach (7 edges, keep the billing reader until past Vast invoices are settled); T6 split task_evaluation_policy_run_contract so the launch path keeps only the scene-configuration part (6 edges, replay a recorded website launch before and after); T7 drop task_evaluation_supervisor.candidate_policy (2 edges). Then delete the 22 modules, config/trial, config/policy_runtimes, config/beta_policy_candidates.v1.json and the 34 trial tests.",
+     "hard_stop": "money"
+    },
+    {
+     "id": "V-16",
+     "agent": "dim-vestigial",
+     "title": "Live job code still carries retired names, so a delete by name would break it",
+     "severity": "P2",
+     "dimension": "fragile",
+     "evidence": [
+      "webapp:server/routes.ts:71 mounts internal-beta-policy-screening.ts, called by pipeline:scene_stage_holds.py for held-job sentences (live)",
+      "webapp:server/utils/betaPolicyScreeningContract.ts (327 lines) imported by 7 live modules incl. websiteJobCeiling.ts, websiteSceneProgression.ts, taskStatusProjection.ts",
+      "webapp:server/utils/taskEvaluationSceneIntake.ts (1,176 lines): the live scene intent forwarding, counted in the trial's 10,500 lines",
+      "webapp:server/routes/site-worlds.ts serves the current company job library",
+      "pipeline:src/blueprint_pipeline/website_capture_withdrawal_screening.py, screening_retained_ledger.py (kept on purpose)"
+     ],
+     "today": "The trial, screening and marketplace names are on code the job path needs: held-job sentences, the job ceiling, scene intent forwarding and the company library.",
+     "proposal": "Rename before deleting: beta-policy-screening-holds -> job-holds (route, Pipeline caller, both sides in one release), betaPolicyScreeningContract -> jobSpendCeiling, taskEvaluationSceneIntake -> sceneIntent, site-worlds -> company-jobs. Keep the screening ledger and withdrawal readers by name (AGENTS.md).",
+     "hard_stop": "none"
+    }
+   ]
+  },
+  {
+   "verify_how": "",
+   "needs_owner": false,
+   "live_in_production": "no",
+   "verified": "yes",
+   "hard_stop": "none",
+   "id": "IP-12",
+   "title": "The nightly full test lane has been red four nights running",
+   "dimension": "fragile",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "CI",
+   "evidence": [
+    "cmd: gh run list --workflow full-test-lane.yml -L 8 -> failure 11-18, 11-19, 11-20, 11-21; success 11-14..11-17",
+    "cmd: gh run view 44923019149 --log-failed -> FAILED tests/test_registered_feature_linux.py::test_actual_registered_disk_diagnostic_delete_offload_and_restore (groupdel: group 'blueprint' does not exist); 1 failed, 2835 passed",
+    "cmd: gh run view 44778664583 -> FAILED test_scene_attempt_measured_compute.py (scene_intake_spend_cap_exhausted) and test_task_evaluation_scene_configuration_diagnostic_rejection.py",
+    "pipeline:.github/workflows/full-test-lane.yml (12 shards; 2026-11-21 shards 11-24 min, about 232 runner-minutes)"
+   ],
+   "today": "The only full run of the 36,000-odd tests fails nightly on a different single test, so a real regression would not stand out. PR CI runs impacted tests only.",
+   "should": "The full lane is green, or a failure opens one tracked item the same day.",
+   "change": "FIX",
+   "proposal": "Fix or delete the registered-feature Linux test (an experiment-lane disk diagnostic), and make the nightly failure post to the operator alert route.",
+   "user_result": "A real break in the job path is caught within a day.",
+   "risk": "Deleting tests of experiment lanes is correct only if the lane is also removed (see IP-04).",
+   "requirement_source": "docs/CI_REQUIRED_CHECKS.md (full lane is the broad check)",
+   "agent": "inventory-pipeline",
+   "lane": "L4",
+   "also_reported": [
+    {
+     "id": "F-16",
+     "agent": "dim-fragile",
+     "title": "The Pipeline's nightly full lane is red four nights running and guards nothing",
+     "severity": "P2",
+     "dimension": "fragile",
+     "evidence": [
+      "GitHub Actions full-test-lane.yml: runs 44356749345 (11-18), 44576571521 (11-19), 44778664583 (11-20), 44923019149 (11-21, at HEAD 7d8b532) all conclusion failure; 11-14 to 11-17 success",
+      "pipeline:docs/OPERATOR_DOOR.md:441-449 an iteration deploy 'skips the Full Test Lane'; only a production deploy needs it",
+      "pipeline:.github/workflows/full-test-lane.yml: no failure notification step (grep notify|slack|issue -> none)",
+      "inventory IP-12: a different single test fails each night"
+     ],
+     "today": "Builds on IP-12. Every beta deploy is an iteration deploy, which does not need the full lane, so four red nights blocked nothing and told nobody. A different single test fails each night, which looks like order or environment flakiness (one failure needs a 'blueprint' Unix group the runner lacks).",
+     "proposal": "Stop the nightly schedule (keep workflow_call for a production deploy), and fix the four named tests or mark the host-only one to skip without the group. If the owner wants a nightly signal, open an issue on failure instead of failing silently.",
+     "hard_stop": "none"
+    }
+   ]
+  },
+  {
+   "effort": "M",
+   "journey_step": "inventory",
+   "change": "DELETE",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "id": "IW-01",
+   "title": "35 API routes have no caller in the website, the Pipeline or the scripts",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/routes/admin-robot-teams.ts:104,128,167,240,263,289",
+    "webapp:server/routes/internal-task-evaluation-launches.ts:17,343",
+    "webapp:server/routes/owned-capture-atlas.ts:39,60,74",
+    "webapp:server/routes/capture-uploads.ts:995,1039,1105",
+    "webapp:server/routes/site-task-brief.ts:131,1461,1492,1521,1543,1558",
+    "webapp:server/routes/job-workflow.ts:66-67",
+    "webapp:server/routes/internal-pipeline.ts:1531,1736,1907",
+    "webapp:server/routes/operator-status.ts:37",
+    "webapp:client/src/data/siteMeasurements.ts:292 (only a comment names the measurements route)",
+    "webapp:e2e/site-private-link-reliability.spec.ts:30 mocks /api/job-workflow/owner/ which the page no longer calls",
+    "cmd: scratchpad agents/inventory-webapp/routes.mjs + callers grep over client/src, Pipeline src/scripts (non-test), webapp scripts -> 35 routes with no caller (report section 3a)"
+   ],
+   "today": "The server answers 35 routes that nothing calls: the robot-team registry and supply agreements (6), the owned Atlas reconstruction routes (5, which can start paid compute), two trial progress routes, the site measurements and item routes, the job-workflow owner routes, run-closure, advisory-retry, operator-status and others. Each still carries auth, validation and tests. One e2e spec mocks a route the page stopped calling, so it passes without exercising anything.",
+   "should": "Every route the server answers has a caller and a reason.",
+   "proposal": "One PR per router: delete the 35 handlers listed in inventory-webapp.md section 3a with their now-unused helpers and tests, and drop the stale /api/job-workflow/owner mock from site-private-link-reliability.spec.ts. Before merging, check 30 days of Render request logs for each path (a free read).",
+   "user_result": "No customer-visible change; less code that can break or be abused, and faster reviews.",
+   "risk": "An operator or Pipeline release older than HEAD may still call a route (the Pipeline's active release can lag HEAD). Request logs settle it. The owned Atlas routes could start paid work if someone found them, which is a reason to remove them, not to keep them.",
+   "requirement_source": "nobody found: 157 of 170 route handlers have no owner or doctrine comment near them",
+   "agent": "inventory-webapp",
+   "lane": "L4",
+   "also_reported": []
+  },
+  {
+   "effort": "L",
+   "journey_step": "inventory",
+   "change": "DELETE",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "id": "IW-02",
+   "title": "The dropped early trial still lives in about 10,500 lines, five mounted routers, a worker and the site's job-page states",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/routes.ts:71-73,88,130-137 mount internal-beta-policy-screening, internal-scene-execution-window, internal-owner-success-proposal, internal-task-evaluation-launches, -submissions, -preparations",
+    "webapp:server/worker.ts:46 starts the Task Evaluation launch forwarder",
+    "webapp:client/src/lib/jobOutlook.ts:5-13 phases testing and result, reasons run_held, run_ended, no_ai_robot_scored, window_ended_during_test",
+    "webapp:client/src/lib/jobOutlook.ts:70-74 'a trial result'",
+    "webapp:server/utils/policyIntegration.ts:123 hard-codes a robot-policy endpoint https://api.dreamlabs.ai/v1/get_action, imported by robotTeamSupply.ts",
+    "webapp:client/src/app/routes.tsx LegacyBookExactSiteReviewRedirect adds interest=task-evaluation-run",
+    "measured: 34 source files / 10,514 lines and 16 test files / 6,426 lines named for the trial (report section 10)",
+    "baseline aggregate: taskEvaluationLaunches 524 docs, taskEvaluationPolicyRuns 121, captureTaskEvaluationRuns 95"
+   ],
+   "today": "The trial was dropped on 2026-11-14 and the doctrine says Blueprint runs no robot software in the simulation. The WebApp still mounts its routers, runs its forwarder, keeps 'testing' and 'result' phases in the site's job-page model and keeps a robot-policy integration. Part of this code is now the job's launch path to the Pipeline under the trial's old names (#1300), so the line between live and dead is hard to see.",
+   "should": "Only the job-launch path survives, under job words; trial routes, phases, reasons and the policy integration are gone.",
+   "proposal": "Step 1 (S): remove phases testing/result and reasons run_held/run_ended/no_ai_robot_scored/window_ended_during_test from jobOutlook.ts and the server outlook, after checking no live job holds them (Firestore aggregate 3). Step 2 (M): delete policyIntegration.ts, policyCanary*.ts, runResultScoring.ts, evaluationReadyRunContract.ts, robotTeamTestSubmission.ts and the two uncalled trial routes. Step 3 (M): rename the surviving launch path from taskEvaluation* to job launch.",
+   "user_result": "The site's job page can never show a trial state; one fewer concept for anyone reading the code.",
+   "risk": "The launch forwarder and launch contracts carry today's job to the Pipeline. Deleting by name instead of by caller would stop new jobs. Do it caller-first, with the core-journey test green.",
+   "requirement_source": "owner direction 2026-11-14 (trial dropped); doctrine line 'no robot software in the simulation' (#1322, 2026-11-19)",
+   "agent": "inventory-webapp",
+   "lane": "L4",
+   "also_reported": [
+    {
+     "id": "G-09",
+     "agent": "dim-gates",
+     "title": "The job card's Ready stage still comes from the retired trial's runnable proof",
+     "severity": "P2",
+     "dimension": "vestigial",
+     "evidence": [
+      "webapp:server/utils/teamJobAccess.ts:136",
+      "webapp:server/utils/teamJobAccess.ts:161",
+      "webapp:server/utils/taskBrowse.ts:20",
+      "webapp:client/src/components/site/TaskBrowse.tsx:83"
+     ],
+     "today": "evaluationAvailable needs triage 'qualified', a confirmed brief, gate answers, a world manifest and an internal proof that the harness can load and step the scene; the card's stage reads it, while the Ready-to-test filter reads simulationDownloadAvailable.",
+     "proposal": "Derive the card stage from simulationDownloadAvailable; delete isRunnableTask and its readers.",
+     "hard_stop": "none"
+    }
+   ]
+  },
+  {
+   "effort": "S",
+   "journey_step": "inventory",
+   "change": "FIX",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "id": "IW-03",
+   "title": "The deploy config says the worker only forwards launches, but the worker runs all seven job loops",
+   "dimension": "fragile",
+   "severity": "P1",
+   "evidence": [
+    "webapp:render.yaml:31-33 'explicitly constrained to Task Evaluation launch reconciliation; unrelated ops processors stay off'",
+    "webapp:render.yaml:53 BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER=true",
+    "webapp:render.required.env.example:18 'must not enable unrelated ops automation'",
+    "webapp:server/worker.ts:22-27,36-44 the flag only changes a log line",
+    "webapp:server/worker.ts:46-58 starts launch forwarder, withdrawals, deletions, job window sweep, automatic sends, outcome questions and heartbeat unconditionally"
+   ],
+   "today": "Anyone reading render.yaml or the env manifest believes the worker does one thing. It actually sends every job to the approved companies, asks the 14/45/90-day outcome questions, ends expired jobs and deletes withdrawn videos. The flag that claims to restrict it does nothing.",
+   "should": "The config and its comments say what the worker does; no flag pretends to limit it.",
+   "proposal": "Delete BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER from worker.ts, render.yaml and render.required.env.example, and rewrite the two comments to list the seven loops.",
+   "user_result": "An operator cannot 'fix' the worker to match the comment and silently stop job sends and outcome emails.",
+   "risk": "None in code; the flag has no effect today.",
+   "requirement_source": "nobody: the flag outlived the change that gave the worker its job loops",
+   "agent": "inventory-webapp",
+   "lane": "L4",
+   "also_reported": [
+    {
+     "id": "F-12",
+     "agent": "dim-fragile",
+     "title": "The worker config and its log say 'launch forwarder only' while it runs every job loop",
+     "severity": "P1",
+     "dimension": "fragile",
+     "evidence": [
+      "webapp:render.yaml:31-33 'explicitly constrained to Task Evaluation launch reconciliation; unrelated ops processors stay off'",
+      "webapp:render.yaml:53-54 BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER=true",
+      "webapp:server/worker.ts:36-45 the flag only changes the log line to 'Task Evaluation launch forwarder only'; lines 47-59 start all seven loops regardless"
+     ],
+     "today": "Builds on IW-03. Someone who trusts the config or reads the production log will believe the worker only forwards launches, a lane tied to the dropped trial. Suspending or deleting it to save money would silently stop withdrawals and Storage deletions (privacy), the job-window endings, the automatic send to companies and the outcome questions. The heartbeat alert would fire, but its text calls this the 'launch-forward worker'.",
+     "proposal": "Delete BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER from render.yaml and worker.ts, rewrite the render.yaml comment to list the loops, and log 'Blueprint worker starting: job loops'. Then ask whether the launch forwarder itself (T3) still has work since the trial was dropped.",
+     "hard_stop": "privacy"
+    }
+   ]
+  },
+  {
+   "effort": "S",
+   "journey_step": "inventory",
+   "change": "DELETE",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "Compare the deployed Storage rules (Firebase console or firebase CLI read) with storage.rules at HEAD.",
+   "live_in_production": "unknown",
+   "needs_owner": true,
+   "id": "IW-04",
+   "title": "Storage rules still let any signed-in account upload to folders of retired products",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "evidence": [
+    "webapp:storage.rules:116-142 users/, accounts/, captures/, capture-artifacts/ writable by any signed-in user for their own uid (500 MB per object for captures and capture-artifacts)",
+    "webapp:storage.rules:107 blueprints/ (100 MB)",
+    "webapp:storage.rules:177-190 menus/ any signed-in user, 10 MB, no count limit",
+    "webapp:storage.rules:145-160 scenes raw path, 20 GiB per object, kept for the Android capture app",
+    "cmd: grep -rn 'firebase/storage|uploadBytes' client/src -> only getStorage import in client/src/lib/firebase.ts:27; no client upload",
+    "webapp:server/utils/storage-provider.ts:213-218 the only code naming blueprints/, menus/, capture-artifacts/"
+   ],
+   "today": "The website never uploads to Storage from the browser, yet the rules allow any signed-in Firebase account to store files under menus/, blueprints/, users/, accounts/, captures/ and capture-artifacts/, and the retired capture app's raw path takes 20 GiB objects. Blueprint pays for whatever is stored.",
+   "should": "Only paths the current product writes are client-writable; the rest deny by default.",
+   "proposal": "Remove the menus/, blueprints/, users/, accounts/ and capture-artifacts/ rules, and drop the client create rule on scenes/**/raw once the Capture repo confirms the Android app is retired; the deny-all at storage.rules:193 then covers them. Coordinate with the Capture repo, which deploys the same rules file.",
+   "user_result": "No customer-visible change; closes a storage-cost and abuse surface.",
+   "risk": "The rules are shared with the Capture repo and deploys are last-writer-wins (storage.rules:144); both repos must change together. Existing objects stay; only new client writes stop.",
+   "requirement_source": "nobody found for menus/, blueprints/, users/, accounts/; capture app (retired 2026-11-11) for the raw path",
+   "agent": "inventory-webapp",
+   "lane": "L4",
+   "also_reported": []
+  },
+  {
+   "effort": "S",
+   "journey_step": "inventory",
+   "change": "FIX",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "id": "IW-06",
+   "title": "Three site-intake browser test suites (685 lines) never run in CI",
+   "dimension": "fragile",
+   "severity": "P1",
+   "evidence": [
+    "webapp:playwright.intake.config.ts:6 site-intake-recovery.spec.ts (264 lines)",
+    "webapp:playwright.intake-backend.config.ts:5 site-intake-backend-reliability.spec.ts (159 lines)",
+    "webapp:playwright.intake-durability.config.ts:5 site-intake-durability.spec.ts (262 lines)",
+    "webapp:playwright.config.ts:34 ignores all three in the default run",
+    "cmd: grep -rn 'intake-backend|intake-durability|playwright.intake.config' .github package.json scripts -> only scripts/qa/reliability-README.md:27-28 (manual)",
+    "git log: configs last changed 2026-10-08; specs last changed 2026-11-20"
+   ],
+   "today": "The specs for losing a create response, local draft durability and the intake backend are edited with every change but run by nobody, so they may already be red. Intake is the first step of the core loop.",
+   "should": "Every site-intake spec either runs in CI or is deleted.",
+   "proposal": "Run the three configs in the CI e2e job next to reliability-intake (one line each in ci.yml). If any fails on main, fix or delete that spec in the same PR. Also delete playwright.result-consumer.config.ts's duplicate run path or merge it with invited-beta.",
+   "user_result": "A regression that loses a site's first job draft is caught before deploy.",
+   "risk": "Adds a few minutes to the full e2e job on a shared runner; flakiness would surface.",
+   "requirement_source": "nobody found; the specs were written for the reliability program (scripts/qa/reliability-README.md)",
+   "agent": "inventory-webapp",
+   "lane": "L4",
+   "also_reported": [
+    {
+     "id": "V-20",
+     "agent": "dim-vestigial",
+     "title": "Three site-intake test suites and one duplicate Playwright config are kept but never run",
+     "severity": "P2",
+     "dimension": "vestigial",
+     "evidence": [
+      "inventory 9: playwright.intake.config.ts, playwright.intake-backend.config.ts, playwright.intake-durability.config.ts not in CI (685 spec lines, last config change 2026-10-08); playwright.result-consumer.config.ts duplicates invited-beta",
+      "inventory IW-06 (fragile view of the same suites)"
+     ],
+     "today": "Twelve Playwright configs; four add nothing to CI.",
+     "proposal": "Fold any intake case still worth keeping into the default config (IW-06), then delete the three intake configs and the result-consumer config.",
+     "hard_stop": "none"
+    }
+   ]
+  },
+  {
+   "effort": "S",
+   "change": "DELETE",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "Vestigial code (dimension)",
+   "id": "V-01",
+   "title": "The remote episode-compilation lane runs about 1,180 times a day and collects nothing",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "evidence": [
+    "cmd: door journal -n 400 --since \"24 hours ago\" blueprint-task-evaluation-episode-compilation-remote.service -> 58 runs in 1.16 h, mean 12.1 s CPU, every result line {\"findings\": [], \"rows\": 0, \"status\": \"collected\"} (/tmp/claude-0/-home-user/e3989091-e008-5b78-a9cb-b7c31a5efdb8/scratchpad/agents/dim-vestigial/journal-blueprint-task-evaluation-episode-compilation-remote.service.txt, rates.py)",
+    "pipeline:deploy/systemd/blueprint-task-evaluation-episode-compilation-remote.timer:8-9 (OnBootSec=1min, OnUnitInactiveSec=60s)",
+    "pipeline:scripts/deploy_control_plane_commit.py:639-649 (host episode compilation disarmed; remote half \"stays armed above, only to drain\")",
+    "pipeline:docs/runbooks/beta-operations.md:779-790 (robot-team lanes deleted by the owner; remote compilation armed only to drain)",
+    "door status 15:01Z: deployed.disk_headroom.footprints.episode_compilation sample_count 0"
+   ],
+   "today": "Every 74 seconds the host starts a Cloud Run collector for robot-team episode compilation. It spends about 12 CPU-seconds, finds zero rows and exits. That is about 14,000 CPU-seconds (3.9 CPU-hours) a day on a 4-CPU host that also builds site simulations.",
+   "should": "No unit runs for a lane the owner deleted. The host CPU goes to website jobs.",
+   "proposal": "PR 1 (Pipeline): move the three blueprint-task-evaluation-episode-compilation-remote units and the three host episode-compilation units into DEFAULT_RETIRED_TRIGGER_UNITS, delete their unit files and the collector/condition modules (task_evaluation_episode_compilation_remote, _remote_condition, _collector). PR 2: cut the two live imports (team_scene_packet.py:439 -> task_evaluation_native_arena_episode_compiler; task_evaluation_launch_preparation_worker.py:72 -> task_evaluation_episode_compilation_queue) and delete the remaining 17 episode modules (17,152 lines) and 7 test files. Check after: door units shows the six units gone; capacity stall checks unchanged.",
+   "user_result": "Site jobs share the host with one fewer busy loop; about 4% of host CPU comes back.",
+   "risk": "A hand-off in flight would be dropped; the journal shows rows 0 on every run, so nothing is in flight. Episode compilation feeds no website job (deploy_control_plane_commit.py:643-646).",
+   "requirement_source": "nobody: robot-team evaluation lanes deleted by the owner (2026-11-12 frame); \"armed only to drain\" with nothing to drain",
+   "agent": "dim-vestigial",
+   "lane": "L4",
+   "also_reported": [
+    {
+     "id": "IP-13",
+     "agent": "inventory-pipeline",
+     "title": "Three armed timers fire for lanes no website job feeds",
+     "severity": "P2",
+     "dimension": "vestigial",
+     "evidence": [
+      "cmd: door units -> blueprint-rigid-robot-free-probe-runner.timer, blueprint-team-scene-packet-remote.timer, blueprint-task-evaluation-episode-compilation-remote.timer all active/waiting",
+      "pipeline:deploy/systemd/*.timer: OnUnitInactiveSec 5min, 60s, 60s",
+      "pipeline:scripts/deploy_control_plane_commit.py:568 DEFAULT_ALWAYS_ARM_AUTHORITY_GATED_PATH_UNITS and :588 DEFAULT_ALWAYS_ARM_TIMER_UNITS arm them each release",
+      "pipeline:docs/SYSTEM_MAP.md step 11: a website half queues no robot-free probe; 'Lanes that are installed but switched off on purpose (... the Cloud Run team-scene lane ...)'",
+      "door-status.json capacity.stall.checks.rigid_probes.pending = 0"
+     ],
+     "today": "Up to about 3,200 unit starts a day for empty queues (cadence upper bound, not measured), and the docs call one of them off while the deploy arms it.",
+     "proposal": "Move the three triggers to DEFAULT_PAUSED_LANE_DISARM_UNITS (or retire them) and delete the rigid probe lane once IP-05 cuts its imports.",
+     "hard_stop": "none"
+    },
+    {
+     "id": "V-14",
+     "agent": "dim-vestigial",
+     "title": "Thirteen more shipped unit files run lanes or checks nobody reads",
+     "severity": "P2",
+     "dimension": "vestigial",
+     "evidence": [
+      "cmd: door journal blueprint-rigid-robot-free-probe-runner.service -> 80 runs in 7.7 h (about 250 a day), 1.7 s CPU each, output [] (journal-...rigid...txt)",
+      "cmd: door journal blueprint-team-scene-packet-remote.service -> 133 starts in 2.2 h (about 1,440 a day), 133 \"Skipped due to exec-condition\"",
+      "pipeline:deploy/systemd/blueprint-control-plane-preflight.timer:5,12 (every 30 min); inventory IP-17 (108 blockers nobody acts on)",
+      "pipeline:deploy/systemd/blueprint-task-evaluation-terminal-resource-release.path:5 (queue empty since 2026-08-12)",
+      "pipeline:docs/SYSTEM_MAP.md:59 (a website half queues no rigid probe)",
+      "door status: capacity.stall.checks.rigid_probes pending 0"
+     ],
+     "today": "The rigid probe runner (3 files), the Cloud Run team-scene collector (3), the terminal resource release (2), the chain preflight (2) and the paused host episode compilation (3) are shipped and, except the paused ones, armed.",
+     "proposal": "One PR: delete the 13 unit files, add the trigger names to DEFAULT_RETIRED_TRIGGER_UNITS, and remove them from DEFAULT_DEPLOYED_SYSTEMD_UNITS. Rigid probe code goes in a second PR only after its withdrawal reader (website_capture_withdrawal_rigid_probe) has nothing left to delete (see delete-candidates.md).",
+     "hard_stop": "none"
+    },
+    {
+     "id": "IP-17",
+     "agent": "inventory-pipeline",
+     "title": "The chain preflight reports 108 blockers every 30 minutes that nobody acts on",
+     "severity": "P2",
+     "dimension": "unseen",
+     "evidence": [
+      "door-status.json preflight.counts = {blocker: 108, warning: 305, info: 6}; coverage unknown_or_partial for 13 units",
+      "pipeline:docs/SYSTEM_MAP.md Side flows: 'the blocker count is not a health signal yet (tracker D-04)'",
+      "cmd: door journal blueprint-control-plane-preflight.service -> entry_module_unrecognised for blueprint-scene-project-spend-refresh.service"
+     ],
+     "today": "A check runs every 30 minutes, reports over 400 findings, and is declared not a signal.",
+     "proposal": "Disarm the preflight timer until D-04 decides what it should count; keep it as a hand-run command.",
+     "hard_stop": "none"
+    }
+   ]
+  },
+  {
+   "effort": "S",
+   "change": "DELETE",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "live_in_production": "yes",
+   "needs_owner": false,
+   "journey_step": "Vestigial code (dimension)",
+   "id": "V-02",
+   "title": "Every deploy is gated on beta cohort controls that no code enforces",
+   "dimension": "over-gated",
+   "severity": "P1",
+   "evidence": [
+    "webapp:server/utils/launch-readiness.ts:129-133,222-232 (betaCohortControls required: true)",
+    "webapp:server/utils/launch-readiness.ts:243 (status ready only if every check passes)",
+    "webapp:.github/workflows/deploy.yml:501-513 (/health/ready not 200 -> exit 1 -> restore predecessor)",
+    "cmd: grep -rn \"evaluateBetaCohortGate\\|recordBetaCohortAdmission\" over the repo -> only server/utils/beta-cohort-policy.ts and server/tests/beta-cohort-policy.test.ts",
+    "webapp:server/utils/beta-cohort-policy.ts last changed 2026-07-20 (git log)",
+    "production: betaCohortAdmissions 41 docs, none dated (scratchpad/baseline/firestore-funnel.json)"
+   ],
+   "today": "Deploys check that BLUEPRINT_BETA_ENABLED, BLUEPRINT_BETA_INVITE_CAP and BLUEPRINT_BETA_COHORT_DAILY_LIMIT are set and the kill switch is off. If not, /health/ready fails and the deploy rolls back. But the cohort gate itself (evaluateBetaCohortGate) is called by nothing: no site is ever admitted or refused by it.",
+   "should": "A deploy passes or fails on things that protect privacy, rights or money. An unused invite-cohort gate is not one of them.",
+   "proposal": "One PR: delete server/utils/beta-cohort-policy.ts (301 lines) and its test, remove the betaCohortControls check from launch-readiness.ts, drop the 7 BLUEPRINT_BETA_* names from the env manifests. Leave the betaCohortAdmissions data for the owner to purge.",
+   "user_result": "One fewer way for a good release to be rolled back; 7 fewer settings to keep right.",
+   "risk": "None for sites: the gate is not on the intake path. Intake abuse caps live in betaAbuseCaps.ts and stay.",
+   "requirement_source": "nobody: pre-beta remediation 2026-07 (#411); the invite-cohort beta it served is gone",
+   "agent": "dim-vestigial",
+   "lane": "L4",
+   "also_reported": []
+  }
+ ]
+}

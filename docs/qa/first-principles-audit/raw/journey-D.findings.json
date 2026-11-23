@@ -1,0 +1,512 @@
+{
+ "agent": "journey-D",
+ "summary": "The owner cannot see the business in one place: the staff job list has no counts, no costs and no company answers, billable events exist only as lines inside each job, and production holds one company record and zero introductions. The money guard that proves no rented machine is left running has failed every run since 2026-11-13 on retired RunPod and is filed as history in a 135 KB status whose red lists are otherwise dead experiments. Several manual steps protect nothing (a deploy window broken 100 times in 18 days, hand-recorded sends and answers, a success-threshold confirmation that changes no threshold), while two that protect privacy and money (withdrawal deletion approval, state backup) were never switched on. Approving a company is seven steps across Slack, a sign-in and two browser dialogs and should be one press from an email.",
+ "findings": [
+  {
+   "id": "D-01",
+   "title": "The money guard has failed every run for nine days on a retired provider, and the door files it as history",
+   "dimension": "fragile",
+   "severity": "P0",
+   "effort": "S",
+   "journey_step": "D.3 Seeing what is wrong",
+   "evidence": [
+    "cmd: door cat .../unit-failures/blueprint-gpu-spend-guard.service.json -> result exit-code, exit_status 2, failure_count 4850, first 2026-11-13T04:39Z, last 2026-11-22T15:25Z",
+    "scratchpad door-status.json: spend_guard.status=blocked, blockers=[runpod_inventory_query_failed], provider_zero.status=unverified (runpod required)",
+    "scratchpad door-status.json: unit_health.historical_diagnostics contains blueprint-gpu-spend-guard.service; unit_health.current does not",
+    "pipeline:AGENTS.md Spend limits row RunPod (retired 2026-11-05): 'While a RunPod key exists, scripts/gpu_spend_guard.py still reads the RunPod inventory (required)'",
+    "pipeline:docs/runbooks/beta-operations.md:183-190 (posts once, then once an hour)"
+   ],
+   "today": "The GPU spend guard, the unit that proves no rented machine is left running, exits 2 on every run because the RunPod inventory query fails. RunPod was retired on 2026-11-05. The failure posts to the alert route about once an hour, so the one alarm that protects money has been crying wolf since 2026-11-13. The door status lists the unit under historical diagnostics, beside 206 dead experiments.",
+   "should": "The guard is green when nothing is wrong, so a red guard means money is at risk.",
+   "change": "FIX",
+   "proposal": "Drop RunPod from the guard's required providers (or remove the RunPod key from the host), so a retired provider is recorded as retired, not as a failed inventory. One small Pipeline PR plus one owner action on the host secret.",
+   "user_result": "The owner and operator see a green money guard, and its next red means a real orphaned machine.",
+   "risk": "If a RunPod resource still existed it would no longer be reaped; RunPod billing collection already stopped, so confirm the RunPod account is empty once in its console first.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Money hard stop (owner, spend limits table in pipeline AGENTS.md); RunPod retirement 2026-11-05",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "D-02",
+   "title": "Nothing lists the billable events: introductions are only lines inside each job's timeline",
+   "dimension": "business",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.1 Seeing the business",
+   "evidence": [
+    "webapp:server/utils/billableEvents.ts:48-52 (the only read: one job's events)",
+    "webapp:server/utils/jobConsoleData.ts:374-378 (shown as a timeline line on one job)",
+    "cmd: grep -rn listJobBillableEvents server client/src -> only server/utils/jobCompanies.ts:646 (per job)",
+    "baseline firestore-collection-counts.json: introductions 0; billableEvents not counted"
+   ],
+   "today": "To know what is billable the owner must open every job one by one and read its timeline for 'Billable event recorded'. There is no total, no list across jobs and no export.",
+   "should": "One line on the staff page: N introductions this month, each with job, company and date, voided ones marked.",
+   "change": "BUILD",
+   "proposal": "Add a GET /api/admin/billable-events (list the billableEvents collection, newest first) and show it as a section on /admin/jobs with a count and a CSV link. No price field, nothing charged.",
+   "user_result": "The owner sees every billable event in one place, in one click.",
+   "risk": "None to the core loop. It reads a collection that already exists.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Doctrine: 'Each introduction is recorded as a billable event' (WebApp AGENTS.md Mission)",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-03",
+   "title": "The owner has no counts: no jobs this week, no funnel, no company response times anywhere",
+   "dimension": "unseen",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "D.1 Seeing the business",
+   "evidence": [
+    "webapp:server/utils/jobConsoleData.ts:112-156 (list: 25 rows a page, newest first, no filter, no count, no cost, no answers)",
+    "webapp:client/src/pages/AdminJobConsole.tsx:292-334",
+    "inventory-webapp.md: /admin/company-metrics redirects to / (minimalPublicSite.ts)",
+    "screenshots/D-01-jobs-list-1280.png",
+    "screenshots/D-08-company-metrics-redirect-1280.png"
+   ],
+   "today": "To answer 'how many jobs came in this week' the owner scrolls the list and counts by hand; 'Show older jobs' loads 25 more. Nothing counts videos received, jobs shown to companies, answers, introductions or outcome answers. The old metrics address sends the owner to the public home page.",
+   "should": "The top of /admin/jobs shows seven numbers for this week and all time: jobs started, with video, shown to companies, with an answer, introductions asked, introductions sent, outcome answers in.",
+   "change": "BUILD",
+   "proposal": "One server function that counts the existing collections (inboundRequests, captureUploadSessions, companyResponses or the job's responses, introductions, billableEvents, outcome answers) with Firestore count() queries, rendered as one line of numbers above the job list. Delete the /admin/company-metrics redirect.",
+   "user_result": "The owner answers 'how is the business doing' in one screen instead of an hour of clicking.",
+   "risk": "Count queries cost a few Firestore reads per load; cache for a minute.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Owner need named in this audit's task; doctrine says the owner must observe the loop",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-04",
+   "title": "Four fifths of November's spend belongs to no job, and the job page shows only the WebApp's part of a job's cost",
+   "dimension": "unseen",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "D.1 Seeing the business",
+   "evidence": [
+    "scratchpad door-status.json spend_guard.account_monthly_spend: counted_usd 296.58; meter_totals.metered_usd 59.75 across 10 job ids",
+    "same: reconciliation unattributed_usd digitalocean 63.43, gcp 60.95, openai 72.00; vast attributed 34.52 vs billed 24.84",
+    "webapp:server/utils/jobConsoleData.ts:319-333 (cost = WebApp ledgers: preparation reservations, scene intakes, screening runs)",
+    "same: forecast reaches_limit_on 2026-11-30 at 13.71 USD/day"
+   ],
+   "today": "Blueprint has spent 296.58 USD this month; the per-job meter explains 59.75 USD of it. The host (DigitalOcean 63.43), Google Cloud (60.95 unattributed) and most OpenAI spend (72.00) belong to no job. The admin job page shows 'what it has cost so far' from WebApp ledgers only, and the account is forecast to hit its 400 USD limit on 2026-11-30.",
+   "should": "Each job shows one cost figure that includes every provider; fixed costs (host, cloud) are shown once as 'running costs', not hidden.",
+   "change": "FIX",
+   "proposal": "Show the Pipeline's per-job meter (already in the spend report's jobs[]) on the job page and split the remainder into 'running costs this month' on the staff page. Do not try to attribute the host.",
+   "user_result": "The owner sees the cost of a job and the cost of staying open, separately and truthfully.",
+   "risk": "The meter is marked partial for World Labs and WebApp overhead; show the gap words with the number.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Money hard stop: per-job cap 40 USD (owner 2026-11-19) cannot be checked from the page that shows the job",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-05",
+   "title": "The retired screening trial still shows up as spend and as a worker with thousands of blocked candidates",
+   "dimension": "vestigial",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.3 Seeing what is wrong",
+   "evidence": [
+    "scratchpad door-status.json spend_guard...meter_totals.by_source.beta_policy_screening settled_usd 34.52 (period 2026-11; jobs capture-447ae4f4 26.63 and capture-5b067498 7.89)",
+    "scratchpad door-status.json beta_screening: campaign_count 46, candidate_counts.unavailable 4262, blocker_categories.capability_preparation 28642, status preparation_needed",
+    "pipeline:AGENTS.md Mission: early trial dropped 2026-11-14, 'its timer is retired'"
+   ],
+   "today": "The door status still carries a screening worker report saying 'preparation_needed' with 28,642 blocked preparations, and 34.52 USD of November spend (more than half of all job-attributed spend) is booked to screening. When in the month it was spent is not in the status (unverified).",
+   "should": "No screening section in the status; screening spend shown only as a closed line in money history.",
+   "change": "DELETE",
+   "proposal": "Remove beta_screening from door status and from the capacity report; keep only the ledgers withdrawal deletion and money accounting read.",
+   "user_result": "One fewer misleading section in every status read; the owner no longer sees a retired product asking for 'preparation'.",
+   "risk": "Withdrawal deletion reads screening_retained_ledger; leave that file alone.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "Read the screening ledger timestamps (door cat of the ledger, aggregate only) to date the 34.52 USD.",
+   "requirement_source": "nobody (retired 2026-11-14)",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-06",
+   "title": "The once-a-day deploy window is not followed: 129 deploys in 18 days, 100 outside the window",
+   "dimension": "over-gated",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.2 Manual steps",
+   "evidence": [
+    "cmd: door ls /var/lib/blueprint/pipeline-control-plane/deploy-receipts -> 363 *_door.json receipts; 2026-11-03..11-20: 129 on 18 days, 100 outside 15:00-17:59 UTC",
+    "cmd: door requests -> last 20 requests (2026-11-19T14:20Z..11-20T17:50Z): 9 deploy",
+    "pipeline:AGENTS.md Beta Deploy Policy (D-08): 'Deploy main once a day, in the window that opens at 15:00 UTC'",
+    "scratchpad door-status.json door.request_kinds; deploy_activation_hold null"
+   ],
+   "today": "Policy says one deploy a day at 15:00 UTC, outside it only for money, privacy, rights or a stuck paid stage. Receipts show about seven deploys a day since the rule, three in four outside the window. The door already parks a deploy itself while a website job has work in flight.",
+   "should": "One rule that is real: the door's own hold protects the paid stage; no clock rule on top.",
+   "change": "DELETE",
+   "proposal": "Delete the time-window rule from AGENTS.md and beta-operations.md section 6; keep the door's activation hold (it protects money in flight). Keep 'record your deploy' only as the receipt the door already writes.",
+   "user_result": "Operators stop pretending to follow a rule; jobs are protected by the hold that actually runs.",
+   "risk": "Frequent deploys retire in-flight unpaid work (60 min hold at most); if retries cost money, the cost model must show it. May come back if jobs get much busier.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Decision D-08 (2026-11-02, delegated by the owner)",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "D-07",
+   "title": "The status a person reads in a crisis is 135 KB, and its red lists are mostly dead experiments",
+   "dimension": "unseen",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.3 Seeing what is wrong",
+   "evidence": [
+    "scratchpad door-status.json: failed_units 207; 137 carry a date (Sept 25, Oct 112, Nov 0); 70 undated one-off names (diagnostic, canary, -r2); only real unit among them is blueprint-gpu-spend-guard.service",
+    "same: capacity.alerts 18, all severity warn: 4 money, 3 storage_class_over_budget, 1 orphan_scratch_large, 10 usage_unclassified_root",
+    "same: paid_launch_locks 7, all held=false; holds 1, expired 2026-10-03 (founder stop, require_explicit_release)",
+    "same: capacity.stall.checks scene_progression stalled 0, atlas stalled 0"
+   ],
+   "today": "The saved status shows 18 alerts, 207 failed units, one hold and seven paid launch locks. In fact: no page-level alert, no stalled job, no held lock, a hold that expired seven weeks ago, and 206 failed units that are finished experiments. The one real problem (D-01) is buried. A person cannot tell this in a minute.",
+   "should": "The status opens with one line: 'OK' or 'N things need you', each naming the cause and the runbook section.",
+   "change": "SIMPLIFY",
+   "proposal": "Have the door clear failed state of transient one-off units older than 7 days (systemctl reset-failed), drop unheld locks and expired holds from the default view, and add a summary block (needs_you: [...]) at the top of door status.",
+   "user_result": "An operator reads one line instead of 135 KB.",
+   "risk": "Clearing failed state loses nothing: journals stay. The expired founder stop is still explicit-release: releasing it is an owner decision.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "nobody (the lists grew; no owner direction asks for them)",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-08",
+   "title": "Approving a company takes a Slack bell, a sign-in, a page in another design, a confirm box and a note box",
+   "dimension": "friction",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.4 Approving a company",
+   "evidence": [
+    "webapp:server/routes/robot-team-access.ts:88-91 (only bell: notifySlackRobotTeamAccessApplication, if a webhook is set)",
+    "webapp:server/utils/slack.ts:138-165",
+    "webapp:client/src/pages/AdminRobotTeamAccess.tsx:197-208 (window.confirm attestation, then window.prompt note)",
+    "screenshots/D-04-company-approvals-1280.png",
+    "screenshots/D-04-company-approvals-390.png",
+    "baseline firestore-collection-counts.json: robotTeamAccess 1"
+   ],
+   "today": "A company applies. If a Slack webhook is set, Slack gets a message with a link. The owner opens it, signs in, finds the card on a dark 'Partner applications' page that says partners, robot team, early access and site tasks, presses Approve, ticks a browser confirm ('I reviewed the team's capabilities, task fit, and prerequisites'), answers a browser prompt for a note, and only then is it saved. Production has one company record in total.",
+   "should": "The owner gets an email per application with the facts and two links: Approve, Not yet. One press approves; the approval email goes out.",
+   "change": "SIMPLIFY",
+   "proposal": "Email the application to the owner with a signed one-time Approve link (bound to the record id and its revision, expires in 7 days, opens a page that shows the card and one 'Approve' button already signed in or after sign-in). Delete the confirm and prompt dialogs. Use the doctrine's words on the page.",
+   "user_result": "Approving a company takes one press from the inbox instead of seven steps.",
+   "risk": "A forwarded link could approve: bind it to the owner's sign-in or keep it single-use and short-lived.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Doctrine: 'Blueprint approves a company once' (AUTONOMOUS_ORG.md, owner 2026-09-28); the confirm text and note have no source (nobody)",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "D-09",
+   "title": "Staff can still record sends, emailed answers and holds by hand, though no person should stand between a video and an introduction",
+   "dimension": "over-gated",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.2 Manual steps",
+   "evidence": [
+    "webapp:client/src/components/admin/JobCompaniesConsole.tsx:1-11,136-210",
+    "screenshots/D-03-job-companies-tool-390.png",
+    "screenshots/D-03-job-companies-tool-1280.png",
+    "baseline firestore-collection-counts.json: companySends 0 (top and group)",
+    "webapp:AGENTS.md: 'No person at Blueprint stands between a site's video and an introduction'; 'no share button, no share setting and no pause'"
+   ],
+   "today": "Each job page has a staff tool to record a send made from staff's own mailbox, void it, type in an answer a company emailed, and 'Stop showing this job to companies'. It has never been used in production (0 sends).",
+   "should": "Jobs are shown to every approved company by the system; companies answer on the job page; withdrawal is the only stop.",
+   "change": "DELETE",
+   "proposal": "Delete the send, void and answer forms and their three POST routes (/companies/sends, /sends/:id/void, /responses). Replace the hold with nothing: a privacy problem is handled as a withdrawal or a takedown under the privacy runbook.",
+   "user_result": "One fewer staff tool; the site's answers come only from companies.",
+   "risk": "The hold may come back as a privacy-only takedown if a video ever shows something it must not; that would be a privacy stop with its own reason.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Package C1 (2026-11-12) before the 'no person between' line; now nobody",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-10",
+   "title": "The staff-only captures page hides an API any invited account can call, including reconstruction authorize and execute",
+   "dimension": "fragile",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "D.5 /app/captures",
+   "evidence": [
+    "webapp:client/src/app/routes.tsx:336 (page: requireRoles admin, ops)",
+    "webapp:server/routes.ts:138-143 (/api/capture-uploads: csrf + verifyFirebaseToken only)",
+    "webapp:server/routes/capture-uploads.ts:815-820 (create: signed in + invitee allowlist), 1279-1286 and 1361-1368 (authorize/execute: owner of the session only)",
+    "screenshots/D-05-app-captures-1280.png (rights and consent are the uploader's own two ticks)",
+    "cmd: git log -- client/src/pages/app/Captures.tsx -> last change 2026-11-14 'The robot-team evaluation product line leaves the WebApp'"
+   ],
+   "today": "/app/captures is a 655-line page for 360 and Insta360 captures with scene ids, a self-attested 'I have the right' and 'anyone in the capture has given consent' tick, and reconstruction plan, authorize and execute. The page is admin-only, but the 2,182-line API behind it checks only that the caller is signed in and invited. Its only link is from the Evidence questions tool. Sites upload through a different router (/api/self-capture-uploads).",
+   "should": "No staff upload path. A job's video comes only from its site, with the site's own consent record.",
+   "change": "DELETE",
+   "proposal": "Delete /app/captures, client/src/lib/captureUploads.ts and the /api/capture-uploads router (keep self-capture-uploads), and the Evidence questions link to it. Until then, add requireAdminRole to the router.",
+   "user_result": "One fewer page and a path where rights come from a checkbox instead of the site is gone.",
+   "risk": "Whether the Pipeline would admit paid reconstruction from this path is unverified; check before deleting that no live job reads captureUploadSessions written by this router (the job console reads that collection for site uploads too).",
+   "hard_stop": "rights",
+   "verified": "yes",
+   "verify_how": "Whether execute reaches paid work: replay a fixture POST against the emulator and read the Pipeline admission it requests.",
+   "requirement_source": "nobody (capture app and filming visits retired 2026-11-11)",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-11",
+   "title": "Slack bells still ring for retired steps and tell staff a person will review footage",
+   "dimension": "vestigial",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "D.3 Seeing what is wrong",
+   "evidence": [
+    "webapp:server/utils/slack.ts:93-114 (screening call needed) called from server/routes/site-task-brief.ts:1075",
+    "webapp:server/utils/slack.ts:122-136 and server/utils/browserCaptureProcessing.ts:236-238 ('review coverage by hand' when BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED is off; default off, server/config/env.ts:140)",
+    "all three link /admin/leads/:id, a redirect (client/src/app/routes.tsx:90-93)"
+   ],
+   "today": "A job can still make Slack say 'Site needs a screening call before its scene is built' or 'review coverage by hand ... the site has been told a person will review it'. Both steps are retired; the second contradicts 'no person stands between'. Whether the evidence flag is on in Render is unknown.",
+   "should": "Slack rings only for things a person must do: a company to approve, a privacy request, a money or rights stop.",
+   "change": "DELETE",
+   "proposal": "Delete notifySlackScreeningCallNeeded, notifySlackFootageNeedsReview and their call sites; point remaining bells at /admin/jobs?job=.",
+   "user_result": "Fewer false alarms; staff stop being told to do retired work.",
+   "risk": "If the evidence flag is off in production, sites may also be told 'a person will review it' (journey A/B should confirm).",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "nobody (screening retired 2026-11-14; video evidence lane)",
+   "live_in_production": "unknown",
+   "needs_owner": false
+  },
+  {
+   "id": "D-12",
+   "title": "The alarm itself is fragile: the capacity controller was killed for memory seven times and state backup is not configured",
+   "dimension": "fragile",
+   "severity": "P1",
+   "effort": "M",
+   "journey_step": "D.3 Seeing what is wrong",
+   "evidence": [
+    "cmd: door cat .../unit-failures/blueprint-control-plane-capacity.service.json -> oom-kill, failure_count 7, 2026-11-13..2026-11-20",
+    "scratchpad door-status.json capacity.stall.checks.state_backup.status = not_configured",
+    "cmd: door cat .../unit-failures/blueprint-task-evaluation-scene-progression.service.json -> exit-code, 345 failures 2026-11-12..11-15"
+   ],
+   "today": "The unit that runs every stall check and posts every alert was OOM-killed seven times this month. The control-plane state backup check reports 'not_configured', so a lost host loses the job state the runbook's rebuild section relies on.",
+   "should": "The alarm runs in a protected memory slot and backups run and are checked.",
+   "change": "FIX",
+   "proposal": "Give the capacity controller its own MemoryMin or move it out of contention; configure the state backup timer (owner decision if it costs storage).",
+   "user_result": "Alerts arrive when they should; a host loss is survivable.",
+   "risk": "Backup storage costs money (small); owner to approve the bucket.",
+   "hard_stop": "money",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Runbook 'Control-plane state backup and host rebuild' (pipeline beta-operations.md:1181)",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "D-13",
+   "title": "The owner confirmation of success thresholds changes no threshold and nothing waits for it",
+   "dimension": "over-gated",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "D.2 Manual steps",
+   "evidence": [
+    "pipeline:docs/OPERATOR_DOOR.md:794-822 ('The job does not wait for this confirmation'; 'The confirmation changes no threshold')",
+    "scratchpad door-status.json door.request_kinds includes confirm-owner-success-contract"
+   ],
+   "today": "A door request kind, a preview, an apply ack and verbatim owner evidence exist to relabel a contract from 'assumed' to 'confirmed' with identical thresholds.",
+   "should": "Nothing: submitting the job is the confirmation (owner 2026-11-07).",
+   "change": "DELETE",
+   "proposal": "Delete the confirm-owner-success-contract request kind, its client subcommand and the worker's confirmation branch.",
+   "user_result": "One fewer manual owner step and door command.",
+   "risk": "Results already labelled 'confirmed' keep their label; none should depend on it.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Owner direction 2026-11-07 made it redundant: 'submitting is the confirmation'",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-14",
+   "title": "Withdrawal deletion never runs by itself because the owner's standing approval file was never installed",
+   "dimension": "missing",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.2 Manual steps",
+   "evidence": [
+    "scratchpad door-status.json capacity.website_withdrawal_deletion.approval_status = absent; withdrawals all 0",
+    "pipeline:docs/runbooks/beta-operations.md:853-860 ('No deploy step installs it, and as shipped it does not validate')"
+   ],
+   "today": "The deletion pass after a site withdraws needs a root-owned approval file. It is absent, so each withdrawal would wait for a person. No site has withdrawn yet (all counts 0).",
+   "should": "The owner approves once; every acknowledged, settled, cooled-off withdrawal is deleted on schedule.",
+   "change": "FIX",
+   "proposal": "Owner installs the standing approval once (cool_off_hours chosen by the owner).",
+   "user_result": "A site's withdrawal is honoured to the end without anyone remembering it.",
+   "risk": "Deletion is permanent; the policy class already excludes legal holds and unsettled money.",
+   "hard_stop": "privacy",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Privacy hard stop and 'Ask the owner first before deleting retained data' (both AGENTS.md)",
+   "live_in_production": "yes",
+   "needs_owner": true
+  },
+  {
+   "id": "D-15",
+   "title": "Two staff pages in two designs that do not link to each other, and the approvals page carries unrelated tools",
+   "dimension": "friction",
+   "severity": "P2",
+   "effort": "S",
+   "journey_step": "D.1 Seeing the business",
+   "evidence": [
+    "webapp:client/src/pages/AdminJobConsole.tsx (no link to /admin/robot-team-access)",
+    "webapp:client/src/pages/AdminRobotTeamAccess.tsx:224-236 (Review an existing job; Invite a team you spoke with; BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS line)",
+    "screenshots/D-01-jobs-list-1280.png",
+    "screenshots/D-04-company-approvals-1280.png"
+   ],
+   "today": "The job console is light, bare and says Staff; the approvals page is dark, says Partners, Partner applications, robot team, site tasks and early access, and holds a 'Review an existing job' recommendation tool and an invite form 'after a call'. Neither page links the other; the owner must know both addresses.",
+   "should": "One staff page: numbers, companies waiting for approval, jobs, privacy requests.",
+   "change": "MERGE",
+   "proposal": "Move the applications list into /admin/jobs as a 'Companies waiting' section; delete the JobDecisionReview tool and the early-access Render hint; keep invite as one line.",
+   "user_result": "One address to remember, one design, the doctrine's words.",
+   "risk": "The recommendation tool may be used by someone; no production count exists (needs owner).",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "nobody (screening-call era)",
+   "live_in_production": "yes",
+   "needs_owner": false
+  },
+  {
+   "id": "D-16",
+   "title": "Alerts reach a webhook, not a person: on-call names are TBD and warnings share the paging route",
+   "dimension": "fragile",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.3 Seeing what is wrong",
+   "evidence": [
+    "pipeline:docs/runbooks/beta-ops-incident-response.md:20-31 (pipeline-oncall and ops-lead 'TBD \u2014 owner to name')",
+    "pipeline:src/blueprint_pipeline/control_plane_capacity_controller.py:1028-1058 (alert_due posts warnings on new targets too)",
+    "webapp:render.yaml:70-81 (uptime probe posts to SLACK_WEBHOOK_URL)"
+   ],
+   "today": "Every Pipeline alert, page or warning, goes to BLUEPRINT_OPERATOR_ALERT_WEBHOOK_URL; WebApp bells go to Slack webhooks. Where those land is not in either repo. No person is named on call.",
+   "should": "Only page-severity alerts (money, privacy, rights, a stalled paid job, host down) reach the owner's phone; warnings go to a daily digest.",
+   "change": "SIMPLIFY",
+   "proposal": "Post warn-only ticks to a digest file read by the staff page; send pages only. Owner names who is paged.",
+   "user_result": "The owner is woken only for things that cost money or break a promise.",
+   "risk": "A real disk trend could be missed if nobody reads the digest; the floor alerts already page.",
+   "hard_stop": "none",
+   "verified": "unverified",
+   "verify_how": "Read the webhook target in /etc/blueprint/pipeline-control-plane.env (door cannot show secrets) or ask the owner where alerts land.",
+   "requirement_source": "nobody",
+   "live_in_production": "unknown",
+   "needs_owner": true
+  },
+  {
+   "id": "D-17",
+   "title": "The billable loop has never run in production: one company record, no sends, no introductions",
+   "dimension": "business",
+   "severity": "P1",
+   "effort": "S",
+   "journey_step": "D.1 Seeing the business",
+   "evidence": [
+    "baseline firestore-collection-counts.json: inboundRequests 76, robotTeamAccess 1, companySends 0, introductions 0 (group count 0)"
+   ],
+   "today": "76 job records exist; one deployment company record exists; no job has been sent to a company and no introduction has been made, so no billable event exists.",
+   "should": "At least a handful of approved companies before more machinery is built for them.",
+   "change": "BUILD",
+   "proposal": "Owner decision: approve or invite the first companies (outreach needs the owner's word). Nothing else in this report matters for revenue until then.",
+   "user_result": "Sites start getting answers.",
+   "risk": "Outreach to unapproved companies needs the owner's word first.",
+   "hard_stop": "none",
+   "verified": "yes",
+   "verify_how": "",
+   "requirement_source": "Doctrine: companies answer; each introduction is billable",
+   "live_in_production": "yes",
+   "needs_owner": true
+  }
+ ],
+ "good_things": [
+  {
+   "what": "Admin job page shows only true lines: where it stands, what was built, cost, stops, what happened",
+   "why": "Each part renders only when a record backs it; it worked at 390 px with no horizontal scroll",
+   "evidence": "webapp:client/src/pages/AdminJobConsole.tsx:1-8, screenshots/D-02-job-detail-390.png"
+  },
+  {
+   "what": "Old operator addresses (/admin/leads, /ops) land on the job console",
+   "why": "Alert links from older bells still open the right job",
+   "evidence": "webapp:client/src/app/routes.tsx:90-93, screenshots/D-07-admin-leads-redirect-1280.png"
+  },
+  {
+   "what": "Account spend report with forecast and per-provider reconciliation",
+   "why": "It already holds the numbers the owner needs (counted, forecast date, unattributed); it only needs showing",
+   "evidence": "door-status.json spend_guard.account_monthly_spend"
+  },
+  {
+   "what": "Stall alarm skips intended holds and scheduled waits",
+   "why": "No stalled job paged on 2026-11-22; 52 scene intents examined, 0 stalled",
+   "evidence": "door-status.json capacity.stall.checks"
+  },
+  {
+   "what": "Billable event written in the same transaction as the introduction and voided, never deleted, if the introduction fails",
+   "why": "The money record cannot drift from the introduction",
+   "evidence": "webapp:server/utils/jobIntroductions.ts:118-151, server/utils/jobIntroductionGate.ts:1-20"
+  }
+ ],
+ "owner_questions": [
+  {
+   "question": "Where do BLUEPRINT_OPERATOR_ALERT_WEBHOOK_URL and SLACK_WEBHOOK_URL land, and who is paged?",
+   "recommendation": "Send only page-severity alerts to your phone; everything else to the staff page.",
+   "unblocks": "D-16"
+  },
+  {
+   "question": "May the RunPod key be removed from the host so the spend guard stops failing?",
+   "recommendation": "Yes, after one look at the RunPod console showing zero resources.",
+   "unblocks": "D-01"
+  },
+  {
+   "question": "Drop the once-a-day deploy window and rely on the door's activation hold?",
+   "recommendation": "Yes; the window is not followed and the hold protects paid work.",
+   "unblocks": "D-06"
+  },
+  {
+   "question": "Install the withdrawal-deletion standing approval, with what cool-off?",
+   "recommendation": "Install it now with 72 hours.",
+   "unblocks": "D-14"
+  },
+  {
+   "question": "Which deployment companies do you want approved or invited first?",
+   "recommendation": "Invite the first five you already know; nothing bills until one answers.",
+   "unblocks": "D-17"
+  }
+ ],
+ "open_cost_questions": [
+  {
+   "question": "Does a job's real cost per provider (including host share) stay under 40 USD end to end?",
+   "estimated_cost_usd": "0 (answerable from existing ledgers once D-04 is built); a fresh measured run would be about 20-40",
+   "basis": "pipeline AGENTS.md per-job cap 40 USD; capture-447 spent 26.63 on screening alone"
+  }
+ ],
+ "not_covered": [
+  "Firestore production funnel counts beyond the orchestrator's collection totals (listed under Firestore aggregates wanted)",
+  "Live door journal reading of each alert post (where alerts land is a host secret)",
+  "/settings, /onboarding and the company pages (other journeys)",
+  "Site measurements, robot fit and evidence questions tools were not opened with data (no fixtures for their shapes); judged from code headers only",
+  "The account deletion queue was shown empty only",
+  "Timing of the admin job list against real Firestore (one outlook read per row, 8 s deadline each) not measured"
+ ]
+}
