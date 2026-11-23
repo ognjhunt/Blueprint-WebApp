@@ -185,15 +185,13 @@ export async function setOperatorListingHold(requestId: string, held: boolean, r
  * at this moment, or the site has no usable email. Whether it is still true is decided again at dispatch
  * (`taskLifecycleNotificationIsCurrent`): held, hidden or withdrawn by then, it is cancelled, never sent.
  */
-export async function prepareSiteNotice(tx: Tx, requestId: string, record: Data, params: { milestone: "job_sent" | "company_answered";
-  eventId: string; companyAnswerState?: CompanyResponseState; companyCount?: number; introductionOffered?: boolean;
+export async function prepareSiteNotice(tx: Tx, requestId: string, record: Data, params: { milestone: "company_answered";
+  eventId: string; companyAnswerState?: CompanyResponseState; introductionOffered?: boolean;
   questionOnPage?: boolean }, captureUrl: string): Promise<(() => void) | null> {
   const store = requireDb();
   const { buildTaskLifecycleNotification } = await import("./taskLifecycleNotifications");
   const { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } = await import("./captureOutbox");
   const { decryptFieldValue } = await import("./field-encryption");
-  // `companyCount` (the automatic send's one email) is passed through a loosely typed value until the site-side
-  // builder declares it (SEAMS, 2026-11-12).
   const build = buildTaskLifecycleNotification as (input: Record<string, unknown>) => ReturnType<typeof buildTaskLifecycleNotification>;
   const key = build({ requestId, to: "", captureUrl, ...params }).idempotencyKey;
   const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(key);
@@ -201,9 +199,7 @@ export async function prepareSiteNotice(tx: Tx, requestId: string, record: Data,
   if (existing.exists) return null;
   if (projectWebsiteCaptureRights(record).consent_revoked || !teamJobAccess(record).listed) return null;
   const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
-  // The job_sent email names the way to stop as the job's page does: a job sent with its description only is withdrawn.
-  const { descriptionStatementShares } = await import("./jobSharedListing");
-  const notice = build({ requestId, to, captureUrl, ...params, descriptionOnly: descriptionStatementShares(record) });
+  const notice = build({ requestId, to, captureUrl, ...params });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     logger.warn({ requestId, milestone: params.milestone }, "The site has no usable email; its company email is not queued");
     return null;

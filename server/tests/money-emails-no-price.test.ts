@@ -41,7 +41,7 @@ function lifecycleNotices(): Email[] {
   const base = { requestId: "req-1", to: "owner@site.example", captureUrl: JOB_URL };
   const notices: Array<[string, Parameters<typeof buildTaskLifecycleNotification>[0]]> = [];
   notices.push(["task_received", { ...base, milestone: "task_received" }]);
-  notices.push(["job_sent", { ...base, milestone: "job_sent", eventId: "companies", companyCount: 3 }]);
+  notices.push(["task_received outside the US", { ...base, milestone: "task_received", captureRegion: "non_us" }]);
   for (const state of ["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"] as const)
     notices.push([`company_answered ${state}`, { ...base, milestone: "company_answered", companyAnswerState: state }]);
   return notices.map(([label, params]) => {
@@ -92,7 +92,7 @@ describe("no price in any email to a site or a deployment company", () => {
     expect(emails.filter(email => email.to === "site").length).toBeGreaterThanOrEqual(15);
     expect(emails.filter(email => email.to === "company").length).toBeGreaterThanOrEqual(10);
     for (const label of ["introduction made, site (interested)", "introduction made, company (interested)",
-      "outcome question to the site", "outcome question to the company", "new job", "job withdrawn", "lifecycle job_sent"])
+      "outcome question to the site", "outcome question to the company", "new job", "job withdrawn", "lifecycle task_received"])
       expect(emails.map(email => email.label)).toContain(label);
   });
 

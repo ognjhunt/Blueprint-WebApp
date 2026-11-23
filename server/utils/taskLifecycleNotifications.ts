@@ -1,9 +1,10 @@
 /**
  * The site's emails about its job, and nothing else (owner, 2026-11-19: "SIMPLER THE BETTER").
  *
- * A site hears from us four times at most, each when something happens that it acts on or must know:
- * - `task_received`: we have its job, with the private link to its job page (the way back to it);
- * - `job_sent`: its job went to the approved deployment companies, once per job, with the count;
+ * A site hears from us three times at most, each when something happens that it acts on or must know:
+ * - `task_received`: we have its job, with the private link to its job page (the way back to it), that the job goes
+ *   to approved deployment companies once the video is in, and how to stop. The separate "Your job is posted" email
+ *   (`job_sent`) is no longer sent (ledger AL38, 2026-11-23);
  * - `company_answered`: a deployment company answered, once per company and answer, never the company's name;
  * - `introduction_made_site`: it asked to meet a company, with that company's details.
  * Everything else (its video arrived, the simulation is ready, the first look is ready, a hold, an ending) is on its job
@@ -18,27 +19,22 @@ import { finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES, isCompanyResponseState,
   type CompanyResponseState } from "../../client/src/lib/companyResponses";
-import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL } from "../../client/src/lib/jobOutlook";
 import { isApprovedCaptureRegion, isCaptureRegion } from "../../client/src/data/captureResidency";
 
-export type TaskLifecycleMilestone = Extract<OutboxKind, "task_received" | "job_sent" | "company_answered" | "introduction_made_site">;
+export type TaskLifecycleMilestone = Extract<OutboxKind, "task_received" | "company_answered" | "introduction_made_site">;
 
 /**
- * What a withdrawal does once recorded: every company the job was sent to gets the deletion notice
- * (`withdrawalCompanyNotice.ts`), in the job page's own words (`OwnerRecordingWithdrawal.tsx`).
+ * What the job link email says about sharing: the job goes to approved deployment companies once the video is in, and
+ * how to stop. The way to stop is on the job page, whichever name it has there ("Stop using my video" or "Withdraw my
+ * job", `jobOutlook.ts`); every company the job was sent to then gets the deletion notice (`withdrawalCompanyNotice.ts`).
  */
-const WITHDRAWN_COPIES = "Each company it was sent to is asked to delete any copy it saved.";
-/** How a site withdraws its job: the withdrawal is on its job page, named as the page names it (`jobOutlook.ts`). */
-export const HOW_TO_WITHDRAW = `To withdraw your job, open your job page, choose Job settings, then ${STOP_USING_VIDEO_LABEL}. `
-  + `It then leaves every company's view at once. ${WITHDRAWN_COPIES}`;
-/** The same for a job sent with its description only: its page shows the way to withdraw it, by that name. */
-export const HOW_TO_WITHDRAW_DESCRIPTION_ONLY = `To withdraw your job, open your job page and choose ${WITHDRAW_JOB_LABEL}. `
-  + `It then leaves every company's view at once. ${WITHDRAWN_COPIES}`;
-/** The one `job_sent` per job (PACKAGE_E E4): its event id (the company side's `AUTO_SEND_EVENT_ID`). */
-export const JOB_SENT_EVENT_ID = "companies";
+export const SHARING_AND_HOW_TO_STOP = "Once your video is in, your job goes to approved deployment companies. We don't share "
+  + "your name, address or contact details with a deployment company unless you ask for an introduction to it. To stop, "
+  + "open your job page and withdraw your job there. It then leaves every company's view at once, and each company it "
+  + "was sent to is asked to delete any copy it saved.";
 
 /** What the email may say about the site's job page, as the caller read it when it queued the email. */
-type CopyContext = { descriptionOnly: boolean; outsideApprovedRegion: boolean; introductionOffered: boolean; questionOnPage: boolean };
+type CopyContext = { outsideApprovedRegion: boolean; introductionOffered: boolean; questionOnPage: boolean };
 
 const PRIVATE_LINK = "This link opens your job without a password, so please don't forward it.";
 // A fixed answer label in plain text is quoted: "Tested it: can do" has a colon of its own.
@@ -52,16 +48,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     // link is issued for the job's description alone, so it is not asked for one.
     body: (url, _detail, { outsideApprovedRegion }) => outsideApprovedRegion
       ? `Your job is saved.\n\nWe can only take videos from sites in the United States for now, so please don't send a video yet. ${PRIVATE_LINK}\n\nOpen your job:\n${url}`
-      : `Your job link is ready.\n\nA video is required to post your job. Use the link to send one or check your upload. ${PRIVATE_LINK}\n\nOpen your job:\n${url}`,
-  },
-  // Once per job (PACKAGE_E E4): when the job is first sent to the approved deployment companies. The detail is only
-  // the count, a whole number; read again at dispatch: sent only while the job is visible. It says how to stop, in the
-  // words of the job's own page: a job sent with its description only is withdrawn, not its video.
-  job_sent: {
-    subject: "Your job is posted",
-    body: (url, _detail, { descriptionOnly }) => `Your job is posted for approved deployment companies. We don't share your name, address or contact details with a `
-      + `deployment company unless you ask for an introduction to it. Your job page shows any responses.\n\n${
-        descriptionOnly ? HOW_TO_WITHDRAW_DESCRIPTION_ONLY : HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`,
+      : `Your job link is ready.\n\nA video is required to post your job. Use the link to send one or check your upload. ${PRIVATE_LINK}\n\n${SHARING_AND_HOW_TO_STOP}\n\nOpen your job:\n${url}`,
   },
   // Only the response label is included. The question and answer stay on the job page. The next step is named only
   // when the job page offers it for this answer: "Introduce us", or the box to answer the company's question.
@@ -109,10 +96,6 @@ export function buildTaskLifecycleNotification(params: {
   captureUrl?: string;
   /** `company_answered` only: the company's answer; the email states its fixed label, nothing else of the company. */
   companyAnswerState?: CompanyResponseState;
-  /** `job_sent` only: how many approved deployment companies the job was sent to. */
-  companyCount?: number;
-  /** `job_sent` only: the job was sent with its description only (`descriptionStatementShares`), so it has no video to stop. */
-  descriptionOnly?: boolean;
   /** `task_received` only: the job's saved capture region (`request.capture_region`). */
   captureRegion?: unknown;
   /**
@@ -131,7 +114,7 @@ export function buildTaskLifecycleNotification(params: {
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   const detail = params.milestone === "company_answered" ? COMPANY_RESPONSE_LABELS[params.companyAnswerState!]
-    : params.milestone === "job_sent" ? String(params.companyCount ?? "") : "";
+    : "";
   return {
     idempotencyKey: `${requestId}:${params.milestone}${eventId ? `:${eventId}` : ""}`,
     requestId,
@@ -139,7 +122,6 @@ export function buildTaskLifecycleNotification(params: {
     to: params.to,
     subject: message.subject,
     body: finePrintLast(message.body(url, detail, {
-      descriptionOnly: params.descriptionOnly === true,
       // Only a known region that is not approved: a missing or unreadable one keeps the usual words.
       outsideApprovedRegion: isCaptureRegion(params.captureRegion) && !isApprovedCaptureRegion(params.captureRegion),
       introductionOffered: params.introductionOffered === true

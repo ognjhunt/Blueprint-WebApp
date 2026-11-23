@@ -43,7 +43,7 @@ vi.mock("../utils/jobIntroductions", async importOriginal => {
 const { default: briefRouter } = await import("../routes/site-task-brief");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { buildJobSharedListing } = await import("../utils/jobSharedListing");
-const { buildTaskLifecycleNotification, buildIntroductionMadeSiteNotification, HOW_TO_WITHDRAW } =
+const { buildTaskLifecycleNotification, buildIntroductionMadeSiteNotification, SHARING_AND_HOW_TO_STOP } =
   await import("../utils/taskLifecycleNotifications");
 const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
 const { requestIntroduction } = await import("../utils/jobIntroductions");
@@ -268,19 +268,17 @@ describe("the introductions route", () => {
 
 describe("the emails to the site", () => {
   const url = "https://tryblueprint.io/capture-upload/owner-token";
-  const build = (milestone: "job_sent" | "company_answered", extra: Record<string, unknown> = {}) =>
+  const build = (milestone: "task_received" | "company_answered", extra: Record<string, unknown> = {}) =>
     buildTaskLifecycleNotification({ requestId: ID, to: "owner@site.example", captureUrl: url, milestone, ...extra });
 
   it("say only fixed sentences before an introduction: no company's name, contact or words, and no summary", () => {
-    // The one email when the job goes to the companies (the "your job is with companies" one went with it, 2026-11-19).
-    const sent = build("job_sent", { eventId: "companies", companyCount: 4 });
-    expect(sent.idempotencyKey).toBe(`${ID}:job_sent:companies`);
-    expect(sent.body).toBe("Your job is posted for approved deployment companies. We don't share your name, address or contact details with a "
-      + `deployment company unless you ask for an introduction to it. Your job page shows any responses.\n\n${HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`);
-    // The withdrawal promise is whole: how to withdraw, that the job leaves every company's view, and the deletion ask.
-    expect(HOW_TO_WITHDRAW).toBe("To withdraw your job, open your job page, choose Job settings, then Stop using my video. It then leaves "
-      + "every company's view at once. Each company it was sent to is asked to delete any copy it saved.");
-    expect(build("job_sent", { eventId: "companies", companyCount: 1 }).body).toMatch(/^Your job is posted for approved deployment companies\./);
+    // The job link email says where the job goes and how to stop; "Your job is posted" is no longer sent (ledger AL38).
+    const sent = build("task_received");
+    expect(sent.idempotencyKey).toBe(`${ID}:task_received`);
+    expect(sent.body).toBe("Your job link is ready.\n\nA video is required to post your job. Use the link to send one or check your upload. "
+      + `This link opens your job without a password, so please don't forward it.\n\n${SHARING_AND_HOW_TO_STOP}\n\nOpen your job:\n${url}`);
+    // The withdrawal promise is whole: how to stop, that the job leaves every company's view, and the deletion ask.
+    expect(SHARING_AND_HOW_TO_STOP).toContain("It then leaves every company's view at once, and each company it was sent to is asked to delete any copy it saved.");
     // The next step is named only when the job page offers it (e-028, e-029); fixed labels are quoted.
     const answered = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested", introductionOffered: true });
     expect(answered.body).toBe(`A deployment company answered "Interested" about your job. To meet them, press Introduce us on your job page.\n\nOpen your job:\n${url}`);

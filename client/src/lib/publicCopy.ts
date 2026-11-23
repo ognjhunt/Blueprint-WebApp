@@ -55,7 +55,7 @@ export const SAMPLE_JOB = {
   liveAlso: [
     "The site's answers to a few questions about the job, such as the heaviest item and the peak rate.",
     "A first look on paper at which kinds of robot most likely fit, from published specifications.",
-    "A simulation of the site with the job's object in it, to download and open in your own tools.",
+    "A simulation of the site with the job's object in it, when it is ready, to download and open in your own tools.",
   ],
   introduction: "You see no site name, address or contact details until the site asks to meet you. Then we email you both each other's details.",
   cta: "Apply to see jobs",
