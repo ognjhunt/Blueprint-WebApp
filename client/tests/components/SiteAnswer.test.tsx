@@ -307,6 +307,19 @@ describe("the job page's sections, bare bones", () => {
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
+  it("says plainly that a video it could not read has no first look, stops saying it is watching, and offers no button", () => {
+    const onEditJob = vi.fn(), onUpdateVideo = vi.fn();
+    const unread = { ...cannotAssessAnswer, reason: "We couldn't read your video, so this job has no first look." };
+    render(<SiteAnswer token="owner-token" answer={unread} outlook={{ phase: "building", reason: null, sentence: null }}
+      onEditJob={onEditJob} onUpdateVideo={onUpdateVideo} />);
+    expect(within(firstLook()).getByText(cannotAssessAnswer.headline)).toBeVisible();
+    expect(within(firstLook()).getByText("We couldn't read your video, so this job has no first look.")).toBeVisible();
+    expect(screen.queryByText("We're watching your video.")).toBeNull();
+    // The job goes on: its simulation is still being built.
+    expect(screen.getByText("We're building the simulation of your site.")).toBeVisible();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
   it("says why there is no pick and offers no button", () => {
     render(<SiteAnswer token="owner-token" answer={noPickAnswer} />);
     expect(within(firstLook()).getByText(noPickAnswer.headline)).toBeVisible();

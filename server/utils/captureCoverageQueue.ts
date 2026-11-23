@@ -74,6 +74,20 @@ export function coverageClearanceRefusal(request: Record<string, any> | undefine
  * and a provider outage never count toward it: a wait lasts until what it needs arrives or the job's window ends.
  */
 export const COVERAGE_REVIEW_MAX_ATTEMPTS = 3;
+/**
+ * Failed reads that another try of the same video cannot change, by the video adapter's codes (`gemini-video.ts`
+ * `openVideo`): the stored video is larger than the reading takes, is not served as a video, is empty, or its link is
+ * not one the reading may open. Such a reading ends at once with its reason, and the job goes on without a first look.
+ * Every other failed read (a fetch or provider error, an answer that is not the shape asked for) is tried again.
+ */
+export const COVERAGE_UNREADABLE_VIDEO_FAILURES: ReadonlySet<string> = new Set(["video_too_large", "video_not_directly_readable",
+  "video_empty", "video_url_missing", "video_url_invalid", "video_url_not_https", "video_url_has_credentials", "video_url_private_host"]);
+/**
+ * Failed-read reasons whose cause a later release removed, so a reading parked by them is read again once for that cause
+ * (`recoverParkedCoverageReviews`). `video_too_large`: the reading refused every video over 64 MB; since 2026-11-23 it
+ * streams any video the start form accepts and sends a smaller sound-free reading copy.
+ */
+export const COVERAGE_REMOVED_FAILURE_CAUSES: ReadonlySet<string> = new Set(["video_too_large"]);
 /** The short delay before a read that waited, or failed, is tried again. Checking again costs no paid call. */
 export const COVERAGE_REVIEW_WAIT_RETRY_MS = 60_000;
 
@@ -209,6 +223,12 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
               await endCoverageReview(request.ref, id, binding, params.captureId, "job_spend_cap_reached");
             continue;
           }
+          if (failed && COVERAGE_UNREADABLE_VIDEO_FAILURES.has(failed)) {
+            // Trying the same video again cannot change this: the reading ends now, with its reason.
+            if (await finish({ state: "ended", reason: failed, retry_after_ms: null }))
+              await endCoverageReview(request.ref, id, binding, params.captureId, "video_not_readable", failed);
+            continue;
+          }
           const patch = waited ? await waitPatch(jobRef, waited) : outage ? await outagePatch(jobRef, outage)
             // A read that was tried and failed keeps its attempt, with its reason, and is tried again after a delay.
             : { state: "failed", reason: failed ?? "coverage_review_returned_nothing", retry_after_ms: Date.now() + COVERAGE_REVIEW_WAIT_RETRY_MS };
@@ -252,11 +272,12 @@ async function waitPatch(jobRef: FirebaseFirestore.DocumentReference, reason: Co
 }
 
 /**
- * The reading ends where nothing more will happen: the job's window ended, or the job's spending cap leaves no room for
- * a paid read. The request stops being scanned and records why, under the same consent and source checks as a finding.
+ * The reading ends where nothing more will happen: the job's window ended, the job's spending cap leaves no room for
+ * a paid read, or the video cannot be read however often it is tried (`failureReason` names why). The request stops being scanned and records why, under the same consent and source checks as a finding.
  */
 async function endCoverageReview(requestRef: FirebaseFirestore.DocumentReference, reviewId: string,
-  binding: { source: unknown; brief_digest: string }, captureId: string, reason: "job_window_ended" | "job_spend_cap_reached") {
+  binding: { source: unknown; brief_digest: string }, captureId: string,
+  reason: "job_window_ended" | "job_spend_cap_reached" | "video_not_readable", failureReason?: string) {
   await db!.runTransaction(async tx => {
     const jobRef = db!.collection("captureCoverageReviews").doc(reviewId);
     const [current, job] = await Promise.all([tx.get(requestRef), tx.get(jobRef)]);
@@ -266,7 +287,8 @@ async function endCoverageReview(requestRef: FirebaseFirestore.DocumentReference
     if (job.exists && job.data()?.state !== "completed" && job.data()?.state !== "ended")
       tx.set(jobRef, { state: "ended", reason, retry_after_ms: null }, { merge: true });
     tx.set(requestRef, { capture_coverage_pending: false,
-      capture_coverage_review: { review_id: reviewId, state: "ended", reason } }, { merge: true });
+      capture_coverage_review: { review_id: reviewId, state: "ended", reason, ...(failureReason ? { failure_reason: failureReason } : {}) } },
+      { merge: true });
   });
 }
 
@@ -290,7 +312,9 @@ async function outagePatch(jobRef: FirebaseFirestore.DocumentReference, outage: 
  * counted, and three in a few minutes parked the job) get their attempts back from the queue itself, a few per pass,
  * through the same requeue the owner's door uses (its clearance, rights and in-flight call checks all apply). This
  * recovery happens at most once per reading and never uses the owner's two requeues. Not a reading whose window has
- * ended, nor one parked since this change (only readings that went wrong park now).
+ * ended, nor one parked since this change (only readings that went wrong park now), unless its reads failed for a cause
+ * since removed (`COVERAGE_REMOVED_FAILURE_CAUSES`, read from the reading's last recorded failure): that reading is
+ * read again once for that cause, through the same requeue, whatever recovery it had before.
  */
 async function recoverParkedCoverageReviews(limit: number) {
   if (!db || limit <= 0) return;
@@ -305,11 +329,19 @@ async function recoverParkedCoverageReviews(limit: number) {
   for (const row of parked.docs) {
     const value = row.data();
     const review = value.capture_coverage_review;
-    if (review?.reason !== "automatic_review_attempts_exhausted" || review.provider_outages_excluded === true
-      || review.waits_and_outages_excluded === true || value.capture_coverage || await jobWindowEnded(value)) continue;
+    if (review?.reason !== "automatic_review_attempts_exhausted" || value.capture_coverage) continue;
+    let cause: string | undefined;
+    if (review.provider_outages_excluded === true || review.waits_and_outages_excluded === true) {
+      // Parked by reads that went wrong: read again only when their recorded cause has since been removed.
+      const reviewId = typeof review.review_id === "string" ? review.review_id : null;
+      const failure = reviewId ? (await db.collection("captureCoverageReviews").doc(reviewId).get()).data()?.reason : null;
+      if (typeof failure !== "string" || !COVERAGE_REMOVED_FAILURE_CAUSES.has(failure)) continue;
+      cause = failure;
+    }
+    if (await jobWindowEnded(value)) continue;
     try {
-      const result = await requeueExhaustedCoverageReview(row.id, { apply: true, automatic: true });
-      logger.info({ requestId: row.id, outcome: result.outcome, reason: result.reason }, "Parked coverage reading recovery");
+      const result = await requeueExhaustedCoverageReview(row.id, { apply: true, automatic: true, ...(cause ? { cause } : {}) });
+      logger.info({ requestId: row.id, outcome: result.outcome, reason: result.reason, cause }, "Parked coverage reading recovery");
     } catch (error) {
       logger.warn({ error, requestId: row.id }, "Parked coverage reading recovery will try again on a later pass");
     }

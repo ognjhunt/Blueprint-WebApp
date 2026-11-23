@@ -153,7 +153,8 @@ describe("public video egress (injected DNS/HTTPS, no external sockets)", () => 
   });
   it.each([
     { headers: { "content-type": "text/html" }, code: "video_not_directly_readable" },
-    { headers: { "content-type": "video/mp4", "content-length": String(64 * 1024 * 1024 + 1) }, code: "video_too_large" },
+    // Over what the start form accepts (2 GiB); a larger video under it is streamed to disk and read.
+    { headers: { "content-type": "video/mp4", "content-length": String(2 * 1024 * 1024 * 1024 + 1) }, code: "video_too_large" },
   ])("stops owned transport after rejecting headers with $code", async ({ headers, code }) => {
     const deps = transport([{ pending: true, headers }]);
     const fetcher = ((url: any, init: RequestInit = {}) => fetchPublicVideo(String(url), options(init.signal ?? undefined), deps as any)) as typeof fetch;
