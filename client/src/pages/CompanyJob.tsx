@@ -306,7 +306,10 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving || !answer) return;
     const application = INTRODUCIBLE_RESPONSE_STATES.includes(answer);
-    const estimate = application ? typedEstimate(details.chargeModel, estimateLow, estimateHigh) : null;
+    // Only an estimate the company can see counts: one typed under a way of charging it then changed to one with no
+    // unit ("Not decided yet", "Not specified") is hidden, so it is left out rather than blocking the application.
+    const shown = application && details.chargeModel !== undefined && ESTIMATE_UNITS[details.chargeModel] !== null;
+    const estimate = shown ? typedEstimate(details.chargeModel, estimateLow, estimateHigh) : null;
     if (estimate === "invalid") { setMessage(ESTIMATE_INVALID); return; }
     setSaving(true); setMessage("");
     try {

@@ -127,6 +127,24 @@ describe("the company's page for one job", () => {
       chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 }, similarJobs: "6_20", visitMustConfirm: "Conveyor height." });
   });
 
+  // Review of #1426: an estimate hidden by changing how the company charges never blocks the application.
+  it("leaves out an estimate hidden by changing how the company charges, and still applies", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Your response" });
+    fireEvent.click(within(form).getByLabelText("Apply"));
+    const glance = within(form).getByRole("group", { name: "Your application at a glance" });
+    fireEvent.change(within(glance).getByLabelText("How you charge"), { target: { value: "per_hour" } });
+    fireEvent.change(within(glance).getByLabelText("From"), { target: { value: "40" } });
+    fireEvent.change(within(glance).getByLabelText("To"), { target: { value: "30" } });
+    fireEvent.change(within(glance).getByLabelText("How you charge"), { target: { value: "undecided" } });
+    expect(within(glance).queryByLabelText("From")).toBeNull();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved." }) });
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
+    expect(JSON.parse(String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body)).details).toEqual({ chargeModel: "undecided" });
+  });
+
   it("reads an estimate as whole dollars, low to high, and refuses one it cannot read", () => {
     expect(typedEstimate("per_hour", "", "")).toBeNull();
     expect(typedEstimate("per_hour", "30", "")).toEqual({ lowUsd: 30, highUsd: 30 });
