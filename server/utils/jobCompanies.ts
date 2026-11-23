@@ -566,7 +566,8 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
         label: (OUTCOME_STATE_LABELS as Record<string, string>)[latest.state] ?? latest.state } : null };
   }).sort((a, b) => a.requestedAtIso.localeCompare(b.requestedAtIso));
   const billableEvents = events.map(event => ({ id: event.id, kind: event.kind, companyId: event.companyId,
-    company: text(names.get(event.companyId)?.company), atIso: event.atIso, priceUsd: null, status: event.status }));
+    company: text(names.get(event.companyId)?.company), atIso: event.atIso, madeAtIso: text(event.madeAtIso), priceUsd: null,
+    status: event.status }));
   const auto = isRecord(record.company_auto_send) && text(record.company_auto_send.sentAtIso)
     ? { sentAtIso: String(record.company_auto_send.sentAtIso), count: Number(record.company_auto_send.count) || 0 } : null;
   const { loadCompanyJobAccess } = await import("./teamJobAccess");

@@ -57,5 +57,7 @@ export interface AdminJobCompanies {
     latestOutcome: { by: "site" | "company"; state: string; label: string; atIso: string } | null }>;
   /** Billable events (E7): recorded, never priced or charged. */
   billableEvents?: Array<{ id: string; kind: "introduction"; companyId: string; company: string | null; atIso: string;
+    /** When the introduction was made (the company's email was sent); only a made event counts as billable. */
+    madeAtIso?: string | null;
     priceUsd: null; status: "recorded_no_price" | "void" }>;
 }

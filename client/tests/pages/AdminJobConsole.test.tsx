@@ -88,7 +88,7 @@ describe("the job list", () => {
 
   it("shows the owner's totals in one line, with the billable events CSV fetched with the admin's sign-in", async () => {
     const totals = { siteJobs: 12, siteJobsThisWeek: 3, withVideo: 10, shownToCompanies: 8, answered: 5,
-      introductionsAsked: 4, introductionsMade: null, outcomeAnswers: 1, billableEvents: 4 };
+      introductionsAsked: 4, introductionsMade: null, outcomeAnswers: 1, billableEvents: 4, billableEventsNotMade: 2 };
     const csv = "/api/admin/jobs/billable-events.csv";
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:csv");
     const clicked = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
@@ -102,7 +102,7 @@ describe("the job list", () => {
     renderPage();
     const line = await screen.findByLabelText("Totals");
     await waitFor(() => expect(line).toHaveTextContent("12 site jobs (3 in the last 7 days) · 10 with a video · 8 shown to companies · 5 with an answer"
-      + " · 4 introductions asked · ? made · 1 outcome answers · 4 billable events"));
+      + " · 4 introductions asked · ? made · 1 outcome answers · 4 billable events · 2 recorded but not made (not counted)"));
     expect(line).not.toHaveTextContent(/\$|price/i);
     fireEvent.click(within(line).getByRole("button", { name: "Billable events (CSV)" }));
     await waitFor(() => expect(clicked).toHaveBeenCalled());

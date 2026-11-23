@@ -10,7 +10,8 @@
  * the party to an event. An introduction cancelled at dispatch marks its event `status: "void"` (kept, never counted).
  * One cancelled because Blueprint's own email to the company failed may be asked for again: each attempt after the first
  * has its own event (`attempt`, and an id ending `-a{attempt}`), so the void one is never rewritten.
- * `madeAtIso` is written when the company's email is sent: the moment the introduction was actually made.
+ * `madeAtIso` is written when the company's email is sent: the moment the introduction was actually made. Only an event
+ * with it counts as billable (owner, 2026-11-23); one without it is shown to staff apart, never counted.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 
@@ -63,10 +64,29 @@ export async function listJobBillableEvents(requestId: string): Promise<Array<Bi
     .sort((a, b) => String(a.atIso).localeCompare(String(b.atIso)));
 }
 
-/** How many events stand (void ones are never counted), for the owner's totals (`ownerTotals.ts`). A count query. */
-export async function countStandingBillableEvents(store: FirebaseFirestore.Firestore | null = db): Promise<number> {
+/**
+ * Owner, 2026-11-23: an event counts as billable only once its introduction is made (`madeAtIso` set, when the company's
+ * email was sent). One recorded but not made (its company email not sent yet, or its outcome unknown) is counted apart so
+ * staff can see it; a void one is never counted. Nothing here writes to an event.
+ */
+export function isMadeBillableEvent(event: { status?: unknown; madeAtIso?: unknown }): boolean {
+  return event.status === "recorded_no_price" && typeof event.madeAtIso === "string" && event.madeAtIso.length > 0;
+}
+export function isUnmadeBillableEvent(event: { status?: unknown; madeAtIso?: unknown }): boolean {
+  return event.status === "recorded_no_price" && !isMadeBillableEvent(event);
+}
+
+/** The standing events, made (billable) and recorded but not made, for the owner's totals (`ownerTotals.ts`). Read only. */
+export async function tallyStandingBillableEvents(store: FirebaseFirestore.Firestore | null = db):
+  Promise<{ made: number; notMade: number }> {
   if (!store) throw new Error("billable_events_store_unavailable");
-  return (await store.collection(BILLABLE_EVENTS_COLLECTION).where("status", "==", "recorded_no_price").count().get()).data().count;
+  const rows = (await store.collection(BILLABLE_EVENTS_COLLECTION).select("status", "madeAtIso").get()).docs.map(doc => doc.data());
+  return { made: rows.filter(isMadeBillableEvent).length, notMade: rows.filter(isUnmadeBillableEvent).length };
+}
+
+/** How many events count as billable: standing (never void) and made. */
+export async function countStandingBillableEvents(store: FirebaseFirestore.Firestore | null = db): Promise<number> {
+  return (await tallyStandingBillableEvents(store)).made;
 }
 
 /** Every event's ids, times and status, for the admin CSV (`ownerTotals.ts`). Read only. */

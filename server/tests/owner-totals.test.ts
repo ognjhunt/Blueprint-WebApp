@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null }));
 
 import { BILLABLE_EVENTS_CSV_HEADER, billableEventsCsv, loadJobTotals } from "../utils/ownerTotals";
+import { countStandingBillableEvents, tallyStandingBillableEvents } from "../utils/billableEvents";
 
 type Row = Record<string, any>;
 /** A tiny store keyed by full document path ("a/b/c/d"). Counts how each record was read. */
@@ -61,12 +62,13 @@ describe("the owner's totals", () => {
       "captureOutbox/x1": { kind: "introduction_made_company", status: "sent" },
       "captureOutbox/x2": { kind: "introduction_made_company", status: "pending" },
       "captureOutbox/x3": { kind: "introduction_made_site", status: "sent" },
-      "billableEvents/introduction-a-c1": { status: "recorded_no_price" },
+      "billableEvents/introduction-a-c1": { status: "recorded_no_price", madeAtIso: "2026-11-20T00:05:00.000Z" },
       "billableEvents/introduction-a-c2": { status: "void" },
     });
     expect(await loadJobTotals(NOW, store)).toEqual({ siteJobs: 2, siteJobsThisWeek: 1, withVideo: 1, shownToCompanies: 1,
-      answered: 1, introductionsAsked: 2, introductionsMade: 1, outcomeAnswers: 2, billableEvents: 1 });
-    expect(reads.counts).toBe(2);
+      answered: 1, introductionsAsked: 2, introductionsMade: 1, outcomeAnswers: 2, billableEvents: 1, billableEventsNotMade: 0 });
+    // Introductions made is a count query; the billable events are read (status and made time only) to tell made from not.
+    expect(reads.counts).toBe(1);
   });
 
   it("leaves a number it cannot read as null, never the line", async () => {
@@ -74,7 +76,46 @@ describe("the owner's totals", () => {
     store.collectionGroup = () => { throw new Error("index missing"); };
     const totals = await loadJobTotals(NOW, store);
     expect(totals).toMatchObject({ siteJobs: 1, shownToCompanies: null, answered: null, introductionsAsked: null, outcomeAnswers: null,
-      introductionsMade: 0, billableEvents: 0 });
+      introductionsMade: 0, billableEvents: 0, billableEventsNotMade: 0 });
+  });
+
+  // Owner, 2026-11-23: a billable event counts only once its introduction is made (the company's email was sent).
+  it("counts one made event as billable, lists one recorded but not made apart, and counts no void one", async () => {
+    const { store } = fakeStore({
+      "inboundRequests/a": site("2026-11-20T00:00:00.000Z"),
+      "inboundRequests/a/introductions/c1": { outcomes: [] },
+      "inboundRequests/a/introductions/c2": { outcomes: [] },
+      "inboundRequests/a/introductions/c3": { outcomes: [] },
+      "captureOutbox/x1": { kind: "introduction_made_company", status: "sent" },
+      "captureOutbox/x2": { kind: "introduction_made_company", status: "unknown" },
+      "billableEvents/introduction-a-c1": { status: "recorded_no_price", madeAtIso: "2026-11-20T00:05:00.000Z" },
+      "billableEvents/introduction-a-c2": { status: "recorded_no_price" },
+      "billableEvents/introduction-a-c3": { status: "void", madeAtIso: "2026-11-20T00:06:00.000Z" },
+    });
+    expect(await loadJobTotals(NOW, store)).toMatchObject({ introductionsAsked: 3, introductionsMade: 1,
+      billableEvents: 1, billableEventsNotMade: 1 });
+  });
+
+  it("leaves both billable numbers null when the events cannot be read", async () => {
+    const { store } = fakeStore({ "inboundRequests/a": site("2026-11-20T00:00:00.000Z") });
+    const collection = store.collection;
+    store.collection = (name: string) => name === "billableEvents" ? { select: () => { throw new Error("unavailable"); } } : collection(name);
+    expect(await loadJobTotals(NOW, store)).toMatchObject({ billableEvents: null, billableEventsNotMade: null });
+  });
+});
+
+describe("the standing billable events", () => {
+  it("count only those whose introduction was made; recorded but not made are counted apart; void never", async () => {
+    const { store } = fakeStore({
+      "billableEvents/made": { status: "recorded_no_price", madeAtIso: "2026-11-20T00:05:00.000Z" },
+      "billableEvents/made-retry": { status: "recorded_no_price", attempt: 1, madeAtIso: "2026-11-21T00:05:00.000Z" },
+      "billableEvents/not-made": { status: "recorded_no_price" },
+      "billableEvents/empty-made": { status: "recorded_no_price", madeAtIso: "" },
+      "billableEvents/void": { status: "void" },
+      "billableEvents/void-made": { status: "void", madeAtIso: "2026-11-20T00:05:00.000Z" },
+    });
+    expect(await countStandingBillableEvents(store)).toBe(2);
+    expect(await tallyStandingBillableEvents(store)).toEqual({ made: 2, notMade: 2 });
   });
 });
 
@@ -85,6 +126,7 @@ describe("the billable events CSV", () => {
         priceUsd: null, status: "void", siteName: "Never shown" },
       "billableEvents/introduction-a-c1": { kind: "introduction", requestId: "a", companyId: "c1", atIso: "2026-11-20T00:00:00.000Z",
         madeAtIso: "2026-11-20T00:05:00.000Z", priceUsd: null, status: "recorded_no_price" },
+      // Recorded but not made: listed, with no made time, so staff can see it; never counted.
       "billableEvents/=cmd": { requestId: "+x", companyId: "c3", atIso: "2026-11-22T00:00:00.000Z", status: "recorded_no_price" },
     });
     const csv = await billableEventsCsv(store);

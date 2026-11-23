@@ -314,6 +314,8 @@ export function totalsLine(totals: AdminJobTotals): string {
     `${n(totals.introductionsMade)} made`,
     `${n(totals.outcomeAnswers)} outcome answers`,
     `${n(totals.billableEvents)} billable events`,
+    // Owner, 2026-11-23: only a made introduction counts; one recorded but not made is shown apart, never counted.
+    `${n(totals.billableEventsNotMade)} recorded but not made (not counted)`,
   ].join(" · ");
 }
 
