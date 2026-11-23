@@ -80,8 +80,7 @@ describe("redacted lane: failure messages", () => {
     expect(run.failure_detail).toMatchObject({ error_class: "bad_request", http_status: 400, error_code: "bad_input",
       exception_type: expect.any(String), message: { redacted: true, chars: expect.any(Number), sha256: expect.stringMatching(/^[a-f0-9]{64}$/) } });
     expect(run.outcome_evaluation.checks[0].detail).toBe(run.error);
-    const actions = [...(store.get("opsActionLogs")?.values() ?? [])];
-    expect(actions.some((row) => row.status === "failed" && row.summary === run.error)).toBe(true);
+    expect(store.get("opsActionLogs")).toBeUndefined();
     expect(logged.some((line) => line.includes("Agent task failed") && line.includes("bad_input"))).toBe(true);
     expectNoMarkers();
   });
@@ -97,8 +96,7 @@ describe("redacted lane: failure messages", () => {
     expect(run).toMatchObject({ status: "failed", error: "agent_run_failed: other http 500 upstream" });
     expect(run.artifacts.failure_detail).toMatchObject({ error_class: "other", http_status: 500, error_code: "upstream",
       message: { redacted: true } });
-    const actions = [...(store.get("opsActionLogs")?.values() ?? [])];
-    expect(actions.some((row) => row.status === "failed" && row.summary === run.error)).toBe(true);
+    expect(store.get("opsActionLogs")).toBeUndefined();
     expectNoMarkers();
   });
 });

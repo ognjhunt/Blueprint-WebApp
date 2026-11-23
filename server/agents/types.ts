@@ -375,36 +375,6 @@ export interface OpsDocumentRecord {
   updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
 }
 
-export type OpsActionLogStatus =
-  | "queued"
-  | "started"
-  | "completed"
-  | "failed"
-  | "pending_approval"
-  | "cancelled"
-  | "info";
-
-export type OpsActionRiskLevel = "low" | "medium" | "high" | "critical";
-
-export interface PersistedOpsActionLog {
-  id: string;
-  session_id?: string | null;
-  run_id?: string | null;
-  session_key?: string | null;
-  action_key: string;
-  status: OpsActionLogStatus;
-  summary?: string | null;
-  provider?: AgentProvider | null;
-  runtime?: AgentRuntime | null;
-  task_kind?: AgentTaskKind | null;
-  risk_level: OpsActionRiskLevel;
-  reversible: boolean;
-  requires_approval: boolean;
-  latency_ms?: number | null;
-  metadata?: Record<string, unknown>;
-  created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
-}
-
 export interface AgentProfileRecord {
   id: string;
   key: string;

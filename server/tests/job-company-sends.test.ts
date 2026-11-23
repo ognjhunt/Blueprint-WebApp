@@ -242,7 +242,12 @@ describe("what the site receives", () => {
     const questionEvent = "company_answered:A-needs_something";
     expect(rows.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:B-interested`,
       `captureOutbox/${ID}:${questionEvent}`, `captureOutbox/${ID}:job_sent:${AUTO_SEND_EVENT_ID}`].sort());
-    const bodyOf = (key: string) => rows.find(row => row.key === `captureOutbox/${ID}:${key}`)!.body;
+    // A sent row no longer holds its body (cleared at send), so each body is read from the email that was sent.
+    const { providerIdempotencyKey } = await import("../utils/captureOutboxRetry");
+    expect(rows.every(row => row.body === "" && row.to === "" && typeof row.toDigest === "string")).toBe(true);
+    const bodyOf = (key: string) => String((seams.sendEmail.mock.calls.map(([message]) => message)
+      .find(message => message.idempotencyKey === providerIdempotencyKey(`${ID}:${key}`)) as { text: string }).text)
+      .split("\n\n--\n")[0];
     expect(bodyOf(`job_sent:${AUTO_SEND_EVENT_ID}`)).toMatch(/^Your job is posted for approved deployment companies\. We don't share your name, address or contact details[\s\S]*Your job page shows any responses\.\n\nTo withdraw your job, [\s\S]*\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
     // The company's own "Need more details" carries the question the site answers on its page; North's Interested
     // answer is one the site can ask to be introduced after, so the email says how.

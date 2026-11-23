@@ -76,6 +76,8 @@ describe("account notices use authoritative account eligibility", () => {
     expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith({ ...preview, idempotencyKey: providerIdempotencyKey(queued.idempotencyKey) });
     expect(preview).toMatchObject({ fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io" });
     expect(preview.html).toContain('src="https://tryblueprint.io/brand/email-mark.png"');
+    // Sent, the row holds no address or message; asking again for the same notice still finds it, not a conflict.
+    expect(await enqueueAccountNotice(notice, recipient())).toMatchObject({ enqueued: false, status: "sent" });
   });
 
   it("rejects changed copy or policy under an existing key, including reconstructed Firestore maps", async () => {
@@ -219,6 +221,21 @@ describe("delivery sends what is pending, once", () => {
     const sent = sendEmailMock.mock.calls[0][0];
     expect(sent.text).toMatch(/^b\n\n--\nBlueprint Robotics, Inc\. · 6801 Burnet Rd/);
     expect(sent.html).toContain("Blueprint Robotics, Inc. · 6801 Burnet Rd, Austin, TX 78757");
+  });
+
+  it("clears the address, subject, body and reply address of every kind at send, keeping what the record needs", async () => {
+    const { outboxRecipientMatches } = await import("../utils/captureOutbox");
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "smtp", messageId: "m1" });
+    await enqueueOutbox(entry({ body: "Open your job:\nhttps://tryblueprint.io/capture-upload/signed-link", replyTo: "ops@tryblueprint.io" }));
+    await deliverOutbox();
+    const row = (await db.collection("captureOutbox").doc("req-1:task_received").get()).data()!;
+    expect(row).toMatchObject({ kind: "task_received", requestId: "req-1", status: "sent", attempts: 1,
+      to: "", subject: "", body: "", replyTo: null, deliveryMessageId: "m1" });
+    expect(typeof row.sentAtIso).toBe("string");
+    expect(typeof row.createdAtIso).toBe("string");
+    expect(JSON.stringify(row)).not.toMatch(/ops@acme\.example|signed-link/);
+    expect(outboxRecipientMatches(row, "ops@acme.example")).toBe(true);
+    expect(outboxRecipientMatches(row, "someone@else.example")).toBe(false);
   });
 
   it("sends an introduction email with the other side as Reply-To, and every other message with Blueprint's", () => {

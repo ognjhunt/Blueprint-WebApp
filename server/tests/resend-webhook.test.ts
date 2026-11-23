@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const env = vi.hoisted(() => ({ values: {} as Record<string, string | undefined> }));
 const verify = vi.hoisted(() => vi.fn());
-const created = vi.hoisted(() => vi.fn(async (_id: string, _value: unknown) => undefined));
+const suppress = vi.hoisted(() => vi.fn(async (_value: unknown) => ({ persisted: true })));
+const collection = vi.hoisted(() => vi.fn());
 
 vi.mock("../config/env", () => ({
   getConfiguredEnvValue: (...keys: string[]) => keys.map((key) => env.values[key]).find(Boolean),
@@ -13,12 +14,8 @@ vi.mock("resend", () => ({
     webhooks = { verify };
   },
 }));
-vi.mock("../utils/email-suppression", () => ({ recordEmailSuppression: vi.fn(async () => undefined) }));
-vi.mock("../../client/src/lib/firebaseAdmin", () => ({
-  default: { firestore: { FieldValue: { serverTimestamp: () => "now", increment: (value: number) => value } } },
-  dbAdmin: { collection: () => ({ doc: (id: string) => ({ get: async () => ({ exists: false }),
-    create: (value: unknown) => created(id, value), set: async () => undefined }) }) },
-}));
+vi.mock("../utils/email-suppression", () => ({ recordEmailSuppression: suppress }));
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: { collection } }));
 
 import { resendWebhookHandler } from "../routes/resend-webhook";
 
@@ -48,7 +45,9 @@ const signed = {
 beforeEach(() => {
   env.values = { RESEND_WEBHOOK_SECRET: "whsec_test" };
   verify.mockReset();
-  created.mockReset();
+  suppress.mockReset();
+  suppress.mockResolvedValue({ persisted: true });
+  collection.mockReset();
 });
 
 describe("Resend webhook (kept from the retired growth router)", () => {
@@ -56,13 +55,13 @@ describe("Resend webhook (kept from the retired growth router)", () => {
     env.values = {};
     const res = await call(signed);
     expect(res.statusCode).toBe(503);
-    expect(created).not.toHaveBeenCalled();
+    expect(suppress).not.toHaveBeenCalled();
   });
 
   it("refuses a delivery without a raw body or a svix id", async () => {
     expect((await call({ headers: signed.headers })).statusCode).toBe(400);
     expect((await call({ rawBody: signed.rawBody })).statusCode).toBe(401);
-    expect(created).not.toHaveBeenCalled();
+    expect(suppress).not.toHaveBeenCalled();
   });
 
   it("refuses a delivery whose signature does not verify", async () => {
@@ -71,21 +70,34 @@ describe("Resend webhook (kept from the retired growth router)", () => {
     });
     const res = await call(signed);
     expect(res.statusCode).toBe(401);
-    expect(created).not.toHaveBeenCalled();
+    expect(suppress).not.toHaveBeenCalled();
   });
 
-  it("records suppressions from a verified event", async () => {
-    const event = { type: "email.bounced", data: { to: ["site@example.com"] } };
+  it("records a suppression from a verified event and stores nothing else of it", async () => {
+    const event = { type: "email.bounced", data: { to: ["site@example.com"], subject: "Meet a company", bounce: { type: "Permanent" } } };
     verify.mockReturnValue(event);
     const res = await call(signed);
     expect(verify).toHaveBeenCalledWith(expect.objectContaining({ payload: signed.rawBody, webhookSecret: "whsec_test" }));
-    expect(created).toHaveBeenCalledWith("msg_1", expect.objectContaining({ event_type: "bounced", recipient: "site@example.com", source: "resend" }));
+    expect(suppress).toHaveBeenCalledWith(expect.objectContaining({ email: "site@example.com", reason: "bounced", source: "resend:webhook" }));
+    expect(collection).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(202);
   });
 
-  it("answers 500 so Resend retries when recording fails", async () => {
-    verify.mockReturnValue({ type: "email.complained" });
-    created.mockRejectedValue(new Error("firestore down"));
+  it("stores nothing for a delivery receipt or a temporary bounce", async () => {
+    for (const event of [{ type: "email.delivered", data: { to: ["site@example.com"], subject: "Your job" } },
+      { type: "email.bounced", data: { to: ["site@example.com"], bounce: { type: "Transient" } } }]) {
+      verify.mockReturnValue(event);
+      expect((await call(signed)).statusCode).toBe(202);
+    }
+    expect(suppress).not.toHaveBeenCalled();
+    expect(collection).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 so Resend retries when the suppression is not saved", async () => {
+    verify.mockReturnValue({ type: "email.complained", data: { to: ["site@example.com"] } });
+    suppress.mockResolvedValue({ persisted: false });
+    expect((await call(signed)).statusCode).toBe(500);
+    suppress.mockRejectedValue(new Error("firestore down"));
     expect((await call(signed)).statusCode).toBe(500);
   });
 });

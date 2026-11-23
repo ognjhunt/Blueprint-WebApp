@@ -1,9 +1,10 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const ports = vi.hoisted(() => ({ get: null as any, post: null as any, record: vi.fn() }));
+const ports = vi.hoisted(() => ({ get: null as any, post: null as any, record: vi.fn(),
+  verify: vi.fn((token: string) => token === "sealed-ok" ? { email: "ops@business.co", scope: "optional_updates" } : null) }));
 vi.mock("express", () => ({ Router: () => ({ get: (_path: string, handler: any) => { ports.get = handler; }, post: (_path: string, handler: any) => { ports.post = handler; } }) }));
 vi.mock("../utils/email-suppression", () => ({ normalizeSuppressionEmail: (value: string) => value.trim().toLowerCase(), recordEmailSuppression: ports.record,
-  OPTIONAL_UPDATES_EMAILS: "new-job emails and Blueprint updates" }));
+  OPTIONAL_UPDATES_EMAILS: "new-job emails and Blueprint updates", verifyUnsubscribeToken: ports.verify }));
 import "../routes/email-preferences";
 const response = () => { const res: any = { status: vi.fn(() => res), json: vi.fn(() => res), type: vi.fn(() => res), set: vi.fn(() => res), send: vi.fn(() => res) }; return res; };
 beforeEach(() => { vi.clearAllMocks(); ports.record.mockResolvedValue({ persisted: true }); });
@@ -77,5 +78,23 @@ describe("explicit public email opt-out", () => {
     ports.record.mockResolvedValue({ persisted: false }); const res = response();
     await ports.post({ method: "POST", query: {}, body: { email: "ops@business.co", scope: "all", confirmation: "unsubscribe" }, accepts: () => "json" }, res);
     expect(res.status).toHaveBeenCalledWith(503); expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false })); expect(res.send).not.toHaveBeenCalled();
+  });
+  it("takes the address and scope from the link's sealed token, and confirms with the token, not an address", async () => {
+    const get = response(); await ports.get({ method: "GET", query: { token: "sealed-ok", email: "another@business.co", scope: "all" }, accepts: () => "html" }, get);
+    const page = get.send.mock.calls[0][0];
+    expect(page).toContain('name="token" value="sealed-ok"'); expect(page).not.toContain('name="email"');
+    expect(page).toContain("We'll stop sending them to ops@business.co."); expect(ports.record).not.toHaveBeenCalled();
+    const swapped = response();
+    await ports.post({ method: "POST", query: { token: "sealed-ok" }, body: { token: "other", confirmation: "unsubscribe" }, accepts: () => "json" }, swapped);
+    expect(swapped.status).toHaveBeenCalledWith(400); expect(ports.record).not.toHaveBeenCalled();
+    const post = response();
+    await ports.post({ method: "POST", query: {}, body: { token: "sealed-ok", confirmation: "unsubscribe" }, accepts: () => "json" }, post);
+    expect(ports.record).toHaveBeenCalledWith(expect.objectContaining({ email: "ops@business.co", scope: "optional_updates", reason: "unsubscribe" }));
+    expect(post.status).toHaveBeenCalledWith(200);
+  });
+  it("refuses a token that does not open, without falling back to an address in the query", async () => {
+    const res = response(); await ports.get({ method: "GET", query: { token: "forged", email: "ops@business.co" }, accepts: () => "html" }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.send).toHaveBeenCalledWith(expect.stringContaining("This unsubscribe link is incomplete."));
   });
 });
