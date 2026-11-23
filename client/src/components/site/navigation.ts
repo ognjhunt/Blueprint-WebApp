@@ -9,7 +9,7 @@ export type NavLink = { href: string; label: string };
 /** How it works, and Find jobs: the page with the application when signed out, the job list when signed in. */
 export function primaryNavLinks(signedIn: boolean): NavLink[] {
   return [
-    { href: "/how-it-works", label: "How it works" },
+    { href: "/#how-it-works", label: "How it works" },
     { href: signedIn ? BROWSE_JOBS_PATH : FIND_JOBS_PATH, label: FIND_JOBS },
   ];
 }

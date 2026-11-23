@@ -17,7 +17,7 @@ export default function Beta() {
       ]} />
       <div className="bare-page">
         <BareScreen>
-          <BareBack href="/how-it-works" />
+          <BareBack href="/#how-it-works" />
           <h1>Questions</h1>
           <BareRows id="scope" title="For sites" rows={[
             { key: "cost", label: "Cost", value: FREE_FOR_SITES },

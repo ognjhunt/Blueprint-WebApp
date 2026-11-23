@@ -50,7 +50,6 @@ describe("build output", () => {
   it("ships prerendered pages for the simplified public IA and direct access flows", () => {
     [
       "index.html",
-      "how-it-works/index.html",
       "beta/index.html",
       "partners/index.html",
       "contact/robot-team/index.html",
@@ -67,6 +66,8 @@ describe("build output", () => {
     // Terms 2026-11-21.1 (owner, 2026-11-21: no outside customer bought a pre-beta balance): the refunds page is gone and
     // /refunds redirects to /terms, so no page is prerendered for it.
     expect(fs.existsSync(distPath("refunds/index.html"))).toBe(false);
+    // How it works is part of the home page (2026-11-23); /how-it-works redirects there.
+    expect(fs.existsSync(distPath("how-it-works/index.html"))).toBe(false);
   });
 
   it("ships the retired capture-app pages no more, and the current brand's icons and share image", () => {
@@ -85,7 +86,7 @@ describe("build output", () => {
   // The frame of 2026-11-12: How it works says what is in a job packet and where it goes; "Jobs we support" and
   // "About" are not pages any more.
   it("prerenders How it works with the job packet, and no page for the folded addresses", () => {
-    const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
+    const html = fs.readFileSync(distPath("index.html"), "utf8");
     expect(html).toContain("Companies review it");
     expect(html).toContain("We share your video and job description with approved companies");
     expect(html).not.toContain("can see a summary");
@@ -306,7 +307,7 @@ describe("build output", () => {
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).not.toContain("The site pays nothing");
-    for (const file of ["index.html", "how-it-works/index.html", "contact/robot-team/index.html", "contact/site-operator/index.html"]) {
+    for (const file of ["index.html", "contact/robot-team/index.html", "contact/site-operator/index.html"]) {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
     // Device recovery must hydrate before an editable site form exists. The
@@ -372,7 +373,7 @@ describe("build output", () => {
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {
-    for (const page of ["index.html", "beta/index.html", "how-it-works/index.html", "partners/index.html"]) {
+    for (const page of ["index.html", "beta/index.html", "partners/index.html"]) {
       const html = fs.readFileSync(distPath(page), "utf8");
       const preloaded = [...html.matchAll(/(?:src|href)="\/assets\/([^"]+\.js)"/g)].map((match) => match[1]);
       expect(preloaded.length, page).toBeGreaterThan(0);
