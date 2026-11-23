@@ -78,6 +78,9 @@ describe("account notices use authoritative account eligibility", () => {
     expect(preview.html).toContain('src="https://tryblueprint.io/brand/email-mark.png"');
     // Sent, the row holds no address or message; asking again for the same notice still finds it, not a conflict.
     expect(await enqueueAccountNotice(notice, recipient())).toMatchObject({ enqueued: false, status: "sent" });
+    // A changed subject or body under the same sent notice id is still a conflict, through the kept message digest.
+    await expect(enqueueAccountNotice({ ...notice, body: "Changed copy" }, recipient())).rejects.toThrow("account_notice_id_conflict");
+    await expect(enqueueAccountNotice({ ...notice, subject: "Changed subject" }, recipient())).rejects.toThrow("account_notice_id_conflict");
   });
 
   it("rejects changed copy or policy under an existing key, including reconstructed Firestore maps", async () => {

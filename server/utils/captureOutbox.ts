@@ -162,14 +162,21 @@ export function outboxRecipientMatches(row: { to?: unknown; toDigest?: unknown }
   return row.to === to || (row.to === "" && row.toDigest === outboxRecipientDigest(to));
 }
 
+/** The digest a sent or cancelled row keeps in place of its subject and body, so a changed message is still told apart. */
+export function outboxMessageDigest(subject: string, body: string): string {
+  return createHash("sha256").update(`captureOutbox.message:${JSON.stringify([subject, body])}`).digest("hex");
+}
+
 /**
  * Every row, once sent or cancelled, gives up what only the send needed: the recipient's address (kept as a digest),
  * the subject (the site's "Meet {company}" names the company), the body (a site's email ends with its signed job link)
- * and the reply address. Kind, job, status, attempts, times and receipts stay.
+ * and the reply address. The subject and body are kept only as one digest. Kind, job, status, attempts, times and
+ * receipts stay.
  */
-function clearedIntroductionDetails(entry: Pick<OutboxEntry, "to">): Row {
-  return { to: "", toDigest: outboxRecipientDigest(String(entry.to ?? "")), subject: "", body: "", replyTo: null,
-    detailsClearedAtIso: nowIso() };
+function clearedIntroductionDetails(entry: Pick<OutboxEntry, "to"> & Partial<Pick<OutboxEntry, "subject" | "body">>): Row {
+  return { to: "", toDigest: outboxRecipientDigest(String(entry.to ?? "")),
+    messageDigest: outboxMessageDigest(String(entry.subject ?? ""), String(entry.body ?? "")), subject: "", body: "",
+    replyTo: null, detailsClearedAtIso: nowIso() };
 }
 
 // Render previews inherit the application's bindings, but must never consume

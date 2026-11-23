@@ -138,8 +138,11 @@ export async function enqueueAccountNotice(input: unknown, reviewed: AccountNoti
   const stored = (await db.collection(CAPTURE_OUTBOX_COLLECTION).doc(entry.idempotencyKey).get()).data();
   if (!stored) throw new Error("account_notice_enqueue_unconfirmed");
   // A sent or cancelled row keeps its recipient as a digest and no longer holds the message; the rest must still match.
-  const { outboxRecipientMatches } = await import("./captureOutbox");
+  // A changed subject or body under the same notice id is still a conflict, through the kept message digest.
+  const { outboxRecipientMatches, outboxMessageDigest } = await import("./captureOutbox");
   const cleared = typeof stored.detailsClearedAtIso === "string";
+  if (cleared && stored.messageDigest !== outboxMessageDigest(String(entry.subject ?? ""), String(entry.body ?? "")))
+    throw new Error("account_notice_id_conflict");
   if (Object.entries(entry).some(([key, value]) => cleared && ["to", "subject", "body", "replyTo"].includes(key)
     ? key === "to" && !outboxRecipientMatches(stored, String(value))
     : accountNoticeDigest(stored[key]) !== accountNoticeDigest(value))) throw new Error("account_notice_id_conflict");
