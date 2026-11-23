@@ -51,6 +51,76 @@ for (const device of ["desktop", "mobile"] as const) {
       });
     });
 
+    for (const source of ["google_places", "photon"] as const) {
+      // The picked place's structured parts, from the provider (mocked), survive a reload of the draft and a retry after
+      // a refused send; typing over the picked place drops them.
+      test(`sends a picked place's city, state and country, never typed text (${source})`, async ({ page, context, baseURL }) => {
+        const bodies: Record<string, unknown>[] = [];
+        let refuseNext = true;
+        await context.route("**/*", async route => {
+          const request = route.request(), url = new URL(request.url());
+          const send = (json: object, status = 200) => route.fulfill({ status, json });
+          if (url.hostname === "photon.komoot.io" && url.pathname === "/api/") {
+            return send({ features: source === "photon" ? [{ properties: { name: "Austin", type: "city", state: "Texas",
+              country: "United States", countrycode: "us", postcode: "78701", street: "Main Street", housenumber: "12" } }] : [] });
+          }
+          if (url.origin !== new URL(baseURL!).origin) return send({});
+          if (url.pathname === "/api/location-autocomplete") {
+            return source === "photon" ? send({ code: "not_configured" }, 503)
+              : send({ suggestions: [{ label: "Austin, TX, USA", placeId: "ChIJfixtureAustin", mainText: "Austin", secondaryText: "TX, USA" }] });
+          }
+          if (url.pathname === "/api/location-autocomplete/country") return send({ countryCode: "US", city: "Austin", state: "Texas" });
+          if (url.pathname === "/api/csrf") return send({ csrfToken: "synthetic-csrf" });
+          if (url.pathname === "/api/inbound-request" && request.method() === "POST") {
+            bodies.push(request.postDataJSON());
+            if (refuseNext) { refuseNext = false; return send({ message: "Synthetic refusal." }, 400); }
+            return send({ ok: true, captureUrl: "/capture-upload/synthetic-place" }, 201);
+          }
+          if (url.pathname.startsWith("/api/")) return send({});
+          return route.continue();
+        });
+        const label = source === "photon" ? "Austin, Texas, United States" : "Austin, TX, USA";
+        const pick = async () => {
+          await page.locator("#start-location").fill("Austi");
+          await page.getByRole("option", { name: new RegExp(`^Austin`) }).first().click();
+          await expect(page.locator("#start-location")).toHaveValue(label);
+          await expect(page.locator("#start-region")).toHaveCount(0);
+        };
+        const save = () => page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+
+        await page.goto("/contact/site-operator");
+        if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click();
+        await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
+        await page.locator("#start-email").fill("qa@example.invalid");
+        // Typing over a picked place drops its parts: the country is asked again and nothing structured is sent.
+        await pick();
+        await page.locator("#start-location").fill("Acme Foods, 12 Main Street, Austin");
+        await page.locator("#start-region").selectOption("us");
+        await save();
+        await expect(page.getByText("Synthetic refusal.", { exact: true })).toBeVisible();
+        expect(bodies[0].siteLocation).toBe("Acme Foods, 12 Main Street, Austin");
+        expect(bodies[0].siteLocationMetadata).toBeUndefined();
+
+        // Picked again, then the page reloads: the saved draft keeps the place and its parts.
+        await pick();
+        await page.reload();
+        await expect(page.locator("#start-location")).toHaveValue(label);
+        await expect(page.locator("#start-region")).toHaveCount(0);
+        if (!await page.locator("#start-task").isVisible()) await page.getByText("Add details", { exact: true }).click();
+        refuseNext = true;
+        await save();
+        await expect(page.getByText("Synthetic refusal.", { exact: true })).toBeVisible();
+        // A retry after a refused send sends the same parts.
+        await save();
+        await expect.poll(() => bodies.length).toBe(3);
+        for (const body of bodies.slice(1)) {
+          expect(body).toMatchObject({ siteLocation: label, captureRegion: "us" });
+          expect(body.siteLocationMetadata).toEqual({ source, city: "Austin", state: "Texas", country: "US" });
+        }
+        expect(JSON.stringify(bodies)).not.toMatch(/78701|ChIJfixtureAustin|"lat"|"lng"|formattedAddress|postalCode/);
+      });
+    }
+
     // Owner direction 2026-11-11: the sentence is optional; a typed one, in the
     // site's words, confirms the brief when it is submitted.
     test("capture setup takes the typed task, then continues to required video", async ({ page, context, baseURL }, testInfo) => {
@@ -124,6 +194,8 @@ for (const device of ["desktop", "mobile"] as const) {
       expect(mutations[0].body).toMatchObject({ taskStatement: "Move sealed cartons from a conveyor onto a pallet.",
         taskConfirmation: { granted: true, statementVersion: "2026-11-21.v2" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false });
       expect(mutations[0].body.matchFee).toBeUndefined();
+      // A place typed with no suggestion picked sends no structured place: nothing is taken from free text here.
+      expect(mutations[0].body.siteLocationMetadata).toBeUndefined();
       await expect(page.getByText("A video is required to post your job and build its simulation.")).toBeVisible();
       await expect(page.getByText("Check your job brief.", { exact: true })).toHaveCount(0);
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
