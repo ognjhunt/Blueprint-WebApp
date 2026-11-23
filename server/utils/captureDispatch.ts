@@ -122,6 +122,10 @@ export interface CaptureDispatchInput {
  * is a background workflow that has to record why nothing happened. A silent
  * no-op is the failure mode this replaces.
  */
+/** What a site outside the approved region is told: Blueprint cannot take its video yet. */
+export const CAPTURE_REGION_UNAPPROVED_DETAIL =
+  "We can only take videos from sites in the United States for now, so this link can't take a video yet.";
+
 export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispatchDecision {
   if (input.requiresHumanReview) {
     return {
@@ -172,9 +176,7 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
       ? {
           dispatch: false,
           holdReason: "capture_region_unapproved",
-          detail:
-            "We can only take videos from sites in the United States for now, " +
-            "so this link can't take a video yet.",
+          detail: CAPTURE_REGION_UNAPPROVED_DETAIL,
         }
       : {
           dispatch: false,
