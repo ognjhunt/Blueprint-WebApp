@@ -34,8 +34,8 @@ test("privacy page offers deletion and shows optional analytics off until permis
 });
 
 // Privacy 2026-11-23.1 (owner, 2026-11-23: "yes to the privacy wording"): the Location row names the city, state and
-// country a company sees. The 2026-11-21.1 text, with the country alone, is kept as the previous version.
-test("privacy page says a company sees the city, state and country; the previous version keeps the country alone", async ({ page }) => {
+// country a company sees. Since 2026-11-23.2 the 2026-11-23.1 text is the previous version, and says the same.
+test("privacy page says a company sees the city, state and country, as the previous version does", async ({ page }) => {
   await page.goto("/privacy");
   const article = page.locator("article");
   await expect(article).toContainText("Effective November 23, 2026");
@@ -43,7 +43,31 @@ test("privacy page says a company sees the city, state and country; the previous
   await expect(article).not.toContainText("A deployment company sees the country of the job, not the address you typed.");
   await page.getByRole("link", { name: "previous version", exact: true }).click();
   await expect(page).toHaveURL(/\/privacy\/previous$/);
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).toContainText("A deployment company sees the city, state and country of the job, not the address you typed.");
+});
+
+// Terms and Privacy 2026-11-23.2 (owner, 2026-11-23: "yes, update both"): a company applies, and a site sees its name
+// and website with each answer and accepts the companies it wants to meet; an answer given before November 23, 2026
+// stays under an alias. The previous versions (Terms 2026-11-21.1, Privacy 2026-11-23.1) keep the alias sentence.
+test("the Terms and Privacy Policy say a site sees a company's name and website and accepts it; the previous versions keep the alias", async ({ page }) => {
+  const APPLICATION = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
+  const ALIAS = "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out.";
+  const article = page.locator("article");
+  await page.goto("/privacy");
+  await expect(article).toContainText(APPLICATION);
+  await expect(article).toContainText("When a site accepts your application, we give you the site's name, address and contact details.");
+  await expect(article).not.toContainText(ALIAS);
+  await page.goto("/privacy/previous");
+  await expect(article).toContainText(ALIAS);
+  await expect(article).not.toContainText(APPLICATION);
+  await page.goto("/terms");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText(APPLICATION);
+  await expect(article).toContainText("An approved deployment company can answer Apply, Not a fit or Need more details.");
+  await expect(article).not.toContainText(/Interested|Introduce us/);
+  await page.goto("/terms/previous");
   await expect(article).toContainText("Previous version, effective November 21, 2026");
-  await expect(article).toContainText("A deployment company sees the country of the job, not the address you typed.");
-  await expect(article).not.toContainText("city, state and country");
+  await expect(article).toContainText(ALIAS);
+  await expect(article).toContainText("An approved deployment company can answer Interested, Not a fit or Need more details.");
 });

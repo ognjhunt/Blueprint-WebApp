@@ -1,5 +1,5 @@
-import { ANNOUNCED_SUPERSEDED_VERSION, EARLIER_PRIVACY_VERSION, FORMER_PRIVACY_VERSION, OLDER_PRIVACY_VERSION, PAST_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION,
-  PRIOR_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
+import { ANNOUNCED_SUPERSEDED_VERSION, BYGONE_PRIVACY_VERSION, EARLIER_PRIVACY_VERSION, FORMER_PRIVACY_VERSION, OLDER_PRIVACY_VERSION,
+  PAST_PRIVACY_VERSION, PREVIOUS_PRIVACY_VERSION, PRIOR_PRIVACY_VERSION, PRIVACY_VERSION } from "../../client/src/lib/legalAcceptance";
 import type { AgentProvider, AgentTaskKind } from "./types";
 
 /**
@@ -244,18 +244,21 @@ export const PAGE_ROWS_WITHOUT_A_ROUTE: Record<string, string> = {
 export const PRIVACY_POLICY_PROVIDER_ROWS: Record<string, { page: string; rows: Record<string, PolicyRow>; same_text_as?: string }> = {
   [EARLIER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyEarlier.tsx", rows: AI_ROWS_2026_11 },
   // 2026-11-12.1 and 2026-11-12.2 are the same words; acceptances were recorded under both.
-  "2026-11-12.1": { page: "client/src/pages/PrivacyPast.tsx", rows: AI_ROWS_2026_11, same_text_as: PAST_PRIVACY_VERSION },
-  [PAST_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPast.tsx", rows: AI_ROWS_2026_11 },
+  "2026-11-12.1": { page: "client/src/pages/PrivacyBygone.tsx", rows: AI_ROWS_2026_11, same_text_as: BYGONE_PRIVACY_VERSION },
+  [BYGONE_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyBygone.tsx", rows: AI_ROWS_2026_11 },
   [ANNOUNCED_SUPERSEDED_VERSION]: { page: "client/src/pages/PrivacyAnnounced.tsx", rows: AI_ROWS_2026_11 },
-  [PRIOR_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrior.tsx", rows: AI_ROWS_2026_11_13 },
+  [PAST_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPast.tsx", rows: AI_ROWS_2026_11_13 },
   // 2026-11-17.1 permits what 2026-11-13.1 does (owner, 2026-11-17: only the face blurring leaves); Anthropic's row
   // names the version it means instead of "this version".
-  [FORMER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyFormer.tsx", rows: AI_ROWS_2026_11_17 },
+  [PRIOR_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrior.tsx", rows: AI_ROWS_2026_11_17 },
   // 2026-11-19.1 (no early trial) changes no provider row: it permits exactly what 2026-11-17.1 does.
-  [OLDER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyOlder.tsx", rows: AI_ROWS_2026_11_17 },
+  [FORMER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyFormer.tsx", rows: AI_ROWS_2026_11_17 },
   // 2026-11-21.1 (launch copy) rewords the rows in plain words and permits exactly what 2026-11-19.1 does.
-  [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11_21 },
+  [OLDER_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyOlder.tsx", rows: AI_ROWS_2026_11_21 },
   // 2026-11-23.1 (a company sees the city and state) changes no provider row: it permits exactly what 2026-11-21.1 does.
+  [PREVIOUS_PRIVACY_VERSION]: { page: "client/src/pages/PrivacyPrevious.tsx", rows: AI_ROWS_2026_11_21 },
+  // 2026-11-23.2 (a company applies; a site sees its name and website) changes no provider row: it permits exactly what
+  // 2026-11-21.1 and 2026-11-23.1 do.
   [PRIVACY_VERSION]: { page: "client/src/pages/Privacy.tsx", rows: AI_ROWS_2026_11_21 },
 };
 

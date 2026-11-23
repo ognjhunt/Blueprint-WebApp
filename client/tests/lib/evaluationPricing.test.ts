@@ -50,9 +50,10 @@ describe("free beta pricing", () => {
   });
 
   // Terms 2026-11-21.1 (owner approval of 2026-11-21): no person reviews a replacement. A site whose introduced company
-  // drops out asks for another introduction itself, beside any company that answered Interested or Tested it: can do.
+  // drops out asks for another introduction itself. Since Terms 2026-11-23.2 (owner, 2026-11-23) it does so by accepting
+  // another company that applied or answered Tested it: can do.
   it("lets a site ask for another introduction when a company drops out, with no review and no refund of a fee that does not exist", () => {
-    expect(pilotReplacementPolicy).toBe("If a company you were introduced to drops out, you can ask for an introduction to another company that answered Interested or Tested it: can do.");
+    expect(pilotReplacementPolicy).toBe("If a company you were introduced to drops out, you can accept another company that applied or answered Tested it: can do.");
     expect(pilotReplacementPolicy).not.toMatch(/review|approval|evidence|refund|fee/i);
     // The Terms write the same sentence out, so their digest covers it.
     expect(REPLACEMENT_SENTENCE).toBe(pilotReplacementPolicy);

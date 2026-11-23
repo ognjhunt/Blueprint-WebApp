@@ -14,7 +14,7 @@ export const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street 
 export const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 export const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
 export const OLDER_JOB_SENTENCE = "A job started before November 12, 2026 is shared with companies only after you agree to share it on the job's page.";
-export const COMPANY_ALIAS_SENTENCE = "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.";
+export const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
 
 export const privacyPolicySections = [
   {
@@ -60,7 +60,7 @@ export const capturePrivacyAnnex = [
 export const rolePrivacyAnnex = [
   {
     title: "Deployment companies",
-    body: `Your account holds your company's name, the contact details you give us and your answers about jobs. ${COMPANY_ALIAS_SENTENCE} When a site asks for an introduction, we give you the site's name, address and contact details.`,
+    body: `Your account holds your company's name, the contact details you give us and your answers about jobs. ${COMPANY_APPLICATION_SENTENCE} When a site accepts your application, we give you the site's name, address and contact details.`,
   },
   {
     title: "Sites",
