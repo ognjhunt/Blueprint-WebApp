@@ -239,7 +239,7 @@ describe("the introductions route", () => {
 
   it.each([
     ["not_listed", "Your job is not in front of deployment companies right now, so you cannot accept a company."],
-    ["not_interested", "This company has not applied, so you cannot accept it."],
+    ["not_interested", "This company has not applied, or has changed its answer since, so you cannot accept it now."],
     ["consent_missing", "This company needs to apply again before you can accept it."],
     ["already_introduced", "You have already accepted this company."],
     ["company_not_approved", "This company can no longer be accepted."],

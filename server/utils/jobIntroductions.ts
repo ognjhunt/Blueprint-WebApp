@@ -37,7 +37,8 @@ import { introductionAttemptOf, introductionCompanyKey, introductionSiteEmailKey
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { decryptFieldValue } from "./field-encryption";
 import { sealShared } from "./introductionShared";
-import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
+import { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION, INTRODUCTION_REQUEST_STATEMENT_VERSION,
+  isIntroductionStatementVersion } from "../../client/src/lib/siteIntroductions";
 
 export type IntroductionRefusal = "statement_not_current" | "not_listed" | "not_interested" | "consent_missing"
   | "already_introduced" | "company_not_approved";
@@ -91,6 +92,24 @@ async function siteDetailsOf(record: Record<string, any>, decrypt: (value: unkno
     phone: null, location: location && location !== "Location pending" ? location : null };
 }
 
+/**
+ * The sentence beside Accept that is true for this job (2026-11-24), by what the company would be given
+ * (`siteDetailsOf`): the current one (the site's email and the place it gave) when the record holds no name of the
+ * site's own and no person's, as for every job from the start form, which asks for none; else the sentence of
+ * 2026-11-12 (the name, the address and the contact details), every word of which is then true. Each says exactly what
+ * the company receives, so nothing the site did not agree to is given.
+ */
+export function introductionStatementVersionFor(site: IntroductionSiteDetails): string {
+  const named = Boolean(site.contactName) || (site.name !== "The site" && site.name !== site.location);
+  return named ? INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION : INTRODUCTION_REQUEST_STATEMENT_VERSION;
+}
+
+/** The sentence a job's page shows beside Accept (`introductionStatementVersionFor`), read from the job's record. */
+export async function introductionStatementVersionOf(record: Record<string, any>, deps: Pick<IntroductionDeps, "decrypt"> = {}):
+  Promise<string> {
+  return introductionStatementVersionFor(await siteDetailsOf(record, deps.decrypt ?? defaultDecrypt));
+}
+
 /** The introductions read to count those that stand (recorded on the job); far above any real count. */
 const INTRODUCTION_READ_LIMIT = 1000;
 
@@ -99,8 +118,9 @@ export async function requestIntroduction(input: { requestId: string; alias: str
   statementVersion?: string | null },
   deps: IntroductionDeps = {}): Promise<IntroductionResult> {
   if (!db) throw new Error("introduction_store_unavailable");
-  // Pressing the button is the site's agreement to give the company its details, under the sentence it was shown.
-  if (input.statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION) return { ok: false, reason: "statement_not_current" };
+  // Pressing the button is the site's agreement to give the company its details, under the sentence it was shown: one
+  // of the recorded versions here, and below, inside the transaction, the one that is true for this job.
+  if (!isIntroductionStatementVersion(input.statementVersion)) return { ok: false, reason: "statement_not_current" };
   const store = db;
   const now = deps.now ?? (() => new Date());
   const decrypt = deps.decrypt ?? defaultDecrypt;
@@ -142,6 +162,10 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     const companyShared = { company: text(company.company) ?? "", contactName: text(company.name) ?? "", email: companyEmail,
       ...(text(company.website) ? { website: text(company.website)! } : {}) };
     const site = await siteDetailsOf(record, decrypt);
+    // The sentence the site agreed to must be the one true for what this job gives (`introductionStatementVersionFor`):
+    // a page showing another (an old tab, or a record that changed) is refused before anything is recorded.
+    const statementVersion = introductionStatementVersionFor(site);
+    if (input.statementVersion !== statementVersion) return { ok: false, reason: "statement_not_current" };
     const companyRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionCompanyKey(input.requestId, companyId, attempt));
     const siteRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionSiteKey(input.requestId, companyId, attempt));
     const [companyRow, siteRow] = [await tx.get(companyRowRef), await tx.get(siteRowRef)];
@@ -152,7 +176,7 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     tx[retry ? "set" : "create"](introRef, { schemaVersion: 1, alias: letter, requestedAtIso,
       by: input.actor, ...(attempt > 0 ? { attempt } : {}),
       // Not personal, so stored plainly: the recorded statement the site agreed to by pressing the button.
-      statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION,
+      statementVersion,
       // Both sides' details are encrypted at rest on this record (`introductionShared.ts`). The emails below use the plain
       // values; their outbox rows are cleared of them once sent or cancelled (`captureOutbox.ts`).
       siteShared: await sealShared({ name: site.name, contactName: site.contactName, email: site.email, phone: site.phone,
@@ -161,7 +185,9 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso, attempt));
     if (!companyRow.exists && EMAIL.test(companyEmail)) {
       const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName,
-        answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
+        answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState],
+        // The word of the sentence the site agreed to: "the place you gave us", or the older "address".
+        placeLabel: statementVersion === INTRODUCTION_REQUEST_STATEMENT_VERSION ? "Place" : "Address" });
       tx.create(companyRowRef, buildOutboxEntry({ idempotencyKey: companyRowRef.id, requestId: input.requestId,
         kind: INTRODUCTION_COMPANY_KIND, to: companyEmail, subject: message.subject, body: message.body,
         replyTo: EMAIL.test(site.email) ? site.email : "hello@tryblueprint.io" }));

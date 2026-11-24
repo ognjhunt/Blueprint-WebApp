@@ -28,7 +28,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { modelPassFindsNothing } from "./helpers/freeTextScreening";
 import { currentTermsAcceptance, passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
-import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
+// The fixture's site holds a name of its own and a person's, so its page shows the sentence of 2026-11-12, true for it
+// (`introductionStatementVersionFor`); a job from the start form shows the current one.
+import { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION as INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { SITE_AGREED_SHARING, SITE_IDENTITY_RULE, VISIT_MUST_CONFIRM } from "../../client/src/lib/companyJobPage";

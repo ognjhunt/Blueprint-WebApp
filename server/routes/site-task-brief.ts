@@ -4,7 +4,7 @@ import { readJobFacts } from "../utils/jobFacts";
 import { JOB_DESCRIPTION_MAX_LENGTH, JOB_DESCRIPTION_TOO_LONG } from "../../client/src/lib/jobDescriptionLimit";
 import { jobReadingOf } from "../utils/siteRobotFit";
 import { loadFirstLookWords } from "../utils/firstLookTable";
-import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED,
+import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_STATEMENT_CHANGED, isIntroductionStatementVersion,
   isIntroductionRefusalReason, type IntroductionRefusalReason } from "../../client/src/lib/siteIntroductions";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
@@ -263,15 +263,16 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
   const body = z.object({ alias: z.string().trim().regex(/^Company [A-Z]{1,3}$|^[A-Z]{1,3}$/),
     statementVersion: z.string().trim().max(100).optional() }).strict().safeParse(req.body ?? {});
   if (!body.success) return res.status(400).json({ code: "introduction_invalid", error: "Press the button beside the company on your job page." });
-  // Pressing the button is the agreement its sentence records (planner, 18:25Z): a page without that sentence, or with
-  // another wording (an old tab), is refused before anything is recorded.
-  if (body.data.statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION)
+  // Pressing the button is the agreement its sentence records (planner, 18:25Z): a page without a recorded sentence is
+  // refused before anything is recorded, and one with another wording than this job's (an old tab) inside
+  // `requestIntroduction`, which knows which sentence is true for the job (2026-11-24).
+  if (!isIntroductionStatementVersion(body.data.statementVersion))
     return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });
   const alias = body.data.alias.replace(/^Company /, "");
   try {
     const { requestIntroduction } = await import("../utils/jobIntroductions");
     const result = await requestIntroduction({ requestId: verified.requestId, alias, actor: "site",
-      statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
+      statementVersion: body.data.statementVersion });
     if (result.ok) return res.json({ ok: true, introducedAtIso: result.introducedAtIso });
     if ((result.reason as string) === "statement_not_current")
       return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });

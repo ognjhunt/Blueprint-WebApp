@@ -232,7 +232,7 @@ describe("what the site receives", () => {
     const { raw, body } = await siteStatus();
     const entries = body.answer.companies.entries as Array<Record<string, unknown>>;
     expect(body.answer.companies.interested).toBe(true);
-    expect(Object.keys(body.answer.companies).sort()).toEqual(["entries", "firstAnswerAtIso", "interested", "introductions", "sent"]);
+    expect(Object.keys(body.answer.companies).sort()).toEqual(["entries", "firstAnswerAtIso", "interested", "introductionStatementVersion", "introductions", "sent"]);
     expect(body.answer.companies.sent).toMatchObject({ count: 2 });
     expect(body.answer.companies.introductions).toEqual({ used: 0 });
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([
@@ -298,13 +298,28 @@ describe("what the site receives", () => {
     vi.stubEnv("FIELD_ENCRYPTION_MASTER_KEY", Buffer.alloc(32, 7).toString("base64"));
     expect(await sendToCompanies()).toMatchObject({ sent: true });
     expect((await companyAnswers(NORTH, { state: "interested", inputs: WORDS.north })).status).toBe(200);
-    const before = (await siteStatus()).body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.kind === "answered");
+    const status = (await siteStatus()).body.answer.companies;
+    const before = status.entries.find((entry: Record<string, unknown>) => entry.kind === "answered");
     expect(before).toMatchObject({ alias: "Company A", state: "interested", canIntroduce: true, reason: NORTH_REASON });
+    // The job holds no name (as one from the start form): its page shows the sentence of what the company is given, the
+    // site's email and the place it gave (2026-11-24), and a press under the older sentence is refused.
+    expect(status.introductionStatementVersion).toBe("introduction-request-2026-11-24");
     const token = createCaptureUploadToken({ requestId: ID, captureId: `walkthrough-${ID}`, sceneId: `site-${ID}`, scope: "owner" });
-    const response = await fetch(`${base}/api/site-task-brief/${token}/introductions`, { method: "POST",
-      body: JSON.stringify({ alias: "A", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }),
+    const press = (statementVersion: string) => fetch(`${base}/api/site-task-brief/${token}/introductions`, { method: "POST",
+      body: JSON.stringify({ alias: "A", statementVersion }),
       headers: { "content-type": "application/json", cookie: "csrf_token=c1-test", "x-csrf-token": "c1-test" } });
+    const older = await press("introduction-request-2026-11-12");
+    expect(older.status).toBe(409);
+    expect(await older.json()).toMatchObject({ code: "introduction_statement_changed" });
+    expect([...state.docs.keys()].filter(key => key.startsWith("billableEvents/"))).toEqual([]);
+    const response = await press(INTRODUCTION_REQUEST_STATEMENT_VERSION);
     expect(response.status, await response.clone().text()).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`))
+      .toMatchObject({ statementVersion: "introduction-request-2026-11-24" });
+    // The company's email names the place as the sentence did.
+    const companyRow = [...state.docs.entries()].find(([key]) => key.startsWith("captureOutbox/") && key.includes("introduction_made_company"))?.[1] as
+      Record<string, string> | undefined;
+    expect(companyRow?.body ?? "").not.toMatch(/^Address: /m);
     const after = (await siteStatus()).body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.kind === "answered");
     // Asked, not made: the company's email has not been sent yet (H2).
     expect(after).toMatchObject({ alias: "Company A", canIntroduce: false, introductionPending: true });

@@ -526,7 +526,7 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(lines()[1]).not.toContain("No reason shared.");
     const buttons = within(companies()).getAllByRole("button", { name: "Accept" });
     expect(buttons).toHaveLength(1);
-    expect(within(companies()).getByText("We give Company A your name, address and contact details, and give you theirs."))
+    expect(within(companies()).getByText("We give Company A your email address and the place you gave us, and give you theirs."))
       .toHaveAttribute("id", buttons[0].getAttribute("aria-describedby"));
     expect(companies().textContent).not.toMatch(/NOTE-PLANT|WORDS-PLANT|We will write to you/);
     expect(companies().textContent).not.toMatch(BANNED);
@@ -608,7 +608,19 @@ describe("the deployment companies section, with sends, answers and introduction
     // One plain sentence says both sides are being emailed (ledger EL19).
     expect(await within(companies()).findByText("We are emailing you and Company A each other's contact details.")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({ method: "POST",
-      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12" }) }));
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-24" }) }));
+  });
+
+  // 2026-11-24: a job whose record holds a name the site gave keeps the sentence of 2026-11-12, true for it, and the
+  // press records that version.
+  it("shows and records the sentence the server says is true for this job", async () => {
+    fetchMock.mockResolvedValue(response({ ok: true, introducedAtIso: "2026-11-14T09:00:00.000Z" }));
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
+      companies: { ...activity, introductionStatementVersion: "introduction-request-2026-11-12" } }} />);
+    expect(within(companies()).getByText("We give Company A your name, address and contact details, and give you theirs.")).toBeVisible();
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12" }) })));
   });
 
   it("offers Introduce us again on the open page when an introduction it requested is later cancelled and may be asked again", async () => {
@@ -626,7 +638,7 @@ describe("the deployment companies section, with sends, answers and introduction
 
   it.each([
     ["not_listed", "Your job is not in front of deployment companies right now, so you cannot accept a company."],
-    ["not_interested", "This company has not applied, so you cannot accept it."],
+    ["not_interested", "This company has not applied, or has changed its answer since, so you cannot accept it now."],
     ["consent_missing", "This company needs to apply again before you can accept it."],
     ["already_introduced", "You have already accepted this company."],
     ["company_not_approved", "This company can no longer be accepted."],

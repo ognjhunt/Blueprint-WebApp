@@ -211,11 +211,11 @@ test("the applicants section says the send line, each answer by alias, and offer
   await expect(companies.getByText("In their words: “We would need a video of the far end of the line.”", { exact: true })).toBeVisible();
   await expect(companies.getByText("You can accept Company B if it applies or changes its answer to Tested it: can do.", { exact: true })).toBeVisible();
   await expect(companies.getByRole("button", { name: "Accept" })).toHaveCount(1);
-  await expect(companies.getByText("We give Company A your name, address and contact details, and give you theirs.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("We give Company A your email address and the place you gave us, and give you theirs.", { exact: true })).toBeVisible();
   await expect(companies.getByText("We will write to you about next steps.")).toHaveCount(0);
   await companies.getByRole("button", { name: "Accept" }).click();
   await expect(companies.getByRole("alert")).toHaveText("You have already accepted this company.");
-  expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A", statementVersion: "introduction-request-2026-11-12" } }]);
+  expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A", statementVersion: "introduction-request-2026-11-24" } }]);
   expect(unexpected).toEqual([]);
 });
 

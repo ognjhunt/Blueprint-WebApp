@@ -477,7 +477,9 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
    */
   screenings?: Screenings;
   /** The site's own identity, for the last deterministic pass over its reply, as the company's page does. */
-  siteIdentity?: KnownSiteIdentity | null } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
+  siteIdentity?: KnownSiteIdentity | null;
+  /** The sentence beside Accept true for this job (`introductionStatementVersionFor`). */
+  introductionStatementVersion?: string } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
   const screenings = input.screenings ?? NOTHING_SCREENED();
   const entries: SiteCompanyEntry[] = [];
   const sentTo = new Set<string>();
@@ -557,6 +559,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     ...(input.startedAtIso ? { startedAtIso: input.startedAtIso } : {}),
     ...(input.views || input.views === null ? { views: input.views } : {}),
     ...(firstAnswerAtIso ? { firstAnswerAtIso } : {}),
+    ...(input.introductionStatementVersion ? { introductionStatementVersion: input.introductionStatementVersion } : {}),
     introductions: { used } };
 }
 
@@ -592,12 +595,16 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   // Every company that answered, approved or not, so its identity is taken out of its words.
   const answered = await Promise.all(responses.map(row => store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(row.id).get()));
   const companies = new Map(answered.filter(snap => snap.exists).map(snap => [snap.id, (snap.data() ?? {}) as Data]));
-  const [screenings, siteIdentity] = await Promise.all([loadScreenings(requestId),
-    import("./siteIdentity").then(({ knownSiteIdentity }) => knownSiteIdentity(record)).catch(() => null)]);
+  const [screenings, siteIdentity, introductionStatementVersion] = await Promise.all([loadScreenings(requestId),
+    import("./siteIdentity").then(({ knownSiteIdentity }) => knownSiteIdentity(record)).catch(() => null),
+    // Which sentence beside Accept is true for this job: what the company would be given decides it (2026-11-24).
+    import("./jobIntroductions").then(({ introductionStatementVersionOf }) => introductionStatementVersionOf(record))
+      .catch(() => undefined)]);
   const project = (results: Screenings) => projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data),
     responses, introductions: opened, listed: access.listed, companies,
     approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)),
-    startedAtIso: jobStartTime(record.createdAt), views: views?.length ?? null, screenings: results, siteIdentity });
+    startedAtIso: jobStartTime(record.createdAt), views: views?.length ?? null, screenings: results, siteIdentity,
+    introductionStatementVersion });
   const first = project(screenings);
   // Words the model pass has not read yet are screened now (the site's own page waits a little for them), so the site
   // reads what the other side reads as soon as it can.

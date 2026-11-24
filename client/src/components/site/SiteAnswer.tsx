@@ -6,7 +6,7 @@ import { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY, type JobOutlook, t
 /** The job page's lines for the phase, kept in `@/lib/jobOutlook` so staff see the same words; re-exported here. */
 export { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY };
 import {
-  INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn, introductionRequested,
+  INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn, introductionRequested, isIntroductionStatementVersion,
   isIntroductionRefusalReason,
 } from "@/lib/siteIntroductions";
 import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
@@ -473,6 +473,9 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       entry.kind === "answered" && entry.alias === alias && entry.canIntroduce === true)));
   }, [activity]);
   if (!isSiteCompanyActivity(activity)) return null;
+  // The sentence beside Accept that is true for this job, as the server chose it; the press sends its version.
+  const statementVersion = isIntroductionStatementVersion(activity.introductionStatementVersion)
+    ? activity.introductionStatementVersion : INTRODUCTION_REQUEST_STATEMENT_VERSION;
   const errorFor = (entry: AnsweredEntry) => {
     const error = errors[entry.alias];
     return error?.message && (error.atIso === entry.atIso || entry.canIntroduce !== true) ? error.message : null;
@@ -484,7 +487,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introductions`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
         // The version of the sentence shown beside the button: pressing it is the agreement it records.
-        body: JSON.stringify({ alias: alias.replace(/^Company /, ""), statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }),
+        body: JSON.stringify({ alias: alias.replace(/^Company /, ""), statementVersion }),
       });
       const result = await response.json().catch(() => null);
       if (response.status === 409 || response.status === 400) {
@@ -547,7 +550,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && (requested.includes(entry.alias)
           ? <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>
-          : <BareButton onClick={() => void introduce(entry.alias, entry.atIso)} disabled={busy !== null} helper={introduceSentence(shownName(entry))}>
+          : <BareButton onClick={() => void introduce(entry.alias, entry.atIso)} disabled={busy !== null} helper={introduceSentence(shownName(entry), statementVersion)}>
             {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
           </BareButton>)}
         {/* Kept after the page reads the job again, beside the company's answer as it is now. */}

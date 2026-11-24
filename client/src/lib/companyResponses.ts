@@ -241,6 +241,11 @@ export interface SiteCompanyActivity {
   firstAnswerAtIso?: string;
   /** Introductions made on this job (not cancelled). There is no limit per job (owner, 2026-11-12). */
   introductions?: { used: number };
+  /**
+   * The version of the sentence beside Accept that is true for this job (`siteIntroductions.ts`): the page shows its text
+   * and sends this version with the press. Absent: the current one.
+   */
+  introductionStatementVersion?: string;
 }
 
 export function elapsedSince(start: string | null | undefined, end: string | null | undefined): string | null {

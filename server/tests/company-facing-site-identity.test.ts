@@ -26,7 +26,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state, sharedFakeFirestore } from "./helpers/fake-firestore";
 import { modelPassFindsNothing } from "./helpers/freeTextScreening";
 import { currentTermsAcceptance, passedPrivacyScreen, sharedRecordingGrant } from "./helpers/sharedJob";
-import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
+// The fixture's site holds a name of its own and a person's, so its page shows the sentence of 2026-11-12, true for it
+// (`introductionStatementVersionFor`); a job from the start form shows the current one.
+import { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION as INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 import { COMPANY, COMPANY_POSTAL_LINE } from "../../client/src/data/company";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
@@ -389,7 +391,7 @@ describe("before the site asks for an introduction, nothing a company receives n
     expect(reply.status).toBe(200);
     expectNothingOfTheSite("the answer route's reply", reply.text);
     // One sentence saying what happens next.
-    expect(JSON.parse(reply.text).nextAction).toBe("Saved. If the site accepts your application, we email you both each other's name and contact details.");
+    expect(JSON.parse(reply.text).nextAction).toBe("Saved. If the site accepts your application, we email you each other's contact details.");
     const { rows } = emailsToCompanies();
     expect(rows).toEqual([]);
   });

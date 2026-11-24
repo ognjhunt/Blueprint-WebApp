@@ -48,7 +48,7 @@ test("concurrent Accepts, a stale Accept, and Not a fit after Accept: one event,
   await expect(itemN.getByRole("button", { name: "Accept" })).toBeVisible({ timeout: 30_000 });
   expect((await answer(1, "declined", "We no longer have capacity.")).status()).toBe(200);
   await itemN.getByRole("button", { name: "Accept" }).click();
-  await expect(itemN.getByRole("alert")).toContainText("This company has not applied, so you cannot accept it.");
+  await expect(itemN.getByRole("alert")).toContainText("This company has not applied, or has changed its answer since, so you cannot accept it now.");
   record = await jobRecord(request, requestId);
   expect(billableFor(n.email)).toEqual([]);
 
