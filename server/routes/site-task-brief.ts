@@ -2,6 +2,7 @@ import { destinationPictureUrl } from "../utils/websiteDestinationPicture";
 import { placeKindOf } from "../utils/taskTargetChoiceContract";
 import { readJobFacts } from "../utils/jobFacts";
 import { JOB_DESCRIPTION_MAX_LENGTH, JOB_DESCRIPTION_TOO_LONG } from "../../client/src/lib/jobDescriptionLimit";
+import { SITE_REPLY_ONLY_CONTACT_DETAILS } from "../../client/src/lib/companiesRead";
 import { jobReadingOf } from "../utils/siteRobotFit";
 import { loadFirstLookWords } from "../utils/firstLookTable";
 import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_STATEMENT_CHANGED, isIntroductionStatementVersion,
@@ -247,6 +248,7 @@ router.post("/:token/clarifications", csrfProtection, async (req, res) => {
     // The reply as the company reads it, or `pending` while its names and contact details are being taken out.
     if (result.status === "saved") return res.json({ ok: true, answer: result.answer, ...(result.answer === null ? { pending: true } : {}) });
     if (result.status === "needs_detail") return res.status(400).json({ error: "Add a detail about the job, such as a size, rate, or requirement." });
+    if (result.status === "only_contact_details") return res.status(400).json({ error: SITE_REPLY_ONLY_CONTACT_DETAILS });
     return res.status(409).json({ error: "This question is no longer open. Refresh the job to see the latest responses." });
   } catch {
     return res.status(503).json({ error: "Your answer could not be saved. Please try again." });

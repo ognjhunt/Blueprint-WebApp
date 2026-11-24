@@ -70,9 +70,17 @@ export function screeningKey(writer: ScreeningWriter, text: string): string {
   return createHash("sha256").update(`${FREE_TEXT_SCREENING_SCHEMA}\n${writer}\n${text}`).digest("hex");
 }
 
-/** Text with no letter left beside the placeholders needs no pass: nothing in it can name anyone. */
+/** At this many digits a text may hold a phone number however it is written, so it is read by the pass. */
+export const SCREENING_DIGITS = 7;
+
+/**
+ * Whether the text needs the model pass before the other side reads it: any letter left beside the placeholders, or
+ * seven digits or more of any script (stress test round 2, 2026-11-24: a reply of only "612 345 678" or "٤١٥٥٥٥٠١٩٩" had no
+ * letter, skipped the pass and crossed whole). Text with neither ("[removed]", "40", "12.5") can name no one.
+ */
 export function needsScreening(text: string): boolean {
-  return /\p{L}/u.test(text.split(REMOVED).join(" ").replace(/\bthe (?:site|company)\b/gi, " "));
+  const rest = text.split(REMOVED).join(" ").replace(/\bthe (?:site|company)\b/gi, " ").normalize("NFKC");
+  return /\p{L}/u.test(rest) || (rest.match(/\p{N}/gu)?.length ?? 0) >= SCREENING_DIGITS;
 }
 
 const ZERO_WIDTH = /[​-‍⁠﻿­]/;

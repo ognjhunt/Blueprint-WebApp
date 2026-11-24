@@ -70,7 +70,8 @@ export async function answerCompanyQuestion(input: { jobId: string; alias: strin
     const sanitized = removeNamesNotHeld(removeIdentifyingDetails(input.answer, known))
       .trim().slice(0, SITE_CLARIFICATION_LIMIT);
     if (sanitized.split(REMOVED).join("").replace(/\bthe site\b/gi, "").replace(/[^\p{L}\p{N}]+/gu, "").length < 2)
-      return { status: "needs_detail" } as const;
+      // A reply that was only contact details ("612 345 678") is said so: the company would read nothing of it.
+      return { status: sanitized.includes(REMOVED) ? "only_contact_details" : "needs_detail" } as const;
     const email = String(company?.email ?? "").trim().toLowerCase();
     const key = noticeKey(input.jobId, companyId, question.id);
     const outboxRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(key);

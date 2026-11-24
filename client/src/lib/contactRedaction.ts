@@ -14,6 +14,11 @@
  * as harborfreshfoods"). Pattern matching alone always leaks something (a lower-case name, a business name in ordinary
  * words), so a model pass (`server/utils/freeTextScreening.ts`) runs on the text these patterns leave, these patterns
  * run again on what it returns, and the other side reads the words only once that pass has succeeded.
+ *
+ * Widened again 2026-11-24 (stress test round 2: a reply of only a phone number crossed both ways): a phone number in
+ * the 3-3-3 grouping ("612 345 678", "021 234 567"), with any separator that is not a letter or a digit ("415_555_0199",
+ * "415•555•0199", "415 📞 555 📞 0199"), and in any script's digits ("٤١٥٥٥٥٠١٩٩"). Every digit is read as its ASCII form
+ * first; the text the other side reads shows it so.
  */
 export const REMOVED = "[removed]";
 
@@ -37,20 +42,70 @@ const ANY_DOMAIN = new RegExp("(?<![\\p{L}\\p{N}@._-])(?:[A-Za-z0-9](?:[A-Za-z0-
 /** A run of digits with phone separators, optionally led by + or "(". Checked further in `isPhone`. */
 const PHONE_CANDIDATE = /(?:\+|\(\s*)?\d[\d\s().\-/]{4,}\d/g;
 
-const RANGE_UNIT = /^\s+(?:boxes?|cartons?|cases?|totes?|items?|pieces?|units?|pallets?|parts?|bins?|cycles?|mm|cm|m|kg|g|lbs?|oz|seconds?|minutes?|hours?)\b/i;
+/**
+ * Under the current rules (stress test round 2, 2026-11-24: "415_555_0199", "415•555•0199", "415|555|0199" and
+ * "415 📞 555 📞 0199" crossed whole): digit groups joined by any separator that is not a letter or a digit — spaces, and one
+ * to three other marks (dots, dashes, slashes, brackets, underscores, bullets, bars, emoji) with spaces around them, or
+ * a comma on its own. Never one that joins ordinary numbers: a comma with a space beside it (a list), a semicolon, a colon
+ * (a time), a currency sign, the signs of a sum or a measurement, a quote mark, "#" or "&". Matched after every digit is
+ * read as its ASCII form (`foldDigits`), so Arabic-Indic, Devanagari and other scripts' digits count the same.
+ */
+const PHONE_SEPARATOR_MARK = "[^\\p{L}\\p{N}\\p{M}\\s,;:\\p{Sc}%‰°×÷*+=<>±~#&!?'\"‘’“”«»]";
+const WIDE_PHONE_SEPARATOR = `(?:,|[^\\S\\n]+|[^\\S\\n]*${PHONE_SEPARATOR_MARK}{1,3}[^\\S\\n]*)`;
+const WIDE_PHONE_CANDIDATE = new RegExp(`(?:\\+|\\(\\s*)?\\d+(?:${WIDE_PHONE_SEPARATOR}\\d+)*`, "gu");
 
-function isPhone(candidate: string, following: string): boolean {
+const RANGE_UNIT = /^\s+(?:boxes?|cartons?|cases?|totes?|items?|pieces?|units?|pallets?|parts?|bins?|cycles?|mm|cm|m|kg|g|lbs?|oz|seconds?|minutes?|hours?)\b/i;
+/** A quantity written after a number grouped in threes with spaces or dots ("1 200 000 units", "612 345 678 kg"). */
+const QUANTITY_AFTER = /^\s*(?:boxes|box|cartons?|cases?|totes?|items?|pieces?|units?|pallets?|parts?|bins?|cycles?|picks?|orders?|bottles?|cans?|bags?|trays?|crates?|packages?|parcels?|mm|cm|km|m|kg|g|t|tons?|tonnes?|lbs?|oz|l|litres?|liters?|gallons?|seconds?|minutes?|hours?|days?|a\s+(?:year|month|week|day|shift)|per\b|each\b|every\b|in\s+total\b)(?![\p{L}\p{N}])/iu;
+
+function isPhone(candidate: string, following: string, wide = false): boolean {
   const digits = candidate.replace(/\D/g, "");
   if (digits.length < 7 || digits.length > 15) return false;
   const text = candidate.trim();
   if (/\//.test(text) && !/^\+/.test(text)) return false; // fractions and "24/7"-style ratios, dates written with slashes
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return false; // an ISO date
-  if (/^\d{1,3}(?:[ ,.]\d{3})+$/.test(text)) return false; // thousands: "1 200 000", "1.200.000"
+  if (!wide && /^\d{1,3}(?:[ ,.]\d{3})+$/.test(text)) return false; // thousands: "1 200 000", "1.200.000"
+  if (wide) {
+    // An ISO date with its hour ("2026-11-12 09" of "2026-11-12 09:00").
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}$/.test(text)) return false;
+    // Thousands with commas ("1,200,000", "1,200,000.50").
+    if (/^[1-9]\d{0,2}(?:,\d{3})+(?:\.\d{1,2})?$/.test(text)) return false;
+    // Thousands with spaces or dots, read as a phone number unless they cannot be one: "1 200 000" and "12 500 000"
+    // (a first group of one or two digits) or a quantity after them ("1 200 000 units"). "612 345 678", "612.345.678"
+    // and "021 234 567" are phone numbers in the 3-3-3 grouping.
+    if (/^[1-9]\d{0,2}(?:([ .])\d{3})(?:\1\d{3})*$/.test(text) && (/^\d{1,2}[ .]/.test(text) || QUANTITY_AFTER.test(following))) return false;
+    // A range of two amounts with thousands or decimals ("4,000-6,000", "1.5-2.5").
+    if (/^(?:[1-9]\d{0,2}(?:,\d{3})+|\d+\.\d+)\s*[-–—]\s*(?:[1-9]\d{0,2}(?:,\d{3})+|\d+\.\d+)$/.test(text)) return false;
+    // Two or more groups of one digit: a list or decimals ("0.5 1.5 2.5 3.5", "1.25,0.40,0.80"), never a phone number.
+    if ((text.match(/\d+/g) ?? []).filter(group => group.length === 1).length >= 2) return false;
+  }
   if (/^\d+(?:\.\d+)?$/.test(text) && !/^0/.test(text) && digits.length < 10) return false; // one plain number under ten digits
   const range = /^(\d{1,4})\s*-\s*(\d{1,4})$/.exec(text); // a range, such as "1000-2000 boxes a week"
   if (range && range[1].length === range[2].length && Number(range[1]) < Number(range[2]) && RANGE_UNIT.test(following)) return false;
   return true;
 }
+
+/** Every decimal digit, of any script, as its ASCII digit ("٤١٥" and "४१५" read as "415"). */
+const NON_ASCII_DIGIT = /(?![0-9])\p{Nd}/gu;
+const DECIMAL_DIGIT = /^\p{Nd}$/u;
+const digitValues = new Map<string, string>();
+function asciiDigit(char: string): string {
+  const known = digitValues.get(char);
+  if (known) return known;
+  // Unicode encodes each script's decimal digits as one run of ten, 0 to 9, so a digit's value is its distance from the
+  // start of the run it is in (runs that sit side by side are whole tens).
+  const point = char.codePointAt(0)!;
+  let zero = point;
+  while (zero > 0 && DECIMAL_DIGIT.test(String.fromCodePoint(zero - 1))) zero -= 1;
+  const value = String((point - zero) % 10);
+  digitValues.set(char, value);
+  return value;
+}
+export function foldDigits(text: string): string {
+  return text.replace(NON_ASCII_DIGIT, asciiDigit);
+}
+/** Emoji presentation selectors and the keycap mark ("4️⃣"): they carry nothing a reader needs. */
+const PRESENTATION_MARKS = /[︎️⃣]/g;
 
 /** "owner at site-plant dot com", "site-plant dot example": an address or a domain spelled out in words. */
 const SPELLED = /\b[A-Z0-9._%+-]+\s+(?:at|\(at\)|\[at\])\s+[A-Z0-9-]+(?:\s*(?:\s+dot\s+|\(dot\)|\[dot\]|\.)\s*[A-Z0-9-]+)*\s*(?:\s+dot\s+|\(dot\)|\[dot\]|\.)\s*[A-Z]{2,}\b/gi;
@@ -101,11 +156,19 @@ export type RedactionRules = "2026-11-19" | "2026-11-24";
 export const CURRENT_REDACTION_RULES: RedactionRules = "2026-11-24";
 const widened = (rules: RedactionRules) => rules !== "2026-11-19";
 
+/**
+ * The text as the patterns read it: full-width and look-alike forms ("＠", "ｗｗｗ.") plain, zero-width characters dropped;
+ * under the current rules also every digit of any script as its ASCII digit and emoji presentation marks dropped.
+ */
+function patternForm(text: string, rules: RedactionRules): string {
+  const plain = text.normalize("NFKC").replace(ZERO_WIDTH, "");
+  return widened(rules) ? foldDigits(plain.replace(PRESENTATION_MARKS, "")) : plain;
+}
+
 /** The text with every email address, phone number and web link replaced by `[removed]`. */
 export function removeContactDetails(text: string, rules: RedactionRules = CURRENT_REDACTION_RULES): string {
-  // Full-width and look-alike forms ("＠", "ｗｗｗ.") become plain ones, and zero-width characters are dropped, first.
   const wide = widened(rules);
-  let out = text.normalize("NFKC").replace(ZERO_WIDTH, "")
+  let out = patternForm(text, rules)
     .replace(EMAIL, REMOVED)
     .replace(SPELLED, REMOVED)
     .replace(SPELLED_DOMAIN, REMOVED)
@@ -118,16 +181,16 @@ export function removeContactDetails(text: string, rules: RedactionRules = CURRE
     .replace(VANITY_PHONE, REMOVED)
     .replace(SPELLED_PHONE, (match: string) => isSpelledPhone(match) ? REMOVED : match);
   return out
-    .replace(PHONE_CANDIDATE, (match: string, offset: number, normalized: string) => {
+    .replace(wide ? WIDE_PHONE_CANDIDATE : PHONE_CANDIDATE, (match: string, offset: number, normalized: string) => {
       // Keep the separators the match swallowed at its edges.
       const lead = /^\s*/.exec(match)?.[0] ?? "";
-      return isPhone(match, normalized.slice(offset + match.length)) ? `${lead}${REMOVED}` : match;
+      return isPhone(match, normalized.slice(offset + match.length), wide) ? `${lead}${REMOVED}` : match;
     });
 }
 
 /** Whether the text holds a contact detail `removeContactDetails` would remove. */
 export function containsContactDetails(text: string): boolean {
-  return removeContactDetails(text) !== text.normalize("NFKC").replace(ZERO_WIDTH, "");
+  return removeContactDetails(text) !== patternForm(text, CURRENT_REDACTION_RULES);
 }
 
 /* ------------------------------------------------------------------ the site's own identity and street addresses */
@@ -376,7 +439,9 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
   const noun = options.nameAs ?? "site";
   const rules = options.rules ?? CURRENT_REDACTION_RULES, wide = widened(rules);
   const nameAs = (whole: string, offset: number) => `${startsSentence(whole, offset) ? "The" : "the"} ${noun}`;
-  let out = fold(text);
+  // Under the current rules every digit is read in its ASCII form first, so a held number or a street number written in
+  // another script's digits is found too.
+  let out = wide ? patternForm(fold(text), rules) : fold(text);
   const values = (list: Array<string | null | undefined>) => list.filter((value): value is string => typeof value === "string" && value.trim().length > 0);
   // Longest first, so a whole address or a full name goes before its parts.
   const byLength = (list: string[]) => [...new Set(list)].sort((a, b) => b.length - a.length);
@@ -409,7 +474,7 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
 
 /** Whether `removeIdentifyingDetails` would change the text: the site's page may then say `CONTACT_DETAILS_REMOVED_LINE`. */
 export function identifyingDetailsRemoved(text: string, known: KnownSiteIdentity, rules: RedactionRules = CURRENT_REDACTION_RULES): boolean {
-  return removeIdentifyingDetails(text, known, { rules }) !== tidy(fold(text));
+  return removeIdentifyingDetails(text, known, { rules }) !== tidy(patternForm(fold(text), rules));
 }
 
 /* ------------------------------------------------------------- names the record does not hold (company side only) */
