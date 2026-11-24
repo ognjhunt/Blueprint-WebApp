@@ -672,7 +672,17 @@ const SETUP_ON_OUR_SIDE = { title: "Building the simulation of your site is paus
 const STEP_ON_OUR_SIDE = { title: "Building the simulation of your site is paused on our side",
   reason: "A step on our side has to be finished before it can go on.", nextStep: "Nothing is needed from you. Your video is saved.",
   actionOwner: "blueprint" as const };
+/**
+ * The scene planner's own review did not hold together, so the Pipeline refuses it by the part that failed and rechecks
+ * it until a release decides differently (stress round 3, 2026-11-24). Each is ours: nothing the site filmed or said
+ * is at fault. `atlas_scene_planner_coverage_or_privacy_invalid` is the code those parts had before; stored jobs may
+ * still carry it, and its "privacy" names no wall the site can act on.
+ */
+const PLANNER_REVIEW_CODES = ["atlas_scene_planner_unsafe_frames_invalid", "atlas_scene_planner_required_views_outside_selection",
+  "atlas_scene_planner_required_view_unsafe", "atlas_scene_planner_anchor_not_required",
+  "atlas_scene_planner_task_or_room_coverage_missing", "atlas_scene_planner_coverage_or_privacy_invalid"] as const;
 const ATLAS_PAUSES: Readonly<Record<string, typeof PERMISSION_NOT_COVERED | typeof SETUP_ON_OUR_SIDE>> = {
+  ...Object.fromEntries(PLANNER_REVIEW_CODES.map(code => [code, STEP_ON_OUR_SIDE])),
   website_atlas_reservation_summary_too_large: STEP_ON_OUR_SIDE,
   website_atlas_accounting_response_too_large: STEP_ON_OUR_SIDE,
   website_atlas_source_consent_required: PERMISSION_NOT_COVERED,

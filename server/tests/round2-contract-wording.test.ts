@@ -128,7 +128,11 @@ describe("a stop the Pipeline runs again by itself is titled as still being work
 describe("nothing asks the site for permission it has no control to give", () => {
   it("Blueprint's own setup is said as ours; a rights refusal as not covered", () => {
     for (const reason of ["website_atlas_consent_unconfigured", "website_scene_grant_policy_unconfigured", "provider_terms_not_configured_or_changed",
-      "website_atlas_reservation_summary_too_large", "website_atlas_accounting_response_too_large"])
+      "website_atlas_reservation_summary_too_large", "website_atlas_accounting_response_too_large",
+      // Round 3: the scene planner's review refused by the part that failed; the old combined code too.
+      "atlas_scene_planner_unsafe_frames_invalid", "atlas_scene_planner_required_views_outside_selection",
+      "atlas_scene_planner_required_view_unsafe", "atlas_scene_planner_anchor_not_required",
+      "atlas_scene_planner_task_or_room_coverage_missing", "atlas_scene_planner_coverage_or_privacy_invalid"])
       expect(card("needs_input", reason)).toMatchObject({ title: "Building the simulation of your site is paused on our side", actionOwner: "blueprint" });
     for (const reason of ["website_atlas_source_consent_required", "website_atlas_planner_consent_required", "website_atlas_consent_expired"])
       expect(card("needs_input", reason)).toMatchObject({ reason: "The permission on record for your video does not cover this step.", actionOwner: "none" });
@@ -154,7 +158,8 @@ describe("codes", () => {
   it("an Atlas reason is known only when it has words of its own", () => {
     for (const reason of ["atlas_insufficient_sharp_static_views", "atlas_scale_review_unresolved", "account_monthly_spend_limit_reached",
       "website_atlas_consent_unconfigured", "website_task_not_named", "atlas_scene_planner_abstained", "spending_cap_reached", null,
-      "atlas_source_rotation_unsupported", "gcp_monthly_budget_admission_blocked", "website_atlas_accounting_response_too_large"])
+      "atlas_source_rotation_unsupported", "gcp_monthly_budget_admission_blocked", "website_atlas_accounting_response_too_large",
+      "atlas_scene_planner_task_or_room_coverage_missing", "atlas_scene_planner_coverage_or_privacy_invalid"])
       expect(outcome.atlasPreviewReasonKnown(reason)).toBe(true);
     for (const reason of ["atlas_context_field_of_view_lost", "atlas_context_pixel_axes_changed", "atlas_preview_expired"])
       expect(outcome.atlasPreviewReasonKnown(reason)).toBe(false);
