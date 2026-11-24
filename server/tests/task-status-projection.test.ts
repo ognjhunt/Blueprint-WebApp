@@ -647,3 +647,50 @@ describe("a stop's next step with no stored video", () => {
     expect(status.headline).not.toMatch(/Reference|bp-prep/);
   });
 });
+
+// The card decides "ready" from the stored fact the job page's outlook and a company's download read: the job's simulation
+// package delivered to the website (`storedCompanySimulation`). Every ending and every step of the site's own stays ahead.
+describe("a job whose simulation package is delivered", () => {
+  const delivered = (overrides: Partial<Parameters<typeof projectTaskStatus>[0]> = {}) => projectTaskStatus(base({
+    briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, coversScene: true, simulationDelivered: true,
+    preparationStatus: { state: "handed_off", correlationId: null }, ...overrides }));
+
+  it.each([
+    ["a newer build of the scene is under way", { sceneProgression: { state: "in_progress" as const } }],
+    ["the scene build waits on our side", { sceneProgression: { state: "waiting" as const } }],
+    ["a build attempt failed and another is coming", { sceneProgression: { state: "waiting" as const, attemptFailed: true as const } }],
+    ["the scene is built and its package read as not yet published", { sceneProgression: { state: "completed" as const } }],
+    ["the scene could not be read", { sceneProgression: null }],
+    ["an older preparation status is still preparing", { preparationStatus: { state: "preparing" as const, correlationId: null } }],
+  ])("says ready while %s", (_case, overrides) => {
+    expect(delivered(overrides)).toMatchObject({ decision: "assessing", headline: READY, operatorAction: null });
+  });
+
+  it("still asks the site for its step", () => {
+    const status = delivered({ sceneProgression: { state: "waiting", sceneOutcome:
+      { kind: "awaiting_site", terminal: false, reasonCode: "unknown_reason", digest: `sha256:${"1".repeat(64)}` } } });
+    expect(status.operatorAction).toBeTruthy();
+    expect(status.headline).not.toBe(READY);
+  });
+
+  it("keeps every ending ahead of it", () => {
+    expect(delivered({ sceneProgression: { state: "ended" } }).headline).not.toBe(READY);
+    expect(delivered({ sceneProgression: { state: "held", heldReason: "held_capability" } }).headline).not.toBe(READY);
+    expect(delivered({ preparationStatus: { state: "authority_ended", correlationId: null } }).headline)
+      .toMatch(/^This job has ended because we no longer have permission to work on it\./);
+    expect(delivered({ preparationStatus: { state: "failed_terminal", correlationId: null } }).headline).not.toBe(READY);
+    expect(delivered({ consentRevoked: true }).headline).toMatch(/withdrawn/i);
+  });
+
+  it("says nothing new while no package is delivered", () => {
+    expect(delivered({ simulationDelivered: false, sceneProgression: { state: "waiting" } }).headline)
+      .toBe("We're preparing the simulation of your site. Nothing is needed from you.");
+    expect(delivered({ simulationDelivered: false, sceneProgression: { state: "in_progress" } }).headline)
+      .toBe("Your video covers the work area. We're preparing your job.");
+  });
+
+  it("is carried from the record", () => {
+    expect(taskStatusInputFrom({ briefDrafted: true, stage: null, simulationDelivered: true }).simulationDelivered).toBe(true);
+    expect(taskStatusInputFrom({ briefDrafted: true, stage: null }).simulationDelivered).toBeUndefined();
+  });
+});

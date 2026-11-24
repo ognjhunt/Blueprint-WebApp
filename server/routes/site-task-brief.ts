@@ -82,6 +82,7 @@ import { taskTargetChoiceRequestSchema } from "../utils/taskTargetChoiceContract
 import { decideOwnerSuccessProposal, loadOwnerSuccessView, ownerSuccessDecisionRequestSchema } from "../utils/websiteOwnerSuccessConfirmation";
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
+import { storedCompanySimulation } from "../utils/websiteCompanySimulation";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { loadIsInternalTestJob } from "../utils/internalTestJob";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
@@ -1360,6 +1361,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           && taskTargetSelection(captureSession?.data()).restoringGuess,
         preparationOverdue,
         sceneProgression,
+        // The same stored fact as the job page's outlook and a company's download; never on a film-only link.
+        simulationDelivered: payload.scope !== "film"
+          && storedCompanySimulation(captureSession?.data(), payload.captureId) !== null,
         stage,
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.screenGateEnded ? null : request?.site_task_triage ?? null,
