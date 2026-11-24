@@ -627,7 +627,8 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
       title: "We haven't finished building the simulation from your video",
       reason: "Part of your video still needs to go into the simulation.",
       nextStep: "Nothing is needed from you. Your video is saved." };
-  const paused = preview.state === "needs_input" && Object.hasOwn(ATLAS_PAUSES, preview.reason ?? "") ? ATLAS_PAUSES[preview.reason!] : null;
+  const paused = (preview.state === "needs_input" || (preview.state === "failed" && FAILED_ON_OUR_SIDE.has(preview.reason ?? "")))
+    && Object.hasOwn(ATLAS_PAUSES, preview.reason ?? "") ? ATLAS_PAUSES[preview.reason!] : null;
   if (paused) return { category: "processing_failure", basis: "execution_failure", title: paused.title, reason: paused.reason,
     scope: "", nextStep: paused.nextStep, actionOwner: paused.actionOwner,
     evidence: [{ label: "Reconstruction status", digest: preview.preview_digest }] };
@@ -687,9 +688,16 @@ const PLANNER_REVIEW_CODES = ["atlas_scene_planner_unsafe_frames_invalid", "atla
  * these reach a job only from a step that still rechecks them. Ours: the site's video is not at fault.
  */
 const COMPLETION_REVIEW_CODES = ["atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid"] as const;
+/**
+ * A step of building the simulation kept running past its time limit and was ended each time it was tried (stress
+ * round 5, 2026-11-24: the host's memory bound slowed one step for hours). Retried by the clock until the retries run
+ * out, then the job ends `failed` and only a release reopens it. Either way the fix is ours, never the site's.
+ */
+const FAILED_ON_OUR_SIDE = new Set(["atlas_preview_step_interrupted"]);
 const ATLAS_PAUSES: Readonly<Record<string, typeof PERMISSION_NOT_COVERED | typeof SETUP_ON_OUR_SIDE>> = {
   ...Object.fromEntries(PLANNER_REVIEW_CODES.map(code => [code, STEP_ON_OUR_SIDE])),
   ...Object.fromEntries(COMPLETION_REVIEW_CODES.map(code => [code, STEP_ON_OUR_SIDE])),
+  ...Object.fromEntries([...FAILED_ON_OUR_SIDE].map(code => [code, STEP_ON_OUR_SIDE])),
   website_atlas_reservation_summary_too_large: STEP_ON_OUR_SIDE,
   website_atlas_accounting_response_too_large: STEP_ON_OUR_SIDE,
   website_atlas_source_consent_required: PERMISSION_NOT_COVERED,

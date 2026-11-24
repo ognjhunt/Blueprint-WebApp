@@ -134,7 +134,9 @@ describe("nothing asks the site for permission it has no control to give", () =>
       "atlas_scene_planner_required_view_unsafe", "atlas_scene_planner_anchor_not_required",
       "atlas_scene_planner_task_or_room_coverage_missing", "atlas_scene_planner_coverage_or_privacy_invalid",
       // Round 4: the generated gap views' review, and the record that the job went on without them.
-      "atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid"])
+      "atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid",
+      // Round 5: a step ended past its time limit each time it was tried.
+      "atlas_preview_step_interrupted"])
       expect(card("needs_input", reason)).toMatchObject({ title: "Building the simulation of your site is paused on our side", actionOwner: "blueprint" });
     for (const reason of ["website_atlas_source_consent_required", "website_atlas_planner_consent_required", "website_atlas_consent_expired"])
       expect(card("needs_input", reason)).toMatchObject({ reason: "The permission on record for your video does not cover this step.", actionOwner: "none" });
@@ -157,12 +159,20 @@ describe("codes", () => {
       outcome: spent, question: null, robot_fit: null, robot_fit_precheck: null } as never)).toEqual([]);
   });
 
+  it("a step ended past its time limit each time it was tried is ours, also once the job has ended", () => {
+    const ended = card("failed", "atlas_preview_step_interrupted");
+    expect(ended).toMatchObject({ title: "Building the simulation of your site is paused on our side", actionOwner: "blueprint",
+      nextStep: "Nothing is needed from you. Your video is saved." });
+    // Only that code is said as ours once ended: another pause's code on an ended job keeps the general card.
+    expect(card("failed", "atlas_scene_planner_unsafe_frames_invalid").title).not.toBe(ended.title);
+  });
+
   it("an Atlas reason is known only when it has words of its own", () => {
     for (const reason of ["atlas_insufficient_sharp_static_views", "atlas_scale_review_unresolved", "account_monthly_spend_limit_reached",
       "website_atlas_consent_unconfigured", "website_task_not_named", "atlas_scene_planner_abstained", "spending_cap_reached", null,
       "atlas_source_rotation_unsupported", "gcp_monthly_budget_admission_blocked", "website_atlas_accounting_response_too_large",
       "atlas_scene_planner_task_or_room_coverage_missing", "atlas_scene_planner_coverage_or_privacy_invalid",
-      "atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid"])
+      "atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid", "atlas_preview_step_interrupted"])
       expect(outcome.atlasPreviewReasonKnown(reason)).toBe(true);
     for (const reason of ["atlas_context_field_of_view_lost", "atlas_context_pixel_axes_changed", "atlas_preview_expired"])
       expect(outcome.atlasPreviewReasonKnown(reason)).toBe(false);
