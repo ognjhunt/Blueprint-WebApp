@@ -7,6 +7,7 @@ import { type OutboxEntry } from "./captureOutbox";
 import { companyMaySeeJobs } from "./companyTerms";
 import { companyJobUrl, COMPANY_RESPONSES_COLLECTION, siteReasonOf, knownCompanyIdentity, storedAliases } from "./jobCompanies";
 import { knownSiteIdentity } from "./siteIdentity";
+import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { accessRecordId, ROBOT_TEAM_ACCESS_COLLECTION } from "./robotTeamEarlyAccess";
 
@@ -37,11 +38,19 @@ export const clarificationEmailBody = (jobUrl: string) => `Read it on the job pa
 const noticeKey = (jobId: string, companyId: string, questionId: string) =>
   `job_clarification:${jobId}:${companyId}:${questionId}`;
 
+/**
+ * The site's reply to a company's question, saved once (2026-11-24: then screened). The reply is stored after the
+ * deterministic pass with the site's identity; the company reads it only once the model pass over that stored text has
+ * succeeded (`siteReplyForCompany`). The pass runs right after the save, waiting at most `SCREENING_WAIT_MS`, so the
+ * site is answered with its reply exactly as the company reads it, or `null` while the pass has not finished (the next
+ * read of either page starts it again).
+ */
 export async function answerCompanyQuestion(input: { jobId: string; alias: string; questionId: string; answer: string }) {
   if (!db) throw new Error("firestore_unavailable");
   const store = db;
   const { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } = await import("./captureOutbox");
-  return store.runTransaction(async tx => {
+  let known: KnownSiteIdentity | null = null;
+  const saved = await store.runTransaction(async tx => {
     const { record, access } = await loadCompanyJobAccess(input.jobId, undefined, tx);
     if (!record || !access.listed) return { status: "closed" } as const;
     const companyId = Object.entries(storedAliases(record)).find(([, letter]) => letter === input.alias)?.[0];
@@ -55,9 +64,10 @@ export async function answerCompanyQuestion(input: { jobId: string; alias: strin
     if (!companyMaySeeJobs(company) || !question || question.id !== input.questionId
       || !siteReasonOf({ ...reply, inputs: question.text }, knownCompanyIdentity(company, reply)))
       return { status: "changed" } as const;
+    known = await knownSiteIdentity(record);
     const existing = clarificationOnReply(reply, question.id);
     if (existing) return { status: "saved", answer: existing } as const;
-    const sanitized = removeNamesNotHeld(removeIdentifyingDetails(input.answer, await knownSiteIdentity(record)))
+    const sanitized = removeNamesNotHeld(removeIdentifyingDetails(input.answer, known))
       .trim().slice(0, SITE_CLARIFICATION_LIMIT);
     if (sanitized.split(REMOVED).join("").replace(/\bthe site\b/gi, "").replace(/[^\p{L}\p{N}]+/gu, "").length < 2)
       return { status: "needs_detail" } as const;
@@ -72,6 +82,12 @@ export async function answerCompanyQuestion(input: { jobId: string; alias: strin
     }
     return { status: "saved", answer: sanitized } as const;
   });
+  if (saved.status !== "saved") return saved;
+  const { screenText, screeningsFrom, screeningKey, siteReplyForCompany, SCREENING_WAIT_MS } = await import("./freeTextScreening");
+  const screened = await screenText(input.jobId, "site", saved.answer, { waitMs: SCREENING_WAIT_MS });
+  const shown = screened === null ? null
+    : siteReplyForCompany(saved.answer, known, screeningsFrom(new Map([[screeningKey("site", saved.answer), screened]])));
+  return { status: "saved", answer: shown } as const;
 }
 
 /** Recheck sharing, approval and the same answered question before a notice can leave the outbox. */

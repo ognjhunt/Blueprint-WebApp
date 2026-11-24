@@ -244,7 +244,8 @@ router.post("/:token/clarifications", csrfProtection, async (req, res) => {
   try {
     const { answerCompanyQuestion } = await import("../utils/jobClarifications");
     const result = await answerCompanyQuestion({ jobId: verified.requestId, ...body.data });
-    if (result.status === "saved") return res.json({ ok: true, answer: result.answer });
+    // The reply as the company reads it, or `pending` while its names and contact details are being taken out.
+    if (result.status === "saved") return res.json({ ok: true, answer: result.answer, ...(result.answer === null ? { pending: true } : {}) });
     if (result.status === "needs_detail") return res.status(400).json({ error: "Add a detail about the job, such as a size, rate, or requirement." });
     return res.status(409).json({ error: "This question is no longer open. Refresh the job to see the latest responses." });
   } catch {
@@ -1178,12 +1179,17 @@ async function siteCompanyStatus(params: StatusAnswerParams | null) {
     // "Posted" only when at least one approved company may see jobs (the automatic send's own rule).
     if (sharing.state === "visible" && !await import("../utils/jobAutoSend").then(({ anyCompanyMaySeeJobs }) => anyCompanyMaySeeJobs()))
       sharing.noCompanyCanSee = true;
-    const companies = sharing.state === "not_shared" ? undefined
-      : await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
-        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; });
+    const [companies, companiesRead] = await Promise.all([sharing.state === "not_shared" ? undefined
+      : import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
+        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; }),
+      // Exactly what companies read of the site's own words (2026-11-24), shown on the site's page.
+      import("../utils/companyJobPage").then(({ companiesReadSiteWords }) => companiesReadSiteWords(params.requestId,
+        params.request as Record<string, any>, params.brief as never))
+        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read what companies read of the site's words"); return null; })]);
     // Keep withdrawal available for old description-only listings, even though companies no longer see them.
     const descriptionOnly = isJobSharedListing(params.request) && descriptionStatementShares(params.request);
-    return { sharing, companies, descriptionOnly, ...(access.listed ? { taskFamily: access.details.taskFamily } : {}) };
+    return { sharing, companies, descriptionOnly, ...(companiesRead ? { companiesRead } : {}),
+      ...(access.listed ? { taskFamily: access.details.taskFamily } : {}) };
   } catch (error) {
     logger.warn({ error, requestId: params.requestId }, "Could not read the job's company status");
     return null;

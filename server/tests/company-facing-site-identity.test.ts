@@ -24,6 +24,7 @@ import path from "node:path";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state, sharedFakeFirestore } from "./helpers/fake-firestore";
+import { modelPassFindsNothing } from "./helpers/freeTextScreening";
 import { currentTermsAcceptance, passedPrivacyScreen, sharedRecordingGrant } from "./helpers/sharedJob";
 import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
@@ -278,6 +279,8 @@ function emailsToCompanies() {
 }
 
 beforeEach(async () => {
+  // The model pass over free text finds nothing more than the deterministic pass (the site's words still reach a company).
+  modelPassFindsNothing();
   state.docs.clear();
   seams.tokens.clear();
   seams.sendEmail.mockClear();

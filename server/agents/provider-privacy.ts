@@ -62,6 +62,8 @@ export const LANE_DATA_CLASSES: Record<AgentTaskKind, DataClassRow> = {
     source: "tasks/site-task-follow-up.ts: the site's task statement, its brief summary and item labels" },
   company_website_check: { classes: ["public_material"],
     source: "tasks/company-website-check.ts: a deployment company's own public home page and its host, nothing the applicant typed" },
+  free_text_redaction: { classes: ["site_job_text", "personal_info"],
+    source: "tasks/free-text-redaction.ts: one piece of a site's or a deployment company's own words, after the deterministic pass, to find the names and contact details left in it" },
 };
 
 /**

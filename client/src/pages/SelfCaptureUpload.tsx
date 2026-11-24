@@ -11,7 +11,8 @@ import { TaskDestinationAnswered, TaskDestinationChoice, isDestinationChoice, ty
 import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/RobotFit";
 import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/components/site/RobotFitHold";
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
-import { JobCompanyResponses, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type DetailScreen } from "@/components/site/SiteAnswer";
+import { CompaniesReadYourWords, JobCompanyResponses, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type DetailScreen } from "@/components/site/SiteAnswer";
+import { isCompaniesReadSiteWords, type CompaniesReadSiteWords } from "@/lib/companiesRead";
 import { STOP_USING_VIDEO_LABEL, WITHDRAW_JOB_LABEL, type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type JobSharing, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
@@ -86,7 +87,9 @@ type TaskStatus = {
   successThresholds?: SuccessThresholdsView | null;
   /** The site's answer: which robot most likely fits, for the owner only. A fit check, never a physical test. */
   answer?: SiteAnswerView | null;
-  companyStatus?: { sharing: JobSharing; companies?: SiteCompanyActivity; descriptionOnly: boolean; taskFamily?: string } | null;
+  companyStatus?: { sharing: JobSharing; companies?: SiteCompanyActivity; descriptionOnly: boolean; taskFamily?: string;
+    /** What companies read of the site's own words (2026-11-24). */
+    companiesRead?: CompaniesReadSiteWords } | null;
 };
 
 /** Decisions that ask something of the site, or end the job: the status card stays for them under any answer. */
@@ -612,6 +615,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               companies: isSiteCompanyActivity(data.companyStatus.companies) ? data.companyStatus.companies : undefined,
               descriptionOnly: data.companyStatus.descriptionOnly === true,
               taskFamily: typeof data.companyStatus.taskFamily === "string" ? data.companyStatus.taskFamily : undefined,
+              companiesRead: isCompaniesReadSiteWords(data.companyStatus.companiesRead) ? data.companyStatus.companiesRead : undefined,
             } : null,
           });
         } else if (alive) readFailed(false);
@@ -972,6 +976,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           : existingVideoOnly ? "Upload your video" : onAPhone ? "Film the job" : "Film or upload the job"}
       </h1>
       {jobSentence && <p className="bare-job">{answer?.job.drafted ? "We read your job as: " : ""}“{jobSentence.trim().replace(/[.!?]+$/, "")}.”</p>}
+      {/* Exactly what deployment companies read of those words, names and contact details taken out (2026-11-24). */}
+      {companyStatus?.companiesRead && !withdrawn && <CompaniesReadYourWords view={companyStatus.companiesRead} />}
       {/* The status shown is the last good read's while newer reads fail: said, with its time. */}
       {staleStatusNotice}
       {/* A step the site must take comes first; the answer's own button then stays, quiet. */}

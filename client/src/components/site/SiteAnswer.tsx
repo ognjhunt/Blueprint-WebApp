@@ -24,6 +24,28 @@ import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "
 import { CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATES_NOT_CHECKED, SIMILAR_JOBS_LABELS, estimateInWords } from "@/lib/companyResponses";
 import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
+import { COMPANIES_READ_LINE, COMPANIES_READ_PENDING, COMPANIES_READ_SENTENCE_LABEL, COMPANIES_READ_SUCCESS_LABEL, COMPANIES_READ_TITLE,
+  replyAsReadLine, replyPendingLine, type CompaniesReadSiteWords, type CompaniesReadText } from "@/lib/companiesRead";
+
+/**
+ * Exactly what deployment companies read of the site's own sentence and success rule (2026-11-24), on the site's own
+ * page: the words as a company's page shows them, or a plain line while names and contact details are being taken out
+ * (companies read none of them until then). No step to confirm: the site changes its words if it wants to.
+ */
+export function CompaniesReadYourWords({ view }: { view: CompaniesReadSiteWords }) {
+  const rows: Array<[string, CompaniesReadText]> = [];
+  if (view.sentence) rows.push([COMPANIES_READ_SENTENCE_LABEL, view.sentence]);
+  if (view.successRule) rows.push([COMPANIES_READ_SUCCESS_LABEL, view.successRule]);
+  if (!rows.length) return null;
+  return <section className="site-companies-read" aria-label={COMPANIES_READ_TITLE}>
+    <h2 className="bare-label">{COMPANIES_READ_TITLE}</h2>
+    <dl className="company-response-facts">
+      {rows.map(([label, item]) => <div key={label}><dt>{label}</dt>
+        <dd>{"text" in item ? `“${item.text}”` : COMPANIES_READ_PENDING}</dd></div>)}
+    </dl>
+    <p className="bare-helper">{COMPANIES_READ_LINE}</p>
+  </section>;
+}
 
 /*
  * The site's job page below its title, bare bones (frame of 2026-11-12). Three sections, in order: where the job
@@ -376,9 +398,12 @@ function ReplyQuestion({ token, alias, name, question, onChanged }: { token: str
   question: NonNullable<AnsweredEntry["question"]>; onChanged?: () => void }) {
   const [answer, setAnswer] = useState("");
   const [saved, setSaved] = useState(question.answer);
+  // Sent, and its names and contact details are still being taken out: the company does not read it yet.
+  const [savedPending, setSavedPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const shownAnswer = question.answer ?? saved;
+  const replied = Boolean(shownAnswer) || question.answerPending === true || savedPending;
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || answer.trim().length < 2) return;
@@ -389,24 +414,29 @@ function ReplyQuestion({ token, alias, name, question, onChanged }: { token: str
         body: JSON.stringify({ alias: alias.replace(/^Company /, ""), questionId: question.id, answer: answer.trim() }),
       });
       const result = await response.json();
-      if (!response.ok || typeof result.answer !== "string") throw new Error(result.error || "Your answer could not be saved. Try again.");
-      setSaved(result.answer);
+      if (!response.ok || (typeof result.answer !== "string" && result.pending !== true))
+        throw new Error(result.error || "Your answer could not be saved. Try again.");
+      // The server answers with the reply as the company reads it, or says it is still being prepared.
+      if (typeof result.answer === "string") setSaved(result.answer); else setSavedPending(true);
       onChanged?.();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Your answer could not be saved. Try again.");
     } finally { setBusy(false); }
   }
   // The reply date (three days after the question): a date to aim for, never a lock (`REPLY_WINDOW_MS`).
-  const by = !shownAnswer && question.replyByIso ? question.replyByIso : null;
+  const by = !replied && question.replyByIso ? question.replyByIso : null;
   const passed = by !== null && Date.parse(by) <= Date.now();
   return <div className="company-question">
     <dl className="company-response-facts">
       <div><dt>What they need to know</dt><dd>{question.text}</dd></div>
       {shownAnswer && <div><dt>Your reply</dt><dd>{shownAnswer}</dd></div>}
     </dl>
+    {/* Exactly what the company reads of the reply (2026-11-24), or that it does not read it yet. */}
+    {shownAnswer && <p className="bare-helper">{replyAsReadLine(name)}</p>}
+    {!shownAnswer && replied && <p className="bare-helper" role="status">{replyPendingLine(name)}</p>}
     {by && <p className={passed ? "bare-helper site-reply-date-passed" : "bare-helper"}>
       {passed ? REPLY_DATE_PASSED(dateInWords(by)) : replyByLine(dateInWords(by))}</p>}
-    {!shownAnswer && <details>
+    {!replied && <details>
       <summary className="bare-inline-link">Reply</summary>
       <form className="ms-form" onSubmit={submit}>
         <label>Your reply<textarea rows={2} minLength={2} maxLength={SITE_CLARIFICATION_LIMIT} required value={answer}
@@ -416,7 +446,7 @@ function ReplyQuestion({ token, alias, name, question, onChanged }: { token: str
         {error && <p role="alert">{error}</p>}
       </form>
     </details>}
-    {saved && !question.answer && <p className="bare-helper" role="status">Reply sent.</p>}
+    {(saved || savedPending) && !question.answer && <p className="bare-helper" role="status">Reply sent.</p>}
   </div>;
 }
 

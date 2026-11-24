@@ -37,7 +37,10 @@ export type AgentTaskKind =
   /** Picks follow-up question topics for a site after it sent its task (tasks/site-task-follow-up.ts). */
   | "site_task_follow_up"
   /** Whether a deployment company's own home page shows it deploys robots (tasks/company-website-check.ts). */
-  | "company_website_check";
+  | "company_website_check"
+  /** Finds the names and contact details left in a site's or a company's own words before the other side reads them
+   * (tasks/free-text-redaction.ts). */
+  | "free_text_redaction";
 
 export type AgentRunStatus =
   | "queued"

@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestore, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { modelPassFindsNothing } from "./helpers/freeTextScreening";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { currentTermsAcceptance, sharedJobFields } from "./helpers/sharedJob";
 import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
@@ -156,6 +157,8 @@ const expectNoContactIn = (label: string, text: string) => {
 };
 
 beforeEach(async () => {
+  // The model pass over free text finds nothing more than the deterministic pass (the site's words still reach a company).
+  modelPassFindsNothing();
   state.docs.clear();
   seams.sendEmail.mockClear();
   seams.slack.mockClear();
@@ -349,12 +352,16 @@ describe("what the site receives", () => {
     expect(projectSiteCompanyActivity({ aliases: { [sha(SOUTH.email)]: "A" }, sends: [],
       responses: [{ id: sha(SOUTH.email), data: state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(SOUTH.email)}`) as never }] }))
       .toMatchObject({ entries: [], interested: false });
-    const before = JSON.stringify([...state.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/")));
+    // The one thing a read may store is the model pass's result over the site's own words (`freeTextScreening.ts`):
+    // a derived copy with names taken out, never an alias or a record of the job.
+    const records = () => JSON.stringify([...state.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/")
+      && !key.startsWith(`inboundRequests/${ID}/freeTextScreenings/`)));
+    const before = records();
     const { body } = await siteStatus();
     expect(body.answer.companies).toMatchObject({ entries: [], interested: false, sent: null });
     await siteStatus();
     // Nothing the status read could write changed: no alias, no record.
-    expect(JSON.stringify([...state.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/")))).toBe(before);
+    expect(records()).toBe(before);
     expect(jobDoc().company_aliases).toBeUndefined();
     expect((await panel()).responses).toEqual([expect.objectContaining({ company: SOUTH.company, recordedBy: "before_c1", alias: null })]);
   });

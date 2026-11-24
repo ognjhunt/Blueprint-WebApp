@@ -52,6 +52,7 @@ import { operatorListingHold } from "./operatorListing";
 import { REMOVED, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { COMPANY_JOB_VIEWS_COLLECTION } from "./companyJobViews";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
+import { NOTHING_SCREENED, loadScreenings, screenAndWait, siteReplyForCompany, type Screenings } from "./freeTextScreening";
 
 export const COMPANY_SENDS_COLLECTION = "companySends";
 export const INTRODUCTIONS_COLLECTION = "introductions";
@@ -434,7 +435,15 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
   startedAtIso?: string | null;
   views?: number | null;
   /** Company records by id (`robotTeamAccess`), only to take each company's identity out of its words. */
-  companies?: ReadonlyMap<string, Data> } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
+  companies?: ReadonlyMap<string, Data>;
+  /**
+   * The model pass's results for this job (`freeTextScreening.ts`). Without them nothing it has to read is shown: the
+   * site's own reply to a question then reads as sent and not yet read by the company.
+   */
+  screenings?: Screenings;
+  /** The site's own identity, for the last deterministic pass over its reply, as the company's page does. */
+  siteIdentity?: KnownSiteIdentity | null } & Partial<SiteCompanyIntroductionFacts>): SiteCompanyActivity {
+  const screenings = input.screenings ?? NOTHING_SCREENED();
   const entries: SiteCompanyEntry[] = [];
   const sentTo = new Set<string>();
   let firstAtIso: string | null = null;
@@ -472,7 +481,9 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const question = questionOnReply(response.data);
     const questionText = question && siteReasonOf({ ...response.data, inputs: question.text }, identity);
     const canAnswer = question && questionText && input.listed && input.approvedDeploymentCompanies?.has(response.id);
-    const answer = question ? clarificationOnReply(response.data, question.id) : undefined;
+    // The site's own reply, exactly as the company reads it (2026-11-24), or pending while the model pass has not read it.
+    const stored = question ? clarificationOnReply(response.data, question.id) : undefined;
+    const answer = stored === undefined ? undefined : siteReplyForCompany(stored, input.siteIdentity ?? null, screenings);
     const startWindow = response.data.details?.startWindow;
     const verified = siteReasonOf({ ...response.data, inputs: response.data.details?.verified }, identity);
     const details = answerWordsMayReachSite(response.data) ? {
@@ -486,7 +497,8 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
       ...(reason ? { reason } : {}),
       ...(Object.keys(details).length ? { details } : {}),
       ...(canAnswer ? { question: { id: question.id, text: questionText, ...(answer ? { answer } : {}),
-        ...(!answer && replyByIso(response.data.questionAskedAtIso) ? { replyByIso: replyByIso(response.data.questionAskedAtIso)! } : {}) } } : {}),
+        ...(stored !== undefined && !answer ? { answerPending: true as const } : {}),
+        ...(stored === undefined && replyByIso(response.data.questionAskedAtIso) ? { replyByIso: replyByIso(response.data.questionAskedAtIso)! } : {}) } } : {}),
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
       // What the site said happened after the introduction (`markIntroductionProgress`): a visit, a pilot.
       ...(intro && progressOf(intro) ? { progress: progressOf(intro)! } : {}),
@@ -536,10 +548,17 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   // Every company that answered, approved or not, so its identity is taken out of its words.
   const answered = await Promise.all(responses.map(row => store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(row.id).get()));
   const companies = new Map(answered.filter(snap => snap.exists).map(snap => [snap.id, (snap.data() ?? {}) as Data]));
-  return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses,
-    introductions: opened, listed: access.listed, companies,
+  const [screenings, siteIdentity] = await Promise.all([loadScreenings(requestId),
+    import("./siteIdentity").then(({ knownSiteIdentity }) => knownSiteIdentity(record)).catch(() => null)]);
+  const project = (results: Screenings) => projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data),
+    responses, introductions: opened, listed: access.listed, companies,
     approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)),
-    startedAtIso: jobStartTime(record.createdAt), views: views?.length ?? null });
+    startedAtIso: jobStartTime(record.createdAt), views: views?.length ?? null, screenings: results, siteIdentity });
+  const first = project(screenings);
+  // Words the model pass has not read yet are screened now (the site's own page waits a little for them), so the site
+  // reads what the other side reads as soon as it can.
+  if (!screenings.missing.length || !await screenAndWait(requestId, screenings.missing, 5_000)) return first;
+  return project(await loadScreenings(requestId));
 }
 
 /* ------------------------------------------------------------- the operator's panel */

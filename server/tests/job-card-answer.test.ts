@@ -10,6 +10,7 @@ import { createServer, type Server } from "node:http";
 import express from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { modelPassFindsNothing } from "./helpers/freeTextScreening";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
 
@@ -74,6 +75,8 @@ async function get(path: string) {
 }
 
 beforeEach(async () => {
+  // The model pass over free text finds nothing more than the deterministic pass (the site's words still reach a company).
+  modelPassFindsNothing();
   seams.allowed = true; seams.answerFails = false;
   seams.managed.mockReset(); seams.managed.mockImplementation(async () => ({ managedEvidence: [] }));
   sharedFakeFirestoreState.docs.clear();

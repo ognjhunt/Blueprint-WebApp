@@ -7,6 +7,13 @@
  * numbers (international and national forms, at least 7 digits with common separators) and web links become
  * `[removed]`, after normalising look-alike characters (NFKC) and dropping zero-width ones; spelled forms ("owner at
  * site-plant dot com") and bare handles ("@siteplant") count too. Ordinary numbers (weights, sizes, counts, times, "2 shifts", "24/7", dates, thousands) are kept.
+ *
+ * Widened 2026-11-24 (a $0 stress test: 17 of 28 realistic sentences leaked): a web address with any ending
+ * ("harborfresh.farm", "harborfresh.co.nz"), a phone number with letters in it ("1-800-FLOWERS") or spelled in words
+ * ("four one five, five five five, …"), and a social handle written without "@" after the network's name ("on instagram
+ * as harborfreshfoods"). Pattern matching alone always leaks something (a lower-case name, a business name in ordinary
+ * words), so a model pass (`server/utils/freeTextScreening.ts`) runs on the text these patterns leave, these patterns
+ * run again on what it returns, and the other side reads the words only once that pass has succeeded.
  */
 export const REMOVED = "[removed]";
 
@@ -18,6 +25,15 @@ const EMAIL = /[A-Z0-9._%+-]+\s*(?:@|\(at\)|\[at\])\s*[A-Z0-9-]+(?:\s*(?:\.|\(do
 /** A web link, without the punctuation that ends the sentence around it ("see https://x.example/a, thanks"). */
 const LINK = /\b(?:https?:\/\/|www\.)[^\s<>"')]*[^\s<>"'.,;:!?)]/gi;
 const BARE_DOMAIN = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org|io|co|us|uk|ca|de|fr|eu|info|biz|ai|app|dev|shop|store|site|online|tech|me|nl|au)\b(?:\/[^\s<>"')]*)?/gi;
+/**
+ * A web address with any ending ("harborfresh.farm", "acme.co.nz", "plant.example"): labels joined by dots, the last of
+ * two or more lower-case letters (a typed web address is lower case, so "the dock.Then" and "St.Louis" are not one),
+ * with no letter or digit right after it. The label before the ending has two characters at least, so "e.g." and
+ * "i.e." stay, and a file's name ("report.pdf", "cell.step") is not a web address.
+ */
+const FILE_ENDINGS = "pdf|jpe?g|png|gif|heic|webp|svg|docx?|xlsx?|pptx?|csv|txt|mp4|mov|avi|webm|zip|stl|step|stp|dxf|dwg|json|xml";
+const ANY_DOMAIN = new RegExp("(?<![\\p{L}\\p{N}@._-])(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9][A-Za-z0-9-]{0,61}[A-Za-z0-9]"
+  + `\\.(?!(?:${FILE_ENDINGS})(?![\\p{L}\\p{N}]))[a-z]{2,24}(?![\\p{L}\\p{N}_-]|\\.[\\p{L}\\p{N}])(?:\\/[^\\s<>"')]*[^\\s<>"'.,;:!?)])?`, "gu");
 /** A run of digits with phone separators, optionally led by + or "(". Checked further in `isPhone`. */
 const PHONE_CANDIDATE = /(?:\+|\(\s*)?\d[\d\s().\-/]{4,}\d/g;
 
@@ -43,19 +59,65 @@ const SPELLED_DOMAIN = /\b[A-Z0-9-]+(?:\s+dot\s+[A-Z0-9-]+)*\s+dot\s+(?:com|net|
 const SPACED_DOMAIN = /\b[a-z0-9-]+\s+\.(?:com|net|org|io|co|us|uk|ca|de|fr|eu|info|biz|ai|app|dev|shop|store|site|online|tech|me|nl|au)\b/gi;
 /** An address without an ending ("owner@siteplant") or a bare handle ("@siteplant"). */
 const HANDLE = /(?:\b[A-Z0-9._%+-]+)?@[A-Z0-9_](?:[A-Z0-9._-]*[A-Z0-9_])?/gi;
+/**
+ * A social handle written without "@", after the network's name and a joining word or a colon ("on instagram as
+ * harborfreshfoods", "Instagram: harbor.fresh", "our tiktok is harborfresh"). The network's name stays; the handle goes.
+ * A little word in the handle's place ("our instagram is the best") is not a handle.
+ */
+const SOCIAL_NETWORK = "instagram|insta|facebook|twitter|tiktok|linkedin|youtube|snapchat|telegram|whatsapp|wechat|pinterest"
+  + "|bluesky|mastodon|discord|etsy";
+const SOCIAL_HANDLE = new RegExp(`((?<![\\p{L}\\p{N}])(?:${SOCIAL_NETWORK})(?:\\s+(?:page|account|handle|profile|channel))?`
+  + `(?:\\s*[:\\-\\u2013]\\s*|\\s+(?:as|at|is|under|called|named|handle|username|user)\\s+))`
+  + `(?!(?:a|an|the|our|us|we|it|its|well|too|also|and|or|for|to|daily|today|now|soon|great|best|down|up|on|off)(?![\\p{L}\\p{N}_.]))`
+  + `([\\p{L}\\p{N}_](?:[\\p{L}\\p{N}_.]{0,28}[\\p{L}\\p{N}_])?)(?![\\p{L}\\p{N}_])`, "giu");
+
+/**
+ * A phone number with letters in it ("1-800-FLOWERS", "+1 (800) flowers"): with a leading "1" or "+1", three digits and
+ * seven letters or digits, three of them letters at least; without it, the same in capital letters ("800-FLOWERS"). A
+ * hyphenated word after it ("300-CARTONS-PER-HOUR") makes it not one.
+ */
+const VANITY_PHONE = /(?<![\p{L}\p{N}])(?:\+?1[\s.-]?\(?[2-9]\d{2}\)?[\s.-]?(?=(?:[0-9-]*[A-Za-z]){3})[A-Za-z0-9]{3}-?[A-Za-z0-9]{4}|\(?[2-9]\d{2}\)?[\s.-]?(?=(?:[0-9-]*[A-Z]){3})[A-Z0-9]{3}-?[A-Z0-9]{4})(?![\p{L}\p{N}]|-[\p{L}\p{N}])/gu;
+
+/** A digit as a word, and a run of digits and digit words: a phone number may be spelled out ("four one five, five five
+ * five, zero one nine nine"). */
+const DIGIT_WORD = "(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)";
+const SPELLED_PHONE = new RegExp(`(?<![\\p{L}\\p{N}])(?:${DIGIT_WORD}|\\d{1,4})(?:[\\s,.\\-]+(?:${DIGIT_WORD}|\\d{1,4}))+(?![\\p{L}\\p{N}])`, "giu");
+const DIGIT_WORD_ALONE = new RegExp(`(?<![\\p{L}])${DIGIT_WORD}(?![\\p{L}])`, "giu");
+/** Seven to fifteen digits in the run, three of them as words at least: a phone number, not a count ("two shifts"). */
+function isSpelledPhone(run: string): boolean {
+  const words = run.match(DIGIT_WORD_ALONE)?.length ?? 0;
+  const digits = words + (run.match(/\d/g)?.length ?? 0);
+  return words >= 3 && digits >= 7 && digits <= 15;
+}
 const ZERO_WIDTH = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g;
 
+/**
+ * Which rules apply. Everything that crosses between a site and a deployment company uses the current ones. The
+ * Pipeline's task context keeps the rules of 2026-11-19 (`websiteTaskContext.ts`): records already bound to the digest
+ * of a job's context (its preparation grant, its sealed context) must keep the same text, so nothing paid is bought
+ * again. Widening the Pipeline's copy too would need a new version of the field that marks a job's context as cleaned.
+ */
+export type RedactionRules = "2026-11-19" | "2026-11-24";
+export const CURRENT_REDACTION_RULES: RedactionRules = "2026-11-24";
+const widened = (rules: RedactionRules) => rules !== "2026-11-19";
+
 /** The text with every email address, phone number and web link replaced by `[removed]`. */
-export function removeContactDetails(text: string): string {
+export function removeContactDetails(text: string, rules: RedactionRules = CURRENT_REDACTION_RULES): string {
   // Full-width and look-alike forms ("＠", "ｗｗｗ.") become plain ones, and zero-width characters are dropped, first.
-  return text.normalize("NFKC").replace(ZERO_WIDTH, "")
+  const wide = widened(rules);
+  let out = text.normalize("NFKC").replace(ZERO_WIDTH, "")
     .replace(EMAIL, REMOVED)
     .replace(SPELLED, REMOVED)
     .replace(SPELLED_DOMAIN, REMOVED)
     .replace(SPACED_DOMAIN, REMOVED)
-    .replace(LINK, REMOVED)
-    .replace(BARE_DOMAIN, REMOVED)
-    .replace(HANDLE, REMOVED)
+    .replace(LINK, REMOVED);
+  // Any ending first, so "acme.co.nz" goes whole before the listed endings could take "acme.co" alone.
+  if (wide) out = out.replace(ANY_DOMAIN, REMOVED);
+  out = out.replace(BARE_DOMAIN, REMOVED).replace(HANDLE, REMOVED);
+  if (wide) out = out.replace(SOCIAL_HANDLE, (_match: string, network: string) => `${network}${REMOVED}`)
+    .replace(VANITY_PHONE, REMOVED)
+    .replace(SPELLED_PHONE, (match: string) => isSpelledPhone(match) ? REMOVED : match);
+  return out
     .replace(PHONE_CANDIDATE, (match: string, offset: number, normalized: string) => {
       // Keep the separators the match swallowed at its edges.
       const lead = /^\s*/.exec(match)?.[0] ?? "";
@@ -110,12 +172,16 @@ function streetFormPattern(word: string): string | null {
 }
 
 /** A known value as a pattern: case-insensitive, any whitespace or punctuation (or none) between its words. */
-function knownValuePattern(value: string, withPlaceWord = false): RegExp | null {
+function knownValuePattern(value: string, withPlaceWord = false, wide = false): RegExp | null {
   const words = fold(value).split(/[^\p{L}\p{N}@]+/u).filter(Boolean);
   if (!words.length || words.join("").length < 3) return null;
   const escaped = words.map(word => (withPlaceWord ? streetFormPattern(word) : null) ?? wordPattern(word));
-  // A leading "+" or "(" of a phone number, and a place word right before an address ("at", "on", "from" …), go with it.
-  return new RegExp(`${withPlaceWord ? "(?:\\b(?:at|on|in|near|from)\\s+)?" : ""}[+(]?(?<![\\p{L}\\p{N}])${escaped.join("[\\s\\p{P}\\p{S}]*")}(?![\\p{L}\\p{N}])`, "giu");
+  // A leading "+" or "(" of a phone number, and a place word right before an address ("at", "on", "from" …), go with it;
+  // under the current rules, so does a title right before a name ("Mr. Hlington").
+  const lead = withPlaceWord ? "(?:\\b(?:at|on|in|near|from)\\s+)?" : wide ? "(?:\\b(?:Mr|Mrs|Ms|Mx|Dr|Miss|Mister)\\.?\\s+)?" : "";
+  // Under the current rules, a held place takes a postal code written right after it with it ("Oakland, CA 94607").
+  const tail = withPlaceWord && wide ? "(?:\\s*,?\\s*\\d{5}(?:-\\d{4})?(?![\\p{L}\\p{N}]))?" : "";
+  return new RegExp(`${lead}[+(]?(?<![\\p{L}\\p{N}])${escaped.join("[\\s\\p{P}\\p{S}]*")}(?![\\p{L}\\p{N}])${tail}`, "giu");
 }
 
 /** The parts of a typed address worth removing on their own: lines and comma parts of three or more characters that
@@ -198,6 +264,10 @@ const CITY_STATE_POSTAL = `\\s*,\\s*\\p{Lu}[\\p{L}\\p{N}_'.-]*(?:\\s+\\p{Lu}[\\p
 const ABBREVIATION_DOT = "(?:\\.(?=\\s*,))?";
 const TAIL = `${ABBREVIATION_DOT}(?:\\s*,?\\s*${UNIT})?(?:${CITY_STATE_POSTAL}|\\s*,?\\s*${POSTAL})?`;
 const NAME_WORD = "\\p{Lu}[\\p{L}'.-]*";
+/** An optional compass direction before a street's name ("12 N 5th St", "400 West 42nd Street"). */
+const DIRECTION = "(?:(?:N|S|E|W|NE|NW|SE|SW|North|South|East|West)\\.?\\s+)?";
+/** A numbered street's ordinal ("5th", "42nd", "1ST"). */
+const ORDINAL = "\\d{1,3}(?:st|nd|rd|th|ST|ND|RD|TH)";
 const STREETS: readonly RegExp[] = [
   new RegExp(`${HOUSE}(?:${MIDDLE_ANY_CASE}\\s+){1,3}(?:${STREET_WORDS_CLEAR})\\b${TAIL}`, "gu"),
   new RegExp(`${HOUSE}(?:${NAME_WORD}\\s+){1,3}(?:${STREET_WORDS_ANY})\\b${TAIL}`, "gu"),
@@ -207,6 +277,42 @@ const STREETS: readonly RegExp[] = [
   new RegExp(`${HOUSE}(?:${MIDDLE}\\s+){0,2}${NAME_WORD}\\s+(?:${STREET_WORDS_WEAK})\\b${TAIL}`, "gu"),
   new RegExp(`${HOUSE}(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_WEAK})\\b${ABBREVIATION_DOT}(?:\\s*,?\\s*${UNIT}|\\s*,?\\s*${POSTAL})+`, "gu"),
 ];
+/**
+ * Under the current rules (2026-11-24), a numbered or ordinal street too, with or without a house number and a direction
+ * ("12 N 5th St", "400 West 42nd Street", "on 5th Avenue"). The street words that are also job words count only with a
+ * capital ("5th Place", not "5th place").
+ */
+const ORDINAL_STREETS: readonly RegExp[] = [
+  new RegExp(`${HOUSE}${DIRECTION}${ORDINAL}\\s+(?:${STREET_WORDS_ANY}|${STREET_WORDS_NAMED}|${STREET_WORDS_WEAK})\\b${TAIL}`, "gu"),
+  new RegExp(`${LEAD}(?<![\\p{L}\\p{N}])${DIRECTION}${ORDINAL}\\s+(?:${STREET_WORDS_CLEAR}|${anyCase("road")}|${anyCase("rd")}|${STREET_WORDS_NAMED}|${STREET_WORDS_WEAK})\\b${TAIL}`, "gu"),
+];
+
+/**
+ * Place forms a street pattern does not cover, each replaced by `[removed]` (2026-11-24):
+ * - a highway, interstate or route with its number, and an exit after it ("Highway 99 near exit 23", "Hwy 101", "I-95",
+ *   "US-101", "US Route 66", "SR 99", "Route 66"; "route 2" in lower case is a job's route, so "Route" needs its capital,
+ *   and "US" alone needs its hyphen: "US 50 gallon drums" is not a road);
+ * - a post office box ("PO Box 1182", "P.O. Box 7");
+ * - a postcode: British ("LS10 1AB"), Canadian ("K1A 0B1"), and a US ZIP after a state's two letters ("CA 94607").
+ */
+const EXIT = "(?:,?\\s*(?:near|at|off|by|past|before|after|to|from)\\s+(?:[Ee]xit|EXIT)\\s+\\d{1,4}[A-Za-z]?)?";
+const ROADS = new RegExp(`(?<![\\p{L}\\p{N}])(?:(?:${anyCase("state")}\\s+|${anyCase("us")}\\s+|${anyCase("county")}\\s+)?`
+  + `(?:${anyCase("highway")}|${anyCase("hwy")}\\.?|${anyCase("interstate")}|${anyCase("freeway")}|${anyCase("fwy")}\\.?`
+  + `|${anyCase("motorway")}|${anyCase("turnpike")}|${anyCase("expressway")})|(?:State\\s+|US\\s+)?(?:Route|Rte\\.?)(?=\\s+\\d)`
+  + `|County\\s+Road(?=\\s+\\d)|I-|US-|SR-?)\\s*\\d{1,4}[A-Z]?(?![\\p{L}\\p{N}])${EXIT}`, "gu");
+const PO_BOX = /(?<![\p{L}\p{N}])(?:P\.?\s?O\.?\s?Box|Post\s+Office\s+Box)\s*(?:No\.?\s*)?#?\s*\d{1,8}(?![\p{L}\p{N}])/giu;
+const US_STATES = "AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND"
+  + "|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC";
+const POSTCODES = [
+  // British: the outward code, one space, a digit and two letters the inward code may hold (never C, I, K, M, O or V).
+  // The space is required, so a part number ("M12AB") is not one.
+  /(?<![\p{L}\p{N}])(?:[A-PR-UWYZ][A-HK-Y]?\d[A-HJKPSTUW\d]?|GIR) \d[ABD-HJLNP-UW-Z]{2}(?![\p{L}\p{N}])/gu,
+  // Canadian.
+  /(?<![\p{L}\p{N}])[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\s?\d[ABCEGHJ-NPRSTV-Z]\d(?![\p{L}\p{N}])/gu,
+  // A US ZIP after a state's two capital letters.
+  new RegExp(`(?<![\\p{L}\\p{N}])(?:${US_STATES})\\s+\\d{5}(?:-\\d{4})?(?![\\p{L}\\p{N}])`, "gu"),
+];
+const PLACE_FORMS: readonly RegExp[] = [ROADS, PO_BOX, ...POSTCODES];
 
 /** Tidy what removal leaves: doubled spaces and commas, a space before punctuation, a comma at either end. `noun` is
  * what a held name became ("site" in "the site", or "company"). */
@@ -243,13 +349,16 @@ export type NameNoun = "site" | "company";
  *
  * The remaining limit, exactly: nicknames, abbreviations, landmarks, a reordered address, a street with no street word
  * and a state or region spelled differently from the record can still get through. Ordinary numbers and quantities are
- * kept.
+ * kept. These are what the model pass after this one is for (`server/utils/freeTextScreening.ts`): the other side reads
+ * the words only once it has succeeded.
  *
  * The same rules take a deployment company out of its own words before a site reads them (`jobCompanies.ts`), with
  * `nameAs: "company"`: each held name then becomes "the company".
  */
-export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity, options: { nameAs?: NameNoun } = {}): string {
+export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
+  options: { nameAs?: NameNoun; rules?: RedactionRules } = {}): string {
   const noun = options.nameAs ?? "site";
+  const rules = options.rules ?? CURRENT_REDACTION_RULES, wide = widened(rules);
   const nameAs = (whole: string, offset: number) => `${startsSentence(whole, offset) ? "The" : "the"} ${noun}`;
   let out = fold(text);
   const values = (list: Array<string | null | undefined>) => list.filter((value): value is string => typeof value === "string" && value.trim().length > 0);
@@ -260,11 +369,11 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
     if (pattern) out = out.replace(pattern, REMOVED);
   }
   for (const value of byLength(values(known.addresses).flatMap(address => [address, ...addressParts(address)]))) {
-    const pattern = knownValuePattern(value, true);
+    const pattern = knownValuePattern(value, true, wide);
     if (pattern) out = out.replace(pattern, "");
   }
   for (const value of byLength(values(known.names))) {
-    const pattern = knownValuePattern(value);
+    const pattern = knownValuePattern(value, false, wide);
     if (pattern) out = out.replace(pattern, (...args: unknown[]) => nameAs(String(args[args.length - 1]), Number(args[args.length - 2])));
   }
   for (const word of new Set(values(known.organisations ?? []).flatMap(name => name.split(/[^\p{L}\p{N}]+/u)))) {
@@ -272,14 +381,15 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
     // Wherever it is capitalised, the first word of a sentence included (privacy over a mangled sentence).
     if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) => nameAs(whole, offset));
   }
-  for (const street of STREETS) out = out.replace(street, "");
+  for (const street of wide ? [...STREETS, ...ORDINAL_STREETS] : STREETS) out = out.replace(street, "");
+  if (wide) for (const form of PLACE_FORMS) out = out.replace(form, REMOVED);
   out = out.replace(new RegExp(`\\bthe ${noun}(\\s+the ${noun})+\\b`, "gi"), `the ${noun}`);
-  return tidy(removeContactDetails(out), noun);
+  return tidy(removeContactDetails(out, rules), noun);
 }
 
 /** Whether `removeIdentifyingDetails` would change the text: the site's page may then say `CONTACT_DETAILS_REMOVED_LINE`. */
-export function identifyingDetailsRemoved(text: string, known: KnownSiteIdentity): boolean {
-  return removeIdentifyingDetails(text, known) !== tidy(fold(text));
+export function identifyingDetailsRemoved(text: string, known: KnownSiteIdentity, rules: RedactionRules = CURRENT_REDACTION_RULES): boolean {
+  return removeIdentifyingDetails(text, known, { rules }) !== tidy(fold(text));
 }
 
 /* ------------------------------------------------------------- names the record does not hold (company side only) */
@@ -337,7 +447,8 @@ function ordinaryCapitalised(word: string): boolean {
  *
  * The remaining limit, exactly: a name written in lower case ("joe's diner"), a lone name as a sentence's first word with
  * a lower-case word after it ("Acme needs …"), a name of three capital letters or fewer ("IBM") and a name made only of
- * ordinary words ("Central Kitchen") still get through. Brand names of equipment and products are removed with names.
+ * ordinary words ("Central Kitchen") still get through this pass; the model pass after it (`server/utils/freeTextScreening.ts`)
+ * is for them. Brand names of equipment and products are removed with names.
  */
 export function removeNamesNotHeld(text: string): string {
   const source = text.replace(TITLED_NAME, REMOVED);

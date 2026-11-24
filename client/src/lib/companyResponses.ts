@@ -199,7 +199,11 @@ export type SiteCompanyEntry =
        */
       reason?: string;
       details?: Pick<CompanyReplyDetails, "verified" | "startWindow" | "chargeModel" | "estimate" | "similarJobs" | "visitMustConfirm">;
-      question?: { id: string; text: string; answer?: string;
+      question?: { id: string; text: string;
+        /** The site's reply as the company reads it (names and contact details taken out). */
+        answer?: string;
+        /** The site replied, and the company does not read it yet: its names and contact details are being taken out. */
+        answerPending?: true;
         /** When the site is asked to reply by (`replyByIso`); absent for a question asked before the window existed. */
         replyByIso?: string };
       /**
