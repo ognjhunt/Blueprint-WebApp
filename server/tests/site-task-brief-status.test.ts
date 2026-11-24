@@ -1077,6 +1077,52 @@ describe("task follow-up on the owner link", () => {
     expect((await response.json()).questions).toEqual(expect.arrayContaining([expect.objectContaining({id:questionId})]));
   });
 
+  // The status card says the simulation is ready from the same stored fact as the job page's outlook and a company's
+  // "Download the simulation": the job's simulation package delivered to the website (`storedCompanySimulation`). A room
+  // package (the job's object not in it) counts, while a newer build of the scene is still under way.
+  describe("once the job's simulation package is delivered", () => {
+    async function deliveredPackage(capture: string) {
+      const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
+      const value = { schema_version: "website_company_simulation.v1", capture_id: capture,
+        simulation_revision: `sha256:${"4".repeat(64)}`, state: "ready", format: "zip_usd_scene_object_success_rule",
+        content_type: "application/zip", digest: `sha256:${"5".repeat(64)}`, size_bytes: 1234,
+        files: ["README.txt", "scene.usda", "scene/room.usdz", "scene/room_collision.usdz", "success_rule.json"],
+        permission_basis: "site_sharing_statement", statement_version: "2026-11-12.v4", updated_at_epoch: 1_794_000_000 };
+      return { ...value, simulation_digest: crossRuntimeArtifactDigest(value, "simulation_digest") };
+    }
+    async function statusWithScene(intake: Record<string, unknown>, delivered: boolean) {
+      sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} },
+        ...(delivered ? { company_simulation: await deliveredPackage("cap-1") } : {}) });
+      sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
+        source_session_id: "cap-1", created_at_iso: "2026-10-10T00:00:00.000Z", ...intake });
+      preparation.read.mockResolvedValueOnce({ state: "handed_off", correlationId: "bp-prep-1234567890abcdef" } as never);
+      return (await status()).body.status;
+    }
+    const READY = "The simulation of your site is ready. Nothing is needed from you.";
+
+    it("says ready while the scene with the job's object is still being built", async () => {
+      expect(await statusWithScene({ state: "accepted" }, true)).toMatchObject({ decision: "assessing", headline: READY, operatorAction: null });
+    });
+
+    it("says ready while the scene build waits on our side", async () => {
+      expect(await statusWithScene({ state: "accepted", pipeline_status: { status: "needs_input" } }, true))
+        .toMatchObject({ decision: "assessing", headline: READY, operatorAction: null });
+    });
+
+    it("still says the simulation is being prepared while no package is delivered", async () => {
+      expect((await statusWithScene({ state: "accepted" }, false)).headline).not.toMatch(/ready/i);
+      expect((await statusWithScene({ state: "accepted", pipeline_status: { status: "needs_input" } }, false)).headline)
+        .toBe("We're preparing the simulation of your site. Nothing is needed from you.");
+    });
+
+    it("keeps a scene that stopped saying so", async () => {
+      const stopped = await statusWithScene({ state: "accepted",
+        pipeline_status: { status: "blocked", phase: "policy_canary_blocked", blockers: [] } }, true);
+      expect(stopped.decision).toBe("processing_failure");
+      expect(stopped.headline).not.toBe(READY);
+    });
+  });
+
   it("does not expose questions or accept answers from a film-only link", async () => {
     const filmToken = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
     const read = await fetch(`${baseUrl}/api/site-task-brief/${filmToken}/follow-up`);
