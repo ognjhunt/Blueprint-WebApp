@@ -735,12 +735,12 @@ const PRIVACY_ON_OUR_SIDE = { title: "Building the simulation of your site is pa
   reason: "A privacy step on our side has to be finished before it can go on.", nextStep: STEP_ON_OUR_SIDE.nextStep,
   actionOwner: "blueprint" as const };
 const PERMISSION_OR_SPENDING_NOT_COVERED = { title: PERMISSION_NOT_COVERED.title,
-  reason: "The permission or the spending approval on record for your job does not cover this step.",
+  reason: "The permission on record for your video, or one of our own spending approvals, does not cover this step.",
   nextStep: PERMISSION_NOT_COVERED.nextStep, actionOwner: "none" as const };
 const SPENDING_LIMIT_ON_OUR_SIDE = { title: ACCOUNT_LIMIT_WAIT_SENTENCES.title, reason: ACCOUNT_LIMIT_WAIT_SENTENCES.reason,
   nextStep: STEP_ON_OUR_SIDE.nextStep, actionOwner: "blueprint" as const };
 const SPENDING_CHECK_ON_OUR_SIDE = { title: ACCOUNT_LIMIT_WAIT_SENTENCES.title,
-  reason: "Paid work on your job is paused on our side by one of our spending checks.", nextStep: STEP_ON_OUR_SIDE.nextStep,
+  reason: "Work on your job is paused on our side by one of our own spending checks.", nextStep: STEP_ON_OUR_SIDE.nextStep,
   actionOwner: "blueprint" as const };
 /** Cards said as they are also once the job has ended: each is a privacy, rights or money stop. */
 const WALL_PAUSES: ReadonlySet<object> = new Set([PERMISSION_NOT_COVERED, PRIVACY_ON_OUR_SIDE, PERMISSION_OR_SPENDING_NOT_COVERED,

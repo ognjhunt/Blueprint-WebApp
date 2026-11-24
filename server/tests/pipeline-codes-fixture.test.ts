@@ -106,7 +106,7 @@ describe("the words for the codes the sweep found", () => {
         actionOwner: "none" });
     expect(card("failed", "atlas_runtime_authority_or_policy_changed")).toMatchObject({
       title: "Building the simulation of your site is paused",
-      reason: "The permission or the spending approval on record for your job does not cover this step.", actionOwner: "none" });
+      reason: "The permission on record for your video, or one of our own spending approvals, does not cover this step.", actionOwner: "none" });
   });
   it("a money stop is said as money, and promises no resumption the Pipeline does not make", () => {
     expect(card("needs_input", "atlas_runtime_budget_insufficient_for_pose_and_generation")).toMatchObject({
@@ -115,7 +115,7 @@ describe("the words for the codes the sweep found", () => {
     for (const code of ["atlas_runtime_price_review_expired", "paid_resource_admission_not_admitted", "paid_resource_a_later_blocker",
       "meta_sam_submission_requires_reconciliation"])
       expect(card("needs_input", code)).toMatchObject({ title: "Your job is paused on our side",
-        reason: "Paid work on your job is paused on our side by one of our spending checks.", nextStep: ours });
+        reason: "Work on your job is paused on our side by one of our own spending checks.", nextStep: ours });
     // The Google Cloud budget's own policy file: the same money wait as its other codes.
     expect(card("needs_input", "gcp_monthly_budget_policy_invalid")).toMatchObject({
       reason: "Your job is paused on our side for a spending limit.", nextStep: "It resumes by itself; nothing is needed from you." });
