@@ -528,8 +528,15 @@ describe("non-authorizing Atlas configuration read", () => {
 
   it("refuses malformed or oversized ledgers rather than silently omit reservations", () => {
     expect(() => websitePreparationAccounting({ broken: { admission: {} } })).toThrow("website_atlas_reservation_accounting_invalid");
-    expect(() => websitePreparationAccounting(Object.fromEntries(Array.from({ length: 129 }, (_, i) => [i, {}]))))
+    // 256 rows at most (stress round 2: every paid call is its own permanent row); past it, refused whole.
+    expect(() => websitePreparationAccounting(Object.fromEntries(Array.from({ length: 257 }, (_, i) => [i, {}]))))
       .toThrow("website_atlas_reservation_summary_too_large");
+    const rows = Object.fromEntries(Array.from({ length: 200 }, (_, i) => {
+      const key = i.toString(16).padStart(64, "0");
+      return [key, { admission: { allocation_binding_digest: `sha256:${key}`, task_context_digest: sha("8"), provider: "meta",
+        maximum_cost_usd: .0025, request_count: 1 } }];
+    }));
+    expect(websitePreparationAccounting(rows).native_preparation_accounting.reservations).toHaveLength(200);
     const zero = websitePreparationAccounting({ ["1".repeat(64)]: { admission: { allocation_binding_digest: sha("1"),
       task_context_digest: sha("8"), provider: "openai", maximum_cost_usd: .4, request_count: 1,
       atlas_authorization_digest: sha("7") }, settlement: { actual_cost_usd: 0 } } });

@@ -58,9 +58,18 @@ describe("U2: a room whose size was not measured", () => {
   });
 });
 
+describe("a video file turned by an angle no phone writes", () => {
+  it("asks for the video as the phone recorded it", () => {
+    expect(card("needs_input", "atlas_source_rotation_unsupported")).toMatchObject({
+      reason: "Your video file is turned at an angle we cannot read.",
+      nextStep: "Please film again with your phone and leave the file as it was recorded, without rotating or editing it. Then send us the new video." });
+  });
+});
+
 describe("money: the account's monthly spend check", () => {
   it.each(["account_monthly_spend_limit_reached", "account_monthly_spend_journal_unreadable", "account_monthly_spend_report_stale",
-    "account_monthly_spend_limit_not_configured", "account_monthly_spend_a_later_check"])("%s is a money wait the site need not act on", reason => {
+    "account_monthly_spend_limit_not_configured", "account_monthly_spend_a_later_check", "gcp_monthly_budget_admission_blocked",
+    "gcp_monthly_budget_report_missing_or_invalid"])("%s is a money wait the site need not act on", reason => {
     for (const state of ["needs_input", "failed"]) expect(card(state, reason)).toMatchObject({
       title: "Your job is paused on our side", reason: "Your job is paused on our side for a spending limit.",
       nextStep: "It resumes by itself; nothing is needed from you.", actionOwner: "none" });
@@ -118,7 +127,8 @@ describe("a stop the Pipeline runs again by itself is titled as still being work
 
 describe("nothing asks the site for permission it has no control to give", () => {
   it("Blueprint's own setup is said as ours; a rights refusal as not covered", () => {
-    for (const reason of ["website_atlas_consent_unconfigured", "website_scene_grant_policy_unconfigured", "provider_terms_not_configured_or_changed"])
+    for (const reason of ["website_atlas_consent_unconfigured", "website_scene_grant_policy_unconfigured", "provider_terms_not_configured_or_changed",
+      "website_atlas_reservation_summary_too_large", "website_atlas_accounting_response_too_large"])
       expect(card("needs_input", reason)).toMatchObject({ title: "Building the simulation of your site is paused on our side", actionOwner: "blueprint" });
     for (const reason of ["website_atlas_source_consent_required", "website_atlas_planner_consent_required", "website_atlas_consent_expired"])
       expect(card("needs_input", reason)).toMatchObject({ reason: "The permission on record for your video does not cover this step.", actionOwner: "none" });
@@ -143,7 +153,8 @@ describe("codes", () => {
 
   it("an Atlas reason is known only when it has words of its own", () => {
     for (const reason of ["atlas_insufficient_sharp_static_views", "atlas_scale_review_unresolved", "account_monthly_spend_limit_reached",
-      "website_atlas_consent_unconfigured", "website_task_not_named", "atlas_scene_planner_abstained", "spending_cap_reached", null])
+      "website_atlas_consent_unconfigured", "website_task_not_named", "atlas_scene_planner_abstained", "spending_cap_reached", null,
+      "atlas_source_rotation_unsupported", "gcp_monthly_budget_admission_blocked", "website_atlas_accounting_response_too_large"])
       expect(outcome.atlasPreviewReasonKnown(reason)).toBe(true);
     for (const reason of ["atlas_context_field_of_view_lost", "atlas_context_pixel_axes_changed", "atlas_preview_expired"])
       expect(outcome.atlasPreviewReasonKnown(reason)).toBe(false);

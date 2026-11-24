@@ -253,9 +253,19 @@ export const ACCOUNT_MONTHLY_SPEND_REASONS = ["account_monthly_spend_limit_reach
   "account_monthly_spend_report_stale", "account_monthly_spend_limit_not_configured", "account_monthly_spend_limit_config_invalid",
   "account_monthly_spend_report_missing_or_invalid", "account_monthly_spend_limit_unavailable",
   "account_monthly_spend_call_cost_invalid"] as const;
-/** A code of the account's monthly spend check: one listed, or any other the check names by its own prefix. */
+/**
+ * The Google Cloud project's monthly budget check (Pipeline `gcp_monthly_budget_admission`), which refuses new spend the
+ * same way until its next report passes (stress round 2, 2026-11-24): the same money wait on our side.
+ */
+export const GCP_MONTHLY_BUDGET_REASONS = ["gcp_monthly_budget_admission_blocked", "gcp_monthly_budget_report_missing_or_invalid",
+  "gcp_monthly_budget_report_unavailable", "gcp_monthly_budget_project_binding_missing"] as const;
+/**
+ * A code of a monthly spending check: the account's (one listed, or any other it names by its own prefix) or the Google
+ * Cloud project's budget.
+ */
 export const isAccountMonthlySpendReason = (reason: unknown): reason is string =>
-  typeof reason === "string" && reason.startsWith("account_monthly_spend_");
+  typeof reason === "string" && (reason.startsWith("account_monthly_spend_")
+    || (GCP_MONTHLY_BUDGET_REASONS as readonly string[]).includes(reason));
 export function accountLimitWaitOutcome(evidence?: {label: string; digest: string}): TaskOutcome {
   return { category: "processing_failure", basis: "execution_failure", title: ACCOUNT_LIMIT_WAIT_SENTENCES.title,
     reason: ACCOUNT_LIMIT_WAIT_SENTENCES.reason, scope: "", nextStep: ACCOUNT_LIMIT_WAIT_SENTENCES.nextStep,
@@ -349,6 +359,13 @@ export const RECAPTURE_SENTENCES = {
   atlas_insufficient_sharp_static_views: {
     reason: "Too few of the frames in your video are sharp enough for us to rebuild your space: they are too blurred, or too bright or too dark.",
     nextStep: "Please film again slowly, in even light. Then send us the new video.",
+  },
+  // Pipeline `atlas_video_inputs` (round 2, 2026-11-24): the file says it is turned by an angle that is not a quarter
+  // turn, which a phone camera never writes, so the file was rotated or edited after it was recorded. The same file
+  // gives the same answer; the video as the phone recorded it does not.
+  atlas_source_rotation_unsupported: {
+    reason: "Your video file is turned at an angle we cannot read.",
+    nextStep: "Please film again with your phone and leave the file as it was recorded, without rotating or editing it. Then send us the new video.",
   },
   // Pipeline (stress round 1, 2026-11-24): the room's mesh lay on none of its look (`atlas_mesh_not_registered_to_splat`),
   // or as well on two framings (`atlas_mesh_frame_ambiguous`). The job now ends at once instead of waiting for a
@@ -647,7 +664,17 @@ const PERMISSION_NOT_COVERED = { title: "Building the simulation of your site is
 const SETUP_ON_OUR_SIDE = { title: "Building the simulation of your site is paused on our side",
   reason: "A setup step on our side has to be finished before it can go on.", nextStep: "Nothing is needed from you. Your video is saved.",
   actionOwner: "blueprint" as const };
+/**
+ * The read of the job's reservations grew past what one signed answer carries (`website_atlas_reservation_summary_too_large`,
+ * `website_atlas_accounting_response_too_large`; stress round 2, 2026-11-24): the Pipeline rechecks it and goes on
+ * once it fits. Ours to fix, never the site's.
+ */
+const STEP_ON_OUR_SIDE = { title: "Building the simulation of your site is paused on our side",
+  reason: "A step on our side has to be finished before it can go on.", nextStep: "Nothing is needed from you. Your video is saved.",
+  actionOwner: "blueprint" as const };
 const ATLAS_PAUSES: Readonly<Record<string, typeof PERMISSION_NOT_COVERED | typeof SETUP_ON_OUR_SIDE>> = {
+  website_atlas_reservation_summary_too_large: STEP_ON_OUR_SIDE,
+  website_atlas_accounting_response_too_large: STEP_ON_OUR_SIDE,
   website_atlas_source_consent_required: PERMISSION_NOT_COVERED,
   website_atlas_planner_consent_required: PERMISSION_NOT_COVERED,
   website_atlas_consent_expired: PERMISSION_NOT_COVERED,
