@@ -86,21 +86,27 @@ afterEach(() => vi.unstubAllEnvs());
 describe("when a question is owed", () => {
   const base = { requestedAtIso: new Date(START).toISOString(), outcomes: [] };
   it("is owed at 14, 45 and 90 days, the latest that has passed", () => {
-    expect(dueOutcomeQuestionDay(base, at(13).getTime())).toBeNull();
-    expect(dueOutcomeQuestionDay(base, at(14).getTime() - 1)).toBeNull();
-    expect(dueOutcomeQuestionDay(base, at(14).getTime())).toBe(14);
-    expect(dueOutcomeQuestionDay(base, at(15).getTime())).toBe(14);
-    expect(dueOutcomeQuestionDay(base, at(44).getTime())).toBe(14);
-    expect(dueOutcomeQuestionDay(base, at(45).getTime())).toBe(45);
-    expect(dueOutcomeQuestionDay(base, at(90).getTime())).toBe(90);
-    expect(dueOutcomeQuestionDay(base, at(400).getTime())).toBe(90);
+    expect(dueOutcomeQuestionDay(base, at(13).getTime(), "site")).toBeNull();
+    expect(dueOutcomeQuestionDay(base, at(14).getTime() - 1, "site")).toBeNull();
+    expect(dueOutcomeQuestionDay(base, at(14).getTime(), "site")).toBe(14);
+    expect(dueOutcomeQuestionDay(base, at(15).getTime(), "site")).toBe(14);
+    expect(dueOutcomeQuestionDay(base, at(44).getTime(), "site")).toBe(14);
+    expect(dueOutcomeQuestionDay(base, at(45).getTime(), "site")).toBe(45);
+    expect(dueOutcomeQuestionDay(base, at(90).getTime(), "site")).toBe(90);
+    expect(dueOutcomeQuestionDay(base, at(400).getTime(), "site")).toBe(90);
   });
-  it("is never owed after a final answer from either side, or without a start time", () => {
-    for (const state of ["installed", "not_going_ahead"]) for (const by of ["site", "company"])
-      expect(dueOutcomeQuestionDay({ ...base, outcomes: [{ by, state, atIso: at(20).toISOString() }] }, at(45).getTime())).toBeNull();
-    expect(dueOutcomeQuestionDay({ ...base, outcomes: [{ by: "site", state: "quote_given", atIso: at(20).toISOString() }] }, at(45).getTime())).toBe(45);
-    expect(dueOutcomeQuestionDay({ outcomes: [] }, at(45).getTime())).toBeNull();
-    expect(dueOutcomeQuestionDay({ requestedAtIso: "not a date" }, at(45).getTime())).toBeNull();
+  it("is never owed to a side after its own final answer, or without a start time", () => {
+    for (const state of ["installed", "not_going_ahead"]) for (const by of ["site", "company"] as const) {
+      const other = by === "site" ? "company" : "site";
+      const answered = { ...base, outcomes: [{ by, state, atIso: at(20).toISOString() }] };
+      expect(dueOutcomeQuestionDay(answered, at(45).getTime(), by)).toBeNull();
+      // Stress test round 2 (2026-11-24): the other side's final answer never ends this side's questions.
+      expect(dueOutcomeQuestionDay(answered, at(45).getTime(), other)).toBe(45);
+    }
+    expect(dueOutcomeQuestionDay({ ...base, outcomes: [{ by: "site", state: "quote_given", atIso: at(20).toISOString() }] }, at(45).getTime(), "site")).toBe(45);
+    expect(dueOutcomeQuestionDay({ outcomes: [] }, at(45).getTime(), "site")).toBeNull();
+    expect(dueOutcomeQuestionDay({ requestedAtIso: "not a date" }, at(45).getTime(), "site")).toBeNull();
+    expect(dueOutcomeQuestionDay({ ...base, cancelledAtIso: at(1).toISOString() }, at(45).getTime(), "company")).toBeNull();
   });
 });
 
@@ -128,10 +134,16 @@ describe("sweepOutcomeQuestions", () => {
     expect(JSON.stringify(outbox())).toBe(first);
   });
 
-  it("sends nothing after either side gave a final answer", async () => {
+  it("sends nothing more to a side after its own final answer, and still asks the other side", async () => {
     seedJob(); seedIntro("req-1", "co-1", { outcomes: [{ by: "company", state: "installed", atIso: at(20).toISOString() }] });
     seedJob("req-2"); seedIntro("req-2", "co-1", { outcomes: [{ by: "site", state: "not_going_ahead", atIso: at(20).toISOString() }] });
-    expect((await sweepOutcomeQuestions({ now: at(45) })).queued).toBe(0);
+    expect((await sweepOutcomeQuestions({ now: at(45) })).queued).toBe(2);
+    expect(outbox().map(row => row.id).sort()).toEqual([
+      "job-outcome-question:req-1:co-1:site:d45", "job-outcome-question:req-2:co-1:company:d45"]);
+    seedIntro("req-1", "co-1", { outcomes: [{ by: "company", state: "installed", atIso: at(20).toISOString() },
+      { by: "site", state: "not_going_ahead", atIso: at(50).toISOString() }] });
+    expect((await sweepOutcomeQuestions({ now: at(90) })).queued).toBe(1);
+    expect(outbox().map(row => row.id)).not.toContain("job-outcome-question:req-1:co-1:site:d90");
   });
 
   it("sends nothing after a withdrawal", async () => {
@@ -258,16 +270,27 @@ describe("recording an answer", () => {
   });
 
   // Review S3 (planner: a final answer is final) and the review's probe P5, as asserting tests.
-  it("records nothing after a final answer from either side, and says what is on record", async () => {
+  it("records nothing more from a side after its own final answer, and says only that side's answer", async () => {
     seedJob(); seedIntro();
     const token = (by: "site" | "company", state: any) => createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by, state, nowMs: at(14).getTime() });
     expect(await recordOutcomeAnswer(token("company", "installed"), at(15))).toMatchObject({ ok: true, recorded: true });
-    // An older "Still talking" link from the same email, still within its 30 days, from either side.
-    expect(await recordOutcomeAnswer(token("site", "still_talking"), at(20)))
-      .toEqual({ ok: true, state: "still_talking", recorded: false, finalAlready: "installed" });
+    // An older link of the same side, still within its 30 days: nothing recorded, and its own answer said.
     expect(await recordOutcomeAnswer(token("company", "going_ahead"), at(21))).toMatchObject({ recorded: false, finalAlready: "installed" });
     expect(intro().outcomes).toHaveLength(1);
     expect(latestOutcome(intro()).latest).toMatchObject({ state: "installed" });
+  });
+
+  // Stress test round 2 (2026-11-24): the company's "Not going ahead" on day 14 refused the site's "Installed".
+  it("records each side's answer whatever the other side said, and never tells one side the other's", async () => {
+    seedJob(); seedIntro();
+    const token = (by: "site" | "company", state: any) => createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by, state, nowMs: at(14).getTime() });
+    expect(await recordOutcomeAnswer(token("company", "not_going_ahead"), at(15))).toEqual({ ok: true, state: "not_going_ahead", recorded: true });
+    expect(await recordOutcomeAnswer(token("site", "installed"), at(16))).toEqual({ ok: true, state: "installed", recorded: true });
+    expect(await recordOutcomeAnswer(token("site", "still_talking"), at(20)))
+      .toEqual({ ok: true, state: "still_talking", recorded: false, finalAlready: "installed" });
+    expect(intro().outcomes.map((row: { by: string; state: string }) => `${row.by}:${row.state}`))
+      .toEqual(["company:not_going_ahead", "site:installed"]);
+    expect(latestOutcome(intro())).toMatchObject({ site: { state: "installed" }, company: { state: "not_going_ahead" } });
   });
 
   it("records the same link once, however long apart it is used again", async () => {
@@ -298,7 +321,11 @@ describe("the outbox's check before it sends", () => {
     const entry = { kind: "job_outcome_question", requestId: "req-1", idempotencyKey: key };
     expect(await outcomeQuestionIsCurrent(entry)).toBe(true);
     expect(await outcomeQuestionIsCurrent({ ...entry, idempotencyKey: "job-outcome-question:req-2:co-1:site:d14" })).toBe(false);
+    // The company's final answer leaves the site's question owed; the site's own ends it.
     seedIntro("req-1", "co-1", { outcomes: [{ by: "company", state: "not_going_ahead", atIso: at(16).toISOString() }] });
+    expect(await outcomeQuestionIsCurrent(entry)).toBe(true);
+    expect(await outcomeQuestionIsCurrent({ ...entry, idempotencyKey: outcomeQuestionKey("req-1", "co-1", "company", 14) })).toBe(false);
+    seedIntro("req-1", "co-1", { outcomes: [{ by: "site", state: "installed", atIso: at(16).toISOString() }] });
     expect(await outcomeQuestionIsCurrent(entry)).toBe(false);
     seedIntro();
     seedJob("req-1", { testListed: false });
