@@ -513,6 +513,21 @@ function ordinaryCapitalised(word: string): boolean {
 }
 
 /**
+ * The capitalised words after a text's first word that could still be a name (stress test round 2, 2026-11-24): what
+ * `removeNamesNotHeld` leaves ("Cartons go out. Acme needs them."), which only the model pass can judge. Not an ordinary
+ * word (`ordinaryCapitalised`, or a workplace word or a word sentences start with, singular or plural).
+ */
+export function capitalisedWordsAfterFirst(text: string): string[] {
+  const first = /[\p{L}\p{N}]/u.exec(text)?.index ?? 0;
+  const ordinary = (lower: string) => GENERIC_NAME_WORDS.has(lower) || SENTENCE_STARTERS.has(lower) || COUNTRY_WORDS.has(lower);
+  return [...text.matchAll(CAPITALISED_WORD)].filter(match => {
+    if (match.index! <= first || ordinaryCapitalised(match[0])) return false;
+    const lower = match[0].replace(POSSESSIVE, "").toLowerCase();
+    return ![lower, lower.replace(/s$/, ""), lower.replace(/es$/, "")].some(ordinary);
+  }).map(match => match[0]);
+}
+
+/**
  * A name the site typed that the record does not hold, out of what a deployment company reads (2026-11-20). The start
  * form asks for no site or person name, so `removeIdentifyingDetails` cannot know one the site writes into its sentence
  * ("At Joe's Diner, …", "Acme Fulfillment needs …", "Joe Smith at Smith Bakery …"). Run on its result, this takes out
