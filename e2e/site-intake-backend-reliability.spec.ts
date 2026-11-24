@@ -50,6 +50,12 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     // The video choice is one quiet link (bare bones, 2026-11-11): "I have a video ›" switches to the upload.
     if (parameters.method === "upload") await page.locator("#start-method-upload").click();
     if (parameters.boundary === "draft-reload") {
+      // The draft is saved under a cross-tab lock, after the typing, so the reload waits for the saved copy to hold
+      // what was typed (the same wait as e2e/description-first-intake.spec.ts).
+      await expect.poll(() => page.evaluate(() => {
+        const draft = JSON.parse(localStorage.getItem("bp-site-capture:v1:anonymous:default") ?? "null")?.draft;
+        return draft ? { location: draft.location, email: draft.email } : null;
+      })).toEqual({ location: parameters.location, email: `reliability-${index + 1}@example.invalid` });
       await page.reload();
       await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons from the conveyor onto a pallet.");
       await expect(page.locator(parameters.method === "upload" ? "#start-method-phone" : "#start-method-upload")).toBeVisible();
