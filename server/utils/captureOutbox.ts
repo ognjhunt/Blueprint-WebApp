@@ -410,14 +410,21 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
   runtime: ReturnType<typeof deliveryRuntime>, summary: OutboxDeliverySummary): Promise<void> {
   const store = db!;
   const token = randomUUID();
+  // The job link email is queued before the start form's video uploads; it says "We have your video." when the video
+  // is saved by the time it goes (`jobLinkBodyNow`). Read outside the claim: it reads storage. Never for a row tried before.
+  const queued = doc.data() as OutboxEntry;
+  const bodyNow = queued.kind === "task_received" && queued.status === "pending"
+    ? await import("./taskLifecycleNotifications").then(module => module.jobLinkBodyNow(queued)).catch(() => null) : null;
   const claim = await store.runTransaction(async tx => {
     const current = (await tx.get(doc.ref)).data() as OutboxEntry | undefined;
     const nowMs = Date.now();
     if (current?.status === "pending") {
       if (!attemptIsDue(current, nowMs)) return null;
-      tx.set(doc.ref, { status: "claimed", deliveryToken: token,
-        deliveryDigest: messageDigest(current), deliveryLeaseUntilMs: nowMs + DELIVERY_LEASE_MS }, { merge: true });
-      return { entry: current, uncertain: false };
+      // Only over the exact body it was read from, on a row still never tried.
+      const entry = bodyNow && current.body === queued.body && !current.attempts ? { ...current, body: bodyNow } : current;
+      tx.set(doc.ref, { status: "claimed", ...(entry === current ? {} : { body: entry.body }), deliveryToken: token,
+        deliveryDigest: messageDigest(entry), deliveryLeaseUntilMs: nowMs + DELIVERY_LEASE_MS }, { merge: true });
+      return { entry, uncertain: false };
     }
     if (current?.status !== "unknown") return null;
     const state = unknownRowState(current, nowMs);
