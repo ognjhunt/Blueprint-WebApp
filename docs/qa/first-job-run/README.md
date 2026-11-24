@@ -18,6 +18,15 @@ The audit this follows is in pull request 1374
 
 For a session that picks this up. Newest first.
 
+- 2026-11-24 02:20Z. Pull request 3714 (gap 22) is merged but **cannot be
+  deployed yet**: `main`'s CI run on its merge `e70b35c` failed before any
+  test ran, in "Wide impacted lane / Wide impacted shard 0", step "Install
+  sealed-camera renderer dependencies": the runner's package download timed
+  out twice (10.8 MB took 1 min 51 s; job 138145765989). The door deploys
+  only an attested commit, and this session may not re-run a job (403). The
+  next commit on Pipeline `main` runs CI again and carries it; then deploy
+  that commit. Running: workflow `fix-gaps-6` (task `w34yp9tqj`): gap 27's
+  code part, then gap 26 (WebApp); gap 24 (Pipeline).
 - 2026-11-24 02:10Z. **Job 1 is through.** Its room shipped by itself on the
   first preparation retry under release `8bcf6bf` (01:48 to 01:54Z); the
   company saw "Ready to test", downloaded the 147.6 MB package and opened it
