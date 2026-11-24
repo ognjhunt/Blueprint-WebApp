@@ -255,10 +255,12 @@ export const ACCOUNT_MONTHLY_SPEND_REASONS = ["account_monthly_spend_limit_reach
   "account_monthly_spend_call_cost_invalid"] as const;
 /**
  * The Google Cloud project's monthly budget check (Pipeline `gcp_monthly_budget_admission`), which refuses new spend the
- * same way until its next report passes (stress round 2, 2026-11-24): the same money wait on our side.
+ * same way until its next report passes (stress round 2, 2026-11-24): the same money wait on our side. Its policy file
+ * unreadable (`gcp_monthly_budget_policy_invalid`) refuses the same way (sweep of the Pipeline's codes, 2026-11-24).
  */
 export const GCP_MONTHLY_BUDGET_REASONS = ["gcp_monthly_budget_admission_blocked", "gcp_monthly_budget_report_missing_or_invalid",
-  "gcp_monthly_budget_report_unavailable", "gcp_monthly_budget_project_binding_missing"] as const;
+  "gcp_monthly_budget_report_unavailable", "gcp_monthly_budget_project_binding_missing",
+  "gcp_monthly_budget_policy_invalid"] as const;
 /**
  * A code of a monthly spending check: the account's (one listed, or any other it names by its own prefix) or the Google
  * Cloud project's budget.
@@ -627,8 +629,10 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
       title: "We haven't finished building the simulation from your video",
       reason: "Part of your video still needs to go into the simulation.",
       nextStep: "Nothing is needed from you. Your video is saved." };
-  const paused = (preview.state === "needs_input" || (preview.state === "failed" && FAILED_ON_OUR_SIDE.has(preview.reason ?? "")))
-    && Object.hasOwn(ATLAS_PAUSES, preview.reason ?? "") ? ATLAS_PAUSES[preview.reason!] : null;
+  // A privacy, rights or money stop is said as that once the job has ended on it too (`WALL_PAUSES`).
+  const pause = atlasPauseOf(preview.reason);
+  const paused = pause && (preview.state === "needs_input" || (preview.state === "failed"
+    && (FAILED_ON_OUR_SIDE.has(preview.reason ?? "") || WALL_PAUSES.has(pause)))) ? pause : null;
   if (paused) return { category: "processing_failure", basis: "execution_failure", title: paused.title, reason: paused.reason,
     scope: "", nextStep: paused.nextStep, actionOwner: paused.actionOwner,
     evidence: [{ label: "Reconstruction status", digest: preview.preview_digest }] };
@@ -656,8 +660,8 @@ const namesAWall = (reason: string | null | undefined) => (reason ?? "").split(/
  * - The permission on record does not cover the step (a rights refusal): the recording's consent does not allow scene
  *   building, the video is not the one the grant covers, the planner's terms changed since the grant, or the grant ran
  *   out.
- * - Blueprint's own setup is not finished (`website_atlas_consent_unconfigured`, `website_scene_grant_policy_unconfigured`,
- *   provider terms not configured): ours to finish.
+ * - Blueprint's own setup is not finished (`website_atlas_consent_unconfigured`, `website_scene_grant_policy_unconfigured`):
+ *   ours to finish. Provider terms not reviewed are a privacy step on our side (`PRIVACY_ON_OUR_SIDE`, below).
  */
 const PERMISSION_NOT_COVERED = { title: "Building the simulation of your site is paused",
   reason: "The permission on record for your video does not cover this step.", nextStep: "Your video is saved.",
@@ -687,17 +691,71 @@ const PLANNER_REVIEW_CODES = ["atlas_scene_planner_unsafe_frames_invalid", "atla
  * on without them did not read back (stress round 4, 2026-11-24). The Pipeline now goes on without those views, so
  * these reach a job only from a step that still rechecks them. Ours: the site's video is not at fault.
  */
-const COMPLETION_REVIEW_CODES = ["atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid"] as const;
+const COMPLETION_REVIEW_CODES = ["atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid",
+  // The Pipeline's own name for a completion that stopped with no code of its own (sweep, 2026-11-24).
+  "atlas_preserved_completion_not_admitted"] as const;
+/**
+ * The scene planner's review refusals the round-3 list did not name, raised the same way (`atlas_scene_planner.
+ * proposal_review`, a deterministic refusal: the same review repeats it until a release decides differently). Ours.
+ */
+const MORE_PLANNER_REVIEW_CODES = ["atlas_scene_planner_intervals_invalid", "atlas_scene_planner_transients_invalid",
+  "atlas_scene_planner_transients_require_automation", "atlas_refinement_state_or_selection_invalid",
+  "atlas_automation_frames_not_selected"] as const;
 /**
  * A step of building the simulation kept running past its time limit and was ended each time it was tried (stress
  * round 5, 2026-11-24: the host's memory bound slowed one step for hours). Retried by the clock until the retries run
  * out, then the job ends `failed` and only a release reopens it. Either way the fix is ours, never the site's.
+ *
+ * Two more are said as ours in either state (sweep, 2026-11-24). The Pipeline reads a wall in their words and so never
+ * reopens them by the clock, though neither guards one: `atlas_scene_planner_context_budget_exceeded` counts the
+ * review's tokens, not money; `atlas_observed_room_privacy_selection_invalid` is the review's answer in the wrong form,
+ * refused before anything is sent (as `atlas_scene_planner_coverage_or_privacy_invalid` was).
  */
-const FAILED_ON_OUR_SIDE = new Set(["atlas_preview_step_interrupted"]);
-const ATLAS_PAUSES: Readonly<Record<string, typeof PERMISSION_NOT_COVERED | typeof SETUP_ON_OUR_SIDE>> = {
+const FAILED_ON_OUR_SIDE = new Set(["atlas_preview_step_interrupted", "atlas_scene_planner_context_budget_exceeded",
+  "atlas_observed_room_privacy_selection_invalid"]);
+/**
+ * Privacy, rights and money stops the Pipeline can send, each said as exactly that and never as still being worked on,
+ * whether the job waits on it or has ended on it (sweep of the Pipeline's codes, 2026-11-24; the list is
+ * `contracts/pipeline/website-pipeline-codes.v1.json`, mirrored from the Pipeline and checked by
+ * `server/tests/pipeline-codes-fixture.test.ts`).
+ *
+ * - A privacy step on our side: the face blur on the frames sent out is not available or its decision changed
+ *   (`atlas_privacy_screen_*`), or where the frames are kept once sent is not decided yet
+ *   (`website_atlas_provider_retention_decision_required`).
+ * - The permission or the spending approval on record does not cover the step, where one code guards both: a grant or
+ *   its terms changed since the step started, or an admission that covers another request, lapsed or allows no
+ *   disclosure.
+ * - A spending limit on our side: an allowance or a cap, the job's own among them, is too small for the step, or cannot
+ *   be read.
+ *   It does not resume by itself unless the limit changes, so nothing promises that it does.
+ * - One of our spending checks: a reviewed price is missing or out of date, or a paid admission was refused by its own
+ *   check, or a paid request may already have been sent and is never sent twice.
+ */
+const PRIVACY_ON_OUR_SIDE = { title: "Building the simulation of your site is paused on our side",
+  reason: "A privacy step on our side has to be finished before it can go on.", nextStep: STEP_ON_OUR_SIDE.nextStep,
+  actionOwner: "blueprint" as const };
+const PERMISSION_OR_SPENDING_NOT_COVERED = { title: PERMISSION_NOT_COVERED.title,
+  reason: "The permission on record for your video, or one of our own spending approvals, does not cover this step.",
+  nextStep: PERMISSION_NOT_COVERED.nextStep, actionOwner: "none" as const };
+const SPENDING_LIMIT_ON_OUR_SIDE = { title: ACCOUNT_LIMIT_WAIT_SENTENCES.title, reason: ACCOUNT_LIMIT_WAIT_SENTENCES.reason,
+  nextStep: STEP_ON_OUR_SIDE.nextStep, actionOwner: "blueprint" as const };
+const SPENDING_CHECK_ON_OUR_SIDE = { title: ACCOUNT_LIMIT_WAIT_SENTENCES.title,
+  reason: "Work on your job is paused on our side by one of our own spending checks.", nextStep: STEP_ON_OUR_SIDE.nextStep,
+  actionOwner: "blueprint" as const };
+/** Cards said as they are also once the job has ended: each is a privacy, rights or money stop. */
+const WALL_PAUSES: ReadonlySet<object> = new Set([PERMISSION_NOT_COVERED, PRIVACY_ON_OUR_SIDE, PERMISSION_OR_SPENDING_NOT_COVERED,
+  SPENDING_LIMIT_ON_OUR_SIDE, SPENDING_CHECK_ON_OUR_SIDE]);
+/** A paid admission refused by its own check (Pipeline `paid_resource_admission`): a money wall by its type. */
+const PAID_ADMISSION_PREFIX = "paid_resource_";
+type AtlasPause = typeof PERMISSION_NOT_COVERED | typeof SETUP_ON_OUR_SIDE | typeof PRIVACY_ON_OUR_SIDE
+  | typeof PERMISSION_OR_SPENDING_NOT_COVERED | typeof SPENDING_LIMIT_ON_OUR_SIDE;
+const ATLAS_PAUSES: Readonly<Record<string, AtlasPause>> = {
   ...Object.fromEntries(PLANNER_REVIEW_CODES.map(code => [code, STEP_ON_OUR_SIDE])),
+  ...Object.fromEntries(MORE_PLANNER_REVIEW_CODES.map(code => [code, STEP_ON_OUR_SIDE])),
   ...Object.fromEntries(COMPLETION_REVIEW_CODES.map(code => [code, STEP_ON_OUR_SIDE])),
   ...Object.fromEntries([...FAILED_ON_OUR_SIDE].map(code => [code, STEP_ON_OUR_SIDE])),
+  // The worker's own name for a stop that came back with no code of its own (Pipeline `advance_preparation_step`).
+  atlas_background_review_required: STEP_ON_OUR_SIDE,
   website_atlas_reservation_summary_too_large: STEP_ON_OUR_SIDE,
   website_atlas_accounting_response_too_large: STEP_ON_OUR_SIDE,
   website_atlas_source_consent_required: PERMISSION_NOT_COVERED,
@@ -705,8 +763,47 @@ const ATLAS_PAUSES: Readonly<Record<string, typeof PERMISSION_NOT_COVERED | type
   website_atlas_consent_expired: PERMISSION_NOT_COVERED,
   website_atlas_consent_unconfigured: SETUP_ON_OUR_SIDE,
   website_scene_grant_policy_unconfigured: SETUP_ON_OUR_SIDE,
-  provider_terms_not_configured_or_changed: SETUP_ON_OUR_SIDE,
+  // The provider's terms for the site's frames are not reviewed, or changed since: a privacy stop (Pipeline
+  // `hard_stops.WEBAPP_PRIVACY_RIGHTS`), Blueprint's to finish, and said as that since the sweep (2026-11-24).
+  provider_terms_not_configured_or_changed: PRIVACY_ON_OUR_SIDE,
+  // Blueprint's own connection to the scene provider, and its runtime policy, not set up (sweep, 2026-11-24).
+  website_atlas_api_key_missing: SETUP_ON_OUR_SIDE,
+  website_atlas_api_base_url_missing: SETUP_ON_OUR_SIDE,
+  website_atlas_runtime_policy_required: SETUP_ON_OUR_SIDE,
+  // Rights: what is on record does not cover the step (the grant's record, its owner, the consent, what may be
+  // disclosed to a provider and where it keeps the frames).
+  website_atlas_authorization_invalid: PERMISSION_NOT_COVERED,
+  website_atlas_source_owner_mismatch: PERMISSION_NOT_COVERED,
+  consent_expired: PERMISSION_NOT_COVERED,
+  website_atlas_pose_disclosure_not_authorized: PERMISSION_NOT_COVERED,
+  website_atlas_provider_retention_admission_mismatch: PERMISSION_NOT_COVERED,
+  atlas_task_retention_admission_mismatch: PERMISSION_NOT_COVERED,
+  website_image_completion_authorization_missing: PERMISSION_NOT_COVERED,
+  // Privacy, on our side.
+  atlas_privacy_screen_unavailable: PRIVACY_ON_OUR_SIDE,
+  atlas_privacy_screen_decision_changed: PRIVACY_ON_OUR_SIDE,
+  website_atlas_provider_retention_decision_required: PRIVACY_ON_OUR_SIDE,
+  // Rights or money, under one code.
+  atlas_runtime_authority_or_policy_changed: PERMISSION_OR_SPENDING_NOT_COVERED,
+  meta_sam_authorization_missing: PERMISSION_OR_SPENDING_NOT_COVERED,
+  website_preparation_spend_receipt_invalid: PERMISSION_OR_SPENDING_NOT_COVERED,
+  // Money: a spending limit.
+  ...Object.fromEntries(["atlas_completion_remaining_budget_insufficient", "atlas_completion_request_budget_insufficient",
+    "atlas_runtime_budget_insufficient", "atlas_runtime_budget_insufficient_for_pose_and_generation",
+    "atlas_scene_planner_invoker_budget_exhausted", "atlas_scene_planner_token_budget_exceeded",
+    "atlas_selection_budget_insufficient", "atlas_selection_budget_below_accurate_inputs", "website_atlas_pose_budget_insufficient",
+    "website_image_completion_budget_exceeded", "website_image_completion_budget_exhausted",
+    "website_image_completion_budget_missing", "website_job_spend_cap_unavailable"].map(code => [code, SPENDING_LIMIT_ON_OUR_SIDE])),
+  // Money: one of our spending checks.
+  ...Object.fromEntries(["atlas_refined_splat_price_unreviewed", "atlas_reviewed_selection_budget_required",
+    "atlas_runtime_price_review_expired", "atlas_task_reviewed_price_required", "website_atlas_pose_spend_binding_missing",
+    "website_atlas_pose_admission_expired", "paid_spend_meter_journal_unwritable", "runpod_provider_retired",
+    "meta_sam_caller_grant_covers_another_clip", "meta_sam_submission_requires_reconciliation"]
+    .map(code => [code, SPENDING_CHECK_ON_OUR_SIDE])),
 };
+const atlasPauseOf = (reason: string | null | undefined): AtlasPause | null =>
+  !reason ? null : Object.hasOwn(ATLAS_PAUSES, reason) ? ATLAS_PAUSES[reason]
+    : reason.startsWith(PAID_ADMISSION_PREFIX) ? SPENDING_CHECK_ON_OUR_SIDE : null;
 
 /** Whether this release has words of its own for an Atlas preview's reason (`noteUnknownPipelineCode` alerts any other). */
 export function atlasPreviewReasonKnown(reason: string | null | undefined): boolean {
@@ -715,10 +812,18 @@ export function atlasPreviewReasonKnown(reason: string | null | undefined): bool
     || reason === TASK_NOT_NAMED_REASON || isRecaptureReason(reason) || COVERAGE_REASONS.has(reason)
     || reason === "atlas_scene_requires_preserved_capture" || TASK_REASONS.has(reason) || GEOMETRY_REASONS.has(reason)
     || reason === "atlas_recorded_source_views_must_be_recovered_before_generation" || ATLAS_REASONS_WITHOUT_OWN_WORDS.has(reason)
-    || Object.hasOwn(ATLAS_PAUSES, reason);
+    || atlasPauseOf(reason) !== null;
 }
 /**
  * Reasons the Atlas preview sends that are said with the general card on purpose (no alert): the spending cap is read
  * from the preview itself (`atlasPreviewReachedSpendingCap`), and an owner's closing of a run has its own card.
+ *
+ * Sweep, 2026-11-24: the general card is what is true of the Atlas worker's own ends, so they are listed too: its
+ * deadline passed (`atlas_preview_expired`), it never had the video (`atlas_preview_source_video_unavailable`), or a
+ * request was too large to send (`meta_sam_inline_clip_exceeds_request_ceiling`). `task_brief_missing` is the
+ * website's own refusal when the job's description record is missing, and the Pipeline's fallback for
+ * `website_task_not_named` on a host that turned that code off; it is rechecked, and which of the two it is cannot be
+ * told from the code, so it keeps the general "still working" card.
  */
-const ATLAS_REASONS_WITHOUT_OWN_WORDS = new Set(["spending_cap_reached", "website_run_closed_by_owner"]);
+const ATLAS_REASONS_WITHOUT_OWN_WORDS = new Set(["spending_cap_reached", "website_run_closed_by_owner", "atlas_preview_expired",
+  "atlas_preview_source_video_unavailable", "meta_sam_inline_clip_exceeds_request_ceiling", "task_brief_missing"]);
