@@ -25,7 +25,7 @@ import { CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATES_NOT_CHECKED, SIMILAR_JOB
 import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 import { COMPANIES_READ_LINE, COMPANIES_READ_PENDING, COMPANIES_READ_SENTENCE_LABEL, COMPANIES_READ_SUCCESS_LABEL, COMPANIES_READ_TITLE,
-  replyAsReadLine, replyPendingLine, type CompaniesReadSiteWords, type CompaniesReadText } from "@/lib/companiesRead";
+  COMPANY_WORDS_BEING_PREPARED, replyAsReadLine, replyPendingLine, type CompaniesReadSiteWords, type CompaniesReadText } from "@/lib/companiesRead";
 
 /**
  * Exactly what deployment companies read of the site's own sentence and success rule (2026-11-24), on the site's own
@@ -385,9 +385,12 @@ function AnswerReason({ entry, estimateNote }: { entry: AnsweredEntry; estimateN
       {verified && <div><dt>What they checked</dt><dd>{verified}</dd></div>}
       {start && <div><dt>Earliest start</dt><dd>{start}</dd></div>}
     </dl>}
+    {/* Their words are being prepared: said plainly, never "No reason shared." while they exist. */}
+    {entry.wordsPending === true && <p className="bare-helper site-job-company-reason" role="status">{COMPANY_WORDS_BEING_PREPARED}</p>}
     {!(entry.state.startsWith("tested_") && verified) && !(entry.state === "needs_something" && entry.question) &&
       (reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
-        : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
+        : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && entry.wordsPending !== true
+          && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
     {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.question && !entry.company && !entry.introducedAtIso
       && !entry.introductionPending && <p className="bare-helper">{introductionIfChanged(shownName(entry))}</p>}
   </>;

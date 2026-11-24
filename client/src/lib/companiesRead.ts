@@ -37,3 +37,5 @@ export const replyPendingLine = (alias: string) => `${alias} sees your reply onc
 
 /** On a company's page, in place of the site's reply while it is being prepared. */
 export const SITE_REPLY_BEING_PREPARED = "The site replied. You can read it here once we have taken names and contact details out of it.";
+/** On the site's page, under a company's answer whose words are being prepared. */
+export const COMPANY_WORDS_BEING_PREPARED = "Their words show here once we have taken names and contact details out of them.";

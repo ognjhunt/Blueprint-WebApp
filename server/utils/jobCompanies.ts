@@ -49,10 +49,10 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 export type { AdminJobCompanies };
 import { operatorListingHold } from "./operatorListing";
-import { REMOVED, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { COMPANY_JOB_VIEWS_COLLECTION } from "./companyJobViews";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
-import { NOTHING_SCREENED, loadScreenings, screenAndWait, siteReplyForCompany, type Screenings } from "./freeTextScreening";
+import { NOTHING_SCREENED, loadScreenings, screenAndWait, screenInBackground, siteReplyForCompany, type Screenings } from "./freeTextScreening";
 
 export const COMPANY_SENDS_COLLECTION = "companySends";
 export const INTRODUCTIONS_COLLECTION = "introductions";
@@ -333,7 +333,9 @@ export function knownCompanyIdentity(...records: Array<Data | null | undefined>)
       } catch { /* not a web address: the typed value alone */ }
     }
   }
-  return { names: [...organisations, ...people], organisations, addresses: [], contacts };
+  // The person's name whole, and each of its words alone where written with a capital ("Casey", "Mr. Hlington"), as the
+  // site's own first and last names are held (`knownSiteIdentity`), 2026-11-24.
+  return { names: [...organisations, ...people], organisations, addresses: [], contacts, people };
 }
 
 /**
@@ -349,10 +351,13 @@ export function answerWordsMayReachSite(answer: Data | null | undefined): boolea
 }
 
 /**
- * The company's reason as the site may read it, or null: its words about its answer with its known identity taken out
- * (each name becomes "the company"; emails, phone numbers, websites and links become "[removed]"). Null when the words
- * may not reach the site (`answerWordsMayReachSite`), when there are none, when nothing worth reading is left once the
- * details are out, or when the removal fails: the site's page then says so plainly (`NO_REASON_SHOWN`).
+ * The deterministic pass over a company's words for the site, or null: its words about its answer with its known
+ * identity taken out (each name, and each word of its person's name written with a capital, becomes "the company";
+ * emails, phone numbers, websites and links become "[removed]"), then any other person- or business-shaped name
+ * (`removeNamesNotHeld`: "Dana Whitfield", "Mr. Smith"). Null when the words may not reach the site
+ * (`answerWordsMayReachSite`), when there are none, when nothing worth reading is left once the details are out, or
+ * when the removal fails: the site's page then says so plainly (`NO_REASON_SHOWN`). What the site reads is this, the
+ * model pass over it and this again (`companyWordsForSite`).
  */
 export function siteReasonOf(answer: Data | null | undefined, identity: KnownSiteIdentity): string | null {
   if (!answerWordsMayReachSite(answer)) return null;
@@ -360,7 +365,7 @@ export function siteReasonOf(answer: Data | null | undefined, identity: KnownSit
   if (!words) return null;
   try {
     // A web address whose host was taken out leaves no path behind ("[removed]/contact" is "[removed]").
-    const shown = removeIdentifyingDetails(words, identity, { nameAs: "company" })
+    const shown = removeNamesNotHeld(removeIdentifyingDetails(words, identity, { nameAs: "company" }))
       .replace(/\[removed\]\/\S*?(?=[.,;:!?)]*(?:\s|$))/g, REMOVED).trim();
     const left = shown.split(REMOVED).join(" ").replace(/\bthe company\b/gi, " ").replace(/[^\p{L}\p{N}]+/gu, "");
     return left.length >= 3 ? shown : null;
@@ -368,6 +373,36 @@ export function siteReasonOf(answer: Data | null | undefined, identity: KnownSit
     logger.warn({ err: error }, "A company's words could not be cleared for the site; the site is told no reason is shown");
     return null;
   }
+}
+
+/** Words a company gave that exist but the site does not read yet: the model pass over them has not succeeded. */
+export const WORDS_PENDING = "pending" as const;
+
+/**
+ * A company's words as the site reads them (2026-11-24): the deterministic pass (`siteReasonOf`), the model pass over
+ * what it leaves (`freeTextScreening.ts`) and the deterministic pass again. Null when there are none the site may read;
+ * `WORDS_PENDING` while the model pass has not succeeded for this exact text (the site then reads none of them, and the
+ * text is recorded in `screenings.missing`, for the caller to screen).
+ */
+export function companyWordsForSite(answer: Data | null | undefined, identity: KnownSiteIdentity, screenings: Screenings):
+  string | null | typeof WORDS_PENDING {
+  const input = siteReasonOf(answer, identity);
+  if (!input) return null;
+  const screened = screenings.shown("company", input);
+  return screened === null ? WORDS_PENDING : siteReasonOf({ ...answer, inputs: screened }, identity);
+}
+
+/**
+ * Start the model pass over the words of an answer just given (its reason, its question, what it verified and what a
+ * visit must confirm), so the site reads them soon. Without waiting; the site's page screens any still missing itself.
+ * `records`: the company's access record and the answer, as `projectSiteCompanyActivity` reads its identity.
+ */
+export function screenCompanyWordsInBackground(jobId: string, answer: Data, ...records: Array<Data | null | undefined>) {
+  const identity = knownCompanyIdentity(...records);
+  const details = isRecord(answer.details) ? answer.details : {};
+  const texts = [answer.inputs, questionOnReply(answer)?.text, details.verified, details.visitMustConfirm]
+    .map(inputs => siteReasonOf({ ...answer, inputs }, identity)).filter((value): value is string => Boolean(value));
+  screenInBackground(jobId, [...new Set(texts)].map(text => ({ writer: "company" as const, text })));
 }
 
 /**
@@ -410,12 +445,12 @@ export function applicantShownToSite(answer: Data | null | undefined, company: D
  * jobs it has done and what a visit must confirm (its identity taken out of those words), and the estimate only under a
  * line that says the site sees it (`COMPANY_ESTIMATE_STATEMENT_VERSIONS`). Only for an application, never another answer.
  */
-function applicationAtAGlance(answer: Data, identity: ReturnType<typeof knownCompanyIdentity>): Partial<CompanyReplyDetails> {
+function applicationAtAGlance(answer: Data, words: (inputs: unknown) => string | null): Partial<CompanyReplyDetails> {
   if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer.state)) return {};
   const details = (answer.details && typeof answer.details === "object" ? answer.details : {}) as Data;
   const chargeModel = CHARGE_MODELS.find(model => model === details.chargeModel);
   const similarJobs = SIMILAR_JOBS.find(band => band === details.similarJobs);
-  const visit = typeof details.visitMustConfirm === "string" ? siteReasonOf({ ...answer, inputs: details.visitMustConfirm }, identity) : null;
+  const visit = typeof details.visitMustConfirm === "string" ? words(details.visitMustConfirm) : null;
   const estimate = chargeModel && chargeModel !== "undecided" && COMPANY_ESTIMATE_STATEMENT_VERSIONS.includes(String(answer.statementVersion))
     && isApplicationEstimate(details.estimate) ? { lowUsd: details.estimate.lowUsd, highUsd: details.estimate.highUsd } : null;
   return { ...(chargeModel ? { chargeModel } : {}), ...(estimate ? { estimate } : {}), ...(similarJobs ? { similarJobs } : {}),
@@ -437,8 +472,8 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
   /** Company records by id (`robotTeamAccess`), only to take each company's identity out of its words. */
   companies?: ReadonlyMap<string, Data>;
   /**
-   * The model pass's results for this job (`freeTextScreening.ts`). Without them nothing it has to read is shown: the
-   * site's own reply to a question then reads as sent and not yet read by the company.
+   * The model pass's results for this job (`freeTextScreening.ts`). Without them nothing it has to read is shown: a
+   * company's words then read as being prepared, and the site's own reply as sent and not yet read by the company.
    */
   screenings?: Screenings;
   /** The site's own identity, for the last deterministic pass over its reply, as the company's page does. */
@@ -477,24 +512,33 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const canIntroduce = !intro && (!cancelled.has(response.id) || retryable.has(response.id)) && input.listed === true
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
     const identity = knownCompanyIdentity(input.companies?.get(response.id), response.data);
-    const reason = siteReasonOf(response.data, identity);
+    // Each piece of the company's words as the site reads it (`companyWordsForSite`); one still being prepared shows as
+    // none, and the entry says its words are on their way (`wordsPending`).
+    let wordsPending = false;
+    const words = (inputs: unknown) => {
+      const shown = companyWordsForSite({ ...response.data, inputs }, identity, screenings);
+      if (shown === WORDS_PENDING) { wordsPending = true; return null; }
+      return shown;
+    };
+    const reason = words(response.data.inputs);
     const question = questionOnReply(response.data);
-    const questionText = question && siteReasonOf({ ...response.data, inputs: question.text }, identity);
+    const questionText = question && words(question.text);
     const canAnswer = question && questionText && input.listed && input.approvedDeploymentCompanies?.has(response.id);
     // The site's own reply, exactly as the company reads it (2026-11-24), or pending while the model pass has not read it.
     const stored = question ? clarificationOnReply(response.data, question.id) : undefined;
     const answer = stored === undefined ? undefined : siteReplyForCompany(stored, input.siteIdentity ?? null, screenings);
     const startWindow = response.data.details?.startWindow;
-    const verified = siteReasonOf({ ...response.data, inputs: response.data.details?.verified }, identity);
+    const verified = words(response.data.details?.verified);
     const details = answerWordsMayReachSite(response.data) ? {
       ...(verified ? { verified } : {}),
       ...(COMPANY_START_WINDOWS.some(window => window === startWindow) ? { startWindow } : {}),
-      ...applicationAtAGlance(response.data, identity),
+      ...applicationAtAGlance(response.data, words),
     } : {};
     const applicant = applicantShownToSite(response.data, input.companies?.get(response.id));
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
       ...(applicant ? { applicant } : {}),
       ...(reason ? { reason } : {}),
+      ...(wordsPending ? { wordsPending: true as const } : {}),
       ...(Object.keys(details).length ? { details } : {}),
       ...(canAnswer ? { question: { id: question.id, text: questionText, ...(answer ? { answer } : {}),
         ...(stored !== undefined && !answer ? { answerPending: true as const } : {}),

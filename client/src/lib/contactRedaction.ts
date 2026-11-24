@@ -145,6 +145,13 @@ export interface KnownSiteIdentity {
   addresses: Array<string | null | undefined>;
   /** Emails and phone numbers the site gave: each becomes `[removed]`. */
   contacts: Array<string | null | undefined>;
+  /**
+   * People's names held (also in `names`, whole): under the current rules each word of two or more letters is also
+   * removed on its own wherever it is written with a capital first letter, with a title before it ("Casey will bring
+   * the drawings", "Thanks, Casey", "Mr. Hlington"). Only with its capital, so a first name that is also a word ("Will",
+   * "Mark") leaves the word in lower case alone; the model pass after this one reads the rest.
+   */
+  people?: Array<string | null | undefined>;
 }
 
 const COUNTRY_WORDS = new Set(["us", "usa", "u.s.", "u.s.a.", "united states", "united states of america", "america", "uk", "u.k.",
@@ -218,6 +225,15 @@ const GENERIC_NAME_WORDS = new Set(["foods", "food", "logistics", "group", "comp
 function startsSentence(text: string, offset: number): boolean {
   const before = text.slice(0, offset).replace(/["'“‘(\[\s]+$/u, "");
   return before.length === 0 || /[.!?:;\n]$/.test(before);
+}
+
+/** One word of a held person's name, alone, where it is written with a capital first letter, with a title before it. */
+function namePartPattern(word: string): RegExp | null {
+  if (!/^\p{L}{2,}$/u.test(word)) return null;
+  const [first, ...rest] = [...word];
+  const tail = rest.map(letter => `[${escapeRegExp(letter.toLowerCase())}${escapeRegExp(letter.toUpperCase())}]`).join("");
+  return new RegExp(`(?:(?<![\\p{L}\\p{N}])(?:Mr|Mrs|Ms|Mx|Dr|Miss|Mister)\\.?\\s+)?(?<![\\p{L}\\p{N}])`
+    + `${escapeRegExp(first.toUpperCase())}${tail}(?![\\p{L}\\p{N}])`, "gu");
 }
 
 /** A distinctive word of the site's or organisation's name, alone, only where the sentence capitalises it ("Acme"). */
@@ -379,6 +395,10 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
   for (const word of new Set(values(known.organisations ?? []).flatMap(name => name.split(/[^\p{L}\p{N}]+/u)))) {
     const pattern = capitalisedWordPattern(word);
     // Wherever it is capitalised, the first word of a sentence included (privacy over a mangled sentence).
+    if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) => nameAs(whole, offset));
+  }
+  if (wide) for (const word of new Set(values(known.people ?? []).flatMap(name => fold(name).split(/[^\p{L}]+/u)))) {
+    const pattern = namePartPattern(word);
     if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) => nameAs(whole, offset));
   }
   for (const street of wide ? [...STREETS, ...ORDINAL_STREETS] : STREETS) out = out.replace(street, "");

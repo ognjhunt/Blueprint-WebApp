@@ -62,8 +62,9 @@ function PublicJobFacts({ jobId }: { jobId: string }) {
 /** The job library: the signed-in list on the companies' page, at its own section. */
 export const JOB_LIBRARY_URL = BROWSE_JOBS_PATH;
 export const VIDEO_PREPARING = "The video is being prepared.";
-/** Under the words box: the site reads them, with the company's identity taken out first (`jobCompanies.siteReasonOf`). */
-export const WORDS_REACH_SITE = "The site reads these words, with your company's name and contact details taken out.";
+/** Under the words box: the site reads them, with the company's identity and people's names taken out first
+ * (`jobCompanies.companyWordsForSite`). */
+export const WORDS_REACH_SITE = "The site reads these words, with your company's name, people's names and contact details taken out.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
 export const NO_FIRST_LOOK = "Our first look is not ready yet.";
 export const NO_PACKET_FACTS = "Nothing about the object is measured or estimated yet.";
