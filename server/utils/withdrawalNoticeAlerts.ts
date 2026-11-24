@@ -9,8 +9,9 @@
  * WITHDRAWAL_NOTICE_ALERT_AFTER_MS after the site's request, naming why ("not configured", "refused", "failed") and how
  * many wait. It names no site: only the job's id, as every ops alert does, never its name, address or contact details.
  *
- * Once per withdrawal: a create-only marker in its own collection, so a restart or two monitor passes cannot repeat it.
- * Read-only on the job record.
+ * Once per withdrawal, and never lost: each has a marker in its own collection that a pass claims before it sends and
+ * marks delivered only after Slack or the email took the alert. A pass that died between the two, or whose sends both
+ * failed, leaves a claim with no delivery, and the next pass sends it again. Read-only on the job record.
  */
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -28,11 +29,38 @@ import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
  */
 export const WITHDRAWAL_NOTICE_ALERT_AFTER_MS = 15 * 60 * 1000;
 export const WITHDRAWAL_NOTICE_ALERT_COLLECTION = "opsWithdrawalNoticeAlerts";
+/**
+ * How long one pass holds a withdrawal's alert before another pass may send it. Longer than any send (Slack and the
+ * email each give up within seconds) and shorter than the monitor's 5-minute pass: two processes in the same minute do
+ * not both send, and an alert that was not delivered goes out again on the next pass.
+ */
+export const WITHDRAWAL_NOTICE_ALERT_CLAIM_MS = 4 * 60 * 1000;
 const PAGE = 500;
 
-const alerted = new Set<string>();
+/** Withdrawals this process knows were delivered, so a pass does not read their markers again. */
+const delivered = new Set<string>();
 
 type Waiting = { requestId: string; waitedMs: number; cause: string; tries: number; notConfigured: boolean };
+
+/**
+ * Take this withdrawal's alert for this pass. 0 when it was already delivered or another pass took it moments ago;
+ * otherwise which send this is for the withdrawal (1 the first time).
+ */
+async function claimAlert(db: FirebaseFirestore.Firestore, item: Waiting, nowMs: number): Promise<number> {
+  const ref = db.collection(WITHDRAWAL_NOTICE_ALERT_COLLECTION).doc(item.requestId);
+  return db.runTransaction(async tx => {
+    const marker = (await tx.get(ref)).data();
+    if (marker?.delivered_at_iso) {
+      delivered.add(item.requestId);
+      return 0;
+    }
+    if (marker && nowMs - Number(marker.claimed_at_ms || 0) < WITHDRAWAL_NOTICE_ALERT_CLAIM_MS) return 0;
+    const sends = Number(marker?.sends || 0) + 1;
+    tx.set(ref, { request_id: item.requestId, cause: item.cause, claimed_at_ms: nowMs,
+      claimed_at_iso: new Date(nowMs).toISOString(), sends }, { merge: true });
+    return sends;
+  });
+}
 
 /** Why the last try did not get an acknowledgement, in the owner's words. */
 export function withdrawalNoticeCause(outbox: Record<string, any> | undefined, blocker: unknown): { cause: string; notConfigured: boolean } {
@@ -77,20 +105,17 @@ export async function scanUnacknowledgedWithdrawals(options: {
       ...withdrawalNoticeCause(outbox, withdrawal.acknowledgementBlocker) });
   }
   const fresh: Waiting[] = [];
+  let sends = 1;
   for (const item of waiting) {
-    if (alerted.has(item.requestId)) continue;
+    if (delivered.has(item.requestId)) continue;
     try {
-      await db.collection(WITHDRAWAL_NOTICE_ALERT_COLLECTION).doc(item.requestId).create({
-        request_id: item.requestId, cause: item.cause, alerted_at_iso: new Date(nowMs).toISOString() });
+      const send = await claimAlert(db, item, nowMs);
+      if (!send) continue;
+      sends = Math.max(sends, send);
       fresh.push(item);
     } catch (error) {
-      const code = (error as { code?: unknown })?.code;
-      if (code !== 6 && code !== "already-exists" && code !== "ALREADY_EXISTS") {
-        logger.warn({ err: error, requestId: item.requestId }, "Could not record a withdrawal notice alert marker");
-        continue;
-      }
+      logger.warn({ err: error, requestId: item.requestId }, "Could not claim a withdrawal notice alert");
     }
-    alerted.add(item.requestId);
   }
   if (!fresh.length) return { waiting: waiting.length, newlyAlerted: 0 };
   const total = waiting.length;
@@ -107,13 +132,28 @@ export async function scanUnacknowledgedWithdrawals(options: {
     ...lines, ...more, advice].join("\n");
   logger.error({ event: "website_withdrawal_notice_unacknowledged", waiting: total, newly: fresh.length,
     requestIds: fresh.map(item => item.requestId) }, "Site withdrawals have not reached the Pipeline");
-  await Promise.resolve((options.alert || sendRateLimitedOpsAlert)(`website_withdrawal_notice:${fresh[0].requestId}`, text))
-    .catch(() => undefined);
-  await (options.email || sendEmail)({ to: opsNoticeRecipient(), subject: `[ALERT] ${title}`,
-    text: text.replace(/^:rotating_light: /, "") }).catch(() => undefined);
+  // A send that failed is no duplicate: the key carries which send this is, so the alerter's 15-minute window for one
+  // key does not swallow the next pass's retry.
+  const [slack, mail] = await Promise.all([
+    Promise.resolve((options.alert || sendRateLimitedOpsAlert)(`website_withdrawal_notice:${fresh[0].requestId}:${sends}`, text))
+      .catch(() => undefined),
+    (options.email || sendEmail)({ to: opsNoticeRecipient(), subject: `[ALERT] ${title}`,
+      text: text.replace(/^:rotating_light: /, "") }).catch(() => undefined),
+  ]);
+  if ((slack as { sent?: unknown } | undefined)?.sent !== true && mail?.sent !== true) {
+    logger.error({ event: "website_withdrawal_notice_alert_undelivered", requestIds: fresh.map(item => item.requestId) },
+      "The withdrawal notice alert reached neither Slack nor the ops email; the next pass sends it again");
+    return { waiting: total, newlyAlerted: 0 };
+  }
+  const deliveredAtIso = new Date(nowMs).toISOString();
+  await Promise.all(fresh.map(item => db.collection(WITHDRAWAL_NOTICE_ALERT_COLLECTION).doc(item.requestId)
+    .set({ delivered_at_iso: deliveredAtIso }, { merge: true })
+    .then(() => { delivered.add(item.requestId); })
+    // Not recorded: the next pass sends it once more, which is better than the owner never hearing.
+    .catch(error => logger.warn({ err: error, requestId: item.requestId }, "Could not record a delivered withdrawal notice alert"))));
   return { waiting: total, newlyAlerted: fresh.length };
 }
 
 export function __resetWithdrawalNoticeAlertsForTests() {
-  alerted.clear();
+  delivered.clear();
 }

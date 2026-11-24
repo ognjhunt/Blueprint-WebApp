@@ -213,4 +213,50 @@ describe("the owner is told once when a withdrawal has not reached the Pipeline"
     expect(message).toMatch(/failed \(no answer\)/);
     expect(message).not.toMatch(/job-ok|job-new/);
   });
+
+  it("sends again on the next pass when neither Slack nor the email took it, then once delivered stays quiet", async () => {
+    state.docs.set("inboundRequests/job-a", withdrawnJob("job-a", new Date(REQUESTED).toISOString()));
+    const { scanUnacknowledgedWithdrawals, WITHDRAWAL_NOTICE_ALERT_COLLECTION } = await import("../utils/withdrawalNoticeAlerts");
+    const marker = () => state.docs.get(`${WITHDRAWAL_NOTICE_ALERT_COLLECTION}/job-a`) as Record<string, any>;
+    const down = vi.fn(async (_key: string, _message: string) => ({ sent: false, suppressed: false }));
+    const noMail = vi.fn(async () => ({ sent: false }) as never);
+    expect(await scanUnacknowledgedWithdrawals({ now: () => REQUESTED + 20 * MINUTE, alert: down, email: noMail }))
+      .toMatchObject({ waiting: 1, newlyAlerted: 0 });
+    expect(marker()).toMatchObject({ sends: 1 });
+    expect(marker().delivered_at_iso).toBeUndefined();
+    // The monitor's next pass, five minutes on: both are tried again, under a key the alerter has not seen.
+    const up = vi.fn(async (_key: string, _message: string) => ({ sent: true, suppressed: false }));
+    expect(await scanUnacknowledgedWithdrawals({ now: () => REQUESTED + 25 * MINUTE, alert: up, email: noMail }))
+      .toMatchObject({ waiting: 1, newlyAlerted: 1 });
+    expect(up).toHaveBeenCalledTimes(1);
+    expect(up.mock.calls[0][0]).not.toBe(down.mock.calls[0][0]);
+    expect(noMail).toHaveBeenCalledTimes(2);
+    expect(marker()).toMatchObject({ sends: 2, delivered_at_iso: new Date(REQUESTED + 25 * MINUTE).toISOString() });
+    // Delivered: this process and a new one say nothing more.
+    await scanUnacknowledgedWithdrawals({ now: () => REQUESTED + 30 * MINUTE, alert: up, email: noMail });
+    vi.resetModules();
+    const fresh = await import("../utils/withdrawalNoticeAlerts");
+    expect(await fresh.scanUnacknowledgedWithdrawals({ now: () => REQUESTED + 60 * MINUTE, alert: up, email: noMail }))
+      .toMatchObject({ waiting: 1, newlyAlerted: 0 });
+    expect(up).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends an alert a process claimed and died before sending, but not one another pass took a minute ago", async () => {
+    state.docs.set("inboundRequests/job-a", withdrawnJob("job-a", new Date(REQUESTED).toISOString()));
+    const { scanUnacknowledgedWithdrawals, WITHDRAWAL_NOTICE_ALERT_COLLECTION, WITHDRAWAL_NOTICE_ALERT_CLAIM_MS } =
+      await import("../utils/withdrawalNoticeAlerts");
+    const claimedAtMs = REQUESTED + 20 * MINUTE;
+    // The claim is all a process leaves when it exits between taking the alert and sending it.
+    state.docs.set(`${WITHDRAWAL_NOTICE_ALERT_COLLECTION}/job-a`, { request_id: "job-a", cause: "failed (no answer)",
+      claimed_at_ms: claimedAtMs, claimed_at_iso: new Date(claimedAtMs).toISOString(), sends: 1 });
+    const alert = vi.fn(async (_key: string, _message: string) => ({ sent: true, suppressed: false }));
+    const email = vi.fn(async () => ({ sent: true }) as never);
+    expect(await scanUnacknowledgedWithdrawals({ now: () => claimedAtMs + MINUTE, alert, email }))
+      .toMatchObject({ waiting: 1, newlyAlerted: 0 });
+    expect(alert).not.toHaveBeenCalled();
+    expect(await scanUnacknowledgedWithdrawals({ now: () => claimedAtMs + WITHDRAWAL_NOTICE_ALERT_CLAIM_MS, alert, email }))
+      .toMatchObject({ waiting: 1, newlyAlerted: 1 });
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(email).toHaveBeenCalledTimes(1);
+  });
 });
