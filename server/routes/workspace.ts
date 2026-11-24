@@ -32,7 +32,7 @@ import type { InboundRequestStored } from "../types/inbound-request";
 import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import { accessRecordId, ensureApprovedTeamForAccount } from "../utils/robotTeamEarlyAccess";
-import { recordCompanyTermsAcceptance } from "../utils/companyTerms";
+import { recordCompanyTermsAcceptance, serverAcceptanceMarker } from "../utils/companyTerms";
 import { emailOpenJobsToCompany } from "../utils/jobAutoSend";
 import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
@@ -245,6 +245,8 @@ router.post(
               privacyVersion: termsAcceptance.privacy_version,
               termsAcceptance,
               ...(intakeTermsApply ? { termsAcceptanceSource: { kind: "site_capture_intake", requestId: siteIntakeId } } : {}),
+              // Only the server writes an acceptance; its mark says so (`companyTerms.ts`).
+              termsAcceptanceByServer: serverAcceptanceMarker(termsAcceptance, intakeTermsApply ? "site_capture_intake" : "workspace_setup"),
             }
           : {}),
       };
@@ -303,9 +305,11 @@ router.post(
       termsVersion: shown.terms_version,
       privacyVersion: shown.privacy_version,
       termsAcceptance: buildLegalAcceptanceRecord({ acceptedAt: now, shown }),
+      termsAcceptanceByServer: serverAcceptanceMarker(shown, "site_start_form"),
     };
     const profileRef = db!.collection("users").doc(auth.uid);
-    const siteSetup = new Set(["buyerType", "workspaceSetupCompletedAt", "acceptedTerms", "termsVersion", "privacyVersion", "termsAcceptance"]);
+    const siteSetup = new Set(["buyerType", "workspaceSetupCompletedAt", "acceptedTerms", "termsVersion", "privacyVersion", "termsAcceptance",
+      "termsAcceptanceByServer"]);
     await db!.runTransaction(async (transaction) => {
       const current = (await transaction.get(profileRef)).data();
       // A type chosen since the read above is someone else's setup; keep it.
@@ -543,6 +547,7 @@ router.post(
           termsAcceptanceSource: intakeTermsApply
             ? { kind: "site_capture_intake", requestId: payload.requestId }
             : { kind: "site_claim", requestId: payload.requestId },
+          termsAcceptanceByServer: serverAcceptanceMarker(termsAcceptance, intakeTermsApply ? "site_capture_intake" : "site_claim"),
         } : {}),
       };
       if (Object.keys(profilePatch).length > 0) transaction.update(profileRef, profilePatch);
