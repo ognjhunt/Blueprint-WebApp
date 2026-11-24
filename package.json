@@ -23,6 +23,7 @@
     "pipeline:site-task-measurement-catalog:verify": "tsx scripts/pipeline/verify-site-task-measurement-catalog.ts",
     "pipeline:robot-spec-catalog:verify": "tsx scripts/pipeline/verify-robot-spec-catalog.ts",
     "pipeline:website-job-spend-cap:verify": "tsx scripts/pipeline/verify-website-job-spend-cap.ts",
+    "pipeline:mirrors:verify": "bash scripts/pipeline/verify-mirrors.sh",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "deploy:rollback": "node scripts/deploy-rollback.mjs",

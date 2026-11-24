@@ -27,6 +27,7 @@ const excludedDirs = new Set([
   // contracts). Their assets are not this repo's to audit.
   "BlueprintCapture",
   "BlueprintContracts",
+  "BlueprintCapturePipeline",
 ]);
 
 function toPosixPath(filePath: string): string {
