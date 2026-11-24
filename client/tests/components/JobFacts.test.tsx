@@ -29,7 +29,28 @@ describe("JobFacts", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "Weight" }), { target: { value: "20" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("How many items arrive per minute at the busiest time?")).toBeVisible();
-    expect(bodyOf(fetchMock, 0)).toEqual({ key: "maxLoadedWeightKg", code: "9.072" });
+    // Pounds, the box's default unit, are saved as typed (stress test, 2026-11-24: never a converted 9.072).
+    expect(bodyOf(fetchMock, 0)).toEqual({ key: "maxLoadedWeightKg", code: "20lb" });
+  });
+
+  it("saves a weight in kilograms as typed, and reopens either answer in the unit it was typed in", async () => {
+    const fetchMock = savingServer();
+    vi.stubGlobal("fetch", fetchMock);
+    const { unmount } = render(<JobFacts token="tok" taskFamily="Palletizing" />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Unit" }), { target: { value: "kg" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Weight" }), { target: { value: "12.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("How many items arrive per minute at the busiest time?");
+    expect(bodyOf(fetchMock, 0)).toEqual({ key: "maxLoadedWeightKg", code: "12.5" });
+    unmount();
+    for (const [code, value, unit] of [["44lb", "44", "lb"], ["12.5", "12.5", "kg"]]) {
+      const facts = { maxLoadedWeightKg: code, peakPerMinute: "unsure", palletPattern: "unsure", hours: "unsure", timing: "unsure" };
+      const page = render(<JobFacts token="tok" taskFamily="Palletizing" facts={facts as never} />);
+      fireEvent.click(screen.getByRole("button", { name: "Change" }));
+      expect(screen.getByRole("spinbutton", { name: "Weight" })).toHaveValue(Number(value));
+      expect(screen.getByRole("combobox", { name: "Unit" })).toHaveValue(unit);
+      page.unmount();
+    }
   });
 
   it("opens with the defect to catch for an inspection job", () => {

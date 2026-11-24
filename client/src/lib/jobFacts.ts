@@ -134,7 +134,37 @@ export const JOB_FACT_CHOICES = {
 } as const satisfies Record<JobFactKey, ReadonlyArray<{ code: string; label: string }>>;
 
 type NumericJobFactKey = "peakPerMinute" | "maxLoadedWeightKg" | "itemsPerCase" | "machineCycleSeconds";
-export type JobFactCode<K extends JobFactKey> = (typeof JOB_FACT_CHOICES)[K][number]["code"] | (K extends NumericJobFactKey ? `${number}` : never);
+export type JobFactCode<K extends JobFactKey> = (typeof JOB_FACT_CHOICES)[K][number]["code"]
+  | (K extends NumericJobFactKey ? `${number}` : never) | (K extends "maxLoadedWeightKg" ? `${number}lb` : never);
+
+export const KG_PER_LB = 0.45359237;
+/** A number as the quick questions take it: up to seven digits, and up to three decimal places. */
+const TYPED_NUMBER = /^\d{1,7}(?:\.\d{1,3})?$/;
+/**
+ * The heaviest load typed in pounds is stored as the site typed it, "44lb" (stress test, 2026-11-24: "44 lb" was shown as
+ * "19.958 kg", a precision nobody gave); in kilograms, as the number. Older answers typed in pounds were stored converted.
+ */
+const POUNDS = /^(\d{1,7}(?:\.\d{1,3})?)lb$/;
+
+/** A converted weight, rounded as a person would say it: whole kilograms from 10 kg, two significant figures below. */
+const roughKg = (kg: number) => String(kg >= 10 ? Math.round(kg) : Number(kg.toPrecision(2)));
+
+/**
+ * The number a numeric answer means, in its question's unit (kilograms for the heaviest load, whatever unit the site
+ * typed it in); null for a choice, "Not sure" or anything unknown.
+ */
+export function jobFactNumber(key: JobFactKey, code: unknown): number | null {
+  if (!JOB_FACT_NUMBERS[key] || !isJobFactCode(key, code) || code === "unsure") return null;
+  const pounds = key === "maxLoadedWeightKg" ? POUNDS.exec(code) : null;
+  return pounds ? Number(pounds[1]) * KG_PER_LB : Number(code);
+}
+
+/** The answer as the site typed it, for its own number box: the number and its unit. Null for no typed number. */
+export function typedJobFactNumber(key: JobFactKey, code: unknown): { value: string; unit: "lb" | "kg" | null } | null {
+  if (!JOB_FACT_NUMBERS[key] || !isJobFactCode(key, code) || code === "unsure") return null;
+  const pounds = key === "maxLoadedWeightKg" ? POUNDS.exec(code) : null;
+  return pounds ? { value: pounds[1], unit: "lb" } : { value: code, unit: key === "maxLoadedWeightKg" ? "kg" : null };
+}
 
 const QUESTIONS_BY_JOB_TYPE: Readonly<Partial<Record<string, readonly JobFactKey[]>>> = {
   Palletizing: ["maxLoadedWeightKg", "peakPerMinute", "palletPattern", "hours", "timing"],
@@ -319,8 +349,8 @@ export const WEIGHT_RANGE_KG: Readonly<Record<JobFactCode<"weight">, { lower: nu
 
 /** The upper bound of the site's weight answer, in kg. Null for no answer, "over 30 kg" and "not sure". */
 export function weightUpperBoundKg(facts: Partial<JobFacts> | null | undefined): number | null {
-  const max = facts?.maxLoadedWeightKg;
-  if (max !== "unsure" && isJobFactCode("maxLoadedWeightKg", max)) return Number(max);
+  const max = jobFactNumber("maxLoadedWeightKg", facts?.maxLoadedWeightKg);
+  if (max !== null) return max;
   const code = facts?.weight;
   if (!code || !isJobFactCode("weight", code)) return null;
   return WEIGHT_RANGE_KG[code]?.upper ?? null;
@@ -343,8 +373,9 @@ export function isJobFactCode<K extends JobFactKey>(key: K, value: unknown): val
   if (typeof value !== "string") return false;
   const numeric = JOB_FACT_NUMBERS[key];
   if (numeric && value !== "unsure") {
-    if (!/^\d{1,7}(?:\.\d{1,3})?$/.test(value)) return false;
-    const number = Number(value);
+    const pounds = key === "maxLoadedWeightKg" ? POUNDS.exec(value) : null;
+    if (!pounds && !TYPED_NUMBER.test(value)) return false;
+    const number = pounds ? Number(pounds[1]) * KG_PER_LB : Number(value);
     return number >= numeric.min && number <= numeric.max && (!numeric.whole || Number.isInteger(number));
   }
   return (JOB_FACT_CHOICES[key] as ReadonlyArray<{ code: string }>).some(choice => choice.code === value);
@@ -353,7 +384,12 @@ export function isJobFactCode<K extends JobFactKey>(key: K, value: unknown): val
 export function jobFactLabel<K extends JobFactKey>(key: K, code: string): string | null {
   const choice = (JOB_FACT_CHOICES[key] as ReadonlyArray<{ code: string; label: string }>).find(item => item.code === code);
   const numeric = JOB_FACT_NUMBERS[key];
-  if (numeric && !choice && isJobFactCode(key, code)) return `${Number(code)} ${numeric.unit}`;
+  if (numeric && !choice && isJobFactCode(key, code)) {
+    // What the site typed, then the conversion, rounded: "44 lb (about 20 kg)".
+    const typed = typedJobFactNumber(key, code);
+    if (typed?.unit === "lb") return `${Number(typed.value)} lb (about ${roughKg(Number(typed.value) * KG_PER_LB)} kg)`;
+    return `${Number(code)} ${numeric.unit}`;
+  }
   return choice ? choice.label : null;
 }
 

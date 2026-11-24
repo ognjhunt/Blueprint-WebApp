@@ -124,4 +124,13 @@ describe("parseJobFactTap and readJobFacts", () => {
       .toEqual({ weight: "5_15kg", updatedAtIso: "2026-11-12T00:00:00.000Z" });
     expect(readJobFacts({})).toBeNull();
   });
+
+  // Stress test, 2026-11-24: a weight typed in pounds is stored as typed, never as a converted 19.958.
+  it("takes the heaviest load in pounds as typed, and nothing else with a unit", () => {
+    expect(parseJobFactTap({ key: "maxLoadedWeightKg", code: "44lb" })).toEqual({ ok: true, tap: { key: "maxLoadedWeightKg", code: "44lb" } });
+    expect(parseJobFactTap({ key: "maxLoadedWeightKg", code: "44 lb" })).toEqual({ ok: false, reason: "unknown_answer" });
+    expect(parseJobFactTap({ key: "peakPerMinute", code: "12lb" })).toEqual({ ok: false, reason: "unknown_answer" });
+    expect(readJobFacts({ job_facts: { maxLoadedWeightKg: "44lb", updatedAtIso: "2026-11-24T00:00:00.000Z" } }))
+      .toEqual({ maxLoadedWeightKg: "44lb", updatedAtIso: "2026-11-24T00:00:00.000Z" });
+  });
 });
