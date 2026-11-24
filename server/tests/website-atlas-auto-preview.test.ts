@@ -861,10 +861,12 @@ describe("Pipeline Atlas preview status", () => {
     expect((await push(preview({ revision: 2, state: "needs_input", reason: "account_monthly_spend_report_stale" }))).status).toBe(200);
     expect(unknownCodes).toEqual([]);
     expect((await push(preview({ revision: 3, state: "needs_input", reason: "atlas_context_pixel_axes_changed" }))).status).toBe(200);
+    // The worker's own end is said with the general card on purpose (the sweep of the Pipeline's codes, 2026-11-24).
     expect((await push(preview({ revision: 4, state: "failed", reason: "atlas_preview_expired" }))).status).toBe(200);
+    expect((await push(preview({ revision: 5, state: "failed", reason: "atlas_a_code_no_release_sends" }))).status).toBe(200);
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(unknownCodes).toEqual([["req1", "atlas_preview.reason", "atlas_context_pixel_axes_changed"],
-      ["req1", "atlas_preview.reason", "atlas_preview_expired"]]);
+      ["req1", "atlas_preview.reason", "atlas_a_code_no_release_sends"]]);
   });
 
   it("projects plain owner copy, never a reason code, and nothing once consent ends", () => {

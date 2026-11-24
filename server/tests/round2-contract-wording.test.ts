@@ -172,9 +172,13 @@ describe("codes", () => {
       "website_atlas_consent_unconfigured", "website_task_not_named", "atlas_scene_planner_abstained", "spending_cap_reached", null,
       "atlas_source_rotation_unsupported", "gcp_monthly_budget_admission_blocked", "website_atlas_accounting_response_too_large",
       "atlas_scene_planner_task_or_room_coverage_missing", "atlas_scene_planner_coverage_or_privacy_invalid",
-      "atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid", "atlas_preview_step_interrupted"])
+      "atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid", "atlas_preview_step_interrupted",
+      // The sweep of the Pipeline's codes (2026-11-24): the worker's own end is said with the general card on purpose.
+      "atlas_preview_expired"])
       expect(outcome.atlasPreviewReasonKnown(reason)).toBe(true);
-    for (const reason of ["atlas_context_field_of_view_lost", "atlas_context_pixel_axes_changed", "atlas_preview_expired"])
+    // Raised in the Atlas lane but on none of the lists the Pipeline sends (`contracts/pipeline/website-pipeline-codes.v1.json`):
+    // said with the general card, and alerted.
+    for (const reason of ["atlas_context_field_of_view_lost", "atlas_context_pixel_axes_changed", "atlas_a_code_no_release_sends"])
       expect(outcome.atlasPreviewReasonKnown(reason)).toBe(false);
   });
 
