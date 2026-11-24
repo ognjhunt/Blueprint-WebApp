@@ -49,6 +49,8 @@ import { isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PROF
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 import { recordWebsiteAtlasPreview, websiteAtlasPreviewDigestValid, websiteAtlasPreviewSchema } from "../utils/websiteAtlasPreview";
+import { atlasPreviewReasonKnown } from "../utils/taskPreparationOutcome";
+import { noteUnknownPipelineCode } from "../utils/unknownPipelineCode";
 import { recordWebsiteScenePreview, websiteScenePreviewSchema } from "../utils/websiteScenePreview";
 import { loadOwnedCaptureAtlasConfiguration, ownedAtlasConfigurationRequest,
   reserveOwnedCaptureAtlasSpend, settleOwnedCaptureAtlasSpend } from "../utils/ownedCaptureAtlasPreparation";
@@ -433,12 +435,21 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       if (spendCapReached) throw new Error(WEBSITE_JOB_SPEND_CAP_REACHED);
       return res.status(202).json({ id, request_digest: sceneDigest(request), state: "forward_pending" });
     } catch (error) {
-      const code = error instanceof Error ? error.message : "website_scene_sponsorship_unavailable";
-      const known = /^(website_atlas_|website_scene_|website_task_context_|website_capture_binding_|task_context_capture_mismatch$|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
-      return res.status(known ? 409 : 503).json({ code: known ? code : "website_scene_sponsorship_unavailable" });
+      const refusal = creatorCaptureControlRefusal(error instanceof Error ? error.message : "");
+      return res.status(refusal.status).json({ code: refusal.code });
     }
   },
 );
+
+/**
+ * How the creator-capture control operations answer a refusal: a code the Pipeline acts on is said as itself (409),
+ * anything else as unavailable (503). `website_run_*` (an owner's closing of the run, `assertWebsiteRunOpen`) is a
+ * refusal to say, as the task-context route says it, never "unavailable" (round 2, 2026-11-24).
+ */
+export function creatorCaptureControlRefusal(code: string): { status: 409 | 503; code: string } {
+  const known = /^(website_atlas_|website_scene_|website_task_context_|website_capture_binding_|website_run_|task_context_capture_mismatch$|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
+  return known ? { status: 409, code } : { status: 503, code: "website_scene_sponsorship_unavailable" };
+}
 
 // The Pipeline's development-only Atlas preview status for one capture. Storing it
 // grants no processing; the owner download re-checks consent and readiness.
@@ -454,7 +465,12 @@ router.post("/creator-captures/:captureId/atlas-preview", createPipelineSyncRate
     if (!websiteAtlasPreviewDigestValid(preview)) return res.status(400).json({ code: "website_atlas_preview_digest_mismatch" });
     try {
       res.setHeader("Cache-Control", "no-store");
-      return res.json(await recordWebsiteAtlasPreview(requestId, captureId, preview));
+      const recorded = await recordWebsiteAtlasPreview(requestId, captureId, preview);
+      // A reason that picks the site's card and has no words of its own here: the site sees the general card, and
+      // staff hear once per job and code (round 2, 2026-11-24).
+      if ((preview.state === "needs_input" || preview.state === "failed") && !atlasPreviewReasonKnown(preview.reason))
+        void noteUnknownPipelineCode(requestId, "atlas_preview.reason", preview.reason!).catch(() => undefined);
+      return res.json(recorded);
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       if (code === "website_atlas_preview_request_missing") return res.status(404).json({ code });

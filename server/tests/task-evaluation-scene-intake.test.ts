@@ -1867,7 +1867,7 @@ it("requires source-bound Atlas consent and preserves separate budgets across re
   const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
     resource_class: "provider_reconstruction_api" as const, provider: "world_labs_atlas" as const,
     source_video_digest: sha("a"), maximum_cost_usd: 3, request_count: 1 };
-  await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("website_atlas_source_consent_required");
+  await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("website_atlas_consent_unconfigured");
   process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({
     ...JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!),
     world_labs_atlas: { digest: sha("b"), label: "Atlas beta terms", url: "https://atlas-beta.worldlabs.ai/docs" },

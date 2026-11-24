@@ -1000,8 +1000,10 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
     ]);
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, binding);
     const record = request.data();
-    if (!record || !brief.exists || !record.website_scene_sponsorship && !websiteAtlasGrantPolicy())
-      throw new Error("task_brief_missing");
+    if (!record || !brief.exists) throw new Error("task_brief_missing");
+    // The brief is there: no sponsorship and no grant policy configured is Blueprint's own setup, never the site's to
+    // give (round 2, 2026-11-24), so it is said with its own code rather than as a missing description.
+    if (!record.website_scene_sponsorship && !websiteAtlasGrantPolicy()) throw new Error("website_scene_grant_policy_unconfigured");
     const rights = projectWebsiteCaptureRights(record);
     if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
     const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {

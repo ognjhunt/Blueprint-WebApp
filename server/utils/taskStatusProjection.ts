@@ -30,7 +30,7 @@ import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure, capacityEnded, TASK_NOT_NAMED_SENTENCES, taskNamedOutcome,
-  isCompletePreparationOutcome, isSpendingCapOutcome } from "./taskPreparationOutcome";
+  isCompletePreparationOutcome, isProcessingRetrying, isSpendingCapOutcome, processingRetrying } from "./taskPreparationOutcome";
 import { simulationHoldSentence, type SceneHoldOutcome, type ScreeningHoldDetail } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
@@ -435,8 +435,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     // A still-published question means the Pipeline has not yet consumed the
     // new owner choice. Its prior rejection/failure is not the B attempt's stop.
     const correctionStopped = input.preparationStatus?.question ? null : input.preparationStatus?.outcome
-      ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
-        ? processingFailure() : null);
+      ?? (input.preparationStatus?.state === "failed_terminal" ? processingFailure()
+        : input.preparationStatus?.state === "failed_retryable" ? processingRetrying() : null);
     if (correctionStopped) return {...base, decision: correctionStopped.category, stage: null, missingViews: [],
       headline: correctionStopped.title, operatorAction: null, outcome: correctionStopped, resultSuperseded: true};
     return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
@@ -455,9 +455,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (sceneEnding && !hasRuns) {
     return { ...base, decision: "footage_received", stage: null, missingViews: [], headline: sceneEnding, operatorAction: null };
   }
-  const stopped = pageAskedOutcome(input)
-    ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
-      || input.scenePreparationFailed && !nativeProgress
+  // A stop the Pipeline runs again by itself is titled as still being worked on (`processingRetrying`); once the
+  // preparation has ended, the same card is said as final.
+  const asked = pageAskedOutcome(input);
+  const stopped = (input.preparationStatus?.state === "failed_terminal" && isProcessingRetrying(asked) ? processingFailure(asked!.evidence[0]) : asked)
+    ?? (input.preparationStatus?.state === "failed_retryable" ? processingRetrying()
+      : input.preparationStatus?.state === "failed_terminal" || input.scenePreparationFailed && !nativeProgress
       || input.sceneProgression?.state === "ended" && !sceneEnding ? processingFailure() : null);
   // A `capacity_blocked` ending is said as ours, with no retry or processing step to speak of (`capacityEnded`).
   const capacityEnd = input.preparationStatus?.state === "failed_terminal" && input.preparationStatus.terminalReason === "capacity_blocked"
