@@ -173,7 +173,7 @@ describe("Minimal sign in", () => {
     fetchMock.mockRestore();
   });
   it("spends an emailed sign-in link, takes it out of the address bar and signs the account in", async () => {
-    const assign = vi.spyOn(window.location, "assign").mockImplementation(() => undefined);
+    const assign = vi.spyOn(window.location, "replace").mockImplementation(() => undefined);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ customToken: "custom", returnTo: "/jobs/job-1" }), { status: 200 }));
     customSignIn.mockResolvedValue({ user: { uid: "u1" } });
     window.history.replaceState({}, "", "/sign-in?link=signed-link");
@@ -185,7 +185,7 @@ describe("Minimal sign in", () => {
     fetchMock.mockRestore(); assign.mockRestore();
   });
   it("after a link sign-in, goes to the job the company was opening in this tab and clears it", async () => {
-    const assign = vi.spyOn(window.location, "assign").mockImplementation(() => undefined);
+    const assign = vi.spyOn(window.location, "replace").mockImplementation(() => undefined);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ customToken: "custom", returnTo: "/jobs/job-1" }), { status: 200 }));
     customSignIn.mockResolvedValue({ user: { uid: "u1" } });
     sessionStorage.setItem("redirectAfterAuth", "/jobs/job-2");

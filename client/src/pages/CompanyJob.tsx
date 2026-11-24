@@ -19,6 +19,7 @@ import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, NO_SUCCES
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } from "@/lib/companySignInLink";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
+import { COMPANY } from "@/data/company";
 
 /** The job page for a visitor who is not signed in: what the job holds and how to see it (owner, 2026-11-23). */
 export const GATE_HEADING = "Apply to see this job";
@@ -30,6 +31,10 @@ export const GATE_UNLOCKS = [
   "A simulation of the site to test in your own tools, when it is ready",
 ] as const;
 export const GATE_RETURN = "Apply below. Once you're approved, the link we email you brings you back to this job.";
+/** A declined company opening a job: why it cannot see it, and where to write (stress test, 2026-11-24). */
+export const DECLINED_COMPANY_LINE = "Only approved deployment companies can see jobs, and we cannot offer your company access yet. "
+  + "We will email you if that changes, and you can reach us at";
+export const DECLINED_COMPANY_CONTACT = COMPANY.emails.hello;
 
 /**
  * A public live job's own facts on its gated page (`/jobs/<ref>`): the same kind, country, day and simulation state the
@@ -132,6 +137,15 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   const [access, setAccess] = useState<LibraryAccess | null>(null);
   const [retry, setRetry] = useState(0);
   const loadGeneration = useRef(0);
+  // Back to the gated page after signing in elsewhere in this tab (stress test, 2026-11-24): a page the browser restores
+  // from its back-forward cache still holds the signed-out gate, so it loads again and reads the account as it is now.
+  const shownState = useRef(state);
+  shownState.current = state;
+  useEffect(() => {
+    const restored = (event: PageTransitionEvent) => { if (event.persisted && shownState.current === "signed_out") window.location.reload(); };
+    window.addEventListener("pageshow", restored);
+    return () => window.removeEventListener("pageshow", restored);
+  }, []);
   function show(loaded: LoadedJob) {
     if (loaded.kind === "missing") { setAccess(loaded.access); setState("missing"); }
     else if (loaded.kind === "terms") setState("terms");
@@ -222,6 +236,9 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       <p><a href={backHref}>Back to jobs</a></p></div>;
   if (state === "missing" && access?.status === "none") return <div className="bare-screen company-job"><h1>This job is not available</h1>
     <p>Only approved deployment companies can see jobs. <a href={companyApplicationHref(jobId)}>Apply to see jobs</a></p></div>;
+  // A company Blueprint did not approve: said as that, in the words of its application page (`RobotTeamEarlyAccess`).
+  if (state === "missing" && access?.status === "declined") return <div className="bare-screen company-job"><h1>This job is not available</h1>
+    <p>{DECLINED_COMPANY_LINE} <a href={`mailto:${DECLINED_COMPANY_CONTACT}`}>{DECLINED_COMPANY_CONTACT}</a>.</p></div>;
   if (state === "missing") return <div className="bare-screen company-job"><h1>This job is not available</h1>
     <p>It may no longer be shared, or your account may not be approved. <a href={backHref}>Back to jobs</a></p></div>;
   if (state === "error" || !page) return <div className="bare-screen company-job"><div role="alert"><p>This job could not be loaded.</p>

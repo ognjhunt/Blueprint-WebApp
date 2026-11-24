@@ -17,7 +17,7 @@ const linkSignIn = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/companySignInLink", async (actual) => ({ ...(await actual<typeof import("@/lib/companySignInLink")>()),
   signInWithCompanyLink: linkSignIn }));
 
-const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK, typedEstimate, ESTIMATE_INVALID } = await import("@/pages/CompanyJob");
+const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK, typedEstimate, ESTIMATE_INVALID, DECLINED_COMPANY_LINE } = await import("@/pages/CompanyJob");
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
@@ -255,6 +255,17 @@ describe("the company's page for one job", () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) });
     render(<CompanyJob />);
     expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
+  });
+
+  // Stress test, 2026-11-24: a declined company read only "It may no longer be shared, or your account may not be approved".
+  it("tells a declined company it is not approved to see jobs, and where to write", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { status: "declined", signedIn: true,
+      emailVerified: true, allowed: false, staff: false } }) });
+    render(<CompanyJob />);
+    expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
+    expect(screen.getByText(DECLINED_COMPANY_LINE, { exact: false })).toBeVisible();
+    expect(screen.getByRole("link", { name: "hello@tryblueprint.io" })).toHaveAttribute("href", "mailto:hello@tryblueprint.io");
+    expect(screen.queryByText(/may no longer be shared/)).toBeNull();
   });
 
   // The page knows the account's access, so it says which case a refusal is.
