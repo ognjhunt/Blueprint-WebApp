@@ -280,7 +280,8 @@ describe("what a company reads of a site's own words", () => {
       expect(heldDuringCall[0]).not.toHaveProperty("settlement");
       const [row] = lanes();
       expect(row.admission.maximum_cost_usd).toBeGreaterThan(0.0004);
-      expect(row.admission.maximum_cost_usd).toBeLessThan(0.01);
+      // At least what the adapter settles a pass with no reported usage at (its input ceiling): cents, not dollars.
+      expect(row.admission.maximum_cost_usd).toBeLessThan(0.05);
       expect(row.settlement).toMatchObject({ actual_cost_usd: 0.0004, status: "settled" });
       expect(await jobSpend()).toMatchObject({ model_lane_micros: 400, total_micros: 400 });
     });

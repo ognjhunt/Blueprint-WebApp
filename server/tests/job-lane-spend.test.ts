@@ -43,22 +43,53 @@ describe("the most a lane's call can cost", () => {
     const { laneCallMaximumUsd } = await import("../utils/jobLaneSpend");
     const { anthropicWorstCaseRequestUsd } = await import("../utils/anthropicPricing");
     const tokens = 2_000 + 4_096;
-    const opus = laneCallMaximumUsd({ promptBytes: 2_000, outputTokenCeiling: 600, models: { anthropic_agent_sdk: "claude-opus-5-5" } });
+    const opus = laneCallMaximumUsd({ promptBytes: 2_000, outputTokenCeiling: 600, inputTokenCeiling: 0,
+      models: { anthropic_agent_sdk: "claude-opus-5-5" } });
     expect(opus).toBe(Math.ceil((anthropicWorstCaseRequestUsd("claude-opus-5-5", tokens, 600)!
       + anthropicWorstCaseRequestUsd("claude-opus-4-8", tokens, 600)!) * 1e6) / 1e6);
     // A model with no fallback is priced alone; one with no request shape is never sent.
-    expect(laneCallMaximumUsd({ promptBytes: 2_000, outputTokenCeiling: 600, models: { anthropic_agent_sdk: "claude-haiku-5-5" } }))
+    expect(laneCallMaximumUsd({ promptBytes: 2_000, outputTokenCeiling: 600, inputTokenCeiling: 0,
+      models: { anthropic_agent_sdk: "claude-haiku-5-5" } }))
       .toBe(Math.ceil(anthropicWorstCaseRequestUsd("claude-haiku-5-5", tokens, 600)! * 1e6) / 1e6);
-    expect(laneCallMaximumUsd({ promptBytes: 2_000, outputTokenCeiling: 600, models: { anthropic_agent_sdk: "claude-unknown" } }))
-      .toBeNull();
+    expect(laneCallMaximumUsd({ promptBytes: 2_000, outputTokenCeiling: 600, inputTokenCeiling: 0,
+      models: { anthropic_agent_sdk: "claude-unknown" } })).toBeNull();
   });
 
-  it("holds a one-request lane at its prompt's bound, and a lane with correction rounds at the per-run cap", async () => {
+  it("holds at least what an adapter settles a request with no reported usage at: its input ceiling", async () => {
+    // A review of PR #1438: a short prompt held $0.000875, and the OpenAI adapter settled the same request at its
+    // input-ceiling reservation ($0.0103) when the answer carried no usage, so a job near $40 could end above it.
+    const { laneCallMaximumUsd } = await import("../utils/jobLaneSpend");
+    const { getAgentMaxInputTokens } = await import("../agents/provider-config");
+    const { worstCaseOpenAIReservationUsd } = await import("../utils/openaiPromptCache");
+    const { anthropicWorstCaseRequestUsd } = await import("../utils/anthropicPricing");
+    for (const ceiling of [getAgentMaxInputTokens(), 300_000]) {   // the default, and one past OpenAI's long-context line
+      const held = laneCallMaximumUsd({ promptBytes: 500, outputTokenCeiling: 600, inputTokenCeiling: ceiling,
+        models: { openai_responses: "gpt-6-luna", anthropic_agent_sdk: "claude-haiku-5-5" } })!;
+      for (const status of ["enabled", "disabled"] as const) {
+        const policy = { status, economics: { stable_prefix_tokens: 2_048 } } as any;
+        expect(held).toBeGreaterThanOrEqual(worstCaseOpenAIReservationUsd({ model: "gpt-6-luna", inputTokenCeiling: ceiling,
+          maxOutputTokens: 600, policy }));
+      }
+      expect(held).toBeGreaterThanOrEqual(anthropicWorstCaseRequestUsd("claude-haiku-5-5", ceiling, 600)!);
+    }
+    // A prompt larger than the ceiling is held at its own size, as the Anthropic adapter reserves it.
+    expect(laneCallMaximumUsd({ promptBytes: 200_000, outputTokenCeiling: 600, inputTokenCeiling: 100_000,
+      models: { anthropic_agent_sdk: "claude-haiku-5-5" } }))
+      .toBe(Math.ceil(anthropicWorstCaseRequestUsd("claude-haiku-5-5", 200_000 + 4_096, 600)! * 1e6) / 1e6);
+  });
+
+  it("holds a one-request lane at one request's bound, and a lane with correction rounds at the per-run cap", async () => {
     const { laneCallMaximumUsd, laneModels, laneRunMaximumUsd } = await import("../utils/jobLaneSpend");
+    const { getAgentMaxInputTokens } = await import("../agents/provider-config");
     const models = (await laneModels("site_task_follow_up"))!;
     expect(await laneRunMaximumUsd("site_task_follow_up", 3_000))
-      .toBe(laneCallMaximumUsd({ promptBytes: 3_000, outputTokenCeiling: 600, models }));
-    expect(await laneRunMaximumUsd("site_task_follow_up", 3_000)).toBeLessThan(0.01);
+      .toBe(laneCallMaximumUsd({ promptBytes: 3_000, outputTokenCeiling: 600, inputTokenCeiling: getAgentMaxInputTokens(), models }));
+    expect(await laneRunMaximumUsd("site_task_follow_up", 3_000)).toBeLessThan(0.05);
+    // A deployment's own input ceiling moves the hold with it, as it moves the adapters' reservation.
+    vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INPUT_TOKENS", "200000");
+    expect(await laneRunMaximumUsd("site_task_follow_up", 3_000))
+      .toBe(laneCallMaximumUsd({ promptBytes: 3_000, outputTokenCeiling: 600, inputTokenCeiling: 200_000, models }));
+    vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INPUT_TOKENS", "");
     // No own output ceiling and up to five corrections: every adapter it may reach refuses a request past $5 a run.
     expect(await laneRunMaximumUsd("robot_fit_ranking", 3_000)).toBe(5);
     expect(await laneRunMaximumUsd("site_task_brief_reading", 3_000)).toBe(5);

@@ -221,18 +221,18 @@ async function modelPass(input: { writer: ScreeningWriter; text: string; request
 }
 
 /**
- * The most one pass over `text` can cost (`laneCallMaximumUsd`): its prompt's size, the lane's 800-token output ceiling,
- * the dearest model the lane may be sent to now. Null when it cannot be bounded (a model with no price): no pass starts.
+ * The most one pass over `text` can cost (`laneCallMaximumUsd`): the adapters' input ceiling or its prompt's size if
+ * larger, the lane's 800-token output ceiling, the dearest model the lane may be sent to now. Null when it cannot be bounded (a model with no price): no pass starts.
  */
 async function passMaximumUsd(writer: ScreeningWriter, text: string): Promise<number | null> {
-  const [{ freeTextRedactionTask }, { laneCallMaximumUsd, laneModels }, { getTaskModelByProvider }] = await Promise.all([
-    import("../agents/tasks/free-text-redaction"), import("./jobLaneSpend"), import("../agents/provider-config")]);
+  const [{ freeTextRedactionTask }, { laneCallMaximumUsd, laneModels }, { getAgentMaxInputTokens, getTaskModelByProvider }] =
+    await Promise.all([import("../agents/tasks/free-text-redaction"), import("./jobLaneSpend"), import("../agents/provider-config")]);
   // A scripted pass (tests, the local harness) is held as the lane's default model would be.
   const models = redactorOverride ? { openai_responses: getTaskModelByProvider("free_text_redaction").openai_responses }
     : await laneModels("free_text_redaction");
   if (!models) return null;
   return laneCallMaximumUsd({ promptBytes: Buffer.byteLength(freeTextRedactionTask.build_prompt({ writer, text }), "utf8"),
-    outputTokenCeiling: freeTextRedactionTask.max_output_tokens_ceiling ?? 800, models });
+    outputTokenCeiling: freeTextRedactionTask.max_output_tokens_ceiling ?? 800, inputTokenCeiling: getAgentMaxInputTokens(), models });
 }
 
 /** Why words cannot be read now and will not be by waiting: a pass count, or the job's spending cap. */
