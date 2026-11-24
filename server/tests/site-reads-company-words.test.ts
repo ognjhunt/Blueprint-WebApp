@@ -42,6 +42,8 @@ const leaksIn = (cases: Array<[string, string[]]>, read: (words: string) => stri
 
 beforeEach(() => {
   state.docs.clear();
+  // The job the words belong to: each pass is held against its spending cap (`jobLaneSpend.ts`).
+  state.docs.set(`inboundRequests/${JOB}`, { requestId: JOB });
   resetFreeTextScreeningForTests();
 });
 
@@ -82,6 +84,7 @@ describe("what a site reads of a company's own words before Accept", () => {
     expect(pending).not.toHaveProperty("reason");
     // A later pass, once the failed one's wait is over (its stored row is gone here), succeeds.
     state.docs.clear();
+    state.docs.set(`inboundRequests/${JOB}`, { requestId: JOB });
     modelPassFindsNothing();
     expect(await forSite("We do this daily and can start soon.")).toBe("We do this daily and can start soon.");
     const shown = projectSiteCompanyActivity({ aliases: { c: "A" }, sends: [], listed: true,

@@ -40,6 +40,8 @@ const leaksIn = (cases: Array<[string, string[]]>, read: (text: string) => strin
 
 beforeEach(() => {
   state.docs.clear();
+  // The job the words belong to: each pass is held against its spending cap (`jobLaneSpend.ts`).
+  state.docs.set(`inboundRequests/${JOB}`, { requestId: JOB });
   resetFreeTextScreeningForTests();
 });
 
@@ -135,6 +137,7 @@ describe("what a company reads of a site's own words", () => {
     expect(await forCompany("Maria will show you the line.")).toBe("");
     // No provider at all: no pass starts, nothing is counted, nothing is shown.
     state.docs.clear();
+    state.docs.set(`inboundRequests/${JOB}`, { requestId: JOB });
     resetFreeTextScreeningForTests();
     expect(await screenText(JOB, "site", "Stack the totes on cart 2.")).toBeNull();
     expect(state.docs.get(`inboundRequests/${JOB}/freeTextScreenings/budget`)).toBeUndefined();
@@ -165,6 +168,59 @@ describe("what a company reads of a site's own words", () => {
     // A stored result is read again without a new pass.
     expect(await screenText(JOB, "site", "Stack the totes on cart 2.")).toBe("Stack the totes on cart 2.");
     expect(calls).toBe(1);
+  });
+
+  // A review of PR #1437 (2026-11-24): every pass is held against the job's one $40 cap, with all its ledgers counted.
+  describe("inside the job's one spending cap", () => {
+    const lanes = () => [...state.docs.entries()].filter(([key]) => key.startsWith(`inboundRequests/${JOB}/modelLaneReservations/`))
+      .map(([, value]) => value as Record<string, any>);
+    const jobSpend = async () => {
+      const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+      const { transactionJobLedgerReader, websiteJobSpend } = await import("../utils/websiteJobCeiling");
+      const record = (await dbAdmin!.collection("inboundRequests").doc(JOB).get()).data() ?? {};
+      return websiteJobSpend({ record, reader: transactionJobLedgerReader(dbAdmin!, { get: (ref: any) => ref.get() }, JOB) });
+    };
+
+    it("a job at its cap shows no site words and makes no paid call; nothing is held or counted", async () => {
+      // The job's other ledgers already hold all of its $40.
+      state.docs.set(`inboundRequests/${JOB}`, { requestId: JOB,
+        website_preparation_reservations: { a: { admission: { maximum_cost_usd: 40 } } } });
+      let calls = 0;
+      useFreeTextRedactor(async () => { calls++; return []; });
+      expect(await screenText(JOB, "site", "Stack the totes on cart 2.")).toBeNull();
+      expect(calls).toBe(0);
+      expect(lanes()).toEqual([]);
+      expect(state.docs.get(`inboundRequests/${JOB}/freeTextScreenings/budget`)).toBeUndefined();
+      expect(siteWordsForCompany("Stack the totes on cart 2.", known, await loadScreenings(JOB))).toBe("");
+      // With room again (the hold settled lower), the same words are read.
+      state.docs.set(`inboundRequests/${JOB}`, { requestId: JOB,
+        website_preparation_reservations: { a: { admission: { maximum_cost_usd: 40 }, settlement: { actual_cost_usd: 30, status: "settled" } } } });
+      expect(await forCompany("Stack the totes on cart 2.")).toBe("Stack the totes on cart 2.");
+      expect(calls).toBe(1);
+    });
+
+    it("holds each pass's most possible cost while it runs, settles it at the cost reported, and the job's spend counts it", async () => {
+      let heldDuringCall: Array<Record<string, any>> = [];
+      useFreeTextRedactor(async () => { heldDuringCall = lanes(); return { remove: ["Maria"], costUsd: 0.0004 }; });
+      expect(await forCompany("Maria will show you the line.")).toBe("[removed] will show you the line.");
+      // Held before the provider was asked, at a bound above what it cost.
+      expect(heldDuringCall).toEqual([expect.objectContaining({ lane: "free_text_redaction",
+        admission: expect.objectContaining({ maximum_cost_usd: expect.any(Number) }) })]);
+      expect(heldDuringCall[0]).not.toHaveProperty("settlement");
+      const [row] = lanes();
+      expect(row.admission.maximum_cost_usd).toBeGreaterThan(0.0004);
+      expect(row.admission.maximum_cost_usd).toBeLessThan(0.01);
+      expect(row.settlement).toMatchObject({ actual_cost_usd: 0.0004, status: "settled" });
+      expect(await jobSpend()).toMatchObject({ model_lane_micros: 400, total_micros: 400 });
+    });
+
+    it("keeps a pass's hold whole when its cost cannot be told", async () => {
+      useFreeTextRedactor(async () => { throw new Error("provider went away"); });
+      expect(await forCompany("Maria will show you the line.")).toBe("");
+      const [row] = lanes();
+      expect(row.settlement).toMatchObject({ actual_cost_usd: row.admission.maximum_cost_usd, basis: "unknown_counts_in_full" });
+      expect((await jobSpend()).model_lane_micros).toBe(Math.ceil(row.admission.maximum_cost_usd * 1_000_000));
+    });
   });
 
   it("stores the text with the pieces taken out, never the pieces and never the words before", async () => {

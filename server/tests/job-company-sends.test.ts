@@ -368,9 +368,9 @@ describe("what the site receives", () => {
       responses: [{ id: sha(SOUTH.email), data: state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(SOUTH.email)}`) as never }] }))
       .toMatchObject({ entries: [], interested: false });
     // The one thing a read may store is the model pass's result over the site's own words (`freeTextScreening.ts`):
-    // a derived copy with names taken out, never an alias or a record of the job.
+    // a derived copy with names taken out, and that pass's hold on the job's spending cap; never an alias or a record.
     const records = () => JSON.stringify([...state.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/")
-      && !key.startsWith(`inboundRequests/${ID}/freeTextScreenings/`)));
+      && !key.startsWith(`inboundRequests/${ID}/freeTextScreenings/`) && !key.startsWith(`inboundRequests/${ID}/modelLaneReservations/`)));
     const before = records();
     const { body } = await siteStatus();
     expect(body.answer.companies).toMatchObject({ entries: [], interested: false, sent: null });

@@ -45,10 +45,17 @@ export function websiteJobCeiling(): { maximum_cost_usd: number; source: "job_sp
   return { maximum_cost_usd: WEBSITE_JOB_SPEND_CAP_USD, source: "job_spending_cap" };
 }
 
+/** The job's small model lanes' holds and settlements (`jobLaneSpend.ts`), one row per call. */
+export const JOB_LANE_RESERVATIONS_COLLECTION = "modelLaneReservations";
+/** Read at most this many lane rows; a job with more is counted as unbounded (nothing more is admitted). */
+const LANE_ROWS_READ_LIMIT = 1_000;
+
 /** Reads the job's other ledgers; the caller supplies the transaction. */
 export type WebsiteJobLedgerReader = {
   sceneIntakes(): Promise<Array<Record<string, any>>>;
   screeningRuns(): Promise<Array<{ run: Record<string, any>; result: Record<string, any> | null }>>;
+  /** The job's model lane rows (`JOB_LANE_RESERVATIONS_COLLECTION`): the model pass over free text. */
+  laneReservations(): Promise<Array<Record<string, any>>>;
 };
 
 type Store = { collection(name: string): any };
@@ -67,6 +74,12 @@ export function transactionJobLedgerReader(store: Store, transaction: Transactio
         result: typeof run.result_record_id === "string" && run.result_record_id
           ? (await transaction.get(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id))).data() ?? null
           : null })));
+    },
+    laneReservations: async () => {
+      const rows = (await transaction.get(store.collection("inboundRequests").doc(requestId)
+        .collection(JOB_LANE_RESERVATIONS_COLLECTION).limit(LANE_ROWS_READ_LIMIT))).docs.map((row: any) => row.data());
+      // More rows than were read: what the rest hold is not known, so it counts as unbounded.
+      return rows.length >= LANE_ROWS_READ_LIMIT ? [...rows, { admission: { maximum_cost_usd: null }, truncated: true }] : rows;
     },
   };
 }
@@ -207,8 +220,16 @@ export async function websiteJobSpend(input: { record: Record<string, any>; read
   }, 0);
   const screening = screeningMicros(await input.reader.screeningRuns(), unreadable);
   readable += screening.readable;
+  // The job's small model lanes (2026-11-24, `jobLaneSpend.ts`): each call at its settlement, else its full hold, as a
+  // preparation row is counted.
+  const lanes = (await input.reader.laneReservations()).reduce((sum: number, row, index) => {
+    const value = preparationRowMicros(row);
+    readable += readablePreparationRowMicros(row);
+    if (!Number.isFinite(value)) unreadable.push(`model lane reservation ${String(row?.lane ?? "")} #${index + 1}`);
+    return sum + value;
+  }, 0);
   return { preparation_micros: preparation, native_construction_micros: native, screening_micros: screening.counted,
-    total_micros: preparation + native + screening.counted, readable_total_micros: readable, unreadable };
+    model_lane_micros: lanes, total_micros: preparation + native + screening.counted + lanes, readable_total_micros: readable, unreadable };
 }
 
 /** The read-only projection returned with the Atlas configuration; it authorizes nothing. */
@@ -220,6 +241,7 @@ export function websiteJobCeilingSummary(ceiling: ReturnType<typeof websiteJobCe
   return { schema_version: "website_job_ceiling.v1", maximum_cost_usd: ceiling.maximum_cost_usd,
     source: ceiling.source, preparation_cost_usd: finite(spend.preparation_micros),
     native_construction_cost_usd: finite(spend.native_construction_micros), screening_cost_usd: finite(spend.screening_micros),
+    model_lane_cost_usd: finite(spend.model_lane_micros),
     reserved_or_settled_cost_usd: finite(spend.total_micros),
     remaining_cost_usd: Number.isFinite(spend.total_micros) ? dollars(Math.max(0, limit - spend.total_micros)) : 0 };
 }

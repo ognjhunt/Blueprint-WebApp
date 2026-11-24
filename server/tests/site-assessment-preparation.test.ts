@@ -642,7 +642,7 @@ it("an extra generated object reserves its own row, once, only while it fits the
     expect(settled.status).toBe(200);expect(await settled.json()).toMatchObject({status:"settled",actual_cost_usd:4.371234});
   });
   const spend=await websiteJobSpend({record:state.docs.get("inboundRequests/one") as any,
-    reader:{sceneIntakes:async()=>[intake],screeningRuns:async()=>[]}});
+    reader:{sceneIntakes:async()=>[intake],screeningRuns:async()=>[],laneReservations:async()=>[]}});
   expect(spend.total_micros).toBe(8_000_000+20_000_000+4_371_234);
   expect(alertRows()).toHaveLength(0);
 });

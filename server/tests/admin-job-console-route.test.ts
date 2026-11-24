@@ -22,7 +22,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const docRef = (collection: string, id: string): any => ({
     id,
     get: async () => ({ id, exists: table(collection).has(id), data: () => table(collection).get(id) }),
-    collection: (sub: string) => ({ doc: (subId: string) => docRef(`${collection}/${id}/${sub}`, subId) }),
+    collection: (sub: string) => ({ doc: (subId: string) => docRef(`${collection}/${id}/${sub}`, subId),
+      ...query(`${collection}/${id}/${sub}`, [], null, null, 10_000) }),
   });
   const query = (collection: string, filters: Array<(row: Row) => boolean>, order: string | null, after: string | null, limit: number): any => ({
     where: (field: string, op: string, value: unknown) => query(collection, [...filters,

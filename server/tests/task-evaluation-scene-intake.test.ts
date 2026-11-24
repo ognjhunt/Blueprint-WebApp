@@ -29,6 +29,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const reference = (key: string): any => ({
     key,
     get: async () => snapshot(key),
+    // A job's subcollections (its model lane ledger, `jobLaneSpend.ts`), read inside the admission transaction.
+    collection: (sub: string) => ({ doc: (id: string) => reference(`${key}/${sub}/${id}`), ...query(`${key}/${sub}`) }),
   });
   const snapshot = (key: string): any => ({
     id: key.split("/")[1],

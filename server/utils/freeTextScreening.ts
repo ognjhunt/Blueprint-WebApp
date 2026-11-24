@@ -20,10 +20,12 @@
  * Admin SDK only): the text with the pieces taken out, never the pieces, never the text before. A changed text is a new
  * digest and is read again.
  *
- * Money (a hard stop): every pass goes through the agent runtime (its data-class gate, per-run cost cap, rolling spend
- * stop, cost record and "no funds" handling), on the small tier at low effort with an 800-token output ceiling, and a
- * job has at most `SCREENING_PASSES_PER_JOB` passes ever, counted in the same transaction that claims each one. With no
- * provider the policy permits configured, no pass starts and nothing is counted: the words stay unread by the other side.
+ * Money (a hard stop): before each pass, its most possible cost is held against the job's one $40 cap, with every
+ * ledger of the job counted, in the transaction that claims it (`jobLaneSpend.ts`); it is settled at the cost the run
+ * reports. A pass the cap leaves no room for does not start, and the words stay unread. Every pass also goes through the
+ * agent runtime (its data-class gate, per-run cost cap, rolling spend stop, cost record and "no funds" handling), on the
+ * small tier at low effort with an 800-token output ceiling, and a job has at most `SCREENING_PASSES_PER_JOB` passes
+ * ever. With no provider the policy permits configured, no pass starts and nothing is held or counted.
  */
 import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -85,8 +87,12 @@ export function applyRemovals(text: string, pieces: readonly unknown[]): string 
   return out.replace(/\[removed\](?:[^\S\n]+\[removed\])+/g, REMOVED);
 }
 
-/** A model pass: the pieces of the text to take out, or null when it did not answer. */
-export type FreeTextRedactor = (input: { writer: ScreeningWriter; text: string; requestId: string }) => Promise<unknown[] | null>;
+/**
+ * A model pass: the pieces of the text to take out, or null when it did not answer. A scripted pass may also say what
+ * it cost (`costUsd`); otherwise it costs nothing.
+ */
+export type FreeTextRedactor = (input: { writer: ScreeningWriter; text: string; requestId: string }) =>
+  Promise<unknown[] | { remove: unknown[] | null; costUsd?: number } | null>;
 
 let redactorOverride: FreeTextRedactor | null = null;
 /**
@@ -104,9 +110,18 @@ async function redactorAvailable(): Promise<boolean> {
   return getStructuredProviderOrder("free_text_redaction").length > 0;
 }
 
-async function modelPass(input: { writer: ScreeningWriter; text: string; requestId: string }): Promise<unknown[] | null> {
-  if (redactorOverride) return redactorOverride(input);
+/** What one pass returned: the pieces (null when it did not answer) and what it cost (null when that is not known). */
+type PassResult = { pieces: unknown[] | null; costUsd: number | null; basis: "reported_usage" | "no_provider_request" | "scripted" };
+
+async function modelPass(input: { writer: ScreeningWriter; text: string; requestId: string }): Promise<PassResult> {
+  if (redactorOverride) {
+    const answer = await redactorOverride(input);
+    const pieces = Array.isArray(answer) ? answer : answer && Array.isArray(answer.remove) ? answer.remove : null;
+    const cost = !Array.isArray(answer) && answer && typeof answer.costUsd === "number" ? answer.costUsd : 0;
+    return { pieces, costUsd: cost, basis: "scripted" };
+  }
   const { runAgentTask } = await import("../agents/runtime");
+  const { runCostUsd } = await import("./jobLaneSpend");
   const result = await runAgentTask<{ writer: ScreeningWriter; text: string }, { remove?: unknown }>({
     kind: "free_text_redaction", input: { writer: input.writer, text: input.text },
     metadata: { request_id: input.requestId },
@@ -116,14 +131,37 @@ async function modelPass(input: { writer: ScreeningWriter; text: string; request
     // table of every version (no binding), since they were not given under the site's acceptance.
     ...(input.writer === "site" ? { privacyRequestBinding: { request_id: input.requestId } } : {}),
   });
-  return result.status === "completed" && Array.isArray(result.output?.remove) ? result.output!.remove as unknown[] : null;
+  const costUsd = runCostUsd(result as { artifacts?: Record<string, unknown> });
+  return { pieces: result.status === "completed" && Array.isArray(result.output?.remove) ? result.output!.remove as unknown[] : null,
+    costUsd, basis: costUsd === 0 ? "no_provider_request" : "reported_usage" };
 }
 
-type Claim = { state: "done"; text: string } | { state: "claimed"; attempts: number } | { state: "busy" } | { state: "cap" };
+/**
+ * The most one pass over `text` can cost (`laneCallMaximumUsd`): its prompt's size, the lane's 800-token output ceiling,
+ * the dearest model the lane may be sent to now. Null when it cannot be bounded (a model with no price): no pass starts.
+ */
+async function passMaximumUsd(writer: ScreeningWriter, text: string): Promise<number | null> {
+  const [{ freeTextRedactionTask }, { laneCallMaximumUsd, laneModels }, { getTaskModelByProvider }] = await Promise.all([
+    import("../agents/tasks/free-text-redaction"), import("./jobLaneSpend"), import("../agents/provider-config")]);
+  // A scripted pass (tests, the local harness) is held as the lane's default model would be.
+  const models = redactorOverride ? { openai_responses: getTaskModelByProvider("free_text_redaction").openai_responses }
+    : await laneModels("free_text_redaction");
+  if (!models) return null;
+  return laneCallMaximumUsd({ promptBytes: Buffer.byteLength(freeTextRedactionTask.build_prompt({ writer, text }), "utf8"),
+    outputTokenCeiling: freeTextRedactionTask.max_output_tokens_ceiling ?? 800, models });
+}
 
-/** In one transaction: the stored result, or a new pass claimed and counted against the job's cap. */
-async function claimPass(jobId: string, key: string, writer: ScreeningWriter, nowMs: number): Promise<Claim> {
+type Claim = { state: "done"; text: string } | { state: "claimed"; attempts: number; reservationId: string } | { state: "busy" }
+  | { state: "cap" } | { state: "job_cap" };
+
+/**
+ * In one transaction: the stored result, or a new pass claimed, counted against the job's pass cap and held against the
+ * job's one spending cap (`planJobLaneReservation`: every ledger of the job counted, this pass's most possible cost
+ * added). Refused by either cap, nothing is written: no call starts, nothing is counted.
+ */
+async function claimPass(jobId: string, key: string, writer: ScreeningWriter, nowMs: number, maximumUsd: number): Promise<Claim> {
   const store = db!;
+  const { planJobLaneReservation } = await import("./jobLaneSpend");
   const collection = store.collection("inboundRequests").doc(jobId).collection(FREE_TEXT_SCREENING_COLLECTION);
   const ref = collection.doc(key), budgetRef = collection.doc(BUDGET_DOC);
   return store.runTransaction(async (tx): Promise<Claim> => {
@@ -134,11 +172,15 @@ async function claimPass(jobId: string, key: string, writer: ScreeningWriter, no
     if (row?.status === "failed" && nowMs - Number(row.endedAtMs ?? 0) < retryAfterMs(attempts)) return { state: "busy" };
     const passes = Number.isInteger(budget?.passes) ? budget!.passes as number : 0;
     if (passes >= SCREENING_PASSES_PER_JOB) return { state: "cap" };
+    const reservationId = `free_text_redaction-${key}-${attempts + 1}`;
+    const hold = await planJobLaneReservation(tx, jobId, { lane: "free_text_redaction", reservationId, maximumUsd });
+    if (hold.state !== "fits") return { state: "job_cap" };
     const atIso = new Date(nowMs).toISOString();
+    hold.write(tx);
     tx.set(ref, { schemaVersion: FREE_TEXT_SCREENING_SCHEMA, writer, status: "running", attempts: attempts + 1,
-      claimedAtIso: atIso, claimedAtMs: nowMs }, { merge: true });
+      claimedAtIso: atIso, claimedAtMs: nowMs, reservationId }, { merge: true });
     tx.set(budgetRef, { passes: passes + 1, updatedAtIso: atIso }, { merge: true });
-    return { state: "claimed", attempts: attempts + 1 };
+    return { state: "claimed", attempts: attempts + 1, reservationId };
   });
 }
 
@@ -177,26 +219,33 @@ async function runOnce(jobId: string, key: string, writer: ScreeningWriter, text
   if (stored?.status === "done" && typeof stored.text === "string") return stored.text;
   // No provider the policy permits: no pass starts and nothing is counted (no spend can happen).
   if (!(await redactorAvailable())) return null;
-  const claim = await claimPass(jobId, key, writer, Date.now());
+  const maximumUsd = await passMaximumUsd(writer, text);
+  if (maximumUsd === null) return null;
+  const claim = await claimPass(jobId, key, writer, Date.now(), maximumUsd);
   if (claim.state === "done") return claim.text;
-  if (claim.state === "cap") {
-    if (!capLogged.has(jobId)) {
-      capLogged.add(jobId);
-      logger.warn({ requestId: jobId, cap: SCREENING_PASSES_PER_JOB },
-        "The job reached its cap on model passes over free text; new words stay unread by the other side");
+  if (claim.state === "cap" || claim.state === "job_cap") {
+    if (!capLogged.has(`${jobId}:${claim.state}`)) {
+      capLogged.add(`${jobId}:${claim.state}`);
+      logger.warn({ requestId: jobId, cap: claim.state === "cap" ? SCREENING_PASSES_PER_JOB : "job_spending_cap" },
+        claim.state === "cap" ? "The job reached its cap on model passes over free text; new words stay unread by the other side"
+          : "The job's spending cap leaves no room for a model pass over free text; new words stay unread by the other side");
     }
     return null;
   }
   if (claim.state !== "claimed") return null;
-  let pieces: unknown[] | null = null, failure: string | null = null;
-  try { pieces = await modelPass({ writer, text, requestId: jobId }); }
+  const { settleJobLaneSpend } = await import("./jobLaneSpend");
+  let pass: PassResult = { pieces: null, costUsd: null, basis: "reported_usage" }, failure: string | null = null;
+  try { pass = await modelPass({ writer, text, requestId: jobId }); }
   catch (error) { failure = error instanceof Error ? error.name : "error"; }
+  // The hold settles at what the pass cost, or stays whole when that is not known (a throw included).
+  await settleJobLaneSpend(jobId, claim.reservationId, pass.costUsd, pass.basis).catch(error =>
+    logger.warn({ err: error, requestId: jobId }, "A model pass's hold could not be settled; it stays counted in full"));
   const endedAtMs = Date.now(), endedAtIso = new Date(endedAtMs).toISOString();
-  if (!pieces) {
+  if (!pass.pieces) {
     await ref.set({ status: "failed", endedAtMs, endedAtIso, lastError: failure ?? "no_answer" }, { merge: true });
     return null;
   }
-  const result = applyRemovals(text, pieces);
+  const result = applyRemovals(text, pass.pieces);
   await ref.set({ status: "done", text: result, endedAtMs, endedAtIso, lastError: null }, { merge: true });
   return result;
 }
