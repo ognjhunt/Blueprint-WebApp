@@ -24,6 +24,7 @@ import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
 import { checkNewCompanyApplication } from "../utils/companyCheck";
 import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
+import { clientIp } from "../utils/clientIp";
 import { APPLICATION_NAME_HOLDS_CONTACT, APPLICATION_WEBSITE_NOT_OWN, applicantNameHoldsContactDetails, applicantWebsiteProblem }
   from "../../client/src/lib/companyApplicant";
 
@@ -58,10 +59,37 @@ export function applicationRefusal(issues: ReadonlyArray<{ code: string; path: R
   return own?.message ?? "Check the form. Every field is needed, and the website must start with https:// or http://.";
 }
 
+/**
+ * New applications from one client address in a UTC day (stress test round 2, 2026-11-24: a hundred junk applications
+ * from a handful of addresses). The in-memory limiter bounds a minute; this bounds a day across restarts. Each email
+ * counts once a day, so an application sent again is not charged twice. The automatic check has its own share per
+ * email domain (`companyCheck.ts`).
+ */
+export const APPLICATIONS_PER_ADDRESS_DAILY = 20;
+
+/** "a minute", "12 minutes", "3 hours": how long to wait, rounded up. */
+export function waitInWords(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  if (minutes === 1) return "a minute";
+  if (minutes < 90) return `${minutes} minutes`;
+  const hours = Math.ceil(minutes / 60);
+  return `${hours} hours`;
+}
+
 router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
   const parsed = applicationSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: applicationRefusal(parsed.error.issues), code: "application_invalid" });
+  }
+  // The same answer for every application from an address over its day, decided or not, so it reveals nothing.
+  const { consumeDailyCaps } = await import("../utils/durableDailyCaps");
+  const admitted = await consumeDailyCaps({ scope: "company_application", failClosed: false,
+    caps: [{ name: "company_application_address", limit: APPLICATIONS_PER_ADDRESS_DAILY, subject: clientIp(req) }],
+    idempotencyKey: parsed.data.email.trim().toLowerCase() });
+  if (!admitted.allowed) {
+    res.set("Retry-After", String(admitted.retryAfterSeconds));
+    return res.status(429).json({ code: "application_rate_limited", retryAfterSeconds: admitted.retryAfterSeconds,
+      error: `Too many applications from this network today. Try again in ${waitInWords(admitted.retryAfterSeconds)}.` });
   }
   const { returnToJob, ...fields } = parsed.data;
   const application = { ...fields, ...(returnToJob ? { returnToJob } : {}) };
