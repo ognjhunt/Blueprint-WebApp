@@ -22,7 +22,7 @@ import {
 import type { FirstLookWords } from "@/lib/firstLookWords";
 import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "@/lib/jobTracker";
 import { CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATES_NOT_CHECKED, SIMILAR_JOBS_LABELS, estimateInWords } from "@/lib/companyResponses";
-import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, companyNotApprovedNow, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 import { COMPANIES_READ_LIMIT, COMPANIES_READ_LINE, COMPANIES_READ_PENDING, COMPANIES_READ_SENTENCE_LABEL, COMPANIES_READ_SUCCESS_LABEL, COMPANIES_READ_TITLE,
   COMPANY_WORDS_BEING_PREPARED, COMPANY_WORDS_LIMIT, replyAsReadLine, replyLimitLine, replyPendingLine, type CompaniesReadSiteWords, type CompaniesReadText } from "@/lib/companiesRead";
@@ -564,6 +564,9 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           && <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
+        {/* Applied, and Blueprint's approval of the company was withdrawn since: why there is no Accept, said plainly. */}
+        {entry.kind === "answered" && !entry.company && entry.notApprovedNow === true && entry.canIntroduce !== true
+          && <p className="bare-helper" role="status">{companyNotApprovedNow(shownName(entry))}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && (requested.includes(entry.alias)
           ? <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>
           : <BareButton onClick={() => void introduce(entry.alias, entry.atIso)} disabled={busy !== null} helper={introduceSentence(shownName(entry), statementVersion)}>

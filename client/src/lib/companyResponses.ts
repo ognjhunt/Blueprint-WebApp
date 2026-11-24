@@ -254,6 +254,11 @@ export type SiteCompanyEntry =
       applicant?: { name: string; website: string | null };
       /** The site may press "Accept" for this company now. */
       canIntroduce?: boolean;
+      /**
+       * The company applied, but Blueprint's approval of it was withdrawn since, so it cannot be accepted now (stress test
+       * round 2, 2026-11-24: the card said "Applied" with no Accept and no reason). Said with `companyNotApprovedNow`.
+       */
+      notApprovedNow?: true;
       /** When the introduction was made: the company's introduction email was sent (H2). */
       introducedAtIso?: string;
       /** Only after the introduction is made. */
@@ -307,6 +312,9 @@ export const companyAnswered = (alias: string, date: string, state: CompanyRespo
   `${alias} answered on ${date}: ${SITE_RESPONSE_LABELS[state]}.`;
 /** Under an answer: the company's words, as the server gives them (its identity already taken out). */
 export const companyReason = (reason: string) => `In their words: “${reason}”`;
+/** Under an application whose company is not approved by Blueprint now (`notApprovedNow`). */
+export const companyNotApprovedNow = (name: string) =>
+  `${name} can't be accepted right now because it isn't approved by Blueprint at the moment.`;
 /** Under an answer that is not a yes and carries no words the site may read: said plainly, nothing invented. */
 export const NO_REASON_SHOWN = "No reason shared.";
 /**

@@ -537,6 +537,11 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const company = introducedAtIso ? introducedCompany(intro) : undefined;
     const canIntroduce = !intro && (!cancelled.has(response.id) || retryable.has(response.id)) && input.listed === true
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
+    // An application the site could accept but for Blueprint's approval, withdrawn since: said plainly, never a card
+    // that looks like any other (stress test round 2, 2026-11-24).
+    const companyRecord = input.companies?.get(response.id);
+    const notApprovedNow = !intro && input.listed === true && answerConsentsToIntroduction(response.data) && Boolean(companyRecord)
+      && !isApprovedDeploymentCompany(companyRecord);
     const identity = knownCompanyIdentity(input.companies?.get(response.id), response.data);
     // Each piece of the company's words as the site reads it (`companyWordsForSite`); one still being prepared shows as
     // none, and the entry says its words are on their way (`wordsPending`), or held at a limit (`wordsLimit`).
@@ -564,6 +569,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     } : {};
     const applicant = applicantShownToSite(response.data, input.companies?.get(response.id));
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
+      ...(notApprovedNow ? { notApprovedNow: true as const } : {}),
       ...(applicant ? { applicant } : {}),
       ...(reason ? { reason } : {}),
       ...(wordsLimit ? { wordsLimit: true as const } : wordsPending ? { wordsPending: true as const } : {}),

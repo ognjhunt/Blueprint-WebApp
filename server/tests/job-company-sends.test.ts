@@ -361,6 +361,20 @@ describe("what the site receives", () => {
       sent: { count: 1, firstAtIso: "2026-11-12T00:00:00.000Z" }, introductions: { used: 0 } });
   });
 
+  // Stress test round 2 (2026-11-24): an application whose company's approval was withdrawn read like any other.
+  it("marks an application the site cannot accept because Blueprint's approval of the company was withdrawn", () => {
+    const answer = { id: "n", data: { state: "interested", updatedAtIso: "2026-11-12T01:00:00.000Z", inputs: "", recordedBy: "company",
+      statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION } };
+    const project = (status: string, approved: boolean) => projectSiteCompanyActivity({ aliases: { n: "A" }, sends: [], responses: [answer],
+      listed: true, approvedDeploymentCompanies: new Set(approved ? ["n"] : []),
+      companies: new Map([["n", { status, partnerRole: "deployment", company: NORTH.company, website: NORTH.website }]]) }).entries[0];
+    expect(project("declined", false)).toMatchObject({ canIntroduce: false, notApprovedNow: true });
+    expect(project("approved", true)).toMatchObject({ canIntroduce: true });
+    expect(project("approved", true)).not.toHaveProperty("notApprovedNow");
+    // Approved, waiting only for its own Terms: not said to be unapproved.
+    expect(project("approved", false)).not.toHaveProperty("notApprovedNow");
+  });
+
   it("never shows an answer given before this change (no recordedBy), gives it no alias, and the status read writes nothing", async () => {
     // A legacy answer, as the library stored it before C1, even one that somehow carries an alias.
     state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(SOUTH.email)}`, { state: "interested", inputs: WORDS.south,
