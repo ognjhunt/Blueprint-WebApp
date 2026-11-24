@@ -24,10 +24,35 @@ import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
 import { checkNewCompanyApplication } from "../utils/companyCheck";
 import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
+import { clientIp } from "../utils/clientIp";
+import { APPLICATION_NAME_HOLDS_CONTACT, APPLICATION_WEBSITE_NOT_OWN, applicantNameHoldsContactDetails, applicantWebsiteProblem }
+  from "../../client/src/lib/companyApplicant";
 
 const router = Router();
 
-const applyLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false });
+/** Seconds until a limiter's window lets this caller in again, from the limiter's own reset time. */
+function limiterWaitSeconds(req: Request, windowMs: number): number {
+  const reset = (req as Request & { rateLimit?: { resetTime?: Date } }).rateLimit?.resetTime;
+  return Math.max(1, Math.ceil((reset instanceof Date ? reset.getTime() - Date.now() : windowMs) / 1000));
+}
+
+/** A 429 that says how long to wait (stress test round 2, 2026-11-24: "Too many requests" said nothing of when). */
+const tooManyTries = (windowMs: number) => (req: Request, res: Response) => {
+  const seconds = limiterWaitSeconds(req, windowMs);
+  res.set("Retry-After", String(seconds));
+  return res.status(429).json({ code: "rate_limited", retryAfterSeconds: seconds,
+    error: `Too many tries in a short time. Wait ${waitInWords(seconds)} and try again.` });
+};
+
+/** Applications, sign-in links and invitations from one address: five a minute. */
+const applyLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false, handler: tooManyTries(60_000) });
+/**
+ * Pressing "I agree" has its own limit, by the signed-in account, never by address (stress test round 2: an office that
+ * asked for its sign-in link a few times then could not accept the Terms, as both shared one bucket per address).
+ */
+const acceptTermsLimiter = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (_req: Request, res: Response) => `account:${String(res.locals.firebaseUser?.uid ?? "unknown")}`,
+  handler: tooManyTries(60_000) });
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
@@ -38,19 +63,55 @@ export const applicationSchema = z
     company: text(160),
     website: text(300).refine(value => /^https?:\/\//i.test(value) && URL.canParse(value), {
       message: "Use a full http:// or https:// website address.",
-    }),
+    }).refine(value => applicantWebsiteProblem(value) === null, { message: APPLICATION_WEBSITE_NOT_OWN }),
     partnerRole: z.enum(["deployment", "technology"]).optional(),
     returnToJob: z.string().max(130).transform(path => companyJobReturnPath(path) ?? undefined).optional(),
   })
-  .strict();
+  .strict()
+  // The site reads the company's name before it presses Accept, so the name carries no contact detail (stress test
+  // round 2, 2026-11-24: "Zed Robotics · call 415 555 0199").
+  .superRefine((value, context) => {
+    if (applicantNameHoldsContactDetails(value.company, value.website))
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["company"], message: APPLICATION_NAME_HOLDS_CONTACT });
+  });
+
+/** What the application form is told when it cannot be recorded as sent: the field that failed, plainly. */
+export function applicationRefusal(issues: ReadonlyArray<{ code: string; path: ReadonlyArray<PropertyKey>; message: string }>): string {
+  const own = issues.find(issue => issue.message === APPLICATION_NAME_HOLDS_CONTACT || issue.message === APPLICATION_WEBSITE_NOT_OWN);
+  return own?.message ?? "Check the form. Every field is needed, and the website must start with https:// or http://.";
+}
+
+/**
+ * New applications from one client address in a UTC day (stress test round 2, 2026-11-24: a hundred junk applications
+ * from a handful of addresses). The in-memory limiter bounds a minute; this bounds a day across restarts. Each email
+ * counts once a day, so an application sent again is not charged twice. The automatic check has its own share per
+ * email domain (`companyCheck.ts`).
+ */
+export const APPLICATIONS_PER_ADDRESS_DAILY = 20;
+
+/** "a minute", "12 minutes", "3 hours": how long to wait, rounded up. */
+export function waitInWords(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  if (minutes === 1) return "a minute";
+  if (minutes < 90) return `${minutes} minutes`;
+  const hours = Math.ceil(minutes / 60);
+  return `${hours} hours`;
+}
 
 router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
   const parsed = applicationSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({
-      error: "Check the form. Every field is needed, and the website must start with https:// or http://.",
-      code: "application_invalid",
-    });
+    return res.status(400).json({ error: applicationRefusal(parsed.error.issues), code: "application_invalid" });
+  }
+  // The same answer for every application from an address over its day, decided or not, so it reveals nothing.
+  const { consumeDailyCaps } = await import("../utils/durableDailyCaps");
+  const admitted = await consumeDailyCaps({ scope: "company_application", failClosed: false,
+    caps: [{ name: "company_application_address", limit: APPLICATIONS_PER_ADDRESS_DAILY, subject: clientIp(req) }],
+    idempotencyKey: parsed.data.email.trim().toLowerCase() });
+  if (!admitted.allowed) {
+    res.set("Retry-After", String(admitted.retryAfterSeconds));
+    return res.status(429).json({ code: "application_rate_limited", retryAfterSeconds: admitted.retryAfterSeconds,
+      error: `Too many applications from this network today. Try again in ${waitInWords(admitted.retryAfterSeconds)}.` });
   }
   const { returnToJob, ...fields } = parsed.data;
   const application = { ...fields, ...(returnToJob ? { returnToJob } : {}) };
@@ -140,7 +201,7 @@ router.post("/sign-in-link/redeem", applyLimiter, async (req: Request, res: Resp
 const TERMS_ACCEPTANCE_INVALID = { error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" };
 const acceptTermsSchema = z.object({ acceptedTerms: z.literal(true), termsVersion: z.string().max(40),
   privacyVersion: z.string().max(40) }).strict();
-router.post("/accept-terms", applyLimiter, verifyFirebaseToken, async (req: Request, res: Response) => {
+router.post("/accept-terms", verifyFirebaseToken, acceptTermsLimiter, async (req: Request, res: Response) => {
   const user = res.locals.firebaseUser;
   const body = acceptTermsSchema.safeParse(req.body);
   // The versions the prompt showed, recorded exactly when they still count as current; refused otherwise.

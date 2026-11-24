@@ -141,8 +141,9 @@ export async function sweepOutcomeQuestions(options: { now?: Date } = {}): Promi
     summary.examined += 1;
     const where = introductionPath(intro.path);
     if (!where) continue;
-    const day: OutcomeQuestionDay | null = dueOutcomeQuestionDay(intro.data, nowMs);
-    if (day === null) continue;
+    // Each side's own date: one side's final answer never ends the other's questions.
+    const dueFor = (side: OutcomeSide): OutcomeQuestionDay | null => dueOutcomeQuestionDay(intro.data, nowMs, side);
+    if (dueFor("site") === null && dueFor("company") === null) continue;
     try {
       if (!jobs.has(where.requestId)) {
         const job = await db.collection("inboundRequests").doc(where.requestId).get();
@@ -150,6 +151,8 @@ export async function sweepOutcomeQuestions(options: { now?: Date } = {}): Promi
       }
       if (!jobs.get(where.requestId)) continue;
       for (const recipient of await recipientsOf(intro.data)) {
+        const day = dueFor(recipient.side);
+        if (day === null) continue;
         const email = buildOutcomeQuestionEmail({ requestId: where.requestId, companyId: where.companyId, side: recipient.side,
           otherSideName: recipient.otherSideName, nowMs });
         const { enqueued } = await enqueueOutbox({
@@ -191,7 +194,8 @@ export function startJobOutcomeQuestionWorker(options: { intervalMs?: number; le
 
 export type OutcomeAnswerResult =
   | { ok: true; state: OutcomeState; recorded: boolean;
-      /** Already final ("Installed" or "Not going ahead" from either side): nothing more is recorded (review S3). */
+      /** This side's own answer was already final ("Installed" or "Not going ahead"): nothing more is recorded for it
+       * (review S3). Never the other side's answer. */
       finalAlready?: OutcomeState }
   | { ok: false; reason: "invalid_link" | "not_found" | "closed" | "store_unavailable" };
 
@@ -215,9 +219,10 @@ export async function recordOutcomeAnswer(token: string, now = new Date()): Prom
     if (projectWebsiteCaptureRights(job.data()).consent_revoked) return { ok: false, reason: "closed" };
     const data = intro.data() as IntroductionLike;
     const existing = Array.isArray(data.outcomes) ? data.outcomes : [];
-    // A final answer is final (planner, 2026-11-12, S3): after "Installed" or "Not going ahead" from either side, a later
-    // link records nothing and says what is on record.
-    const final = existing.find(record => record && FINAL_OUTCOME_STATES.has(record.state as OutcomeState));
+    // A final answer is final for the side that gave it (planner, 2026-11-12, S3): after its own "Installed" or "Not going
+    // ahead", a later link of the same side records nothing and says what that side said. The other side's answer never
+    // refuses this one, and is never said to it (stress test round 2, 2026-11-24).
+    const final = existing.find(record => record && record.by === payload.by && FINAL_OUTCOME_STATES.has(record.state as OutcomeState));
     if (final) return { ok: true, state: payload.state, recorded: false, finalAlready: final.state as OutcomeState };
     // The same link used twice records once, however long apart.
     const link = createHash("sha256").update(token).digest("hex");

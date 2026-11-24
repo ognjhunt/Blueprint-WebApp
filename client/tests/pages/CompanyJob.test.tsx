@@ -139,6 +139,48 @@ describe("the company's page for one job", () => {
       chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 }, similarJobs: "6_20", visitMustConfirm: "Conveyor height." });
   });
 
+  // Stress test round 2, 2026-11-24: the estimate's ends named no unit to a screen reader, the visit field had no hint,
+  // and a refused field was neither marked nor focused.
+  it("names each estimate end's unit and the visit field's hint, and marks, focuses and scrolls to a refused field", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    render(<CompanyJob />);
+    const form = await screen.findByRole("form", { name: "Your response" });
+    fireEvent.click(within(form).getByLabelText("Apply"));
+    const glance = within(form).getByRole("group", { name: "Your application at a glance" });
+    fireEvent.change(within(glance).getByLabelText("How you charge"), { target: { value: "per_hour" } });
+    const from = within(glance).getByLabelText("From"), to = within(glance).getByLabelText("To");
+    const visit = within(glance).getByLabelText("What a visit must confirm");
+    expect(from).toHaveAccessibleDescription(/^Estimate, in US dollars an hour Estimate before a site visit\. Not a quote\./);
+    expect(to).toHaveAccessibleDescription(/^Estimate, in US dollars an hour/);
+    expect(visit).toHaveAccessibleDescription(/^What you would need to see at the site before you commit/);
+    // A comma decimal: refused, the From field marked, focused and scrolled to.
+    fireEvent.change(from, { target: { value: "0,35" } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(from).toHaveAttribute("aria-invalid", "true"));
+    expect(document.activeElement).toBe(from);
+    expect(scrolled).toHaveBeenCalled();
+    expect(from).toHaveAccessibleDescription(/Enter the estimate in US dollars/);
+    expect(to).not.toHaveAttribute("aria-invalid");
+    // Only "To" fails on its own: it is the one marked. Typing in it clears the mark.
+    fireEvent.change(from, { target: { value: "45" } });
+    fireEvent.change(to, { target: { value: "20000" } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(to).toHaveAttribute("aria-invalid", "true"));
+    expect(from).not.toHaveAttribute("aria-invalid");
+    expect(document.activeElement).toBe(to);
+    fireEvent.change(to, { target: { value: "60" } });
+    expect(to).not.toHaveAttribute("aria-invalid");
+    // A refusal from the server names its field: the visit note.
+    fireEvent.change(visit, { target: { value: "Floor load" } });
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ error: "Keep what a visit must confirm short.",
+      field: "visitMustConfirm" }) });
+    fireEvent.submit(form);
+    await waitFor(() => expect(visit).toHaveAttribute("aria-invalid", "true"));
+    expect(document.activeElement).toBe(visit);
+  });
+
   // Review of #1426: an estimate hidden by changing how the company charges never blocks the application.
   it("leaves out an estimate hidden by changing how the company charges, and still applies", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });

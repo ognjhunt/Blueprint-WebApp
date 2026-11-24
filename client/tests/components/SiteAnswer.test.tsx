@@ -767,6 +767,20 @@ describe("the deployment companies section, with sends, answers and introduction
       .toEqual(["Charges", "Estimate", "Similar jobs done", "Earliest start"]);
   });
 
+  // Stress test round 2, 2026-11-24: a company whose approval was withdrawn after it applied read "Applied", with no
+  // Accept and no reason.
+  it("says plainly why a company whose approval was withdrawn cannot be accepted, and nothing of the kind once it can", () => {
+    const entries = [{ kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const,
+      canIntroduce: false, notApprovedNow: true as const, applicant: { name: "Paused Robotics", website: null } }];
+    const { rerender } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { ...activity, entries } }} />);
+    expect(lines()[0]).toContain("Paused Robotics can't be accepted right now because it isn't approved by Blueprint at the moment.");
+    expect(within(companies()).queryByRole("button", { name: "Accept" })).toBeNull();
+    rerender(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
+      companies: { ...activity, entries: [{ ...entries[0], canIntroduce: true, notApprovedNow: undefined }] as never } }} />);
+    expect(lines()[0]).not.toContain("isn't approved by Blueprint");
+    expect(within(companies()).getAllByRole("button", { name: "Accept" })).toHaveLength(1);
+  });
+
   // Stress test, 2026-11-24: an estimate raised after the introduction updated silently.
   it("says when an estimate changed since the site last looked, and after it accepted", async () => {
     const applicant = (estimate: { lowUsd: number; highUsd: number }, extra: Record<string, unknown> = {}) => ({ ...activity, entries: [

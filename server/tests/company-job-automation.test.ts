@@ -692,6 +692,15 @@ describe("the company's page for one job (E3)", () => {
       .toBe("Keep what a visit must confirm to 300 characters or fewer.");
     expect(await refusal({ state: "interested", details: { chargeModel: "per_hour", estimate: { lowUsd: 45, highUsd: 30 } } }))
       .toMatch(/^Enter the estimate in US dollars/);
+    // Stress test round 2 (2026-11-24): over the way of charging's ceiling, or digits that read as a phone number; and the
+    // refusal names its field for the form to mark and focus.
+    for (const estimate of [{ lowUsd: 45, highUsd: 20_000 }, { lowUsd: 41_555_501.99, highUsd: 41_555_501.99 }]) {
+      const refused = await answer(SOUTH, { state: "interested", details: { chargeModel: "per_hour", estimate } });
+      expect(refused.status).toBe(400);
+      expect(refused.body).toMatchObject({ field: "estimate", error: expect.stringMatching(/^Enter the estimate in US dollars/) });
+    }
+    expect((await answer(SOUTH, { state: "interested", details: { visitMustConfirm: "x".repeat(301) } })).body.field).toBe("visitMustConfirm");
+    expect((await answer(SOUTH, { state: "interested", inputs: "x".repeat(2001) })).body.field).toBe("inputs");
     expect(await refusal({ state: "interested", details: { chargeModel: "undecided", estimate: { lowUsd: 5, highUsd: 9 } } }))
       .toMatch(/^An estimate needs a way of charging/);
     expect(await refusal({ state: "interested", details: { chargeModel: "barter" } })).toBe("Choose how you charge from the list.");

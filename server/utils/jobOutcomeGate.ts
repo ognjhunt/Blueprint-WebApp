@@ -3,9 +3,9 @@
  * runs before it sends one. Kept apart from `jobOutcomes.ts` so `captureOutbox.ts` can import the
  * check without an import cycle.
  *
- * A question is owed 14, 45 and 90 days after the introduction, once per side per date; none once
- * either side answered "Installed" or "Not going ahead", and none after the site withdrew ("Stop using my
- * video"). A site closing its job, or the job leaving the companies' list, does not end them: the introduction
+ * A question is owed 14, 45 and 90 days after the introduction, once per side per date; none to a side once
+ * it answered "Installed" or "Not going ahead" itself (the other side's answer never ends its questions), and none
+ * after the site withdrew ("Stop using my video"). A site closing its job, or the job leaving the companies' list, does not end them: the introduction
  * was already made.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -44,19 +44,24 @@ export function outcomesOf(introduction: IntroductionLike | null | undefined): O
     .map(item => ({ by: item.by, state: item.state, atIso: item.atIso }));
 }
 
-/** Either side said "Installed" or "Not going ahead", or the introduction was cancelled: nothing more is asked. */
-export function outcomeQuestionsEnded(introduction: IntroductionLike | null | undefined): boolean {
+/**
+ * Nothing more is asked of this side: it said "Installed" or "Not going ahead" itself, or the introduction was
+ * cancelled. Each side's questions end on its own answer, never on the other side's (stress test round 2, 2026-11-24:
+ * a company's "Not going ahead" on day 14 threw away the site's "Installed" and its day-45 and day-90 questions).
+ */
+export function outcomeQuestionsEnded(introduction: IntroductionLike | null | undefined, side: OutcomeSide): boolean {
   if (typeof introduction?.cancelledAtIso === "string") return true;
-  return outcomesOf(introduction).some(record => FINAL_OUTCOME_STATES.has(record.state));
+  return outcomesOf(introduction).some(record => record.by === side && FINAL_OUTCOME_STATES.has(record.state));
 }
 
 /**
- * The question owed now: the latest of 14, 45 and 90 days that has passed since the introduction, or
+ * The question owed to this side now: the latest of 14, 45 and 90 days that has passed since the introduction, or
  * null. A date missed by the sweep is not asked late once a later one is due, so a side never gets two
  * questions at once.
  */
-export function dueOutcomeQuestionDay(introduction: IntroductionLike | null | undefined, nowMs: number): OutcomeQuestionDay | null {
-  if (outcomeQuestionsEnded(introduction)) return null;
+export function dueOutcomeQuestionDay(introduction: IntroductionLike | null | undefined, nowMs: number,
+  side: OutcomeSide): OutcomeQuestionDay | null {
+  if (outcomeQuestionsEnded(introduction, side)) return null;
   const startMs = typeof introduction?.requestedAtIso === "string" ? Date.parse(introduction.requestedAtIso) : NaN;
   if (!Number.isFinite(startMs)) return null;
   let due: OutcomeQuestionDay | null = null;
@@ -90,8 +95,8 @@ export function parseOutcomeQuestionKey(requestId: string, key: string): { compa
 
 /**
  * The outbox's check before it sends a row: true for every other kind; for an outcome question, true
- * only while the introduction exists, no final answer is on it, the site has not withdrawn and the
- * job is visible.
+ * only while the introduction exists, the side it goes to has given no final answer, the site has not withdrawn and
+ * the job is visible.
  */
 export async function outcomeQuestionIsCurrent(entry: { kind: string; requestId: string; idempotencyKey?: string },
   tx?: FirebaseFirestore.Transaction): Promise<boolean> {
@@ -112,5 +117,5 @@ export async function outcomeQuestionIsCurrent(entry: { kind: string; requestId:
     if (!isApprovedDeploymentCompanyRecord(company.exists ? company.data() as Record<string, unknown> : null)) return false;
   }
   if (!await jobTakesOutcomeQuestions(entry.requestId, job.data() as Record<string, unknown>, tx)) return false;
-  return !outcomeQuestionsEnded(intro.data() as IntroductionLike);
+  return !outcomeQuestionsEnded(intro.data() as IntroductionLike, parsed.side);
 }

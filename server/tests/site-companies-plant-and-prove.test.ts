@@ -172,7 +172,7 @@ describe("the site's status payload, before and after an introduction", () => {
       answer(NORTH, WORDS.north, "interested", COMPANY_RESPONSE_STATEMENT_VERSION));
     const { raw, body } = await siteStatus();
     const north = body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.alias === "Company A");
-    expect(north.applicant).toEqual({ name: NORTH.company, website: NORTH.website });
+    expect(north.applicant).toEqual({ name: NORTH.company, website: new URL(NORTH.website).origin });
     expect(north.company).toBeUndefined();
     // The email, the person, the robot, the region, the operator's note and the words as written never reach the site.
     expectNone("status with an applicant", raw, [NORTH.email, NORTH.name, NORTH.robot, NORTH.region, NORTH.decisionNote,

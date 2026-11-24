@@ -79,12 +79,22 @@ service cloud.firestore {
           || (data.roles is list
             && data.roles.hasOnly(['buyer', 'creator', 'customer', 'site_operator', 'robot_team', 'guest', 'user'])));
     }
+    // A Terms and Privacy acceptance is a recorded agreement (rights): only the
+    // server records it, after the person presses "I agree" signed in
+    // (`server/utils/companyTerms.ts`, `server/routes/workspace.ts`). A client
+    // that wrote its own could see jobs without agreeing, with any date
+    // (stress test round 2, 2026-11-24).
+    function serverOnlyProfileKeys() {
+      return ['admin', 'ops', 'accessRoles', 'structuredIntakeRequestId',
+        'termsAcceptance', 'termsAcceptanceSource', 'termsAcceptanceByServer',
+        'acceptedTerms', 'termsVersion', 'privacyVersion'];
+    }
     match /users/{userId} {
       allow read: if isOwner(userId);
       // structuredIntakeRequestId links an account to an inbound request and
       // is written only by the server (Admin SDK) after ownership is proven.
       allow create: if isOwner(userId)
-        && !request.resource.data.keys().hasAny(['admin', 'ops', 'accessRoles', 'structuredIntakeRequestId'])
+        && !request.resource.data.keys().hasAny(serverOnlyProfileKeys())
         && hasSafeClientProfileRoles(request.resource.data);
       // Clients may update their own non-financial fields.
       // Financial fields (stats.availableBalance, stats.totalEarnings, etc.)
@@ -92,7 +102,7 @@ service cloud.firestore {
       // these rules entirely.
       allow update: if isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['stats', 'admin', 'ops', 'accessRoles', 'structuredIntakeRequestId'])
+            .hasAny(serverOnlyProfileKeys().concat(['stats']))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles'])
           || hasSafeClientProfileRoles(request.resource.data));
       // Self-service account deletion (GDPR erasure): the owner may delete

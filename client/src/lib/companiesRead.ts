@@ -40,6 +40,9 @@ export const COMPANIES_READ_LIMIT = "Companies do not see these words: we reache
 /** Under the site's reply to a company's question. */
 export const replyAsReadLine = (alias: string) => `This is your reply as ${alias} reads it, with names and contact details taken out.`;
 export const replyPendingLine = (alias: string) => `${alias} sees your reply once we have taken names and contact details out of it.`;
+/** A reply that held only contact details (stress test round 2, 2026-11-24): the company would read nothing of it. */
+export const SITE_REPLY_ONLY_CONTACT_DETAILS = "Companies do not see phone numbers, emails or other contact details in a reply. "
+  + "They get yours only when you ask for an introduction. Add a detail about the job, such as a size, rate, or requirement.";
 
 /** On a company's page, in place of the site's reply while it is being prepared. */
 export const SITE_REPLY_BEING_PREPARED = "The site replied. You can read it here once we have taken names and contact details out of it.";

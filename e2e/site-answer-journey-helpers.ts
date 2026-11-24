@@ -161,7 +161,8 @@ export async function decide(request: APIRequestContext, email: string, status: 
 
 export type Company = { email: string; name: string; website: string; contact: string; password: string; ip: string };
 export function companyFor(stamp: string, letter: string, index: number): Company {
-  return { email: `flows-co-${letter}-${stamp}@example.invalid`, name: `Flows ${letter} Robotics ${stamp}`,
+  // The stamp in letters: a company name with a run of digits reads as a phone number and is refused (stress test round 2).
+  return { email: `flows-co-${letter}-${stamp}@example.invalid`, name: `Flows ${letter} Robotics ${stamp.replace(/\d/g, digit => "abcdefghij"[Number(digit)])}`,
     website: `https://flows-${letter.toLowerCase()}.example`, contact: `Casey ${letter}lington`, password: "flows-company-pass",
     // Each company from its own address: the application limiter counts per client address.
     ip: `10.9.${index}.${(Number(stamp.slice(-2)) % 200) + 1}` };

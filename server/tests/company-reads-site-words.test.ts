@@ -191,6 +191,22 @@ describe("what a company reads of a site's own words", () => {
     expect(await screenText(JOB, "company", "We do this daily.")).toBe("We do this daily.");
   });
 
+  // Stress test round 2 (2026-11-24): a word that may still name someone is never passed on one empty answer.
+  it("confirms an empty answer for a word that may still name someone with a second pass that names the word", async () => {
+    const seen: Array<string[] | undefined> = [];
+    useFreeTextRedactor(async ({ check }) => { seen.push(check); return check?.includes("Acme") ? ["Acme"] : []; });
+    expect(await screenText(JOB, "site", "Cartons go out at noon. Acme needs them stacked.")).toBe("Cartons go out at noon. [removed] needs them stacked.");
+    expect(seen).toEqual([undefined, ["Acme"]]);
+    // An honest second empty answer passes an ordinary sentence.
+    seen.length = 0;
+    useFreeTextRedactor(async ({ check }) => { seen.push(check); return []; });
+    expect(await screenText(JOB, "site", "Cartons go out at noon. Overflow goes to the dock.")).toBe("Cartons go out at noon. Overflow goes to the dock.");
+    expect(seen).toEqual([undefined, ["Overflow"]]);
+    // A confirming pass that does not answer leaves the words unread.
+    useFreeTextRedactor(async ({ check }) => check ? null : []);
+    expect(await screenText(JOB, "site", "Cartons go out. Brindle takes them.")).toBeNull();
+  });
+
   // A review of PR #1437: one shared count let one company's edits use up the whole job.
   it("counts each writer against its own budget, so one company's edits never use up the site's or another's", async () => {
     useFreeTextRedactor(async () => []);

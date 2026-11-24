@@ -29,7 +29,8 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { REMOVED, capitalisedWordsAfterFirst, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity }
+  from "../../client/src/lib/contactRedaction";
 import { logger } from "../logger";
 
 export const FREE_TEXT_SCREENING_COLLECTION = "freeTextScreenings";
@@ -70,9 +71,17 @@ export function screeningKey(writer: ScreeningWriter, text: string): string {
   return createHash("sha256").update(`${FREE_TEXT_SCREENING_SCHEMA}\n${writer}\n${text}`).digest("hex");
 }
 
-/** Text with no letter left beside the placeholders needs no pass: nothing in it can name anyone. */
+/** At this many digits a text may hold a phone number however it is written, so it is read by the pass. */
+export const SCREENING_DIGITS = 7;
+
+/**
+ * Whether the text needs the model pass before the other side reads it: any letter left beside the placeholders, or
+ * seven digits or more of any script (stress test round 2, 2026-11-24: a reply of only "612 345 678" or "٤١٥٥٥٥٠١٩٩" had no
+ * letter, skipped the pass and crossed whole). Text with neither ("[removed]", "40", "12.5") can name no one.
+ */
 export function needsScreening(text: string): boolean {
-  return /\p{L}/u.test(text.split(REMOVED).join(" ").replace(/\bthe (?:site|company)\b/gi, " "));
+  const rest = text.split(REMOVED).join(" ").replace(/\bthe (?:site|company)\b/gi, " ").normalize("NFKC");
+  return /\p{L}/u.test(rest) || (rest.match(/\p{N}/gu)?.length ?? 0) >= SCREENING_DIGITS;
 }
 
 const ZERO_WIDTH = /[​-‍⁠﻿­]/;
@@ -157,25 +166,76 @@ export function applyRemovals(text: string, pieces: readonly unknown[]): string 
 }
 
 /**
- * Words an empty answer is not trusted for (a review of PR #1437: words written to talk the model into answering
- * nothing could carry a contact through): an instruction aimed at a model, or what is left of an address or a handle
- * spelled out. The pass then fails closed rather than pass the words as clean.
+ * Words written to talk a model into answering nothing (a review of PR #1437; stress test round 2, 2026-11-24, which
+ * found 7 of 8 such forms trusted): an instruction aimed at a model or its answer, in English, Spanish or Chinese.
  */
+const INSTRUCTION_TO_A_MODEL: readonly RegExp[] = [
+  /\b(?:ignore|disregard|forget|override|bypass)\b[^.!?\n]{0,40}\b(?:instructions?|rules|prompts?|guidance|guidelines|directions)\b/i,
+  /\b(?:ignore|disregard|forget|override|bypass)\b[^.!?\n]{0,40}\b(?:above|previous|prior|earlier|preceding|you (?:were|have been|are) (?:told|given)|(?:told|said) (?:before|earlier))\b/i,
+  /\b(?:return|answer|reply|output|respond|give back)\b[^.!?\n]{0,30}(?:\[\s*\]|\bnothing\b|\bempty\b|\b(?:the )?(?:text|words) (?:unchanged|as (?:it is|is|written))\b)/i,
+  /\b(?:system|developer)\s+(?:prompt|message|instructions?)\b/i,
+  /\byou are (?:an?|the) (?:ai|assistant|model|language model)\b/i,
+  /\b(?:as|you are) (?:the|a|an) (?:redaction|privacy|screening|review|moderation)\s+(?:assistant|model|bot|ai|tool)\b/i,
+  /\byour (?:answer|output|response|reply|list) (?:must|should|will|shall|has to) be\b/i,
+  /["'“”‘’]?\bremove\b["'“”‘’]?\s*[:=]\s*\[\s*\]/i,
+  /\bremove (?:nothing|no words?)\b|\bnothing to remove\b|\bdo(?: not|n'?t) remove (?:any(?:thing| words?| names?)?|words|names)\b/i,
+  /\b(?:leave|keep)\b[^.!?\n]{0,30}\b(?:words?|text|everything)\b[^.!?\n]{0,30}(?:\bas (?:written|is|it is)\b|\bunchanged\b|\bintact\b)/i,
+  /\bexactly as (?:written|typed|given)\b/i,
+  /\b(?:text|words?|message|note|reply|answer)\b[^.!?\n]{0,30}\balready\b[^.!?\n]{0,15}\b(?:cleared|checked|screened|reviewed|approved|redacted|sanitized|sanitised|vetted)\b/i,
+  /\b(?:cleared|approved|screened|vetted|checked) by blueprint\b/i,
+  /\b(?:note|message|instructions?) (?:for|to) (?:the )?(?:reviewer|model|assistant|ai|redactor|screener|moderator)\b/i,
+  /\b(?:this|the) text (?:has|contains|holds|includes) no (?:names?|contact|personal)\b/i,
+  // Spanish.
+  /\b(?:ignora|ignore|ignoren|ignorar|olvida|olvide|olviden|olvidar|omite|omita|omitir|descarta|descarte|desestima)\b[^.!?\n]{0,40}(?:instrucciones|reglas|indicaciones|órdenes|ordenes|anteriores|previas)/iu,
+  /(?:lista|respuesta|arreglo) vac[ií]a|\b(?:devuelve|devuelva|devuelvan|responde|responda|retorna|retorne)\b[^.!?\n]{0,20}\b(?:nada|el texto (?:sin cambios|tal cual|igual))/iu,
+  /\bno hay nada que (?:eliminar|borrar|quitar)|\bno (?:elimines|borres|quites) (?:nada|ninguna palabra|ningún nombre)/iu,
+  // Chinese.
+  /(?:忽略|无视|忽视|不要理会|不理会|别管|忘记|忘掉)[^。！？\n]{0,20}(?:指示|指令|规则|说明|提示|要求|规定)/u,
+  /空列表|空数组|不要删除|无需删除|不用删除|(?:返回|输出)原文/u,
+];
+
+/** A word in a script other than Latin: the deterministic pass reads no name in it, so only the model pass can. */
+const NON_LATIN_WORD = /(?![\p{Script=Latin}])\p{L}/u;
+
+/** The text as the distrust rules read it: placeholders out of the way. */
+const distrustForm = (text: string) => text.split(REMOVED).join(" ").replace(/\b[Tt]he (?:site|company)\b/g, "the");
+
+/**
+ * The words of a text that may still name someone and that only the model pass can judge (stress test round 2,
+ * 2026-11-24): a capitalised word after the first (`capitalisedWordsAfterFirst`) and a word in a script other than
+ * Latin. At most twenty, each once.
+ */
+export function wordsToConfirm(text: string): string[] {
+  const plain = distrustForm(text);
+  const nonLatin = plain.match(/[^\s\p{P}\p{S}\p{N}]*(?![\p{Script=Latin}])\p{L}[^\s\p{P}\p{S}\p{N}]*/gu) ?? [];
+  return [...new Set([...capitalisedWordsAfterFirst(plain), ...nonLatin])].slice(0, 20);
+}
+
+/**
+ * Whether an empty answer may be trusted for this text, and if not why:
+ * - `instruction`: words aimed at a model or its answer (`INSTRUCTION_TO_A_MODEL`), or what is left of an address or a
+ *   handle spelled out. An empty answer is never trusted: the pass fails closed and is tried again on its back-off.
+ * - `unconfirmed`: a word that may still name someone (`wordsToConfirm`). The first empty answer fails closed and the
+ *   pass is tried again at once with those words named for the model to judge one by one; an empty answer to that
+ *   pass is trusted (an ordinary sentence such as "Overflow goes to the dock." still reaches the other side).
+ */
+export function emptyAnswerDistrust(text: string): "instruction" | "unconfirmed" | null {
+  const plain = distrustForm(text);
+  if (INSTRUCTION_TO_A_MODEL.some(pattern => pattern.test(plain)) || /@/.test(plain)
+    || /\b(?:at|@)\s+[\p{L}\p{N}-]+(?:\s+[\p{L}\p{N}-]+){0,3}\s+(?:dot|\.)\s+[\p{L}]{2,}\b/iu.test(plain)) return "instruction";
+  return capitalisedWordsAfterFirst(plain).length > 0 || NON_LATIN_WORD.test(plain) ? "unconfirmed" : null;
+}
+
+/** Whether a first empty answer is distrusted for this text (`emptyAnswerDistrust`). */
 export function emptyAnswerDistrusted(text: string): boolean {
-  const plain = text.split(REMOVED).join(" ");
-  return /\b(?:ignore|disregard|forget|override)\b[^.!?\n]{0,40}\b(?:instructions?|rules?|prompt|above|previous)\b/i.test(plain)
-    || /\b(?:return|answer|reply|output|respond)\b[^.!?\n]{0,20}(?:\[\s*\]|\bnothing\b|\bempty\b)/i.test(plain)
-    || /\b(?:system|developer)\s+(?:prompt|message|instructions?)\b/i.test(plain)
-    || /\byou are (?:an?|the) (?:ai|assistant|model|language model)\b/i.test(plain)
-    || /@/.test(plain)
-    || /\b(?:at|@)\s+[\p{L}\p{N}-]+(?:\s+[\p{L}\p{N}-]+){0,3}\s+(?:dot|\.)\s+[\p{L}]{2,}\b/iu.test(plain);
+  return emptyAnswerDistrust(text) !== null;
 }
 
 /**
  * A model pass: the pieces of the text to take out, or null when it did not answer. A scripted pass may also say what
- * it cost (`costUsd`); otherwise it costs nothing.
+ * it cost (`costUsd`); otherwise it costs nothing. `check` names the words a confirming pass judges one by one.
  */
-export type FreeTextRedactor = (input: { writer: ScreeningWriter; text: string; requestId: string }) =>
+export type FreeTextRedactor = (input: { writer: ScreeningWriter; text: string; requestId: string; check?: string[] }) =>
   Promise<unknown[] | { remove: unknown[] | null; costUsd?: number } | null>;
 
 let redactorOverride: FreeTextRedactor | null = null;
@@ -197,7 +257,7 @@ async function redactorAvailable(): Promise<boolean> {
 /** What one pass returned: the pieces (null when it did not answer) and what it cost (null when that is not known). */
 type PassResult = { pieces: unknown[] | null; costUsd: number | null; basis: "reported_usage" | "no_provider_request" | "scripted" };
 
-async function modelPass(input: { writer: ScreeningWriter; text: string; requestId: string }): Promise<PassResult> {
+async function modelPass(input: { writer: ScreeningWriter; text: string; requestId: string; check?: string[] }): Promise<PassResult> {
   if (redactorOverride) {
     const answer = await redactorOverride(input);
     const pieces = Array.isArray(answer) ? answer : answer && Array.isArray(answer.remove) ? answer.remove : null;
@@ -206,8 +266,8 @@ async function modelPass(input: { writer: ScreeningWriter; text: string; request
   }
   const { runAgentTask } = await import("../agents/runtime");
   const { runCostUsd } = await import("./jobLaneSpend");
-  const result = await runAgentTask<{ writer: ScreeningWriter; text: string }, { remove?: unknown }>({
-    kind: "free_text_redaction", input: { writer: input.writer, text: input.text },
+  const result = await runAgentTask<{ writer: ScreeningWriter; text: string; check?: string[] }, { remove?: unknown }>({
+    kind: "free_text_redaction", input: { writer: input.writer, text: input.text, ...(input.check?.length ? { check: input.check } : {}) },
     metadata: { request_id: input.requestId },
   }, {
     dispatchQueuedOnFinish: false,
@@ -224,22 +284,28 @@ async function modelPass(input: { writer: ScreeningWriter; text: string; request
  * The most one pass over `text` can cost (`laneCallMaximumUsd`): the adapters' input ceiling or its prompt's size if
  * larger, the lane's 800-token output ceiling, the dearest model the lane may be sent to now. Null when it cannot be bounded (a model with no price): no pass starts.
  */
-async function passMaximumUsd(writer: ScreeningWriter, text: string): Promise<number | null> {
+async function passMaximumUsd(writer: ScreeningWriter, text: string, check: string[] = []): Promise<number | null> {
   const [{ freeTextRedactionTask }, { laneCallMaximumUsd, laneModels }, { getAgentMaxInputTokens, getTaskModelByProvider }] =
     await Promise.all([import("../agents/tasks/free-text-redaction"), import("./jobLaneSpend"), import("../agents/provider-config")]);
   // A scripted pass (tests, the local harness) is held as the lane's default model would be.
   const models = redactorOverride ? { openai_responses: getTaskModelByProvider("free_text_redaction").openai_responses }
     : await laneModels("free_text_redaction");
   if (!models) return null;
-  return laneCallMaximumUsd({ promptBytes: Buffer.byteLength(freeTextRedactionTask.build_prompt({ writer, text }), "utf8"),
+  // The prompt with the words a confirming pass names, so either pass over this text is held at its most.
+  const prompt = freeTextRedactionTask.build_prompt({ writer, text, ...(check.length ? { check } : {}) });
+  return laneCallMaximumUsd({ promptBytes: Buffer.byteLength(prompt, "utf8"),
     outputTokenCeiling: freeTextRedactionTask.max_output_tokens_ceiling ?? 800, inputTokenCeiling: getAgentMaxInputTokens(), models });
 }
 
 /** Why words cannot be read now and will not be by waiting: a pass count, or the job's spending cap. */
 export type ScreeningLimit = "writer_passes" | "job_passes" | "job_spending_cap";
 
-type Claim = { state: "done"; text: string } | { state: "claimed"; attempts: number; reservationId: string; token: string }
+type Claim = { state: "done"; text: string }
+  | { state: "claimed"; attempts: number; reservationId: string; token: string; confirming: boolean }
   | { state: "busy" } | { state: "limit"; limit: ScreeningLimit };
+
+/** The row's `lastError` after a first empty answer that needs confirming: the confirming pass may start at once. */
+const UNCONFIRMED_EMPTY_ANSWER = "empty_answer_unconfirmed";
 
 /**
  * In one transaction: the stored result, or a new pass claimed, counted against its writer's budget and the job's total
@@ -259,7 +325,9 @@ async function claimPass(jobId: string, key: string, writer: ScreeningWriter, bu
     if (row?.status === "done" && typeof row.text === "string") return { state: "done", text: row.text };
     const attempts = Number.isInteger(row?.attempts) ? row!.attempts as number : 0;
     if (row?.status === "running" && nowMs - Number(row.claimedAtMs ?? 0) < CLAIM_LOST_AFTER_MS) return { state: "busy" };
-    if (row?.status === "failed" && nowMs - Number(row.endedAtMs ?? 0) < retryAfterMs(attempts)) return { state: "busy" };
+    // A first empty answer that needs confirming is followed at once by the confirming pass (`emptyAnswerDistrust`).
+    const confirming = row?.status === "failed" && row.lastError === UNCONFIRMED_EMPTY_ANSWER;
+    if (row?.status === "failed" && !confirming && nowMs - Number(row.endedAtMs ?? 0) < retryAfterMs(attempts)) return { state: "busy" };
     const count = (value: unknown) => Number.isInteger(value) ? value as number : 0;
     const atIso = new Date(nowMs).toISOString();
     const limited = (limit: ScreeningLimit): Claim => {
@@ -279,7 +347,7 @@ async function claimPass(jobId: string, key: string, writer: ScreeningWriter, bu
       claimedAtIso: atIso, claimedAtMs: nowMs, reservationId, claimToken: token, limit: null }, { merge: true });
     tx.set(jobBudgetRef, { passes: count(jobBudget?.passes) + 1, updatedAtIso: atIso }, { merge: true });
     tx.set(writerBudgetRef, { budget, passes: count(writerBudget?.passes) + 1, updatedAtIso: atIso }, { merge: true });
-    return { state: "claimed", attempts: attempts + 1, reservationId, token };
+    return { state: "claimed", attempts: attempts + 1, reservationId, token, confirming };
   });
 }
 
@@ -333,36 +401,47 @@ async function runOnce(jobId: string, key: string, writer: ScreeningWriter, text
   if (stored?.status === "done" && typeof stored.text === "string") return stored.text;
   // No provider the policy permits: no pass starts and nothing is counted (no spend can happen).
   if (!(await redactorAvailable())) return null;
-  const maximumUsd = await passMaximumUsd(writer, text);
+  const distrust = emptyAnswerDistrust(text);
+  const check = distrust === "unconfirmed" ? wordsToConfirm(text) : [];
+  const maximumUsd = await passMaximumUsd(writer, text, check);
   if (maximumUsd === null) return null;
-  const claim = await claimPass(jobId, key, writer, budget, Date.now(), maximumUsd);
-  if (claim.state === "done") return claim.text;
-  if (claim.state === "limit") {
-    if (!capLogged.has(`${jobId}:${budget}:${claim.limit}`)) {
-      capLogged.add(`${jobId}:${budget}:${claim.limit}`);
-      logger.warn({ requestId: jobId, budget, limit: claim.limit },
-        "A model pass over free text met a limit; these words stay unread by the other side, and both pages say so");
-    }
-    return null;
-  }
-  if (claim.state !== "claimed") return null;
   const { settleJobLaneSpend } = await import("./jobLaneSpend");
-  let pass: PassResult = { pieces: null, costUsd: null, basis: "reported_usage" }, failure: string | null = null;
-  try { pass = await modelPass({ writer, text, requestId: jobId }); }
-  catch (error) { failure = error instanceof Error ? error.name : "error"; }
-  // The hold settles at what the pass cost, or stays whole when that is not known (a throw included).
-  await settleJobLaneSpend(jobId, claim.reservationId, pass.costUsd, pass.basis).catch(error =>
-    logger.warn({ err: error, requestId: jobId }, "A model pass's hold could not be settled; it stays counted in full"));
-  const endedAtMs = Date.now(), endedAtIso = new Date(endedAtMs).toISOString();
-  const failed = (reason: string) => endPass(ref, claim.token, { status: "failed", endedAtMs, endedAtIso, lastError: reason });
-  if (!pass.pieces) { await failed(failure ?? "no_answer"); return null; }
-  // Fail closed when the answer cannot be trusted: a piece the model named that is in the text in no form, or nothing
-  // named for words an empty answer is not trusted for.
-  const { text: result, unmatched } = removalsOf(text, pass.pieces);
-  if (unmatched.length) { await failed("piece_not_found"); return null; }
-  if (!pass.pieces.length && emptyAnswerDistrusted(text)) { await failed("empty_answer_distrusted"); return null; }
-  return await endPass(ref, claim.token, { status: "done", text: result, endedAtMs, endedAtIso, lastError: null, limit: null })
-    ? result : null;
+  // At most two passes here: a first empty answer that needs confirming is followed at once by the confirming pass.
+  for (let round = 0; round < 2; round += 1) {
+    const claim = await claimPass(jobId, key, writer, budget, Date.now(), maximumUsd);
+    if (claim.state === "done") return claim.text;
+    if (claim.state === "limit") {
+      if (!capLogged.has(`${jobId}:${budget}:${claim.limit}`)) {
+        capLogged.add(`${jobId}:${budget}:${claim.limit}`);
+        logger.warn({ requestId: jobId, budget, limit: claim.limit },
+          "A model pass over free text met a limit; these words stay unread by the other side, and both pages say so");
+      }
+      return null;
+    }
+    if (claim.state !== "claimed") return null;
+    const confirming = claim.confirming && check.length > 0;
+    let pass: PassResult = { pieces: null, costUsd: null, basis: "reported_usage" }, failure: string | null = null;
+    try { pass = await modelPass({ writer, text, requestId: jobId, ...(confirming ? { check } : {}) }); }
+    catch (error) { failure = error instanceof Error ? error.name : "error"; }
+    // The hold settles at what the pass cost, or stays whole when that is not known (a throw included).
+    await settleJobLaneSpend(jobId, claim.reservationId, pass.costUsd, pass.basis).catch(error =>
+      logger.warn({ err: error, requestId: jobId }, "A model pass's hold could not be settled; it stays counted in full"));
+    const endedAtMs = Date.now(), endedAtIso = new Date(endedAtMs).toISOString();
+    const failed = (reason: string) => endPass(ref, claim.token, { status: "failed", endedAtMs, endedAtIso, lastError: reason });
+    if (!pass.pieces) { await failed(failure ?? "no_answer"); return null; }
+    // Fail closed when the answer cannot be trusted: a piece the model named that is in the text in no form, or nothing
+    // named for words an empty answer is not trusted for (`emptyAnswerDistrust`).
+    const { text: result, unmatched } = removalsOf(text, pass.pieces);
+    if (unmatched.length) { await failed("piece_not_found"); return null; }
+    if (!pass.pieces.length && distrust === "instruction") { await failed("empty_answer_distrusted"); return null; }
+    if (!pass.pieces.length && distrust === "unconfirmed" && !confirming) {
+      if (!await failed(UNCONFIRMED_EMPTY_ANSWER)) return null;
+      continue;
+    }
+    return await endPass(ref, claim.token, { status: "done", text: result, endedAtMs, endedAtIso, lastError: null, limit: null })
+      ? result : null;
+  }
+  return null;
 }
 
 /** Where one exact text stands: read (its result), not yet read, or held at a limit (`ScreeningLimit`). */

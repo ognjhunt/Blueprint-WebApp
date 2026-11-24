@@ -6,7 +6,7 @@ import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { withCsrfHeader } from "@/lib/csrf";
 import { companyApplicationHref, companyJobReturnPath, companyJobSignInHref } from "@/lib/authReturnPath";
-import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_UNITS, INTRODUCIBLE_RESPONSE_STATES, SIMILAR_JOBS, SIMILAR_JOBS_LABELS,
+import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_LIMITS, ESTIMATE_UNITS, INTRODUCIBLE_RESPONSE_STATES, SIMILAR_JOBS, SIMILAR_JOBS_LABELS,
   VISIT_NOTE_LIMIT, isApplicationEstimate, type ApplicationEstimate, type ChargeModel, type SimilarJobs } from "@/lib/companyResponses";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES, TESTED_RESPONSE_STATES,
   companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
@@ -350,7 +350,7 @@ function FitSummary({ rows }: { rows: FitSummaryRow[] }) {
 
 /** Said when the estimate's two ends cannot be read as US dollars from low to high. */
 export const ESTIMATE_INVALID = "Enter the estimate in US dollars, such as 1,200 or 0.35, with at most two decimals and the lower "
-  + "amount first, or leave both empty.";
+  + `amount first, or leave both empty. ${ESTIMATE_LIMITS}`;
 
 /**
  * An amount as typed: a dollar sign, spaces and thousands commas are allowed ("$1,200", "$45.00"), and cents up to two
@@ -368,8 +368,24 @@ export function typedEstimate(model: ChargeModel | undefined, low: string, high:
   if (![a || b, b || a].every(value => TYPED_AMOUNT.test(value))) return "invalid";
   const amount = (value: string) => Number(value.replace(/,/g, ""));
   const estimate = { lowUsd: amount(a || b), highUsd: amount(b || a) };
-  return isApplicationEstimate(estimate) ? estimate : "invalid";
+  return isApplicationEstimate(estimate, model) ? estimate : "invalid";
 }
+
+/** Which end of a refused estimate to point at: "To" when only it fails on its own, else "From". */
+export function estimateEndToFix(model: ChargeModel | undefined, low: string, high: string): "low" | "high" {
+  const alone = (value: string) => typedEstimate(model, value, value);
+  return alone(low) !== "invalid" && low.trim() !== "" && alone(high) === "invalid" ? "high" : "low";
+}
+
+/** Under "What a visit must confirm" (stress test round 2, 2026-11-24: the field had no hint). */
+export const VISIT_NOTE_HINT = `What you would need to see at the site before you commit, in ${VISIT_NOTE_LIMIT} characters at most. `
+  + "The site reads it with your application.";
+
+/** The fields a refusal can point at: marked invalid, focused and scrolled into view (stress test round 2, 2026-11-24). */
+type AnswerField = "inputs" | "low" | "high" | "visit" | "question";
+/** The field a server refusal names (`interestRefusal`'s `field`), as this form holds it. */
+const SERVER_FIELDS: Readonly<Record<string, AnswerField>> = { inputs: "inputs", estimate: "low", visitMustConfirm: "visit",
+  question: "question" };
 
 /**
  * The job's video. Its address carries a short ticket; when the page brings a fresh address the video continues from
@@ -424,7 +440,31 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
   const noteRequired = answer !== null && (testedAnswer || companyResponseNeedsNote(answer));
   const noteLabel = testedAnswer ? "What did you test?" : noteRequired ? "What details would help you decide?" : "Note to the site";
   const formLabel = "Your response";
-  function choose(state: CompanyResponseState) { setAnswer(state); setMessage(""); }
+  // The field a refusal points at, with a count so the same field is focused again on the next refusal.
+  const [invalid, setInvalid] = useState<{ field: AnswerField; n: number } | null>(null);
+  const fieldRefs = { inputs: useRef<HTMLTextAreaElement>(null), low: useRef<HTMLInputElement>(null), high: useRef<HTMLInputElement>(null),
+    visit: useRef<HTMLInputElement>(null), question: useRef<HTMLInputElement>(null) };
+  const optional = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (!invalid) return;
+    if (invalid.field === "question" && optional.current) optional.current.open = true;
+    const field = fieldRefs[invalid.field].current;
+    field?.scrollIntoView?.({ block: "center" });
+    field?.focus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invalid]);
+  const refuse = (field: AnswerField | null, text: string) => {
+    setMessage(text);
+    setInvalid(field ? current => ({ field, n: (current?.n ?? 0) + 1 }) : null);
+  };
+  /** A field's own description, and the refusal's message while the refusal points at it. */
+  const invalidProps = (field: AnswerField, describedBy?: string) => {
+    const marked = invalid?.field === field;
+    const ids = [describedBy, marked ? "company-answer-message" : undefined].filter(Boolean).join(" ");
+    return { "aria-invalid": marked ? true : undefined, ...(ids ? { "aria-describedby": ids } : {}) };
+  };
+  const edited = (field: AnswerField) => { if (invalid?.field === field) setInvalid(null); };
+  function choose(state: CompanyResponseState) { setAnswer(state); setMessage(""); setInvalid(null); }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving || !answer) return;
@@ -433,8 +473,8 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
     // unit ("Not decided yet", "Not specified") is hidden, so it is left out rather than blocking the application.
     const shown = application && details.chargeModel !== undefined && ESTIMATE_UNITS[details.chargeModel] !== null;
     const estimate = shown ? typedEstimate(details.chargeModel, estimateLow, estimateHigh) : null;
-    if (estimate === "invalid") { setMessage(ESTIMATE_INVALID); return; }
-    setSaving(true); setMessage("");
+    if (estimate === "invalid") { refuse(estimateEndToFix(details.chargeModel, estimateLow, estimateHigh), ESTIMATE_INVALID); return; }
+    setSaving(true); setMessage(""); setInvalid(null);
     try {
       const question = answer === "needs_something" ? undefined : details.question?.trim() || undefined;
       const visit = application ? details.visitMustConfirm?.trim() || undefined : undefined;
@@ -447,7 +487,8 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
           ...(answer !== "declined" && Object.keys(sent).length ? { details: sent } : {}),
         }) });
       const body = await response.json();
-      setMessage(response.ok ? body.nextAction : body.error || "Your answer was not saved.");
+      if (!response.ok) refuse(typeof body.field === "string" ? SERVER_FIELDS[body.field] ?? null : null, body.error || "Your answer was not saved.");
+      else setMessage(body.nextAction);
       if (response.ok) setMine({ state: answer, inputs, details: sent, updatedAtIso: new Date().toISOString(), statementVersion: page.responseStatement.version });
     } catch { setMessage("We could not reach Blueprint. Check your connection and try again."); }
     finally { setSaving(false); }
@@ -472,9 +513,9 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
           checked={answer === state} onChange={() => choose(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
       <label>{noteLabel}
-        <textarea name="inputs" required={noteRequired} minLength={noteRequired ? 4 : undefined} maxLength={2000} value={inputs}
-          onChange={event => setInputs(event.target.value)}
-          aria-describedby="company-answer-words-hint" /></label>
+        <textarea ref={fieldRefs.inputs} name="inputs" required={noteRequired} minLength={noteRequired ? 4 : undefined} maxLength={2000} value={inputs}
+          onChange={event => { setInputs(event.target.value); edited("inputs"); }}
+          {...invalidProps("inputs", "company-answer-words-hint")} /></label>
       <p className="ms-field-hint" id="company-answer-words-hint">{WORDS_REACH_SITE}</p>
       {answer && INTRODUCIBLE_RESPONSE_STATES.includes(answer) && <fieldset className="company-application" aria-describedby="company-application-hint">
         <legend>Your application at a glance</legend>
@@ -485,10 +526,15 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
           {CHARGE_MODELS.map(model => <option key={model} value={model}>{CHARGE_MODEL_LABELS[model]}</option>)}
         </select></label>
         {details.chargeModel && ESTIMATE_UNITS[details.chargeModel] && <div className="company-estimate" role="group" aria-label="Estimate before a site visit">
-          <span className="company-estimate-title">Estimate, in US dollars {ESTIMATE_UNITS[details.chargeModel]}</span>
-          <label>From<input inputMode="decimal" value={estimateLow} onChange={event => setEstimateLow(event.target.value)} /></label>
-          <label>To<input inputMode="decimal" value={estimateHigh} onChange={event => setEstimateHigh(event.target.value)} /></label>
-          <p className="ms-field-hint">{ESTIMATE_LABEL} Leave it empty if you would rather not give one before a visit.</p>
+          {/* Each end names its unit and the estimate's line to a screen reader (stress test round 2, 2026-11-24). */}
+          <span className="company-estimate-title" id="company-estimate-unit">Estimate, in US dollars {ESTIMATE_UNITS[details.chargeModel]}</span>
+          <label>From<input ref={fieldRefs.low} inputMode="decimal" value={estimateLow}
+            onChange={event => { setEstimateLow(event.target.value); edited("low"); }}
+            {...invalidProps("low", "company-estimate-unit company-estimate-hint")} /></label>
+          <label>To<input ref={fieldRefs.high} inputMode="decimal" value={estimateHigh}
+            onChange={event => { setEstimateHigh(event.target.value); edited("high"); }}
+            {...invalidProps("high", "company-estimate-unit company-estimate-hint")} /></label>
+          <p className="ms-field-hint" id="company-estimate-hint">{ESTIMATE_LABEL} Leave it empty if you would rather not give one before a visit.</p>
         </div>}
         <label>Similar jobs you have done<select value={details.similarJobs ?? ""}
           onChange={event => setDetails({ ...details, similarJobs: (event.target.value || undefined) as SimilarJobs | undefined })}>
@@ -500,13 +546,16 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
           <option value="">Not specified</option>
           {COMPANY_START_WINDOWS.map(window => <option key={window} value={window}>{COMPANY_START_LABELS[window]}</option>)}
         </select></label>
-        <label>What a visit must confirm<input maxLength={VISIT_NOTE_LIMIT} value={details.visitMustConfirm ?? ""}
-          onChange={event => setDetails({ ...details, visitMustConfirm: event.target.value })} /></label>
+        <label>What a visit must confirm<input ref={fieldRefs.visit} maxLength={VISIT_NOTE_LIMIT} value={details.visitMustConfirm ?? ""}
+          onChange={event => { setDetails({ ...details, visitMustConfirm: event.target.value }); edited("visit"); }}
+          {...invalidProps("visit", "company-visit-hint")} /></label>
+        <p className="ms-field-hint" id="company-visit-hint">{VISIT_NOTE_HINT}</p>
       </fieldset>}
-      {answer && answer !== "declined" && <details className="company-reply-optional">
+      {answer && answer !== "declined" && <details className="company-reply-optional" ref={optional}>
         <summary className="ms-inline-link">Add details</summary>
-        {answer !== "needs_something" && <label>Question for the site<input minLength={4} maxLength={COMPANY_QUESTION_LIMIT}
-          value={details.question ?? ""} onChange={event => setDetails({ ...details, question: event.target.value })} /></label>}
+        {answer !== "needs_something" && <label>Question for the site<input ref={fieldRefs.question} minLength={4} maxLength={COMPANY_QUESTION_LIMIT}
+          value={details.question ?? ""} onChange={event => { setDetails({ ...details, question: event.target.value }); edited("question"); }}
+          {...invalidProps("question")} /></label>}
         {!INTRODUCIBLE_RESPONSE_STATES.includes(answer) && <label>Earliest start<select value={details.startWindow ?? ""}
           onChange={event => setDetails({ ...details, startWindow: event.target.value as CompanyStartWindow || undefined })}>
           <option value="">Not specified</option>
@@ -514,7 +563,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
         </select></label>}
       </details>}
       <button className="ms-button" disabled={saving} aria-describedby="company-answer-statement">{saving ? "Saving…" : "Send"}</button>
-      {message && <p role="status">{message}</p>}
+      {message && <p role="status" id="company-answer-message">{message}</p>}
       <p className="ms-field-hint" id="company-answer-statement">{page.responseStatement.text}</p>
     </form>
   </section>;

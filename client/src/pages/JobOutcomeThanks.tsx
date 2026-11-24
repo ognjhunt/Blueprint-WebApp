@@ -4,8 +4,9 @@
  */
 import { OUTCOME_STATE_LABELS, isOutcomeState, outcomeThanks } from "@/lib/jobOutcomeStates";
 
-/** After a final answer, a later link records nothing and says so (review S3). */
-export const outcomeAlreadyRecorded = (label: string) => `This introduction is already recorded as ${label}. Nothing more is needed.`;
+/** After a side's own final answer, a later link of that side records nothing and says so (review S3). It names only that
+ * side's own answer, never the other side's. */
+export const outcomeAlreadyRecorded = (label: string) => `You already told us: ${label}. Nothing more is needed.`;
 
 export function outcomeThanksSentence(search: string): string {
   let answer: string | null = null, already: string | null = null;

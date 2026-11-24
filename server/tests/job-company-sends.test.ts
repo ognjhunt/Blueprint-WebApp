@@ -238,8 +238,8 @@ describe("what the site receives", () => {
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([
       ["alias", "applicant", "atIso", "canIntroduce", "kind", "question", "reason", "state"],
       ["alias", "applicant", "atIso", "canIntroduce", "kind", "reason", "state"]]);
-    expect(entries.map(entry => entry.applicant)).toEqual([{ name: SOUTH.company, website: SOUTH.website },
-      { name: NORTH.company, website: NORTH.website }]);
+    expect(entries.map(entry => entry.applicant)).toEqual([{ name: SOUTH.company, website: new URL(SOUTH.website).origin },
+      { name: NORTH.company, website: new URL(NORTH.website).origin }]);
     // Why: the company's own words, with its name, email and website taken out (2026-11-20).
     expect(entries.map(entry => entry.reason)).toEqual([SOUTH_REASON, NORTH_REASON]);
     // Interested can be introduced; Need more details is not (E6).
@@ -359,6 +359,20 @@ describe("what the site receives", () => {
     expect(activity).toEqual({ interested: true, entries: [{ kind: "sent", alias: "Company A", atIso: "2026-11-12T00:00:00.000Z" },
       { kind: "answered", alias: "Company A", atIso: "2026-11-12T01:00:00.000Z", state: "interested", canIntroduce: false }],
       sent: { count: 1, firstAtIso: "2026-11-12T00:00:00.000Z" }, introductions: { used: 0 } });
+  });
+
+  // Stress test round 2 (2026-11-24): an application whose company's approval was withdrawn read like any other.
+  it("marks an application the site cannot accept because Blueprint's approval of the company was withdrawn", () => {
+    const answer = { id: "n", data: { state: "interested", updatedAtIso: "2026-11-12T01:00:00.000Z", inputs: "", recordedBy: "company",
+      statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION } };
+    const project = (status: string, approved: boolean) => projectSiteCompanyActivity({ aliases: { n: "A" }, sends: [], responses: [answer],
+      listed: true, approvedDeploymentCompanies: new Set(approved ? ["n"] : []),
+      companies: new Map([["n", { status, partnerRole: "deployment", company: NORTH.company, website: NORTH.website }]]) }).entries[0];
+    expect(project("declined", false)).toMatchObject({ canIntroduce: false, notApprovedNow: true });
+    expect(project("approved", true)).toMatchObject({ canIntroduce: true });
+    expect(project("approved", true)).not.toHaveProperty("notApprovedNow");
+    // Approved, waiting only for its own Terms: not said to be unapproved.
+    expect(project("approved", false)).not.toHaveProperty("notApprovedNow");
   });
 
   it("never shows an answer given before this change (no recordedBy), gives it no alias, and the status read writes nothing", async () => {

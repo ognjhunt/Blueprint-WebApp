@@ -69,9 +69,20 @@ export type SimilarJobs = (typeof SIMILAR_JOBS)[number];
 export const SIMILAR_JOBS_LABELS: Readonly<Record<SimilarJobs, string>> = {
   none: "None yet", "1_5": "1 to 5", "6_20": "6 to 20", over_20: "More than 20",
 };
-export const ESTIMATE_MAX_USD = 100_000_000;
+/**
+ * The largest estimate a site reads, by how the company charges (stress test round 2, 2026-11-24: "$41,555,501.99 an hour"
+ * carried a phone number, 415 555 0199, to the site before Accept). Generous for one site's one recurring job, and no
+ * figure of Blueprint's: a ceiling on what the form takes.
+ */
+export const ESTIMATE_MAX_USD_BY_CHARGE: Readonly<Record<Exclude<ChargeModel, "undecided">, number>> = {
+  purchase: 10_000_000, subscription: 1_000_000, per_hour: 10_000, per_task: 10_000,
+};
+/** The largest estimate under any way of charging. */
+export const ESTIMATE_MAX_USD = Math.max(...Object.values(ESTIMATE_MAX_USD_BY_CHARGE));
 /** The smallest estimate: one cent (stress test, 2026-11-24: a per-item price under a dollar must be possible). */
 export const ESTIMATE_MIN_USD = 0.01;
+/** At this many digits as written (cents included), an amount could be read as a phone number unless it is whole thousands. */
+const PHONE_LENGTH_DIGITS = 7;
 export const VISIT_NOTE_LIMIT = 300;
 /** Beside every estimate the site reads, and under the company's estimate fields. */
 export const ESTIMATE_LABEL = "Estimate before a site visit. Not a quote.";
@@ -87,24 +98,45 @@ const usd = (value: number, cents: boolean) =>
 /** "$12,000 to $18,000 a month", "$0.35 to $0.50 per task or item", or "$15 an hour" when both ends are the same. */
 export function estimateInWords(model: ChargeModel, estimate: ApplicationEstimate): string | null {
   const unit = ESTIMATE_UNITS[model];
-  if (!unit || !isApplicationEstimate(estimate)) return null;
+  if (!unit || !isApplicationEstimate(estimate, model)) return null;
   const cents = !Number.isInteger(estimate.lowUsd) || !Number.isInteger(estimate.highUsd);
   const range = estimate.lowUsd === estimate.highUsd ? usd(estimate.lowUsd, cents)
     : usd(estimate.lowUsd, cents) + " to " + usd(estimate.highUsd, cents);
   return range + " " + unit;
 }
 
-/** One end of an estimate: dollars and cents (at most two decimals), from one cent to `ESTIMATE_MAX_USD`. */
-export function isEstimateAmount(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= ESTIMATE_MIN_USD && value <= ESTIMATE_MAX_USD
-    && Math.abs(Math.round(value * 100) - value * 100) < 1e-6;
+/**
+ * Whether an amount's digits, as the site reads them (cents included when it has cents), could be a phone number: seven
+ * digits or more that are not whole thousands ("$41,555,501.99" is 415 555 0199; "$1,250,000" is not). So an amount of
+ * $10,000 or more takes no cents, and one of $1,000,000 or more is whole thousands.
+ */
+export function amountReadsAsPhoneNumber(value: number): boolean {
+  const cents = Math.round(value * 100);
+  const digits = String(cents % 100 === 0 ? cents / 100 : cents);
+  return digits.length >= PHONE_LENGTH_DIGITS && cents % 100_000 !== 0;
 }
 
-export function isApplicationEstimate(value: unknown): value is ApplicationEstimate {
+/**
+ * One end of an estimate: dollars and cents (at most two decimals), from one cent to `ESTIMATE_MAX_USD` (or the ceiling for
+ * the way of charging, when given), and never digits a site could read as a phone number (`amountReadsAsPhoneNumber`).
+ */
+export function isEstimateAmount(value: unknown, model?: ChargeModel): value is number {
+  const ceiling = model && model !== "undecided" ? ESTIMATE_MAX_USD_BY_CHARGE[model] : ESTIMATE_MAX_USD;
+  return typeof value === "number" && Number.isFinite(value) && value >= ESTIMATE_MIN_USD && value <= ceiling
+    && Math.abs(Math.round(value * 100) - value * 100) < 1e-6 && !amountReadsAsPhoneNumber(value);
+}
+
+export function isApplicationEstimate(value: unknown, model?: ChargeModel): value is ApplicationEstimate {
   if (!value || typeof value !== "object") return false;
   const { lowUsd, highUsd } = value as Record<string, unknown>;
-  return isEstimateAmount(lowUsd) && isEstimateAmount(highUsd) && lowUsd <= highUsd;
+  return isEstimateAmount(lowUsd, model) && isEstimateAmount(highUsd, model) && lowUsd <= highUsd;
 }
+
+/** The form's limits on an estimate, in words (no dollar sign: these are limits, never a price). */
+export const ESTIMATE_LIMITS = "At most 10,000 an hour or per task or item, 1,000,000 a month and 10,000,000 in total. "
+  + "Amounts of 10,000 or more take no cents, and amounts of 1,000,000 or more are whole thousands.";
+/** The rule for an estimate in words, for a refusal. */
+export const ESTIMATE_RULE = `Enter the estimate in US dollars, with at most two decimals and the lower amount first. ${ESTIMATE_LIMITS}`;
 
 export interface CompanyReplyDetails {
   verified?: string;
@@ -222,6 +254,11 @@ export type SiteCompanyEntry =
       applicant?: { name: string; website: string | null };
       /** The site may press "Accept" for this company now. */
       canIntroduce?: boolean;
+      /**
+       * The company applied, but Blueprint's approval of it was withdrawn since, so it cannot be accepted now (stress test
+       * round 2, 2026-11-24: the card said "Applied" with no Accept and no reason). Said with `companyNotApprovedNow`.
+       */
+      notApprovedNow?: true;
       /** When the introduction was made: the company's introduction email was sent (H2). */
       introducedAtIso?: string;
       /** Only after the introduction is made. */
@@ -275,6 +312,9 @@ export const companyAnswered = (alias: string, date: string, state: CompanyRespo
   `${alias} answered on ${date}: ${SITE_RESPONSE_LABELS[state]}.`;
 /** Under an answer: the company's words, as the server gives them (its identity already taken out). */
 export const companyReason = (reason: string) => `In their words: “${reason}”`;
+/** Under an application whose company is not approved by Blueprint now (`notApprovedNow`). */
+export const companyNotApprovedNow = (name: string) =>
+  `${name} can't be accepted right now because it isn't approved by Blueprint at the moment.`;
 /** Under an answer that is not a yes and carries no words the site may read: said plainly, nothing invented. */
 export const NO_REASON_SHOWN = "No reason shared.";
 /**

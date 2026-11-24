@@ -173,8 +173,11 @@ export async function decide(request: APIRequestContext, email: string, status: 
 }
 
 export type Company = { email: string; name: string; website: string; contact: string; password: string; ip: string };
+/** A run's stamp in letters ("1732" → "bhdc"): a company name with a run of digits reads as a phone number and is refused
+ * (stress test round 2, 2026-11-24). */
+export const stampInLetters = (stamp: string) => stamp.replace(/\d/g, digit => "abcdefghij"[Number(digit)]);
 export function companyFor(stamp: string, letter: string, index: number): Company {
-  return { email: `journey-co-${letter}-${stamp}@example.invalid`, name: `Journey ${letter} Robotics ${stamp}`,
+  return { email: `journey-co-${letter}-${stamp}@example.invalid`, name: `Journey ${letter} Robotics ${stampInLetters(stamp)}`,
     website: `https://journey-${letter.toLowerCase()}.example`, contact: `Casey ${letter}lington`, password: "journey-company-pass",
     // Each company from its own address: the application limiter counts per client address.
     ip: `10.9.${index}.${(Number(stamp.slice(-2)) % 200) + 1}` };

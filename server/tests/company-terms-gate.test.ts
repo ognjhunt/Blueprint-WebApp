@@ -259,7 +259,7 @@ afterEach(async () => {
 const { companyClipUrl } = await import("../utils/websiteCompanyClip");
 const { companySimulationUrl } = await import("../utils/websiteCompanySimulation");
 const { websiteScenePreviewCompanyViewerUrl } = await import("../utils/websiteScenePreview");
-const { companyMaySeeJobs, recordCompanyTermsAcceptance, syncCompanyTerms } = await import("../utils/companyTerms");
+const { companyMaySeeJobs, recordCompanyTermsAcceptance, serverAcceptanceMarker, syncCompanyTerms } = await import("../utils/companyTerms");
 const { planWithdrawalCompanyNotices, withdrawalNoticeIsCurrent, withdrawalCompanyKey, WITHDRAWAL_COMPANY_KIND } =
   await import("../utils/withdrawalCompanyNotice");
 const { JOB_OUTCOME_QUESTION_KIND, outcomeQuestionIsCurrent, outcomeQuestionKey } = await import("../utils/jobOutcomeGate");
@@ -538,7 +538,19 @@ describe("T3 the accept route", () => {
     state.docs.set("users/u-north", { termsAcceptance: currentTermsAcceptance(), termsAcceptanceSource: { kind: "site_capture_intake", requestId: "x" } });
     await syncCompanyTerms({ uid: "u-north" }, id, recordOf(NORTH) as never);
     expect(companyMaySeeJobs(recordOf(NORTH) as never)).toBe(false);
-    state.docs.set("users/u-north", { termsAcceptance: currentTermsAcceptance() });
+    // An account acceptance without the server's mark may be the account's own client write (stress test round 2,
+    // 2026-11-24: any date, any versions): never copied.
+    state.docs.set("users/u-north", { termsAcceptance: { ...currentTermsAcceptance(), accepted_at: "2019-01-01T00:00:00.000Z" },
+      acceptedTerms: true, termsAcceptanceSource: { kind: "deployment_company", companyId: id } });
+    await syncCompanyTerms({ uid: "u-north" }, id, recordOf(NORTH) as never);
+    expect(companyMaySeeJobs(recordOf(NORTH) as never)).toBe(false);
+    // A mark that names other versions than the acceptance is not the server's for it.
+    state.docs.set("users/u-north", { termsAcceptance: currentTermsAcceptance(),
+      termsAcceptanceByServer: { ...serverAcceptanceMarker(currentTermsAcceptance(), "workspace_setup"), terms_version: "2026-11-02.1" } });
+    await syncCompanyTerms({ uid: "u-north" }, id, recordOf(NORTH) as never);
+    expect(companyMaySeeJobs(recordOf(NORTH) as never)).toBe(false);
+    state.docs.set("users/u-north", { termsAcceptance: currentTermsAcceptance(),
+      termsAcceptanceByServer: serverAcceptanceMarker(currentTermsAcceptance(), "workspace_setup") });
     await syncCompanyTerms({ uid: "u-north" }, id, recordOf(NORTH) as never);
     expect(recordOf(NORTH).termsAcceptedByUid).toBe("u-north");
     expect(companyMaySeeJobs(recordOf(NORTH) as never)).toBe(true);

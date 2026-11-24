@@ -232,6 +232,21 @@ describe("applying", () => {
     expect(slack).toHaveBeenCalledTimes(1);
   });
 
+  // Stress test round 2 (2026-11-24): a hundred junk applications from a handful of addresses.
+  it("takes at most a day's applications from one address, says how long to wait, and records nothing over it", async () => {
+    const { consumeDailyCaps } = await import("../utils/durableDailyCaps");
+    const { APPLICATIONS_PER_ADDRESS_DAILY } = await import("../routes/robot-team-access");
+    for (const subject of ["127.0.0.1", "::ffff:127.0.0.1", "::1"])
+      await consumeDailyCaps({ scope: "company_application", failClosed: false, amount: APPLICATIONS_PER_ADDRESS_DAILY,
+        caps: [{ name: "company_application_address", limit: APPLICATIONS_PER_ADDRESS_DAILY, subject }] });
+    const response = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST",
+      headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify(form) });
+    expect(response.status).toBe(429);
+    expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect((await response.json()).error).toMatch(/^Too many applications from this network today\. Try again in (?:a minute|\d+ minutes|\d+ hours)\.$/);
+    expect([...state.docs.keys()].some(key => key.startsWith("robotTeamAccess/"))).toBe(false);
+  });
+
   it("rejects an application without the company website", async () => {
     for (const website of ["", undefined]) {
       const response = await fetch(`${base}/api/robot-team-access/apply`, {
@@ -287,7 +302,8 @@ describe("applying", () => {
       body: JSON.stringify({ ...form, company: "Mallory Corp", name: "Mallory", partnerRole: "deployment" }) });
     expect({ status: response.status, body: await response.json() }).toEqual(newAnswer);
     expect(state.docs.get(`robotTeamAccess/${id}`)).toEqual(stored);
-    expect([...state.docs.keys()].filter(key => !before.has(key))).toEqual([]);
+    // Nothing but the address's daily count (`APPLICATIONS_PER_ADDRESS_DAILY`), which every application from it takes alike.
+    expect([...state.docs.keys()].filter(key => !before.has(key) && !key.startsWith("durableDailyCap"))).toEqual([]);
     const { companyMaySeeJobs } = await import("../utils/companyTerms");
     expect(companyMaySeeJobs(state.docs.get(`robotTeamAccess/${id}`) as never)).toBe(Boolean((decided as { termsAcceptedByUid?: string }).termsAcceptedByUid));
   });

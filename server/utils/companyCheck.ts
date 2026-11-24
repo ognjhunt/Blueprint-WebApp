@@ -25,8 +25,17 @@ import {
   accessRecordId, decideAccessApplication, ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord,
 } from "./robotTeamEarlyAccess";
 
-/** At most this many automatic checks a day (UTC). Over it, an application waits for the owner. */
+/**
+ * At most this many automatic checks a day (UTC), counted only when a check reaches the model (stress test round 2,
+ * 2026-11-24: a hundred junk applications whose websites never answered used up the day's checks before the website was
+ * even read). Over it, an application waits for the owner and is checked again the next day.
+ */
 export const COMPANY_CHECK_DAILY_CAP = 100;
+/**
+ * At most this many automatic checks a day for one email domain, counted before its website is read, so one domain's
+ * applications cannot take the day's checks from every other company. Over it, the next day's sweep checks the rest.
+ */
+export const COMPANY_CHECK_DOMAIN_DAILY_CAP = 5;
 export const COMPANY_CHECK_COUNTER_COLLECTION = "opsCompanyChecks";
 const MODEL_DEADLINE_MS = 45_000;
 const PAGE_TEXT_LIMIT = 20_000;
@@ -137,6 +146,14 @@ export async function takeDailyCheck(now: Date): Promise<boolean> {
   });
 }
 
+/** Count one check for this email domain today; "cap" over `COMPANY_CHECK_DOMAIN_DAILY_CAP`, "unavailable" with no store. */
+async function takeDomainCheck(domain: string, now: Date): Promise<"ok" | "cap" | "unavailable"> {
+  const { consumeDailyCaps } = await import("./durableDailyCaps");
+  const decision = await consumeDailyCaps({ scope: "company_check_domain", failClosed: true,
+    caps: [{ name: "company_check_domain", limit: COMPANY_CHECK_DOMAIN_DAILY_CAP, subject: domain }] }, { now: () => now });
+  return decision.allowed ? "ok" : decision.reason === "limit_reached" ? "cap" : "unavailable";
+}
+
 /** The https form of the website the applicant gave. */
 function httpsForm(website: string): string | null {
   try {
@@ -161,7 +178,9 @@ export async function assessCompany(record: Pick<RobotTeamAccessRecord, "email" 
   if (!match.matches) return needsOwner([match.reason]);
   const url = httpsForm(record.website!);
   if (!url) return needsOwner(["website_invalid"]);
-  if (!await takeDailyCheck(now)) return needsOwner(["daily_check_cap"]);
+  // One domain's share of the day first, then the website; the day's cap only once the model is next (money).
+  const domainShare = await takeDomainCheck(emailDomain(record.email), now);
+  if (domainShare !== "ok") return needsOwner([domainShare === "cap" ? "domain_daily_check_cap" : "check_failed"]);
   let page: Awaited<ReturnType<CompanyCheckDeps["fetchPage"]>>;
   try { page = await deps.fetchPage(url); } catch { return needsOwner(["website_unreadable"]); }
   if (page.status < 200 || page.status >= 300) return needsOwner(["website_unreadable"]);
@@ -169,6 +188,7 @@ export async function assessCompany(record: Pick<RobotTeamAccessRecord, "email" 
   if (!domainMatch(record.email, page.finalUrl).matches) return needsOwner(["redirected_off_domain"]);
   const text = pageText(page.html);
   if (text.length < MIN_PAGE_TEXT) return needsOwner(["website_no_text"]);
+  if (!await takeDailyCheck(now)) return needsOwner(["daily_check_cap"]);
   let answer: Awaited<ReturnType<CompanyCheckDeps["askModel"]>>;
   try { answer = await deps.askModel({ websiteHost: websiteHost(page.finalUrl)!, pageText: text }); }
   catch { return needsOwner(["model_unavailable"]); }
@@ -187,16 +207,31 @@ function stillTheCheckedApplication(prior: RobotTeamAccessRecord, checked: Pick<
 }
 
 /**
- * Run the check once for a new application and record it: an approval through the same decision as a person's (and
- * its approval email), anything else stored for the owner. A decision made meanwhile, or a changed application, is
- * left as it is. Returns what was recorded, or null when nothing was.
+ * Whether a waiting application is due a check: it has none, or its last one failed only for the moment (a daily cap,
+ * a website or a model that did not answer) at least a day ago. Such a check is as if not made, so the next day's sweep
+ * tries again, as the 90-day re-check does (stress test round 2, 2026-11-24: a real company that met the cap was never
+ * checked again).
+ */
+export function applicationCheckDue(check: CompanyCheck | null | undefined, nowMs: number): boolean {
+  if (!check) return true;
+  if (!momentary(check)) return false;
+  const at = Date.parse(String(check.checkedAtIso ?? ""));
+  return !Number.isFinite(at) || nowMs - at >= COMPANY_RECHECK_RETRY_MS;
+}
+
+/**
+ * Run the check once for a new application, or again for one whose last check failed only for the moment
+ * (`applicationCheckDue`), and record it: an approval through the same decision as a person's (and its approval
+ * email), anything else stored for the owner. A decision made meanwhile, or a changed application, is left as it is.
+ * Returns what was recorded, or null when nothing was.
  */
 export async function checkCompanyApplication(recordId: string, deps: CompanyCheckDeps = defaultDeps): Promise<CompanyCheck | null> {
   if (!db) return null;
   const store = db;
   const ref = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(recordId);
   const record = (await ref.get()).data() as RobotTeamAccessRecord | undefined;
-  if (!record || record.status !== "applied" || record.partnerRole === "technology" || record.companyCheck) return null;
+  if (!record || record.status !== "applied" || record.partnerRole === "technology"
+    || !applicationCheckDue(record.companyCheck, deps.now().getTime())) return null;
   if (accessRecordId(record.email) !== recordId) return null;
   const checked = { email: record.email, website: record.website ?? null };
   const check = await assessCompany(checked, deps);
@@ -219,9 +254,12 @@ export async function checkCompanyApplication(recordId: string, deps: CompanyChe
  * After a new deployment company applies: run the check, then ring Slack with what it found ("approved automatically"
  * or "needs you", with the reasons). Never throws; a check that cannot run at all still rings as "needs you".
  */
-export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRecord, "email">,
+export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRecord, "email"> & { companyCheck?: CompanyCheck | null },
   deps: CompanyCheckDeps = defaultDeps): Promise<void> {
   const { notifySlackRobotTeamAccessApplication } = await import("./slack");
+  // A check tried again after a momentary failure rings only when it settles something: once a day per waiting company
+  // would be noise, and the owner already has it with its reasons.
+  const retry = Boolean(record.companyCheck);
   let check: CompanyCheck | null = null;
   let failed = false;
   try {
@@ -230,6 +268,7 @@ export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRec
     failed = true;
     logger.warn({ error }, "The automatic company check could not run");
   }
+  if (retry && (failed || !check || momentary(check))) return;
   // Nothing recorded and nothing failed: the application was decided or changed meanwhile; the plain bell.
   const rung = check ? { outcome: check.outcome, reasons: check.reasons as string[] }
     : failed ? { outcome: "needs_owner" as const, reasons: ["check_failed"] } : undefined;
@@ -245,8 +284,9 @@ const SWEEP_MAX_PAGES = 50;
 
 /**
  * The ops monitor's catch-up (`betaOpsMonitor.ts`, step 8): a waiting deployment-company application with no check
- * after ten minutes is checked now and Slack rings with what was found, as at the moment it applied. At most five
- * a pass, oldest first; the daily cap still applies. Returns how many were checked.
+ * after ten minutes is checked now and Slack rings with what was found, as at the moment it applied; one whose check
+ * failed only for the moment is checked again a day later (`applicationCheckDue`). At most five a pass, unchecked ones
+ * first, then oldest first; the daily caps still apply. Returns how many were checked.
  */
 export async function sweepUncheckedCompanyApplications(nowMs = Date.now(), deps: CompanyCheckDeps = defaultDeps): Promise<number> {
   if (!db) return 0;
@@ -263,9 +303,11 @@ export async function sweepUncheckedCompanyApplications(nowMs = Date.now(), deps
     after = docs[docs.length - 1].id;
   }
   const due = found
-    .filter(({ id, record }) => !record.companyCheck && record.partnerRole !== "technology" && typeof record.email === "string"
-      && accessRecordId(record.email) === id && Date.parse(String(record.appliedAtIso ?? "")) <= nowMs - COMPANY_CHECK_SWEEP_AFTER_MS)
-    .sort((a, b) => String(a.record.appliedAtIso).localeCompare(String(b.record.appliedAtIso)))
+    .filter(({ id, record }) => applicationCheckDue(record.companyCheck, nowMs) && record.partnerRole !== "technology"
+      && typeof record.email === "string" && accessRecordId(record.email) === id
+      && Date.parse(String(record.appliedAtIso ?? "")) <= nowMs - COMPANY_CHECK_SWEEP_AFTER_MS)
+    .sort((a, b) => Number(Boolean(a.record.companyCheck)) - Number(Boolean(b.record.companyCheck))
+      || String(a.record.appliedAtIso).localeCompare(String(b.record.appliedAtIso)))
     .slice(0, SWEEP_PER_PASS);
   for (const { record } of due) await checkNewCompanyApplication(record, deps);
   return due.length;
@@ -285,8 +327,8 @@ export const COMPANY_RECHECK_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
 export const COMPANY_RECHECK_RETRY_MS = 24 * 60 * 60 * 1000;
 export const COMPANY_RECHECK_TELL_AFTER_PASSING_FAILURES = 3;
 const RECHECK_PER_PASS = 3;
-const MOMENTARY: ReadonlySet<CompanyCheckReason> = new Set(["daily_check_cap", "website_unreadable", "model_unavailable",
-  "no_model", "check_failed"]);
+const MOMENTARY: ReadonlySet<CompanyCheckReason> = new Set(["daily_check_cap", "domain_daily_check_cap", "website_unreadable",
+  "model_unavailable", "no_model", "check_failed"]);
 
 /** The latest re-check, as stored on the company's record (`companyRecheck`). */
 export type CompanyRecheck = CompanyCheck & { failuresInARow: number; toldOwnerAtIso?: string };

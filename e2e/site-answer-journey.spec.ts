@@ -182,7 +182,8 @@ test.describe("desktop", () => {
   test("email and video in, shared automatically, a company answers, the site asks for an introduction, follow-ups, withdrawal", async ({ page, request, browser }) => {
     const stamp = Date.now();
     const site = { email: `core-journey-site-${stamp}@example.invalid`, address: `Quillfeather Harbour ${stamp}, Dockside` };
-    const company = { email: `core-journey-company-${stamp}@example.invalid`, name: `Quillfeather Robotics ${stamp}`,
+    // The stamp in letters: a company name with a run of digits reads as a phone number and is refused (stress test round 2).
+    const company = { email: `core-journey-company-${stamp}@example.invalid`, name: `Quillfeather Robotics ${String(stamp).replace(/\d/g, digit => "abcdefghij"[Number(digit)])}`,
       contact: "Ada Corewright", password: "core-journey-company-pass" };
     const missing: string[] = [];
     await localOnly(page.context(), missing);

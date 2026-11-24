@@ -112,18 +112,35 @@ describe("what the rule finds", () => {
     expect(await check.assessCompany(record, deps(overrides as never))).toMatchObject({ outcome: "needs_owner", reasons: [reason] });
   });
 
-  it("stops at the daily cap of automatic checks, before any fetch or model call", async () => {
+  it("stops at the daily cap of automatic checks, before any model call", async () => {
     state.docs.set(`${check.COMPANY_CHECK_COUNTER_COLLECTION}/day-2026-11-23`, { count: check.COMPANY_CHECK_DAILY_CAP });
     const run = deps();
     expect(await check.assessCompany(record, run)).toMatchObject({ outcome: "needs_owner", reasons: ["daily_check_cap"] });
-    expect(run.fetchPage).not.toHaveBeenCalled();
     expect(run.askModel).not.toHaveBeenCalled();
   });
 
-  it("counts each check that reaches the website", async () => {
+  // Stress test round 2 (2026-11-24): junk applications whose websites never answered used up the day's checks.
+  it("counts against the day's cap only a check that reaches the model", async () => {
     await check.assessCompany(record, deps());
+    await check.assessCompany(record, deps({ fetchPage: vi.fn(async () => { throw new Error("no such host"); }) }));
+    await check.assessCompany(record, deps({ fetchPage: vi.fn(async (url: string) => ({ status: 200, finalUrl: url, html: "<p>Hi</p>" })) }));
+    await check.assessCompany({ email: "ada@gmail.com", website: "https://arm.example" }, deps());
     await check.assessCompany(record, deps());
     expect(state.docs.get(`${check.COMPANY_CHECK_COUNTER_COLLECTION}/day-2026-11-23`)).toMatchObject({ count: 2 });
+  });
+
+  it("checks at most a few applications a day from one email domain, before reading its website", async () => {
+    for (let index = 0; index < check.COMPANY_CHECK_DOMAIN_DAILY_CAP; index += 1)
+      expect(await check.assessCompany({ email: `ops${index}@arm.example`, website: "https://arm.example" }, deps()))
+        .toMatchObject({ outcome: "approved" });
+    const run = deps();
+    expect(await check.assessCompany({ email: "ops9@arm.example", website: "https://arm.example" }, run))
+      .toMatchObject({ outcome: "needs_owner", reasons: ["domain_daily_check_cap"] });
+    expect(run.fetchPage).not.toHaveBeenCalled();
+    // Another domain still has its share, and the next day this one does again.
+    expect(await check.assessCompany({ email: "ada@zed.example", website: "https://zed.example" }, deps())).toMatchObject({ outcome: "approved" });
+    expect(await check.assessCompany({ email: "ops9@arm.example", website: "https://arm.example" },
+      deps({ now: () => new Date("2026-11-24T12:00:00.000Z") }))).toMatchObject({ outcome: "approved" });
   });
 });
 
@@ -242,6 +259,39 @@ describe("the catch-up sweep", () => {
     }
     expect(await check.sweepUncheckedCompanyApplications(applied + 3_600_000, deps())).toBe(1);
     expect(stored(id)).toMatchObject({ companyCheck: { outcome: "approved" } });
+  });
+
+  // Stress test round 2 (2026-11-24): a real company that met the day's cap waited for the owner and was never checked again.
+  it("checks again the next day an application whose check failed only for the moment, ringing Slack only when it settles", async () => {
+    const { id, record } = await apply();
+    // Fixed times, whatever today is: applied an hour before the check's clock (`deps().now`).
+    state.docs.set(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`, { ...stored(id), appliedAtIso: "2026-11-23T11:00:00.000Z" });
+    state.docs.set(`${check.COMPANY_CHECK_COUNTER_COLLECTION}/day-2026-11-23`, { count: check.COMPANY_CHECK_DAILY_CAP });
+    await check.checkNewCompanyApplication(record, deps());
+    expect(stored(id)).toMatchObject({ status: "applied", companyCheck: { reasons: ["daily_check_cap"] } });
+    expect(slack).toHaveBeenCalledTimes(1);
+    // Later the same day: not again.
+    expect(await check.sweepUncheckedCompanyApplications(Date.parse("2026-11-23T18:00:00.000Z"), deps())).toBe(0);
+    // The next day: the website still does not answer. Checked, stored, and no second bell.
+    const tomorrow = () => new Date(Date.parse("2026-11-23T12:00:00.000Z") + check.COMPANY_RECHECK_RETRY_MS + 60_000);
+    expect(await check.sweepUncheckedCompanyApplications(tomorrow().getTime(),
+      deps({ now: tomorrow, fetchPage: vi.fn(async () => { throw new Error("down"); }) }))).toBe(1);
+    expect(stored(id)).toMatchObject({ status: "applied", companyCheck: { reasons: ["website_unreadable"] } });
+    expect(slack).toHaveBeenCalledTimes(1);
+    // A day after that the website answers: approved, and Slack rings.
+    const later = () => new Date(tomorrow().getTime() + check.COMPANY_RECHECK_RETRY_MS + 60_000);
+    expect(await check.sweepUncheckedCompanyApplications(later().getTime(), deps({ now: later }))).toBe(1);
+    expect(stored(id)).toMatchObject({ status: "approved", companyCheck: { outcome: "approved" } });
+    expect(slack).toHaveBeenCalledTimes(2);
+    expect(slack).toHaveBeenLastCalledWith({ email: "ada@arm.example", autoApproved: true, check: { outcome: "approved", reasons: [] } });
+  });
+
+  it("never checks again an application the rule sent to the owner for a reason that holds", async () => {
+    const { id, record } = await apply({ website: "https://other.example" });
+    await check.checkNewCompanyApplication(record, deps());
+    expect(stored(id)).toMatchObject({ companyCheck: { reasons: ["domain_mismatch"] } });
+    expect(await check.sweepUncheckedCompanyApplications(Math.max(Date.parse(record.appliedAtIso), Date.parse("2026-11-23T12:00:00.000Z"))
+      + 3 * check.COMPANY_RECHECK_RETRY_MS, deps())).toBe(0);
   });
 
   it("never sweeps a technology partner", async () => {
