@@ -10,7 +10,7 @@ const runAgentTask = vi.hoisted(() => vi.fn());
 vi.mock("../agents/runtime", () => ({ runAgentTask }));
 
 const eligible = ["success_target", "item_photos", "item_weight", "item_make_model"] as const;
-const input = { taskStatement: "x".repeat(4000), briefSummary: "y".repeat(400), itemLabels: Array.from({ length: 20 }, (_, i) => `item ${i}`),
+const input = { taskStatement: "x".repeat(4000), briefSummary: "y".repeat(2400), itemLabels: Array.from({ length: 20 }, (_, i) => `item ${i}`),
   eligible: [...eligible] };
 
 // A provider that may receive the site's text is configured; without one the picker starts no run.
@@ -25,7 +25,8 @@ describe("follow-up picker through the runtime", () => {
     const [task, options] = runAgentTask.mock.calls[0];
     expect(task).toMatchObject({ kind: "site_task_follow_up" });
     expect(task.input.taskStatement).toHaveLength(3000);
-    expect(task.input.briefSummary).toHaveLength(300);
+    // The job's description goes whole, up to the one limit it has everywhere (`JOB_DESCRIPTION_MAX_LENGTH`).
+    expect(task.input.briefSummary).toHaveLength(2000);
     expect(task.input.itemLabels).toHaveLength(12);
     expect(options).toMatchObject({ dispatchQueuedOnFinish: false });
   });

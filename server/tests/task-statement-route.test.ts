@@ -29,6 +29,7 @@ vi.mock("../utils/captureOutbox", () => ({
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { draftBrief, saveBrief, getBrief, PLACEHOLDER_TASK_SUMMARY } = await import("../utils/siteTaskBrief");
+const { JOB_DESCRIPTION_TOO_LONG } = await import("../../client/src/lib/jobDescriptionLimit");
 
 let server: Server;
 let baseUrl: string;
@@ -73,5 +74,18 @@ describe("naming the job in one line", () => {
     expect(await getBrief("req-1")).toMatchObject({ taskFamily: "general_task", taskFamilyFromReading: true, confirmedAtIso: null });
     expect((await name("Move the bins")).status).toBe(409);
     expect((await read()).taskStatementNeeded).toBe(false);
+  });
+
+  // Stress test, 2026-11-24: one limit for the job's description everywhere, the start form's 2,000 characters.
+  it("takes a line as long as the start form does, and says plainly when one is longer", async () => {
+    const tooLong = await name("x".repeat(2001));
+    expect(tooLong.status).toBe(400);
+    expect(await tooLong.json()).toEqual({ error: JOB_DESCRIPTION_TOO_LONG, code: "task_statement_too_long" });
+    const long = "Pick up the glass vase and place it at the other end of the table, ".repeat(29).trim();
+    expect(long.length).toBeGreaterThan(300);
+    expect(long.length).toBeLessThanOrEqual(2000);
+    const named = await name(long);
+    expect(named.status).toBe(200);
+    expect((await getBrief("req-1"))?.summary).toBe(long);
   });
 });

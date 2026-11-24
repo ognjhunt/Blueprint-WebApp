@@ -21,6 +21,7 @@ import {
   watchAuth,
 } from "@/lib/accountAuth";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
+import { JOB_DESCRIPTION_MAX_LENGTH, jobDescriptionTooLong } from "@/lib/jobDescriptionLimit";
 
 type Basis = "description" | "observation" | "measurement" | "assumption";
 
@@ -119,6 +120,7 @@ export function TaskBriefReview(props: {
   // The job is screened and prepared from this sentence (audit N3).
   const placeholderSummary = !props.brief.summary.trim() || props.brief.summary.trim() === PLACEHOLDER_SUMMARY;
   const [summary, setSummary] = useState(placeholderSummary ? "" : props.brief.summary);
+  const summaryTooLong = summary.trim().length > JOB_DESCRIPTION_MAX_LENGTH;
   const [successDefinition, setSuccessDefinition] = useState(props.brief.successCriteria?.successDefinition ?? "");
   const [successRate, setSuccessRate] = useState(props.brief.successCriteria?.successRate?.toString() ?? "");
   const [cycleTimeSeconds, setCycleTimeSeconds] = useState(props.brief.successCriteria?.cycleTimeSeconds?.toString() ?? "");
@@ -214,6 +216,7 @@ export function TaskBriefReview(props: {
 
   function problem(): string | null {
     if (!summary.trim()) return "Describe the job in one sentence, so we know what the robot should do.";
+    if (summary.trim().length > JOB_DESCRIPTION_MAX_LENGTH) return jobDescriptionTooLong(summary.trim().length);
     if (!name.trim()) return "Please add your name so we know who confirmed this.";
     if (touchedSuccess.current && !successUnknown && !successDefinition.trim() && (successRate || cycleTimeSeconds)) return "Describe which outcome the edited target measures, or leave the targets open.";
     return null;
@@ -432,8 +435,12 @@ export function TaskBriefReview(props: {
               ? "Your words from when you sent the job. If the job has changed, change it here and confirm it again."
               : "We wrote this from what you sent. Correct it if we read the job wrong."}
         </span>
-        <input id="brief-summary" type="text" value={summary} onChange={(event) => setSummary(event.target.value)}
-          required maxLength={300} />
+        {/* A textarea with no `maxLength`: a long description is shown whole and can be edited anywhere, and one over the
+            limit is said under the box, never cut off. */}
+        <textarea id="brief-summary" rows={3} value={summary} onChange={(event) => setSummary(event.target.value)} required
+          aria-invalid={summaryTooLong || undefined} aria-describedby={summaryTooLong ? "brief-summary-too-long" : undefined} />
+        {summaryTooLong && <span id="brief-summary-too-long" className="ms-field-hint" role="alert">
+          {jobDescriptionTooLong(summary.trim().length)}</span>}
       </label>
       {props.brief.proposed.some(answer => answer.basis === "observation") && <details><summary>What your video shows</summary>
         {props.brief.proposed.filter(answer => answer.basis === "observation").map(answer => <p key={answer.fieldId}>{answer.reading} <span className="ms-field-hint">(seen in your video{answer.atSeconds != null ? ` at ${answer.atSeconds}s` : ""})</span></p>)}

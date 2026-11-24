@@ -57,6 +57,7 @@ import {
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { isTaskConfirmationVersion } from "../../client/src/lib/taskConfirmationStatement";
+import { JOB_DESCRIPTION_MAX_LENGTH } from "../../client/src/lib/jobDescriptionLimit";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
 import { projectWebsiteTaskContext, taskContextSiteIdentity } from "./websiteTaskContext";
@@ -466,7 +467,7 @@ export function mergeProposals(
  * the confirmation flow, never here.
  */
 export async function nameUnnamedTask(params: { requestId: string; summary: string }): Promise<SiteTaskBriefRecord | null> {
-  const summary = params.summary.trim().slice(0, 300);
+  const summary = params.summary.trim().slice(0, JOB_DESCRIPTION_MAX_LENGTH);
   if (isPlaceholderSummary(summary)) return null;
   const brief = await getBrief(params.requestId);
   if (!brief || brief.confirmedAtIso || !isPlaceholderSummary(brief.summary)) return null;
@@ -539,7 +540,7 @@ export async function mergeBriefProposals(params: {
     const next: SiteTaskBriefRecord = {
       ...brief,
       ...(isPlaceholderSummary(brief.summary) && params.observedSummary?.trim()
-        ? { summary: params.observedSummary.trim().slice(0, 2000) } : {}),
+        ? { summary: params.observedSummary.trim().slice(0, JOB_DESCRIPTION_MAX_LENGTH) } : {}),
       proposed,
       unresolved: unresolvedGates(brief.captureMode, proposed),
       draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
@@ -605,7 +606,7 @@ export async function reviseBriefTask(params: {
     const [snapshot, requestSnapshot] = await Promise.all([transaction.get(briefRef), transaction.get(requestRef)]);
     if (!snapshot.exists) return null;
     const brief = snapshot.data() as SiteTaskBriefRecord;
-    const summary = params.summary?.trim() ? params.summary.trim().slice(0, 2000) : brief.summary;
+    const summary = params.summary?.trim() ? params.summary.trim().slice(0, JOB_DESCRIPTION_MAX_LENGTH) : brief.summary;
     const successCriteria = params.successCriteria ?? brief.successCriteria ?? null;
     const task = (value: { summary: string; successCriteria?: SiteTaskSuccessCriteria | null }) =>
       humanDecisionDigest({ summary: value.summary, success: value.successCriteria ?? null });

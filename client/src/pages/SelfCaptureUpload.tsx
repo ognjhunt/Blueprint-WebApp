@@ -44,6 +44,7 @@ import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdr
 import { FILM_AROUND_THE_JOB, FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE, FOOTAGE_UPLOAD_NOTICE_BESIDE_FILMING } from "@/lib/footageNotice";
 import { RECORDING_RIGHTS_STATEMENT_V6, RECORDING_RIGHTS_STATEMENT_V6_VERSION } from "@/lib/recordingRightsStatement";
 import { withCsrfHeader } from "@/lib/csrf";
+import { JOB_DESCRIPTION_MAX_LENGTH, jobDescriptionTooLong } from "@/lib/jobDescriptionLimit";
 import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo, type VideoUploadResult } from "@/lib/selfCaptureVideo";
 
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
@@ -841,6 +842,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // Before the video, the guided recorder (on a phone) or the handoff link (on a computer) is the page's one filled
   // button; the upload of a file already made is then the quiet alternative. A link opened for an existing video leads with it.
   const cameraLeads = !existingVideoOnly && !saved;
+  const taskStatementTooLong = taskStatement.trim().length > JOB_DESCRIPTION_MAX_LENGTH;
   const taskStatementForm = scope === "owner" && brief && taskStatementNeeded && !withdrawn ? (
                 <form aria-label="Name the job" style={{ margin: "16px 0" }} onSubmit={(event) => {
                   event.preventDefault();
@@ -869,9 +871,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     : answer
                     ? "Optional: if we read the job wrong, say in one line what the robot should do."
                     : "We could not tell the job from your video. In one line, what should the robot do?"}</label>
-                  <input id="task-statement" value={taskStatement} maxLength={300} required
+                  {/* The same limit as the start form and the editor (`JOB_DESCRIPTION_MAX_LENGTH`), said, never cut off. */}
+                  <textarea id="task-statement" rows={2} value={taskStatement} required
+                    aria-invalid={taskStatementTooLong || undefined} aria-describedby={taskStatementTooLong ? "task-statement-too-long" : undefined}
                     placeholder="Pick up the … and place it on the …" onChange={(event) => setTaskStatement(event.target.value)} />
-                  <button type="submit" disabled={savingTaskStatement || !taskStatement.trim()}>
+                  {taskStatementTooLong && <p id="task-statement-too-long" role="alert">{jobDescriptionTooLong(taskStatement.trim().length)}</p>}
+                  <button type="submit" disabled={savingTaskStatement || !taskStatement.trim() || taskStatementTooLong}>
                     {savingTaskStatement ? "Saving…" : "Save"}
                   </button>
                   {taskStatementError && <p role="alert">{taskStatementError}</p>}

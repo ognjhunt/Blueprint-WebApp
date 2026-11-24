@@ -1,3 +1,5 @@
+import { JOB_DESCRIPTION_MAX_LENGTH } from "../../client/src/lib/jobDescriptionLimit";
+
 export const FOLLOW_UP_IDS = ["success_target", "item_photos", "item_weight", "item_make_model"] as const;
 export type FollowUpId = (typeof FOLLOW_UP_IDS)[number];
 
@@ -60,7 +62,7 @@ export async function selectFollowUps(input: {
       kind: "site_task_follow_up",
       input: {
         taskStatement: input.taskStatement.slice(0, 3000),
-        briefSummary: input.briefSummary.slice(0, 300),
+        briefSummary: input.briefSummary.slice(0, JOB_DESCRIPTION_MAX_LENGTH),
         itemLabels: input.itemLabels.slice(0, 12),
         eligible: input.eligible,
       },

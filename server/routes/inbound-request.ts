@@ -227,6 +227,7 @@ import type {
 } from "../types/inbound-request";
 import { TASK_CONTEXT_IDENTITY_FIELD } from "../utils/websiteTaskContext";
 import { withTypedUsState } from "../utils/typedPlaceState";
+import { JOB_DESCRIPTION_MAX_LENGTH, JOB_DESCRIPTION_TOO_LONG } from "../../client/src/lib/jobDescriptionLimit";
 
 const router = Router();
 
@@ -1131,6 +1132,13 @@ export async function submitInboundRequest(req: Request, res: Response) {
         // The site sees this text as is, so it names no field ids (they are logged above).
         message: "Some details are missing. Check the form and try again.",
       } satisfies SubmitInboundRequestResponse);
+    }
+
+    // The one limit on a job description (`JOB_DESCRIPTION_MAX_LENGTH`): the start form says it under the box, and the
+    // description editor and its routes take the same length, so a site can always correct what it sent.
+    if (taskStatement.length > JOB_DESCRIPTION_MAX_LENGTH) {
+      return res.status(400).json({ ok: false, requestId: payload.requestId, status: "submitted", code: "task_statement_too_long",
+        message: JOB_DESCRIPTION_TOO_LONG } satisfies SubmitInboundRequestResponse);
     }
 
     // 3. Validate email

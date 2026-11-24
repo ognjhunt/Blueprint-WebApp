@@ -1,6 +1,7 @@
 import { destinationPictureUrl } from "../utils/websiteDestinationPicture";
 import { placeKindOf } from "../utils/taskTargetChoiceContract";
 import { readJobFacts } from "../utils/jobFacts";
+import { JOB_DESCRIPTION_MAX_LENGTH, JOB_DESCRIPTION_TOO_LONG } from "../../client/src/lib/jobDescriptionLimit";
 import { jobReadingOf } from "../utils/siteRobotFit";
 import { loadFirstLookWords } from "../utils/firstLookTable";
 import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED,
@@ -526,8 +527,8 @@ const confirmSchema = z
       pilotConsideration: z.enum(["yes", "subject_to_review", "evaluation_only", "undecided"]),
       deploymentPath: z.enum(["this_site", "multiple_sites", "pilot_only", "undecided"]),
     }).strict().optional(),
-    /** The job in the site's own sentence. Required while the drafted summary is a placeholder. */
-    summary: z.string().trim().min(1).max(300).optional(),
+    /** The job in the site's own words, as long as the start form takes. Required while the drafted summary is a placeholder. */
+    summary: z.string().trim().min(1).max(JOB_DESCRIPTION_MAX_LENGTH).optional(),
   })
   .strict();
 
@@ -986,7 +987,10 @@ router.post("/:token/task-statement", async (req: Request, res: Response) => {
     return res.status(403).json({ error: "This link is for recording only.", code: "capture_token_film_only" });
   }
   const summary = typeof req.body?.summary === "string" ? req.body.summary.trim() : "";
-  if (!summary || summary.length > 300 || isPlaceholderSummary(summary)) {
+  if (summary.length > JOB_DESCRIPTION_MAX_LENGTH) {
+    return res.status(400).json({ error: JOB_DESCRIPTION_TOO_LONG, code: "task_statement_too_long" });
+  }
+  if (!summary || isPlaceholderSummary(summary)) {
     return res.status(400).json({ error: "Describe the job in one line.", code: "task_statement_invalid" });
   }
   try {
@@ -1023,6 +1027,10 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
   }
 
   const parsed = confirmSchema.safeParse(req.body);
+  // A description longer than the limit is said as that, not as an unreadable confirmation.
+  if (!parsed.success && parsed.error.issues.some(issue => issue.path[0] === "summary" && issue.code === "too_big")) {
+    return res.status(400).json({ error: JOB_DESCRIPTION_TOO_LONG, code: "task_brief_summary_too_long" });
+  }
   if (!parsed.success) {
     return res.status(400).json({
       error: "That confirmation could not be read.",

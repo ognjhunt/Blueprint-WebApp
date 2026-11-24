@@ -992,6 +992,25 @@ describe("inbound request route", () => {
     }
   });
 
+  // Stress test, 2026-11-24: one limit on a job's description everywhere, the start form's 2,000 characters, so a site can
+  // always correct what it sent; a longer one is refused in a plain sentence and nothing is saved.
+  it("refuses a job description over 2,000 characters in a plain sentence", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `long-description-${Date.now()}`;
+      const payload = buildPayload(requestId, `site+${Date.now()}@example.com`);
+      payload.taskStatement = "x".repeat(2001);
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ ok: false, code: "task_statement_too_long",
+        message: "Shorten the description to 2,000 characters or fewer." });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("keeps identity required for robot teams, whose form still asks for it", async () => {
     process.env.NODE_ENV = "development";
     vi.resetModules();

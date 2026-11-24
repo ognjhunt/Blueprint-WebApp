@@ -45,6 +45,7 @@ vi.mock("../utils/captureOutbox", () => ({
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { draftBrief, saveBrief } = await import("../utils/siteTaskBrief");
+const { JOB_DESCRIPTION_TOO_LONG } = await import("../../client/src/lib/jobDescriptionLimit");
 
 let server: Server;
 let baseUrl: string;
@@ -113,6 +114,29 @@ describe("confirming the brief needs an owner link", () => {
     expect(response.status).toBe(200);
     const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
     expect(stored.site_task_brief_confirmed_at).toBeTruthy();
+  });
+});
+
+// Stress test, 2026-11-24: the start form takes 2,000 characters; the confirmation took 300 and refused a longer
+// correction as "That confirmation could not be read". One limit everywhere, and a plain sentence over it.
+describe("a correction as long as the start form takes", () => {
+  const confirmWith = (summary: string) => fetch(`${baseUrl}/api/site-task-brief/${tokenFor("owner")}/confirm`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ confirmedBy: "Dana Okafor", summary }) });
+
+  it("saves a description longer than 300 characters, up to 2,000", async () => {
+    const long = `${"Pick up each sealed carton from the end of the conveyor and place it on the cart. ".repeat(25)}`.slice(0, 1999) + ".";
+    expect(long.length).toBe(2000);
+    const response = await confirmWith(long);
+    expect(response.status).toBe(200);
+    expect((sharedFakeFirestoreState.docs.get("siteTaskBriefs/req-1") as { summary: string }).summary).toBe(long.trim());
+  });
+
+  it("refuses one over 2,000 characters by saying so, and keeps the description on file", async () => {
+    const response = await confirmWith("x".repeat(2001));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: JOB_DESCRIPTION_TOO_LONG, code: "task_brief_summary_too_long" });
+    expect((sharedFakeFirestoreState.docs.get("siteTaskBriefs/req-1") as { summary: string }).summary).toBe("Cartons from a conveyor onto a pallet");
   });
 });
 
