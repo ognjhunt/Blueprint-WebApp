@@ -41,7 +41,11 @@ import {
  *     (the server restarted mid-check, or it applied before the rule), and
  *     rings Slack with what it found (companyCheck, owner 2026-11-23);
  *  9. makes the thumbnail of a listed job that has none yet, at most three a
- *     pass (jobThumbnail, owner 2026-11-23).
+ *     pass (jobThumbnail, owner 2026-11-23);
+ * 12. tells the owner once per site withdrawal the Pipeline has not
+ *     acknowledged 15 minutes after the request, with the cause
+ *     (withdrawalNoticeAlerts). Readiness (3) also names a worker that has no
+ *     Pipeline address for the withdrawal notice.
  *
  * Retired 2026-11-22: the no-grant wait page and the over-budget extension
  * report (grants and the extension are gone).
@@ -372,11 +376,11 @@ export async function scanUnknownOutboxOutcomes(options: {
 }
 
 async function checkLaunchReadiness() {
-  const [{ buildLaunchReadinessSnapshot }, { maybeAlertOnLaunchReadinessTransition }] = await Promise.all([
+  const [{ buildLaunchReadinessWithWorkerFacts }, { maybeAlertOnLaunchReadinessTransition }] = await Promise.all([
     import("./launch-readiness"),
     import("./ops-alerts"),
   ]);
-  await maybeAlertOnLaunchReadinessTransition(buildLaunchReadinessSnapshot());
+  await maybeAlertOnLaunchReadinessTransition(await buildLaunchReadinessWithWorkerFacts());
 }
 
 async function scanWebsitePreparations() {
@@ -414,13 +418,16 @@ export async function runBetaOpsMonitorPass() {
     import("./companyCheck").then(({ recheckApprovedCompanies }) => recheckApprovedCompanies()),
     // 11. a company's question still unanswered at its reply date: one reminder to the site.
     import("./siteReplyReminders").then(({ remindUnansweredQuestions }) => remindUnansweredQuestions()),
+    // 12. a site's withdrawal the Pipeline has not acknowledged 15 minutes on: the owner is told once, with the cause.
+    import("./withdrawalNoticeAlerts").then(({ scanUnacknowledgedWithdrawals }) => scanUnacknowledgedWithdrawals()),
   ]);
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
       logger.warn(
         { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan",
           "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan", "access_application_reminder",
-          "company_check_sweep", "job_thumbnail_sweep", "company_recheck", "site_reply_reminder"][index] },
+          "company_check_sweep", "job_thumbnail_sweep", "company_recheck", "site_reply_reminder",
+          "withdrawal_notice_scan"][index] },
         "Beta ops monitor step failed",
       );
     }

@@ -56,13 +56,23 @@ function text(value: unknown) {
   return String(value || "").trim();
 }
 
-function baseUrl(explicit?: string) {
+function baseUrl(explicit?: string, env: NodeJS.ProcessEnv = process.env) {
   const configured = text(explicit)
-    || text(process.env.CAPTURE_LIFECYCLE_PIPELINE_BASE_URL);
+    || text(env.CAPTURE_LIFECYCLE_PIPELINE_BASE_URL);
   if (configured) return configured.replace(/\/+$/, "");
-  return text(process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL)
+  return text(env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL)
     .replace(/\/+$/, "")
     .replace(/\/capture-upload-intakes$/, "");
+}
+
+/**
+ * Whether this process can send a lifecycle notice (a site's withdrawal among them): the Pipeline's address and the
+ * signing token, as `signedCaptureLifecycleRequest` reads them. Only whether each is there, never a value. The worker
+ * reports this in its heartbeat so the web process's readiness can name it (`launch-readiness.ts`).
+ */
+export function captureLifecycleNoticeSettings(env: NodeJS.ProcessEnv = process.env) {
+  return { addressConfigured: Boolean(baseUrl(undefined, env)),
+    tokenConfigured: Boolean(text(env.CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN)) };
 }
 
 function timeoutMs() {

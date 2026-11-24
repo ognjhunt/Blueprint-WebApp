@@ -220,7 +220,7 @@ export async function forwardWebsiteCaptureWithdrawals() {
         const next = { ...record.capture_withdrawal, ...progress };
         tx.set(snapshot.ref, { capture_withdrawal: { ...next, ...deriveWebsiteWithdrawalState(next) }, captureWithdrawalPending: true,
           captureWithdrawalOutbox: { lease: null, leaseUntilMs: 0, nextAttemptAtMs: Date.now() + (receipt ? 3_600_000 : 60_000),
-            lastTransportStatus: result.status } }, { merge: true });
+            lastTransportStatus: result.status, lastHttpStatus: result.http_status ?? null } }, { merge: true });
       });
     } catch (error) {
       // An invalid historical command or interrupted lease stays pending. It
