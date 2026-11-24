@@ -210,4 +210,42 @@ describe("the job's $40 cap on the video reading's paid calls", () => {
     await expect(reserveCaptureCoverageInference("gemini-3.8-flash", metadata)).rejects.toThrow("coverage_budget_job_cap_reached");
     expect(sharedFakeFirestoreState.docs.get(budgetPath)).toMatchObject({ exposure_usd: 39, calls: 21, pending_token: null });
   });
+
+  // 2026-11-24: the readings' ledger is one of the job's in `websiteJobSpend`, so every admission of the job counts it.
+  const jobSpend = async () => {
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const { transactionJobLedgerReader, websiteJobSpend } = await import("../utils/websiteJobCeiling");
+    return websiteJobSpend({ record: sharedFakeFirestoreState.docs.get("inboundRequests/one") as Record<string, any>,
+      reader: transactionJobLedgerReader(sharedFakeFirestore, { get: (ref: any) => ref.get() }, "one") });
+  };
+
+  it("counts the job's readings once: a call in flight at its reservation, an answered one at the cost it was priced at", async () => {
+    const call = await reserveCaptureCoverageInference("gemini-3.8-flash", metadata);
+    expect((await jobSpend()).video_reading_micros).toBe(1_818_624);
+    await call.record(usage);
+    const priced = sharedFakeFirestoreState.docs.get(`${budgetPath}/calls/${call.receipt.admission_token}`)!.cost_estimate_usd as number;
+    expect(priced).toBeGreaterThan(0);
+    expect(priced).toBeLessThan(0.001);
+    expect(await jobSpend()).toMatchObject({ video_reading_micros: Math.ceil(priced * 1e6), total_micros: Math.ceil(priced * 1e6) });
+  });
+
+  it("admits a reading the earlier readings' priced costs leave room for, though their reservations would not", async () => {
+    // Two answered readings, reserved at 1.818624 each and priced far below: the ledger's running figure keeps both
+    // reservations, the job's spend their priced cost.
+    for (let n = 0; n < 2; n++) { const call = await reserveCaptureCoverageInference("gemini-3.8-flash", metadata); await call.record(usage); }
+    expect(sharedFakeFirestoreState.docs.get(budgetPath)!.exposure_usd).toBeCloseTo(3.637248);
+    sharedFakeFirestoreState.docs.get("inboundRequests/one")!.website_preparation_reservations = holding(37);
+    // 37 + both priced readings + this reservation fits; 37 + both reservations + this one would not.
+    await expect(reserveCaptureCoverageInference("gemini-3.8-flash", metadata)).resolves.toBeDefined();
+    expect(sharedFakeFirestoreState.docs.get(budgetPath)).toMatchObject({ calls: 3 });
+  });
+
+  it("is counted by the job's other admissions: a model lane's hold is refused once the readings fill the cap", async () => {
+    sharedFakeFirestoreState.docs.set(budgetPath, { schema_version: "capture_coverage_inference_budget.v1", capture_id: metadata.capture_id,
+      cap_usd: null, exposure_usd: 39, calls: 21, pending_token: null });
+    const { holdJobLaneSpend } = await import("../utils/jobLaneSpend");
+    expect(await holdJobLaneSpend("one", "site_task_follow_up", 0.5)).toMatchObject({ state: "held" });
+    expect(await holdJobLaneSpend("one", "site_task_follow_up", 0.6)).toEqual({ state: "cap" });
+    expect(await jobSpend()).toMatchObject({ video_reading_micros: 39_000_000, model_lane_micros: 500_000 });
+  });
 });
