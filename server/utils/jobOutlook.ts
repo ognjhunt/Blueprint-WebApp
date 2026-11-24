@@ -8,7 +8,9 @@
  * - `building`: on the way to a simulation and no ending recorded (before the Pipeline's first status, preparing,
  *   waiting on capacity, awaiting inputs, a retryable failure, handed off, a scene built with no run yet, and any
  *   state that is unknown or unreadable).
- * - `simulation_ready`: the simulation of the site is ready, and no ending recorded. There is no "testing" or "result"
+ * - `simulation_ready`: the simulation of the site is ready, and no ending recorded: the scene is ready, or the job's
+ *   simulation package is delivered to the website (`storedCompanySimulation`, the same stored fact that gives an
+ *   approved deployment company "Download the simulation"), a room package without the job's object included. There is no "testing" or "result"
  *   phase: Blueprint runs no robot software in the simulation (dropped 2026-11-14; ledger AL29).
  * - `no_test`: an ending is recorded and no result exists; the paper check is the answer, with `sentence`.
  * - `ended_by_site`: the site withdrew recording permission or closed the run; never building, never an answer email.
@@ -40,6 +42,11 @@ export interface JobOutlookInput {
   preparation: { state: string; geometryOnlyEnd: boolean; terminalReason?: string | null } | null;
   /** The scene's progression after hand-off; `attemptFailed` when a build attempt failed and another is coming. */
   scene: { state: string; attemptFailed?: boolean; endingKind?: string } | null;
+  /**
+   * The job's simulation package is stored for its current capture and verifies (`storedCompanySimulation`), as a
+   * company's page reads it before offering the download. A room package counts: nothing more may be built for the job.
+   */
+  simulationDelivered?: boolean;
   /** The verified preview for this capture ended at the job's cap before a native scene was built. */
   atlasSpendingCapReached?: boolean;
   /** The job's simulation proof (`projectSimulationProof`), or null when there is no evaluation to read. */
@@ -87,7 +94,7 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   // The site's own endings come first: never building, never an answer.
   if (input.consentRevoked === true) return outlook("ended_by_site", "permission_withdrawn");
   if (input.closedByOwner === true) return outlook("ended_by_site", "closed_by_owner");
-  const working = (): JobOutlook => input.scene?.state === "ready" ? outlook("simulation_ready")
+  const working = (): JobOutlook => input.scene?.state === "ready" || input.simulationDelivered === true ? outlook("simulation_ready")
     : outlook("building", input.preparation?.state === "failed_retryable" || input.scene?.attemptFailed ? "step_failed" : null);
   // Ordered by where each fact lives (review, 2026-11-11): the facts recorded on the website's side first (above, the
   // site's own endings; then every recorded ending). A read that failed elsewhere (`uncertain`) never hides one of
@@ -209,9 +216,10 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
   Promise<{ outlook: JobOutlook; certain: boolean; ending: JobOutlook | null; resultUnknown: boolean }> {
   const [{ siteWalkthroughIdentity }, { projectWebsiteCaptureRights }, { websiteRunClosure },
     { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding }, { loadSiteAnswer },
-    { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview }] = await Promise.all([
+    { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview }, { storedCompanySimulation }] = await Promise.all([
     import("./siteWalkthrough"), import("./websiteCaptureRights"),
-    import("./websiteRunClosure"), import("./websiteJobWindowEnding"), import("./siteAnswer"), import("./websiteAtlasPreview")]);
+    import("./websiteRunClosure"), import("./websiteJobWindowEnding"), import("./siteAnswer"), import("./websiteAtlasPreview"),
+    import("./websiteCompanySimulation")]);
   if (!dbAdmin) throw new Error("job_outlook_unavailable");
   // What the caller read is used only for the job's current capture; otherwise every read is made here.
   const given = known && known.captureId === siteWalkthroughIdentity(requestId, known.record).captureId ? known : undefined;
@@ -278,6 +286,7 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
     runStoppedByWindow, resultUnknown,
     awaitsSiteSentence,
     atlasSpendingCapReached: atlasPreviewReachedSpendingCap(selectWebsiteAtlasPreview(record, captureId)),
+    simulationDelivered: storedCompanySimulation(session, captureId) !== null,
     preparation, scene, proof, uncertain,
   };
   const outlook = jobOutlook(input);
