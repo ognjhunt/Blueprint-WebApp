@@ -77,6 +77,8 @@ export const VISIT_NOTE_LIMIT = 300;
 export const ESTIMATE_LABEL = "Estimate before a site visit. Not a quote.";
 export const ESTIMATES_NOT_CHECKED = "Estimates are each company's own, before a site visit. They are not quotes, and Blueprint does not check them.";
 export interface ApplicationEstimate { lowUsd: number; highUsd: number }
+/** The estimate an application gave when the site pressed Accept, recorded on the introduction. */
+export interface AcceptedEstimate { chargeModel: Exclude<ChargeModel, "undecided">; estimate: ApplicationEstimate }
 
 /** Dollars, with cents only when the estimate has them: "$12,000", "$0.35"; both ends alike in a range ("$45.50 to $60.00"). */
 const usd = (value: number, cents: boolean) =>
@@ -224,6 +226,11 @@ export type SiteCompanyEntry =
       introductionPending?: boolean;
       /** The site asked for an introduction that could not go ahead: the company's email never went. */
       introductionCancelled?: boolean;
+      /**
+       * The estimate the answer gave when the site pressed Accept (null: none then), recorded on the introduction, only
+       * for an answer under a line that shows the site an estimate. The page says when the estimate changed since.
+       */
+      acceptedEstimate?: AcceptedEstimate | null;
       /** After the introduction, what the site said happened: the dates it marked a visit and a pilot. */
       progress?: { visitAtIso?: string; pilotAtIso?: string } };
 

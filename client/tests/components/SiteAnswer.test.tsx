@@ -761,6 +761,19 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getAllByText("Changed after you accepted. It was $9,000 to $12,000 a month.")).toHaveLength(2);
   });
 
+  // The server records the estimate the site read beside Accept (`estimateAtAccept`): a new browser says the change too.
+  it("says an estimate changed after Accept from the server's record, with nothing in this browser", () => {
+    window.localStorage.clear();
+    const introduced = { ...activity, entries: [
+      { kind: "answered" as const, alias: "Company A", atIso: "2026-11-20T09:00:00.000Z", state: "interested" as const, canIntroduce: false,
+        introductionPending: true, applicant: { name: "Northwind Robotics", website: null },
+        details: { chargeModel: "subscription" as const, estimate: { lowUsd: 15000, highUsd: 15000 } },
+        acceptedEstimate: { chargeModel: "subscription" as const, estimate: { lowUsd: 9000, highUsd: 12000 } } },
+    ] };
+    render(<SiteAnswer token="fresh-browser-token" answer={{ ...readyAnswer, ...VISIBLE, companies: introduced }} />);
+    expect(within(companies()).getAllByText("Changed after you accepted. It was $9,000 to $12,000 a month.").length).toBeGreaterThan(0);
+  });
+
   it("says an answer was updated after the introduction, from the server's own times, when this browser holds no earlier one", () => {
     const introduced = { ...activity, introductions: { used: 1 }, entries: [
       { kind: "answered" as const, alias: "Company A", atIso: "2026-11-20T09:00:00.000Z", state: "interested" as const, canIntroduce: false,
@@ -784,7 +797,7 @@ describe("the deployment companies section, with sends, answers and introduction
       { ...activity.entries[1], atIso: "2026-11-15T09:00:00.000Z", state: "declined" as never, canIntroduce: false }] }));
     expect(within(companies()).queryByRole("button", { name: "Accept" })).toBeNull();
     expect(lines()[1]).toMatch(/^Company ANot a fit/);
-    expect(within(companies()).getByRole("alert")).toHaveTextContent("This company has not applied, so you cannot accept it.");
+    expect(within(companies()).getByRole("alert")).toHaveTextContent("This company has not applied, or has changed its answer since, so you cannot accept it now.");
     // The company applies again: the old refusal goes, and Accept is offered on the new answer.
     rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], atIso: "2026-11-16T09:00:00.000Z" }] }));
     expect(within(companies()).queryByRole("alert")).toBeNull();

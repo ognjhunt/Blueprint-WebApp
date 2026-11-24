@@ -21,8 +21,8 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { COMPANY_RESPONSE_LABELS, SITE_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
-  type CompanyResponseState } from "../../client/src/lib/companyResponses";
+import { CHARGE_MODELS, COMPANY_ESTIMATE_STATEMENT_VERSIONS, COMPANY_RESPONSE_LABELS, SITE_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
+  isApplicationEstimate, type AcceptedEstimate, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { billableEventRef, buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
 import { COMPANY_RESPONSES_COLLECTION, INTRODUCTIONS_COLLECTION, answerConsentsToIntroduction, companyJobUrl,
@@ -110,6 +110,20 @@ export async function introductionStatementVersionOf(record: Record<string, any>
   return introductionStatementVersionFor(await siteDetailsOf(record, deps.decrypt ?? defaultDecrypt));
 }
 
+/**
+ * The estimate the company's answer gave when the site pressed Accept, as the site read it then, so the site's page can
+ * say when it changed after (stress test, 2026-11-24). Only for an answer under a line that shows the site its estimate
+ * (`COMPANY_ESTIMATE_STATEMENT_VERSIONS`): null when that answer gave none; undefined for any other answer (nothing is
+ * recorded, and the site was shown no estimate).
+ */
+export function estimateAtAccept(answer: Record<string, any> | undefined): AcceptedEstimate | null | undefined {
+  if (!answer || !COMPANY_ESTIMATE_STATEMENT_VERSIONS.includes(String(answer.statementVersion))) return undefined;
+  const details = answer.details && typeof answer.details === "object" ? answer.details as Record<string, unknown> : {};
+  const chargeModel = CHARGE_MODELS.find(model => model === details.chargeModel);
+  return chargeModel && chargeModel !== "undecided" && isApplicationEstimate(details.estimate)
+    ? { chargeModel, estimate: { lowUsd: details.estimate.lowUsd, highUsd: details.estimate.highUsd } } : null;
+}
+
 /** The introductions read to count those that stand (recorded on the job); far above any real count. */
 const INTRODUCTION_READ_LIMIT = 1000;
 
@@ -181,7 +195,10 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       // values; their outbox rows are cleared of them once sent or cancelled (`captureOutbox.ts`).
       siteShared: await sealShared({ name: site.name, contactName: site.contactName, email: site.email, phone: site.phone,
         location: site.location }),
-      companyShared: await sealShared(companyShared), outcomes: [] });
+      companyShared: await sealShared(companyShared), outcomes: [],
+      // The company's own figures as the site read them beside Accept (not personal, so plain), for "Changed after you
+      // accepted"; only under a line that shows the site an estimate.
+      ...(estimateAtAccept(answer) !== undefined ? { estimateAtAccept: estimateAtAccept(answer) } : {}) });
     writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso, attempt));
     if (!companyRow.exists && EMAIL.test(companyEmail)) {
       const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName,

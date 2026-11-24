@@ -389,6 +389,32 @@ describe("the company's answer when its introduction email would go", () => {
   });
 });
 
+// For "Changed after you accepted" (the flows work, 2026-11-24): the introduction keeps the estimate the site read.
+describe("the estimate the site read when it pressed Accept", () => {
+  const answerKey = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+  const north = () => ((state.docs.get(answerKey) ?? {}) as Record<string, unknown>);
+  const entryA = async () => ((await siteStatus()).body as { companyStatus: { companies: { entries: Array<Record<string, unknown>> } } })
+    .companyStatus.companies.entries.find(row => row.alias === "Company A");
+
+  it("is recorded on the introduction and carried on the site's entry, and stays as it was when the estimate changes", async () => {
+    state.docs.set(answerKey, { ...north(), details: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } } });
+    expect((await press("A")).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`))
+      .toMatchObject({ estimateAtAccept: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } } });
+    state.docs.set(answerKey, { ...north(), details: { chargeModel: "subscription", estimate: { lowUsd: 15000, highUsd: 15000 } } });
+    expect(await entryA()).toMatchObject({ acceptedEstimate: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } },
+      details: { estimate: { lowUsd: 15000, highUsd: 15000 } } });
+  });
+
+  it("is null when the answer gave none, and not recorded for an answer under a line that shows no estimate", async () => {
+    expect((await press("A")).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toMatchObject({ estimateAtAccept: null });
+    expect(await entryA()).toMatchObject({ acceptedEstimate: null });
+    state.docs.set(answerKey, { ...north(), statementVersion: "company-response-2026-11-23" });
+    expect(await entryA()).not.toHaveProperty("acceptedEstimate");
+  });
+});
+
 describe("the site is never charged", () => {
   it("writes only the job, its introduction, the event and the two emails: no payment record of any kind", async () => {
     const before = new Map(state.docs);

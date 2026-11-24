@@ -275,8 +275,11 @@ function useEstimateNotes(token: string, entries: AnsweredEntry[]) {
   for (const entry of entries) {
     const now = estimateOf(entry) ?? NOT_GIVEN;
     const before = baseline.current[entry.alias] ??= now;
-    // Only while the company is accepted: an introduction cancelled since is not "after you accepted" any more.
-    const atAccept = accepted(entry) ? memory.current[entry.alias]?.accepted : undefined;
+    // Only while the company is accepted: an introduction cancelled since is not "after you accepted" any more. The
+    // server's record of the estimate at Accept first (`acceptedEstimate`), else what this browser showed then.
+    const atAccept = !accepted(entry) ? undefined : entry.acceptedEstimate !== undefined
+      ? (entry.acceptedEstimate ? estimateInWords(entry.acceptedEstimate.chargeModel, entry.acceptedEstimate.estimate) ?? NOT_GIVEN : NOT_GIVEN)
+      : memory.current[entry.alias]?.accepted;
     if (atAccept && atAccept !== now) notes[entry.alias] = atAccept === NOT_GIVEN ? ESTIMATE_ADDED_AFTER_ACCEPT : estimateChangedAfterAccept(atAccept);
     else if (!atAccept && before !== now && before !== NOT_GIVEN) notes[entry.alias] = estimateChangedSinceLooked(before);
   }

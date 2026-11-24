@@ -39,6 +39,7 @@ import { loadScreenings, screenAndWait, siteReplyForCompany, siteWordsDeterminis
   type Screenings } from "./freeTextScreening";
 export { siteWordsDeterministic, siteWordsForCompany };
 import type { CompaniesReadSiteWords } from "../../client/src/lib/companiesRead";
+import { JOB_DESCRIPTION_MAX_LENGTH } from "../../client/src/lib/jobDescriptionLimit";
 
 /**
  * The company still stands approved as a deployment company (never a technology partner: the site agreed to share its
@@ -212,8 +213,8 @@ export async function aboutTheSite(requestId: string): Promise<string[]> {
   return lines;
 }
 
-/** The site's sentence as the deterministic pass reads it: the brief's summary. */
-export const siteSentenceSource = (brief: { summary?: unknown } | undefined | null) => String(brief?.summary ?? "").trim().slice(0, 2000);
+/** The site's sentence as the deterministic pass reads it: the brief's summary, at most the one description limit. */
+export const siteSentenceSource = (brief: { summary?: unknown } | undefined | null) => String(brief?.summary ?? "").trim().slice(0, JOB_DESCRIPTION_MAX_LENGTH);
 /** The site's success rule as the deterministic pass reads it, or "" when the site said it does not know. */
 export const siteSuccessRuleSource = (brief: { successCriteria?: any } | undefined | null) =>
   brief?.successCriteria?.unknown ? "" : String(brief?.successCriteria?.successDefinition ?? "").trim().slice(0, 1000);

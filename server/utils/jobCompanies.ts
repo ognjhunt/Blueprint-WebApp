@@ -39,7 +39,7 @@ import { logger } from "../logger";
 import {
   COMPANY_NAME_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, replyByIso,
   CHARGE_MODELS, COMPANY_ESTIMATE_STATEMENT_VERSIONS, SIMILAR_JOBS, isApplicationEstimate, type CompanyReplyDetails, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
-  type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
+  type AcceptedEstimate, type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { teamJobAccess, type TeamJobClosedReason } from "./teamJobAccess";
@@ -457,6 +457,19 @@ function applicationAtAGlance(answer: Data, words: (inputs: unknown) => string |
     ...(visit ? { visitMustConfirm: visit } : {}) };
 }
 
+/**
+ * The estimate an introduction recorded when the site pressed Accept (`estimateAtAccept`), as the site's entry carries it:
+ * only when the answer, then and now, is under a line that shows the site an estimate; null when none was given then.
+ */
+function acceptedEstimateOf(intro: Data, answer: Data): AcceptedEstimate | null | undefined {
+  if (!COMPANY_ESTIMATE_STATEMENT_VERSIONS.includes(String(answer.statementVersion)) || !("estimateAtAccept" in intro)) return undefined;
+  const value = intro.estimateAtAccept;
+  if (value === null) return null;
+  const chargeModel = CHARGE_MODELS.find(model => model === value?.chargeModel);
+  return chargeModel && chargeModel !== "undecided" && isApplicationEstimate(value?.estimate)
+    ? { chargeModel, estimate: { lowUsd: value.estimate.lowUsd, highUsd: value.estimate.highUsd } } : undefined;
+}
+
 /** The site's own marks after an introduction: the dates it said a visit happened and a pilot was agreed. */
 function progressOf(intro: Data): { visitAtIso?: string; pilotAtIso?: string } | null {
   const raw = intro.progress && typeof intro.progress === "object" ? intro.progress as Data : {};
@@ -546,6 +559,8 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
         ...(stored !== undefined && !answer ? { answerPending: true as const } : {}),
         ...(stored === undefined && replyByIso(response.data.questionAskedAtIso) ? { replyByIso: replyByIso(response.data.questionAskedAtIso)! } : {}) } } : {}),
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
+      // The estimate as the site read it when it pressed Accept, for an answer under a line that shows estimates.
+      ...(intro && acceptedEstimateOf(intro, response.data) !== undefined ? { acceptedEstimate: acceptedEstimateOf(intro, response.data) } : {}),
       // What the site said happened after the introduction (`markIntroductionProgress`): a visit, a pilot.
       ...(intro && progressOf(intro) ? { progress: progressOf(intro)! } : {}),
       ...(intro && !introducedAtIso ? { introductionPending: true } : {}),
