@@ -18,7 +18,7 @@ function SiteAnswer({ proof = null, ...props }: ComponentProps<typeof SiteAnswer
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
-beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
+beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); window.localStorage.clear(); });
 const response = (value: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
 
 /**
@@ -697,6 +697,102 @@ describe("the deployment companies section, with sends, answers and introduction
     // The card says the same, the estimate with its label.
     expect(lines()[0]).toContain("Estimate$12,000 to $18,000 a month Estimate before a site visit. Not a quote.");
     expect(lines()[0]).toContain("A visit must confirmConveyor height.");
+  });
+
+  // Stress test, 2026-11-24: the table kept a company whose introduction was cancelled and that can no longer be accepted.
+  it("leaves out of the comparison a company that can no longer be accepted, marks one already accepted, and labels each cell", () => {
+    const glance = { chargeModel: "per_hour" as const, estimate: { lowUsd: 45.5, highUsd: 60 } };
+    const entries = [
+      { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const, canIntroduce: false,
+        introductionCancelled: true, applicant: { name: "Dropped Robotics", website: null }, details: glance },
+      { kind: "answered" as const, alias: "Company B", atIso: "2026-11-14T09:00:00.000Z", state: "interested" as const, canIntroduce: false,
+        introductionPending: true, applicant: { name: "Chosen Robotics", website: null } },
+      { kind: "answered" as const, alias: "Company C", atIso: "2026-11-15T09:00:00.000Z", state: "interested" as const, canIntroduce: true,
+        applicant: { name: "Open Robotics", website: null }, details: glance },
+    ];
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { ...activity, entries } }} />);
+    const table = within(companies()).getByRole("table", { name: "Compare applicants" });
+    expect(within(table).getAllByRole("row").map(row => row.textContent)).toEqual([
+      "ApplicantChargesEstimateSimilar jobs doneEarliest start",
+      "Chosen RoboticsAcceptedNot givenNot givenNot givenNot given",
+      "Open RoboticsPer hour of work$45.50 to $60.00 an hourNot givenNot given"]);
+    // The company that can no longer be accepted stays in the list, with its answer, and no Accept.
+    expect(lines()[0]).toMatch(/^Dropped RoboticsApplied/);
+    expect(within(companies()).getAllByRole("button", { name: "Accept" })).toHaveLength(1);
+    // Each cell carries its column's name, which the phone layout shows beside the value.
+    expect([...table.querySelectorAll("tbody tr:last-child td")].map(cell => cell.getAttribute("data-label")))
+      .toEqual(["Charges", "Estimate", "Similar jobs done", "Earliest start"]);
+  });
+
+  // Stress test, 2026-11-24: an estimate raised after the introduction updated silently.
+  it("says when an estimate changed since the site last looked, and after it accepted", async () => {
+    const applicant = (estimate: { lowUsd: number; highUsd: number }, extra: Record<string, unknown> = {}) => ({ ...activity, entries: [
+      { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const, canIntroduce: true,
+        applicant: { name: "Northwind Robotics", website: null }, details: { chargeModel: "subscription" as const, estimate }, ...extra },
+      { kind: "answered" as const, alias: "Company B", atIso: "2026-11-14T09:00:00.000Z", state: "interested" as const, canIntroduce: true },
+    ] });
+    const page = (companies: ReturnType<typeof applicant>) => <SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies }} />;
+    const first = render(page(applicant({ lowUsd: 4000, highUsd: 6000 })));
+    expect(within(companies()).queryByText(/^Changed /)).toBeNull();
+    first.unmount();
+    // A later visit: the estimate went up.
+    const second = render(page(applicant({ lowUsd: 9000, highUsd: 12000 })));
+    expect(within(companies()).getAllByText("Changed since you last looked. It was $4,000 to $6,000 a month.")).toHaveLength(2);
+    second.unmount();
+    // Seen now: the next visit says nothing. The site accepts; the company then changes its estimate again.
+    fetchMock.mockResolvedValue(response({ ok: true }));
+    const { rerender } = render(page(applicant({ lowUsd: 9000, highUsd: 12000 })));
+    expect(within(companies()).queryByText(/^Changed /)).toBeNull();
+    fireEvent.click(within(companies()).getAllByRole("button", { name: "Accept" })[0]);
+    await within(companies()).findByText("We are emailing you and Northwind Robotics each other's contact details.");
+    rerender(page(applicant({ lowUsd: 15000, highUsd: 15000 }, { canIntroduce: false, introductionPending: true })));
+    expect(within(companies()).getAllByText("Changed after you accepted. It was $9,000 to $12,000 a month.")).toHaveLength(2);
+  });
+
+  it("says an answer was updated after the introduction, from the server's own times, when this browser holds no earlier one", () => {
+    const introduced = { ...activity, introductions: { used: 1 }, entries: [
+      { kind: "answered" as const, alias: "Company A", atIso: "2026-11-20T09:00:00.000Z", state: "interested" as const, canIntroduce: false,
+        introducedAtIso: "2026-11-14T09:00:00.000Z", details: { chargeModel: "subscription" as const, estimate: { lowUsd: 9000, highUsd: 12000 } },
+        company: { name: "Northwind Robotics", contactName: null, email: "ada@northwind.example", website: null } },
+    ] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: introduced }} />);
+    expect(within(companies()).getByText("They updated their answer on November 20, 2026, after you accepted.")).toBeVisible();
+  });
+
+  // Stress test, 2026-11-24: a stale page kept offering Accept after the company changed to "Not a fit".
+  it("reads the job again when Accept is refused, and keeps the refusal beside the company's answer as it is now", async () => {
+    fetchMock.mockResolvedValue(response({ ok: false, reason: "not_interested" }, 409));
+    const changed = vi.fn();
+    const page = (companies: typeof activity) => <SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies }}
+      onIntroductionRequested={changed} />;
+    const { rerender } = render(page(activity));
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    await waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
+    rerender(page({ ...activity, entries: [activity.entries[0],
+      { ...activity.entries[1], atIso: "2026-11-15T09:00:00.000Z", state: "declined" as never, canIntroduce: false }] }));
+    expect(within(companies()).queryByRole("button", { name: "Accept" })).toBeNull();
+    expect(lines()[1]).toMatch(/^Company ANot a fit/);
+    expect(within(companies()).getByRole("alert")).toHaveTextContent("This company has not applied, so you cannot accept it.");
+    // The company applies again: the old refusal goes, and Accept is offered on the new answer.
+    rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], atIso: "2026-11-16T09:00:00.000Z" }] }));
+    expect(within(companies()).queryByRole("alert")).toBeNull();
+    expect(within(companies()).getByRole("button", { name: "Accept" })).toBeEnabled();
+  });
+
+  // Stress test, 2026-11-24: the reply box named an alias the site never sees.
+  it("names the company as the site reads it beside the reply box, and replies by its letter", async () => {
+    const asking = { ...activity, entries: [{ kind: "answered" as const, alias: "Company C", atIso: "2026-11-14T09:00:00.000Z",
+      state: "needs_something" as const, canIntroduce: false, applicant: { name: "Northwind Robotics", website: null },
+      question: { id: "q".repeat(64), text: "How many cartons arrive per minute?", replyByIso: "2999-01-04T10:00:00.000Z" } }] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: asking }} />);
+    fireEvent.click(within(companies()).getByText("Reply"));
+    expect(within(companies()).getByText("Blueprint shares this reply with Northwind Robotics and keeps your contact details private.")).toBeVisible();
+    expect(companies().textContent).not.toContain("Company C");
+    fetchMock.mockResolvedValue(response({ answer: "About 12 a minute." }));
+    fireEvent.change(within(companies()).getByLabelText("Your reply"), { target: { value: "About 12 a minute." } });
+    fireEvent.click(within(companies()).getByRole("button", { name: "Send reply" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/clarifications", expect.objectContaining({
+      body: JSON.stringify({ alias: "C", questionId: "q".repeat(64), answer: "About 12 a minute." }) })));
   });
 
   it("shows no comparison for a single applicant", () => {

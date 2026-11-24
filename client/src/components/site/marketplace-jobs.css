@@ -493,8 +493,8 @@
 }
 .bare-screen .site-company-website { margin: 2px 0 0; font-size: 14px; overflow-wrap: anywhere; }
 
-/* An application at a glance (the company's form), and the applicants side by side (the site's page). The table
-   scrolls inside its own box on a phone, never the page. */
+/* An application at a glance (the company's form), and the applicants side by side (the site's page). On a phone each
+   applicant is a card of labelled rows instead (below), so nothing scrolls sideways. */
 .company-application { display: grid; gap: 10px; margin: 12px 0 0; padding: 12px; border: 1px solid #d7dbd2; border-radius: 10px; }
 .company-application legend { padding: 0 4px; font-weight: 650; }
 .company-estimate { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
@@ -507,6 +507,20 @@
 .site-compare tbody th { font-weight: 650; }
 .site-compare .bare-helper { margin-top: 6px; }
 .site-estimate-label { font-size: 12.5px; }
+.site-compare-accepted { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 600; color: var(--ms-green, #2f6b3a); }
+.site-estimate-changed { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 600; color: #8a4b08; }
+/* Stacked cards under the phone breakpoint (stress test, 2026-11-24: at 375 px the table was 520 px wide in a scroll box).
+   The table keeps its roles in the markup, so it is still read as a table. */
+@media (max-width: 640px) {
+  .site-compare { overflow-x: visible; }
+  .site-compare table, .site-compare tbody, .site-compare tr, .site-compare th, .site-compare td { display: block; width: auto; }
+  .site-compare table { min-width: 0; }
+  .site-compare thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .site-compare tbody tr { margin: 0 0 10px; padding: 10px 12px; border: 1px solid #d7dbd2; border-radius: 10px; }
+  .site-compare tbody th { padding: 0 0 6px; border-bottom: 0; font-size: 15px; }
+  .site-compare td { display: grid; grid-template-columns: minmax(7.5em, 40%) minmax(0, 1fr); gap: 8px; padding: 4px 0; border-bottom: 0; }
+  .site-compare td::before { content: attr(data-label); color: var(--ms-muted); font-size: 12.5px; font-weight: 650; }
+}
 
 /* Each public live job is one row that opens its page: a picture for its kind (never the site's own thumbnail), the kind
    and its facts, and "See job". The whole row is the link. */
