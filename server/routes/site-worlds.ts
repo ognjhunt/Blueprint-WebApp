@@ -86,11 +86,25 @@ export function interestRefusal(issues: ReadonlyArray<{ code: string; path: Read
     default: return RESPONSE_UNREADABLE;
   }
 }
+/**
+ * The field a refusal names, for the form to mark, focus and scroll to (stress test round 2, 2026-11-24): the note
+ * ("inputs") or one of the details ("estimate", "visitMustConfirm", "question", …); none for the rest.
+ */
+export function interestRefusalField(issues: ReadonlyArray<{ code: string; path: ReadonlyArray<PropertyKey> }>): string | null {
+  const issue = issues[0];
+  if (!issue || issue.code === "unrecognized_keys") return null;
+  const [field, detail] = issue.path;
+  if (field === "inputs") return "inputs";
+  return field === "details" && typeof detail === "string" ? detail : null;
+}
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const input = interestSchema.safeParse(req.body), user = res.locals.firebaseUser;
-  if (!input.success) return res.status(400).json({ error: interestRefusal(input.error.issues) });
+  if (!input.success) {
+    const field = interestRefusalField(input.error.issues);
+    return res.status(400).json({ error: interestRefusal(input.error.issues), ...(field ? { field } : {}) });
+  }
   if (companyResponseNeedsNote(input.data.state) && input.data.inputs.length < 4) {
-    return res.status(400).json({ error: "Add a few words about what you need or what you tested." });
+    return res.status(400).json({ error: "Add a few words about what you need or what you tested.", field: "inputs" });
   }
   if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your approved company's verified account." });
   if (!db) return res.status(503).json({ error: "Your response could not be saved just now. Try again." });
