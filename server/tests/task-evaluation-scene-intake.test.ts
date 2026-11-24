@@ -2242,6 +2242,31 @@ it("settles a Gemini call at its reported usage, one request, never above its qu
     .rejects.toThrow("idempotency_conflict");
 });
 
+it("settles Meta SAM holds at their reported usage, every covered request, never above the quote (round 2, 2026-11-24)", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, meta: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("8"),
+    resource_class: "evaluator_api" as const, provider: "meta" as const, maximum_cost_usd: 0.03, request_count: 2 };
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "admitted", provider: "meta" });
+  const settlement = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("8"),
+    provider: "meta" as const, completed_request_count: 2, provider_charge_amount_usd: 0.0186, usage_receipt_digest: sha("c") };
+  // Not before every request the hold covered has a receipt, never above the quote, and only for this job's task.
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, completed_request_count: 1 })).rejects.toThrow("settlement_invalid");
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, provider_charge_amount_usd: 0.031 })).rejects.toThrow("settlement_invalid");
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, task_context_digest: sha("b") })).rejects.toThrow("settlement_invalid");
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, allocation_binding_digest: sha("9") })).rejects.toThrow("settlement_invalid");
+  expect(await settleWebsitePreparationSpend("req1", settlement)).toMatchObject({ status: "settled", actual_cost_usd: 0.0186 });
+  const record = (await (dbAdmin as any).collection("inboundRequests").doc("req1").get()).data();
+  expect(record.website_preparation_reservations[sha("8").slice(7)].settlement.actual_cost_usd).toBe(0.0186);
+  expect(await settleWebsitePreparationSpend("req1", settlement)).toMatchObject({ actual_cost_usd: 0.0186 });
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, provider_charge_amount_usd: 0.01 })).rejects.toThrow("idempotency_conflict");
+  // The shape is Meta's own: no field of another provider's settlement, and a count no reservation can have.
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, total_credits: 1 } as never)).rejects.toThrow();
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, completed_request_count: 33 })).rejects.toThrow();
+});
+
 it("cannot release a reservation using missing, mismatched or excessive provider billing", async () => {
   sponsoredCapture();
   const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);

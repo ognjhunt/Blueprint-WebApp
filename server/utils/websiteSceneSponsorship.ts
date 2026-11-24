@@ -609,15 +609,28 @@ const atlasSettlementRequest = z.object({
   outcome_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict().refine(value => (value.outcome === "refused") === (value.operation_id === null),
   "website_atlas_settlement_operation_invalid");
+// Meta's SAM bills each request by the usage its answer reports (frames processed, or one image) at its published
+// rates (round 2, 2026-11-24: its holds stayed whole, so the job's cap counted every SAM call at its quote). As for
+// image edits, the Pipeline settles a reservation once every request it covered has a completed receipt, at what that
+// usage costs at the quote's own rates, never above the quote; a request with no reported usage sends nothing and keeps
+// the full hold.
+const metaUsageSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("meta"), completed_request_count: z.number().int().min(1).max(32),
+  provider_charge_amount_usd: z.number().finite().min(0).max(100),
+  usage_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict();
 export const preparationSettlementRequest = z.union([
   completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, vastEstimatedSettlementRequest,
   vastNoAllocationSettlementRequest, openaiImageSettlementRequest, atlasSettlementRequest, googleUsageSettlementRequest,
+  metaUsageSettlementRequest,
 ]);
 type PreparationSettlement = z.infer<typeof preparationSettlementRequest>;
 
 /** The debit a settlement records against its reservation's quote. */
 export function preparationSettlementCost(command: PreparationSettlement, reservedMaximumUsd: number) {
-  if (command.provider === "vast" || command.provider === "openai" || command.provider === "google")
+  if (command.provider === "vast" || command.provider === "openai" || command.provider === "google" || command.provider === "meta")
     return command.provider_charge_amount_usd;
   if (command.provider === "world_labs_atlas") return command.outcome === "completed" ? reservedMaximumUsd : 0;
   return "total_credits" in command ? command.total_credits / 1250 : 0;
@@ -634,11 +647,11 @@ export async function settleWebsitePreparationSpend(requestId: string, input: z.
     const key = command.allocation_binding_digest.slice(7);
     const row = record?.website_preparation_reservations?.[key];
     const resourceClass = { vast: "gpu_render", openai: "openai_api_candidate", world_labs: "provider_reconstruction_api",
-      world_labs_atlas: "provider_reconstruction_api", google: "evaluator_api" }[command.provider];
+      world_labs_atlas: "provider_reconstruction_api", google: "evaluator_api", meta: "evaluator_api" }[command.provider];
     if (!row || row.admission.provider !== command.provider
       || row.admission.resource_class !== resourceClass
       || row.admission.task_context_digest !== command.task_context_digest
-      || ((command.provider === "openai" || command.provider === "google")
+      || ((command.provider === "openai" || command.provider === "google" || command.provider === "meta")
         && command.completed_request_count !== row.admission.request_count))
       throw new Error("website_scene_preparation_settlement_invalid");
     const actualCost = preparationSettlementCost(command, row.admission.maximum_cost_usd);
