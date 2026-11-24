@@ -203,9 +203,6 @@ jobs:
       - name: Run the core-journey spec
         run: npm run test:core-journey
 
-      - name: Install ffmpeg (the intake specs make a synthetic test video)
-        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
-
       - name: Run the site-intake backend spec against the emulators
         run: npx -y firebase-tools@13.35.1 emulators:exec --only firestore,storage,auth --project demo-blueprint-reliability --config firebase.json "npx playwright test --config playwright.intake-backend.config.ts --trace off"
 
@@ -323,9 +320,6 @@ jobs:
 
       - name: Verify scoped intake recovery and cross-tab authority
         run: npx playwright test --config playwright.reliability-intake.config.ts
-
-      - name: Install ffmpeg (the intake specs make a synthetic test video)
-        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
 
       - name: Verify the start form recovers a lost create response and keeps a local draft
         run: npx playwright test --config playwright.intake.config.ts
