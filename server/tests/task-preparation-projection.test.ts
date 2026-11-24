@@ -307,9 +307,14 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
   it.each([
     ["setup_repair", "pipeline_fault", "We are fixing a setup problem on our side before your job's simulation can continue. Nothing is needed from you.", null],
     ["setup_repair", "a_later_reason", "We are fixing a setup problem on our side before your job's simulation can continue. Nothing is needed from you.", null],
-    ["awaiting_site", "site_consent_required", "Your job is waiting for you to confirm permission to process your video.", "hello@tryblueprint.io"],
-    ["awaiting_site", "task_brief_required", "Your job is waiting for a description of the job you filmed.", "hello@tryblueprint.io"],
+    // Round 2 (2026-11-24): the site has no control that confirms permission, and its description is drafted on our
+    // side, so neither wait asks the site for anything or says it waits for the site.
+    ["awaiting_site", "site_consent_required", "Building the simulation of your site is paused: the permission on record for your video does not cover this step.", null],
+    ["awaiting_site", "task_brief_required", "Building the simulation of your site is waiting on our side for your job's description. Nothing is needed from you.", null],
     ["awaiting_site", "a_later_reason", "Your job is waiting for something from you.", "hello@tryblueprint.io"],
+    // The account's monthly spending limit: a money wait, said as that under either wait kind.
+    ["setup_repair", "account_limit_wait", "Your job is paused on our side for a spending limit. It resumes by itself; nothing is needed from you.", null],
+    ["awaiting_site", "account_limit_wait", "Your job is paused on our side for a spending limit. It resumes by itself; nothing is needed from you.", null],
   ] as const)("a %s wait (%s) says what it waits on in one plain sentence", (kind, reasonCode, sentence, contact) => {
     const status = project(progression(kind, false, reasonCode));
     expect(status.decision).toBe("assessing");

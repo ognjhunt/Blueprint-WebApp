@@ -28,6 +28,9 @@ import { loadJobOutlook, type JobOutlook, type JobOutlookKnownReads } from "./jo
 import type { PublicWebsitePreparationStatus } from "./websitePreparationStatus";
 import type { TaskSceneProgression } from "./taskStatusProjection";
 import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
+import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
+import { isAccountMonthlySpendReason } from "./taskPreparationOutcome";
+import { SCENE_ACCOUNT_LIMIT_WAIT_REASON } from "./sceneIntentOutcome";
 
 /** At most this many records are scanned for one page of the list. */
 export const SCAN_LIMIT = 200;
@@ -277,6 +280,31 @@ const MONEY_STOPS: Readonly<Record<string, string>> = {
   screening_job_ceiling: "Testing was held back at this job's spending limit.",
 };
 
+/**
+ * The account's monthly spend check holding the job's paid work (round 2, 2026-11-24), as the Pipeline names it: the
+ * scene's wait (`account_limit_wait`) or the Atlas preview's reason (`account_monthly_spend_*`). The site is told its
+ * job is paused for a spending limit and resumes by itself; staff see which check holds it.
+ */
+const ACCOUNT_LIMIT_STOPS: Readonly<Record<string, string>> = {
+  account_limit_wait: "Paid work on this job waits: the account's monthly spending check refuses new spend.",
+  account_monthly_spend_limit_reached: "Paid work on this job waits: the account reached its monthly spending limit.",
+  account_monthly_spend_journal_unreadable: "Paid work on this job waits: a spend journal of the month could not be read, so the account's monthly limit refuses new spend.",
+  account_monthly_spend_report_stale: "Paid work on this job waits: the account's spend report is out of date, so its monthly limit refuses new spend.",
+  account_monthly_spend_limit_not_configured: "Paid work on this job waits: no monthly spending limit is installed for the account, so new spend is refused.",
+};
+export function accountLimitStop(reason: string): AdminJobStop {
+  const words = ACCOUNT_LIMIT_STOPS[reason] ?? `Paid work on this job waits: the account's monthly spending check refuses new spend (${plain(reason)}).`;
+  return { key: "money-account_limit", text: words, whose: "blueprint", atIso: null };
+}
+/** The account-limit stop the job's scene wait or Atlas preview names, or null. */
+export function accountLimitReason(record: Data, captureId: string, scene: TaskSceneProgression | null): string | null {
+  const outcome = scene?.sceneOutcome;
+  if (outcome && !outcome.terminal && outcome.reasonCode === SCENE_ACCOUNT_LIMIT_WAIT_REASON) return outcome.reasonCode;
+  const preview = selectWebsiteAtlasPreview(record, captureId);
+  return preview && (preview.state === "needs_input" || preview.state === "failed") && isAccountMonthlySpendReason(preview.reason)
+    ? preview.reason : null;
+}
+
 /** The stops the job's own record holds: a withdrawal, a rights reason, Blueprint's hold. */
 function recordStops(record: Data): AdminJobStop[] {
   if (projectWebsiteCaptureRights(record).consent_revoked) return [withdrawalStop(record)];
@@ -296,6 +324,7 @@ const WAIT_WORDS: Readonly<Record<string, string>> = {
   withdrawn: "withdrawal cleanup", "rights-rights_blocked": "rights review", "rights-rights_needs_review": "rights review",
   "blueprint-hold": "its hold on sharing",
   "money-budget": "budget", "money-safety_limit": "budget", "money-screening_job_ceiling": "budget", "money-words_limit": "budget",
+  "money-account_limit": "the account's monthly spending limit",
 };
 function blueprintWaits(stops: AdminJobStop[]): string[] {
   return [...new Set(stops.filter(stop => stop.whose === "blueprint").map(stop => WAIT_WORDS[stop.key] ?? "a step of its own"))];
@@ -450,6 +479,8 @@ export async function getJobConsoleDetail(requestId: string): Promise<AdminJobDe
   if (preparation?.state === "failed_terminal" && preparation.terminalReason === "budget_exhausted")
     stops.push({ key: "money-budget", text: "The Pipeline stopped at this job's budget.", whose: "blueprint", atIso: null });
   stops.push(...(money ?? []));
+  const accountLimit = revoked ? null : accountLimitReason(record, captureId, scene);
+  if (accountLimit) stops.push(accountLimitStop(accountLimit));
 
   const builtAtIso = stored ? epochIso(stored.updated_at_epoch) : null;
   const events: AdminJobEvent[] = [

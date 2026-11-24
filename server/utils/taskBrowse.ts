@@ -73,15 +73,18 @@ async function libraryCard(card: TaskBrowseCard, record: Record<string, any>,
     knownSiteIdentity(record).catch(() => null),
     loadScreenings(card.id),
   ]);
-  // The site's sentence only once the model pass over it has succeeded (`siteWordsForCompany`); else it starts now.
-  let sentence = siteSentenceForCompany(brief, known, screenings);
+  // The site's sentence, and the title's object name from the video reading, only once the model pass over each has
+  // succeeded (`siteWordsForCompany`, `companyJobHeadline`); else it starts now.
+  const read = (results: typeof screenings) => ({ sentence: siteSentenceForCompany(brief, known, results),
+    headline: companyJobHeadline(record, card.taskFamily, jobTitleForDisplay(card.title), known, results) });
+  let words = read(screenings);
   if (screenings.missing.length && screeningWaitMs > 0) {
-    if (await screenAndWait(card.id, screenings.missing, screeningWaitMs)) sentence = siteSentenceForCompany(brief, known, await loadScreenings(card.id));
+    if (await screenAndWait(card.id, screenings.missing, screeningWaitMs)) words = read(await loadScreenings(card.id));
   } else screenInBackground(card.id, screenings.missing);
   // The country, with the state or city only as the accepted statement allows (`companyPlaceOf`): never the site's name or address.
   // The title and how often the job runs, as its page leads with them, like a load post.
-  return { ...card, region: card.region || country || "", sentence, simulationStage,
-    simulationDownloadAvailable, headline: companyJobHeadline(record, card.taskFamily, jobTitleForDisplay(card.title), known),
+  return { ...card, region: card.region || country || "", sentence: words.sentence, simulationStage,
+    simulationDownloadAvailable, headline: words.headline,
     headlineFacts: rateInWords(readJobFacts(record)) };
 }
 

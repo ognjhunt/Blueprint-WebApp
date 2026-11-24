@@ -121,6 +121,12 @@ describe("firstLookRowInWords", () => {
     expect(row([{ check: "reach", cause: "tool_figure_missing" }])).toBe("Not rated yet: the size of its standard gripper is not known.");
     expect(row([{ check: "payload", cause: "item_mass_missing" }])).toBe("Not rated yet: the item's weight is not known, and its standard gripper alone is over its rating.");
     expect(row([{ check: "payload", cause: "estimate_straddles_limit" }])).toBe("Not rated yet: the item's estimated weight is too close to its rating to tell.");
+    // Round 2 (2026-11-24): the Pipeline's later causes, each with its own words.
+    expect(row([{ check: "reach", cause: "own_stance_reach_unproven" }])).toBe("Not rated yet: we have not measured its reach from a place where its base can stand.");
+    expect(row([{ check: "stance", cause: "base_stance_not_found" }])).toBe("Not rated yet: we found no place near the job for its base to stand, though that may be a gap in the scan.");
+    expect(row([{ check: "reach", cause: "job_geometry_not_finite" }])).toBe("Not rated yet: we could not read the job's positions in the simulation.");
+    expect(row([{ check: "reach", cause: "point_below_floor" }])).toBe("Not rated yet: a spot of the job lies below the floor we found under it, so we cannot tell its height.");
+    expect(row([{ check: "reach", cause: "floor_height_not_found" }])).toBe("Not rated yet: we could not find the height of the floor under the job.");
     expect(row([{ check: "stance", cause: "footprint_not_searched" }, { check: "access", cause: "not_checked" }]))
       .toBe("Not rated yet: its base is larger than a standard station, and we have not looked for room for it; we do not yet check whether it can get there from the entrance.");
     expect(row([{ check: "lift", cause: "nobody_knows" }])).toBe("Not rated yet.");

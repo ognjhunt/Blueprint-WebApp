@@ -166,7 +166,8 @@ describe("follow-up picker: OpenAI out of funds", () => {
     const { laneCallMaximumUsd } = await import("../utils/jobLaneSpend");
     const { siteTaskFollowUpTask } = await import("../agents/tasks/site-task-follow-up");
     const { requestId: _id, ...sent } = input("job-new");
-    expect(row.admission.maximum_cost_usd).toBe(laneCallMaximumUsd({ outputTokenCeiling: 600,
+    const { getAgentMaxInputTokens } = await import("../agents/provider-config");
+    expect(row.admission.maximum_cost_usd).toBe(laneCallMaximumUsd({ outputTokenCeiling: 600, inputTokenCeiling: getAgentMaxInputTokens(),
       promptBytes: Buffer.byteLength(siteTaskFollowUpTask.build_prompt(sent), "utf8"),
       models: { openai_responses: "gpt-6-luna", anthropic_agent_sdk: "claude-haiku-5-5" } }));
     // What the run reported for its one Anthropic request (OpenAI's "no funds" answer charged nothing).

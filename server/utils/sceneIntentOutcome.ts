@@ -29,6 +29,7 @@ import { OUTLOOK_SENTENCES } from "../../client/src/lib/jobOutlook";
 import { z } from "zod";
 import { simulationHoldSentence } from "./betaPolicyScreeningContract";
 import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
+import { ACCOUNT_LIMIT_WAIT_REASON, ACCOUNT_LIMIT_WAIT_SENTENCES } from "./taskPreparationOutcome";
 
 export const SCENE_INTENT_OUTCOME_SCHEMA = "task_evaluation_scene_intent_outcome.v1";
 export const SCENE_INTENT_OUTCOME_KINDS = ["setup_repair", "spending_cap_reached", "awaiting_site", "withdrawn", "held"] as const;
@@ -134,19 +135,34 @@ export const isTerminalSceneOutcomeKind = isTerminalKind;
 /** The job page's headline for an ending. */
 export const sceneOutcomeMessage = (kind: TerminalSceneOutcomeKind) => `${ENDINGS[kind].sentence} ${ENDINGS[kind].closing}`;
 
-/** What the site has to give, by reason; a reason without a plain sentence gets the general one. */
-const SITE_NEEDS: Readonly<Record<string, string>> = {
-  site_consent_required: "Your job is waiting for you to confirm permission to process your video.",
-  task_brief_required: "Your job is waiting for a description of the job you filmed.",
+/**
+ * The waits the Pipeline names `awaiting_site`, said as only what is true (round 2, 2026-11-24). The site has no control
+ * that confirms permission, and its description is drafted on our side from what it sent, so neither asks the site for
+ * anything: the Pipeline's Blueprint-side states now have codes of their own (`website_atlas_consent_unconfigured`,
+ * `website_scene_grant_policy_unconfigured`), and what remains here is the permission on record not covering a step
+ * (a rights refusal) or a description record we do not have yet.
+ */
+const SITE_WAITS: Readonly<Record<string, string>> = {
+  site_consent_required: "Building the simulation of your site is paused: the permission on record for your video does not cover this step.",
+  task_brief_required: `Building the simulation of your site is waiting on our side for your job's description. ${NOTHING_NEEDED}`,
 };
 const SITE_ANSWER = "Reply to any Blueprint email about this job, or write to hello@tryblueprint.io with your job link.";
+/** The account's monthly spending limit holds the job's paid work (`ACCOUNT_LIMIT_WAIT_SENTENCES`): a money wait. */
+export const SCENE_ACCOUNT_LIMIT_WAIT_REASON = ACCOUNT_LIMIT_WAIT_REASON;
+const ACCOUNT_LIMIT_WAIT_HEADLINE = `${ACCOUNT_LIMIT_WAIT_SENTENCES.reason} ${ACCOUNT_LIMIT_WAIT_SENTENCES.nextStep}`;
 
-/** A wait in one plain sentence. Only a wait on the site asks anything of it, and says how to answer. */
+/**
+ * A wait in one plain sentence. A wait on the account's spending limit is said as that whatever kind carries it. Only a
+ * wait with something for the site to give asks anything of it, and says how to answer; neither named reason does.
+ */
 export function sceneWaitMessage(reading: Pick<SceneOutcomeReading, "kind" | "reasonCode">):
   { headline: string; operatorAction: string | null } | null {
+  if ((reading.kind === "setup_repair" || reading.kind === "awaiting_site") && reading.reasonCode === SCENE_ACCOUNT_LIMIT_WAIT_REASON)
+    return { operatorAction: null, headline: ACCOUNT_LIMIT_WAIT_HEADLINE };
   if (reading.kind === "setup_repair") return { operatorAction: null,
     headline: `We are fixing a setup problem on our side before your job's simulation can continue. ${NOTHING_NEEDED}` };
-  if (reading.kind === "awaiting_site") return { operatorAction: SITE_ANSWER,
-    headline: Object.hasOwn(SITE_NEEDS, reading.reasonCode) ? SITE_NEEDS[reading.reasonCode] : "Your job is waiting for something from you." };
+  if (reading.kind === "awaiting_site") return Object.hasOwn(SITE_WAITS, reading.reasonCode)
+    ? { operatorAction: null, headline: SITE_WAITS[reading.reasonCode] }
+    : { operatorAction: SITE_ANSWER, headline: "Your job is waiting for something from you." };
   return null;
 }

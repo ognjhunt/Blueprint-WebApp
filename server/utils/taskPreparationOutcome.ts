@@ -15,7 +15,9 @@ const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
  * does not know (`KNOWN_PREPARATION_OUTCOME_CATEGORIES`).
  */
 const category = z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/);
-export const KNOWN_PREPARATION_OUTCOME_CATEGORIES: readonly string[] = ["robot_incompatibility", "insufficient_evidence"];
+// `processing_failure`: the retries-spent ending's own category (Pipeline `website_preparation_outcome`), known since
+// that ending was read; it raised a false unknown-category alert on every such job (round 2, 2026-11-24).
+export const KNOWN_PREPARATION_OUTCOME_CATEGORIES: readonly string[] = ["robot_incompatibility", "insufficient_evidence", "processing_failure"];
 const carryPathRejected = z.object({ reason: z.literal("robot_carry_path_rejected"), category,
   basis: z.literal("conservative_configuration_check"), robot_id: z.literal("franka_panda"), evidence_digest: digest }).passthrough();
 const taskEvidenceIncomplete = z.object({ reason: z.literal("task_evidence_incomplete"), category,
@@ -202,7 +204,10 @@ export const PLANNER_ABSTAINED_SENTENCES = {
   nextStep: "Nothing is needed from you now. Your video stays saved.",
 } as const;
 
-/** Every stop with no words of its own. Its title is the retries-spent title: the same situation, said the same way. */
+/**
+ * Every final stop with no words of its own. Its title is the retries-spent title: the same situation, said the same
+ * way. A stop the Pipeline will run again by itself is `processingRetrying` instead.
+ */
 export const PROCESSING_FAILURE_SENTENCES = {
   title: PREPARATION_RETRIES_SPENT_SENTENCES.title,
   reason: "A step on our side stopped before it finished.",
@@ -212,6 +217,59 @@ export function processingFailure(evidence?: {label: string; digest: string}): T
   return { category: "processing_failure", basis: "execution_failure", title: PROCESSING_FAILURE_SENTENCES.title,
     reason: PROCESSING_FAILURE_SENTENCES.reason, scope: "", nextStep: PROCESSING_FAILURE_SENTENCES.nextStep,
     actionOwner: "blueprint", evidence: evidence ? [evidence] : [] };
+}
+/**
+ * A stop the Pipeline runs again by itself (round 2, 2026-11-24), titled as still being worked on, never as final: a
+ * preparation `failed_retryable`, or an Atlas job parked on a reason with no words here, which the Pipeline reopens by
+ * the clock (`atlas_preparation_job_control.automatic_reopens`, Pipeline 0bcbe320c). A preparation that then ends
+ * (`failed_terminal`) is said with `processingFailure`'s final title (`taskStatusProjection`).
+ */
+export const PROCESSING_RETRYING_SENTENCES = {
+  title: "We're still working on your job",
+  reason: "A step on our side stopped before it finished. We will try it again by ourselves.",
+  nextStep: PROCESSING_FAILURE_SENTENCES.nextStep,
+} as const;
+export function processingRetrying(evidence?: {label: string; digest: string}): TaskOutcome {
+  return { ...processingFailure(evidence), title: PROCESSING_RETRYING_SENTENCES.title, reason: PROCESSING_RETRYING_SENTENCES.reason };
+}
+export const isProcessingRetrying = (outcome: Pick<TaskOutcome, "title"> | null | undefined) =>
+  outcome?.title === PROCESSING_RETRYING_SENTENCES.title;
+
+/**
+ * The account's monthly spending limit holds new paid work (round 2, 2026-11-24): a scene outcome `account_limit_wait`,
+ * or an Atlas preview whose reason is the account's monthly spend check (`account_monthly_spend_*`: the limit reached,
+ * the month's spend journal or report unreadable or stale, no limit configured, ...). Each refuses new spend until the
+ * check passes again, and the job resumes by itself; nothing is the site's to do. Money is Blueprint's control, never
+ * a step for the site, and staff see it as a money stop on the job's admin page (`jobConsoleData`).
+ */
+export const ACCOUNT_LIMIT_WAIT_SENTENCES = {
+  title: "Your job is paused on our side",
+  reason: "Your job is paused on our side for a spending limit.",
+  nextStep: "It resumes by itself; nothing is needed from you.",
+} as const;
+export const ACCOUNT_LIMIT_WAIT_REASON = "account_limit_wait";
+/** The account's monthly spend check's codes, as the Pipeline names them (`account_monthly_spend`). */
+export const ACCOUNT_MONTHLY_SPEND_REASONS = ["account_monthly_spend_limit_reached", "account_monthly_spend_journal_unreadable",
+  "account_monthly_spend_report_stale", "account_monthly_spend_limit_not_configured", "account_monthly_spend_limit_config_invalid",
+  "account_monthly_spend_report_missing_or_invalid", "account_monthly_spend_limit_unavailable",
+  "account_monthly_spend_call_cost_invalid"] as const;
+/**
+ * The Google Cloud project's monthly budget check (Pipeline `gcp_monthly_budget_admission`), which refuses new spend the
+ * same way until its next report passes (stress round 2, 2026-11-24): the same money wait on our side.
+ */
+export const GCP_MONTHLY_BUDGET_REASONS = ["gcp_monthly_budget_admission_blocked", "gcp_monthly_budget_report_missing_or_invalid",
+  "gcp_monthly_budget_report_unavailable", "gcp_monthly_budget_project_binding_missing"] as const;
+/**
+ * A code of a monthly spending check: the account's (one listed, or any other it names by its own prefix) or the Google
+ * Cloud project's budget.
+ */
+export const isAccountMonthlySpendReason = (reason: unknown): reason is string =>
+  typeof reason === "string" && (reason.startsWith("account_monthly_spend_")
+    || (GCP_MONTHLY_BUDGET_REASONS as readonly string[]).includes(reason));
+export function accountLimitWaitOutcome(evidence?: {label: string; digest: string}): TaskOutcome {
+  return { category: "processing_failure", basis: "execution_failure", title: ACCOUNT_LIMIT_WAIT_SENTENCES.title,
+    reason: ACCOUNT_LIMIT_WAIT_SENTENCES.reason, scope: "", nextStep: ACCOUNT_LIMIT_WAIT_SENTENCES.nextStep,
+    actionOwner: "none", evidence: evidence ? [evidence] : [] };
 }
 
 /**
@@ -296,9 +354,18 @@ export const RECAPTURE_SENTENCES = {
     reason: "We could not use any of the frames in your video.",
     nextStep: "Please film again slowly, in good light. Then send us the new video.",
   },
-  atlas_scale_review_unresolved: {
-    reason: "From your video we could not work out how large the space is: nothing in it gave us a size we could rely on.",
-    nextStep: "Please film again with an object of standard size in view near where the job happens, such as a door or a tape measure laid open on the floor. Then send us the new video.",
+  // Pipeline `atlas_video_inputs` (round 2, 2026-11-24): too few frames were sharp and still enough to rebuild from.
+  // The same video gives the same answer, so only a new one clears it.
+  atlas_insufficient_sharp_static_views: {
+    reason: "Too few of the frames in your video are sharp enough for us to rebuild your space: they are too blurred, or too bright or too dark.",
+    nextStep: "Please film again slowly, in even light. Then send us the new video.",
+  },
+  // Pipeline `atlas_video_inputs` (round 2, 2026-11-24): the file says it is turned by an angle that is not a quarter
+  // turn, which a phone camera never writes, so the file was rotated or edited after it was recorded. The same file
+  // gives the same answer; the video as the phone recorded it does not.
+  atlas_source_rotation_unsupported: {
+    reason: "Your video file is turned at an angle we cannot read.",
+    nextStep: "Please film again with your phone and leave the file as it was recorded, without rotating or editing it. Then send us the new video.",
   },
   // Pipeline (stress round 1, 2026-11-24): the room's mesh lay on none of its look (`atlas_mesh_not_registered_to_splat`),
   // or as well on two framings (`atlas_mesh_frame_ambiguous`). The job now ends at once instead of waiting for a
@@ -336,6 +403,29 @@ export function recaptureSentences(reason: RecaptureReason, objectName?: string 
     ? { reason: `We could not find ${name} in your video.`, nextStep: "Please film again with it in view. Then send us the new video." }
     : RECAPTURE_SENTENCES.website_task_object_not_observed;
 }
+
+/**
+ * The room was rebuilt and nothing in the video gave its size (Pipeline `atlas_scale_review_unresolved`), or the size
+ * review waits for its provider (`atlas_scale_review_waiting_on_provider`). Neither asks for a new video any more: the
+ * Pipeline ships the room with its sizes relative, flagged as not measured (`atlas_unscaled_room`, owner 2026-11-23),
+ * and asks a waiting review again by itself. A new video with an object of known size is the site's to send if it
+ * wants the simulation measured; nothing waits on it.
+ */
+export const SCALE_NOT_MEASURED_SENTENCES = {
+  title: "The size of the simulation of your site is not measured",
+  reason: "Nothing in your video gave us a size we could rely on, so the simulation of your site keeps its sizes relative, not in metres.",
+  nextStep: "Nothing is needed from you. If you'd like it measured, you can send a new video with an object of known size in view "
+    + "near where the job happens, such as a door or a tape measure laid open on the floor.",
+} as const;
+export const SCALE_REVIEW_WAITING_SENTENCES = {
+  title: "We haven't measured the size of the simulation of your site yet",
+  reason: "Measuring the size of your space waits on a service we use. We will try again by ourselves.",
+  nextStep: "Nothing is needed from you. Your video is saved.",
+} as const;
+const SCALE_REASONS: Readonly<Record<string, typeof SCALE_NOT_MEASURED_SENTENCES | typeof SCALE_REVIEW_WAITING_SENTENCES>> = {
+  atlas_scale_review_unresolved: SCALE_NOT_MEASURED_SENTENCES,
+  atlas_scale_review_waiting_on_provider: SCALE_REVIEW_WAITING_SENTENCES,
+};
 
 /** The verified Atlas preview of the job's capture says the job has no sentence to prepare from. */
 export function jobAwaitsItsSentence(record: Record<string, any> | null | undefined, captureId: string): boolean {
@@ -507,6 +597,12 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
     scope: ANSWER_STAYS_ON_JOB_PAGE, nextStep: "Nothing is needed from you.", actionOwner: "none",
     evidence: [{ label: "Reconstruction status", digest: preview.preview_digest }] };
   if (preview.state === "ready" || preview.state === "processing" || preview.state === "withdrawn") return null;
+  // Money first: the account's monthly limit holds new spend, and the job resumes by itself.
+  if (isAccountMonthlySpendReason(preview.reason))
+    return accountLimitWaitOutcome({ label: "Reconstruction status", digest: preview.preview_digest });
+  const scale = preview.state === "needs_input" && Object.hasOwn(SCALE_REASONS, preview.reason ?? "") ? SCALE_REASONS[preview.reason!] : null;
+  if (scale) return { category: "insufficient_evidence", basis: "missing_evidence", title: scale.title, reason: scale.reason,
+    scope: "", nextStep: scale.nextStep, actionOwner: "none", evidence: [{ label: "Scale finding", digest: preview.preview_digest }] };
   const held = earlyTaskHoldOf(preview);
   if (held) return earlyTaskHoldOutcome(held, preview.preview_digest);
   if (preview.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(preview.preview_digest);
@@ -531,5 +627,73 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
       title: "We haven't finished building the simulation from your video",
       reason: "Part of your video still needs to go into the simulation.",
       nextStep: "Nothing is needed from you. Your video is saved." };
-  return processingFailure({ label: "Reconstruction status", digest: preview.preview_digest });
+  const paused = preview.state === "needs_input" && Object.hasOwn(ATLAS_PAUSES, preview.reason ?? "") ? ATLAS_PAUSES[preview.reason!] : null;
+  if (paused) return { category: "processing_failure", basis: "execution_failure", title: paused.title, reason: paused.reason,
+    scope: "", nextStep: paused.nextStep, actionOwner: paused.actionOwner,
+    evidence: [{ label: "Reconstruction status", digest: preview.preview_digest }] };
+  // A reason with no words here: parked for input on no wall, the Pipeline reopens it by the clock, so it is still
+  // being worked on; ended `failed` (only a release reopens it) or parked on a wall, it is said as stopped.
+  return preview.state === "needs_input" && !namesAWall(preview.reason)
+    ? processingRetrying({ label: "Reconstruction status", digest: preview.preview_digest })
+    : processingFailure({ label: "Reconstruction status", digest: preview.preview_digest });
 }
+
+/**
+ * Whether a refusal code's words name a privacy, rights or money stop, as the Pipeline reads them
+ * (`job_retry_policy.hard_stop_kind`, whole words): an Atlas job parked on one is not reopened by the clock.
+ */
+const WALL_WORDS = new Set(["consent", "revoked", "revocation", "revoke", "withdrawn", "withdrawal", "rights", "license",
+  "licence", "privacy", "takedown", "authority", "authorization", "authorisation", "unauthorized", "unauthorised",
+  "spend", "spent", "budget", "ceiling", "credit", "billing", "paid", "price", "cost", "money", "funding", "funds",
+  "payment", "usd"]);
+const namesAWall = (reason: string | null | undefined) => (reason ?? "").split(/[^0-9a-z]+/).some(word => WALL_WORDS.has(word));
+
+/**
+ * Atlas stops that are neither the site's to clear nor retried by the clock (round 2, 2026-11-24), each said as only
+ * what is true. The site has no control that gives permission, so none asks it to.
+ *
+ * - The permission on record does not cover the step (a rights refusal): the recording's consent does not allow scene
+ *   building, the video is not the one the grant covers, the planner's terms changed since the grant, or the grant ran
+ *   out.
+ * - Blueprint's own setup is not finished (`website_atlas_consent_unconfigured`, `website_scene_grant_policy_unconfigured`,
+ *   provider terms not configured): ours to finish.
+ */
+const PERMISSION_NOT_COVERED = { title: "Building the simulation of your site is paused",
+  reason: "The permission on record for your video does not cover this step.", nextStep: "Your video is saved.",
+  actionOwner: "none" as const };
+const SETUP_ON_OUR_SIDE = { title: "Building the simulation of your site is paused on our side",
+  reason: "A setup step on our side has to be finished before it can go on.", nextStep: "Nothing is needed from you. Your video is saved.",
+  actionOwner: "blueprint" as const };
+/**
+ * The read of the job's reservations grew past what one signed answer carries (`website_atlas_reservation_summary_too_large`,
+ * `website_atlas_accounting_response_too_large`; stress round 2, 2026-11-24): the Pipeline rechecks it and goes on
+ * once it fits. Ours to fix, never the site's.
+ */
+const STEP_ON_OUR_SIDE = { title: "Building the simulation of your site is paused on our side",
+  reason: "A step on our side has to be finished before it can go on.", nextStep: "Nothing is needed from you. Your video is saved.",
+  actionOwner: "blueprint" as const };
+const ATLAS_PAUSES: Readonly<Record<string, typeof PERMISSION_NOT_COVERED | typeof SETUP_ON_OUR_SIDE>> = {
+  website_atlas_reservation_summary_too_large: STEP_ON_OUR_SIDE,
+  website_atlas_accounting_response_too_large: STEP_ON_OUR_SIDE,
+  website_atlas_source_consent_required: PERMISSION_NOT_COVERED,
+  website_atlas_planner_consent_required: PERMISSION_NOT_COVERED,
+  website_atlas_consent_expired: PERMISSION_NOT_COVERED,
+  website_atlas_consent_unconfigured: SETUP_ON_OUR_SIDE,
+  website_scene_grant_policy_unconfigured: SETUP_ON_OUR_SIDE,
+  provider_terms_not_configured_or_changed: SETUP_ON_OUR_SIDE,
+};
+
+/** Whether this release has words of its own for an Atlas preview's reason (`noteUnknownPipelineCode` alerts any other). */
+export function atlasPreviewReasonKnown(reason: string | null | undefined): boolean {
+  if (!reason) return true;
+  return isAccountMonthlySpendReason(reason) || Object.hasOwn(SCALE_REASONS, reason) || isEarlyTaskHoldReason(reason)
+    || reason === TASK_NOT_NAMED_REASON || isRecaptureReason(reason) || COVERAGE_REASONS.has(reason)
+    || reason === "atlas_scene_requires_preserved_capture" || TASK_REASONS.has(reason) || GEOMETRY_REASONS.has(reason)
+    || reason === "atlas_recorded_source_views_must_be_recovered_before_generation" || ATLAS_REASONS_WITHOUT_OWN_WORDS.has(reason)
+    || Object.hasOwn(ATLAS_PAUSES, reason);
+}
+/**
+ * Reasons the Atlas preview sends that are said with the general card on purpose (no alert): the spending cap is read
+ * from the preview itself (`atlasPreviewReachedSpendingCap`), and an owner's closing of a run has its own card.
+ */
+const ATLAS_REASONS_WITHOUT_OWN_WORDS = new Set(["spending_cap_reached", "website_run_closed_by_owner"]);

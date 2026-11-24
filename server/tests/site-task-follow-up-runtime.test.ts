@@ -134,9 +134,14 @@ describe("follow-up picker through the runtime", () => {
     expect(await selectFollowUps(input)).toEqual(["success_target", "item_photos", "item_make_model"]);
     expect(heldDuringCall).toEqual([expect.objectContaining({ lane: "site_task_follow_up", request_id: "req-1" })]);
     expect(heldDuringCall[0]).not.toHaveProperty("settlement");
-    // The most the call could cost: its prompt's bytes and framing, 600 output tokens, on gpt-6-luna.
-    expect(heldDuringCall[0].admission.maximum_cost_usd).toBeGreaterThan(0.0007);
-    expect(heldDuringCall[0].admission.maximum_cost_usd).toBeLessThan(0.01);
+    // The most the call could cost: what the adapter settles a request with no reported usage at (its input
+    // ceiling), 600 output tokens, on gpt-6-luna; never below what the run may report.
+    const { worstCaseOpenAIReservationUsd } = await import("../utils/openaiPromptCache");
+    const { getAgentMaxInputTokens } = await import("../agents/provider-config");
+    expect(heldDuringCall[0].admission.maximum_cost_usd).toBeGreaterThanOrEqual(worstCaseOpenAIReservationUsd({
+      model: "gpt-6-luna", inputTokenCeiling: getAgentMaxInputTokens(), maxOutputTokens: 600,
+      policy: { status: "disabled", economics: { stable_prefix_tokens: 0 } } as any }));
+    expect(heldDuringCall[0].admission.maximum_cost_usd).toBeLessThan(0.05);
     await vi.waitFor(() => expect(holds()[0].settlement).toMatchObject({ actual_cost_usd: 0.0007, basis: "reported_usage" }));
     const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
     const { transactionJobLedgerReader, websiteJobSpend } = await import("../utils/websiteJobCeiling");

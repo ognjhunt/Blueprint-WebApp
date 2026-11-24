@@ -62,11 +62,24 @@ function checkedGrant<T extends { expires_at_epoch: number; provider_terms_refer
   if (value.expires_at_epoch <= input.now) throw new Error("website_atlas_consent_expired");
   if (!input.termsDigest || input.termsDigest !== value.provider_terms_reference)
     throw new Error("provider_terms_not_configured_or_changed");
-  if (input.planning && (!value.planner || !input.plannerTermsDigest
-    || value.planner.provider_terms_reference !== input.plannerTermsDigest))
+  // No planner terms configured: Blueprint's own setup. A grant with no planner disclosure, or one given under planner
+  // terms that have changed since, does not cover planning: a rights refusal.
+  if (input.planning && !input.plannerTermsDigest) throw new Error(WEBSITE_ATLAS_CONSENT_UNCONFIGURED);
+  if (input.planning && (!value.planner || value.planner.provider_terms_reference !== input.plannerTermsDigest))
     throw new Error("website_atlas_planner_consent_required");
   return { ...value, authorization_digest: digest(value) };
 }
+
+/**
+ * A state of the Atlas grant that is Blueprint's own setup, never the site's to fix (round 2, 2026-11-24): no grant
+ * policy or planner terms configured, duplicate operator rows, a reservation asked before any grant exists, or an
+ * upload record or job missing what a grant is made from. The site has no control that gives permission, so none of
+ * these is said to the site as waiting for it. The rights refusals keep their codes: a recording whose consent does not
+ * allow scene building or was withdrawn, a video or task context the grant does not cover, a grant with no planner
+ * disclosure or under planner terms changed since, and a grant past its expiry (`website_atlas_source_consent_required`,
+ * `website_atlas_planner_consent_required`, `website_atlas_consent_expired`).
+ */
+export const WEBSITE_ATLAS_CONSENT_UNCONFIGURED = "website_atlas_consent_unconfigured";
 
 function matchingAuthorizations(input: EnvRowMatch) {
   let values: z.infer<typeof authorization>[];
@@ -75,6 +88,14 @@ function matchingAuthorizations(input: EnvRowMatch) {
   } catch { throw new Error("website_atlas_authorization_invalid"); }
   return values.filter(v => v.request_id === input.requestId && v.capture_id === input.captureId
     && v.task_context_digest === input.taskContextDigest && v.source_video_digest === input.sourceVideoDigest);
+}
+
+/** Whether an operator row names this request and capture at all, whatever video or task context it covers. */
+function capturesWithOperatorRows(input: EnvRowMatch): boolean {
+  try {
+    const values = z.array(authorization).parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON || "[]"));
+    return values.some(v => v.request_id === input.requestId && v.capture_id === input.captureId);
+  } catch { return false; }
 }
 
 export function websiteAtlasAuthorization(input: EnvRowMatch & GrantChecks) {
@@ -185,28 +206,35 @@ export async function resolveWebsiteAtlasGrant(input: EnvRowMatch & GrantChecks 
   create?: boolean;
 }) {
   const rows = matchingAuthorizations(input);
-  if (rows.length > 1) throw new Error("website_atlas_source_consent_required");
+  // Two operator rows for one capture, or no grant policy configured: Blueprint's setup (`WEBSITE_ATLAS_CONSENT_UNCONFIGURED`).
+  if (rows.length > 1) throw new Error(WEBSITE_ATLAS_CONSENT_UNCONFIGURED);
   if (rows.length === 1) return { grant: checkedGrant(rows[0], input), created: null };
   const policy = websiteAtlasGrantPolicy();
-  if (!policy) throw new Error("website_atlas_source_consent_required");
+  // An operator row for this capture that covers another video or task context: this one is not covered (rights).
+  if (!policy && capturesWithOperatorRows(input)) throw new Error("website_atlas_source_consent_required");
+  if (!policy) throw new Error(WEBSITE_ATLAS_CONSENT_UNCONFIGURED);
   const identity = websiteAtlasSourceVideoIdentity(await input.readSession());
   const stored = input.record.website_atlas_grants?.[input.captureId];
   if (stored !== undefined) {
     const parsed = storedGrant.safeParse(stored);
     if (!parsed.success || parsed.data.request_id !== input.requestId || parsed.data.capture_id !== input.captureId)
       throw new Error("website_atlas_authorization_invalid");
-    // The first configuration call pinned the Pipeline digest and the uploaded object.
-    if (parsed.data.source_video_digest !== input.sourceVideoDigest || !identity
-      || digest(identity) !== digest(parsed.data.source_video_identity))
+    // The upload record no longer names its object: Blueprint's record, not the site's.
+    if (!identity) throw new Error(WEBSITE_ATLAS_CONSENT_UNCONFIGURED);
+    // The first configuration call pinned the Pipeline digest and the uploaded object: another video is not covered.
+    if (parsed.data.source_video_digest !== input.sourceVideoDigest || digest(identity) !== digest(parsed.data.source_video_identity))
       throw new Error("website_atlas_source_consent_required");
     return { grant: checkedGrant(parsed.data, input), created: null };
   }
-  const owner = websiteCaptureOwnerUid(input.record);
-  if (!input.create || !input.sourceVideoDigest || !identity || typeof owner !== "string" || !owner.trim()
-    || !input.captureRights.derived_scene_generation_allowed || input.captureRights.consent_revoked)
+  // The recording's own consent does not allow scene building, or was withdrawn: a rights refusal.
+  if (!input.captureRights.derived_scene_generation_allowed || input.captureRights.consent_revoked)
     throw new Error("website_atlas_source_consent_required");
+  const owner = websiteCaptureOwnerUid(input.record);
+  // A reservation before any grant exists, or a request or record missing what a grant is made from: Blueprint's.
+  if (!input.create || !input.sourceVideoDigest || !identity || typeof owner !== "string" || !owner.trim())
+    throw new Error(WEBSITE_ATLAS_CONSENT_UNCONFIGURED);
   if (!input.termsDigest) throw new Error("provider_terms_not_configured_or_changed");
-  if (!input.plannerTermsDigest) throw new Error("website_atlas_planner_consent_required");
+  if (!input.plannerTermsDigest) throw new Error(WEBSITE_ATLAS_CONSENT_UNCONFIGURED);
   const createdAt = Math.floor(input.now);
   // The upload's own consent covers the preview's SAM masks and independent review exactly
   // as it covers Atlas and the planner (owner direction 2026-10-22); each is pinned to its terms.

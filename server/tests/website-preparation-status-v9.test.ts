@@ -15,6 +15,14 @@ vi.mock("../utils/unknownPipelineCode", () => ({ noteUnknownPipelineCode: vi.fn(
 
 const status = await import("../utils/websitePreparationStatus");
 const { packetFactsForCompany } = await import("../utils/companyJobPage");
+const { applyRemovals, NOTHING_SCREENED } = await import("../utils/freeTextScreening");
+type Screenings = import("../utils/freeTextScreening").Screenings;
+/** A model pass that has read every text and takes out the given pieces (none: it finds nothing), and what it read. */
+function modelPass(pieces: string[] = []): Screenings & { read: string[] } {
+  const read: string[] = [];
+  const stateOf = (_writer: string, text: string) => { read.push(text); return { state: "shown" as const, text: applyRemovals(text, pieces) }; };
+  return { read, missing: [], stateOf, shown: (writer, text) => stateOf(writer, text).text };
+}
 type Selector = import("../utils/websitePreparationStatus").WebsitePreparationSelector;
 type Stored = import("../utils/websitePreparationStatus").StoredWebsitePreparation;
 type Deps = import("../utils/websitePreparationStatus").WebsitePreparationDeps;
@@ -88,7 +96,7 @@ describe("status v9", () => {
 
 describe("the packet facts as a company reads them", () => {
   it("shows Blueprint's estimates where the site did not answer, and names the questions they answer", () => {
-    const page = packetFactsForCompany(status.packetFactsSchema.parse(facts()), null, nobody);
+    const page = packetFactsForCompany(status.packetFactsSchema.parse(facts()), null, nobody, modelPass());
     expect(page.packetFacts!.object).toContain("Longest side: about 67 cm (Blueprint's estimate; the site did not say).");
     expect(page.packetFacts!.estimated).toContain("Weight: about 3.1 kg (0.34 to 28 kg). An estimate, not weighed.");
     // Every figure line passes the contact scan unchanged: coordinates and ranges are not phone numbers.
@@ -98,7 +106,7 @@ describe("the packet facts as a company reads them", () => {
 
   it("leaves out Blueprint's estimate of what the site answered, but not of what it was not sure of", () => {
     const answers = { weight: "5_15kg", size: "unsure", perHour: "60_300", hours: "two_shifts", updatedAtIso: "2026-11-19T10:00:00.000Z" } as const;
-    const page = packetFactsForCompany(status.packetFactsSchema.parse(facts()), answers, nobody);
+    const page = packetFactsForCompany(status.packetFactsSchema.parse(facts()), answers, nobody, modelPass());
     const all = [...page.packetFacts!.object, ...page.packetFacts!.estimated];
     expect(all.some(text => text.startsWith("Weight:"))).toBe(false);
     expect(all.some(text => text.startsWith("How many an hour"))).toBe(false);
@@ -108,17 +116,53 @@ describe("the packet facts as a company reads them", () => {
     expect(page.estimated).toEqual(["size"]);
   });
 
-  it("removes the site's identity, a street address and a contact detail from every line", () => {
+  it("leaves out whole any line with the site's identity, a street address or a contact detail in it", () => {
     const planted = facts({ object: [line("Object: Zorblax Provisions carton."),
       line("Goes to: the shelf at 4417 Marrowbone Avenue, Suite 12, Glimmerton, OR 97035; about 131 cm above the floor."),
-      line("Starts: by the sign reading call 628 555 0199 or zorblax@plant.example.")] });
+      line("Starts: by the sign reading call 628 555 0199 or zorblax@plant.example."),
+      line("Starts: about 54 cm above the floor.")] });
     const known = { names: ["Zorblax Provisions"], organisations: ["Zorblax Provisions"], addresses: [], contacts: [] };
-    const text = JSON.stringify(packetFactsForCompany(status.packetFactsSchema.parse(planted), null, known));
-    for (const value of ["Zorblax", "Marrowbone", "Glimmerton", "97035", "555 0199", "@plant"]) expect(text).not.toContain(value);
-    expect(text).toContain("about 131 cm above the floor");
+    const page = packetFactsForCompany(status.packetFactsSchema.parse(planted), null, known, modelPass());
+    const text = JSON.stringify(page);
+    for (const value of ["Zorblax", "Marrowbone", "Glimmerton", "97035", "555 0199", "@plant", "131 cm", "[removed]", "The site carton"])
+      expect(text).not.toContain(value);
+    expect(page.packetFacts!.object).toEqual(["Starts: about 54 cm above the floor."]);
+  });
+
+  it("leaves out a line with a name the record does not hold, and one the model pass takes a piece out of", () => {
+    const planted = facts({ object: [line("Object: produce crate."), line("Goes to: Dana Whitfield's returns cart."),
+      line("Starts: on the harbor fresh foods pallet."), line("Starts: about 54 cm above the floor.")], measured: [], estimated: [] });
+    const pass = modelPass(["harbor fresh foods"]);
+    const page = packetFactsForCompany(status.packetFactsSchema.parse(planted), null, nobody, pass);
+    expect(page.packetFacts).toEqual({ object: ["Object: produce crate.", "Starts: about 54 cm above the floor."], measured: [], estimated: [] });
+    // One pass for the whole set, without the line the name pass already left out.
+    expect(pass.read).toEqual(["Object: produce crate.\nStarts: on the harbor fresh foods pallet.\nStarts: about 54 cm above the floor."]);
+  });
+
+  it("reads Blueprint's own name to the model pass as a phrase it leaves alone, and shows the line as written", () => {
+    const pass = modelPass(["Blueprint"]);
+    const page = packetFactsForCompany(status.packetFactsSchema.parse(facts()), null, nobody, pass);
+    expect(page.packetFacts!.object).toContain("Longest side: about 67 cm (Blueprint's estimate; the site did not say).");
+    expect(pass.read[0]).toContain("Longest side: about 67 cm (the company's estimate; the site did not say).");
+    expect(pass.read[0]).not.toContain("Blueprint");
+  });
+
+  it("shows no line, and says they are pending, until the model pass has read them", () => {
+    const page = packetFactsForCompany(status.packetFactsSchema.parse(facts()), null, nobody, NOTHING_SCREENED());
+    expect(page).toEqual({ packetFacts: null, estimated: [], pending: true });
+    // Without a reading passed in, it fails closed the same way.
+    expect(packetFactsForCompany(status.packetFactsSchema.parse(facts()), null, nobody).pending).toBe(true);
+  });
+
+  it("a result whose lines no longer line up keeps none", () => {
+    const pass: Screenings = { missing: [], stateOf: (_w, text) => ({ state: "shown", text: text.replace("\n", " [removed] ") }),
+      shown: (_w, text) => text };
+    const page = packetFactsForCompany(status.packetFactsSchema.parse(facts()), null, nobody, pass);
+    expect(page.packetFacts).toEqual({ object: [], measured: [], estimated: [] });
+    expect(page.estimated).toEqual([]);
   });
 
   it("says plainly when there are no packet facts yet", () => {
-    expect(packetFactsForCompany(null, null, nobody)).toEqual({ packetFacts: null, estimated: [] });
+    expect(packetFactsForCompany(null, null, nobody)).toEqual({ packetFacts: null, estimated: [], pending: false });
   });
 });

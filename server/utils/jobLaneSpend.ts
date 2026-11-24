@@ -26,7 +26,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { anthropicRequestShapeFor } from "../agents/anthropic-models";
 import type { AgentTaskKind } from "../agents/types";
 import { anthropicWorstCaseRequestUsd } from "./anthropicPricing";
-import { pricingForOpenAIModel } from "./openaiPromptCache";
+import { GPT56_LONG_CONTEXT_THRESHOLD_TOKENS, pricingForOpenAIModel } from "./openaiPromptCache";
 import { checkWebsiteJobCeiling, JOB_LANE_RESERVATIONS_COLLECTION, transactionJobLedgerReader } from "./websiteJobCeiling";
 
 export { JOB_LANE_RESERVATIONS_COLLECTION };
@@ -38,22 +38,31 @@ const PROMPT_OVERHEAD_TOKENS = 4_096;
 const UNKNOWN_OPENAI_PRICE = { input: 5, output: 30 };
 
 /**
- * The most one call of `kind` can cost for a prompt of `promptBytes` UTF-8 bytes: a byte-level tokenizer makes at most
- * one token of each byte, plus the adapters' framing; the lane's own output ceiling (thinking included); priced at the
- * dearest model the lane may be sent to among OpenAI and Anthropic (cache writes at their rate, the dearest input; on
- * Anthropic, the request's server-side fallback model added, as the adapter reserves it), one request (the lane allows
- * no correction round, and a switch after "no funds" happens only when the first provider charged nothing). Null when
- * the lane could be sent to a model with no price (it is then not called).
+ * The most one call can cost for a prompt of `promptBytes` UTF-8 bytes, as the adapters themselves reserve and settle
+ * it: each reserves a request at the input ceiling (`getAgentMaxInputTokens`, the larger of it and the request's own
+ * size) and, when the provider's answer carries no usage, settles it at that reservation (`unknown_usage_reserved_cost_usd`
+ * in `inference_reservation.reconciled_cost_usd`). So the input side is the larger of `inputTokenCeiling` and the prompt
+ * (a byte-level tokenizer makes at most one token of each byte, plus the adapters' framing), and a hold priced on the
+ * prompt alone could be settled above itself (a review of PR #1438, 2026-11-24). The output side is the lane's own
+ * ceiling (thinking included). Priced at the dearest model the lane may be sent to among OpenAI and Anthropic (cache
+ * writes at their rate, the dearest input, OpenAI's long-context rates past its threshold as the adapter prices them;
+ * on Anthropic, the request's server-side fallback model added, as the adapter reserves it), one request (the lane
+ * allows no correction round, and a switch after "no funds" happens only when the first provider charged nothing).
+ * Null when the lane could be sent to a model with no price (it is then not called).
  */
-export function laneCallMaximumUsd(input: { promptBytes: number; outputTokenCeiling: number;
+export function laneCallMaximumUsd(input: { promptBytes: number; outputTokenCeiling: number; inputTokenCeiling: number;
   models: { openai_responses?: string | null; anthropic_agent_sdk?: string | null } }): number | null {
-  const inputTokens = Math.max(0, Math.ceil(input.promptBytes)) + PROMPT_OVERHEAD_TOKENS;
+  const inputTokens = Math.max(Math.max(0, Math.ceil(input.inputTokenCeiling)),
+    Math.max(0, Math.ceil(input.promptBytes)) + PROMPT_OVERHEAD_TOKENS);
   const outputTokens = Math.max(0, Math.ceil(input.outputTokenCeiling));
   const costs: number[] = [];
   if (input.models.openai_responses) {
     const price = pricingForOpenAIModel(input.models.openai_responses);
     const inputRate = price ? Math.max(price.uncachedInputPerMillionUsd, price.cacheWritePerMillionUsd) : UNKNOWN_OPENAI_PRICE.input;
-    costs.push((inputTokens * inputRate + outputTokens * (price ? price.outputPerMillionUsd : UNKNOWN_OPENAI_PRICE.output)) / 1e6);
+    // The adapter's long-context rates (`worstCaseOpenAIReservationUsd`): a priced model past the threshold.
+    const longContext = Boolean(price && inputTokens > GPT56_LONG_CONTEXT_THRESHOLD_TOKENS);
+    costs.push((inputTokens * inputRate * (longContext ? 2 : 1)
+      + outputTokens * (price ? price.outputPerMillionUsd : UNKNOWN_OPENAI_PRICE.output) * (longContext ? 1.5 : 1)) / 1e6);
   }
   if (input.models.anthropic_agent_sdk) {
     // The adapter's own reservation for one request: the model, plus the fallback model a refusal moves it to inside
@@ -94,20 +103,21 @@ export async function laneModels(kind: AgentTaskKind): Promise<{ openai_response
  * The most one run of `kind` can cost for a prompt of `promptBytes` UTF-8 bytes, or null when no call is admitted for
  * the lane (`laneModels`). Both adapters a lane may reach refuse, before each request, any request that could take the
  * run past the per-run inference cost cap (`getAgentMaxInferenceCostUsd`, $5 unless set), so no run passes it. A lane
- * of one request (its own output ceiling, no correction round) is bounded tighter by its prompt (`laneCallMaximumUsd`).
+ * of one request (its own output ceiling, no correction round) is bounded tighter by one request (`laneCallMaximumUsd`).
  * A lane that may send correction rounds (up to five more requests, each up to the input ceiling, with the conversation
  * so far) is held at the cap. `scripted` (unit tests, the local harness): the call is held as the lane's default OpenAI
  * model would be.
  */
 export async function laneRunMaximumUsd(kind: AgentTaskKind, promptBytes: number, options: { scripted?: boolean } = {}):
   Promise<number | null> {
-  const [{ getAgentMaxInferenceCostUsd, getTaskModelByProvider }, { getTaskDefinition }] = await Promise.all([
-    import("../agents/provider-config"), import("../agents/tasks")]);
+  const [{ getAgentMaxInferenceCostUsd, getAgentMaxInputTokens, getTaskModelByProvider }, { getTaskDefinition }] =
+    await Promise.all([import("../agents/provider-config"), import("../agents/tasks")]);
   const models = options.scripted ? { openai_responses: getTaskModelByProvider(kind).openai_responses } : await laneModels(kind);
   if (!models) return null;
   const cap = getAgentMaxInferenceCostUsd(), definition = getTaskDefinition(kind);
   if (definition.max_output_corrections !== 0 || definition.max_output_tokens_ceiling === undefined) return cap;
-  const call = laneCallMaximumUsd({ promptBytes, outputTokenCeiling: definition.max_output_tokens_ceiling, models });
+  const call = laneCallMaximumUsd({ promptBytes, outputTokenCeiling: definition.max_output_tokens_ceiling,
+    inputTokenCeiling: getAgentMaxInputTokens(), models });
   return call === null ? null : Math.min(call, cap);
 }
 

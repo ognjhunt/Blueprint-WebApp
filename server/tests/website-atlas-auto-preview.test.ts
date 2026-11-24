@@ -15,6 +15,12 @@ vi.mock("../utils/pipelineSyncSecurity", () => ({
 }));
 // The browser-upload assessment the native/Marble lane waits on is never ready here.
 vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: vi.fn(async () => null) }));
+// Staff hear of an Atlas reason the website has no words for (round 2, 2026-11-24).
+const unknownCodes = vi.hoisted(() => [] as Array<[string, string, string]>);
+vi.mock("../utils/unknownPipelineCode", () => ({
+  noteUnknownPipelineCode: vi.fn(async (requestId: string, slot: string, code: string) => { unknownCodes.push([requestId, slot, code]); return true; }),
+  noteUnknownPipelineCodes: vi.fn(async () => undefined),
+}));
 
 const store = vi.hoisted(() => ({ rows: new Map<string, any>(), writes: [] as string[] }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
@@ -153,11 +159,11 @@ describe("automatic consented Atlas grant", () => {
     "changes nothing while the policy is %s", async (_label, value) => {
       vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", value);
       upload("bundle");
-      await expect(configure()).rejects.toThrow("task_brief_missing");
+      await expect(configure()).rejects.toThrow("website_scene_grant_policy_unconfigured");
       await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_scene_sponsorship_missing");
       store.rows.get(REQUEST).website_scene_sponsorship = { owner: { user_id: "blueprint-preparation" } };
-      await expect(configure()).rejects.toThrow("website_atlas_source_consent_required");
-      await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_atlas_source_consent_required");
+      await expect(configure()).rejects.toThrow("website_atlas_consent_unconfigured");
+      await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_atlas_consent_unconfigured");
       // A browser upload no longer waits on its assessment; like any upload it needs a sponsorship.
       upload("browser");
       await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_scene_sponsorship_missing");
@@ -252,7 +258,7 @@ describe("automatic consented Atlas grant", () => {
     // Unsetting the policy stops every automatic grant at once.
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "");
     store.rows.get(REQUEST).website_scene_sponsorship = { owner: { user_id: "blueprint-preparation" } };
-    await expect(configure()).rejects.toThrow("website_atlas_source_consent_required");
+    await expect(configure()).rejects.toThrow("website_atlas_consent_unconfigured");
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     expect((await configure()).authority).toEqual(authority);
     store.rows.get(REQUEST).consent_revoked = true;
@@ -264,15 +270,15 @@ describe("automatic consented Atlas grant", () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     upload();
     delete store.rows.get(REQUEST).account_owner_uid;
-    await expect(configure()).rejects.toThrow("website_atlas_source_consent_required");
+    await expect(configure()).rejects.toThrow("website_atlas_consent_unconfigured");
     upload();
     store.rows.get(SESSION).browser_pending_delivery.state = "held";
-    await expect(configure()).rejects.toThrow("website_atlas_source_consent_required");
+    await expect(configure()).rejects.toThrow("website_atlas_consent_unconfigured");
     upload();
     vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ openai: terms.openai }));
     await expect(configure()).rejects.toThrow("provider_terms_not_configured_or_changed");
     vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ world_labs_atlas: terms.world_labs_atlas }));
-    await expect(configure()).rejects.toThrow("website_atlas_planner_consent_required");
+    await expect(configure()).rejects.toThrow("website_atlas_consent_unconfigured");
     vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify(terms));
     upload();
     store.rows.get(REQUEST).request.consent_attestation.revoked_at_iso = new Date().toISOString();
@@ -407,7 +413,7 @@ describe("non-authorizing Atlas configuration read", () => {
 
   it("never creates a missing grant and preserves the existing creation path", async () => {
     const before = structuredClone(store.rows.get(REQUEST));
-    await expect(configure({ create: false })).rejects.toThrow("website_atlas_source_consent_required");
+    await expect(configure({ create: false })).rejects.toThrow("website_atlas_consent_unconfigured");
     expect(store.rows.get(REQUEST)).toEqual(before);
     expect(store.writes).toEqual([]);
     const created = await configure();
@@ -507,7 +513,7 @@ describe("non-authorizing Atlas configuration read", () => {
     const base = await app(), path = "/internal/creator-captures/walkthrough-req1/atlas-configuration";
     const input = { request_id: "req1", scene_id: "site-req1", task_context_digest: contextDigest(), source_video_digest: sha("5") };
     expect(await post(base, path, { ...input, create: false })).toEqual({ status: 409,
-      body: { code: "website_atlas_source_consent_required" } });
+      body: { code: "website_atlas_consent_unconfigured" } });
     for (const create of [true, "false", null, 0]) {
       expect(await post(base, path, { ...input, create })).toEqual({ status: 400, body: { code: "website_scene_request_invalid" } });
     }
@@ -522,8 +528,15 @@ describe("non-authorizing Atlas configuration read", () => {
 
   it("refuses malformed or oversized ledgers rather than silently omit reservations", () => {
     expect(() => websitePreparationAccounting({ broken: { admission: {} } })).toThrow("website_atlas_reservation_accounting_invalid");
-    expect(() => websitePreparationAccounting(Object.fromEntries(Array.from({ length: 129 }, (_, i) => [i, {}]))))
+    // 256 rows at most (stress round 2: every paid call is its own permanent row); past it, refused whole.
+    expect(() => websitePreparationAccounting(Object.fromEntries(Array.from({ length: 257 }, (_, i) => [i, {}]))))
       .toThrow("website_atlas_reservation_summary_too_large");
+    const rows = Object.fromEntries(Array.from({ length: 200 }, (_, i) => {
+      const key = i.toString(16).padStart(64, "0");
+      return [key, { admission: { allocation_binding_digest: `sha256:${key}`, task_context_digest: sha("8"), provider: "meta",
+        maximum_cost_usd: .0025, request_count: 1 } }];
+    }));
+    expect(websitePreparationAccounting(rows).native_preparation_accounting.reservations).toHaveLength(200);
     const zero = websitePreparationAccounting({ ["1".repeat(64)]: { admission: { allocation_binding_digest: sha("1"),
       task_context_digest: sha("8"), provider: "openai", maximum_cost_usd: .4, request_count: 1,
       atlas_authorization_digest: sha("7") }, settlement: { actual_cost_usd: 0 } } });
@@ -608,7 +621,7 @@ describe("Atlas reservations under an automatic grant", () => {
   it("admit Atlas spend within the grant without a sponsorship or the preparation assessment, and never create one", async () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     upload();
-    await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_atlas_source_consent_required");
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_atlas_consent_unconfigured");
     expect(store.writes).toEqual([]);
     const { authority } = await configure();
     spentElsewhere(38);
@@ -836,6 +849,22 @@ describe("Pipeline Atlas preview status", () => {
     expect(store.rows.get(REQUEST).website_atlas_previews["walkthrough-req1"]).toEqual(withdrawn);
     expect(await post(base, "/internal/creator-captures/walkthrough-req2/atlas-preview", { request_id: "req2", scene_id: "site-req2",
       preview: preview({ capture_id: "walkthrough-req2" }) })).toEqual({ status: 404, body: { code: "website_atlas_preview_request_missing" } });
+  });
+
+  it("alerts staff once a stored preview names a reason the website has no words for, and never for one it has", async () => {
+    upload();
+    unknownCodes.length = 0;
+    const base = await app();
+    const path = "/internal/creator-captures/walkthrough-req1/atlas-preview";
+    const push = (value: unknown) => post(base, path, { request_id: "req1", scene_id: "site-req1", preview: value });
+    expect((await push(preview({ revision: 1, state: "needs_input", reason: "atlas_insufficient_sharp_static_views" }))).status).toBe(200);
+    expect((await push(preview({ revision: 2, state: "needs_input", reason: "account_monthly_spend_report_stale" }))).status).toBe(200);
+    expect(unknownCodes).toEqual([]);
+    expect((await push(preview({ revision: 3, state: "needs_input", reason: "atlas_context_pixel_axes_changed" }))).status).toBe(200);
+    expect((await push(preview({ revision: 4, state: "failed", reason: "atlas_preview_expired" }))).status).toBe(200);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(unknownCodes).toEqual([["req1", "atlas_preview.reason", "atlas_context_pixel_axes_changed"],
+      ["req1", "atlas_preview.reason", "atlas_preview_expired"]]);
   });
 
   it("projects plain owner copy, never a reason code, and nothing once consent ends", () => {

@@ -74,6 +74,27 @@ jobs:
       - name: Verify shared robot-eval job request contract
         run: npm run pipeline:robot-eval-contract:verify -- --contracts-module BlueprintContracts/js/robot-eval-job-request.mjs
 
+      # The contracts mirrored from the Pipeline byte for byte (robot spec catalog, the $40 job cap, the site-task
+      # measurement catalog, the decision-evidence handoff), compared with Pipeline main on every run so a mirror
+      # cannot drift silently (round 2, 2026-11-24). The Pipeline repository is public: no key is needed.
+      - name: Checkout BlueprintCapturePipeline for mirrored contracts
+        uses: actions/checkout@v4
+        with:
+          repository: ognjhunt/BlueprintCapturePipeline
+          ref: main
+          path: BlueprintCapturePipeline
+          persist-credentials: false
+          sparse-checkout: |
+            config
+            docs/schemas
+            docs/webapp_handoff
+            src/blueprint_pipeline/_catalog_data
+
+      - name: Verify contract mirrors match the Pipeline
+        env:
+          PIPELINE_CHECKOUT: BlueprintCapturePipeline
+        run: npm run pipeline:mirrors:verify
+
       - name: Audit assets
         run: npm run audit:assets
 

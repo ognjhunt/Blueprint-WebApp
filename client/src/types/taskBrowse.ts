@@ -220,8 +220,11 @@ export interface CompanyJobPage {
   thumbnailUrl?: string | null;
   /** What the thumbnail is: a render of the job's simulation, or a frame of its video. */
   thumbnailSource?: "simulation_render" | "company_clip_frame" | null;
-  /** "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet". */
-  simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
+  /**
+   * "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet".
+   * `objectIncluded: false` when the Pipeline says the package is the site's room without the job's object.
+   */
+  simulationDownload: { state: "ready"; url: string; objectIncluded?: false } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */
   simulation: { state: "ready"; viewerUrl: string } | { state: "not_finished" };
   /** The first look, or null while there is none. */
@@ -232,10 +235,13 @@ export interface CompanyJobPage {
   firstLookMore?: string | null;
   /**
    * What the video shows of the job's object, and how sure each figure is (the Pipeline's packet facts, preparation
-   * status v9), each line without contact details or a street address; null until the Pipeline has them. Blueprint's
-   * estimate of something the site answered on its job page is left out: the site's answer is in `jobFacts`.
+   * status v9), each line shown only when neither the deterministic passes nor the model pass over free text find
+   * anything to take out of it (a line either pass would change is left out); null until the Pipeline has them.
+   * Blueprint's estimate of something the site answered on its job page is left out: the site's answer is in `jobFacts`.
    */
   packetFacts: { object: string[]; measured: string[]; estimated: string[] } | null;
+  /** The Pipeline has packet facts and the model pass over them has not succeeded yet: none is shown until it has. */
+  packetFactsPending?: true;
   /** Where the first look stands while it has nothing to show; null once it does. */
   firstLookStatus: string | null;
   /** Where the simulation stands while neither the viewer nor the download is ready; null once one is. */

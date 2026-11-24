@@ -17,8 +17,10 @@ export function websitePreparationAccounting(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("website_atlas_reservation_accounting_invalid");
   const entries = Object.entries(value);
-  // Refuse rather than silently omit held rows or exceed the signed transport's bound.
-  if (entries.length > 128) throw new Error("website_atlas_reservation_summary_too_large");
+  // Refuse rather than silently omit held rows or exceed the signed transport's bound. Every paid call is its own
+  // permanent row and a Meta call holds about a cent, so the $40 cap does not bound the count: 256 rows (the busiest
+  // website job of November held 37), with the whole read still bounded at 200,000 bytes on both sides (stress round 2).
+  if (entries.length > 256) throw new Error("website_atlas_reservation_summary_too_large");
   const rows = entries.sort(([a], [b]) => a.localeCompare(b)).map(([key, raw]) => {
     const parsed = admission.safeParse(raw?.admission);
     const settled = raw?.settlement === undefined ? null : settlement.safeParse(raw.settlement);
