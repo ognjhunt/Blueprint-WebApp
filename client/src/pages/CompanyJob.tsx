@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { ArrowLeft, ArrowDown, Download, MapPin } from "lucide-react";
 import type { User } from "firebase/auth";
@@ -64,6 +64,45 @@ export const NO_PACKET_FACTS = "Nothing about the object is measured or estimate
 /** Under the site's quick answers: they are its own statements. */
 export const SITE_ANSWERS_HINT = "The site's own answers. Blueprint has not checked them.";
 
+/**
+ * The video's and the download's addresses carry a short ticket (`expires`, in seconds; `server/utils/
+ * taskEvaluationResultDownloadTicket.ts`). The page asks for fresh ones this long before the first ends, and a failing
+ * video asks again only once its address is at least this old, so a fault that is not the ticket never loops.
+ */
+export const TICKET_REFRESH_MARGIN_MS = 60_000;
+
+/** How long until the page should ask for fresh tickets, or null when no address carries one. Never sooner than the margin. */
+export function ticketRefreshDelayMs(urls: readonly (string | null | undefined)[], nowMs = Date.now()): number | null {
+  const ends = urls.map(url => url ? Number(new URL(url, "https://blueprint.invalid").searchParams.get("expires")) : NaN)
+    .filter(seconds => Number.isFinite(seconds) && seconds > 0);
+  if (ends.length === 0) return null;
+  return Math.max(TICKET_REFRESH_MARGIN_MS, Math.min(...ends) * 1000 - nowMs - TICKET_REFRESH_MARGIN_MS);
+}
+
+/** The wait before a failed ticket refresh is asked again: 30 seconds, doubling, at most five minutes. */
+export function ticketRetryDelayMs(failures: number): number {
+  return Math.min(5 * 60_000, (TICKET_REFRESH_MARGIN_MS / 2) * 2 ** Math.max(0, failures - 1));
+}
+
+type LoadedJob = { kind: "ready"; item: CompanyJobPage } | { kind: "missing"; access: LibraryAccess | null } | { kind: "terms" };
+
+/** The one authorised page request: every access check runs again on each call, and it issues the media tickets. */
+async function loadCompanyJob(user: User, jobId: string): Promise<LoadedJob> {
+  const response = await fetch(`/api/site-worlds/jobs/${encodeURIComponent(jobId)}`, { headers: await withFirebaseAuthHeaders(user) });
+  if (response.status === 404) {
+    const body = await response.json().catch(() => null) as { access?: LibraryAccess } | null;
+    return { kind: "missing", access: body?.access ?? null };
+  }
+  if (response.status === 403) {
+    const body = await response.json().catch(() => ({})) as { code?: string };
+    if (body.code === "terms_acceptance_required") return { kind: "terms" };
+  }
+  if (!response.ok) throw new Error("unavailable");
+  const body = await response.json() as { item?: CompanyJobPage };
+  if (!body.item) throw new Error("invalid");
+  return { kind: "ready", item: body.item };
+}
+
 function dateInWords(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
@@ -92,6 +131,17 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   const [page, setPage] = useState<CompanyJobPage | null>(null);
   const [access, setAccess] = useState<LibraryAccess | null>(null);
   const [retry, setRetry] = useState(0);
+  const loadGeneration = useRef(0);
+  function show(loaded: LoadedJob) {
+    if (loaded.kind === "missing") { setAccess(loaded.access); setState("missing"); }
+    else if (loaded.kind === "terms") setState("terms");
+    else {
+      setPage(loaded.item); setState("ready");
+      // Opened from a public live job's reference: the address becomes the job's own.
+      if (loaded.item.id !== jobId && typeof window !== "undefined")
+        window.history.replaceState(window.history.state, "", `/jobs/${encodeURIComponent(loaded.item.id)}${window.location.search}`);
+    }
+  }
   // A new-job email's link (owner, 2026-11-23): it signs a signed-out company in on the way to this job. A company
   // already signed in goes straight to the job and the link stays unspent.
   const [link] = useState(takeSignInLinkFromAddress);
@@ -114,31 +164,41 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   }, [link, user, auth?.loading, linkState]);
   useEffect(() => {
     const signingIn = Boolean(link) && (linkState === "signing_in" || linkState === "unused");
+    // Every change of account or job starts a new generation, signing out too: a ticket refresh still on its way
+    // for the account before can never put the job back on the page.
+    const generation = ++loadGeneration.current;
     if (!user) { setState(auth && !auth.loading && !signingIn ? "signed_out" : "loading"); return; }
     let cancelled = false;
     setState("loading");
-    withFirebaseAuthHeaders(user).then(headers => fetch(`/api/site-worlds/jobs/${encodeURIComponent(jobId)}`, { headers }))
-      .then(async response => {
-        if (cancelled) return;
-        if (response.status === 404) {
-          const body = await response.json().catch(() => null) as { access?: LibraryAccess } | null;
-          if (!cancelled) { setAccess(body?.access ?? null); setState("missing"); }
-          return;
-        }
-        if (response.status === 403) {
-          const body = await response.json().catch(() => ({})) as { code?: string };
-          if (body.code === "terms_acceptance_required") { setState("terms"); return; }
-        }
-        if (!response.ok) throw new Error("unavailable");
-        const body = await response.json() as { item?: CompanyJobPage };
-        if (!body.item) throw new Error("invalid");
-        setPage(body.item); setState("ready");
-        // Opened from a public live job's reference: the address becomes the job's own.
-        if (body.item.id !== jobId && typeof window !== "undefined")
-          window.history.replaceState(window.history.state, "", `/jobs/${encodeURIComponent(body.item.id)}${window.location.search}`);
-      }).catch(() => { if (!cancelled) setState("error"); });
+    loadCompanyJob(user, jobId).then(loaded => { if (!cancelled && generation === loadGeneration.current) show(loaded); })
+      .catch(() => { if (!cancelled) setState("error"); });
     return () => { cancelled = true; };
   }, [jobId, user?.uid, retry, auth?.loading, linkState]);
+  // Fresh tickets for the video and the download, from the same page request: a withdrawn job or a lost approval is
+  // refused there and the page says so; a failed request leaves the page as it is, and the next failure asks again.
+  const refreshing = useRef(false);
+  // Refreshes that failed in a row (the network, a 503): each one is asked again after a wait that doubles, at most
+  // every five minutes, so the download's link does not stay ended once the service answers again.
+  const [refreshFailures, setRefreshFailures] = useState(0);
+  const refreshTickets = useCallback(async () => {
+    if (!user || refreshing.current) return;
+    refreshing.current = true;
+    const generation = loadGeneration.current;
+    try {
+      const loaded = await loadCompanyJob(user, jobId);
+      if (generation === loadGeneration.current) { setRefreshFailures(0); show(loaded); }
+    } catch { if (generation === loadGeneration.current) setRefreshFailures(count => count + 1); }
+    finally { refreshing.current = false; }
+  }, [user, jobId]);
+  const videoUrl = page?.video.state === "ready" ? page.video.url : null;
+  const downloadUrl = page?.simulationDownload?.state === "ready" ? page.simulationDownload.url : null;
+  useEffect(() => {
+    if (state !== "ready") return;
+    const delay = refreshFailures > 0 ? ticketRetryDelayMs(refreshFailures) : ticketRefreshDelayMs([videoUrl, downloadUrl]);
+    if (delay === null) return;
+    const timer = setTimeout(() => { void refreshTickets(); }, delay);
+    return () => clearTimeout(timer);
+  }, [state, videoUrl, downloadUrl, refreshTickets, refreshFailures]);
 
   if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
   if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
@@ -198,9 +258,8 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         <section aria-label="The video">
           <h2>The video</h2>
           {page.video.state === "ready"
-            ? <video src={page.video.url} poster={page.thumbnailUrl ?? undefined} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
-                playsInline onContextMenu={event => event.preventDefault()}
-                width={page.video.width} height={page.video.height} aria-label="The site's video, without sound" />
+            ? <CompanyJobVideo url={page.video.url} poster={page.thumbnailUrl ?? undefined} width={page.video.width}
+                height={page.video.height} onTicketEnded={refreshTickets} />
             : <p>{VIDEO_PREPARING}</p>}
         </section>
       </div>
@@ -278,6 +337,37 @@ export function typedEstimate(model: ChargeModel | undefined, low: string, high:
   if (!model || !ESTIMATE_UNITS[model]) return "invalid";
   const estimate = { lowUsd: Number(a || b), highUsd: Number(b || a) };
   return /^\d+$/.test(a || b) && /^\d+$/.test(b || a) && isApplicationEstimate(estimate) ? estimate : "invalid";
+}
+
+/**
+ * The job's video. Its address carries a short ticket; when the page brings a fresh address the video continues from
+ * the same place, playing if it was. A failure once its address is a minute old asks the page for a fresh ticket.
+ */
+function CompanyJobVideo({ url, poster, width, height, onTicketEnded }: { url: string; poster?: string; width: number; height: number;
+  onTicketEnded: () => void }) {
+  const element = useRef<HTMLVideoElement>(null);
+  const place = useRef({ time: 0, playing: false });
+  const resume = useRef<{ time: number; playing: boolean } | null>(null);
+  const receivedAt = useRef(Date.now());
+  const firstUrl = useRef(url);
+  useEffect(() => {
+    receivedAt.current = Date.now();
+    if (url !== firstUrl.current) resume.current = { ...place.current };
+  }, [url]);
+  const remember = () => { const video = element.current; if (video && !resume.current) place.current.time = video.currentTime; };
+  return <video ref={element} src={url} poster={poster} controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata"
+    playsInline onContextMenu={event => event.preventDefault()} width={width} height={height} aria-label="The site's video, without sound"
+    onTimeUpdate={remember} onSeeking={remember}
+    onPlay={() => { place.current.playing = true; }} onPause={() => { if (!resume.current) place.current.playing = false; }}
+    onEnded={() => { place.current.playing = false; }}
+    onLoadedMetadata={() => {
+      const video = element.current, from = resume.current;
+      resume.current = null;
+      if (!video || !from) return;
+      if (from.time > 0) video.currentTime = from.time;
+      if (from.playing) void video.play()?.catch(() => undefined);
+    }}
+    onError={() => { if (Date.now() - receivedAt.current >= TICKET_REFRESH_MARGIN_MS) onTicketEnded(); }} />;
 }
 
 /**
