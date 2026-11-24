@@ -6,7 +6,7 @@ import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { withCsrfHeader } from "@/lib/csrf";
 import { companyApplicationHref, companyJobReturnPath, companyJobSignInHref } from "@/lib/authReturnPath";
-import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_UNITS, INTRODUCIBLE_RESPONSE_STATES, SIMILAR_JOBS, SIMILAR_JOBS_LABELS,
+import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_LIMITS, ESTIMATE_UNITS, INTRODUCIBLE_RESPONSE_STATES, SIMILAR_JOBS, SIMILAR_JOBS_LABELS,
   VISIT_NOTE_LIMIT, isApplicationEstimate, type ApplicationEstimate, type ChargeModel, type SimilarJobs } from "@/lib/companyResponses";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES, TESTED_RESPONSE_STATES,
   companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
@@ -350,7 +350,7 @@ function FitSummary({ rows }: { rows: FitSummaryRow[] }) {
 
 /** Said when the estimate's two ends cannot be read as US dollars from low to high. */
 export const ESTIMATE_INVALID = "Enter the estimate in US dollars, such as 1,200 or 0.35, with at most two decimals and the lower "
-  + "amount first, or leave both empty.";
+  + `amount first, or leave both empty. ${ESTIMATE_LIMITS}`;
 
 /**
  * An amount as typed: a dollar sign, spaces and thousands commas are allowed ("$1,200", "$45.00"), and cents up to two
@@ -368,7 +368,7 @@ export function typedEstimate(model: ChargeModel | undefined, low: string, high:
   if (![a || b, b || a].every(value => TYPED_AMOUNT.test(value))) return "invalid";
   const amount = (value: string) => Number(value.replace(/,/g, ""));
   const estimate = { lowUsd: amount(a || b), highUsd: amount(b || a) };
-  return isApplicationEstimate(estimate) ? estimate : "invalid";
+  return isApplicationEstimate(estimate, model) ? estimate : "invalid";
 }
 
 /**

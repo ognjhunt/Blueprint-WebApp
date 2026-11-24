@@ -50,6 +50,7 @@ import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 export type { AdminJobCompanies };
 import { operatorListingHold } from "./operatorListing";
 import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { applicantNameHoldsContactDetails, applicantWebsiteOrigin } from "../../client/src/lib/companyApplicant";
 import { COMPANY_JOB_VIEWS_COLLECTION } from "./companyJobViews";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 import { NOTHING_SCREENED, budgetFor, loadScreenings, screenAndWait, screenInBackground, siteReplyStateForCompany,
@@ -428,13 +429,17 @@ export function answerConsentsToIntroduction(answer: Data | null | undefined): b
 /**
  * The company's name and website as the site may read them with its answer, or null: only for an answer the company
  * gave itself under a line that says the site sees them (`COMPANY_NAME_STATEMENT_VERSIONS`), from its approved record.
+ * Never a contact detail before Accept (stress test round 2, 2026-11-24, `companyApplicant.ts`): a name that holds one is
+ * not shown (the site reads the company's letter), and the website is its origin only, or none when it is a messaging,
+ * calling or booking link, a link shortener, or an address with a phone number in it.
  */
 export function applicantShownToSite(answer: Data | null | undefined, company: Data | undefined): { name: string; website: string | null } | null {
   if (answer?.recordedBy !== "company" || !COMPANY_NAME_STATEMENT_VERSIONS.includes(String(answer.statementVersion))) return null;
   const name = typeof company?.company === "string" ? company.company.trim().slice(0, 120) : "";
   if (!name) return null;
-  const website = typeof company?.website === "string" && /^https?:\/\/[^\s]+$/i.test(company.website.trim()) ? company.website.trim().slice(0, 300) : null;
-  return { name, website };
+  const stated = typeof company?.website === "string" ? company.website.trim().slice(0, 300) : null;
+  if (applicantNameHoldsContactDetails(name, stated)) return null;
+  return { name, website: applicantWebsiteOrigin(stated) };
 }
 
 /**
@@ -458,7 +463,7 @@ function applicationAtAGlance(answer: Data, words: (inputs: unknown) => string |
   const similarJobs = SIMILAR_JOBS.find(band => band === details.similarJobs);
   const visit = typeof details.visitMustConfirm === "string" ? words(details.visitMustConfirm) : null;
   const estimate = chargeModel && chargeModel !== "undecided" && COMPANY_ESTIMATE_STATEMENT_VERSIONS.includes(String(answer.statementVersion))
-    && isApplicationEstimate(details.estimate) ? { lowUsd: details.estimate.lowUsd, highUsd: details.estimate.highUsd } : null;
+    && isApplicationEstimate(details.estimate, chargeModel) ? { lowUsd: details.estimate.lowUsd, highUsd: details.estimate.highUsd } : null;
   return { ...(chargeModel ? { chargeModel } : {}), ...(estimate ? { estimate } : {}), ...(similarJobs ? { similarJobs } : {}),
     ...(visit ? { visitMustConfirm: visit } : {}) };
 }
@@ -472,7 +477,7 @@ function acceptedEstimateOf(intro: Data, answer: Data): AcceptedEstimate | null 
   const value = intro.estimateAtAccept;
   if (value === null) return null;
   const chargeModel = CHARGE_MODELS.find(model => model === value?.chargeModel);
-  return chargeModel && chargeModel !== "undecided" && isApplicationEstimate(value?.estimate)
+  return chargeModel && chargeModel !== "undecided" && isApplicationEstimate(value?.estimate, chargeModel)
     ? { chargeModel, estimate: { lowUsd: value.estimate.lowUsd, highUsd: value.estimate.highUsd } } : undefined;
 }
 

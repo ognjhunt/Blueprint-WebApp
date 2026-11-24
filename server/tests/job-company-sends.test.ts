@@ -238,8 +238,8 @@ describe("what the site receives", () => {
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([
       ["alias", "applicant", "atIso", "canIntroduce", "kind", "question", "reason", "state"],
       ["alias", "applicant", "atIso", "canIntroduce", "kind", "reason", "state"]]);
-    expect(entries.map(entry => entry.applicant)).toEqual([{ name: SOUTH.company, website: SOUTH.website },
-      { name: NORTH.company, website: NORTH.website }]);
+    expect(entries.map(entry => entry.applicant)).toEqual([{ name: SOUTH.company, website: new URL(SOUTH.website).origin },
+      { name: NORTH.company, website: new URL(NORTH.website).origin }]);
     // Why: the company's own words, with its name, email and website taken out (2026-11-20).
     expect(entries.map(entry => entry.reason)).toEqual([SOUTH_REASON, NORTH_REASON]);
     // Interested can be introduced; Need more details is not (E6).

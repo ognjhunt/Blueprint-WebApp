@@ -123,7 +123,7 @@ export function estimateAtAccept(answer: Record<string, any> | undefined): Accep
   if (!answer || !COMPANY_ESTIMATE_STATEMENT_VERSIONS.includes(String(answer.statementVersion))) return undefined;
   const details = answer.details && typeof answer.details === "object" ? answer.details as Record<string, unknown> : {};
   const chargeModel = CHARGE_MODELS.find(model => model === details.chargeModel);
-  return chargeModel && chargeModel !== "undecided" && isApplicationEstimate(details.estimate)
+  return chargeModel && chargeModel !== "undecided" && isApplicationEstimate(details.estimate, chargeModel)
     ? { chargeModel, estimate: { lowUsd: details.estimate.lowUsd, highUsd: details.estimate.highUsd } } : null;
 }
 

@@ -24,6 +24,8 @@ import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
 import { checkNewCompanyApplication } from "../utils/companyCheck";
 import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
+import { APPLICATION_NAME_HOLDS_CONTACT, APPLICATION_WEBSITE_NOT_OWN, applicantNameHoldsContactDetails, applicantWebsiteProblem }
+  from "../../client/src/lib/companyApplicant";
 
 const router = Router();
 
@@ -38,19 +40,28 @@ export const applicationSchema = z
     company: text(160),
     website: text(300).refine(value => /^https?:\/\//i.test(value) && URL.canParse(value), {
       message: "Use a full http:// or https:// website address.",
-    }),
+    }).refine(value => applicantWebsiteProblem(value) === null, { message: APPLICATION_WEBSITE_NOT_OWN }),
     partnerRole: z.enum(["deployment", "technology"]).optional(),
     returnToJob: z.string().max(130).transform(path => companyJobReturnPath(path) ?? undefined).optional(),
   })
-  .strict();
+  .strict()
+  // The site reads the company's name before it presses Accept, so the name carries no contact detail (stress test
+  // round 2, 2026-11-24: "Zed Robotics · call 415 555 0199").
+  .superRefine((value, context) => {
+    if (applicantNameHoldsContactDetails(value.company, value.website))
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["company"], message: APPLICATION_NAME_HOLDS_CONTACT });
+  });
+
+/** What the application form is told when it cannot be recorded as sent: the field that failed, plainly. */
+export function applicationRefusal(issues: ReadonlyArray<{ code: string; path: ReadonlyArray<PropertyKey>; message: string }>): string {
+  const own = issues.find(issue => issue.message === APPLICATION_NAME_HOLDS_CONTACT || issue.message === APPLICATION_WEBSITE_NOT_OWN);
+  return own?.message ?? "Check the form. Every field is needed, and the website must start with https:// or http://.";
+}
 
 router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
   const parsed = applicationSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({
-      error: "Check the form. Every field is needed, and the website must start with https:// or http://.",
-      code: "application_invalid",
-    });
+    return res.status(400).json({ error: applicationRefusal(parsed.error.issues), code: "application_invalid" });
   }
   const { returnToJob, ...fields } = parsed.data;
   const application = { ...fields, ...(returnToJob ? { returnToJob } : {}) };

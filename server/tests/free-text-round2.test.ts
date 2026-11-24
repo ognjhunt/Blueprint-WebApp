@@ -5,7 +5,12 @@
 import { describe, expect, it } from "vitest";
 import { NOTHING_SCREENED, needsScreening, siteReplyStateForCompany, siteWordsStateForCompany } from "../utils/freeTextScreening";
 import { companyWordsForSite, WORDS_PENDING } from "../utils/jobCompanies";
-import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
+import { COMPANY_RESPONSE_STATEMENT_VERSION, amountReadsAsPhoneNumber, estimateInWords, isApplicationEstimate, isEstimateAmount }
+  from "../../client/src/lib/companyResponses";
+import { APPLICATION_NAME_HOLDS_CONTACT, APPLICATION_WEBSITE_NOT_OWN, applicantNameHoldsContactDetails, applicantWebsiteOrigin }
+  from "../../client/src/lib/companyApplicant";
+import { applicantShownToSite } from "../utils/jobCompanies";
+import { applicationRefusal, applicationSchema } from "../routes/robot-team-access";
 import { REMOVED, containsContactDetails, foldDigits, removeContactDetails, removeIdentifyingDetails, removeNamesNotHeld }
   from "../../client/src/lib/contactRedaction";
 
@@ -89,5 +94,71 @@ describe("ordinary job text keeps its numbers (round 1's allow-list)", () => {
   it("keeps the rules a recorded job's context was bound to (2026-11-19) as they were", () => {
     expect(removeContactDetails("612 345 678", "2026-11-19")).toBe("612 345 678");
     expect(removeContactDetails("٤١٥٥٥٥٠١٩٩", "2026-11-19")).toBe("٤١٥٥٥٥٠١٩٩");
+  });
+});
+
+describe("a company's name, website and estimate carry no contact detail to the site before Accept", () => {
+  it("$41,555,501.99 (415 555 0199) is refused as an estimate, and the site is given no words for it", () => {
+    expect(isEstimateAmount(41_555_501.99)).toBe(false);
+    expect(estimateInWords("per_hour", { lowUsd: 41_555_501.99, highUsd: 41_555_501.99 })).toBeNull();
+  });
+
+  it("caps each way of charging at its own ceiling", () => {
+    expect(isApplicationEstimate({ lowUsd: 45, highUsd: 60 }, "per_hour")).toBe(true);
+    expect(isApplicationEstimate({ lowUsd: 9_000, highUsd: 10_000 }, "per_hour")).toBe(true);
+    expect(isApplicationEstimate({ lowUsd: 9_000, highUsd: 10_001 }, "per_hour")).toBe(false);
+    expect(isApplicationEstimate({ lowUsd: 4_000, highUsd: 1_000_000 }, "subscription")).toBe(true);
+    expect(isApplicationEstimate({ lowUsd: 4_000, highUsd: 1_001_000 }, "subscription")).toBe(false);
+    expect(isApplicationEstimate({ lowUsd: 250_000, highUsd: 10_000_000 }, "purchase")).toBe(true);
+    expect(isApplicationEstimate({ lowUsd: 250_000, highUsd: 10_001_000 }, "purchase")).toBe(false);
+    expect(isApplicationEstimate({ lowUsd: 0.35, highUsd: 0.5 }, "per_task")).toBe(true);
+    expect(estimateInWords("per_hour", { lowUsd: 20_000, highUsd: 20_000 })).toBeNull();
+  });
+
+  it("refuses amounts whose digits read as a phone number, and keeps round and small ones", () => {
+    for (const amount of [41_555_501.99, 5_550_199, 1_234_567, 12_345.67, 10_000.5, 6_123_456.78])
+      expect(amountReadsAsPhoneNumber(amount), String(amount)).toBe(true);
+    for (const amount of [0.35, 45, 45.5, 9_999.99, 99_999, 999_999, 1_250_000, 4_000_000, 10_000_000])
+      expect(amountReadsAsPhoneNumber(amount), String(amount)).toBe(false);
+  });
+
+  it("refuses a company name that holds a contact detail, and keeps a name that is its own website", () => {
+    expect(applicantNameHoldsContactDetails("Zed Robotics · call 415 555 0199", "https://zed.example")).toBe(true);
+    expect(applicantNameHoldsContactDetails("Zed Robotics (sales@zed.example)", "https://zed.example")).toBe(true);
+    expect(applicantNameHoldsContactDetails("Zed Robotics, see zedbots.example", "https://zed.example")).toBe(true);
+    expect(applicantNameHoldsContactDetails("Zed Robotics ٤١٥٥٥٥٠١٩٩", "https://zed.example")).toBe(true);
+    expect(applicantNameHoldsContactDetails("Covariant.ai", "https://covariant.ai")).toBe(false);
+    expect(applicantNameHoldsContactDetails("Zed Robotics", "https://zed.example")).toBe(false);
+    expect(applicantNameHoldsContactDetails("3M Robotics 2000", "https://3m.example")).toBe(false);
+  });
+
+  it("shows the site only the website's origin, and nothing for a messaging, calling or booking link or a shortener", () => {
+    expect(applicantWebsiteOrigin("https://zed.example/contact?phone=4155550199#call")).toBe("https://zed.example");
+    expect(applicantWebsiteOrigin("https://4155550199@zed.example:8443/x")).toBe("https://zed.example");
+    for (const website of ["https://wa.me/14155550199", "https://api.whatsapp.com/send?phone=14155550199", "https://t.me/zedbots",
+      "https://m.me/zedbots", "https://bit.ly/3abc", "https://www.linktr.ee/zed", "tel:+14155550199", "mailto:sales@zed.example",
+      "https://4155550199.example", "http://142.250.80.123/", "javascript:alert(1)"])
+      expect(applicantWebsiteOrigin(website), website).toBeNull();
+  });
+
+  it("the site reads the company's letter when its stored name holds a contact detail, and only its website's origin", () => {
+    const answer = { recordedBy: "company", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION };
+    expect(applicantShownToSite(answer, { company: "Zed Robotics · call 415 555 0199", website: "https://zed.example" })).toBeNull();
+    expect(applicantShownToSite(answer, { company: "Zed Robotics", website: "https://wa.me/14155550199" }))
+      .toEqual({ name: "Zed Robotics", website: null });
+    expect(applicantShownToSite(answer, { company: "Zed Robotics", website: "https://zed.example/about/team" }))
+      .toEqual({ name: "Zed Robotics", website: "https://zed.example" });
+  });
+
+  it("the application form refuses such a name and such a website, saying which", () => {
+    const base = { name: "Ada", email: "ada@zed.example", company: "Zed Robotics", website: "https://zed.example" };
+    expect(applicationSchema.safeParse(base).success).toBe(true);
+    const name = applicationSchema.safeParse({ ...base, company: "Zed Robotics · call 415 555 0199" });
+    expect(name.success).toBe(false);
+    expect(applicationRefusal(name.error!.issues)).toBe(APPLICATION_NAME_HOLDS_CONTACT);
+    const site = applicationSchema.safeParse({ ...base, website: "https://wa.me/14155550199" });
+    expect(site.success).toBe(false);
+    expect(applicationRefusal(site.error!.issues)).toBe(APPLICATION_WEBSITE_NOT_OWN);
+    expect(applicationSchema.safeParse({ ...base, website: "tel:+14155550199" }).success).toBe(false);
   });
 });
