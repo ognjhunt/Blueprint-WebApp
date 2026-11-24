@@ -300,6 +300,11 @@ interface TaskStatusInput {
   preparationOverdue?: boolean;
   /** After hand-off: the job's simulation scene, when the caller looked. */
   sceneProgression?: TaskSceneProgression | null;
+  /**
+   * The job's simulation package is delivered to the website for its current capture (`storedCompanySimulation`): the
+   * stored fact the job page's outlook and a company's "Download the simulation" read. A room package counts.
+   */
+  simulationDelivered?: boolean;
   /** Runs against the scene, when the caller looked. Absent means it did not. */
   screening?: SceneScreening | null;
   /**
@@ -574,6 +579,32 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  // A hold is said to the site about the simulation, as its email says it, never "held" about the job:
+  // the site has its answer whatever happens here.
+  const sceneHold = sceneProgressionHold(input.sceneProgression);
+  const holdHeadline = sceneHold
+    ? `${simulationHoldSentence(sceneHold, input.sceneProgression?.holdDetail)} ${ANSWER_STAYS_ON_JOB_PAGE}` : null;
+  // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
+  const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome
+    ? sceneWaitMessage(input.sceneProgression.sceneOutcome) : null;
+  // The simulation of the site is ready once its package is published (the scene's "ready" reads the same stored
+  // package) or delivered while a newer build of the scene or its object is still under way. An ending recorded by the
+  // preparation or the scene, and a wait on the site's own step, stay ahead of it.
+  const preparationEnded = input.preparationStatus?.state === "authority_ended"
+    || input.preparationStatus?.state === "awaiting_inputs" && input.preparationStatus.robotFit?.route === "geometry_only";
+  const simulationReady = input.sceneProgression?.state === "ready" || input.simulationDelivered === true
+    && !preparationEnded && input.sceneProgression?.state !== "ended" && !sceneWait?.operatorAction;
+
+  // A hold, or a simulation whose package is published: nothing is needed from the site either way.
+  if (holdHeadline || simulationReady) {
+    return {
+      ...base,
+      decision: "assessing",
+      headline: `${holdHeadline ?? "The simulation of your site is ready."} Nothing is needed from you.`,
+      operatorAction: null,
+    };
+  }
+
   // Preparation is its own required-stage observation. A viewable preview
   // cannot settle it, and a source-stage handoff cannot become a robot result.
   const preparation = input.preparationStatus;
@@ -651,14 +682,6 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: null,
     };
   }
-  // A hold is said to the site about the simulation, as its email says it, never "held" about the job:
-  // the site has its answer whatever happens here.
-  const sceneHold = sceneProgressionHold(input.sceneProgression);
-  const holdHeadline = sceneHold
-    ? `${simulationHoldSentence(sceneHold, input.sceneProgression?.holdDetail)} ${ANSWER_STAYS_ON_JOB_PAGE}` : null;
-  // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
-  const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome
-    ? sceneWaitMessage(input.sceneProgression.sceneOutcome) : null;
   const previewReady = input.scenePreviewReady ? "A preview of your site is ready. " : "";
   // A wait on the site is its one step, so it comes ahead of the optional card below.
   if (sceneWait?.operatorAction) {
@@ -671,16 +694,6 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "assessing",
       headline: `${previewReady}${sceneWait?.headline ?? "We're preparing the simulation of your site. Nothing is needed from you."}`,
-      operatorAction: null,
-    };
-  }
-
-  // A hold, or a simulation whose package is published: nothing is needed from the site either way.
-  if (holdHeadline || input.sceneProgression?.state === "ready") {
-    return {
-      ...base,
-      decision: "assessing",
-      headline: `${holdHeadline ?? "The simulation of your site is ready."} Nothing is needed from you.`,
       operatorAction: null,
     };
   }
@@ -782,6 +795,8 @@ export function taskStatusInputFrom(record: {
   targetChoiceRestoringGuess?: boolean;
   preparationOverdue?: boolean;
   sceneProgression?: TaskSceneProgression | null;
+  /** `storedCompanySimulation(session, captureId) !== null`, when the caller read the capture's session. */
+  simulationDelivered?: boolean;
   stage: ReadinessStage | null;
   screening?: SceneScreening | null;
   site_task_triage?: { disposition?: string | null } | null;
@@ -823,6 +838,7 @@ export function taskStatusInputFrom(record: {
     ...(record.targetChoiceRestoringGuess ? {targetChoiceRestoringGuess: true} : {}),
     ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
     sceneProgression: record.sceneProgression ?? null,
+    ...(record.simulationDelivered === true ? { simulationDelivered: true } : {}),
     briefDrafted: record.briefDrafted,
     briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
     stage: record.stage,
