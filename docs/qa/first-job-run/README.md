@@ -18,6 +18,18 @@ The audit this follows is in pull request 1374
 
 For a session that picks this up. Newest first.
 
+- 2026-11-24 02:10Z. **Job 1 is through.** Its room shipped by itself on the
+  first preparation retry under release `8bcf6bf` (01:48 to 01:54Z); the
+  company saw "Ready to test", downloaded the 147.6 MB package and opened it
+  (sections "The simulation package" and "Cost"); the site withdrew at
+  02:01:30Z and the job left Find jobs within 53 s (section "Withdrawal").
+  Done items 1 to 6 and 8 have their evidence. Open: gap 27 (**privacy**:
+  the website's withdrawal notice to the Pipeline is not configured in
+  production, so the host keeps the files and the site's page never reaches
+  "done"; the owner's set-up), gap 26, gaps 24 and 25, gap 17's build, pull
+  request 1424 (owner's money decision), and a host deploy for 3714. Check
+  the website's own deletion of job 1 (first attempt due 02:36:30Z) and the
+  host's withdrawal lane with `counts/myjob-withdrawal.mjs` and `door status`.
 - 2026-11-24 01:30Z. **The host runs `8bcf6bf`** since 01:23:31Z: another
   operator deployed `main`'s newest commit, which contains 3708, 3709 and
   3710, so this session did not stack a deploy (`main`'s CI attested 3709's
@@ -325,6 +337,81 @@ Times are UTC.
 | 2026-11-23 19:11:43 | The host runs Pipeline release `3da38f4` (pull requests 3702, 3703, 3707). 11 min 56 s from the request at 18:59:47. | the door's deploy result and `door status` `active_release.commit` |
 | 2026-11-23 19:39:03 | **First look made.** Job 1's video reading completed by itself after the fix for videos over 64 MB went live (run started 19:37:36). 4 h 17 min 43 s after Send; with that fix a reading takes about 1.5 min. | job 1's own `agentRuns` rows for its review id; `capture_coverage_review { state completed, recovery_cause video_too_large }` |
 | 2026-11-24 01:23:31 | The host runs Pipeline release `8bcf6bf`, deployed by another operator; it contains pull requests 3708, 3709 and 3710. | background watch on `door status` (`active_release.commit`): `3da38f4` at 01:21:22, `8bcf6bf` at 01:23:31, deploy unit gone at 01:24:34 |
+| 2026-11-24 01:48:25 to 01:51:02 | Job 1's preparation ran for the 16th time, the first under the new release, and completed: hand-off `room_package_written`, no blockers. Its retries had been hourly; nobody touched the job. | `door cat` of `pipeline_job_ledger.json` (`attempt_count 16`, `status completed`) and `pipeline/website_scene_preparation/handoff.json` |
+| 2026-11-24 01:54:34 | **Simulation ready.** The package was built at 01:51:57 (147,611,237 bytes) and delivered to the website at 01:54:34. 10 h 33 min after Send; 6 h 55 min of that after the room itself was built (18:59:32), waiting for gap 19's fix and its deploy. | `door cat` of `pipeline/company_simulation/company_simulation.json` (`built_at_epoch`, `delivered.at_epoch`, `package.size_bytes`) |
+| 2026-11-24 01:57 to 01:58 | The company's Find jobs card reads "Scrape and pour cake batter", "Austin, Texas, United States", "Ready to test"; its job page offers "Download the simulation"; the download is 147,611,237 bytes, the same bytes as on the host. | `evidence/company-find-jobs-ready-to-test-1280.png`, `evidence/company-job-with-simulation-1280.png` and `-390.png` (390 px: no sideways scroll); `sha256sum` of the download `2c7d5b0d…512b5a` = `archive.digest` on the host |
+| 2026-11-24 02:01:30 | **The site withdrew the job** from its job page: "Stop using my video", then "Yes, stop using my video". HTTP 202, state `uploads_stopped_cleanup_pending`. | the page's own POST to `/api/self-capture/uploads/…/withdrawal`; `capture_withdrawal.requestedAtIso 2026-11-24T02:01:30.234Z` |
+| 2026-11-24 02:01:34 | The host asked the website again for the right to share and was refused. | `door cat` of `pipeline/company_clip/statement_check.json`: `outcome rights_refused`, `checked_at_epoch` 02:01:34 |
+| 2026-11-24 02:02:21 | The company was emailed "A job you were sent has been withdrawn": "… It is no longer listed in Find jobs. If you saved its video or its simulation, delete your copy now." | the company test address, Gmail message time |
+| 2026-11-24 02:02:23 | **Left Find jobs**: 0 cards, "No jobs yet."; the job's page reads "This job is no longer available" (API 404), with no video and no download. 53 s after the press. | `evidence/company-find-jobs-after-withdrawal-1280.png`, `evidence/company-job-after-withdrawal-1280.png` and `-390.png` |
+
+
+## The simulation package
+
+Downloaded as the company at 01:58Z: `simulation.zip`, 147,611,237 bytes,
+sha256 `2c7d5b0de1a25e37aefefc4136a5969c631e2f2d9bba2cc88aeac7cc3a512b5a`
+(the host's `archive.digest`). The zip tests clean and holds five files:
+
+| File | Bytes | What it is |
+|---|---|---|
+| `README.txt` | 2,596 | how the pieces fit, units, how it was made, notes, terms |
+| `scene.usda` | 804 | the scene to open: `/World/Room` and a hidden `/World/RoomCollision` |
+| `scene/room.usdc` | 130,478,703 | the look of the site, a Gaussian splat as USD |
+| `scene/room.ply` | 136,000,417 | the same look as a splat PLY, 2,000,000 Gaussians |
+| `scene/room_collision.usdc` | 18,718,926 | the site's surfaces for contact, one mesh |
+
+It opens: a USD reader loads `scene.usda` (up axis Z, 8 prims), both
+references resolve, and the collision mesh spans about 7.3 by 7.0 by 2.9 of
+the room's own units. The README carries the flags this job earned: "Blueprint
+could not prepare the job's object.", "3 objects the job involves were taken
+out of the room scan and are not in this package.", "Sizes in this room are
+relative; its scale was not measured." and "This package includes no success
+rule from Blueprint for this job".
+
+## Cost
+
+Job 1's ledger, against its $40 cap (read 2026-11-24 02:00Z):
+
+| Provider | Settled | Source |
+|---|---|---|
+| World Labs | $6.08 | host meter and the website's job ledger agree |
+| OpenAI | $3.383025 | both agree; $0.589516 of it is two planner calls the provider refused and did not bill (gap 22) |
+| Google | $0.34775 on the host meter, $0.32775 on the website's ledger | `door status` `spend_guard.account_monthly_spend.jobs`; `inboundRequests/<job>.website_preparation_reservations` (37 reservations) |
+| **Total** | **$9.810775** (host meter; $9.790775 on the website's ledger), nothing held | the $0.02 between the two is not explained: unverified |
+
+Outside the job's ledger: the video reading's one completed run, estimated at
+$0.0038 (`agentRuns`, `cost_estimate_usd`; the run's price is recorded as
+unknown). What the providers actually billed is about $9.22.
+
+## Withdrawal: what is still stored, and why
+
+Read at 02:04Z, three minutes after the press.
+
+- **Gone at once:** the job's card and page for companies (website, 53 s); the
+  host's right to share (refused at 02:01:34Z); the company was asked by email
+  to delete any copy it saved. The site reads: "Video withdrawn. … Your job
+  has left every company's view, and no new uploads are accepted. Each company
+  it was sent to is asked to delete any copy it saved. We're stopping our use
+  of your video now; this page updates when that's done. We keep a copy of the
+  video and any results already made, as our Privacy Policy describes."
+- **Still on the host:** the video (`raw/walkthrough.mp4`, 76,974,681 bytes),
+  the room build (`pipeline/atlas/`), the sound-free clip (2,047,904 bytes),
+  the simulation package (147,611,237 bytes) and the job's ledgers and
+  records. Why: the host deletes a withdrawn site's files only after the
+  website's withdrawal notice is acknowledged, no hold applies, money is
+  settled, a cool-off has passed, and the owner's standing approval is on the
+  host (`door status`: `website_withdrawal_deletion.approval_status absent`;
+  `docs/runbooks/beta-operations.md`, the standing-approval section). The
+  notice has not arrived: see gap 27.
+- **Still on the website:** the job's record with the withdrawal
+  (`capture_withdrawal`: `pipelineAcknowledged false`, `deletionConfirmed
+  false`, `retainedAuditRecords true`); the website's own deletion is `pending`
+  with its first attempt due 02:36:30Z (not yet seen); the introduction and
+  its billable event, which are records of something that happened.
+- **Kept by design:** the Privacy page's retention schedule for site footage,
+  and the audit records of the withdrawal itself.
+- This is the first withdrawal ever recorded in production (counts: 1 pending,
+  0 acknowledged).
 
 ## Gaps
 
@@ -426,6 +513,9 @@ and its output, or an exact file and line. Each row gets its own pull request;
 | 23 | The intake reliability spec fails at random: it reloads the start form before the draft is saved. It turned pull request 1429's `core-journey` check red although that change touches only the company's job page. | CI job 138122917845: case A-J-006, `#start-email` empty after the reload; the draft is written under a cross-tab lock (`client/src/lib/siteCaptureDraft.ts`). | WebApp pull request 1430 (test only): the spec waits for the saved draft, as `e2e/description-first-intake.spec.ts` already does. | merged 01:06Z (`d44d8f3`) |
 | 24 | A room already built and archived never gets its scale measured later, and a better room does not replace a shipped one by itself: nothing runs a ready job's scale step again after the planner call reopens, and a new Atlas result is replayed into a shipped package only by an operator. Job 1 is in this state. | The gap 22 worker's trace: `website_atlas_preview._reopen_parked_after_release` covers failed and needs-input jobs only; `website_held_handoff_replay.superseded_atlas_result` ("Only the operator replays it"). | Pipeline: a once-per-release re-ask for ready jobs whose scale step ended without an answer; a measured result rebuilds the shipped package by itself. | not started |
 | 25 | **Money.** Two other paid calls of the room build keep their full hold when the provider refuses for no credit: the image completion stays "submitting" with its hold and asks for reconciliation; the object research retires a refusal only when no reservation was recorded. | Read by the gap 22 worker: `website_image_completion.py:717-727`; `website_object_spec_research.py:781-787, 862-865`. Not seen live. | Pipeline: the same unbilled-refusal rule for both. | not started |
+| 26 | The site's page says "We're building the simulation of your site." after the simulation is delivered and a company has downloaded it: the page calls it ready only for a fully prepared scene, never for a room package. | Job 1's page at 01:59Z, five minutes after delivery; `server/utils/jobOutlook.ts:90-91` (`simulation_ready` only when the scene's state is `ready`). | WebApp: the page says "The simulation of your site is ready." once the package is delivered to companies. | not started |
+| 27 | **Privacy.** The website cannot tell the Pipeline that a site withdrew: the notice is "not configured" in production, retried every minute for good, and nothing warns anyone (`/health/ready` answers `ready`, 0 blockers). The Pipeline never acknowledges, so its deletion lane never plans the site and the site's page never moves past "We're stopping our use of your video now". Sharing does stop at once by another path. | Job 1, the first withdrawal in production: `capture_withdrawal.acknowledgementBlocker capture_lifecycle_pipeline_base_url_missing`, `captureWithdrawalOutbox.lastTransportStatus not_configured` after 3 attempts; `server/utils/captureLifecycleForwarding.ts:60-90`; `docs/architecture/capture-upload-sessions.md:171-199` (the setting is documented); the withdrawal worker runs in the worker service (`server/worker.ts:34`). | The owner sets the Pipeline's address and token for it on the website's worker service, and puts the standing approval on the host if deletions are to run. In code: readiness and an alert when a withdrawal cannot be sent. | **needs the owner**; the code part not started |
+| 28 | Two small untruths: the package's README says "Sizes, distances and positions are estimates from that video" beside "Sizes in this room are relative; its scale was not measured."; and the withdrawal email names the job "Automation job" while its card read "Scrape and pour cake batter". | the downloaded `README.txt`; the email of 02:02:21Z. | not assigned | noted |
 
 Run by the pre-flight and found working: the Pipeline's real clip for a job
 under `2026-11-23.v6` is accepted by the website's real route (two sources,
@@ -444,6 +534,7 @@ comes out as a sound-free H.264 clip; the emulator journey on the 1410 branch.
 - Decided by this session under the 15:35Z rule, yours to flip: a room ships flagged when its scale step ended without a scale (pull request 3709); no room ships while a site's correction of the job's object is still being applied (pull request 3708).
 - Money, to decide: job 1's ledger holds about $0.59 settled for three planner calls the provider refused and did not bill (gap 22).
 - Render: the website's service is on the starter plan; reading a large video now re-encodes it there (gap 20).
+- **Privacy, set-up (gap 27):** the website's worker service has no Pipeline address for the withdrawal notice (`CAPTURE_LIFECYCLE_PIPELINE_BASE_URL`, or `CAPTURE_UPLOAD_INTAKE_FORWARD_URL` with its token and client id), and the host has no standing approval for withdrawal deletions. Until both are set, a withdrawn site's files stay on the host and its page never says the stop is done. Job 1 is in that state.
 - **Money, to decide (gap 18):** does the video reading's spend count on the job's $40 cap? Your decision of 2026-11-20, as the code records it, says the first look and brief reading stay outside every job's cap and count as account overhead. Pull request 1418 (merged 2026-11-23, to stop unbounded paid re-reads) made the reading's own admission check the job's cap, and pull request 1424 would make every other admission count it too. Stricter either way, but both cannot be the rule.
 - **Now: add credit to the OpenAI account** (or switch on automatic
   recharge). Job 1's room build and first look wait on it. Found 17:47Z.
