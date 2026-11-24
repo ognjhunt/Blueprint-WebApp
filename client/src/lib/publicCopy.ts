@@ -58,7 +58,9 @@ export const SAMPLE_JOB = {
   liveAlso: [
     "The site's answers to a few questions about the job, such as the heaviest item and the peak rate.",
     "A first look on paper at which kinds of robot most likely fit, from published specifications.",
-    "A simulation of the site with the job's object in it, when it is ready, to download and open in your own tools.",
+    // "where it can be built" (round 2, 2026-11-24): the Pipeline ships the site's room without the object when the
+    // object cannot be built, and says so on the company's page.
+    "A simulation of the site with the job's object in it where it can be built, when it is ready, to download and open in your own tools.",
   ],
   introduction: "The site sees your company's name and website when you answer. You see no site name, address or contact details until the site accepts you. Then we email you both each other's details.",
   cta: "Apply to see jobs",
