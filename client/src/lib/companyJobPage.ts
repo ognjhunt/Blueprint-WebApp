@@ -222,6 +222,17 @@ export const FIRST_LOOK_STATUS = {
 /** Said for a job whose site has not said what counts as done. */
 export const NO_SUCCESS_RULE = "The site has not said what counts as done yet.";
 
+/**
+ * Said beside the download when the Pipeline says the package is the site's room without the job's object
+ * (`object_included: false`). The two tested answers stay: a company can test in the site's room with a stand-in of its
+ * own, sized from the facts about the object, and a tested answer says what it tested.
+ */
+export const SIMULATION_WITHOUT_OBJECT = "This simulation is the site's room without the job's object in it. To test the job, "
+  + "add a stand-in of your own, sized from the facts about the object below, and say what you tested in your answer.";
+
+/** Said while the facts about the job's object are being checked for names and contact details before they are shown. */
+export const PACKET_FACTS_PENDING = "The facts about the object are being checked for names and contact details. They appear here once that is done.";
+
 /** About the site, without anything that identifies it. */
 export const SITE_IDENTITY_RULE = "The site's name, street address and contact details come only with an introduction the site asks for.";
 export const SITE_AGREED_SHARING = "The site agreed, when it sent the job, to share it with approved deployment companies.";

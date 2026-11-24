@@ -475,6 +475,10 @@ describe("the site's email is a durable intent of the activity", () => {
   });
 
   it("leaves neither the activity nor its email when the transaction fails, on both paths", async () => {
+    // The title's object name from the video reading is read by the model pass before the send (`jobAutoSend`), in a
+    // transaction of its own; read first here so the failing commit is the send's.
+    const { screenText } = await import("../utils/freeTextScreening");
+    expect(await screenText(ID, "site", "carton")).toBe("carton");
     failNextCommit();
     await expect(sendToCompanies()).rejects.toThrow("SYNTHETIC commit failure");
     expect(companyRows()).toEqual([]);

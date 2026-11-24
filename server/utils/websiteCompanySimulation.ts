@@ -50,6 +50,9 @@ export const websiteCompanySimulationSchema = z.object({
   permission_basis: z.enum(["site_sharing_statement", "blueprint_owned_capture", "internal_test"]),
   statement_version: z.string().max(64).nullable(),
   updated_at_epoch: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  // Whether the package holds the job's object (round 2, 2026-11-24): false when the Pipeline ships the site's room
+  // without it, flagged. Optional and sealed by `simulation_digest` when sent; a record without it reads as before.
+  object_included: z.boolean().optional(),
   simulation_digest: sha,
 }).strict();
 export type WebsiteCompanySimulation = z.infer<typeof websiteCompanySimulationSchema>;

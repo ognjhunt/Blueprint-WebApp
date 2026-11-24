@@ -352,10 +352,13 @@ describe("before the site asks for an introduction, nothing a company receives n
     expect(item.sentence).toMatch(/^Stack 12 kg cartons onto the pallet at the site/);
     expect(item.sentence).toContain("We stack 12 cartons on 3 pallets in aisle 4, 2 shifts, 24/7.");
     expect(item.title).toBe("Carton palletizing opportunity");
-    // The Pipeline's facts about the object reach the page, each line cleaned; the site answered the weight, so
+    // The Pipeline's facts about the object reach the page; a line with any of the site's identity in it is left out
+    // whole (round 2, 2026-11-24), as is the measured line with its phone and email. The site answered the weight, so
     // Blueprint's own weight estimate is left out for the site's answer.
-    expect(item.packetFacts.object).toEqual(["Object: The site carton.", "Goes to: the dock; about 80 cm above the floor."]);
+    expect(item.packetFacts.object).toEqual([]);
+    expect(item.packetFacts.measured).toEqual([]);
     expect(item.packetFacts.estimated).toEqual(["How many an hour: 40 to 80 (Blueprint's estimate; the site did not say)."]);
+    expect(item.packetFactsPending).toBeUndefined();
     expect(item.jobFacts).toContain("Weight: 5 to 15 kg (11 to 33 lb)");
   });
 

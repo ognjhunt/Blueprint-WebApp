@@ -23,6 +23,7 @@ import { newJobEmail, openJobsEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { companyJobHeadline, countryOf, knownSiteIdentity } from "./companyJobPage";
+import { loadScreenings, screenAndWait } from "./freeTextScreening";
 import { readJobFacts } from "./jobFacts";
 import { rateInWords } from "../../client/src/lib/companyJobPage";
 import { jobTitleForDisplay } from "../../client/src/types/taskBrowse";
@@ -68,6 +69,16 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
   if (!db) return { sent: false, reason: "store_unavailable" };
   const store = db;
   const jobRef = store.collection("inboundRequests").doc(requestId);
+  // What the model pass over free text has read for this job: the title's object name only once it has
+  // (`companyJobHeadline`). An object name it has not read yet is read now, waiting a few seconds; without it the
+  // title names the kind of job only.
+  let screenings = await loadScreenings(requestId);
+  const before = await loadCompanyJobAccess(requestId).catch(() => null);
+  if (before?.record && before.access.listed) {
+    const known = await knownSiteIdentity(before.record).catch(() => null);
+    companyJobHeadline(before.record, before.access.details.taskFamily, jobTitleForDisplay(before.access.details.title), known, screenings);
+    if (screenings.missing.length && await screenAndWait(requestId, screenings.missing, 5_000)) screenings = await loadScreenings(requestId);
+  }
   return store.runTransaction(async (tx): Promise<AutoSendResult> => {
     const { record, access } = await loadCompanyJobAccess(requestId, undefined, tx);
     if (!record || !access.listed) return { sent: false, reason: "not_listed" };
@@ -96,9 +107,9 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
     const jobUrl = companyJobUrl(requestId);
     const country = await countryOf(record);
     // The job's title and how often it runs, as its page leads with them (`companyJobHeadline`, `rateInWords`); the
-    // reading's object name only when the site's identity can be read.
+    // reading's object name only when the site's identity can be read and the model pass over it has succeeded.
     const known = await knownSiteIdentity(record).catch(() => null);
-    const title = companyJobHeadline(record, access.details.taskFamily, jobTitleForDisplay(access.details.title), known);
+    const title = companyJobHeadline(record, access.details.taskFamily, jobTitleForDisplay(access.details.title), known, screenings);
     const often = rateInWords(readJobFacts(record));
     for (const company of companies) {
       tx.set(jobRef.collection(COMPANY_SENDS_COLLECTION).doc(`system-${company.id}`), { schemaVersion: 1, companyId: company.id,

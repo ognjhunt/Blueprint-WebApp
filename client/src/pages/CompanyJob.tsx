@@ -15,7 +15,8 @@ import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
-import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, NO_SUCCESS_RULE, type FitSummaryRow } from "@/lib/companyJobPage";
+import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, NO_SUCCESS_RULE, PACKET_FACTS_PENDING, SIMULATION_WITHOUT_OBJECT,
+  type FitSummaryRow } from "@/lib/companyJobPage";
 import { SITE_REPLY_BEING_PREPARED, SITE_REPLY_LIMIT, SUCCESS_RULE_CANT_BE_SHOWN } from "@/lib/companiesRead";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } from "@/lib/companySignInLink";
@@ -301,6 +302,8 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
           {page.simulationDownload?.state === "ready"
             ? <p className="ms-field-hint">A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.</p>
             : null}
+          {page.simulationDownload?.state === "ready" && page.simulationDownload.objectIncluded === false
+            ? <p role="note">{SIMULATION_WITHOUT_OBJECT}</p> : null}
           {page.simulation.state === "ready"
             ? <p><a className="ms-button" href={page.simulation.viewerUrl}>View the simulation of the site</a></p>
             : page.simulationDownload?.state !== "ready" ? <p role="status">{page.simulationStatus ?? SIMULATION_NOT_FINISHED}</p> : null}
@@ -315,7 +318,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
               <ul aria-label="Measured">{page.packetFacts.measured.map(line => <li key={line}>{line}</li>)}</ul></>}
             {page.packetFacts.estimated.length > 0 && <><h3>Estimated</h3>
               <ul aria-label="Estimated">{page.packetFacts.estimated.map(line => <li key={line}>{line}</li>)}</ul></>}
-          </> : <p>{NO_PACKET_FACTS}</p>}
+          </> : <p role={page.packetFactsPending ? "status" : undefined}>{page.packetFactsPending ? PACKET_FACTS_PENDING : NO_PACKET_FACTS}</p>}
         </section>
 
         <section aria-label="A visit must confirm">
