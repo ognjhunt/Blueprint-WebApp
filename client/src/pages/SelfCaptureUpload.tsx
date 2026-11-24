@@ -100,6 +100,10 @@ export const STATUS_POLL_TIMEOUT_MS = 15_000;
  * read: two whole poll cycles (a 15-second timeout and the 6-second wait, twice). Past it the status is unknown again.
  */
 export const LAST_STATUS_HOLD_MS = 45_000;
+/** Past the hold, when reads keep failing on our side: said, with a retry, instead of "Checking…" for ever. */
+export const STATUS_READ_FAILED = "We could not check where your job stands just now. We keep trying.";
+export const STATUS_READ_RETRY = "Try again";
+export const applicantsAsOf = (time: string) => `Your applicants as of ${time}:`;
 /** How long the last simulation link stays after its read: inside the 15-minute view ticket the link carries. */
 export const SCENE_LINK_KEEP_MS = 10 * 60_000;
 
@@ -344,6 +348,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // read's, said with its time, until LAST_STATUS_HOLD_MS has passed).
   const [statusReadAt, setStatusReadAt] = useState<number | null>(null);
   const [statusStale, setStatusStale] = useState(false);
+  // The last read failed on our side (5xx, the network, a timeout). Past the hold the page says so, with a retry, and
+  // keeps the last applicants it read, dated (stress test, 2026-11-24). A refused read (4xx) is not this: it is unknown.
+  const [statusReadFailing, setStatusReadFailing] = useState(false);
   const lastStatusReadAt = useRef<number | null>(null);
   // When the server last gave an outlook in time. A late one keeps that outlook only within the same hold as a kept
   // status; past it the page shows its plain working screen, never a phase it can no longer vouch for.
@@ -547,13 +554,15 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     // simulation link cleared. A read that fails on our side (5xx, the network, a timeout) after a good one keeps
     // that status, said with its time, within the hold; otherwise the status is unknown, as it is before any read.
     const readFailed = (refused: boolean) => {
+      setStatusReadFailing(!refused);
       const at = lastStatusReadAt.current;
       if (!refused && at !== null && Date.now() - at < LAST_STATUS_HOLD_MS) { setStatusStale(true); return; }
       lastStatusReadAt.current = null;
       setStatusStale(false);
       setCurrentStatusKnown(false);
+      // A refused read keeps nothing of the job: no simulation link and no applicants.
       setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null,
-        ...(refused ? { sceneViewUrl: null } : {}) } : null);
+        ...(refused ? { sceneViewUrl: null, companyStatus: null } : {}) } : null);
     };
     async function poll() {
       // Every read is bounded by its own timer (AbortSignal.timeout is missing in older Safari).
@@ -576,6 +585,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           setOutlookKept(keptOutlook);
           setStatusReadAt(readAt);
           setStatusStale(false);
+          setStatusReadFailing(false);
           setCurrentStatusKnown(true);
           setBlueprintActionPending(data.status.outcome?.actionOwner === "blueprint" || data.status.outcome?.actionOwner === "none");
           setHeldWithoutStep(data.status.outcome?.actionOwner === "none");
@@ -797,9 +807,19 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     </details>
   );
 
-  // While the job's status cannot be read, the page says so rather than nothing.
-  const statusUnknown = ownerJob && !currentStatusKnown
-    ? <p role="status" className="ms-field-hint">Checking where your job stands…</p> : null;
+  // While the job's status cannot be read, the page says so rather than nothing: checking, or that the read failed, with a
+  // retry (the page also keeps trying on its own).
+  const statusUnknown = ownerJob && !currentStatusKnown ? statusReadFailing
+    ? <div role="alert" className="site-status-failed">
+      <p className="ms-field-hint">{STATUS_READ_FAILED}</p>
+      <button type="button" className="ms-text-link" onClick={() => { setStatusReadFailing(false); setStatusRefresh(value => value + 1); }}>
+        {STATUS_READ_RETRY}</button>
+    </div>
+    : <p role="status" className="ms-field-hint">Checking where your job stands…</p> : null;
+  // The applicants of the last good read, kept while reads fail on our side, said with their time. Never after a refused
+  // read (cleared there) or a withdrawal.
+  const keptCompanyStatus = scope === "owner" && !currentStatusKnown && statusReadFailing && !withdrawn && statusReadAt !== null
+    && status?.companyStatus?.sharing && status.companyStatus.sharing.state !== "not_shared" ? status.companyStatus : null;
   /** Opens the job description editor under "More for this job" and brings it into view. */
   const openBriefEditor = () => {
     setEditingBrief(true);
@@ -979,6 +999,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         <a className="ms-text-link" href={sceneViewUrl} target="_blank" rel="noreferrer">{VIEW_SIMULATION_LABEL}</a>
       </p>}
       {!answer && statusUnknown}
+      {!answer && keptCompanyStatus && <>
+        <p className="ms-field-hint">{applicantsAsOf(new Date(statusReadAt!).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</p>
+        <JobCompanyResponses token={token} sharing={keptCompanyStatus.sharing} activity={keptCompanyStatus.companies}
+          onChanged={() => setStatusRefresh(value => value + 1)} />
+      </>}
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
         && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
           onAnswered={() => setStatusRefresh(value => value + 1)} />}

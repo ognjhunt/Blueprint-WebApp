@@ -9,7 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import SelfCaptureUpload, { LAST_STATUS_HOLD_MS, SCENE_LINK_KEEP_MS, STATUS_POLL_TIMEOUT_MS } from "@/pages/SelfCaptureUpload";
+import SelfCaptureUpload, { LAST_STATUS_HOLD_MS, SCENE_LINK_KEEP_MS, STATUS_POLL_TIMEOUT_MS, STATUS_READ_FAILED, STATUS_READ_RETRY, applicantsAsOf } from "@/pages/SelfCaptureUpload";
 import { RECORDING_RIGHTS_STATEMENT_V6 } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 import { allZeroEvaluation, cannotAssessAnswer, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
@@ -145,9 +145,10 @@ describe("video first owner return", () => {
       expect(screen.getByRole("region", { name: "Where your job stands" })).toBeVisible();
       expect(screen.getByText(/^This is your job as of .+\. We could not check for anything newer just now and are trying again\.$/)).toBeVisible();
       expect(screen.queryByText("Checking where your job stands…")).not.toBeInTheDocument();
-      // Past the hold, unknown is unknown again.
+      // Past the hold, unknown is unknown again, and the page says the read failed, with a retry (stress test, 2026-11-24).
       await act(async () => { await vi.advanceTimersByTimeAsync(LAST_STATUS_HOLD_MS); });
-      expect(screen.getAllByText("Checking where your job stands…")).toHaveLength(1);
+      expect(screen.getByRole("alert")).toHaveTextContent(`${STATUS_READ_FAILED}${STATUS_READ_RETRY}`);
+      expect(screen.queryByText("Checking where your job stands…")).not.toBeInTheDocument();
       expect(screen.queryByRole("region", { name: "Where your job stands" })).not.toBeInTheDocument();
       expect(screen.queryByText(/^This is your job as of /)).not.toBeInTheDocument();
       available = true; stopped = false;
@@ -211,13 +212,55 @@ describe("video first owner return", () => {
       // A 503 after a good read holds that status, said as of its time.
       expect(screen.getByText(AS_OF)).toBeVisible();
       expect(sceneLink()).toBeVisible();
-      // Past the hold the status is unknown, and the link, which changes no status, is still there.
+      // Past the hold the status is unknown, said as a failed read, and the link, which changes no status, is still there.
       await flush(LAST_STATUS_HOLD_MS);
-      expect(screen.getAllByText(UNKNOWN)).toHaveLength(1);
+      expect(screen.getByText(STATUS_READ_FAILED)).toBeVisible();
+      expect(screen.queryByText(UNKNOWN)).not.toBeInTheDocument();
       expect(sceneLink()).toBeVisible();
       // Not past its view ticket.
       await flush(SCENE_LINK_KEEP_MS);
       expect(sceneLink()).not.toBeInTheDocument();
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
+
+  // Stress test, 2026-11-24: a failing status read left "Checking where your job stands…" and dropped the applicants.
+  it("says a failing status read with a retry, keeps the last applicants it read, and drops them once a read is refused", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const harness = scenePage();
+    const companies = { interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "2026-11-20T10:00:00.000Z",
+      state: "interested", canIntroduce: true, applicant: { name: "Northwind Robotics", website: null } }] };
+    const read = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const answered = await harness.read(input, init) as { ok: boolean; status: number; json: () => Promise<Record<string, unknown>> };
+      if (String(input) !== `/api/site-task-brief/${TOKEN}/status` || !answered.ok) return answered;
+      const body = await answered.json();
+      return { ...answered, json: async () => ({ ...body, companyStatus: { sharing: { state: "visible", sharedAtIso: "2026-11-19T10:00:00.000Z" }, companies } }) };
+    });
+    vi.stubGlobal("fetch", read);
+    const page = render(<SelfCaptureUpload />);
+    const reads = () => read.mock.calls.filter(([input]) => String(input) === `/api/site-task-brief/${TOKEN}/status`).length;
+    try {
+      await flush();
+      expect(screen.getByRole("heading", { name: "Northwind Robotics" })).toBeVisible();
+      harness.state.mode = 503;
+      await flush(6000);
+      await flush(LAST_STATUS_HOLD_MS);
+      expect(screen.getByRole("alert")).toHaveTextContent(STATUS_READ_FAILED);
+      expect(screen.getByText(new RegExp(`^${applicantsAsOf(".+").replace(":", "")}:$`))).toBeVisible();
+      expect(screen.getByRole("heading", { name: "Northwind Robotics" })).toBeVisible();
+      // "Try again" reads at once; a good read ends the failure.
+      harness.state.mode = "ok";
+      const before = reads();
+      fireEvent.click(screen.getByRole("button", { name: STATUS_READ_RETRY }));
+      await flush();
+      expect(reads()).toBe(before + 1);
+      expect(screen.queryByText(STATUS_READ_FAILED)).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Northwind Robotics" })).toBeVisible();
+      // A refused read keeps nothing of the job.
+      harness.state.mode = 404;
+      await flush(6000);
+      expect(screen.queryByRole("heading", { name: "Northwind Robotics" })).not.toBeInTheDocument();
+      expect(screen.queryByText(STATUS_READ_FAILED)).not.toBeInTheDocument();
+      expect(screen.getAllByText(UNKNOWN)).toHaveLength(1);
     } finally { page.unmount(); vi.useRealTimers(); }
   });
 
@@ -377,7 +420,7 @@ describe("video first owner return", () => {
     fireEvent.change(screen.getByRole("combobox", { name: /would you consider a pilot/ }), { target: { value: "evaluation_only" } });
     fireEvent.change(screen.getByRole("textbox", { name: /Your name/ }), { target: { value: "Synthetic Operator" } });
     fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach Blueprint/);
+    expect(await screen.findByText(/could not reach Blueprint/)).toHaveAttribute("role", "alert");
     expect(screen.getByRole("combobox", { name: /would you consider a pilot/ })).toHaveValue("evaluation_only");
     fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
     await screen.findByRole("button", { name: "Change my job description" });
