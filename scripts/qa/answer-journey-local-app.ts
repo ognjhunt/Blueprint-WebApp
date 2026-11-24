@@ -25,6 +25,12 @@
  *    pass (`deliverOutbox`) with the transport configured only for that pass; requests to the
  *    provider host are answered here and the payloads (to, Reply-To, subject) are returned.
  *    Nothing reaches the provider and no email is delivered.
+ *  - THE MODEL PASS OVER FREE TEXT (`server/utils/freeTextScreening.ts`). A SCRIPTED, SYNTHETIC pass
+ *    (`scriptedRedactor` below) points at the names the specs plant and at nothing else; no model
+ *    reads the words. Everything around it is real: the deterministic passes before and after, the
+ *    claim and the per-job cap, the stored result, and the other side reading nothing until it exists.
+ *    `POST /api/reliability/redactor-fails?calls=n` makes the next n passes fail, as a provider that
+ *    does not answer.
  */
 import http from 'node:http';
 import https from 'node:https';
@@ -59,11 +65,26 @@ const syntheticReading = {
 };
 const SYNTHETIC_TASK = 'Pick up the sealed carton from the end of the conveyor and place it on the cart.';
 
+/**
+ * SYNTHETIC. The names the specs plant in a site's or a company's words that no pattern can know (a person's first name,
+ * a business written in lower case). The scripted pass points at each one found as whole words, case aside, and at
+ * nothing else (a piece the text does not hold fails the pass closed).
+ */
+const PLANTED_NAMES = ['Maria', 'Joe', 'harbor fresh foods', 'harbor fresh', 'dave', 'costco', 'walmart', 'IBM', 'Dana Whitfield'];
+async function scriptedRedactor(input: { text: string }): Promise<string[] | null> {
+  if (harness.redactor.refuseNext > 0) { harness.redactor.refuseNext--; harness.redactor.refused++; return null; }
+  harness.redactor.calls++;
+  const { removalsOf } = await import('../../server/utils/freeTextScreening');
+  return PLANTED_NAMES.filter(name => removalsOf(input.text, [name]).unmatched.length === 0);
+}
+
 const harness = {
   videoModel: { generateCalls: 0, uploads: [] as Array<{ bytes: number; contentType: string | null }>, deletes: 0,
     /** How many of the next generation calls the scripted provider refuses as an account with no credit left (HTTP 429). */
     refuseNext: 0, refused: 0 },
   signedReads: 0,
+  /** The scripted model pass over free text: passes run, and how many of the next ones fail (`scriptedRedactor`). */
+  redactor: { calls: 0, refuseNext: 0, refused: 0 },
   /** Set only while a deliver-outbox pass runs: what the outbox handed the mail provider. */
   mailPayloads: null as null | Array<{ to: string[]; replyTo: string | null; subject: string }>,
 };
@@ -183,6 +204,9 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
     return [`https://${SIGNED_READ_HOST}/${this.bucket.name}/${this.name.split('/').map(encodeURIComponent).join('/')}?X-Goog-Signature=${SYNTHETIC_SIGNATURE}${generation ? `&generation=${encodeURIComponent(generation)}` : ''}`];
   };
   installEdgeFakes(bucketName);
+  // The model pass over free text, scripted (see the header): the same module instance the routes import.
+  const { useFreeTextRedactor } = await import('../../server/utils/freeTextScreening');
+  useFreeTextRedactor(scriptedRedactor);
 
   // The private job page's own reads (and the deployment-company step it can turn on).
   app.use('/api/job-workflow', csrfProtection, jobWorkflow);
@@ -206,6 +230,13 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
     const calls = Number(req.query.calls);
     if (!Number.isSafeInteger(calls) || calls < 0 || calls > 20) return res.status(400).json({ error: 'calls 0..20 required' });
     harness.videoModel.refuseNext = calls;
+    res.json({ refuseNext: calls });
+  });
+  // The scripted pass over free text fails the next `calls` passes, as a provider that does not answer.
+  app.post('/api/reliability/redactor-fails', loopbackOnly, (req, res) => {
+    const calls = Number(req.query.calls);
+    if (!Number.isSafeInteger(calls) || calls < 0 || calls > 50) return res.status(400).json({ error: 'calls 0..50 required' });
+    harness.redactor.refuseNext = calls;
     res.json({ refuseNext: calls });
   });
   // Stands in for the provider back-off passing (minutes to an hour) on this one job's reading: nothing else changes.

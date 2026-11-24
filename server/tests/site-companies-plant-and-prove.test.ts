@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { modelPassFindsNothing } from "./helpers/freeTextScreening";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -124,6 +125,8 @@ async function introduce(alias: string, scope: "owner" | "film" = "owner",
 }
 
 beforeEach(async () => {
+  // The model pass over free text finds nothing more than the deterministic pass (a company's words still reach the site).
+  modelPassFindsNothing();
   state.docs.clear();
   (await import("../utils/jobAutoSend")).resetAnyCompanyMaySeeJobsCache();
   introductions.forced = null;
@@ -236,7 +239,7 @@ describe("the introductions route", () => {
 
   it.each([
     ["not_listed", "Your job is not in front of deployment companies right now, so you cannot accept a company."],
-    ["not_interested", "This company has not applied, so you cannot accept it."],
+    ["not_interested", "This company has not applied, or has changed its answer since, so you cannot accept it now."],
     ["consent_missing", "This company needs to apply again before you can accept it."],
     ["already_introduced", "You have already accepted this company."],
     ["company_not_approved", "This company can no longer be accepted."],

@@ -1,0 +1,127 @@
+/**
+ * The job's small model lanes inside its one $40 cap (owner decision 2026-11-19; a review of PR #1437, 2026-11-24: the
+ * model pass over free text started paid calls for a job that had already used its allowance, since it checked only
+ * its own pass counter and the account's rolling spend).
+ *
+ * Every call such a lane makes for a job reserves, before the provider is asked, the most that one call can cost, in the
+ * same transaction that checks the job's cap (`checkWebsiteJobCeiling`, the check every other paid row of the job
+ * passes); a refusal starts no call and records nothing. The row is then settled at the cost the run reports, or kept
+ * at its full reservation when that cost cannot be read. `websiteJobSpend` counts these rows as one more of the job's
+ * ledgers, each at its settlement where known and otherwise at its hold, exactly as a preparation reservation is
+ * counted, so every other admission of the job (a preparation reservation, a scene intake, a video reading) sees them.
+ *
+ * Why a ledger of its own (`inboundRequests/{job}/modelLaneReservations`), with the preparation rows' shape
+ * (`admission.maximum_cost_usd`, `settlement.actual_cost_usd`), rather than rows in `website_preparation_reservations`:
+ * that map is the Pipeline's preparation ledger. Its rows are parsed strictly and summarised to the Pipeline
+ * (`websitePreparationAccounting`, at most 128 rows), and each row's `request_count` counts against the native
+ * preparation's paid-request limit, so lane rows there would break the Pipeline's accounting and eat its limit.
+ *
+ * Per-run cost caps and the rolling spend stop still apply on top (`server/agents/runtime.ts`).
+ */
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import type { AgentTaskKind } from "../agents/types";
+import { anthropicPricingForModel } from "./anthropicPricing";
+import { pricingForOpenAIModel } from "./openaiPromptCache";
+import { checkWebsiteJobCeiling, JOB_LANE_RESERVATIONS_COLLECTION, transactionJobLedgerReader } from "./websiteJobCeiling";
+
+export { JOB_LANE_RESERVATIONS_COLLECTION };
+export const JOB_LANE_RESERVATION_SCHEMA = "job_model_lane_reservation.v1";
+
+/** Tokens the adapters add around a lane's prompt (system text, the output schema, message framing), generously. */
+const PROMPT_OVERHEAD_TOKENS = 4_096;
+/** The OpenAI adapter's own price for a model it has no row for (`worstCaseOpenAIReservationUsd`). */
+const UNKNOWN_OPENAI_PRICE = { input: 5, output: 30 };
+
+/**
+ * The most one call of `kind` can cost for a prompt of `promptBytes` UTF-8 bytes: a byte-level tokenizer makes at most
+ * one token of each byte, plus the adapters' framing; the lane's own output ceiling (thinking included); priced at the
+ * dearest model the lane may be sent to among OpenAI and Anthropic (cache writes at their rate, the dearest input),
+ * one request (the lane allows no correction round, and a switch after "no funds" happens only when the first provider
+ * charged nothing). Null when the lane could be sent to a model with no price (it is then not called).
+ */
+export function laneCallMaximumUsd(input: { promptBytes: number; outputTokenCeiling: number;
+  models: { openai_responses?: string | null; anthropic_agent_sdk?: string | null } }): number | null {
+  const inputTokens = Math.max(0, Math.ceil(input.promptBytes)) + PROMPT_OVERHEAD_TOKENS;
+  const outputTokens = Math.max(0, Math.ceil(input.outputTokenCeiling));
+  const costs: number[] = [];
+  if (input.models.openai_responses) {
+    const price = pricingForOpenAIModel(input.models.openai_responses);
+    const inputRate = price ? Math.max(price.uncachedInputPerMillionUsd, price.cacheWritePerMillionUsd) : UNKNOWN_OPENAI_PRICE.input;
+    costs.push((inputTokens * inputRate + outputTokens * (price ? price.outputPerMillionUsd : UNKNOWN_OPENAI_PRICE.output)) / 1e6);
+  }
+  if (input.models.anthropic_agent_sdk) {
+    const price = anthropicPricingForModel(input.models.anthropic_agent_sdk);
+    if (!price) return null;
+    const long = price.longContextThreshold !== undefined && inputTokens > price.longContextThreshold;
+    const inputRate = Math.max(price.cacheMissInput, price.cacheWriteInput) * (long ? price.longContextInputMultiplier ?? 1 : 1);
+    costs.push((inputTokens * inputRate + outputTokens * price.output * (long ? price.longContextOutputMultiplier ?? 1 : 1)) / 1e6);
+  }
+  if (!costs.length) return null;
+  // Rounded up to the micro-dollar the ledger counts in.
+  return Math.ceil(Math.max(...costs) * 1_000_000) / 1_000_000;
+}
+
+/** The models a lane would be sent to now, by provider, among those the lane may use (`getStructuredProviderOrder`). */
+export async function laneModels(kind: AgentTaskKind): Promise<{ openai_responses?: string; anthropic_agent_sdk?: string } | null> {
+  const { getStructuredProviderOrder, getTaskModelByProvider } = await import("../agents/provider-config");
+  const order = getStructuredProviderOrder(kind);
+  if (!order.length) return null;
+  // Any other provider would not enforce the per-run cap or be priced here: no call is admitted for it.
+  if (order.some(provider => provider !== "openai_responses" && provider !== "anthropic_agent_sdk")) return null;
+  const models = getTaskModelByProvider(kind);
+  return { ...(order.includes("openai_responses") ? { openai_responses: models.openai_responses } : {}),
+    ...(order.includes("anthropic_agent_sdk") ? { anthropic_agent_sdk: models.anthropic_agent_sdk } : {}) };
+}
+
+export type LaneReservation = { lane: AgentTaskKind; reservationId: string; maximumUsd: number };
+
+/**
+ * Inside the caller's transaction (all reads first, as Firestore requires): whether this call fits under the job's cap,
+ * with the job's every ledger counted; when it does, `write` records the hold. "cap": no call may start, and nothing is
+ * written. "no_job": the job does not exist.
+ */
+export async function planJobLaneReservation(tx: FirebaseFirestore.Transaction, requestId: string, reservation: LaneReservation):
+  Promise<{ state: "fits"; write: (tx: FirebaseFirestore.Transaction) => void } | { state: "cap" | "no_job" }> {
+  const store = db!;
+  const jobRef = store.collection("inboundRequests").doc(requestId);
+  const record = (await tx.get(jobRef)).data();
+  if (!record) return { state: "no_job" };
+  const job = await checkWebsiteJobCeiling({ record, reader: transactionJobLedgerReader(store, tx, requestId),
+    additionalCostUsd: reservation.maximumUsd });
+  if (job.exceeded) return { state: "cap" };
+  const ref = jobRef.collection(JOB_LANE_RESERVATIONS_COLLECTION).doc(reservation.reservationId);
+  return { state: "fits", write: write => write.set(ref, { schema_version: JOB_LANE_RESERVATION_SCHEMA, request_id: requestId,
+    lane: reservation.lane, admission: { maximum_cost_usd: reservation.maximumUsd, reserved_at_iso: new Date().toISOString() } }) };
+}
+
+/**
+ * What a finished (or failed) run cost, as its adapter reported it (`inference_reservation.reconciled_cost_usd`: priced
+ * usage, and the worst case for any request whose usage is unknown); 0 when the runtime made no provider request
+ * (`inference_not_invoked`, or a run refused before the call); null when it cannot be told (the hold then stays whole).
+ */
+export function runCostUsd(result: { artifacts?: Record<string, unknown> } | null | undefined): number | null {
+  const artifacts = (result?.artifacts ?? {}) as Record<string, any>;
+  const reconciled = artifacts.inference_reservation?.reconciled_cost_usd;
+  if (typeof reconciled === "number" && Number.isFinite(reconciled) && reconciled >= 0) return reconciled;
+  if (artifacts.inference_not_invoked === true) return 0;
+  return null;
+}
+
+/**
+ * Settle a hold: at `actualUsd` when known, else at its full reservation (an unknown cost counts in full). Written once;
+ * a cost above the hold is recorded as reported, flagged, never trimmed to it.
+ */
+export async function settleJobLaneSpend(requestId: string, reservationId: string, actualUsd: number | null,
+  basis: "reported_usage" | "no_provider_request" | "unknown_counts_in_full" | "scripted") {
+  if (!db) return;
+  const store = db;
+  const ref = store.collection("inboundRequests").doc(requestId).collection(JOB_LANE_RESERVATIONS_COLLECTION).doc(reservationId);
+  await store.runTransaction(async tx => {
+    const row = (await tx.get(ref)).data();
+    if (!row || row.settlement) return;
+    const held = Number(row.admission?.maximum_cost_usd);
+    const actual = actualUsd === null ? held : actualUsd;
+    tx.set(ref, { settlement: { actual_cost_usd: actual, status: "settled", basis: actualUsd === null ? "unknown_counts_in_full" : basis,
+      settled_at_iso: new Date().toISOString(), ...(actual > held ? { above_reservation: true } : {}) } }, { merge: true });
+  });
+}

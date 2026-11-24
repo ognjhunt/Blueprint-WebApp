@@ -25,7 +25,9 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { currentTermsAcceptance, passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
-import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
+// The fixture's site holds a name of its own and a person's, so its page shows the sentence of 2026-11-12, true for it
+// (`introductionStatementVersionFor`); a job from the start form shows the current one.
+import { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION as INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -122,9 +124,10 @@ async function siteStatus() {
   return { raw, body: JSON.parse(raw) as unknown };
 }
 /** The site's one press for one company ("Introduce us"), as its job page sends it. */
-async function press(alias: string, options: { scope?: "owner" | "film"; statementVersion?: string } = {}) {
+async function press(alias: string, options: { scope?: "owner" | "film"; statementVersion?: string; answerAtIso?: string } = {}) {
   const response = await fetch(`${base}/api/site-task-brief/${token(options.scope)}/introductions`, { method: "POST",
-    body: JSON.stringify({ alias, statementVersion: options.statementVersion ?? INTRODUCTION_REQUEST_STATEMENT_VERSION }),
+    body: JSON.stringify({ alias, statementVersion: options.statementVersion ?? INTRODUCTION_REQUEST_STATEMENT_VERSION,
+      ...(options.answerAtIso ? { answerAtIso: options.answerAtIso } : {}) }),
     headers: { "content-type": "application/json", cookie: "csrf_token=site-test", "x-csrf-token": "site-test" } });
   return { status: response.status, body: await response.json() as Record<string, any> };
 }
@@ -308,6 +311,151 @@ describe("each introduction is one billable event, recorded only after the site'
     expect(events()).toEqual([{ id: eventId(NORTH), ...onRecord }]);
     expect(introductions()).toEqual([]);
     expect(outboxRows().filter(row => String(row.kind).startsWith("introduction_made"))).toEqual([]);
+  });
+});
+
+/**
+ * The company's answer at the commit point (2026-11-24, a $0 stress test: a company that answered Not a fit after the
+ * site pressed Accept, before its email went, was still introduced and billed). The dispatch check of both emails
+ * (`introductionMayProceed`) reads the company's answer as it stands; the site's own press reads it too.
+ */
+describe("the company's answer when its introduction email would go", () => {
+  const companyKey = (record: { email: string }, attempt = 0) =>
+    `${ID}:introduction_made_company:${sha(record.email)}${attempt ? `:a${attempt}` : ""}`;
+  const siteKey = (record: { email: string }, attempt = 0) =>
+    `${ID}:introduction_made_site:${sha(record.email)}${attempt ? `:a${attempt}` : ""}`;
+  /** One dispatch check of an introduction email, as the outbox runs it: reads, then the cancellation in the same transaction. */
+  async function dispatchCheck(kind: "introduction_made_company" | "introduction_made_site", idempotencyKey: string) {
+    const { introductionEmailCheck } = await import("../utils/jobIntroductionGate");
+    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+    return dbAdmin!.runTransaction(async tx => {
+      const check = await introductionEmailCheck({ kind, requestId: ID, idempotencyKey }, tx);
+      check.cancel?.(tx);
+      return check.current;
+    });
+  }
+  const introRecord = () => state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`) as Record<string, unknown>;
+
+  for (const changed of ["declined", "needs_something"] as const) {
+    it(`cancels and voids when the company answers ${changed} after the press and before its email went`, async () => {
+      expect((await press("A")).status).toBe(200);
+      expect((await answer(NORTH, changed)).status).toBe(200);
+      expect(await dispatchCheck("introduction_made_company", companyKey(NORTH))).toBe(false);
+      expect(events()).toEqual([expect.objectContaining({ id: eventId(NORTH), status: "void", voidReason: "company_answer_changed" })]);
+      expect(introRecord()).toMatchObject({ cancelReason: "company_answer_changed", siteShared: null, companyShared: null });
+      // The company's own row is not current, so the outbox stops it; the site's is cancelled and cleared with it.
+      expect(state.docs.get(`captureOutbox/${siteKey(NORTH)}`)).toMatchObject({ status: "cancelled", subject: "", body: "" });
+      // The site's page says it could not go ahead, and offers nothing until the company applies again.
+      const entries = ((await siteStatus()).body as { companyStatus: { companies: { entries: Array<Record<string, unknown>> } } })
+        .companyStatus.companies.entries;
+      expect(entries.find(row => row.alias === "Company A")).toMatchObject({ introductionCancelled: true, canIntroduce: false });
+    });
+  }
+
+  it("decides the site's held email the same way when the company's row has not gone", async () => {
+    expect((await press("A")).status).toBe(200);
+    expect((await answer(NORTH, "declined")).status).toBe(200);
+    expect(await dispatchCheck("introduction_made_site", siteKey(NORTH))).toBe(false);
+    expect(events()).toEqual([expect.objectContaining({ status: "void", voidReason: "company_answer_changed" })]);
+  });
+
+  it("goes ahead when the answer changed between the two that allow one, Apply and Tested it: can do", async () => {
+    expect((await press("A")).status).toBe(200);
+    const answerKey = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    state.docs.set(answerKey, { ...(state.docs.get(answerKey) as object), state: "tested_can_do" });
+    expect(await dispatchCheck("introduction_made_company", companyKey(NORTH))).toBe(true);
+    expect(events()).toEqual([expect.objectContaining({ status: "recorded_no_price" })]);
+    expect(introRecord()).not.toHaveProperty("cancelledAtIso");
+  });
+
+  it("refuses a press from a page loaded before the company changed to Not a fit, and records nothing", async () => {
+    expect((await answer(NORTH, "declined")).status).toBe(200);
+    expect(await press("A")).toMatchObject({ status: 409, body: { reason: "not_interested" } });
+    expect(events()).toEqual([]);
+    expect(introductions()).toEqual([]);
+  });
+
+  it("lets the site accept again once the company applies again: a new attempt and event, the void one kept", async () => {
+    expect((await press("A")).status).toBe(200);
+    expect((await answer(NORTH, "declined")).status).toBe(200);
+    expect(await dispatchCheck("introduction_made_company", companyKey(NORTH))).toBe(false);
+    // Still Not a fit: nothing to accept.
+    expect(await press("A")).toMatchObject({ status: 409, body: { reason: "not_interested" } });
+    expect((await answer(NORTH)).status).toBe(200);
+    const again = await press("A");
+    expect(again, JSON.stringify(again.body)).toMatchObject({ status: 200, body: { ok: true } });
+    expect(events()).toEqual([expect.objectContaining({ id: eventId(NORTH), status: "void", voidReason: "company_answer_changed" }),
+      expect.objectContaining({ id: `${eventId(NORTH)}-a1`, status: "recorded_no_price", attempt: 1 })]);
+    expect(await dispatchCheck("introduction_made_company", companyKey(NORTH, 1))).toBe(true);
+  });
+});
+
+// For "Changed after you accepted" (the flows work, 2026-11-24): the introduction keeps the estimate the site read.
+describe("the estimate the site read when it pressed Accept", () => {
+  const answerKey = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+  const north = () => ((state.docs.get(answerKey) ?? {}) as Record<string, unknown>);
+  const entryA = async () => ((await siteStatus()).body as { companyStatus: { companies: { entries: Array<Record<string, unknown>> } } })
+    .companyStatus.companies.entries.find(row => row.alias === "Company A");
+
+  it("is recorded on the introduction and carried on the site's entry, and stays as it was when the estimate changes", async () => {
+    state.docs.set(answerKey, { ...north(), details: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } } });
+    expect((await press("A", { answerAtIso: String(north().updatedAtIso) })).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`))
+      .toMatchObject({ estimateAtAccept: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } } });
+    state.docs.set(answerKey, { ...north(), details: { chargeModel: "subscription", estimate: { lowUsd: 15000, highUsd: 15000 } } });
+    expect(await entryA()).toMatchObject({ acceptedEstimate: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } },
+      details: { estimate: { lowUsd: 15000, highUsd: 15000 } } });
+  });
+
+  it("is null when the answer gave none, and not recorded for an answer under a line that shows no estimate", async () => {
+    expect((await press("A", { answerAtIso: String(north().updatedAtIso) })).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toMatchObject({ estimateAtAccept: null });
+    expect(await entryA()).toMatchObject({ acceptedEstimate: null });
+    state.docs.set(answerKey, { ...north(), statementVersion: "company-response-2026-11-23" });
+    expect(await entryA()).not.toHaveProperty("acceptedEstimate");
+  });
+
+  // A review of PR #1437: a figure the site never read is never recorded as the one it accepted.
+  it("refuses an Accept pressed beside an answer that changed since, recording nothing and charging nothing", async () => {
+    const shown = String(north().updatedAtIso);
+    state.docs.set(answerKey, { ...north(), updatedAtIso: new Date(Date.parse(shown) + 60_000).toISOString(),
+      details: { chargeModel: "subscription", estimate: { lowUsd: 15000, highUsd: 15000 } } });
+    expect(await press("A", { answerAtIso: shown })).toMatchObject({ status: 409, body: { reason: "answer_changed",
+      error: "This company changed its answer after this page loaded. Read its answer as it is now, then press Accept again." } });
+    expect(state.docs.has(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toBe(false);
+    expect(events()).toEqual([]);
+    // Pressed beside the answer as it is now, it goes ahead, with the estimate read then.
+    expect((await press("A", { answerAtIso: String(north().updatedAtIso) })).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`))
+      .toMatchObject({ estimateAtAccept: { chargeModel: "subscription", estimate: { lowUsd: 15000, highUsd: 15000 } } });
+  });
+
+  it("from a page that does not say which answer it showed, goes ahead and records no estimate as accepted", async () => {
+    state.docs.set(answerKey, { ...north(), details: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } } });
+    expect((await press("A")).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).not.toHaveProperty("estimateAtAccept");
+  });
+});
+
+// A review of PR #1437: the site's page shows what companies read of its words only while companies can see the job,
+// so no paid pass runs over the site's words that no company reads.
+describe("what companies read of the site's words, on the site's page", () => {
+  afterEach(async () => (await import("../utils/freeTextScreening")).resetFreeTextScreeningForTests());
+
+  it("makes no model pass over the site's words while no company can see the job, and shows them once one can", async () => {
+    const { resetFreeTextScreeningForTests, useFreeTextRedactor } = await import("../utils/freeTextScreening");
+    resetFreeTextScreeningForTests();
+    let siteCalls = 0;
+    useFreeTextRedactor(async ({ writer }) => { if (writer === "site") siteCalls++; return []; });
+    const job = state.docs.get(`inboundRequests/${ID}`) as Record<string, unknown>;
+    state.docs.set(`inboundRequests/${ID}`, { ...job, operator_listing_hold: { held: true, atIso: "2026-11-24T00:00:00.000Z", by: "ops" } });
+    const held = (await siteStatus()).body as { companyStatus?: Record<string, unknown> };
+    expect(held.companyStatus ?? {}).not.toHaveProperty("companiesRead");
+    expect(siteCalls).toBe(0);
+    state.docs.set(`inboundRequests/${ID}`, job);
+    const listed = (await siteStatus()).body as { companyStatus: { companiesRead?: Record<string, unknown> } };
+    expect(listed.companyStatus.companiesRead).toMatchObject({ sentence: { text: "Stack cartons onto the pallet" } });
+    expect(siteCalls).toBeGreaterThan(0);
   });
 });
 

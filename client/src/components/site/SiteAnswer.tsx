@@ -6,7 +6,7 @@ import { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY, type JobOutlook, t
 /** The job page's lines for the phase, kept in `@/lib/jobOutlook` so staff see the same words; re-exported here. */
 export { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY };
 import {
-  INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn, introductionRequested,
+  INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn, introductionRequested, isIntroductionStatementVersion,
   isIntroductionRefusalReason,
 } from "@/lib/siteIntroductions";
 import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
@@ -24,6 +24,28 @@ import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "
 import { CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATES_NOT_CHECKED, SIMILAR_JOBS_LABELS, estimateInWords } from "@/lib/companyResponses";
 import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
+import { COMPANIES_READ_LIMIT, COMPANIES_READ_LINE, COMPANIES_READ_PENDING, COMPANIES_READ_SENTENCE_LABEL, COMPANIES_READ_SUCCESS_LABEL, COMPANIES_READ_TITLE,
+  COMPANY_WORDS_BEING_PREPARED, COMPANY_WORDS_LIMIT, replyAsReadLine, replyLimitLine, replyPendingLine, type CompaniesReadSiteWords, type CompaniesReadText } from "@/lib/companiesRead";
+
+/**
+ * Exactly what deployment companies read of the site's own sentence and success rule (2026-11-24), on the site's own
+ * page: the words as a company's page shows them, or a plain line while names and contact details are being taken out
+ * (companies read none of them until then). No step to confirm: the site changes its words if it wants to.
+ */
+export function CompaniesReadYourWords({ view }: { view: CompaniesReadSiteWords }) {
+  const rows: Array<[string, CompaniesReadText]> = [];
+  if (view.sentence) rows.push([COMPANIES_READ_SENTENCE_LABEL, view.sentence]);
+  if (view.successRule) rows.push([COMPANIES_READ_SUCCESS_LABEL, view.successRule]);
+  if (!rows.length) return null;
+  return <section className="site-companies-read" aria-label={COMPANIES_READ_TITLE}>
+    <h2 className="bare-label">{COMPANIES_READ_TITLE}</h2>
+    <dl className="company-response-facts">
+      {rows.map(([label, item]) => <div key={label}><dt>{label}</dt>
+        <dd>{"text" in item ? `“${item.text}”` : "limit" in item ? COMPANIES_READ_LIMIT : COMPANIES_READ_PENDING}</dd></div>)}
+    </dl>
+    <p className="bare-helper">{COMPANIES_READ_LINE}</p>
+  </section>;
+}
 
 /*
  * The site's job page below its title, bare bones (frame of 2026-11-12). Three sections, in order: where the job
@@ -253,8 +275,11 @@ function useEstimateNotes(token: string, entries: AnsweredEntry[]) {
   for (const entry of entries) {
     const now = estimateOf(entry) ?? NOT_GIVEN;
     const before = baseline.current[entry.alias] ??= now;
-    // Only while the company is accepted: an introduction cancelled since is not "after you accepted" any more.
-    const atAccept = accepted(entry) ? memory.current[entry.alias]?.accepted : undefined;
+    // Only while the company is accepted: an introduction cancelled since is not "after you accepted" any more. The
+    // server's record of the estimate at Accept first (`acceptedEstimate`), else what this browser showed then.
+    const atAccept = !accepted(entry) ? undefined : entry.acceptedEstimate !== undefined
+      ? (entry.acceptedEstimate ? estimateInWords(entry.acceptedEstimate.chargeModel, entry.acceptedEstimate.estimate) ?? NOT_GIVEN : NOT_GIVEN)
+      : memory.current[entry.alias]?.accepted;
     if (atAccept && atAccept !== now) notes[entry.alias] = atAccept === NOT_GIVEN ? ESTIMATE_ADDED_AFTER_ACCEPT : estimateChangedAfterAccept(atAccept);
     else if (!atAccept && before !== now && before !== NOT_GIVEN) notes[entry.alias] = estimateChangedSinceLooked(before);
   }
@@ -363,9 +388,14 @@ function AnswerReason({ entry, estimateNote }: { entry: AnsweredEntry; estimateN
       {verified && <div><dt>What they checked</dt><dd>{verified}</dd></div>}
       {start && <div><dt>Earliest start</dt><dd>{start}</dd></div>}
     </dl>}
+    {/* Their words are being prepared: said plainly, never "No reason shared." while they exist. */}
+    {entry.wordsPending === true && <p className="bare-helper site-job-company-reason" role="status">{COMPANY_WORDS_BEING_PREPARED}</p>}
+    {/* Held at a limit: said as it is, never "being prepared" (a review of PR #1437). */}
+    {entry.wordsLimit === true && <p className="bare-helper site-job-company-reason">{COMPANY_WORDS_LIMIT}</p>}
     {!(entry.state.startsWith("tested_") && verified) && !(entry.state === "needs_something" && entry.question) &&
       (reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
-        : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
+        : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && entry.wordsPending !== true && entry.wordsLimit !== true
+          && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
     {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.question && !entry.company && !entry.introducedAtIso
       && !entry.introductionPending && <p className="bare-helper">{introductionIfChanged(shownName(entry))}</p>}
   </>;
@@ -376,9 +406,12 @@ function ReplyQuestion({ token, alias, name, question, onChanged }: { token: str
   question: NonNullable<AnsweredEntry["question"]>; onChanged?: () => void }) {
   const [answer, setAnswer] = useState("");
   const [saved, setSaved] = useState(question.answer);
+  // Sent, and its names and contact details are still being taken out: the company does not read it yet.
+  const [savedPending, setSavedPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const shownAnswer = question.answer ?? saved;
+  const replied = Boolean(shownAnswer) || question.answerPending === true || savedPending;
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || answer.trim().length < 2) return;
@@ -389,24 +422,30 @@ function ReplyQuestion({ token, alias, name, question, onChanged }: { token: str
         body: JSON.stringify({ alias: alias.replace(/^Company /, ""), questionId: question.id, answer: answer.trim() }),
       });
       const result = await response.json();
-      if (!response.ok || typeof result.answer !== "string") throw new Error(result.error || "Your answer could not be saved. Try again.");
-      setSaved(result.answer);
+      if (!response.ok || (typeof result.answer !== "string" && result.pending !== true))
+        throw new Error(result.error || "Your answer could not be saved. Try again.");
+      // The server answers with the reply as the company reads it, or says it is still being prepared.
+      if (typeof result.answer === "string") setSaved(result.answer); else setSavedPending(true);
       onChanged?.();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Your answer could not be saved. Try again.");
     } finally { setBusy(false); }
   }
   // The reply date (three days after the question): a date to aim for, never a lock (`REPLY_WINDOW_MS`).
-  const by = !shownAnswer && question.replyByIso ? question.replyByIso : null;
+  const by = !replied && question.replyByIso ? question.replyByIso : null;
   const passed = by !== null && Date.parse(by) <= Date.now();
   return <div className="company-question">
     <dl className="company-response-facts">
       <div><dt>What they need to know</dt><dd>{question.text}</dd></div>
       {shownAnswer && <div><dt>Your reply</dt><dd>{shownAnswer}</dd></div>}
     </dl>
+    {/* Exactly what the company reads of the reply (2026-11-24), or that it does not read it yet. */}
+    {shownAnswer && <p className="bare-helper">{replyAsReadLine(name)}</p>}
+    {!shownAnswer && replied && (question.answerLimit === true ? <p className="bare-helper">{replyLimitLine(name)}</p>
+      : <p className="bare-helper" role="status">{replyPendingLine(name)}</p>)}
     {by && <p className={passed ? "bare-helper site-reply-date-passed" : "bare-helper"}>
       {passed ? REPLY_DATE_PASSED(dateInWords(by)) : replyByLine(dateInWords(by))}</p>}
-    {!shownAnswer && <details>
+    {!replied && <details>
       <summary className="bare-inline-link">Reply</summary>
       <form className="ms-form" onSubmit={submit}>
         <label>Your reply<textarea rows={2} minLength={2} maxLength={SITE_CLARIFICATION_LIMIT} required value={answer}
@@ -416,7 +455,7 @@ function ReplyQuestion({ token, alias, name, question, onChanged }: { token: str
         {error && <p role="alert">{error}</p>}
       </form>
     </details>}
-    {saved && !question.answer && <p className="bare-helper" role="status">Reply sent.</p>}
+    {(saved || savedPending) && !question.answer && <p className="bare-helper" role="status">Reply sent.</p>}
   </div>;
 }
 
@@ -427,7 +466,11 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   const [busy, setBusy] = useState<string | null>(null);
   // A refusal or failure of Accept, with the answer it was pressed beside (`atIso`): it stays said while that answer is
   // shown, or while the company cannot be accepted, and goes once the company can be accepted on a newer answer.
-  const [errors, setErrors] = useState<Record<string, { message: string; atIso: string }>>({});
+  // A refusal for an answer that changed stays said on the newer answer too, until the next press.
+  const [errors, setErrors] = useState<Record<string, { message: string; atIso: string; changed?: boolean }>>({});
+  // The sentence the server said is true for this job when it refused another (`statement_not_current`): shown until
+  // the job's page reads a sentence of its own again, so a page that could not tell never loops on "reload".
+  const [statementOverride, setStatementOverride] = useState<{ version: string; read: string | undefined } | null>(null);
   const [requested, setRequested] = useState<string[]>([]);
   const answered = isSiteCompanyActivity(activity)
     ? activity.entries.filter((entry): entry is AnsweredEntry => entry.kind === "answered") : [];
@@ -440,9 +483,14 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       entry.kind === "answered" && entry.alias === alias && entry.canIntroduce === true)));
   }, [activity]);
   if (!isSiteCompanyActivity(activity)) return null;
+  // The sentence beside Accept that is true for this job, as the server chose it; the press sends its version.
+  const readVersion = isIntroductionStatementVersion(activity.introductionStatementVersion)
+    ? activity.introductionStatementVersion : undefined;
+  const statementVersion = statementOverride && statementOverride.read === readVersion ? statementOverride.version
+    : readVersion ?? INTRODUCTION_REQUEST_STATEMENT_VERSION;
   const errorFor = (entry: AnsweredEntry) => {
     const error = errors[entry.alias];
-    return error?.message && (error.atIso === entry.atIso || entry.canIntroduce !== true) ? error.message : null;
+    return error?.message && (error.atIso === entry.atIso || entry.canIntroduce !== true || error.changed) ? error.message : null;
   };
   async function introduce(alias: string, atIso: string) {
     if (busy) return;
@@ -450,14 +498,18 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
     try {
       const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introductions`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
-        // The version of the sentence shown beside the button: pressing it is the agreement it records.
-        body: JSON.stringify({ alias: alias.replace(/^Company /, ""), statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }),
+        // The version of the sentence shown beside the button: pressing it is the agreement it records. With it, the
+        // time of the answer shown beside it, so the server records the estimate this page showed, or refuses.
+        body: JSON.stringify({ alias: alias.replace(/^Company /, ""), statementVersion, answerAtIso: atIso }),
       });
       const result = await response.json().catch(() => null);
       if (response.status === 409 || response.status === 400) {
-        setErrors(current => ({ ...current, [alias]: { atIso, message: isIntroductionRefusalReason(result?.reason)
-          ? INTRODUCTION_REFUSAL_SENTENCES[result.reason as keyof typeof INTRODUCTION_REFUSAL_SENTENCES]
-          : result?.code === "introduction_statement_changed" ? INTRODUCTION_STATEMENT_CHANGED : INTRODUCTION_FAILED } }));
+        setErrors(current => ({ ...current, [alias]: { atIso, changed: result?.reason === "answer_changed",
+          message: isIntroductionRefusalReason(result?.reason)
+            ? INTRODUCTION_REFUSAL_SENTENCES[result.reason as keyof typeof INTRODUCTION_REFUSAL_SENTENCES]
+            : result?.code === "introduction_statement_changed" ? INTRODUCTION_STATEMENT_CHANGED : INTRODUCTION_FAILED } }));
+        if (result?.code === "introduction_statement_changed" && isIntroductionStatementVersion(result?.statementVersion))
+          setStatementOverride({ version: result.statementVersion, read: readVersion });
         // A refusal means this page is out of date (stress test, 2026-11-24: a company changed to "Not a fit" while the
         // page still offered Accept): read the job again, so the entry shows the company's answer as it is now.
         onIntroduced?.();
@@ -514,7 +566,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && (requested.includes(entry.alias)
           ? <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>
-          : <BareButton onClick={() => void introduce(entry.alias, entry.atIso)} disabled={busy !== null} helper={introduceSentence(shownName(entry))}>
+          : <BareButton onClick={() => void introduce(entry.alias, entry.atIso)} disabled={busy !== null} helper={introduceSentence(shownName(entry), statementVersion)}>
             {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
           </BareButton>)}
         {/* Kept after the page reads the job again, beside the company's answer as it is now. */}

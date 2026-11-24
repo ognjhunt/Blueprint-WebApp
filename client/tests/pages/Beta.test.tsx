@@ -33,7 +33,7 @@ describe("the questions page", () => {
     expect(screen.getByRole("region", { name: "Deployment companies" }))
       .toHaveTextContent("A company can choose Apply, Not a fit or Need more details. Once the simulation can be downloaded, it can also choose Tested it: can do or Tested it: cannot yet. We can't promise any will say yes.");
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("You see each company's name and website with its answer. Press Accept beside a company that applied or answered Tested it: can do to meet it. We email the company your name, address and contact details, and email you theirs.");
+      .toHaveTextContent("You see each company's name and website with its answer. Press Accept beside a company that applied or answered Tested it: can do to meet it. We email the company your email address and the place you gave us, and email you theirs.");
   });
 
   it("says who sees the video, what stays with us, how to stop, and who we are", () => {

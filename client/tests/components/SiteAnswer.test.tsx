@@ -1,7 +1,7 @@
 import { INTRODUCTION_CANCELLED } from "@/lib/siteIntroductions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NOTHING_IS_SHARED, NOT_SHARED_YET, NO_COMPANY_CAN_SEE_LINE, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, PREPARING_TO_SHARE_LINE, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
+import { CompaniesReadYourWords, NOTHING_IS_SHARED, NOT_SHARED_YET, NO_COMPANY_CAN_SEE_LINE, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, PREPARING_TO_SHARE_LINE, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
 import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
@@ -526,7 +526,7 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(lines()[1]).not.toContain("No reason shared.");
     const buttons = within(companies()).getAllByRole("button", { name: "Accept" });
     expect(buttons).toHaveLength(1);
-    expect(within(companies()).getByText("We give Company A your name, address and contact details, and give you theirs."))
+    expect(within(companies()).getByText("We give Company A your email address and the place you gave us, and give you theirs."))
       .toHaveAttribute("id", buttons[0].getAttribute("aria-describedby"));
     expect(companies().textContent).not.toMatch(/NOTE-PLANT|WORDS-PLANT|We will write to you/);
     expect(companies().textContent).not.toMatch(BANNED);
@@ -608,7 +608,50 @@ describe("the deployment companies section, with sends, answers and introduction
     // One plain sentence says both sides are being emailed (ledger EL19).
     expect(await within(companies()).findByText("We are emailing you and Company A each other's contact details.")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({ method: "POST",
-      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12" }) }));
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-24", answerAtIso: "2026-11-13T09:00:00.000Z" }) }));
+  });
+
+  // A review of PR #1437: the press says which answer it was beside; one changed since is refused and said so, and the
+  // line stays on the newer answer the page reads back, until the next press.
+  it("says when the company changed its answer after the page loaded, and keeps saying it beside the newer answer", async () => {
+    fetchMock.mockResolvedValue(response({ ok: false, code: "introduction_refused", reason: "answer_changed" }, 409));
+    const reload = vi.fn();
+    const page = (companies: typeof activity) => <SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies }}
+      onIntroductionRequested={reload} />;
+    const { rerender } = render(page(activity));
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    const line = "This company changed its answer after this page loaded. Read its answer as it is now, then press Accept again.";
+    expect(await within(companies()).findByText(line)).toBeVisible();
+    expect(reload).toHaveBeenCalledTimes(1);
+    rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], atIso: "2026-11-13T10:00:00.000Z" }] }));
+    expect(within(companies()).getByText(line)).toBeVisible();
+  });
+
+  // A review of PR #1437: a page that could not tell which sentence is true for the job shows the one the server names
+  // with its refusal, and the next press records that one, rather than loop on "reload".
+  it("switches to the sentence the server says is true when it refuses another", async () => {
+    fetchMock.mockResolvedValueOnce(response({ ok: false, code: "introduction_statement_changed",
+      statementVersion: "introduction-request-2026-11-12" }, 409));
+    fetchMock.mockResolvedValueOnce(response({ ok: true, introducedAtIso: "2026-11-14T09:00:00.000Z" }));
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);
+    expect(within(companies()).getByText("We give Company A your email address and the place you gave us, and give you theirs.")).toBeVisible();
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    expect(await within(companies()).findByText("We give Company A your name, address and contact details, and give you theirs.")).toBeVisible();
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12", answerAtIso: "2026-11-13T09:00:00.000Z" }) })));
+  });
+
+  // 2026-11-24: a job whose record holds a name the site gave keeps the sentence of 2026-11-12, true for it, and the
+  // press records that version.
+  it("shows and records the sentence the server says is true for this job", async () => {
+    fetchMock.mockResolvedValue(response({ ok: true, introducedAtIso: "2026-11-14T09:00:00.000Z" }));
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
+      companies: { ...activity, introductionStatementVersion: "introduction-request-2026-11-12" } }} />);
+    expect(within(companies()).getByText("We give Company A your name, address and contact details, and give you theirs.")).toBeVisible();
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12", answerAtIso: "2026-11-13T09:00:00.000Z" }) })));
   });
 
   it("offers Introduce us again on the open page when an introduction it requested is later cancelled and may be asked again", async () => {
@@ -626,7 +669,7 @@ describe("the deployment companies section, with sends, answers and introduction
 
   it.each([
     ["not_listed", "Your job is not in front of deployment companies right now, so you cannot accept a company."],
-    ["not_interested", "This company has not applied, so you cannot accept it."],
+    ["not_interested", "This company has not applied, or has changed its answer since, so you cannot accept it now."],
     ["consent_missing", "This company needs to apply again before you can accept it."],
     ["already_introduced", "You have already accepted this company."],
     ["company_not_approved", "This company can no longer be accepted."],
@@ -749,6 +792,19 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getAllByText("Changed after you accepted. It was $9,000 to $12,000 a month.")).toHaveLength(2);
   });
 
+  // The server records the estimate the site read beside Accept (`estimateAtAccept`): a new browser says the change too.
+  it("says an estimate changed after Accept from the server's record, with nothing in this browser", () => {
+    window.localStorage.clear();
+    const introduced = { ...activity, entries: [
+      { kind: "answered" as const, alias: "Company A", atIso: "2026-11-20T09:00:00.000Z", state: "interested" as const, canIntroduce: false,
+        introductionPending: true, applicant: { name: "Northwind Robotics", website: null },
+        details: { chargeModel: "subscription" as const, estimate: { lowUsd: 15000, highUsd: 15000 } },
+        acceptedEstimate: { chargeModel: "subscription" as const, estimate: { lowUsd: 9000, highUsd: 12000 } } },
+    ] };
+    render(<SiteAnswer token="fresh-browser-token" answer={{ ...readyAnswer, ...VISIBLE, companies: introduced }} />);
+    expect(within(companies()).getAllByText("Changed after you accepted. It was $9,000 to $12,000 a month.").length).toBeGreaterThan(0);
+  });
+
   it("says an answer was updated after the introduction, from the server's own times, when this browser holds no earlier one", () => {
     const introduced = { ...activity, introductions: { used: 1 }, entries: [
       { kind: "answered" as const, alias: "Company A", atIso: "2026-11-20T09:00:00.000Z", state: "interested" as const, canIntroduce: false,
@@ -772,7 +828,7 @@ describe("the deployment companies section, with sends, answers and introduction
       { ...activity.entries[1], atIso: "2026-11-15T09:00:00.000Z", state: "declined" as never, canIntroduce: false }] }));
     expect(within(companies()).queryByRole("button", { name: "Accept" })).toBeNull();
     expect(lines()[1]).toMatch(/^Company ANot a fit/);
-    expect(within(companies()).getByRole("alert")).toHaveTextContent("This company has not applied, so you cannot accept it.");
+    expect(within(companies()).getByRole("alert")).toHaveTextContent("This company has not applied, or has changed its answer since, so you cannot accept it now.");
     // The company applies again: the old refusal goes, and Accept is offered on the new answer.
     rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], atIso: "2026-11-16T09:00:00.000Z" }] }));
     expect(within(companies()).queryByRole("alert")).toBeNull();
@@ -793,6 +849,32 @@ describe("the deployment companies section, with sends, answers and introduction
     fireEvent.click(within(companies()).getByRole("button", { name: "Send reply" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/clarifications", expect.objectContaining({
       body: JSON.stringify({ alias: "C", questionId: "q".repeat(64), answer: "About 12 a minute." }) })));
+  });
+
+  // A review of PR #1437: words held at a limit are said to be held, never "being prepared".
+  it("says plainly when a company's words or the site's reply are held at a limit", () => {
+    const held = { ...activity, entries: [{ kind: "answered" as const, alias: "Company C", atIso: "2026-11-14T09:00:00.000Z",
+      state: "declined" as const, canIntroduce: false, wordsLimit: true as const },
+    { kind: "answered" as const, alias: "Company D", atIso: "2026-11-14T10:00:00.000Z", state: "needs_something" as const, canIntroduce: false,
+      question: { id: "q".repeat(64), text: "How many cartons arrive per minute?", answerPending: true as const, answerLimit: true as const } }] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: held }} />);
+    expect(within(companies()).getByText("Their words are not shown: we reached a limit on checking words for names and contact details.")).toBeVisible();
+    expect(within(companies()).queryByText("Their words show here once we have taken names and contact details out of them.")).toBeNull();
+    expect(within(companies()).queryByText("No reason shared.")).toBeNull();
+    expect(within(companies()).getByText("Company D does not see your reply: we reached a limit on checking words for names and contact details."))
+      .toBeInTheDocument();
+    expect(within(companies()).queryByText(/sees your reply once/)).toBeNull();
+  });
+
+  it("shows the site what companies read of its words: the words, being prepared, or held at a limit", () => {
+    render(<CompaniesReadYourWords view={{ sentence: { text: "Stack cartons on cart 2." }, successRule: { limit: true } }} />);
+    const read = screen.getByRole("region", { name: "What companies read" });
+    expect(within(read).getByText("“Stack cartons on cart 2.”")).toBeVisible();
+    expect(within(read).getByText("Companies do not see these words: we reached a limit on checking words for names and contact details."))
+      .toBeVisible();
+    cleanup();
+    render(<CompaniesReadYourWords view={{ sentence: { pending: true } }} />);
+    expect(screen.getByText(/^Companies do not see these words yet\./)).toBeVisible();
   });
 
   it("shows no comparison for a single applicant", () => {

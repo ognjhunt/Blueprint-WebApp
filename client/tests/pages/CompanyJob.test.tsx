@@ -96,6 +96,18 @@ describe("the company's page for one job", () => {
       statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION });
   });
 
+  // A review of PR #1437: a rule the site gave that is not shown yet is never said as "the site has not said".
+  it("says the site's rule for done can't be shown yet, and that a reply held at a limit can't be shown", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ successRulePending: true,
+      clarification: { question: "How tall is the pallet?", answer: null, limitReached: true } }) }) });
+    render(<CompanyJob />);
+    expect(await screen.findByText("What counts as done can't be shown right now.")).toBeInTheDocument();
+    expect(screen.queryByText(/has not said what counts as done/)).toBeNull();
+    expect(screen.getByText("The site replied, but its reply can't be shown: we reached a limit on checking words for names and contact details."))
+      .toBeInTheDocument();
+    expect(screen.queryByText(/You can read it here once/)).toBeNull();
+  });
+
   it("tells the company when the site is asked to reply to its question, and when that date has passed", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
       pendingQuestion: { askedAtIso: "2998-12-31T10:00:00.000Z", replyByIso: "2999-01-03T10:00:00.000Z", reminded: false } }) }) });

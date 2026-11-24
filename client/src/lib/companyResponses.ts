@@ -77,6 +77,8 @@ export const VISIT_NOTE_LIMIT = 300;
 export const ESTIMATE_LABEL = "Estimate before a site visit. Not a quote.";
 export const ESTIMATES_NOT_CHECKED = "Estimates are each company's own, before a site visit. They are not quotes, and Blueprint does not check them.";
 export interface ApplicationEstimate { lowUsd: number; highUsd: number }
+/** The estimate an application gave when the site pressed Accept, recorded on the introduction. */
+export interface AcceptedEstimate { chargeModel: Exclude<ChargeModel, "undecided">; estimate: ApplicationEstimate }
 
 /** Dollars, with cents only when the estimate has them: "$12,000", "$0.35"; both ends alike in a range ("$45.50 to $60.00"). */
 const usd = (value: number, cents: boolean) =>
@@ -199,9 +201,20 @@ export type SiteCompanyEntry =
        */
       reason?: string;
       details?: Pick<CompanyReplyDetails, "verified" | "startWindow" | "chargeModel" | "estimate" | "similarJobs" | "visitMustConfirm">;
-      question?: { id: string; text: string; answer?: string;
+      question?: { id: string; text: string;
+        /** The site's reply as the company reads it (names and contact details taken out). */
+        answer?: string;
+        /** The site replied, and the company does not read it yet: its names and contact details are being taken out. */
+        answerPending?: true;
+        /** The site replied, and the company does not read it: the job reached its limit on checking words. */
+        answerLimit?: true;
         /** When the site is asked to reply by (`replyByIso`); absent for a question asked before the window existed. */
         replyByIso?: string };
+      /** Some of the company's words exist but the site does not read them yet: names and contact details are being
+       * taken out of them (`server/utils/freeTextScreening.ts`). */
+      wordsPending?: true;
+      /** Some of the company's words are not shown: the job reached its limit on checking words for names. */
+      wordsLimit?: true;
       /**
        * The company's name and website, only for an answer given under a line that says the site sees them
        * (`COMPANY_NAME_STATEMENT_VERSIONS`); otherwise the site reads the alias.
@@ -217,6 +230,11 @@ export type SiteCompanyEntry =
       introductionPending?: boolean;
       /** The site asked for an introduction that could not go ahead: the company's email never went. */
       introductionCancelled?: boolean;
+      /**
+       * The estimate the answer gave when the site pressed Accept (null: none then), recorded on the introduction, only
+       * for an answer under a line that shows the site an estimate. The page says when the estimate changed since.
+       */
+      acceptedEstimate?: AcceptedEstimate | null;
       /** After the introduction, what the site said happened: the dates it marked a visit and a pilot. */
       progress?: { visitAtIso?: string; pilotAtIso?: string } };
 
@@ -234,6 +252,11 @@ export interface SiteCompanyActivity {
   firstAnswerAtIso?: string;
   /** Introductions made on this job (not cancelled). There is no limit per job (owner, 2026-11-12). */
   introductions?: { used: number };
+  /**
+   * The version of the sentence beside Accept that is true for this job (`siteIntroductions.ts`): the page shows its text
+   * and sends this version with the press. Absent: the current one.
+   */
+  introductionStatementVersion?: string;
 }
 
 export function elapsedSince(start: string | null | undefined, end: string | null | undefined): string | null {

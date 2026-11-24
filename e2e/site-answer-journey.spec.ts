@@ -328,7 +328,7 @@ test.describe("desktop", () => {
     const sent = companyPage.waitForResponse(response => response.url().endsWith(`/api/site-worlds/tasks/${requestId}/interest`));
     await form.getByRole("button", { name: "Send" }).click();
     expect((await sent).status()).toBe(200);
-    await expect(form.getByRole("status")).toHaveText("Saved. If the site accepts your application, we email you both each other's name and contact details.");
+    await expect(form.getByRole("status")).toHaveText("Saved. If the site accepts your application, we email you each other's contact details.");
 
     // Privacy hard stop: nothing the company was sent or shown names the site, its address or its contact.
     const companyPageText = await companyPage.locator("body").innerText();
@@ -358,7 +358,7 @@ test.describe("desktop", () => {
     await expect(companyPage.getByRole("region", { name: "Answer from the site" })).toContainText("12 cartons per minute.");
     await expect(page.locator("body")).not.toContainText(company.email);
     await expect(page.locator("body")).not.toContainText(company.contact);
-    await expect(entries).toContainText(`We give ${company.name} your name, address and contact details, and give you theirs.`);
+    await expect(entries).toContainText(`We give ${company.name} your email address and the place you gave us, and give you theirs.`);
     const beforePress = await outbox(request, requestId);
     expect(beforePress.filter(item => item.kind.startsWith("introduction_"))).toEqual([]);
     for (const item of beforePress) {
@@ -374,7 +374,9 @@ test.describe("desktop", () => {
     await entries.getByRole("button", { name: "Accept" }).click();
     const reply = await introduced;
     expect(reply.status(), await reply.text()).toBe(200);
-    expect(reply.request().postDataJSON()).toEqual({ alias: "A", statementVersion: "introduction-request-2026-11-12" });
+    // With the time of the answer shown beside the button, so the estimate recorded is the one the site read.
+    expect(reply.request().postDataJSON()).toEqual({ alias: "A", statementVersion: "introduction-request-2026-11-24",
+      answerAtIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/) });
     // Nothing has been sent yet: the company's email waits for the outbox, and the introduction is made only once it
     // is sent (H2). The site's page must not say it was introduced before then.
     await page.reload();
@@ -409,7 +411,7 @@ test.describe("desktop", () => {
 
     // A second press records nothing new.
     const again = await page.request.post(`${ORIGIN}/api/site-task-brief/${encodeURIComponent(token)}/introductions`, {
-      headers: await csrf(page.request), data: { alias: "A", statementVersion: "introduction-request-2026-11-12" } });
+      headers: await csrf(page.request), data: { alias: "A", statementVersion: "introduction-request-2026-11-24" } });
     expect(again.status()).toBe(409);
     expect((await jobRecord(request, requestId)).billable).toHaveLength(1);
     expect((await outbox(request, requestId)).filter(item => item.kind.startsWith("introduction_"))).toHaveLength(2);

@@ -76,4 +76,25 @@ describe("the company's introduction email", () => {
     expect(body.split("1200 E 6th St, Austin, TX")).toHaveLength(2);
     expect(body).toContain("\nAddress: 1200 E 6th St, Austin, TX\n");
   });
+
+  // 2026-11-24: a site that accepted under "We give … your email address and the place you gave us" has its place named so.
+  it("names the place with the word of the sentence the site agreed to", () => {
+    const { body } = introductionCompanyEmail({ site: { ...site, name: site.location, contactName: null }, jobUrl, answerLabel: "Apply",
+      placeLabel: "Place" });
+    expect(body).toContain("\nEmail: manager@site.example\nPlace: 1200 E 6th St, Austin, TX\n");
+    expect(body).not.toMatch(/Address: |Site: |Contact: /);
+  });
+});
+
+describe("which sentence beside Accept is true for a job (2026-11-24)", async () => {
+  const { introductionStatementVersionFor } = await import("../utils/jobIntroductions");
+  const site = { name: "Oakland, CA", contactName: null, email: "ops@site.example", phone: null, location: "Oakland, CA" };
+  it("the current one for a job that holds no name: the start form's place stands in for its name", () => {
+    expect(introductionStatementVersionFor(site)).toBe("introduction-request-2026-11-24");
+    expect(introductionStatementVersionFor({ ...site, name: "The site", location: null })).toBe("introduction-request-2026-11-24");
+  });
+  it("the sentence of 2026-11-12 for a job that holds a name of the site's own or a person's", () => {
+    expect(introductionStatementVersionFor({ ...site, name: "Eastside Laundromat" })).toBe("introduction-request-2026-11-12");
+    expect(introductionStatementVersionFor({ ...site, contactName: "Sam Site" })).toBe("introduction-request-2026-11-12");
+  });
 });

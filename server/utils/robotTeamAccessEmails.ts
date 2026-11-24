@@ -202,7 +202,9 @@ export interface IntroductionSiteDetails { name: string; contactName: string | n
 /** The email to the company when a site asks for an introduction (E6): the site's details and the job link. */
 export function introductionCompanyEmail(params: { site: IntroductionSiteDetails; jobUrl: string; contactName?: string | null;
   /** The company's stored answer the introduction followed, worded by its fixed label. */
-  answerLabel: string }) {
+  answerLabel: string;
+  /** The word for the site's place, as the sentence the site agreed to says it ("Place" since 2026-11-24). */
+  placeLabel?: "Place" | "Address" }) {
   const { site } = params;
   // The typed location is said once: a job from the public start form stores it as the site's name too, so the site
   // has no name of its own to give.
@@ -220,8 +222,8 @@ export function introductionCompanyEmail(params: { site: IntroductionSiteDetails
       ...(site.contactName ? [`Contact: ${site.contactName}`] : []),
       `Email: ${site.email}`,
       ...(site.phone ? [`Phone: ${site.phone}`] : []),
-      // "Address", the word of the statement the site agreed to beside Accept.
-      ...(site.location ? [`Address: ${site.location}`] : []),
+      // The word of the statement the site agreed to beside Accept: "the place you gave us", or "address" before.
+      ...(site.location ? [`${params.placeLabel ?? "Address"}: ${site.location}`] : []),
       "",
       "Open the job:",
       params.jobUrl,

@@ -4,7 +4,7 @@ import { readJobFacts } from "../utils/jobFacts";
 import { JOB_DESCRIPTION_MAX_LENGTH, JOB_DESCRIPTION_TOO_LONG } from "../../client/src/lib/jobDescriptionLimit";
 import { jobReadingOf } from "../utils/siteRobotFit";
 import { loadFirstLookWords } from "../utils/firstLookTable";
-import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED,
+import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_STATEMENT_CHANGED, isIntroductionStatementVersion,
   isIntroductionRefusalReason, type IntroductionRefusalReason } from "../../client/src/lib/siteIntroductions";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
@@ -244,7 +244,8 @@ router.post("/:token/clarifications", csrfProtection, async (req, res) => {
   try {
     const { answerCompanyQuestion } = await import("../utils/jobClarifications");
     const result = await answerCompanyQuestion({ jobId: verified.requestId, ...body.data });
-    if (result.status === "saved") return res.json({ ok: true, answer: result.answer });
+    // The reply as the company reads it, or `pending` while its names and contact details are being taken out.
+    if (result.status === "saved") return res.json({ ok: true, answer: result.answer, ...(result.answer === null ? { pending: true } : {}) });
     if (result.status === "needs_detail") return res.status(400).json({ error: "Add a detail about the job, such as a size, rate, or requirement." });
     return res.status(409).json({ error: "This question is no longer open. Refresh the job to see the latest responses." });
   } catch {
@@ -260,20 +261,24 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
   if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_owner_required",
     error: "Open the owner's job link to ask for this." });
   const body = z.object({ alias: z.string().trim().regex(/^Company [A-Z]{1,3}$|^[A-Z]{1,3}$/),
-    statementVersion: z.string().trim().max(100).optional() }).strict().safeParse(req.body ?? {});
+    statementVersion: z.string().trim().max(100).optional(),
+    // The time of the company's answer shown beside the button (`requestIntroduction`).
+    answerAtIso: z.string().trim().max(40).optional() }).strict().safeParse(req.body ?? {});
   if (!body.success) return res.status(400).json({ code: "introduction_invalid", error: "Press the button beside the company on your job page." });
-  // Pressing the button is the agreement its sentence records (planner, 18:25Z): a page without that sentence, or with
-  // another wording (an old tab), is refused before anything is recorded.
-  if (body.data.statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION)
+  // Pressing the button is the agreement its sentence records (planner, 18:25Z): a page without a recorded sentence is
+  // refused before anything is recorded, and one with another wording than this job's (an old tab) inside
+  // `requestIntroduction`, which knows which sentence is true for the job (2026-11-24).
+  if (!isIntroductionStatementVersion(body.data.statementVersion))
     return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });
   const alias = body.data.alias.replace(/^Company /, "");
   try {
     const { requestIntroduction } = await import("../utils/jobIntroductions");
     const result = await requestIntroduction({ requestId: verified.requestId, alias, actor: "site",
-      statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
+      statementVersion: body.data.statementVersion, answerAtIso: body.data.answerAtIso });
     if (result.ok) return res.json({ ok: true, introducedAtIso: result.introducedAtIso });
     if ((result.reason as string) === "statement_not_current")
-      return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });
+      return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED,
+        ...(isIntroductionStatementVersion(result.statementVersion) ? { statementVersion: result.statementVersion } : {}) });
     let reason: IntroductionRefusalReason = isIntroductionRefusalReason(result.reason) ? result.reason : "not_listed";
     // A withdrawn job is said for good, never "right now" (review S8).
     if (reason === "not_listed") {
@@ -1178,12 +1183,19 @@ async function siteCompanyStatus(params: StatusAnswerParams | null) {
     // "Posted" only when at least one approved company may see jobs (the automatic send's own rule).
     if (sharing.state === "visible" && !await import("../utils/jobAutoSend").then(({ anyCompanyMaySeeJobs }) => anyCompanyMaySeeJobs()))
       sharing.noCompanyCanSee = true;
-    const companies = sharing.state === "not_shared" ? undefined
-      : await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
-        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; });
+    const [companies, companiesRead] = await Promise.all([sharing.state === "not_shared" ? undefined
+      : import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
+        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; }),
+      // Exactly what companies read of the site's own words (2026-11-24), shown on the site's page, only while companies
+      // can see the job (a review of PR #1437: no paid pass for words no company reads).
+      access.listed ? import("../utils/companyJobPage").then(({ companiesReadSiteWords }) => companiesReadSiteWords(params.requestId,
+        params.request as Record<string, any>, params.brief as never))
+        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read what companies read of the site's words"); return null; })
+        : null]);
     // Keep withdrawal available for old description-only listings, even though companies no longer see them.
     const descriptionOnly = isJobSharedListing(params.request) && descriptionStatementShares(params.request);
-    return { sharing, companies, descriptionOnly, ...(access.listed ? { taskFamily: access.details.taskFamily } : {}) };
+    return { sharing, companies, descriptionOnly, ...(companiesRead ? { companiesRead } : {}),
+      ...(access.listed ? { taskFamily: access.details.taskFamily } : {}) };
   } catch (error) {
     logger.warn({ error, requestId: params.requestId }, "Could not read the job's company status");
     return null;

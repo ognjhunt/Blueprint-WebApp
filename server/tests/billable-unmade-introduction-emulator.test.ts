@@ -51,7 +51,8 @@ describe.skipIf(!enabled)("an introduction whose company email has an unknown ou
     vi.useFakeTimers({ toFake: ["Date"], now: START });
     const store = db!;
     const { COMPANY_RESPONSE_STATEMENT_VERSION } = await import("../../client/src/lib/companyResponses");
-    const { INTRODUCTION_REQUEST_STATEMENT_VERSION } = await import("../../client/src/lib/siteIntroductions");
+    // The fixture's site holds a name, so its page shows the sentence of 2026-11-12 (`introductionStatementVersionFor`).
+    const { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION: INTRODUCTION_REQUEST_STATEMENT_VERSION } = await import("../../client/src/lib/siteIntroductions");
     await store.collection("inboundRequests").doc(ID).set({ requestId: ID,
       ...sharedJobFields(ID, { siteName: "A site", siteLocation: "Somewhere" }),
       contact: { email: SITE_EMAIL, firstName: "Sam", lastName: "Site", company: "A site" },

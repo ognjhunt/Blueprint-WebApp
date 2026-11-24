@@ -4,7 +4,8 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { TaskItem, TaskItemInventoryRecord } from "./taskItemInventory";
-import { REMOVED, identifyingDetailsRemoved, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { REMOVED, identifyingDetailsRemoved, removeIdentifyingDetails, type KnownSiteIdentity, type RedactionRules }
+  from "../../client/src/lib/contactRedaction";
 import { knownSiteIdentity } from "./siteIdentity";
 
 /**
@@ -33,11 +34,18 @@ export async function taskContextSiteIdentity(record: Record<string, any> | null
   return record?.[TASK_CONTEXT_IDENTITY_FIELD] === true ? knownSiteIdentity(record) : null;
 }
 
+/**
+ * The rules the task context is cleaned with: those of 2026-11-19, fixed. The rules for what crosses between a site and
+ * a company were widened on 2026-11-24; this copy keeps the rules its digests were sealed under, so a job in flight keeps
+ * the same text and nothing bound to its digest is bought again.
+ */
+export const TASK_CONTEXT_REDACTION_RULES: RedactionRules = "2026-11-19";
+
 /** One text without the site's identity, or the very same text when there is nothing to remove. A text that was
  * nothing but the site's identity reads `[removed]`, never empty: the Pipeline refuses a context with no description. */
 function withoutIdentity(text: string, identity: KnownSiteIdentity): string {
-  if (!identifyingDetailsRemoved(text, identity)) return text;
-  const cleaned = removeIdentifyingDetails(text, identity);
+  if (!identifyingDetailsRemoved(text, identity, TASK_CONTEXT_REDACTION_RULES)) return text;
+  const cleaned = removeIdentifyingDetails(text, identity, { rules: TASK_CONTEXT_REDACTION_RULES });
   return cleaned.trim() ? cleaned : REMOVED;
 }
 

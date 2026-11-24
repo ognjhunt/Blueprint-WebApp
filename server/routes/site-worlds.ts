@@ -138,6 +138,10 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       if (question && !sameQuestion && typeof next.questionId === "string")
         recordReplyWindow(tx, { jobId: taskId, companyId, questionId: next.questionId, askedAtIso: row.updatedAtIso });
     });
+    // The site reads the answer's words only once names and contact details are out of them (`companyWordsForSite`):
+    // their model pass starts now, without waiting.
+    void import("../utils/jobCompanies").then(({ screenCompanyWordsInBackground }) =>
+      screenCompanyWordsInBackground(taskId, companyId, row, access as unknown as Record<string, unknown>, row)).catch(() => undefined);
     return res.json({ ok: true, state: input.data.state, nextAction: answerNextStep(input.data.state) });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
 });
@@ -152,7 +156,7 @@ function applicationDetailsFor(state: CompanyResponseState, details: Record<stri
 /** After an answer, one sentence saying what happens next. */
 function answerNextStep(state: CompanyResponseState): string {
   if (INTRODUCIBLE_RESPONSE_STATES.includes(state))
-    return "Saved. If the site accepts your application, we email you both each other's name and contact details.";
+    return "Saved. If the site accepts your application, we email you each other's contact details.";
   if (state === "needs_something") return "Saved. If the site answers your question, its answer shows on this page.";
   return "Saved. The site sees this answer with your company's name, and you can change it on this page.";
 }

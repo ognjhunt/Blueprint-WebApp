@@ -21,8 +21,8 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { COMPANY_RESPONSE_LABELS, SITE_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
-  type CompanyResponseState } from "../../client/src/lib/companyResponses";
+import { CHARGE_MODELS, COMPANY_ESTIMATE_STATEMENT_VERSIONS, COMPANY_RESPONSE_LABELS, SITE_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
+  isApplicationEstimate, type AcceptedEstimate, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { billableEventRef, buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
 import { COMPANY_RESPONSES_COLLECTION, INTRODUCTIONS_COLLECTION, answerConsentsToIntroduction, companyJobUrl,
@@ -37,11 +37,15 @@ import { introductionAttemptOf, introductionCompanyKey, introductionSiteEmailKey
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { decryptFieldValue } from "./field-encryption";
 import { sealShared } from "./introductionShared";
-import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
+import { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION, INTRODUCTION_REQUEST_STATEMENT_VERSION,
+  isIntroductionStatementVersion } from "../../client/src/lib/siteIntroductions";
 
 export type IntroductionRefusal = "statement_not_current" | "not_listed" | "not_interested" | "consent_missing"
-  | "already_introduced" | "company_not_approved";
-export type IntroductionResult = { ok: true; introducedAtIso: string } | { ok: false; reason: IntroductionRefusal };
+  | "answer_changed" | "already_introduced" | "company_not_approved";
+export type IntroductionResult = { ok: true; introducedAtIso: string }
+  | { ok: false; reason: IntroductionRefusal;
+    /** With `statement_not_current`, when it is known: the sentence true for this job, for the page to show instead. */
+    statementVersion?: string };
 
 export const INTRODUCTION_SITE_KIND = "introduction_made_site";
 export const introductionSiteKey = (requestId: string, companyId: string, attempt = 0) =>
@@ -91,16 +95,55 @@ async function siteDetailsOf(record: Record<string, any>, decrypt: (value: unkno
     phone: null, location: location && location !== "Location pending" ? location : null };
 }
 
+/**
+ * The sentence beside Accept that is true for this job (2026-11-24), by what the company would be given
+ * (`siteDetailsOf`): the current one (the site's email and the place it gave) when the record holds no name of the
+ * site's own and no person's, as for every job from the start form, which asks for none; else the sentence of
+ * 2026-11-12 (the name, the address and the contact details), every word of which is then true. Each says exactly what
+ * the company receives, so nothing the site did not agree to is given.
+ */
+export function introductionStatementVersionFor(site: IntroductionSiteDetails): string {
+  const named = Boolean(site.contactName) || (site.name !== "The site" && site.name !== site.location);
+  return named ? INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION : INTRODUCTION_REQUEST_STATEMENT_VERSION;
+}
+
+/** The sentence a job's page shows beside Accept (`introductionStatementVersionFor`), read from the job's record. */
+export async function introductionStatementVersionOf(record: Record<string, any>, deps: Pick<IntroductionDeps, "decrypt"> = {}):
+  Promise<string> {
+  return introductionStatementVersionFor(await siteDetailsOf(record, deps.decrypt ?? defaultDecrypt));
+}
+
+/**
+ * The estimate the company's answer gave when the site pressed Accept, as the site read it then, so the site's page can
+ * say when it changed after (stress test, 2026-11-24). Only for an answer under a line that shows the site its estimate
+ * (`COMPANY_ESTIMATE_STATEMENT_VERSIONS`): null when that answer gave none; undefined for any other answer (nothing is
+ * recorded, and the site was shown no estimate).
+ */
+export function estimateAtAccept(answer: Record<string, any> | undefined): AcceptedEstimate | null | undefined {
+  if (!answer || !COMPANY_ESTIMATE_STATEMENT_VERSIONS.includes(String(answer.statementVersion))) return undefined;
+  const details = answer.details && typeof answer.details === "object" ? answer.details as Record<string, unknown> : {};
+  const chargeModel = CHARGE_MODELS.find(model => model === details.chargeModel);
+  return chargeModel && chargeModel !== "undecided" && isApplicationEstimate(details.estimate)
+    ? { chargeModel, estimate: { lowUsd: details.estimate.lowUsd, highUsd: details.estimate.highUsd } } : null;
+}
+
 /** The introductions read to count those that stand (recorded on the job); far above any real count. */
 const INTRODUCTION_READ_LIMIT = 1000;
 
 export async function requestIntroduction(input: { requestId: string; alias: string; actor: "site";
   /** The recorded statement beside "Introduce us" the site agreed to: it must be the current one. */
-  statementVersion?: string | null },
+  statementVersion?: string | null;
+  /**
+   * The time of the company's answer the site read beside Accept (its `updatedAtIso`, as the page showed it). An answer
+   * changed since is refused (`answer_changed`); without it (a page from before 2026-11-24) the introduction is made and
+   * no estimate is recorded as the one accepted, as which one the site read is not known.
+   */
+  answerAtIso?: string | null },
   deps: IntroductionDeps = {}): Promise<IntroductionResult> {
   if (!db) throw new Error("introduction_store_unavailable");
-  // Pressing the button is the site's agreement to give the company its details, under the sentence it was shown.
-  if (input.statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION) return { ok: false, reason: "statement_not_current" };
+  // Pressing the button is the site's agreement to give the company its details, under the sentence it was shown: one
+  // of the recorded versions here, and below, inside the transaction, the one that is true for this job.
+  if (!isIntroductionStatementVersion(input.statementVersion)) return { ok: false, reason: "statement_not_current" };
   const store = db;
   const now = deps.now ?? (() => new Date());
   const decrypt = deps.decrypt ?? defaultDecrypt;
@@ -118,8 +161,9 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId)),
       await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(INTRODUCTION_READ_LIMIT))];
     // One introduction per company per job. One cancelled at dispatch (G3) is not made again, except when Blueprint's
-    // own email to the company failed or was never sent (`RETRYABLE_CANCEL_REASONS`): then the site may press again, and
-    // the new attempt has its own emails' keys and its own billable event; the earlier event stays void.
+    // own email to the company failed or was never sent, or the company changed its answer before its email went
+    // (`RETRYABLE_CANCEL_REASONS`): then the site may press again (for a changed answer, once the company applied again,
+    // checked below), and the new attempt has its own emails' keys and its own billable event; the earlier stays void.
     const earlier = introSnap.data();
     const retry = introSnap.exists && typeof earlier?.cancelledAtIso === "string" && RETRYABLE_CANCEL_REASONS.has(String(earlier?.cancelReason));
     if (introSnap.exists && !retry) return { ok: false, reason: "already_introduced" };
@@ -133,6 +177,10 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     // A standing `interested` or `tested_can_do` answer (E9).
     if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer?.state)) return { ok: false, reason: "not_interested" };
     if (!answerConsentsToIntroduction(answer)) return { ok: false, reason: "consent_missing" };
+    // A review of PR #1437: the answer the site read must be the one on record, so a figure it never read is never
+    // recorded as the one it accepted, and it never accepts on words it has not seen.
+    const answerRead = typeof input.answerAtIso === "string";
+    if (answerRead && input.answerAtIso !== answer?.updatedAtIso) return { ok: false, reason: "answer_changed" };
     // There is no limit per job. The count of introductions on record that were not cancelled is kept on the job. Two
     // presses at once both write the job document, which this transaction has read, so Firestore retries one of them,
     // and a second press for the same company then finds its introduction (`already_introduced`).
@@ -141,6 +189,12 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     const companyShared = { company: text(company.company) ?? "", contactName: text(company.name) ?? "", email: companyEmail,
       ...(text(company.website) ? { website: text(company.website)! } : {}) };
     const site = await siteDetailsOf(record, decrypt);
+    // The sentence the site agreed to must be the one true for what this job gives (`introductionStatementVersionFor`):
+    // a page showing another (an old tab, or a record that changed) is refused before anything is recorded.
+    const statementVersion = introductionStatementVersionFor(site);
+    // The true sentence goes back with the refusal, so a page that could not tell which is true (its read of the job
+    // failed) shows that one next, rather than ask the site to reload into the same refusal.
+    if (input.statementVersion !== statementVersion) return { ok: false, reason: "statement_not_current", statementVersion };
     const companyRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionCompanyKey(input.requestId, companyId, attempt));
     const siteRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionSiteKey(input.requestId, companyId, attempt));
     const [companyRow, siteRow] = [await tx.get(companyRowRef), await tx.get(siteRowRef)];
@@ -151,16 +205,22 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     tx[retry ? "set" : "create"](introRef, { schemaVersion: 1, alias: letter, requestedAtIso,
       by: input.actor, ...(attempt > 0 ? { attempt } : {}),
       // Not personal, so stored plainly: the recorded statement the site agreed to by pressing the button.
-      statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION,
+      statementVersion,
       // Both sides' details are encrypted at rest on this record (`introductionShared.ts`). The emails below use the plain
       // values; their outbox rows are cleared of them once sent or cancelled (`captureOutbox.ts`).
       siteShared: await sealShared({ name: site.name, contactName: site.contactName, email: site.email, phone: site.phone,
         location: site.location }),
-      companyShared: await sealShared(companyShared), outcomes: [] });
+      companyShared: await sealShared(companyShared), outcomes: [],
+      // The company's own figures as the site read them beside Accept (not personal, so plain), for "Changed after you
+      // accepted"; only under a line that shows the site an estimate, and only when the page said which answer it showed
+      // (checked above to be this one).
+      ...(answerRead && estimateAtAccept(answer) !== undefined ? { estimateAtAccept: estimateAtAccept(answer) } : {}) });
     writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso, attempt));
     if (!companyRow.exists && EMAIL.test(companyEmail)) {
       const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName,
-        answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
+        answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState],
+        // The word of the sentence the site agreed to: "the place you gave us", or the older "address".
+        placeLabel: statementVersion === INTRODUCTION_REQUEST_STATEMENT_VERSION ? "Place" : "Address" });
       tx.create(companyRowRef, buildOutboxEntry({ idempotencyKey: companyRowRef.id, requestId: input.requestId,
         kind: INTRODUCTION_COMPANY_KIND, to: companyEmail, subject: message.subject, body: message.body,
         replyTo: EMAIL.test(site.email) ? site.email : "hello@tryblueprint.io" }));

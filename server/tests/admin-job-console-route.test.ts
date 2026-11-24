@@ -22,7 +22,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const docRef = (collection: string, id: string): any => ({
     id,
     get: async () => ({ id, exists: table(collection).has(id), data: () => table(collection).get(id) }),
-    collection: (sub: string) => ({ doc: (subId: string) => docRef(`${collection}/${id}/${sub}`, subId) }),
+    collection: (sub: string) => ({ doc: (subId: string) => docRef(`${collection}/${id}/${sub}`, subId),
+      ...query(`${collection}/${id}/${sub}`, [], null, null, 10_000) }),
   });
   const query = (collection: string, filters: Array<(row: Row) => boolean>, order: string | null, after: string | null, limit: number): any => ({
     where: (field: string, op: string, value: unknown) => query(collection, [...filters,
@@ -257,6 +258,16 @@ describe("GET /api/admin/jobs/:requestId", () => {
     expect(body.events.map((event: Row) => event.text)).toContain("Permission withdrawn by the site");
     expect(body.standing.companies).toBeNull();
     expect(body.standing.phrase).toBe("Building the simulation; waiting on Blueprint: withdrawal cleanup, budget");
+  });
+
+  // A review of PR #1437: words held at a limit on checking them are said on the admin page, naming which limit.
+  it("names a limit on checking words for names and contact details as a money stop", async () => {
+    siteJob("job-l", "2026-10-02T00:00:00.000Z", { request: { buyerType: "site_operator" } });
+    table("inboundRequests/job-l/freeTextScreenings").set("a".repeat(64), { status: "limit", limit: "writer_passes",
+      limitAtIso: "2026-11-24T10:00:00.000Z", budget: "company:co-a" });
+    const body = await (await fetch(`${baseUrl}/job-l`, admin)).json();
+    expect(body.stops).toContainEqual({ key: "money-words_limit", whose: "blueprint", atIso: "2026-11-24T10:00:00.000Z",
+      text: "Some words were not shown to the other side: one writer reached its limit on checking words for names and contact details." });
   });
 
   it("never rounds a withdrawal up: deletion confirmed still names the cleanup nobody has verified", async () => {

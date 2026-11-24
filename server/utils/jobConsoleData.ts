@@ -295,7 +295,7 @@ function recordStops(record: Data): AdminJobStop[] {
 const WAIT_WORDS: Readonly<Record<string, string>> = {
   withdrawn: "withdrawal cleanup", "rights-rights_blocked": "rights review", "rights-rights_needs_review": "rights review",
   "blueprint-hold": "its hold on sharing",
-  "money-budget": "budget", "money-safety_limit": "budget", "money-screening_job_ceiling": "budget",
+  "money-budget": "budget", "money-safety_limit": "budget", "money-screening_job_ceiling": "budget", "money-words_limit": "budget",
 };
 function blueprintWaits(stops: AdminJobStop[]): string[] {
   return [...new Set(stops.filter(stop => stop.whose === "blueprint").map(stop => WAIT_WORDS[stop.key] ?? "a step of its own"))];
@@ -305,14 +305,25 @@ function epochIso(value: unknown): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? new Date(value * 1000).toISOString() : null;
 }
 
+/** Words left unread by the other side at a limit on preparing them (`freeTextScreening.ts`), said on the admin page. */
+const WORDS_LIMIT_STOPS: Readonly<Record<string, string>> = {
+  writer_passes: "Some words were not shown to the other side: one writer reached its limit on checking words for names and contact details.",
+  job_passes: "Some words were not shown to the other side: this job reached its limit on checking words for names and contact details.",
+  job_spending_cap: "Some words were not shown to the other side: this job's spending limit left no room to check them for names and contact details.",
+};
+
 async function moneyStops(requestId: string): Promise<AdminJobStop[]> {
   if (!db) return [];
   const rows = await db.collection("opsWebsiteJobOverBudgetAlerts").where("request_id", "==", requestId).limit(20).get();
-  return rows.docs.flatMap(doc => {
+  const stops = rows.docs.flatMap(doc => {
     const data = doc.data() ?? {};
     return Object.entries(MONEY_STOPS).filter(([kind]) => data[kind]).map(([kind, words]) => ({ key: `money-${kind}`, text: words,
       whose: "blueprint" as const, atIso: epochIso(object(data[kind]).recorded_at_epoch) ?? (text(data.alerted_at_iso) || null) }));
   });
+  const { screeningLimitReached } = await import("./freeTextScreening");
+  const limit = await screeningLimitReached(requestId).catch(() => null);
+  return limit ? [...stops, { key: "money-words_limit", text: WORDS_LIMIT_STOPS[limit.limit], whose: "blueprint" as const,
+    atIso: limit.atIso }] : stops;
 }
 
 /** What the job's ledgers count (`websiteJobSpend`), or null when the job has no ledger entry at all. */
@@ -325,6 +336,7 @@ async function costOf(requestId: string, record: Data): Promise<AdminJobDetail["
   const counted = {
     sceneIntakes: async () => { const rows = await ledgers.sceneIntakes(); entries += rows.length; return rows; },
     screeningRuns: async () => { const rows = await ledgers.screeningRuns(); entries += rows.length; return rows; },
+    laneReservations: async () => { const rows = await ledgers.laneReservations(); entries += rows.length; return rows; },
   };
   const spend = await websiteJobSpend({ record, reader: counted });
   if (!entries) return null;

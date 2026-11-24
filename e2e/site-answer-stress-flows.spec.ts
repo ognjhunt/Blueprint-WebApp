@@ -181,7 +181,7 @@ test("the site's applicants: the reply names the company, the comparison leaves 
     Authorization: `Bearer ${tokenB}` }, data: { state: "declined", inputs: "We no longer have capacity.", statementVersion: STATEMENT } });
   expect(changed.status()).toBe(200);
   await entry(b.name).getByRole("button", { name: "Accept" }).click();
-  await expect(entry(b.name).getByRole("alert")).toHaveText("This company has not applied, so you cannot accept it.");
+  await expect(entry(b.name).getByRole("alert")).toHaveText("This company has not applied, or has changed its answer since, so you cannot accept it now.");
   await expect(entry(b.name).getByText("Not a fit", { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(entry(b.name).getByRole("button", { name: "Accept" })).toHaveCount(0);
   expect((await jobRecord(request, requestId)).billable.filter(row => row.companyId === companyIdOf(b.email) && row.status !== "void")).toEqual([]);

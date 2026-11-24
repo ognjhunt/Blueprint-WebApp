@@ -31,7 +31,7 @@ export default function Beta() {
           ]} />
           <BareRows title="Deployment companies" rows={[
             { key: "responses", label: "Responses", value: `A company can choose ${EVERYDAY_ANSWERS}. Once the simulation can be downloaded, it can also choose ${TESTED_ANSWERS}. We can't promise any will say yes.` },
-            { key: "meet", label: "Applicants", value: `You see each company's name and website with its answer. Press Accept beside a company that ${INTRODUCIBLE_ANSWERS} to meet it. We email the company your name, address and contact details, and email you theirs.` },
+            { key: "meet", label: "Applicants", value: `You see each company's name and website with its answer. Press Accept beside a company that ${INTRODUCIBLE_ANSWERS} to meet it. We email the company your email address and the place you gave us, and email you theirs.` },
             { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
           ]} />
           <BareRows title="Your video" rows={[

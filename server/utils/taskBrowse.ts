@@ -13,6 +13,7 @@ import { KINDS_OF_JOB_TYPE } from "../../client/src/lib/jobFacts";
 import { jobReadingOf } from "./siteRobotFit";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { storedCompanySimulation } from "./websiteCompanySimulation";
+import { loadScreenings, screenAndWait, screenInBackground } from "./freeTextScreening";
 
 /**
  * The job card approved deployment companies see in the library: category title and stage (the site's sentence is added
@@ -61,17 +62,25 @@ export async function libraryJobStage(id: string, record: Record<string, any>): 
 }
 
 async function libraryCard(card: TaskBrowseCard, record: Record<string, any>,
-  session?: FirebaseFirestore.DocumentData, brief?: FirebaseFirestore.DocumentData): Promise<TaskBrowseCard> {
+  session?: FirebaseFirestore.DocumentData, brief?: FirebaseFirestore.DocumentData,
+  /** How long one card's own read waits for a model pass its sentence still needs; the whole list waits for none. */
+  screeningWaitMs = 0): Promise<TaskBrowseCard> {
   const { captureId } = siteWalkthroughIdentity(card.id, record);
   const simulationDownloadAvailable = Boolean(storedCompanySimulation(session, captureId));
-  const [country, simulationStage, known] = await Promise.all([
+  const [country, simulationStage, known, screenings] = await Promise.all([
     companyPlaceOf(record),
     simulationDownloadAvailable ? "simulation_built" as const : libraryJobStage(card.id, record),
     knownSiteIdentity(record).catch(() => null),
+    loadScreenings(card.id),
   ]);
+  // The site's sentence only once the model pass over it has succeeded (`siteWordsForCompany`); else it starts now.
+  let sentence = siteSentenceForCompany(brief, known, screenings);
+  if (screenings.missing.length && screeningWaitMs > 0) {
+    if (await screenAndWait(card.id, screenings.missing, screeningWaitMs)) sentence = siteSentenceForCompany(brief, known, await loadScreenings(card.id));
+  } else screenInBackground(card.id, screenings.missing);
   // The country, with the state or city only as the accepted statement allows (`companyPlaceOf`): never the site's name or address.
   // The title and how often the job runs, as its page leads with them, like a load post.
-  return { ...card, region: card.region || country || "", sentence: siteSentenceForCompany(brief, known), simulationStage,
+  return { ...card, region: card.region || country || "", sentence, simulationStage,
     simulationDownloadAvailable, headline: companyJobHeadline(record, card.taskFamily, jobTitleForDisplay(card.title), known),
     headlineFacts: rateInWords(readJobFacts(record)) };
 }
@@ -155,6 +164,7 @@ export async function readTaskCardDetail(id: string): Promise<TaskCardDetail | n
   const { record, access, session, brief } = await loadCompanyJobAccess(id);
   const listed = record ? projectTaskBrowseCard(id, record as InboundRequest, access) : null;
   if (!listed || !record) return null;
-  const [card, answerSummary] = await Promise.all([libraryCard(listed, record as InboundRequest, session, brief), loadJobCardAnswer(id, record)]);
+  const [card, answerSummary] = await Promise.all([libraryCard(listed, record as InboundRequest, session, brief, 4_000),
+    loadJobCardAnswer(id, record)]);
   return answerSummary ? { ...card, answerHeadline: answerSummary.headline, answerSummary } : card;
 }

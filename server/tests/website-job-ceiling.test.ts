@@ -10,7 +10,7 @@ const policy = { schema_version: "website_atlas_grant_policy.v1", maximum_cost_u
   validity_seconds: 3600, provider_retention: "account_does_not_retain", approval_reference: "owner", approved_by: "owner" };
 const reader = (intakes: Record<string, any>[] = [],
   runs: Array<{ run: Record<string, any>; result: Record<string, any> | null }> = []): WebsiteJobLedgerReader =>
-  ({ sceneIntakes: async () => intakes, screeningRuns: async () => runs });
+  ({ sceneIntakes: async () => intakes, screeningRuns: async () => runs, laneReservations: async () => [] });
 const held = (maximum: number, settled?: number) => ({ admission: { maximum_cost_usd: maximum },
   ...(settled === undefined ? {} : { settlement: { actual_cost_usd: settled, status: "settled" } }) });
 const screening = (committed: string, generatedAt: string, revision = 1) => ({ run: { run_kind: "beta_policy_screening" },
@@ -48,6 +48,23 @@ describe("what counts against it", () => {
     const record = { website_preparation_reservations: { a: held(1.0000001), b: held(5, 0), c: held(2, 1.25) } };
     expect(await websiteJobSpend({ record, reader: reader() })).toMatchObject({
       preparation_micros: 1_000_001 + 0 + 1_250_000, native_construction_micros: 0, screening_micros: 0 });
+  });
+
+  // A review of PR #1437 (2026-11-24): the job's small model lanes count against the same cap (`jobLaneSpend.ts`).
+  it("counts each model lane row at its settlement, else its full hold, and an unreadable one as unbounded", async () => {
+    const lanes = (rows: Array<Record<string, any>>): WebsiteJobLedgerReader =>
+      ({ sceneIntakes: async () => [], screeningRuns: async () => [], laneReservations: async () => rows });
+    const spend = await websiteJobSpend({ record: { website_preparation_reservations: { a: held(30) } },
+      reader: lanes([held(0.0013), held(0.0013, 0.0004), held(0.0013, 0)]) });
+    expect(spend).toMatchObject({ model_lane_micros: 1_300 + 400 + 0, total_micros: 30_000_000 + 1_700,
+      readable_total_micros: 30_000_000 + 1_700 });
+    const unreadable = await websiteJobSpend({ record: {}, reader: lanes([{ lane: "free_text_redaction", admission: {} }]) });
+    expect(unreadable.model_lane_micros).toBe(Infinity);
+    expect(unreadable.unreadable).toEqual(["model lane reservation free_text_redaction #1"]);
+    // The cap refuses what they leave no room for, as for every other ledger.
+    const full = { record: { website_preparation_reservations: { a: held(39.999) } }, reader: lanes([held(0.001)]) };
+    expect((await checkWebsiteJobCeiling({ ...full, additionalCostUsd: 0 })).exceeded).toBe(false);
+    expect((await checkWebsiteJobCeiling({ ...full, additionalCostUsd: 0.000001 })).exceeded).toBe(true);
   });
 
   it("holds a scene intake's whole native allowance until it closes, then counts its attempts", async () => {
@@ -232,7 +249,7 @@ describe("admission", () => {
     const { ceiling, spend } = await assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 1 });
     expect(websiteJobCeilingSummary(ceiling, spend)).toEqual({ schema_version: "website_job_ceiling.v1",
       maximum_cost_usd: 40, source: "job_spending_cap", preparation_cost_usd: 30, native_construction_cost_usd: 5,
-      screening_cost_usd: 4, reserved_or_settled_cost_usd: 39, remaining_cost_usd: 1 });
+      screening_cost_usd: 4, model_lane_cost_usd: 0, reserved_or_settled_cost_usd: 39, remaining_cost_usd: 1 });
     await expect(assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 1.000001 }))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
   });

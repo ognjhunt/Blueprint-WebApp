@@ -16,6 +16,7 @@ import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
 import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, NO_SUCCESS_RULE, type FitSummaryRow } from "@/lib/companyJobPage";
+import { SITE_REPLY_BEING_PREPARED, SITE_REPLY_LIMIT, SUCCESS_RULE_CANT_BE_SHOWN } from "@/lib/companiesRead";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } from "@/lib/companySignInLink";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
@@ -61,8 +62,9 @@ function PublicJobFacts({ jobId }: { jobId: string }) {
 /** The job library: the signed-in list on the companies' page, at its own section. */
 export const JOB_LIBRARY_URL = BROWSE_JOBS_PATH;
 export const VIDEO_PREPARING = "The video is being prepared.";
-/** Under the words box: the site reads them, with the company's identity taken out first (`jobCompanies.siteReasonOf`). */
-export const WORDS_REACH_SITE = "The site reads these words, with your company's name and contact details taken out.";
+/** Under the words box: the site reads them, with the company's identity and people's names taken out first
+ * (`jobCompanies.companyWordsForSite`). */
+export const WORDS_REACH_SITE = "The site reads these words, with your company's name, people's names and contact details taken out.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
 export const NO_FIRST_LOOK = "Our first look is not ready yet.";
 export const NO_PACKET_FACTS = "Nothing about the object is measured or estimated yet.";
@@ -263,7 +265,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         <section aria-label="The job">
           <h2>The job, in the site's words</h2>
           {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site's description can't be shown right now.</p>}
-          <div className="company-job-success"><h3>What counts as done</h3><p>{page.successRule || NO_SUCCESS_RULE}</p></div>
+          <div className="company-job-success"><h3>What counts as done</h3><p>{page.successRule || (page.successRulePending ? SUCCESS_RULE_CANT_BE_SHOWN : NO_SUCCESS_RULE)}</p></div>
         </section>
 
         <section aria-label="At a glance">
@@ -458,7 +460,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
     {page.clarification && <div className="company-question" role="region" aria-label="Answer from the site">
       <dl className="company-response-facts">
         <div><dt>Your question</dt><dd>{page.clarification.question}</dd></div>
-        <div><dt>Answer from the site</dt><dd>{page.clarification.answer}</dd></div>
+        <div><dt>Answer from the site</dt><dd>{page.clarification.answer ?? (page.clarification.limitReached ? SITE_REPLY_LIMIT : SITE_REPLY_BEING_PREPARED)}</dd></div>
       </dl>
     </div>}
     <form onSubmit={submit} className="ms-form" aria-label={formLabel}>

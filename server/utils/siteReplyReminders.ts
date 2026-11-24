@@ -64,10 +64,11 @@ export async function remindUnansweredQuestions(nowMs = Date.now()): Promise<num
   }
   // Read at call time: the outbox imports this module for its dispatch check.
   const { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } = await import("./captureOutbox");
-  let queued = 0;
-  for (const window of due.sort((a, b) => a.replyByIso.localeCompare(b.replyByIso)).slice(0, PER_PASS)) {
+  let queued = 0, decided = 0;
+  for (const window of due.sort((a, b) => a.replyByIso.localeCompare(b.replyByIso))) {
+    if (decided >= PER_PASS) break;
     try {
-      const sent = await store.runTransaction(async (tx) => {
+      const sent = await store.runTransaction(async (tx): Promise<boolean | "not_shown"> => {
         const windowRef = store.collection(SITE_REPLY_WINDOWS).doc(window.id);
         const replyRef = store.collection("inboundRequests").doc(window.jobId).collection(RESPONSES).doc(window.companyId);
         const outboxRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(siteReplyReminderKey(window.jobId, window.questionId));
@@ -84,6 +85,9 @@ export async function remindUnansweredQuestions(nowMs = Date.now()): Promise<num
           tx.set(windowRef, { state: "closed", closedAtIso: new Date(nowMs).toISOString() }, { merge: true });
           return false;
         }
+        // The site sees a company's question only once names and contact details are out of it (`companyWordsForSite`):
+        // it is never reminded about one it cannot read. The window stays open, and a later pass reminds it once shown.
+        if (!await questionShownToSite(tx, window.jobId, window.companyId, reply!, question!.text)) return "not_shown";
         const { decryptFieldValue } = await import("./field-encryption");
         const to = String(await decryptFieldValue(record!.contact?.email ?? "")).trim();
         const atIso = new Date(nowMs).toISOString();
@@ -99,12 +103,30 @@ export async function remindUnansweredQuestions(nowMs = Date.now()): Promise<num
         tx.set(windowRef, { state: "reminded", remindedAtIso: atIso }, { merge: true });
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to);
       });
-      if (sent) queued += 1;
+      if (sent !== "not_shown") decided += 1;
+      if (sent === true) queued += 1;
     } catch (error) {
       logger.warn({ error, requestId: window.jobId }, "Could not remind the site about a company's question");
     }
   }
   return queued;
+}
+
+/**
+ * Whether the site's page shows this company's question: its words through the deterministic pass with the company's
+ * held identity, and the model pass over them succeeded (`companyWordsForSite`). Reads only, inside the transaction.
+ */
+async function questionShownToSite(tx: FirebaseFirestore.Transaction, jobId: string, companyId: string,
+  reply: FirebaseFirestore.DocumentData, questionText: string): Promise<boolean> {
+  const [{ knownCompanyIdentity, siteReasonOf }, { FREE_TEXT_SCREENING_COLLECTION, needsScreening, screeningKey }, { ROBOT_TEAM_ACCESS_COLLECTION }] =
+    await Promise.all([import("./jobCompanies"), import("./freeTextScreening"), import("./robotTeamEarlyAccess")]);
+  const company = (await tx.get(db!.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId))).data();
+  const input = siteReasonOf({ ...reply, inputs: questionText }, knownCompanyIdentity(company, reply));
+  if (!input) return false;
+  if (!needsScreening(input)) return true;
+  const row = (await tx.get(db!.collection("inboundRequests").doc(jobId).collection(FREE_TEXT_SCREENING_COLLECTION)
+    .doc(screeningKey("company", input)))).data();
+  return row?.status === "done";
 }
 
 /**

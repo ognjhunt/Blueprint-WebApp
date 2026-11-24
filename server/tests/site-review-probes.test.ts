@@ -58,7 +58,7 @@ describe("P2 (M2): the site's 'Meet {company}' email never claims an answer it w
 
 describe("P3 (M3): the sentence beside 'Introduce us' says the address goes too", () => {
   it("names the address", () => {
-    expect(introduceSentence("Company A")).toBe("We give Company A your name, address and contact details, and give you theirs.");
+    expect(introduceSentence("Company A")).toBe("We give Company A your email address and the place you gave us, and give you theirs.");
   });
 });
 

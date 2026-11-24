@@ -35,6 +35,11 @@ import { companyMaySeeJobs } from "./companyTerms";
 import { storedPacketFacts, type PacketFacts, type PACKET_FACT_QUESTIONS } from "./websitePreparationStatus";
 import type { JobFactKey, JobFacts } from "../../client/src/lib/jobFacts";
 import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { loadScreenings, screenAndWait, siteReplyStateForCompany, siteWordsDeterministic, siteWordsForCompany, siteWordsStateForCompany,
+  type Screenings } from "./freeTextScreening";
+export { siteWordsDeterministic, siteWordsForCompany };
+import type { CompaniesReadSiteWords } from "../../client/src/lib/companiesRead";
+import { JOB_DESCRIPTION_MAX_LENGTH } from "../../client/src/lib/jobDescriptionLimit";
 
 /**
  * The company still stands approved as a deployment company (never a technology partner: the site agreed to share its
@@ -208,12 +213,45 @@ export async function aboutTheSite(requestId: string): Promise<string[]> {
   return lines;
 }
 
+/** The site's sentence as the deterministic pass reads it: the brief's summary, at most the one description limit. */
+export const siteSentenceSource = (brief: { summary?: unknown } | undefined | null) => String(brief?.summary ?? "").trim().slice(0, JOB_DESCRIPTION_MAX_LENGTH);
+/** The site's success rule as the deterministic pass reads it, or "" when the site said it does not know. */
+export const siteSuccessRuleSource = (brief: { successCriteria?: any } | undefined | null) =>
+  brief?.successCriteria?.unknown ? "" : String(brief?.successCriteria?.successDefinition ?? "").trim().slice(0, 1000);
+
 /**
- * The site's own sentence as a deployment company reads it, on the job page and on its card in the list: the brief's
- * summary with the site's known identity removed. Empty when the identity cannot be read, never one that might name it.
+ * The site's own sentence as a deployment company reads it, on the job page and on its card in the list
+ * (`siteWordsForCompany`). Empty while its model pass has not succeeded, or when the identity cannot be read.
  */
-export function siteSentenceForCompany(brief: { summary?: unknown } | undefined | null, known: KnownSiteIdentity | null): string {
-  return known ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.summary ?? "").trim().slice(0, 2000), known)) : "";
+export function siteSentenceForCompany(brief: { summary?: unknown } | undefined | null, known: KnownSiteIdentity | null,
+  screenings: Screenings): string {
+  return siteWordsForCompany(siteSentenceSource(brief), known, screenings);
+}
+
+/**
+ * What deployment companies read of the site's own sentence and success rule, for the site's own page (2026-11-24):
+ * exactly the words a company's page shows (`siteWordsForCompany`), or `pending` while the model pass over them has not
+ * succeeded. A text the pass has not read yet is screened now, waiting at most `waitMs`. Null when the site's identity
+ * cannot be read (a company then reads none of its words either).
+ */
+export async function companiesReadSiteWords(requestId: string, record: Record<string, any>,
+  brief: { summary?: unknown; successCriteria?: any } | null | undefined, waitMs = 5_000): Promise<CompaniesReadSiteWords | null> {
+  const known = await knownSiteIdentity(record).catch(() => null);
+  if (!known) return null;
+  const read = (screenings: Screenings) => {
+    const view: CompaniesReadSiteWords = {};
+    for (const [field, source] of [["sentence", siteSentenceSource(brief)], ["successRule", siteSuccessRuleSource(brief)]] as const) {
+      if (!siteWordsDeterministic(source, known).trim()) continue;
+      const read = siteWordsStateForCompany(source, known, screenings);
+      // Shown, being prepared, or held at a limit: each said plainly on the site's page.
+      view[field] = read.state === "shown" && read.text ? { text: read.text } : read.state === "limit" ? { limit: true } : { pending: true };
+    }
+    return view;
+  };
+  const first = await loadScreenings(requestId);
+  const view = read(first);
+  if (!first.missing.length) return view;
+  return await screenAndWait(requestId, first.missing, waitMs) ? read(await loadScreenings(requestId)) : view;
 }
 
 /** The page payload for one viewer, or null when the job is not listed (refused alike with a job that does not exist). */
@@ -223,13 +261,14 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   const [{ record, access, brief, session }, approved] = await Promise.all([loadCompanyJobAccess(requestId), companyStillApproved(viewer.companyId)]);
   if (!record || !access.listed || !approved) return null;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
-  const [answerRow, firstLook, country, known, about, stage] = await Promise.all([
+  const [answerRow, firstLook, country, known, about, stage, screenings] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").doc(viewer.companyId).get().then(doc => doc.data()),
     loadJobCardAnswerWithRobots(requestId, record),
     companyPlaceOf(record),
     knownSiteIdentity(record).catch(() => null),
     aboutTheSite(requestId),
     import("./taskBrowse").then(({ libraryJobStage }) => libraryJobStage(requestId, record)).catch(() => null),
+    loadScreenings(requestId),
   ]);
   const facts = readJobFacts(record);
   // Identity that cannot be read right now: no sentence and no packet facts this time, never one that might name the site.
@@ -249,15 +288,28 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   });
   const question = questionOnReply(answerRow);
   const clarification = question ? clarificationOnReply(answerRow, question.id) : undefined;
+  // The site's words as this company reads them (`siteWordsForCompany`, `siteReplyForCompany`): each empty (or the reply
+  // null) while the model pass over it has not succeeded. Words it has not read yet are screened now, the page waiting
+  // a few seconds for them; a pass still running then goes on, and a later visit shows its result.
+  const siteWords = (results: Screenings) => ({
+    sentence: siteSentenceForCompany(brief, known, results),
+    successRule: siteWordsStateForCompany(siteSuccessRuleSource(brief), known, results),
+    clarification: clarification === undefined ? undefined : siteReplyStateForCompany(clarification, known, results),
+  });
+  let words = siteWords(screenings);
+  if (screenings.missing.length && await screenAndWait(requestId, screenings.missing, 4_000))
+    words = siteWords(await loadScreenings(requestId));
+  const { sentence, successRule: successRead, clarification: clarificationRead } = words;
+  const successRule = successRead.state === "shown" ? successRead.text : "";
+  // A rule the site gave that is not shown yet is said so, never as "The site has not said what counts as done yet"
+  // (a review of PR #1437).
+  const successRulePending = successRead.state !== "shown" && Boolean(siteSuccessRuleSource(brief));
   const reading = jobReadingOf(record);
   const taskFamily = access.details.taskFamily;
   // The first look and the simulation each say where they stand instead of showing an empty box.
   const firstLookStatus = firstLook.summary || rows.length ? null
     : stage === "no_video" ? FIRST_LOOK_STATUS.no_video : firstLook.reading ? FIRST_LOOK_STATUS.reading : FIRST_LOOK_STATUS.unknown;
   const simulationStatus = simulationUrl || viewerUrl ? null : SIMULATION_STATUS[stage ?? "unknown"];
-  const successRule = known && !brief?.successCriteria?.unknown
-    ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.successCriteria?.successDefinition ?? "").trim().slice(0, 1000), known))
-    : "";
   return {
     schemaVersion: "company_job_page.v1",
     id: requestId,
@@ -269,9 +321,11 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     publishedAtIso: String(record.public_task_listing?.approvedAtIso ?? ""),
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
     // text and any other contact detail removed (`removeIdentifyingDetails`), then any name-shaped text the record does
-    // not hold (`removeNamesNotHeld`): a company gets the site's name only through an introduction the site asks for.
-    sentence: siteSentenceForCompany(brief, known),
+    // not hold (`removeNamesNotHeld`), then whatever the model pass finds, then both again (`siteWordsForCompany`):
+    // a company gets the site's name only through an introduction the site asks for. Empty until the model pass is done.
+    sentence,
     ...(successRule ? { successRule } : {}),
+    ...(successRulePending ? { successRulePending: true as const } : {}),
     // The questions the site's page asked, chosen the same way: the reading's kind of job, else the keyword match.
     jobFacts: jobFactsInWords(facts, taskFamily, reading),
     // The same answers as a fixed set of fields, "Not stated" where the site skipped one; the object's name only when
@@ -299,7 +353,10 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
       inputs: typeof answerRow.inputs === "string" ? answerRow.inputs : "", updatedAtIso: String(answerRow.updatedAtIso ?? ""),
       statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null,
       ...(answerRow.details ? { details: answerRow.details } : {}) } : null,
-    ...(question && clarification ? { clarification: { question: question.text, answer: clarification } } : {}),
+    // The site's reply: null while the model pass over it has not succeeded (the page says it is being prepared).
+    ...(question && clarification ? { clarification: { question: question.text,
+      answer: clarificationRead?.state === "shown" ? clarificationRead.text : null,
+      ...(clarificationRead?.state === "limit" ? { limitReached: true as const } : {}) } } : {}),
     // The company's own question while the site has not replied, with its reply date (`REPLY_WINDOW_MS`).
     ...(question && !clarification && replyByIso(answerRow?.questionAskedAtIso) ? { pendingQuestion: {
       askedAtIso: String(answerRow!.questionAskedAtIso), replyByIso: replyByIso(answerRow!.questionAskedAtIso)!,
