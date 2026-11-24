@@ -118,8 +118,9 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId)),
       await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(INTRODUCTION_READ_LIMIT))];
     // One introduction per company per job. One cancelled at dispatch (G3) is not made again, except when Blueprint's
-    // own email to the company failed or was never sent (`RETRYABLE_CANCEL_REASONS`): then the site may press again, and
-    // the new attempt has its own emails' keys and its own billable event; the earlier event stays void.
+    // own email to the company failed or was never sent, or the company changed its answer before its email went
+    // (`RETRYABLE_CANCEL_REASONS`): then the site may press again (for a changed answer, once the company applied again,
+    // checked below), and the new attempt has its own emails' keys and its own billable event; the earlier stays void.
     const earlier = introSnap.data();
     const retry = introSnap.exists && typeof earlier?.cancelledAtIso === "string" && RETRYABLE_CANCEL_REASONS.has(String(earlier?.cancelReason));
     if (introSnap.exists && !retry) return { ok: false, reason: "already_introduced" };

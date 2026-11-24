@@ -311,6 +311,82 @@ describe("each introduction is one billable event, recorded only after the site'
   });
 });
 
+/**
+ * The company's answer at the commit point (2026-11-24, a $0 stress test: a company that answered Not a fit after the
+ * site pressed Accept, before its email went, was still introduced and billed). The dispatch check of both emails
+ * (`introductionMayProceed`) reads the company's answer as it stands; the site's own press reads it too.
+ */
+describe("the company's answer when its introduction email would go", () => {
+  const companyKey = (record: { email: string }, attempt = 0) =>
+    `${ID}:introduction_made_company:${sha(record.email)}${attempt ? `:a${attempt}` : ""}`;
+  const siteKey = (record: { email: string }, attempt = 0) =>
+    `${ID}:introduction_made_site:${sha(record.email)}${attempt ? `:a${attempt}` : ""}`;
+  /** One dispatch check of an introduction email, as the outbox runs it: reads, then the cancellation in the same transaction. */
+  async function dispatchCheck(kind: "introduction_made_company" | "introduction_made_site", idempotencyKey: string) {
+    const { introductionEmailCheck } = await import("../utils/jobIntroductionGate");
+    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+    return dbAdmin!.runTransaction(async tx => {
+      const check = await introductionEmailCheck({ kind, requestId: ID, idempotencyKey }, tx);
+      check.cancel?.(tx);
+      return check.current;
+    });
+  }
+  const introRecord = () => state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`) as Record<string, unknown>;
+
+  for (const changed of ["declined", "needs_something"] as const) {
+    it(`cancels and voids when the company answers ${changed} after the press and before its email went`, async () => {
+      expect((await press("A")).status).toBe(200);
+      expect((await answer(NORTH, changed)).status).toBe(200);
+      expect(await dispatchCheck("introduction_made_company", companyKey(NORTH))).toBe(false);
+      expect(events()).toEqual([expect.objectContaining({ id: eventId(NORTH), status: "void", voidReason: "company_answer_changed" })]);
+      expect(introRecord()).toMatchObject({ cancelReason: "company_answer_changed", siteShared: null, companyShared: null });
+      // The company's own row is not current, so the outbox stops it; the site's is cancelled and cleared with it.
+      expect(state.docs.get(`captureOutbox/${siteKey(NORTH)}`)).toMatchObject({ status: "cancelled", subject: "", body: "" });
+      // The site's page says it could not go ahead, and offers nothing until the company applies again.
+      const entries = ((await siteStatus()).body as { companyStatus: { companies: { entries: Array<Record<string, unknown>> } } })
+        .companyStatus.companies.entries;
+      expect(entries.find(row => row.alias === "Company A")).toMatchObject({ introductionCancelled: true, canIntroduce: false });
+    });
+  }
+
+  it("decides the site's held email the same way when the company's row has not gone", async () => {
+    expect((await press("A")).status).toBe(200);
+    expect((await answer(NORTH, "declined")).status).toBe(200);
+    expect(await dispatchCheck("introduction_made_site", siteKey(NORTH))).toBe(false);
+    expect(events()).toEqual([expect.objectContaining({ status: "void", voidReason: "company_answer_changed" })]);
+  });
+
+  it("goes ahead when the answer changed between the two that allow one, Apply and Tested it: can do", async () => {
+    expect((await press("A")).status).toBe(200);
+    const answerKey = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    state.docs.set(answerKey, { ...(state.docs.get(answerKey) as object), state: "tested_can_do" });
+    expect(await dispatchCheck("introduction_made_company", companyKey(NORTH))).toBe(true);
+    expect(events()).toEqual([expect.objectContaining({ status: "recorded_no_price" })]);
+    expect(introRecord()).not.toHaveProperty("cancelledAtIso");
+  });
+
+  it("refuses a press from a page loaded before the company changed to Not a fit, and records nothing", async () => {
+    expect((await answer(NORTH, "declined")).status).toBe(200);
+    expect(await press("A")).toMatchObject({ status: 409, body: { reason: "not_interested" } });
+    expect(events()).toEqual([]);
+    expect(introductions()).toEqual([]);
+  });
+
+  it("lets the site accept again once the company applies again: a new attempt and event, the void one kept", async () => {
+    expect((await press("A")).status).toBe(200);
+    expect((await answer(NORTH, "declined")).status).toBe(200);
+    expect(await dispatchCheck("introduction_made_company", companyKey(NORTH))).toBe(false);
+    // Still Not a fit: nothing to accept.
+    expect(await press("A")).toMatchObject({ status: 409, body: { reason: "not_interested" } });
+    expect((await answer(NORTH)).status).toBe(200);
+    const again = await press("A");
+    expect(again, JSON.stringify(again.body)).toMatchObject({ status: 200, body: { ok: true } });
+    expect(events()).toEqual([expect.objectContaining({ id: eventId(NORTH), status: "void", voidReason: "company_answer_changed" }),
+      expect.objectContaining({ id: `${eventId(NORTH)}-a1`, status: "recorded_no_price", attempt: 1 })]);
+    expect(await dispatchCheck("introduction_made_company", companyKey(NORTH, 1))).toBe(true);
+  });
+});
+
 describe("the site is never charged", () => {
   it("writes only the job, its introduction, the event and the two emails: no payment record of any kind", async () => {
     const before = new Map(state.docs);

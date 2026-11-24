@@ -5,8 +5,13 @@
  * ONE COMMIT POINT: the company's email (`introduction_made_company`) is dispatched first. The site's "Meet {company}"
  * email (`introduction_made_site`) is created held and released only when the company's row is definitely sent.
  * - Before that point, the one predicate `introductionMayProceed` decides for both: the introduction is on record and not
- *   cancelled, the job is not withdrawn and is still shared under the whole rule (`loadCompanyJobAccess`), and the
- *   company is an approved deployment company with a current signed-in acceptance of the Terms (`companyMaySeeJobs`).
+ *   cancelled, the job is not withdrawn and is still shared under the whole rule (`loadCompanyJobAccess`), the
+ *   company is an approved deployment company with a current signed-in acceptance of the Terms (`companyMaySeeJobs`),
+ *   and the company's answer on the job, as it stands now, still allows an introduction (`answerConsentsToIntroduction`:
+ *   Apply or Tested it: can do, given under a line that agrees to one). A company that changed its answer to anything
+ *   else after the site pressed Accept (Not a fit, Need more details, Tested it: cannot yet) is not introduced or billed
+ *   (2026-11-24, a $0 stress test: it was). The site's own press checks the same answer (`requestIntroduction`), so
+ *   both orders of the race end alike, and only the answer at the commit point counts.
  *   Blueprint's own work window ending (the preparation's `authority_ended` once the window has passed) stops paid
  *   work only: it does not cancel an introduction the site pressed (audit G-06), while every other stop still does.
  *   When it fails, the introduction is cancelled as a whole (`introductionEmailCheck`'s `cancel`, applied by the outbox
@@ -20,8 +25,10 @@
  * - A held site row never depends on the company row's own step having run (20:55Z, J1): every dispatch pass decides
  *   each held row from the facts (`settleHeldSiteIntroductions`), and a company row that ages out in the outbox's
  *   deferral path ends the introduction there too.
- * - A cancellation caused by Blueprint's own email to the company (`company_email_failed`, `company_email_not_sent`) may
- *   be asked for again by the site (`RETRYABLE_CANCEL_REASONS`). Each attempt after the first has its own email keys
+ * - A cancellation caused by Blueprint's own email to the company (`company_email_failed`, `company_email_not_sent`), or
+ *   by the company's answer changing (`company_answer_changed`), may be asked for again by the site
+ *   (`RETRYABLE_CANCEL_REASONS`); the latter only once the company applies again, as every press requires. Each attempt
+ *   after the first has its own email keys
  *   (ending `:a{attempt}`) and its own billable event; the introduction record carries the current `attempt`, and a row
  *   or event of an earlier attempt never acts on the current one.
  * Every other kind passes.
@@ -37,8 +44,13 @@ export const introductionCompanyKey = (requestId: string, companyId: string, att
   `${requestId}:${INTRODUCTION_COMPANY_KIND}:${companyId}${attemptSuffix(attempt)}`;
 export const introductionSiteEmailKey = (requestId: string, companyId: string, attempt = 0) =>
   `${requestId}:${INTRODUCTION_SITE_EMAIL_KIND}:${companyId}${attemptSuffix(attempt)}`;
-/** Cancellations caused by Blueprint's own email failing, not by the site, the company or the job: the site may ask again. */
-export const RETRYABLE_CANCEL_REASONS: ReadonlySet<string> = new Set(["company_email_failed", "company_email_not_sent"]);
+/**
+ * Cancellations the site may ask again after: Blueprint's own email failing, and the company's answer changing before
+ * its email went (a new press needs the company to have applied again: `answerConsentsToIntroduction`). Never one caused
+ * by the site, the job or the company's approval.
+ */
+export const RETRYABLE_CANCEL_REASONS: ReadonlySet<string> = new Set(["company_email_failed", "company_email_not_sent",
+  "company_answer_changed"]);
 /** The attempt an introduction record is on: 0 for the first. */
 export const introductionAttemptOf = (record: Record<string, unknown> | undefined) => {
   const attempt = Number(record?.attempt);
@@ -51,7 +63,7 @@ const NOT_YET_SENT = new Set(["pending", "claimed", "review_required", "held"]);
 export const HELD_STATUS = "held";
 
 export type IntroductionStopReason = "introduction_missing" | "introduction_cancelled" | "job_withdrawn" | "job_not_shared"
-  | "company_not_approved" | "company_email_failed" | "company_email_missing" | "company_email_not_sent";
+  | "company_not_approved" | "company_answer_changed" | "company_email_failed" | "company_email_missing" | "company_email_not_sent";
 
 /** The one predicate both introduction emails' dispatch checks call. Reads only; inside a transaction pass `tx`. */
 export async function introductionMayProceed(requestId: string, companyId: string, tx?: FirebaseFirestore.Transaction, attempt = 0):
@@ -60,8 +72,9 @@ export async function introductionMayProceed(requestId: string, companyId: strin
   const jobRef = db.collection("inboundRequests").doc(requestId);
   const introRef = jobRef.collection("introductions").doc(companyId);
   const companyRef = db.collection("robotTeamAccess").doc(companyId);
-  const [job, intro, company] = tx ? [await tx.get(jobRef), await tx.get(introRef), await tx.get(companyRef)]
-    : [await jobRef.get(), await introRef.get(), await companyRef.get()];
+  const answerRef = jobRef.collection("robotTeamInterest").doc(companyId);
+  const [job, intro, company, answer] = tx ? [await tx.get(jobRef), await tx.get(introRef), await tx.get(companyRef), await tx.get(answerRef)]
+    : [await jobRef.get(), await introRef.get(), await companyRef.get(), await answerRef.get()];
   if (!intro.exists) return { ok: false, reason: "introduction_missing", introductionOnRecord: false };
   // Cancelled, or an email of an earlier attempt: it stops without touching the current record.
   if (typeof intro.data()?.cancelledAtIso === "string" || introductionAttemptOf(intro.data()) !== attempt)
@@ -71,6 +84,11 @@ export async function introductionMayProceed(requestId: string, companyId: strin
     return { ok: false, reason: "job_withdrawn", introductionOnRecord: true };
   // Approved, a deployment company, and the current Terms accepted, signed in (`companyMaySeeJobs`).
   if (!companyMaySeeJobs(company.data())) return { ok: false, reason: "company_not_approved", introductionOnRecord: true };
+  // The company's answer as it stands now still allows an introduction: Apply or Tested it: can do (money: never
+  // introduce or bill a company that has since said Not a fit or anything else). Imported here, not at the top, as the
+  // gate stays importable by the outbox without a cycle.
+  const { answerConsentsToIntroduction } = await import("./jobCompanies");
+  if (!answerConsentsToIntroduction(answer.data())) return { ok: false, reason: "company_answer_changed", introductionOnRecord: true };
   // Blueprint's own work window ending keeps the job listed (`teamJobAccess`, finding G-01), so it passes here; an
   // authority end for a source revocation closes the listing and stops the introduction.
   const { loadCompanyJobAccess } = await import("./teamJobAccess");
