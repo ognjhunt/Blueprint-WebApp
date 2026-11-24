@@ -47,7 +47,7 @@ const { buildTaskLifecycleNotification, buildIntroductionMadeSiteNotification, S
   await import("../utils/taskLifecycleNotifications");
 const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
 const { requestIntroduction } = await import("../utils/jobIntroductions");
-const { COMPANY_RESPONSE_STATEMENT_VERSION } = await import("../../client/src/lib/companyResponses");
+const { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION } = await import("../../client/src/lib/companyResponses");
 
 const ID = "req-site-plant";
 const AT = "2026-11-12T10:00:00.000Z";
@@ -90,9 +90,10 @@ function sharedJob(extra: Record<string, unknown> = {}) {
     ...extra,
   };
 }
-function answer(record: typeof NORTH, words: string, state = "interested") {
+/** An answer under the 2026-11-12 line, which keeps the company's alias; pass the current line to show its name. */
+function answer(record: typeof NORTH, words: string, state = "interested", line = COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION) {
   return { state, inputs: words, email: record.email, company: record.company, submittedBy: record.email,
-    recordedBy: "company", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION, updatedAtIso: "2026-11-12T11:00:00.000Z" };
+    recordedBy: "company", statementVersion: line, updatedAtIso: "2026-11-12T11:00:00.000Z" };
 }
 function seed(job = sharedJob()) {
   state.docs.set(`inboundRequests/${ID}`, job);
@@ -162,6 +163,21 @@ describe("the site's status payload, before and after an introduction", () => {
     });
   });
 
+  // Owner, 2026-11-23: a company applies under a line that says the site sees its name and website with its answer.
+  it("under the current line, carries the applicant's name and website, and still never its contact details", async () => {
+    state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`,
+      answer(NORTH, WORDS.north, "interested", COMPANY_RESPONSE_STATEMENT_VERSION));
+    const { raw, body } = await siteStatus();
+    const north = body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.alias === "Company A");
+    expect(north.applicant).toEqual({ name: NORTH.company, website: NORTH.website });
+    expect(north.company).toBeUndefined();
+    // The email, the person, the robot, the region, the operator's note and the words as written never reach the site.
+    expectNone("status with an applicant", raw, [NORTH.email, NORTH.name, NORTH.robot, NORTH.region, NORTH.decisionNote,
+      sha(NORTH.email), WORDS.north, ...SOUTH_PLANTED]);
+    // The answer under the 2026-11-12 line keeps its alias.
+    expect(body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.alias === "Company B").applicant).toBeUndefined();
+  });
+
   it("shows no words given under the older line, or with no line", async () => {
     state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`, { ...answer(NORTH, WORDS.north), statementVersion: "company-response-2026-11-01" });
     const { statementVersion: _dropped, ...noLine } = answer(SOUTH, WORDS.south, "needs_something");
@@ -219,11 +235,11 @@ describe("the introductions route", () => {
   });
 
   it.each([
-    ["not_listed", "Your job is not in front of deployment companies right now, so we cannot make an introduction."],
-    ["not_interested", "This company has not answered Interested, so we cannot introduce you."],
-    ["consent_missing", "This company needs to answer again before we can introduce you."],
-    ["already_introduced", "You have already been introduced to this company."],
-    ["company_not_approved", "This company can no longer be introduced."],
+    ["not_listed", "Your job is not in front of deployment companies right now, so you cannot accept a company."],
+    ["not_interested", "This company has not applied, so you cannot accept it."],
+    ["consent_missing", "This company needs to apply again before you can accept it."],
+    ["already_introduced", "You have already accepted this company."],
+    ["company_not_approved", "This company can no longer be accepted."],
   ])("says the refusal %s in one plain sentence", async (reason, sentence) => {
     introductions.forced = { ok: false, reason };
     expect(await introduce("Company A")).toEqual({ status: 409, body: { ok: false, code: "introduction_refused", reason, error: sentence } });
@@ -235,7 +251,7 @@ describe("the introductions route", () => {
     state.docs.set(`inboundRequests/${ID}`, sharedJob({ capture_withdrawal: { state: "uploads_stopped_cleanup_pending" } }));
     introductions.forced = { ok: false, reason: "not_listed" };
     expect(await introduce("A")).toEqual({ status: 409, body: { ok: false, code: "introduction_refused", reason: "withdrawn",
-      error: "You withdrew this job, so we cannot make an introduction." } });
+      error: "You withdrew this job, so you cannot accept a company." } });
   });
 
   // The sentence beside the button is a recorded statement (planner, 18:25Z): no version, or another, records nothing.
@@ -243,7 +259,7 @@ describe("the introductions route", () => {
     vi.mocked(requestIntroduction).mockClear();
     const before = JSON.stringify([...state.docs.entries()]);
     expect(await introduce("A", "owner", version)).toEqual({ status: 409, body: { ok: false, code: "introduction_statement_changed",
-      error: "The wording on this page has changed. Reload the page, read it, then press Introduce us again." } });
+      error: "The wording on this page has changed. Reload the page, read it, then press Accept again." } });
     expect(vi.mocked(requestIntroduction)).not.toHaveBeenCalled();
     expect(JSON.stringify([...state.docs.entries()])).toBe(before);
   });
@@ -251,7 +267,7 @@ describe("the introductions route", () => {
   it("says a refusal for a wording the company side no longer accepts as 'reload the page'", async () => {
     introductions.forced = { ok: false, reason: "statement_not_current" };
     expect(await introduce("A")).toEqual({ status: 409, body: { ok: false, code: "introduction_statement_changed",
-      error: "The wording on this page has changed. Reload the page, read it, then press Introduce us again." } });
+      error: "The wording on this page has changed. Reload the page, read it, then press Accept again." } });
   });
 
   // End to end with the real `requestIntroduction` (review M2): the site's email says the company's own stored answer.
@@ -266,7 +282,7 @@ describe("the introductions route", () => {
     const intro = state.docs.get(`inboundRequests/${ID}/introductions/${north}`) as Record<string, any>;
     expect(intro.statementVersion).toBe("introduction-request-2026-11-12");
     const row = state.docs.get(`captureOutbox/${ID}:introduction_made_site:${north}`) as Record<string, any>;
-    expect(row.body.split("\n")[0]).toBe(`${NORTH.company} answered "Tested it: can do" about your job, and you asked us to introduce you.`);
+    expect(row.body.split("\n")[0]).toBe(`${NORTH.company} answered "Tested it: can do" about your job, and you accepted them.`);
     expect(JSON.stringify(row)).not.toContain(WORDS.north);
     expect(state.docs.has(`inboundRequests/${ID}/introductions/${south}`)).toBe(false);
     vi.unstubAllEnvs();
@@ -295,12 +311,12 @@ describe("the emails to the site", () => {
     expect(SHARING_AND_HOW_TO_STOP).toContain("It then leaves every company's view at once, and each company it was sent to is asked to delete any copy it saved.");
     // The next step is named only when the job page offers it (e-028, e-029); fixed labels are quoted.
     const answered = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested", introductionOffered: true });
-    expect(answered.body).toBe(`A deployment company answered "Interested" about your job. To meet them, press Introduce us on your job page.\n\nOpen your job:\n${url}`);
+    expect(answered.body).toBe(`A deployment company applied to your job. To meet them, press Accept on your job page.\n\nOpen your job:\n${url}`);
     const canDo = build("company_answered", { eventId: "A-tested_can_do", companyAnswerState: "tested_can_do", introductionOffered: true });
-    expect(canDo.body).toBe(`A deployment company answered "Tested it: can do" about your job. To meet them, press Introduce us on your job page.\n\nOpen your job:\n${url}`);
+    expect(canDo.body).toBe(`A deployment company answered "Tested it: can do" about your job. To meet them, press Accept on your job page.\n\nOpen your job:\n${url}`);
     // Already introduced (or an answer under the older line): no button to press, so none is named.
     const introduced = build("company_answered", { eventId: "A-interested", companyAnswerState: "interested", introductionOffered: false });
-    expect(introduced.body).toBe(`A deployment company answered "Interested" about your job. Your job page has the details.\n\nOpen your job:\n${url}`);
+    expect(introduced.body).toBe(`A deployment company applied to your job. Your job page has the details.\n\nOpen your job:\n${url}`);
     // An answer no introduction follows is never told how to meet the company, whatever the caller says.
     const declined = build("company_answered", { eventId: "A-declined", companyAnswerState: "declined", introductionOffered: true });
     expect(declined.body).toBe(`A deployment company answered "Not a fit" about your job. Your job page has the details.\n\nOpen your job:\n${url}`);
@@ -317,26 +333,26 @@ describe("the emails to the site", () => {
 
   it("after an introduction, say exactly the introduced company's details and reply to it", () => {
     const row = buildIntroductionMadeSiteNotification({ requestId: ID, to: "owner@site.example", companyId: sha(NORTH.email), captureUrl: url,
-      company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website }, answerLabel: "Interested" });
+      company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website }, answerLabel: "Applied" });
     expect(row).toMatchObject({ idempotencyKey: `${ID}:introduction_made_site:${sha(NORTH.email)}`, kind: "introduction_made_site",
       to: "owner@site.example", subject: `Meet ${NORTH.company}`, replyTo: NORTH.email });
     // A reply reaches Blueprint (dispatch sends Reply-To hello@), so it says where to write instead (decision 9).
-    expect(row.body).toBe([`${NORTH.company} answered "Interested" about your job, and you asked us to introduce you.`, "",
+    expect(row.body).toBe([`${NORTH.company} applied to your job, and you accepted them.`, "",
       `Contact: ${NORTH.name}`, `Email: ${NORTH.email}`, `Website: ${NORTH.website}`, "",
       "We've given them your details. Write to them at the email above.", "", `Open your job:\n${url}`].join("\n"));
     expectNone("introduction email", JSON.stringify(row), [WORDS.north, NORTH.robot, NORTH.region, NORTH.decisionNote, ...SOUTH_PLANTED]);
   });
 
-  // Review M2: worded from the company's stored answer, never "Interested" for another answer; with none, no answer claimed.
+  // Review M2: worded from the company's stored answer, never "Applied" for another answer; with none, no answer claimed.
   it("says the company's own answer in the introduction email", async () => {
     const { introductionMadeSiteEmail } = await import("../utils/introductionSiteEmail");
     const company = { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: null };
     expect(introductionMadeSiteEmail({ jobUrl: url, company, answerLabel: "Tested it: can do" }).body.split("\n")[0])
-      .toBe(`${NORTH.company} answered "Tested it: can do" about your job, and you asked us to introduce you.`);
-    expect(introductionMadeSiteEmail({ jobUrl: url, company, answerLabel: "Interested" }).body.split("\n")[0])
-      .toBe(`${NORTH.company} answered "Interested" about your job, and you asked us to introduce you.`);
+      .toBe(`${NORTH.company} answered "Tested it: can do" about your job, and you accepted them.`);
+    expect(introductionMadeSiteEmail({ jobUrl: url, company, answerLabel: "Applied" }).body.split("\n")[0])
+      .toBe(`${NORTH.company} applied to your job, and you accepted them.`);
     const none = introductionMadeSiteEmail({ jobUrl: url, company });
-    expect(none.body.split("\n")[0]).toBe(`You asked us to introduce you to ${NORTH.company}.`);
+    expect(none.body.split("\n")[0]).toBe(`You accepted ${NORTH.company}.`);
     expect(none.body).not.toMatch(/answered/);
   });
 

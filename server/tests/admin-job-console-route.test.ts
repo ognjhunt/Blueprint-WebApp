@@ -222,7 +222,7 @@ describe("GET /api/admin/jobs/:requestId", () => {
     expect(body.stops).toEqual([{ key: "blueprint-hold", whose: "blueprint", atIso: "2026-10-05T00:00:00.000Z",
       text: "Blueprint stopped showing this job to companies: Checking" }]);
     expect(body.events.map((event: Row) => event.text)).toEqual(["Job received", "Video received",
-      "Shared with 3 approved deployment companies", "North Robotics answered: Interested"]);
+      "Shared with 3 approved deployment companies", "North Robotics applied"]);
     expect(body.simulationPackageUrl).toBeNull();
     expect(body.cost).toBeNull();
     // Nothing of the old console: no stage, gates, coverage, public card, ops notice, claim, links or runs.

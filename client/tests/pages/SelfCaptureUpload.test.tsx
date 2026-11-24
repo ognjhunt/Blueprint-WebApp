@@ -1383,8 +1383,8 @@ describe("the site's answer leads its job page", () => {
     // Nothing is asked of the site, so the card does not speak as if the job were waiting.
     expect(screen.queryByText("We have your recording.")).toBeNull();
     expect(screen.getByText("On paper, the robot most likely to fit: Universal Robots UR10e.")).toBeVisible();
-    // Deployment companies come first under the title.
-    expect(within(answer).getAllByRole("heading", { level: 2 })[0]).toHaveTextContent("Deployment companies");
+    // The applicants come first under the title.
+    expect(within(answer).getAllByRole("heading", { level: 2 })[0]).toHaveTextContent("Applicants");
     // The drafted job, in grey under the title, said as what we read.
     expect(screen.getByText("We read your job as: “Move cartons from the end of the conveyor onto the pallet.”")).toBeVisible();
     expect(screen.queryByRole("region", { name: "Robot fit" })).toBeNull();
@@ -1499,7 +1499,7 @@ describe("the site's answer leads its job page", () => {
     vi.stubGlobal("fetch", answerFetch({ answer: drafted }));
     render(<SelfCaptureUpload />);
     const facts = await screen.findByTestId("job-facts");
-    const companies = screen.getByRole("region", { name: "Deployment companies" });
+    const companies = screen.getByRole("region", { name: "Applicants" });
     expect(companies.nextElementSibling).toBe(facts);
   });
 

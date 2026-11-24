@@ -14,7 +14,9 @@ export const APPLICATION_SAVED_LINES = "We're checking your company against that
  * fields: your name, work email, company and company website. Nothing is agreed here; the signed-in agreement before
  * the first job is what counts (`companyTerms.ts`).
  */
-export function PartnerApplication() {
+export function PartnerApplication({ returnToJob: forJob, heading = "Apply to see jobs" }: {
+  /** The job the application was started from (a job's gated page): the approval email brings the company back to it. */
+  returnToJob?: string; heading?: string } = {}) {
   const [interactive, setInteractive] = useState(false);
   const [state, setState] = useState<"idle" | "sending" | "saved" | "error">("idle");
   const [error, setError] = useState("");
@@ -28,7 +30,7 @@ export function PartnerApplication() {
     if (inFlight.current) return;
     inFlight.current = true;
     const data = new FormData(event.currentTarget);
-    const returnToJob = companyJobReturnPath(new URLSearchParams(window.location.search).get("next"));
+    const returnToJob = companyJobReturnPath(forJob ?? new URLSearchParams(window.location.search).get("next"));
     const read = (key: string) => String(data.get(key) ?? "").trim();
     setState("sending");
     setError("");
@@ -59,7 +61,7 @@ export function PartnerApplication() {
 
   return (
     <form className="ms-form ms-partner-form" onSubmit={submit} method="post" aria-label="Deployment company application">
-      <h2>Apply to see jobs</h2>
+      <h2>{heading}</h2>
       <p>{COMPANY_CHECK_RULE_SENTENCE} Once approved, you get an email for each new job. Nothing is charged today.</p>
       <fieldset disabled={!interactive || state === "sending"}>
         <legend className="sr-only">Your company</legend>

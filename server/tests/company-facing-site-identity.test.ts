@@ -386,7 +386,7 @@ describe("before the site asks for an introduction, nothing a company receives n
     expect(reply.status).toBe(200);
     expectNothingOfTheSite("the answer route's reply", reply.text);
     // One sentence saying what happens next.
-    expect(JSON.parse(reply.text).nextAction).toBe("Saved. If the site asks to meet you, we email you both each other's name and contact details.");
+    expect(JSON.parse(reply.text).nextAction).toBe("Saved. If the site accepts your application, we email you both each other's name and contact details.");
     const { rows } = emailsToCompanies();
     expect(rows).toEqual([]);
   });
@@ -420,7 +420,7 @@ describe("after the site asks to meet one company", () => {
     const carrying = sent.filter(message => PLANTED.some(value => scrubbed(JSON.stringify(message)).toLowerCase().includes(value.toLowerCase())));
     expect(carrying).toHaveLength(1);
     const [introduction] = carrying;
-    expect(introduction).toMatchObject({ to: NORTH.email, subject: "A site wants to talk about its job" });
+    expect(introduction).toMatchObject({ to: NORTH.email, subject: "A site accepted your application" });
     for (const detail of [SITE.siteName, `${SITE.first} ${SITE.last}`, SITE.email, SITE.address])
       expect(String(introduction.text)).toContain(detail);
     // Every other email to any company carries nothing of the site.

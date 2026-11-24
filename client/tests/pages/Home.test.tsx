@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import Home from "@/pages/Home";
-import { COMPANY_RESPONSE_LABELS } from "@/lib/companyResponses";
+import { SITE_RESPONSE_LABELS } from "@/lib/companyResponses";
 import { HOW_STEPS } from "@/lib/publicCopy";
 
 const SITES = ["Warehouse", "Café", "Lab"];
@@ -40,7 +40,7 @@ describe("Site-led homepage", () => {
     const card = screen.getByRole("region", { name: "Example job" });
     expect(within(card).getByText("Example job")).toBeVisible();
     expect(within(card).getAllByRole("tab").map(tab => tab.textContent)).toEqual(SITES);
-    const labels = Object.values(COMPANY_RESPONSE_LABELS);
+    const labels = Object.values(SITE_RESPONSE_LABELS);
     const counts = new Set<number>();
     for (const tab of within(card).getAllByRole("tab")) {
       fireEvent.click(tab);
@@ -64,7 +64,7 @@ describe("Site-led homepage", () => {
     expect(counts.size).toBeGreaterThan(1);
     fireEvent.click(within(card).getByRole("tab", { name: "Warehouse" }));
     expect(within(card).getByRole("tabpanel")).toHaveTextContent(
-      /Picking small parcels.*6 views.*3 responses.*Company A.*Interested.*Company B.*Need more details.*Company C.*Not a fit/);
+      /Picking small parcels.*6 views.*3 responses.*Company A.*Applied.*Company B.*Need more details.*Company C.*Not a fit/);
     // No example shows a "Tested it" answer: no company can give one until a job's simulation can be downloaded.
     for (const tab of within(card).getAllByRole("tab")) {
       fireEvent.click(tab);

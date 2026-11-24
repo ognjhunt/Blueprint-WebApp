@@ -22,7 +22,10 @@ import { companyMaySeeJobs } from "./companyTerms";
 import { newJobEmail, openJobsEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
-import { countryOf } from "./companyJobPage";
+import { companyJobHeadline, countryOf, knownSiteIdentity } from "./companyJobPage";
+import { readJobFacts } from "./jobFacts";
+import { rateInWords } from "../../client/src/lib/companyJobPage";
+import { jobTitleForDisplay } from "../../client/src/types/taskBrowse";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressedForJobAlerts } from "./newJobAlerts";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
@@ -92,13 +95,18 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
     const sentAtIso = now().toISOString();
     const jobUrl = companyJobUrl(requestId);
     const country = await countryOf(record);
+    // The job's title and how often it runs, as its page leads with them (`companyJobHeadline`, `rateInWords`); the
+    // reading's object name only when the site's identity can be read.
+    const known = await knownSiteIdentity(record).catch(() => null);
+    const title = companyJobHeadline(record, access.details.taskFamily, jobTitleForDisplay(access.details.title), known);
+    const often = rateInWords(readJobFacts(record));
     for (const company of companies) {
       tx.set(jobRef.collection(COMPANY_SENDS_COLLECTION).doc(`system-${company.id}`), { schemaVersion: 1, companyId: company.id,
         sentAtIso, sentBy: "system", sentByEmail: null });
     }
     for (const company of emailed) {
       const message = newJobEmail({ to: company.email, jobUrl: jobEmailUrl(jobUrl, requestId, company), kind: access.details.taskFamily,
-        country });
+        country, title, facts: often });
       tx.create(store.collection(CAPTURE_OUTBOX_COLLECTION).doc(newJobAlertKey(requestId, company.id)), buildOutboxEntry({
         idempotencyKey: newJobAlertKey(requestId, company.id), requestId, kind: "robot_team_new_task", to: company.email,
         subject: message.subject, body: message.body, replyTo: "hello@tryblueprint.io",

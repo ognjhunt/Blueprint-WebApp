@@ -9,16 +9,18 @@
  * request (`companyMediaAllowed`).
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import type { CompanyFirstLookRow, CompanyJobPage } from "../../client/src/types/taskBrowse";
-import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompanyResponseState } from "../../client/src/lib/companyResponses";
+import { jobTitleForDisplay, type CompanyFirstLookRow, type CompanyJobPage } from "../../client/src/types/taskBrowse";
+import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompanyResponseState, replyByIso } from "../../client/src/lib/companyResponses";
 import { jobFactsInWords } from "../../client/src/lib/jobFacts";
+import { FIRST_LOOK_STATUS, SIMULATION_STATUS, SITE_AGREED_SHARING, SITE_IDENTITY_RULE, answerSpeedInWords, fitSummary, jobHeadline,
+  rateInWords, visitMustConfirm } from "../../client/src/lib/companyJobPage";
 import { firstLookRowFromAnswerRobot, firstLookRowInWords } from "../../client/src/lib/firstLookWords";
 import { readJobFacts } from "./jobFacts";
 import { jobThumbnailViewUrl } from "./jobThumbnailTicket";
-import { jobReadingOf } from "./siteRobotFit";
+import { jobReadingOf, readingActionsOf } from "./siteRobotFit";
 import { firstLookFromStoredPreparation } from "./firstLookTable";
 import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
-import { removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
+import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 import { knownSiteIdentity } from "./siteIdentity";
 import { loadCompanyJobAccess, RECORDING_VERSION_PLACE_LEVEL, taskThumbnailUrl, thumbnailSourceOf } from "./teamJobAccess";
@@ -133,42 +135,77 @@ export async function companyPlaceOf(record: Record<string, any>,
 /** Everything the job record holds that names or reaches the site (`siteIdentity.ts`). */
 export { knownSiteIdentity };
 
-/** What nothing in a job packet measures or asks: a company judges these itself. True of every packet. */
-export const PACKET_NOT_SHOWN = [
-  "No test at the site: everything here comes from what the site sent and what Blueprint built from it.",
-  "No safety assessment of any robot at this site.",
-  "The way in: doorways, aisles, steps, ramps and floors between the entrance and the job were not measured. "
-    + "The simulation holds only what the video filmed.",
-  "The surroundings: lighting, how busy the area is and whether people work near the job were not assessed.",
-  "The site's safety rules, such as guarding, speed limits and when people are nearby, were not asked.",
-] as const;
 /** The site's quick question each Pipeline estimate answers (`PACKET_FACT_QUESTIONS`), as the job page keys it. */
 const SITE_QUESTION: Readonly<Record<(typeof PACKET_FACT_QUESTIONS)[number], JobFactKey>> = {
   item_weight: "weight", item_size_longest_side: "size", items_per_hour: "perHour", hours_per_day: "hours" };
-/** Said for a rate question neither the site nor Blueprint's estimate answers. */
-export const UNSTATED_RATE: Readonly<Record<"items_per_hour" | "hours_per_day", string>> = {
-  items_per_hour: "How many an hour: not stated by the site, and not estimated.",
-  hours_per_day: "How many hours a day the job runs: not stated by the site, and not estimated." };
 
 /**
  * The Pipeline's packet facts as a company reads them. Blueprint's estimate of a question the site answered on its job
  * page is left out (the site's own answer is shown; "Not sure" answers nothing). Every line goes through
  * `removeIdentifyingDetails` with the site's known identity, as the site's sentence does: the object's name and the
- * place's label are the video analysis's words, which may echo the site's.
+ * place's label are the video analysis's words, which may echo the site's. `estimated` names the site's questions that
+ * a line Blueprint shows does answer, so the fit summary can point to it.
  */
 export function packetFactsForCompany(facts: PacketFacts | null, answers: Partial<JobFacts> | null,
-  known: KnownSiteIdentity): { packetFacts: CompanyJobPage["packetFacts"]; notShown: string[] } {
+  known: KnownSiteIdentity): { packetFacts: CompanyJobPage["packetFacts"]; estimated: JobFactKey[] } {
   const answered = (question: keyof typeof SITE_QUESTION) => {
     const code = answers?.[SITE_QUESTION[question]];
     return typeof code === "string" && code !== "unsure";
   };
-  const words = (rows: PacketFacts["object"]) => rows.filter(row => !(row.answers && answered(row.answers)))
+  const shown = (rows: PacketFacts["object"]) => rows.filter(row => !(row.answers && answered(row.answers)));
+  const words = (rows: PacketFacts["object"]) => shown(rows)
     .map(row => removeIdentifyingDetails(row.text, known)).filter(text => text.trim().length > 0);
-  const estimatedQuestions = new Set((facts?.estimated ?? []).map(row => row.answers));
-  const unstated = (["items_per_hour", "hours_per_day"] as const)
-    .filter(question => !answered(question) && !estimatedQuestions.has(question)).map(question => UNSTATED_RATE[question]);
+  const estimated = new Set<JobFactKey>();
+  for (const row of facts ? [...shown(facts.object), ...shown(facts.measured), ...shown(facts.estimated)] : [])
+    if (row.answers) estimated.add(SITE_QUESTION[row.answers]);
   return { packetFacts: facts ? { object: words(facts.object), measured: words(facts.measured), estimated: words(facts.estimated) } : null,
-    notShown: [...PACKET_NOT_SHOWN, ...unstated] };
+    estimated: [...estimated] };
+}
+
+const isName = (value: string | null): value is string => Boolean(value);
+/** A name from the video reading as a company may read it: unchanged by the site's identity scan, else nothing. */
+function companyJobObject(name: string | null, known: KnownSiteIdentity): string | null {
+  if (!name) return null;
+  const clean = removeNamesNotHeld(removeIdentifyingDetails(name, known)).trim();
+  return clean && clean === name && !clean.includes(REMOVED) ? clean : null;
+}
+
+/** The job's title from the video reading (`jobHeadline`), with the object's name passed through the site's identity. */
+export function companyJobHeadline(record: Record<string, any>, taskFamily: string, fallback: string,
+  known: KnownSiteIdentity | null): string {
+  const reading = jobReadingOf(record);
+  // A name the identity scan changed is dropped rather than shown with a gap; no name at all without the identity.
+  const object = known ? companyJobObject(reading?.object ?? null, known) : null;
+  return jobHeadline({ kind: reading?.kind ?? null, object, actions: readingActionsOf(record), taskFamily, fallback });
+}
+
+/**
+ * About the site, with nothing that identifies it: that its identity comes only with an introduction it asks for,
+ * that it agreed to share the job, and how quickly it has answered companies' questions here (the median, from
+ * questions asked and answered on this job; nothing when none has been).
+ */
+export async function aboutTheSite(requestId: string): Promise<string[]> {
+  const lines: string[] = [SITE_IDENTITY_RULE, SITE_AGREED_SHARING];
+  if (!db) return lines;
+  try {
+    // One row per company that answered this job; bounded, as the job page reads it on every visit.
+    const replies = await db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").limit(200).get();
+    const hours: number[] = [];
+    for (const doc of replies.docs) {
+      const reply = doc.data();
+      const asked = Date.parse(String(reply?.questionAskedAtIso ?? ""));
+      const answered = Date.parse(String(reply?.siteClarification?.answeredAtIso ?? ""));
+      if (reply?.siteClarification?.questionId === reply?.questionId && Number.isFinite(asked) && Number.isFinite(answered)
+        && answered >= asked) hours.push((answered - asked) / 3_600_000);
+    }
+    hours.sort((a, b) => a - b);
+    const median = hours.length ? hours[Math.floor((hours.length - 1) / 2)] : null;
+    const speed = answerSpeedInWords(median);
+    if (speed) lines.push(speed);
+  } catch (error) {
+    logger.warn({ error, requestId }, "Could not read how quickly the site answers questions");
+  }
+  return lines;
 }
 
 /**
@@ -186,11 +223,13 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   const [{ record, access, brief, session }, approved] = await Promise.all([loadCompanyJobAccess(requestId), companyStillApproved(viewer.companyId)]);
   if (!record || !access.listed || !approved) return null;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
-  const [answerRow, firstLook, country, known] = await Promise.all([
+  const [answerRow, firstLook, country, known, about, stage] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").doc(viewer.companyId).get().then(doc => doc.data()),
     loadJobCardAnswerWithRobots(requestId, record),
     companyPlaceOf(record),
     knownSiteIdentity(record).catch(() => null),
+    aboutTheSite(requestId),
+    import("./taskBrowse").then(({ libraryJobStage }) => libraryJobStage(requestId, record)).catch(() => null),
   ]);
   const facts = readJobFacts(record);
   // Identity that cannot be read right now: no sentence and no packet facts this time, never one that might name the site.
@@ -210,6 +249,12 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   });
   const question = questionOnReply(answerRow);
   const clarification = question ? clarificationOnReply(answerRow, question.id) : undefined;
+  const reading = jobReadingOf(record);
+  const taskFamily = access.details.taskFamily;
+  // The first look and the simulation each say where they stand instead of showing an empty box.
+  const firstLookStatus = firstLook.summary || rows.length ? null
+    : stage === "no_video" ? FIRST_LOOK_STATUS.no_video : firstLook.reading ? FIRST_LOOK_STATUS.reading : FIRST_LOOK_STATUS.unknown;
+  const simulationStatus = simulationUrl || viewerUrl ? null : SIMULATION_STATUS[stage ?? "unknown"];
   const successRule = known && !brief?.successCriteria?.unknown
     ? removeNamesNotHeld(removeIdentifyingDetails(String(brief?.successCriteria?.successDefinition ?? "").trim().slice(0, 1000), known))
     : "";
@@ -217,7 +262,10 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     schemaVersion: "company_job_page.v1",
     id: requestId,
     title: access.details.title,
-    taskFamily: access.details.taskFamily,
+    // The title built from the job's facts ("Scrape and scoop cake batter"); the category title until a reading names it.
+    headline: companyJobHeadline(record, taskFamily, jobTitleForDisplay(access.details.title), known),
+    headlineFacts: rateInWords(facts),
+    taskFamily,
     publishedAtIso: String(record.public_task_listing?.approvedAtIso ?? ""),
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
     // text and any other contact detail removed (`removeIdentifyingDetails`), then any name-shaped text the record does
@@ -225,7 +273,12 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     sentence: siteSentenceForCompany(brief, known),
     ...(successRule ? { successRule } : {}),
     // The questions the site's page asked, chosen the same way: the reading's kind of job, else the keyword match.
-    jobFacts: jobFactsInWords(facts, access.details.taskFamily, jobReadingOf(record)),
+    jobFacts: jobFactsInWords(facts, taskFamily, reading),
+    // The same answers as a fixed set of fields, "Not stated" where the site skipped one; the object's name only when
+    // the site's identity can be read, as the sentence.
+    fitSummary: fitSummary(facts, taskFamily, reading && known ? { ...reading,
+      object: companyJobObject(reading.object, known), others: reading.others.map(item => companyJobObject(item, known)).filter(isName) }
+      : reading ? { ...reading, object: null, others: [] } : null, new Set(packet.estimated)),
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
       : { state: "preparing" },
@@ -237,13 +290,20 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     firstLook: firstLook.summary,
     firstLookRows: rows,
     firstLookMore: table?.more ?? null,
+    firstLookStatus,
+    simulationStatus,
     packetFacts: packet.packetFacts,
-    notShown: packet.notShown,
+    visitMustConfirm: [...visitMustConfirm(reading?.kind ?? null, taskFamily)],
+    aboutSite: about,
     myAnswer: answerRow && isCompanyResponseState(answerRow.state) ? { state: answerRow.state,
       inputs: typeof answerRow.inputs === "string" ? answerRow.inputs : "", updatedAtIso: String(answerRow.updatedAtIso ?? ""),
       statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null,
       ...(answerRow.details ? { details: answerRow.details } : {}) } : null,
     ...(question && clarification ? { clarification: { question: question.text, answer: clarification } } : {}),
+    // The company's own question while the site has not replied, with its reply date (`REPLY_WINDOW_MS`).
+    ...(question && !clarification && replyByIso(answerRow?.questionAskedAtIso) ? { pendingQuestion: {
+      askedAtIso: String(answerRow!.questionAskedAtIso), replyByIso: replyByIso(answerRow!.questionAskedAtIso)!,
+      reminded: answerRow?.replyReminder?.questionId === question.id } } : {}),
     responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT },
   };
 }

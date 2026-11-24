@@ -162,7 +162,7 @@ async function jobRecord(request: APIRequestContext, requestId: string): Promise
 }
 
 const answer = (page: Page) => page.getByRole("region", { name: "Your job" }).last();
-const companies = (page: Page) => page.getByRole("region", { name: "Deployment companies" });
+const companies = (page: Page) => page.getByRole("region", { name: "Applicants" });
 
 /** The site's job page: where the job stands and the first look, with no answer that was not given. */
 async function expectFirstLook(page: Page) {
@@ -172,7 +172,7 @@ async function expectFirstLook(page: Page) {
   await expect(firstLook).toContainText(/How sure are we\?/);
   // Posted only once an approved company may see jobs (L1-N1); an earlier test in this run may have approved one.
   await expect(companies(page)).toContainText(/Posted for approved deployment companies|no approved company can see it yet/);
-  await expect(answer(page)).not.toContainText(/answered on|Introduce us|early trial|Simulation test/i);
+  await expect(answer(page)).not.toContainText(/answered on|\bAccept\b|early trial|Simulation test/i);
   await expect(page.getByRole("button", { name: /share my job/i })).toHaveCount(0);
 }
 
@@ -261,7 +261,7 @@ test.describe("desktop", () => {
     const companyJobPath = `/jobs/${requestId}`;
     const companyJobLink = new URL(companyJobPath, ORIGIN).href;
     await companyPage.goto(companyJobPath);
-    await expect(companyPage.getByRole("heading", { name: "Sign in to see this job" })).toBeVisible();
+    await expect(companyPage.getByRole("heading", { name: "Apply to see this job" })).toBeVisible();
     await expect(companyPage.locator("body")).not.toContainText("Pick up the sealed carton");
     const signInLink = companyPage.getByRole("main").getByRole("link", { name: "Sign in", exact: true });
     const signInPath = `/sign-in?next=${encodeURIComponent(companyJobPath)}`;
@@ -308,8 +308,10 @@ test.describe("desktop", () => {
     await expect(companyPage.getByRole("searchbox", { name: "Search jobs" })).toHaveValue(searchTerm);
     await row.getByRole("link", { name: "View job" }).click();
     await expect(companyPage.getByText("Pick up the sealed carton from the end of the conveyor and place it on the cart.")).toBeVisible({ timeout: 30_000 });
-    await expect(companyPage.getByText("Pickup: Moving conveyor", { exact: true })).toBeVisible();
-    await expect(companyPage.getByText("Heaviest loaded item: 9.072 kg", { exact: true })).toBeVisible();
+    // The site's answers as fields at a glance (owner, 2026-11-23), each beside its label.
+    const glance = companyPage.getByLabel("The site's answers");
+    await expect(glance.locator("div").filter({ hasText: /^Pickup/ }).getByRole("definition")).toHaveText("Moving conveyor");
+    await expect(glance.locator("div").filter({ hasText: /^Heaviest loaded item/ }).getByRole("definition")).toHaveText("9.072 kg");
     // The approved browser receives a ticket for the published clip. A request without a ticket is refused.
     await expect(companyPage.getByLabel("The site's video, without sound")).toHaveAttribute("src",
       new RegExp(`/api/company-media/jobs/${requestId}/video\\.mp4\\?`));
@@ -317,15 +319,15 @@ test.describe("desktop", () => {
 
     // The company answers Interested on the job's page.
     const form = companyPage.getByRole("form", { name: "Your response" });
-    await form.getByLabel("Interested").check();
+    await form.getByLabel("Apply").check();
     await form.getByRole("textbox", { name: "Note to the site" }).fill("We move cartons like these today.");
     await form.getByText("Add details", { exact: true }).click();
     await form.getByLabel("Question for the site").fill("How many cartons arrive per minute?");
     await form.getByLabel("Earliest start").selectOption("within_month");
     const sent = companyPage.waitForResponse(response => response.url().endsWith(`/api/site-worlds/tasks/${requestId}/interest`));
-    await form.getByRole("button", { name: "Send response" }).click();
+    await form.getByRole("button", { name: "Send" }).click();
     expect((await sent).status()).toBe(200);
-    await expect(form.getByRole("status")).toHaveText("Saved. If the site asks to meet you, we email you both each other's name and contact details.");
+    await expect(form.getByRole("status")).toHaveText("Saved. If the site accepts your application, we email you both each other's name and contact details.");
 
     // Privacy hard stop: nothing the company was sent or shown names the site, its address or its contact.
     const companyPageText = await companyPage.locator("body").innerText();
@@ -335,14 +337,16 @@ test.describe("desktop", () => {
       for (const email of afterSend.filter(item => item.to === company.email)) expect(email.body + email.subject).not.toContain(secret);
     }
 
-    // 4. The site sees the answer under the alias, never the company's name, and nothing is introduced yet.
+    // 4. The site sees the applicant by its company's name and website (owner, 2026-11-23), never its contact details,
+    // and nothing is introduced yet.
     await page.reload();
     const entries = companies(page);
     await expect(entries).toContainText("Posted for approved deployment companies", { timeout: 30_000 });
     await expect(entries).toContainText("Viewed by 1 company", { timeout: 30_000 });
     await expect(entries).toContainText("1 response");
-    const companyReply = entries.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Company A", exact: true }) });
-    await expect(companyReply.getByText("Interested", { exact: true })).toBeVisible();
+    const companyReply = entries.getByRole("listitem").filter({ has: page.getByRole("heading", { name: company.name, exact: true }) });
+    await expect(companyReply.getByRole("link", { name: "https://quillfeather.example" })).toBeVisible();
+    await expect(companyReply.getByText("Applied", { exact: true })).toBeVisible();
     await expect(companyReply.getByText("Within a month", { exact: true })).toBeVisible();
     await expect(companyReply.getByText("How many cartons arrive per minute?", { exact: true })).toBeVisible();
     await companyReply.getByText("Reply", { exact: true }).click();
@@ -351,9 +355,9 @@ test.describe("desktop", () => {
     await expect(companyReply.getByText("12 cartons per minute.", { exact: true })).toBeVisible();
     await companyPage.reload();
     await expect(companyPage.getByRole("region", { name: "Answer from the site" })).toContainText("12 cartons per minute.");
-    await expect(page.locator("body")).not.toContainText(company.name);
     await expect(page.locator("body")).not.toContainText(company.email);
-    await expect(entries).toContainText("We give Company A your name, address and contact details, and give you theirs.");
+    await expect(page.locator("body")).not.toContainText(company.contact);
+    await expect(entries).toContainText(`We give ${company.name} your name, address and contact details, and give you theirs.`);
     const beforePress = await outbox(request, requestId);
     expect(beforePress.filter(item => item.kind.startsWith("introduction_"))).toEqual([]);
     for (const item of beforePress) {
@@ -366,15 +370,15 @@ test.describe("desktop", () => {
     // is recorded with no price.
     const introduced = page.waitForResponse(response => response.url().endsWith(`/api/site-task-brief/${encodeURIComponent(token)}/introductions`)
       && response.request().method() === "POST");
-    await entries.getByRole("button", { name: "Introduce us" }).click();
+    await entries.getByRole("button", { name: "Accept" }).click();
     const reply = await introduced;
     expect(reply.status(), await reply.text()).toBe(200);
     expect(reply.request().postDataJSON()).toEqual({ alias: "A", statementVersion: "introduction-request-2026-11-12" });
     // Nothing has been sent yet: the company's email waits for the outbox, and the introduction is made only once it
     // is sent (H2). The site's page must not say it was introduced before then.
     await page.reload();
-    await expect(entries.getByRole("button", { name: "Introduce us" })).toHaveCount(0);
-    await expect(entries).not.toContainText("You were introduced to");
+    await expect(entries.getByRole("button", { name: "Accept" })).toHaveCount(0);
+    await expect(entries).not.toContainText("You accepted");
 
     const introEmails = (await outbox(request, requestId)).filter(item => item.kind.startsWith("introduction_"));
     expect(introEmails.map(item => [item.kind, item.to]).sort()).toEqual([
@@ -388,7 +392,8 @@ test.describe("desktop", () => {
     // Both emails are actually sent, each with the other side as Reply-To, not only queued.
     const delivered = await deliverOutbox(request);
     await page.reload();
-    await expect(entries).toContainText(new RegExp(`You were introduced to ${company.name} on .+\\.`), { timeout: 30_000 });
+    await expect(entries).toContainText(new RegExp(`You accepted ${company.name} on .+\\.`), { timeout: 30_000 });
+    await expect(entries.getByRole("link", { name: company.email })).toBeVisible();
     await expect(entries.getByRole("link", { name: company.email })).toBeVisible();
     const sentTo = (email: string) => delivered.filter(mail => mail.to.includes(email.toLowerCase()));
     expect(sentTo(company.email).map(mail => mail.replyTo)).toContain(site.email.toLowerCase());

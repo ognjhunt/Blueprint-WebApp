@@ -18,9 +18,11 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
+import { CHARGE_MODELS, ESTIMATE_MAX_USD, SIMILAR_JOBS, VISIT_NOTE_LIMIT } from "../../client/src/lib/companyResponses";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, TESTED_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
+import { recordReplyWindow } from "../utils/siteReplyReminders";
 import { questionOnReply } from "../utils/jobClarifications";
 import { recordCompanyJobView } from "../utils/companyJobViews";
 const router = Router();
@@ -40,7 +42,14 @@ const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
     verified: z.string().trim().min(1).max(COMPANY_QUESTION_LIMIT).optional(),
     question: z.string().trim().min(4).max(COMPANY_QUESTION_LIMIT).optional(),
     startWindow: z.enum(COMPANY_START_WINDOWS).optional(),
-  }).strict().optional(),
+    // An application at a glance (owner, 2026-11-23): how the company charges, an optional estimate before a site visit
+    // in whole US dollars (never a quote), how many similar jobs it has done, and what a visit must confirm.
+    chargeModel: z.enum(CHARGE_MODELS).optional(),
+    estimate: z.object({ lowUsd: z.number().int().min(1).max(ESTIMATE_MAX_USD), highUsd: z.number().int().min(1).max(ESTIMATE_MAX_USD) })
+      .strict().refine(value => value.lowUsd <= value.highUsd).optional(),
+    similarJobs: z.enum(SIMILAR_JOBS).optional(),
+    visitMustConfirm: z.string().trim().min(1).max(VISIT_NOTE_LIMIT).optional(),
+  }).strict().refine(value => !value.estimate || (value.chargeModel !== undefined && value.chargeModel !== "undecided")).optional(),
   // The line the company saw under the form (E5); stored on the answer.
   statementVersion: z.literal(COMPANY_RESPONSE_STATEMENT_VERSION) }).strict();
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
@@ -71,7 +80,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
         return res.status(409).json({ error: "This job has no simulation to test yet." });
     }
     const row = { state: input.data.state, inputs: input.data.inputs, statementVersion: input.data.statementVersion,
-      ...(input.data.details && input.data.state !== "declined" ? { details: input.data.details } : {}),
+      ...(input.data.details && input.data.state !== "declined" ? { details: applicationDetailsFor(input.data.state, input.data.details) } : {}),
       email: user.email.toLowerCase(), company: access.company, submittedBy: user.uid,
       recordedBy: "company" as const, updatedAtIso: new Date().toISOString() };
     const companyId = accessRecordId(user.email);
@@ -89,23 +98,36 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       const sameQuestion = question && priorQuestion?.text === question.text;
       const next = { ...row, firstAnsweredAtIso: firstAnswerTimestamp(prior, row.updatedAtIso),
         ...(question ? { questionId: sameQuestion ? priorQuestion.id : randomBytes(32).toString("hex") } : {}),
+        // When this question was first asked, so the company's page can say how quickly the site answers.
+        ...(question && !sameQuestion ? { questionAskedAtIso: row.updatedAtIso }
+          : sameQuestion && typeof prior?.questionAskedAtIso === "string" ? { questionAskedAtIso: prior.questionAskedAtIso } : {}),
         ...(sameQuestion && prior?.siteClarification ? { siteClarification: prior.siteClarification } : {}) };
       if (prior && humanDecisionDigest({ ...prior, firstAnsweredAtIso: next.firstAnsweredAtIso, updatedAtIso: null })
         === humanDecisionDigest({ ...next, updatedAtIso: null })) return;
       const prepared = await prepareCompanyAnswerInTransaction(tx, ref, taskId, current, companyId, input.data.state, captureUrl);
       prepared.write();
       tx.set(interestRef, next);
+      // A new question opens its reply window (`siteReplyReminders.ts`): a date for the site, and one reminder at it.
+      if (question && !sameQuestion && typeof next.questionId === "string")
+        recordReplyWindow(tx, { jobId: taskId, companyId, questionId: next.questionId, askedAtIso: row.updatedAtIso });
     });
     return res.json({ ok: true, state: input.data.state, nextAction: answerNextStep(input.data.state) });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
 });
 
+/** The application's own fields are kept only with an application (Apply or Tested it: can do); the rest as given. */
+function applicationDetailsFor(state: CompanyResponseState, details: Record<string, unknown>): Record<string, unknown> {
+  if (INTRODUCIBLE_RESPONSE_STATES.includes(state)) return details;
+  const { chargeModel: _charge, estimate: _estimate, similarJobs: _similar, visitMustConfirm: _visit, ...rest } = details;
+  return rest;
+}
+
 /** After an answer, one sentence saying what happens next. */
 function answerNextStep(state: CompanyResponseState): string {
   if (INTRODUCIBLE_RESPONSE_STATES.includes(state))
-    return "Saved. If the site asks to meet you, we email you both each other's name and contact details.";
+    return "Saved. If the site accepts your application, we email you both each other's name and contact details.";
   if (state === "needs_something") return "Saved. If the site answers your question, its answer shows on this page.";
-  return "Saved. The site sees this answer without your company's name, and you can change it on this page.";
+  return "Saved. The site sees this answer with your company's name, and you can change it on this page.";
 }
 
 // The company's page for one job (E3): signed-in, approved accounts only, whatever the early-access switch says.
@@ -116,7 +138,11 @@ router.get("/jobs/:taskId", async (req, res) => {
     const { access, viewer } = await companyViewerForRequest(req);
     if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed || !viewer) return res.status(404).json({ error: "This job is not available.", access });
-    const page = await loadCompanyJobPage(String(req.params.taskId), { companyId: viewer.companyId });
+    // A public live job's reference (`publicLiveJobRef`) opens its job for an approved company, and only for one.
+    const asked = String(req.params.taskId);
+    const { PUBLIC_LIVE_JOB_REF, resolvePublicLiveJobRef } = await import("../utils/taskBrowse");
+    const taskId = PUBLIC_LIVE_JOB_REF.test(asked) ? await resolvePublicLiveJobRef(asked) : asked;
+    const page = taskId ? await loadCompanyJobPage(taskId, { companyId: viewer.companyId }) : null;
     if (!page) return res.status(404).json({ error: "This job is not available.", access });
     if (!viewer.staff) await recordCompanyJobView(page.id, viewer.companyId);
     return res.json({ item: page, access });

@@ -177,7 +177,7 @@ const QUESTIONS_BY_KIND: Readonly<Record<ReaderJobKind, readonly JobFactKey[]>> 
  * keyword's own questions stay (a case packing job is asked how many items go in a case); where they disagree, the
  * reading wins.
  */
-const KINDS_OF_JOB_TYPE: Readonly<Partial<Record<string, readonly ReaderJobKind[]>>> = {
+export const KINDS_OF_JOB_TYPE: Readonly<Partial<Record<string, readonly ReaderJobKind[]>>> = {
   Palletizing: ["palletizing"],
   Depalletizing: ["palletizing"],
   "Pallet handling": ["palletizing"],

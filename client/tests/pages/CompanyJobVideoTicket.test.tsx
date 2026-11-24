@@ -27,6 +27,8 @@ const simulationUrl = (nowMs: number, signature: string) =>
 
 const item = (nowMs: number, signature: string): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
+  headline: "Stack cartons on pallets", headlineFacts: [], fitSummary: [], firstLookStatus: null, simulationStatus: null,
+  visitMustConfirm: [], aboutSite: [],
   publishedAtIso: "2026-11-12T10:00:00.000Z", sentence: "Stack cartons onto the pallet.", jobFacts: [], country: "United States",
   video: { state: "ready", url: videoUrl(nowMs, signature), width: 1280, height: 720, durationSeconds: 40 },
   simulation: { state: "not_finished" }, simulationDownload: { state: "ready", url: simulationUrl(nowMs, signature) }, firstLook: null,

@@ -30,12 +30,12 @@ export default function Beta() {
             { key: "limits", label: "Simulation", value: "A simulation helps companies review your job. It does not certify performance or safety." },
           ]} />
           <BareRows title="Deployment companies" rows={[
-            { key: "responses", label: "Responses", value: `A company can answer ${EVERYDAY_ANSWERS}. Once the simulation can be downloaded, it can also answer ${TESTED_ANSWERS}. We can't promise any will say yes.` },
-            { key: "meet", label: "Introductions", value: `Press Introduce us beside a company that answered ${INTRODUCIBLE_ANSWERS}. We email the company your name, address and contact details, and email you theirs.` },
+            { key: "responses", label: "Responses", value: `A company can choose ${EVERYDAY_ANSWERS}. Once the simulation can be downloaded, it can also choose ${TESTED_ANSWERS}. We can't promise any will say yes.` },
+            { key: "meet", label: "Applicants", value: `You see each company's name and website with its answer. Press Accept beside a company that ${INTRODUCIBLE_ANSWERS} to meet it. We email the company your name, address and contact details, and email you theirs.` },
             { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
           ]} />
           <BareRows title="Your video" rows={[
-            { key: "private", label: "Who sees it", value: "We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job. Your name, address and contact details go to a company only if you ask for an introduction." },
+            { key: "private", label: "Who sees it", value: "We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job. Your name, address and contact details go to a company only if you accept it." },
             { key: "sharing", label: "Sharing", value: "Sending a job means we share it. You agree to that once, when you send. If your job page asks you to agree, we share the job only after you do." },
             { key: "stop", label: "Stopping", value: "You can stop us using your video at any time, from your job page. Your job then leaves every company's view at once. We ask any company that saved a copy to delete it, but we cannot take that copy back." },
           ]} />

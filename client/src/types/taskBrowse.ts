@@ -41,6 +41,10 @@ export interface TaskBrowseCard extends TaskListingDetails {
   sentence?: string;
   /** The answer's headline, only when the site chose to share its answer with the card. */
   answerHeadline?: string;
+  /** The job's title from its facts (`jobHeadline`), as its page leads with it; the category title until a reading. */
+  headline?: string;
+  /** How often and how long, when the site said ("60 to 300 times an hour", "Two shifts"). */
+  headlineFacts?: string[];
 }
 /** The card as an approved company opens it: the browse card, and the answer when the site shared it. */
 export interface TaskCardDetail extends TaskBrowseCard {
@@ -176,6 +180,11 @@ export interface CompanyJobPage {
   id: string;
   /** The category title ("Material handling opportunity"). */
   title: string;
+  /** The title built from the job's facts ("Scrape and scoop cake batter", `jobHeadline`); the category title until a
+   * video reading names the job. */
+  headline: string;
+  /** How often and how long, when the site said ("60 to 300 times an hour", "Two shifts"). */
+  headlineFacts: string[];
   taskFamily: string;
   publishedAtIso: string;
   /** The site's own sentence for the job, without its name, address, contact details or any other name-shaped text
@@ -185,6 +194,8 @@ export interface CompanyJobPage {
   successRule?: string;
   /** The site's quick answers in words, one line each (`jobFactsInWords`). */
   jobFacts: string[];
+  /** The same answers as fixed fields, "Not stated" where the site skipped one (`fitSummary`). */
+  fitSummary: import("../lib/companyJobPage").FitSummaryRow[];
   /** The country only, or null when the site gave none we can read. */
   country: string | null;
   /**
@@ -212,20 +223,35 @@ export interface CompanyJobPage {
    * estimate of something the site answered on its job page is left out: the site's answer is in `jobFacts`.
    */
   packetFacts: { object: string[]; measured: string[]; estimated: string[] } | null;
-  /** What nothing in the job packet measured or asked: a company judges these itself. */
-  notShown: string[];
+  /** Where the first look stands while it has nothing to show; null once it does. */
+  firstLookStatus: string | null;
+  /** Where the simulation stands while neither the viewer nor the download is ready; null once one is. */
+  simulationStatus: string | null;
+  /** What a first site visit must still confirm for this kind of job (`visitMustConfirm`). */
+  visitMustConfirm: string[];
+  /** About the site, with nothing that identifies it (`aboutTheSite`). */
+  aboutSite: string[];
   /** This company's own answer on this job, if any. */
   myAnswer: { state: "interested" | "declined" | "needs_something" | "tested_can_do" | "tested_cannot_yet"; inputs: string; updatedAtIso: string;
     statementVersion: string | null; details?: import("../lib/companyResponses").CompanyReplyDetails } | null;
   clarification?: { question: string; answer: string };
+  /** This company's question while the site has not replied: when it asked, the reply date, and whether we reminded. */
+  pendingQuestion?: { askedAtIso: string; replyByIso: string; reminded: boolean };
   /** The line under the form, and the version recorded with an answer. */
   responseStatement: { version: string; text: string };
 }
 
 /** A live job as anyone reads it on /jobs (`server/utils/taskBrowse.ts`, `listPublicLiveJobs`). */
 export interface PublicLiveJob {
-  /** The kind of job, from Blueprint's fixed categories ("Palletize cartons"); never the site's words. */
+  /**
+   * The job's public reference (never its id): the row opens `/jobs/<ref>`, which an approved company reads as the job and
+   * anyone else is asked to apply for. Absent when the server has no signing secret.
+   */
+  ref?: string;
+  /** The kind of job, from Blueprint's fixed categories ("Palletize cartons", "Pick and place job"); never the site's words. */
   kind: string;
+  /** The fixed kind the label and the row's picture follow (the video reading's, else the category's). */
+  kindKey: "pick_and_place" | "palletizing" | "machine_tending" | "transport" | "other";
   /** The country only, or null. */
   country: string | null;
   /** The day the job was shared, YYYY-MM-DD. */

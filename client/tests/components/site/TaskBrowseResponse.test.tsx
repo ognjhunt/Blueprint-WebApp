@@ -39,6 +39,20 @@ describe("a job in the library", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
+  // Owner, 2026-11-23: each row reads like a load post, with the job's title and how often it runs.
+  it("titles a row with the job's own title and shows how often it runs, and searches the title", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
+      card({ headline: "Stack cartons on pallets", headlineFacts: ["60 to 300 times an hour", "Two shifts"], region: "Ohio, United States" }),
+      card({ id: "job-2", title: "Inspect cases" }),
+    ] }) });
+    render(<TaskBrowse />);
+    const row = (await screen.findByRole("heading", { name: "Stack cartons on pallets" })).closest("li")!;
+    expect(within(row).getByText("60 to 300 times an hour")).toBeVisible();
+    expect(within(row).getByText("Two shifts")).toBeVisible();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search jobs" }), { target: { value: "stack" } });
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  });
+
   it("shows each card's sentence from the site, with search and Ready to test as the only filters", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
       card({ region: "United States", sentence: "Stack 12 kg cartons onto the pallet." }),

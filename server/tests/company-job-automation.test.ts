@@ -30,6 +30,7 @@ import { currentTermsAcceptance, passedPrivacyScreen, sharedJobListing, sharedRe
 import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
+import { SITE_AGREED_SHARING, SITE_IDENTITY_RULE, VISIT_MUST_CONFIRM } from "../../client/src/lib/companyJobPage";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -433,12 +434,42 @@ describe("the company's page for one job (E3)", () => {
   it("lists a shared job publicly by its kind, country, day and simulation state only", async () => {
     const { listPublicLiveJobs } = await import("../utils/taskBrowse");
     const jobs = await listPublicLiveJobs();
-    expect(jobs).toEqual([{ kind: "Palletize cartons", country: "United States", postedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-      simulationReady: expect.any(Boolean) }]);
+    expect(jobs).toEqual([{ ref: expect.stringMatching(/^l-[a-f0-9]{32}$/), kind: "Palletize cartons", kindKey: "palletizing",
+      country: "United States", postedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), simulationReady: expect.any(Boolean) }]);
     const text = JSON.stringify(jobs);
     expectNoSiteIn("the public live jobs", text);
     expect(text).not.toContain(ID);
     expect(text).not.toMatch(/Stack 12 kg|pallet\. Call|\[removed\]/);
+  });
+
+  // Owner, 2026-11-23: a tap on a public live job opens it for an approved company, and asks anyone else to apply.
+  it("opens a public live job's reference as the job for an approved company only, and never names the job's id", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    const [job] = await listPublicLiveJobs();
+    const open = async (record: { email: string }) => {
+      const response = await realFetch(`${base}/api/site-worlds/jobs/${job.ref}`, { headers: signIn(record) });
+      return { status: response.status, body: await response.json() as Record<string, any> };
+    };
+    const north = await open(NORTH);
+    expect(north.status).toBe(200);
+    expect(north.body.item.id).toBe(ID);
+    expect((await open(PENDING)).status).toBe(404);
+    expect((await realFetch(`${base}/api/site-worlds/jobs/${job.ref}`)).status).toBe(404);
+    // A reference no listed job has, and a job that left the list, open nothing.
+    const other = await realFetch(`${base}/api/site-worlds/jobs/l-${"0".repeat(32)}`, { headers: signIn(NORTH) });
+    expect(other.status).toBe(404);
+    const record = state.docs.get(`inboundRequests/${ID}`) as Record<string, any>;
+    state.docs.set(`inboundRequests/${ID}`, { ...record, capture_rights: { ...(record.capture_rights ?? {}), consent_revoked: true } });
+    expect((await open(NORTH)).status).toBe(404);
+  });
+
+  it("names a public live job by the video reading's kind when the category says less", async () => {
+    const { listPublicLiveJobs } = await import("../utils/taskBrowse");
+    patchJob({ walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "transport", object: "linen cart" } } });
+    const [job] = await listPublicLiveJobs();
+    // The reading disagrees with the keyword category, so its kind is said; never its object.
+    expect(job).toMatchObject({ kind: "Moving things between places", kindKey: "transport" });
+    expect(JSON.stringify(job)).not.toMatch(/linen/);
   });
 
   it("lists nothing publicly for a job companies cannot see", async () => {
@@ -454,6 +485,158 @@ describe("the company's page for one job (E3)", () => {
       job_facts: { route: "floors", palletPattern: "fixed", weight: "5_15kg", updatedAtIso: "2026-11-12T10:00:00.000Z" },
       walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "transport", object: "linen cart" } } }));
     expect((await page()).body.item.jobFacts).toEqual(["Where it goes: Between floors", "Weight: 5 to 15 kg (11 to 33 lb)"]);
+  });
+
+  // Owner, 2026-11-23 (research report "Robot deployment readiness needs"): the page leads with a title from the job's
+  // facts and its answers as fields, says where each box stands, and lists what a visit must confirm for this kind of job.
+  it("leads with a title from the job's facts, its answers as fields, and what a visit must confirm for its kind", async () => {
+    state.docs.set(`inboundRequests/${ID}`, job({
+      job_facts: { maxLoadedWeightKg: "14", hours: "two_shifts", updatedAtIso: "2026-11-12T10:00:00.000Z" },
+      walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "palletizing", object: "cartons" } } }));
+    const item = (await page()).body.item;
+    expect(item.headline).toBe("Stack cartons on pallets");
+    expect(item.headlineFacts).toEqual(["Two shifts"]);
+    expect(item.fitSummary.map((row: Record<string, unknown>) => [row.label, row.value, row.state])).toEqual([
+      ["Object", "cartons", "from_video"],
+      ["Heaviest loaded item", "14 kg", "stated"],
+      ["Peak incoming rate", null, "not_stated"],
+      ["Pallet pattern", null, "not_stated"],
+      ["Hours a day", "Two shifts", "stated"],
+      ["When", null, "not_stated"],
+    ]);
+    expect(item.visitMustConfirm).toEqual([...VISIT_MUST_CONFIRM.palletizing]);
+    expect(item.aboutSite).toEqual([SITE_IDENTITY_RULE, SITE_AGREED_SHARING]);
+    expect(item).not.toHaveProperty("notShown");
+    // A viewer and a first look exist in this fixture, so neither box needs a status.
+    expect(item).toMatchObject({ simulationStatus: null });
+  });
+
+  it("keeps the site's name out of the title and the fit summary when the video reading echoes it", async () => {
+    state.docs.set(`inboundRequests/${ID}`, job({
+      walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "pick_and_place", object: "ZEBRAPLANT jars" } } }));
+    const { body, raw } = await page();
+    // The reading's name carried the site's name, so the title keeps the category title rather than show it.
+    expect(body.item.headline).toBe("Palletize cartons");
+    expect(body.item.fitSummary.some((row: Record<string, unknown>) => row.key === "object")).toBe(false);
+    expectNoSiteIn("the job page payload", raw);
+  });
+
+  it("says how quickly the site answers companies' questions, from questions asked and answered on this job", async () => {
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const ref = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    const reply = state.docs.get(ref) as Record<string, any>;
+    expect(typeof reply.questionAskedAtIso).toBe("string");
+    // The same question again keeps the time it was first asked.
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?", details: { startWindow: "within_month" } })).status).toBe(200);
+    expect((state.docs.get(ref) as Record<string, any>).questionAskedAtIso).toBe(reply.questionAskedAtIso);
+    const answeredAtIso = new Date(Date.parse(reply.questionAskedAtIso) + 150 * 60_000).toISOString();
+    state.docs.set(ref, { ...(state.docs.get(ref) as Record<string, any>), siteClarification: { questionId: reply.questionId,
+      text: "About 12.", answeredAtIso } });
+    expect((await page(SOUTH)).body.item.aboutSite).toEqual([SITE_IDENTITY_RULE, SITE_AGREED_SHARING,
+      "Answers questions from companies here, usually within 3 hours."]);
+  });
+
+  // Owner, 2026-11-23, after freight marketplaces: a pending step carries its date and one reminder, and never closes.
+  it("gives a company's question a three-day reply date, reminds the site once at it, and closes the window on a reply", async () => {
+    const { remindUnansweredQuestions, SITE_REPLY_WINDOWS, replyReminderIsCurrent } = await import("../utils/siteReplyReminders");
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const reply = state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>;
+    const replyBy = Date.parse(reply.questionAskedAtIso) + 3 * 24 * 60 * 60 * 1000;
+    const windowKey = `${SITE_REPLY_WINDOWS}/${ID}__${sha(NORTH.email)}`;
+    expect(state.docs.get(windowKey)).toMatchObject({ state: "open", questionId: reply.questionId, replyByIso: new Date(replyBy).toISOString() });
+    // The company and the site both read the date.
+    expect((await page()).body.item.pendingQuestion).toEqual({ askedAtIso: reply.questionAskedAtIso,
+      replyByIso: new Date(replyBy).toISOString(), reminded: false });
+    expect((await loadSiteCompanyActivity(ID)).entries.find(entry => entry.alias === "Company A"))
+      .toMatchObject({ question: { id: reply.questionId, replyByIso: new Date(replyBy).toISOString() } });
+    // Before the date: nothing. At it: one reminder to the site, naming no company; never a second.
+    expect(await remindUnansweredQuestions(replyBy - 1)).toBe(0);
+    expect(await remindUnansweredQuestions(replyBy)).toBe(1);
+    expect(await remindUnansweredQuestions(replyBy + 60_000)).toBe(0);
+    const reminders = outbox().filter(row => row.kind === "site_reply_reminder");
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0]).toMatchObject({ to: SITE.email, subject: "A company is waiting for your reply" });
+    expect(reminders[0].body).not.toMatch(/North|contact@/);
+    expect(state.docs.get(windowKey)).toMatchObject({ state: "reminded" });
+    expect((await page()).body.item.pendingQuestion).toMatchObject({ reminded: true });
+    // Still true at dispatch while unanswered; once the site replies, the reminder is no longer true.
+    const entry = { kind: "site_reply_reminder" as const, requestId: ID, idempotencyKey: reminders[0].key };
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const current = () => sharedFakeFirestore.runTransaction((tx: FirebaseFirestore.Transaction) => replyReminderIsCurrent(entry as never, tx));
+    expect(await current()).toBe(true);
+    state.docs.set(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`, { ...(state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as object),
+      siteClarification: { questionId: reply.questionId, text: "About 12.", answeredAtIso: new Date(replyBy).toISOString() } });
+    expect(await current()).toBe(false);
+    expect((await page()).body.item.pendingQuestion).toBeUndefined();
+  });
+
+  // Review of #1425: a new question replaces the window under the same id; a pass that read the old one leaves it open.
+  it("leaves a newer question's window open when the sweep read the one it replaced", async () => {
+    const { remindUnansweredQuestions, SITE_REPLY_WINDOWS } = await import("../utils/siteReplyReminders");
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const key = `${SITE_REPLY_WINDOWS}/${ID}__${sha(NORTH.email)}`;
+    const first = state.docs.get(key) as Record<string, any>;
+    const due = Date.parse(first.replyByIso);
+    // The sweep reads the first window; before its transaction, the company asks a new question.
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const realRun = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+    let swapped = false;
+    const spy = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementation(async (fn: never) => {
+      if (!swapped) {
+        swapped = true;
+        expect((await answer(NORTH, { state: "needs_something", inputs: "What height is the pallet?" })).status).toBe(200);
+      }
+      return realRun(fn);
+    });
+    expect(await remindUnansweredQuestions(due)).toBe(0);
+    spy.mockRestore();
+    const replaced = state.docs.get(key) as Record<string, any>;
+    expect(replaced.questionId).not.toBe(first.questionId);
+    expect(replaced.state).toBe("open");
+    expect(outbox().filter(row => row.kind === "site_reply_reminder")).toHaveLength(0);
+  });
+
+  // Owner, 2026-11-23 ("yes build it this way"): an application at a glance, with an optional estimate before a visit.
+  it("shows the site an application's charging, estimate, similar jobs and visit note, and never in an email", async () => {
+    const glance = { chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 }, similarJobs: "6_20",
+      visitMustConfirm: `Conveyor height at the end of the line. Call ${NORTH.email}.`, startWindow: "within_month" };
+    expect((await answer(NORTH, { state: "interested", details: glance })).status).toBe(200);
+    await deliverOutbox({ limit: 50 });
+    const entry = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(entry).toMatchObject({ details: { chargeModel: "subscription", estimate: { lowUsd: 12000, highUsd: 18000 },
+      similarJobs: "6_20", startWindow: "within_month" } });
+    // The company's words lose its contact details, as its reason does.
+    expect(entry?.kind === "answered" && entry.details?.visitMustConfirm).toMatch(/^Conveyor height at the end of the line\. Call \[removed\]\.$/);
+    // No email to the site carries the estimate or the way of charging.
+    for (const row of outbox()) expect(`${row.subject} ${row.body}`).not.toMatch(/\$|12,000|subscription/i);
+    // Under the earlier line the company never agreed the site sees an estimate: it is left out, the rest stays.
+    const ref = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    state.docs.set(ref, { ...(state.docs.get(ref) as Record<string, any>), statementVersion: "company-response-2026-11-23" });
+    const older = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(older?.kind === "answered" && older.details?.estimate).toBeFalsy();
+    expect(older).toMatchObject({ details: { chargeModel: "subscription", similarJobs: "6_20" } });
+  });
+
+  it("keeps the application's fields only with an application, and refuses an estimate it cannot read", async () => {
+    const glance = { chargeModel: "per_hour", estimate: { lowUsd: 30, highUsd: 45 }, similarJobs: "1_5" };
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How tall is the pallet?", details: glance })).status).toBe(200);
+    const stored = state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>;
+    expect(stored.details ?? {}).not.toHaveProperty("estimate");
+    expect(stored.details ?? {}).not.toHaveProperty("chargeModel");
+    for (const details of [{ estimate: { lowUsd: 30, highUsd: 45 } }, { chargeModel: "undecided", estimate: { lowUsd: 30, highUsd: 45 } },
+      { chargeModel: "per_hour", estimate: { lowUsd: 45, highUsd: 30 } }, { chargeModel: "per_hour", estimate: { lowUsd: 0.5, highUsd: 30 } }])
+      expect((await answer(SOUTH, { state: "interested", details })).status).toBe(400);
+  });
+
+  it("closes a reply window with no email when the question was answered or changed first", async () => {
+    const { remindUnansweredQuestions, SITE_REPLY_WINDOWS } = await import("../utils/siteReplyReminders");
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const asked = Date.parse((state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>).questionAskedAtIso);
+    // The company applies instead: no question is open any more.
+    expect((await answer(NORTH, { state: "interested", inputs: "We do this every day." })).status).toBe(200);
+    expect(await remindUnansweredQuestions(asked + 4 * 24 * 60 * 60 * 1000)).toBe(0);
+    expect(state.docs.get(`${SITE_REPLY_WINDOWS}/${ID}__${sha(NORTH.email)}`)).toMatchObject({ state: "closed" });
+    expect(outbox().filter(row => row.kind === "site_reply_reminder")).toHaveLength(0);
   });
 
   it("shows the site's sentence with contact details removed, its answers in words, the country, the media and the form line", async () => {
@@ -741,9 +924,10 @@ describe("the automatic send (E4)", () => {
     const alerts = outbox().filter(row => row.kind === "robot_team_new_task");
     expect(alerts.map(row => row.to).sort()).toEqual([NORTH, SOUTH, EAST, WEST].map(record => record.email).sort());
     // The kind of job and the country, never the site (ledger BL49).
-    expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint: Palletizing" });
+    expect(alerts[0]).toMatchObject({ subject: "New job on Blueprint: Palletize cartons" });
     // The job's link is one labelled button, the company's own ("Open the job"), not the site's default.
-    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nKind of job: Palletizing\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\?link=\S+\n\nYou get an email like this for each new job\. Turn them off in Settings /);
+    expect(alerts[0].subject).toBe("New job on Blueprint: Palletize cartons");
+    expect(alerts[0].body).toMatch(/^A site has posted a new job\. Open it to see the job packet and respond\.\n\nJob: Palletize cartons\nCountry: United States\n\nOpen the job:\nhttps:\/\/\S+\/jobs\/req-e2\?link=\S+\n\nYou get an email like this for each new job\. Turn them off in Settings /);
     // Owner, 2026-11-23: the job's link signs that company in on the way, once, for a week, and opens this job.
     const { verifyAccountSignInToken } = await import("../utils/request-review-auth");
     for (const alert of alerts) {
@@ -780,7 +964,7 @@ describe("the automatic send (E4)", () => {
       .some(record => record.email === to)).sort()).toEqual([NORTH, SOUTH, EAST].map(record => record.email).sort());
     // e-004, e-008: the job is the company's button ("Open the job"); the commercial footer stays in the text part, and the
     // HTML part shows the layout's own footer with its "Unsubscribe" link, not a raw link carrying the reader's address.
-    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint: Palletizing")!;
+    const alert = seams.sendEmail.mock.calls.map(([message]) => message).find(message => message.to === NORTH.email && message.subject === "New job on Blueprint: Palletize cartons")!;
     const html = String(alert.html), text = String(alert.text);
     expect(text).toMatch(/\n\n--\n.+\nPrivacy: https:\/\/\S+\/privacy\nUnsubscribe from new-job emails and Blueprint updates: https:\/\/\S+$/);
     expect(html).toContain(">Open the job</a>");
@@ -865,7 +1049,7 @@ describe("introductions (E6) and money (E7)", () => {
       atIso: "2026-11-12T15:00:00.000Z", priceUsd: null, status: "recorded_no_price" });
     const toCompany = outbox().find(row => row.kind === "introduction_made_company")!;
     expect(toCompany).toMatchObject({ key: `${ID}:introduction_made_company:${companyId}`, to: NORTH.email,
-      subject: "A site wants to talk about its job", replyTo: SITE.email });
+      subject: "A site accepted your application", replyTo: SITE.email });
     for (const detail of [SITE.name, `${SITE.first} ${SITE.last}`, SITE.email, SITE.address, `/jobs/${ID}`]) expect(toCompany.body).toContain(detail);
     // The company's email goes first (H2), so it says the site's email is on its way, not that it has gone (J2).
     // A reply reaches Blueprint (dispatch sends Reply-To hello@), so it says where to write instead (decision 9).
@@ -887,7 +1071,9 @@ describe("introductions (E6) and money (E7)", () => {
     expect(pending.entries).toEqual([expect.objectContaining({ alias: "Company A", canIntroduce: false, introductionPending: true })]);
     expect(pending.entries[0]).not.toHaveProperty("introducedAtIso");
     expect(pending.entries[0]).not.toHaveProperty("company");
-    expect(JSON.stringify(pending)).not.toMatch(/North|contact@north/);
+    // The applicant's name and website show with its answer (owner, 2026-11-23); its contact details only once made.
+    expect(pending.entries[0]).toMatchObject({ applicant: { name: "North Robotics", website: "https://north.example" } });
+    expect(JSON.stringify(pending)).not.toMatch(/contact@north|Person North/);
     // Once the company's email is sent the introduction is made: the site's view carries the company's details on that
     // answer only, dated when it was made.
     await deliverOutbox({ limit: 50 });
@@ -900,11 +1086,16 @@ describe("introductions (E6) and money (E7)", () => {
     expect(activity.entries[0]).not.toHaveProperty("introductionPending");
   });
 
-  it("before an introduction the site sees aliases only, and may introduce each Interested company that answered under the new line", async () => {
+  // Owner, 2026-11-23: an answer under the current line shows the site the company's name and website, never its
+  // contact details, before the site accepts.
+  it("before the site accepts, it sees each applicant's name and website and no contact details, and may accept each one that applied", async () => {
     await interested(NORTH, SOUTH);
     expect((await answer(EAST, { state: "declined" })).status).toBe(200);
     const activity = await loadSiteCompanyActivity(ID);
-    expect(JSON.stringify(activity)).not.toMatch(/North|South|East|contact@/);
+    expect(activity.entries.map(entry => entry.kind === "answered" && entry.applicant)).toEqual([
+      { name: "North Robotics", website: "https://north.example" }, { name: "South Robotics", website: "https://south.example" },
+      { name: "East Robotics", website: "https://east.example" }]);
+    expect(JSON.stringify(activity)).not.toMatch(/contact@|Person (North|South|East)/);
     expect(activity.entries.map(entry => [entry.alias, entry.kind === "answered" && entry.canIntroduce])).toEqual([
       ["Company A", true], ["Company B", true], ["Company C", false]]);
   });
@@ -951,13 +1142,13 @@ describe("introductions (E6) and money (E7)", () => {
     for (const alias of ["A", "B"])
       expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION },
         { siteEmail: capture })).toMatchObject({ ok: true });
-    expect(labels).toEqual(["Tested it: can do", "Interested"]);
+    expect(labels).toEqual(["Tested it: can do", "Applied"]);
     // And the site side's real email words it (no stub).
     await interested(EAST);
     expect(await requestIntroduction({ requestId: ID, alias: "C", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }))
       .toMatchObject({ ok: true });
     const toSite = outbox().filter(row => row.kind === "introduction_made_site").map(row => String(row.body));
-    expect(toSite.at(-1)).toContain("Interested");
+    expect(toSite.at(-1)).toContain("applied to your job");
   });
 
   // Owner, 2026-11-12: "if they want to talk to 1 that should be fine if they want to go through the steps with 8 that
@@ -975,6 +1166,30 @@ describe("introductions (E6) and money (E7)", () => {
     const activity = await loadSiteCompanyActivity(ID);
     expect(activity.introductions).toEqual({ used: 5 });
     expect(activity.entries.every(entry => entry.kind !== "answered" || entry.canIntroduce === false)).toBe(true);
+  });
+
+  // Owner, 2026-11-23: the site's job reads like a shipment tracker; a visit and a pilot are the site's own marks.
+  it("records the site's own marks for a visit and a pilot after an introduction, and only after one", async () => {
+    await interested(NORTH, SOUTH);
+    const { markIntroductionProgress } = await import("../utils/jobIntroductions");
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "visit", done: true })).toEqual({ ok: false, reason: "not_introduced" });
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
+    const at = (iso: string) => () => new Date(iso);
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "visit", done: true }, at("2026-11-20T10:00:00.000Z")))
+      .toEqual({ ok: true, progress: { visitAtIso: "2026-11-20T10:00:00.000Z" } });
+    // Pressing again keeps the first date; a pilot is added beside it; "Undo" takes the visit back alone.
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "visit", done: true }, at("2026-11-21T10:00:00.000Z")))
+      .toEqual({ ok: true, progress: { visitAtIso: "2026-11-20T10:00:00.000Z" } });
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "pilot", done: true }, at("2026-11-22T10:00:00.000Z")))
+      .toEqual({ ok: true, progress: { visitAtIso: "2026-11-20T10:00:00.000Z", pilotAtIso: "2026-11-22T10:00:00.000Z" } });
+    const entry = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(entry).toMatchObject({ progress: { visitAtIso: "2026-11-20T10:00:00.000Z", pilotAtIso: "2026-11-22T10:00:00.000Z" } });
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "visit", done: false }))
+      .toEqual({ ok: true, progress: { pilotAtIso: "2026-11-22T10:00:00.000Z" } });
+    // A company the site was never introduced to has nothing to mark, and a withdrawn job takes no marks.
+    expect(await markIntroductionProgress({ requestId: ID, alias: "B", step: "pilot", done: true })).toEqual({ ok: false, reason: "not_introduced" });
+    patchJob({ capture_withdrawal: { requestedAtIso: "2026-11-23T00:00:00.000Z" } });
+    expect(await markIntroductionProgress({ requestId: ID, alias: "A", step: "pilot", done: true })).toEqual({ ok: false, reason: "withdrawn" });
   });
 
   it("clears both sides' details from the introduction emails' outbox rows once sent; a failed try keeps them for the retry", async () => {
@@ -1185,15 +1400,16 @@ describe("review findings (must-fix and should-fix)", () => {
   });
 
   it("must-fix 5: the consent line names both answers, and the company's email states its own stored answer", async () => {
-    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site is told your answer. If you answer Interested or Tested it: can do and the "
-      + "site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.");
+    expect(COMPANY_RESPONSE_STATEMENT).toBe("The site sees your company's name and website with your answer, and any estimate you "
+      + "give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we "
+      + "give the site your contact details, and give you theirs.");
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
     await interested(SOUTH);
     for (const alias of ["A", "B"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     const bodyTo = (email: string) => outbox().find(row => row.kind === "introduction_made_company" && row.to === email)!.body as string;
     expect(bodyTo(NORTH.email)).toContain('You answered "Tested it: can do" to a job on Blueprint');
-    expect(bodyTo(SOUTH.email)).toContain('You answered "Interested" to a job on Blueprint');
+    expect(bodyTo(SOUTH.email)).toContain("You applied to a job on Blueprint, and the site accepted your application.");
   });
 
   it("must-fix 6: both media routes refuse an answer without the stored digest, and the download refuses another size", async () => {

@@ -269,6 +269,13 @@
 .company-job-ready #answer-this-job .ms-button { align-self: start; border-radius: 8px; }
 .company-job-ready #answer-this-job textarea { border-radius: 8px; }
 .company-job-evidence { grid-column: 1 / -1; display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 16px; }
+/* The fit summary: label and answer side by side, scanned like a load post; a skipped answer reads quieter. */
+.company-fit-summary { display: grid; gap: 0; margin: 10px 0 8px; border-top: 1px solid #e3e6dd; }
+.company-fit-summary > div { display: grid; grid-template-columns: minmax(9rem, 38%) minmax(0, 1fr); gap: 12px; padding: 7px 0;
+  border-bottom: 1px solid #e3e6dd; }
+.company-fit-summary dt { font-size: 14px; font-weight: 650; }
+.company-fit-summary dd { margin: 0; overflow-wrap: anywhere; }
+.company-fit-summary .company-fit-missing dd { color: var(--ms-muted); }
 
 /* The site's next decision is the company reply. Sent dates and timings stay readable at secondary weight. */
 .bare-screen.site-job-status { max-width: 680px; }
@@ -408,7 +415,7 @@
 .live-jobs h2 { margin: 6px 0 4px; font-size: clamp(24px, 3.2vw, 32px); font-weight: 650; letter-spacing: -.035em; line-height: 1.15; }
 .live-jobs .live-jobs-lead { margin: 0 0 14px; color: var(--ms-muted); }
 .live-jobs ul { display: grid; gap: 8px; margin: 0 0 14px; padding: 0; list-style: none; }
-.live-jobs li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; border: 1px solid #c9cec1;
+.live-jobs li.live-jobs-unused { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; border: 1px solid #c9cec1;
   border-radius: 10px; background: #fff; }
 .live-jobs li span { color: var(--ms-muted); font-size: 14px; }
 .live-jobs a { color: var(--ms-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
@@ -422,3 +429,113 @@
 .sample-job-live p { margin: 8px 0 0; }
 .sample-job-live ul + h3 { margin-top: 18px; }
 .sample-job-live .ms-button { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; border-radius: 8px; text-decoration: none; }
+
+/* Where the site's job stands, as a shipment tracker shows a load: one row of six steps on a wide screen, a column on a
+   phone. Done steps are filled green, the current one is ringed, the rest are quiet. */
+.bare-screen ol.site-job-tracker {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+  margin: 14px 0 18px;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+.site-job-tracker > li { position: relative; display: grid; align-content: start; gap: 2px; padding: 22px 8px 0 0; min-width: 0; }
+.site-job-tracker > li::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 14px;
+  right: 0;
+  height: 2px;
+  background: #d7dbd2;
+}
+.site-job-tracker > li:last-child::before { display: none; }
+.site-job-tracker > li.site-job-tracker-done::before { background: var(--ms-green); }
+.site-job-tracker-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #b9bfb2;
+  border-radius: 50%;
+  background: #fff;
+}
+.site-job-tracker-done .site-job-tracker-dot { border-color: var(--ms-green); background: var(--ms-green); }
+.site-job-tracker-current .site-job-tracker-dot { border-color: var(--ms-green); box-shadow: 0 0 0 3px #dbe9dd; }
+.site-job-tracker-label { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.site-job-tracker-upcoming .site-job-tracker-label { color: var(--ms-muted); font-weight: 550; }
+.site-job-tracker-detail { font-size: 12.5px; line-height: 1.35; color: var(--ms-ink, #22251e); overflow-wrap: anywhere; }
+.site-job-tracker-upcoming .site-job-tracker-detail { color: var(--ms-muted); }
+.site-job-tracker-date { font-size: 12px; color: var(--ms-muted); }
+
+/* Under an introduced company: the site's own marks for a visit and a pilot. */
+.site-job-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.site-job-progress-mark {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #c9cec1;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.site-job-progress-mark:hover { border-color: var(--ms-green); }
+.bare-screen .site-job-progress-done { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; }
+
+@media (max-width: 720px) {
+  .bare-screen ol.site-job-tracker { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .site-job-tracker > li { padding: 0 0 14px 26px; }
+  .site-job-tracker > li::before { top: 16px; bottom: 0; left: 6px; right: auto; width: 2px; height: auto; }
+}
+.bare-screen .site-company-website { margin: 2px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+
+/* An application at a glance (the company's form), and the applicants side by side (the site's page). The table
+   scrolls inside its own box on a phone, never the page. */
+.company-application { display: grid; gap: 10px; margin: 12px 0 0; padding: 12px; border: 1px solid #d7dbd2; border-radius: 10px; }
+.company-application legend { padding: 0 4px; font-weight: 650; }
+.company-estimate { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+.company-estimate-title, .company-estimate .ms-field-hint { grid-column: 1 / -1; }
+.company-estimate-title { font-size: 14px; font-weight: 600; }
+.site-compare { margin: 12px 0; overflow-x: auto; }
+.site-compare table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 14px; }
+.site-compare th, .site-compare td { padding: 8px 10px; border-bottom: 1px solid #e3e6dd; text-align: left; vertical-align: top; }
+.site-compare thead th { font-size: 12.5px; font-weight: 650; color: var(--ms-muted); }
+.site-compare tbody th { font-weight: 650; }
+.site-compare .bare-helper { margin-top: 6px; }
+.site-estimate-label { font-size: 12.5px; }
+
+/* Each public live job is one row that opens its page: a picture for its kind (never the site's own thumbnail), the kind
+   and its facts, and "See job". The whole row is the link. */
+.live-jobs li { list-style: none; }
+.live-jobs .live-job {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 12px 14px;
+  border: 1px solid #c9cec1;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ms-ink);
+  text-decoration: none;
+  font-weight: 400;
+}
+.live-jobs a.live-job:hover { border-color: var(--ms-green); box-shadow: 0 1px 2px rgba(34, 37, 30, .06), 0 6px 16px rgba(34, 37, 30, .06); }
+.live-jobs a.live-job:focus-visible { outline: 2px solid var(--ms-green); outline-offset: 2px; }
+.live-job-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: #eef1e8; color: var(--ms-green); }
+.live-job-text { display: grid; gap: 2px; min-width: 0; }
+.live-job-text strong { font-size: 16px; font-weight: 650; }
+.live-job-text span { color: var(--ms-muted); font-size: 14px; overflow-wrap: anywhere; }
+.live-job-open { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ms-green); white-space: nowrap; }
+.company-job-gate ul { margin: 6px 0 14px; padding-left: 20px; }
+.company-job-gate li + li { margin-top: 4px; }
+@media (max-width: 520px) {
+  .live-jobs .live-job { grid-template-columns: auto minmax(0, 1fr); }
+  .live-job-open { grid-column: 2; }
+}
+.company-job-gate-facts { margin: 0 0 12px; color: var(--ms-muted); font-size: 15px; }
+.company-job-gate-form { margin: 8px 0 14px; }

@@ -23,13 +23,13 @@
 export const betaFeeUsd = 0;
 
 /**
- * What a site can do when a company it was introduced to drops out (Terms 2026-11-21.1, owner approval of 2026-11-21).
- * No person at Blueprint reviews a replacement: the site presses "Introduce us" beside any company that answered
- * Interested or Tested it: can do, with no limit per job (`server/utils/jobIntroductions.ts`). The Terms write this
- * sentence out as `REPLACEMENT_SENTENCE`, so their digest covers it; a test keeps the two the same.
+ * What a site can do when a company it was introduced to drops out (Terms 2026-11-21.1, owner approval of 2026-11-21;
+ * in the words of Terms 2026-11-23.2, owner, 2026-11-23). No person at Blueprint reviews a replacement: the site accepts
+ * any other company that applied or answered Tested it: can do, with no limit per job (`server/utils/jobIntroductions.ts`).
+ * The Terms write this sentence out as `REPLACEMENT_SENTENCE`, so their digest covers it; a test keeps the two the same.
  */
 export const pilotReplacementPolicy =
-  "If a company you were introduced to drops out, you can ask for an introduction to another company that answered Interested or Tested it: can do.";
+  "If a company you were introduced to drops out, you can accept another company that applied or answered Tested it: can do.";
 
 /** What a site pays for the simulation, the evaluation and its result: nothing. */
 export const siteAssessment = {

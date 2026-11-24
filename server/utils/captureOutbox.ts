@@ -41,6 +41,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { automationBatch } from "./automationBatch";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { clarificationNoticeIsCurrent } from "./jobClarifications";
+import { replyReminderIsCurrent } from "./siteReplyReminders";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
@@ -86,6 +87,8 @@ export type OutboxKind =
   | "robot_team_new_task"
   /** Company: the site answered its question on the job page. */
   | "job_clarification"
+  /** Site: a company's question is still unanswered at its reply date; once per question (`siteReplyReminders.ts`). */
+  | "site_reply_reminder"
   /** Company: the site asked to meet it; the site's details (E6): once per introduction. */
   | "introduction_made_company"
   /** Both sides, at 14, 45 and 90 days after an introduction: what happened (E8). */
@@ -407,14 +410,21 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
   runtime: ReturnType<typeof deliveryRuntime>, summary: OutboxDeliverySummary): Promise<void> {
   const store = db!;
   const token = randomUUID();
+  // The job link email is queued before the start form's video uploads; it says "We have your video." when the video
+  // is saved by the time it goes (`jobLinkBodyNow`). Read outside the claim: it reads storage. Never for a row tried before.
+  const queued = doc.data() as OutboxEntry;
+  const bodyNow = queued.kind === "task_received" && queued.status === "pending"
+    ? await import("./taskLifecycleNotifications").then(module => module.jobLinkBodyNow(queued)).catch(() => null) : null;
   const claim = await store.runTransaction(async tx => {
     const current = (await tx.get(doc.ref)).data() as OutboxEntry | undefined;
     const nowMs = Date.now();
     if (current?.status === "pending") {
       if (!attemptIsDue(current, nowMs)) return null;
-      tx.set(doc.ref, { status: "claimed", deliveryToken: token,
-        deliveryDigest: messageDigest(current), deliveryLeaseUntilMs: nowMs + DELIVERY_LEASE_MS }, { merge: true });
-      return { entry: current, uncertain: false };
+      // Only over the exact body it was read from, on a row still never tried.
+      const entry = bodyNow && current.body === queued.body && !current.attempts ? { ...current, body: bodyNow } : current;
+      tx.set(doc.ref, { status: "claimed", ...(entry === current ? {} : { body: entry.body }), deliveryToken: token,
+        deliveryDigest: messageDigest(entry), deliveryLeaseUntilMs: nowMs + DELIVERY_LEASE_MS }, { merge: true });
+      return { entry, uncertain: false };
     }
     if (current?.status !== "unknown") return null;
     const state = unknownRowState(current, nowMs);
@@ -477,6 +487,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
       const currentClarification = await clarificationNoticeIsCurrent(entry, tx);
+      const currentReplyReminder = await replyReminderIsCurrent(entry, tx);
       const introduction = await introductionEmailCheck(entry, tx);
       const currentIntroduction = introduction.current;
       // The site's "Meet {company}" waits for the company's email to be sent (H2). Not an attempt, not a cancellation.
@@ -486,7 +497,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       }
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
       const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
-      if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert || !currentClarification
+      if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert || !currentClarification || !currentReplyReminder
         || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice) {
         // An introduction that may no longer go ahead is cancelled as a whole (G3): the other email, the record and its
         // billable event, in this transaction. Not from a row whose earlier dispatch may already have reached someone.

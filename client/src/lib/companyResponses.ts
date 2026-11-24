@@ -8,9 +8,13 @@
  * and link of the company's taken out first (`removeIdentifyingDetails`, `jobCompanies.ts`). Only words given under
  * the current line ("The site is told your answer"), or recorded by Blueprint from the company's email since the staff
  * form says the site reads them, are shown; words given under the older line ("not your company's name or your words")
- * never are. Never the company's name, email or website, and no note of Blueprint's (a note
- * could name the company). The types below are the whole of what the site's job page receives about companies;
- * nothing else is added to them.
+ * never are. No note of Blueprint's (a note could name the company). The types below are the whole of what the site's
+ * job page receives about companies; nothing else is added to them.
+ *
+ * Since 2026-11-23 (owner: a company applies, the site sees its applicants and accepts): an answer given under the
+ * current line (`company-response-2026-11-23`, "The site sees your company's name and website with your answer") also
+ * shows the site the company's name and website (`applicant`). Its email and contact name still reach the site only when
+ * the site accepts. An answer given under an earlier line keeps its alias.
  */
 
 /**
@@ -43,18 +47,77 @@ export const COMPANY_START_LABELS: Record<CompanyStartWindow, string> = {
 export const COMPANY_QUESTION_LIMIT = 400;
 export const SITE_CLARIFICATION_LIMIT = 600;
 
+/**
+ * What an application tells the site at a glance (owner, 2026-11-23, from the research on what sites decide on: proof
+ * from similar jobs, how a company charges, and no cost surprises): how the company charges, an optional estimate range
+ * in US dollars before a site visit (never a quote, and never a price of Blueprint's), how many similar jobs it has done,
+ * and what a visit must confirm. Every field is optional: a company that will not give a number before a visit still
+ * applies.
+ */
+export const CHARGE_MODELS = ["purchase", "subscription", "per_hour", "per_task", "undecided"] as const;
+export type ChargeModel = (typeof CHARGE_MODELS)[number];
+export const CHARGE_MODEL_LABELS: Readonly<Record<ChargeModel, string>> = {
+  purchase: "One-time purchase", subscription: "Monthly subscription", per_hour: "Per hour of work",
+  per_task: "Per task or item", undecided: "Not decided yet",
+};
+/** The unit an estimate is in, by how the company charges; "Not decided yet" takes no estimate. */
+export const ESTIMATE_UNITS: Readonly<Record<ChargeModel, string | null>> = {
+  purchase: "in total", subscription: "a month", per_hour: "an hour", per_task: "per task or item", undecided: null,
+};
+export const SIMILAR_JOBS = ["none", "1_5", "6_20", "over_20"] as const;
+export type SimilarJobs = (typeof SIMILAR_JOBS)[number];
+export const SIMILAR_JOBS_LABELS: Readonly<Record<SimilarJobs, string>> = {
+  none: "None yet", "1_5": "1 to 5", "6_20": "6 to 20", over_20: "More than 20",
+};
+export const ESTIMATE_MAX_USD = 100_000_000;
+export const VISIT_NOTE_LIMIT = 300;
+/** Beside every estimate the site reads, and under the company's estimate fields. */
+export const ESTIMATE_LABEL = "Estimate before a site visit. Not a quote.";
+export const ESTIMATES_NOT_CHECKED = "Estimates are each company's own, before a site visit. They are not quotes, and Blueprint does not check them.";
+export interface ApplicationEstimate { lowUsd: number; highUsd: number }
+
+const usd = (value: number) => "$" + value.toLocaleString("en-US");
+
+/** "$12,000 to $18,000 a month", or "$15 an hour" when both ends are the same. */
+export function estimateInWords(model: ChargeModel, estimate: ApplicationEstimate): string | null {
+  const unit = ESTIMATE_UNITS[model];
+  if (!unit || !isApplicationEstimate(estimate)) return null;
+  const range = estimate.lowUsd === estimate.highUsd ? usd(estimate.lowUsd) : usd(estimate.lowUsd) + " to " + usd(estimate.highUsd);
+  return range + " " + unit;
+}
+
+export function isApplicationEstimate(value: unknown): value is ApplicationEstimate {
+  if (!value || typeof value !== "object") return false;
+  const { lowUsd, highUsd } = value as Record<string, unknown>;
+  return [lowUsd, highUsd].every(item => typeof item === "number" && Number.isInteger(item) && item >= 1 && item <= ESTIMATE_MAX_USD)
+    && (lowUsd as number) <= (highUsd as number);
+}
+
 export interface CompanyReplyDetails {
   verified?: string;
   question?: string;
   startWindow?: CompanyStartWindow;
+  chargeModel?: ChargeModel;
+  estimate?: ApplicationEstimate;
+  similarJobs?: SimilarJobs;
+  visitMustConfirm?: string;
 }
 
+/**
+ * The answers as the company chooses them (owner, 2026-11-23: a company applies, the site sees its applicants and
+ * accepts the ones it wants to meet). `interested` is the stored name of "Apply" (kept from before).
+ */
 export const COMPANY_RESPONSE_LABELS: Readonly<Record<CompanyResponseState, string>> = {
-  interested: "Interested",
+  interested: "Apply",
   declined: "Not a fit",
   needs_something: "Need more details",
   tested_can_do: "Tested it: can do",
   tested_cannot_yet: "Tested it: cannot yet",
+};
+/** The same answers as the site reads them beside each applicant. */
+export const SITE_RESPONSE_LABELS: Readonly<Record<CompanyResponseState, string>> = {
+  ...COMPANY_RESPONSE_LABELS,
+  interested: "Applied",
 };
 
 export function isCompanyResponseState(value: unknown): value is CompanyResponseState {
@@ -70,14 +133,38 @@ export const RESPONSE_PRIVACY_LINE = "The site is told your response, not your c
 
 /**
  * The line under the response form on the company's page for a job (package E, E5), recorded on every answer as
- * `statementVersion`. An Interested answer recorded under any other line cannot be introduced until the company
- * answers again under this one. Never change this text under this version: add a new version.
+ * `statementVersion`. Never change a line's text under its version: add a new version.
+ *
+ * 2026-11-23 (owner: "rename the flow to Apply, Applicants and Accept; show each applicant's company name and website
+ * to the site before it accepts"): the current line says the site sees the company's name and website with its answer.
+ * The site is shown a company's name only for an answer given under this line (`COMPANY_NAME_STATEMENT_VERSIONS`); an
+ * answer given under the 2026-11-12 line keeps its alias. Both lines say the site is told the answer, and both agree to
+ * an introduction after the site accepts, so an answer under either may be accepted (`COMPANY_RESPONSE_STATEMENT_VERSIONS`).
  */
-export const COMPANY_RESPONSE_STATEMENT_VERSION = "company-response-2026-11-12";
-// The text names both answers an introduction may follow (planner, 15:33Z). The id is unchanged because this version
-// was never recorded in production before this text.
-export const COMPANY_RESPONSE_STATEMENT = "The site is told your answer. If you answer Interested or Tested it: can do and the "
+export const COMPANY_RESPONSE_STATEMENT_VERSION = "company-response-2026-11-23.2";
+export const COMPANY_RESPONSE_STATEMENT = "The site sees your company's name and website with your answer, and any estimate you "
+  + "give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we "
+  + "give the site your contact details, and give you theirs.";
+/**
+ * 2026-11-23, later the same day (owner: "yes build it this way"): an application may carry how the company charges and an
+ * optional estimate range. The current line says the site sees the estimate, as one before a site visit and not a quote;
+ * an estimate is shown only for an answer given under it (`COMPANY_ESTIMATE_STATEMENT_VERSIONS`).
+ */
+export const COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION = "company-response-2026-11-23";
+export const COMPANY_RESPONSE_STATEMENT_2026_11_23 = "The site sees your company's name and website with your answer. If you apply or "
+  + "answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs.";
+/** The line of 2026-11-12, kept as the record of what an answer given under it agreed to. */
+export const COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION = "company-response-2026-11-12";
+export const COMPANY_RESPONSE_STATEMENT_2026_11_12 = "The site is told your answer. If you answer Interested or Tested it: can do and the "
   + "site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
+/** Lines under which an answer tells the site the answer and agrees to an introduction once the site accepts. */
+export const COMPANY_RESPONSE_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION,
+  COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION];
+/** Lines under which the site also sees the company's name and website with the answer. */
+export const COMPANY_NAME_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION,
+  COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION];
+/** Lines under which the site also sees the estimate an application gives. */
+export const COMPANY_ESTIMATE_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION];
 
 /** What a company sees before it has accepted the current Terms and Privacy Policy: nothing of any job, only this. */
 export const TERMS_PROMPT = "Before you see jobs, read and agree to our Terms and Privacy Policy.";
@@ -100,9 +187,16 @@ export type SiteCompanyEntry =
        * Absent when there are none the site may read (given under the older line, or nothing left once taken out).
        */
       reason?: string;
-      details?: Pick<CompanyReplyDetails, "verified" | "startWindow">;
-      question?: { id: string; text: string; answer?: string };
-      /** The site may press "Introduce us" for this company now. */
+      details?: Pick<CompanyReplyDetails, "verified" | "startWindow" | "chargeModel" | "estimate" | "similarJobs" | "visitMustConfirm">;
+      question?: { id: string; text: string; answer?: string;
+        /** When the site is asked to reply by (`replyByIso`); absent for a question asked before the window existed. */
+        replyByIso?: string };
+      /**
+       * The company's name and website, only for an answer given under a line that says the site sees them
+       * (`COMPANY_NAME_STATEMENT_VERSIONS`); otherwise the site reads the alias.
+       */
+      applicant?: { name: string; website: string | null };
+      /** The site may press "Accept" for this company now. */
       canIntroduce?: boolean;
       /** When the introduction was made: the company's introduction email was sent (H2). */
       introducedAtIso?: string;
@@ -111,7 +205,9 @@ export type SiteCompanyEntry =
       /** The site asked for an introduction that is not made yet: the company's email has not been sent. */
       introductionPending?: boolean;
       /** The site asked for an introduction that could not go ahead: the company's email never went. */
-      introductionCancelled?: boolean };
+      introductionCancelled?: boolean;
+      /** After the introduction, what the site said happened: the dates it marked a visit and a pilot. */
+      progress?: { visitAtIso?: string; pilotAtIso?: string } };
 
 /** What the site's job page receives about companies. */
 export interface SiteCompanyActivity {
@@ -142,7 +238,7 @@ export function elapsedSince(start: string | null | undefined, end: string | nul
 /** The site's sentences. */
 export const sentToCompany = (alias: string, date: string) => `Sent to ${alias} on ${date}.`;
 export const companyAnswered = (alias: string, date: string, state: CompanyResponseState) =>
-  `${alias} answered on ${date}: ${COMPANY_RESPONSE_LABELS[state]}.`;
+  `${alias} answered on ${date}: ${SITE_RESPONSE_LABELS[state]}.`;
 /** Under an answer: the company's words, as the server gives them (its identity already taken out). */
 export const companyReason = (reason: string) => `In their words: “${reason}”`;
 /** Under an answer that is not a yes and carries no words the site may read: said plainly, nothing invented. */
@@ -152,8 +248,8 @@ export const NO_REASON_SHOWN = "No reason shared.";
  * answer an introduction may follow (`INTRODUCIBLE_RESPONSE_STATES`), so a "Tested it: cannot yet" is not told that only
  * "Interested" would do.
  */
-export const introductionIfChanged = (alias: string) => `You can ask for an introduction if ${alias} changes its answer to `
-  + `${COMPANY_RESPONSE_LABELS.interested} or ${COMPANY_RESPONSE_LABELS.tested_can_do}.`;
+export const introductionIfChanged = (alias: string) => `You can accept ${alias} if it applies or changes its answer to `
+  + `${COMPANY_RESPONSE_LABELS.tested_can_do}.`;
 
 /** A cheap shape check for the job page: anything else is dropped, never shown. */
 export function isSiteCompanyActivity(value: unknown): value is SiteCompanyActivity {
@@ -165,3 +261,21 @@ export function isSiteCompanyActivity(value: unknown): value is SiteCompanyActiv
       && ((entry as Record<string, unknown>).kind === "sent"
         || ((entry as Record<string, unknown>).kind === "answered" && isCompanyResponseState((entry as Record<string, unknown>).state))));
 }
+
+/**
+ * The reply window on a company's question (owner, 2026-11-23, after freight marketplaces: a pending step carries its
+ * date). The site is asked to reply within three days of the question; at the date one reminder goes to the site, and
+ * after it both sides read that the date has passed. Nothing closes or is held: the site can still reply, and the
+ * company can still apply or change its answer.
+ */
+export const REPLY_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+export function replyByIso(askedAtIso: string | null | undefined): string | null {
+  const at = Date.parse(String(askedAtIso ?? ""));
+  return Number.isFinite(at) ? new Date(at + REPLY_WINDOW_MS).toISOString() : null;
+}
+export const replyByLine = (date: string) => `Please reply by ${date}.`;
+export const REPLY_DATE_PASSED = (date: string) => `The reply date, ${date}, has passed. You can still reply.`;
+/** On the company's page, while its question waits. */
+export const companyQuestionWaiting = (asked: string, by: string) => `You asked on ${asked}. The site is asked to reply by ${by}.`;
+export const companyQuestionOverdue = (by: string, reminded: boolean) =>
+  `The site has not replied yet. Its reply date was ${by}${reminded ? ", and we reminded it" : ""}.`;

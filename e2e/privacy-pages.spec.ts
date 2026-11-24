@@ -34,8 +34,8 @@ test("privacy page offers deletion and shows optional analytics off until permis
 });
 
 // Privacy 2026-11-23.1 (owner, 2026-11-23: "yes to the privacy wording"): the Location row names the city, state and
-// country a company sees. The 2026-11-21.1 text, with the country alone, is kept as the previous version.
-test("privacy page says a company sees the city, state and country; the previous version keeps the country alone", async ({ page }) => {
+// country a company sees. Since 2026-11-23.2 the 2026-11-23.1 text is the previous version, and says the same.
+test("privacy page says a company sees the city, state and country, as the previous version does", async ({ page }) => {
   await page.goto("/privacy");
   const article = page.locator("article");
   await expect(article).toContainText("Effective November 23, 2026");
@@ -43,7 +43,74 @@ test("privacy page says a company sees the city, state and country; the previous
   await expect(article).not.toContainText("A deployment company sees the country of the job, not the address you typed.");
   await page.getByRole("link", { name: "previous version", exact: true }).click();
   await expect(page).toHaveURL(/\/privacy\/previous$/);
-  await expect(article).toContainText("Previous version, effective November 21, 2026");
-  await expect(article).toContainText("A deployment company sees the country of the job, not the address you typed.");
-  await expect(article).not.toContainText("city, state and country");
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).toContainText("A deployment company sees the city, state and country of the job, not the address you typed.");
+});
+
+// Terms and Privacy 2026-11-23.2 (owner, 2026-11-23: "yes, update both"): a company applies, and a site sees its name
+// and website with each answer and accepts the companies it wants to meet; an answer given before November 23, 2026
+// stays under an alias. The previous Privacy Policy (2026-11-23.1) keeps the alias sentence. Since Terms 2026-11-23.3 the
+// previous Terms are 2026-11-23.2, which say the same as the current Terms.
+test("the Terms and Privacy Policy say a site sees a company's name and website and accepts it; the previous Privacy Policy keeps the alias", async ({ page }) => {
+  const APPLICATION = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
+  const ALIAS = "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out.";
+  const article = page.locator("article");
+  await page.goto("/privacy");
+  await expect(article).toContainText(APPLICATION);
+  await expect(article).toContainText("When a site accepts your application, we give you the site's name, address and contact details.");
+  await expect(article).not.toContainText(ALIAS);
+  await page.goto("/privacy/previous");
+  await expect(article).toContainText(ALIAS);
+  await expect(article).not.toContainText(APPLICATION);
+  await page.goto("/terms");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText(APPLICATION);
+  await expect(article).toContainText("An approved deployment company can answer Apply, Not a fit or Need more details.");
+  await expect(article).not.toContainText(/Interested|Introduce us/);
+  await page.goto("/terms/previous");
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).toContainText(APPLICATION);
+  await expect(article).not.toContainText(ALIAS);
+});
+
+// Terms 2026-11-23.3 (owner, 2026-11-23: "yes build it this way"): a company may give an estimate with its answer. The
+// Terms say, for sites and for companies, that it is an estimate before a site visit and not a quote, and the Privacy
+// Policy does not change. Since Terms 2026-11-23.4 the previous Terms are 2026-11-23.3, which say the same of the estimate.
+test("the Terms and the previous Terms say a company's estimate is its own, before a site visit and not a quote; the Privacy Policy does not", async ({ page }) => {
+  const SITE = "An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it.";
+  const COMPANY = "If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.";
+  const article = page.locator("article");
+  await page.goto("/terms");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText(SITE);
+  await expect(article).toContainText(COMPANY);
+  await expect(article).toContainText("This version replaced the previous version (effective November 23, 2026).");
+  await page.getByRole("link", { name: "previous version", exact: true }).click();
+  await expect(page).toHaveURL(/\/terms\/previous$/);
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).toContainText(SITE);
+  await expect(article).toContainText(COMPANY);
+  await page.goto("/privacy");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).not.toContainText("not a quote");
+});
+
+// Terms 2026-11-23.4 (owner, 2026-11-23): one sentence in section 6, Ownership, right after what Blueprint owns: a model
+// in a simulation that comes from a public library stays under that library's license. The previous Terms (2026-11-23.3)
+// say nothing of it, and the Privacy Policy does not change.
+test("the Terms say a library model in a simulation stays under its own license; the previous Terms and the Privacy Policy do not", async ({ page }) => {
+  const LIBRARY = "A model in a simulation that comes from a public library stays under that library's license, named in the simulation's README: Blueprint does not own it, and these Terms do not restrict it.";
+  const article = page.locator("article");
+  await page.goto("/terms");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article.locator("section", { has: page.getByRole("heading", { name: "6. Ownership" }) }))
+    .toContainText(`subject to the rights these Terms give you, including a site's right to withdraw its job. ${LIBRARY} If you send us feedback`);
+  await expect(article).toContainText("This version replaced the previous version (effective November 23, 2026).");
+  await page.getByRole("link", { name: "previous version", exact: true }).click();
+  await expect(page).toHaveURL(/\/terms\/previous$/);
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).not.toContainText("public library");
+  await page.goto("/privacy");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).not.toContainText("public library");
 });

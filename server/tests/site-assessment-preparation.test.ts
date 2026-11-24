@@ -606,6 +606,46 @@ it.each([
   if(admitted) expect(rows["d".repeat(64)]).not.toHaveProperty("over_budget");
   expect(alertRows()).toHaveLength(0);
 });
+// Owner decision 2026-11-23: each object the build plan generates after its first (ARTISAN, $12) reserves its own row
+// through this same route (Pipeline website_build_budget), in the plan's order, only while it fits the job's $40.
+it("an extra generated object reserves its own row, once, only while it fits the job's cap, and settles at its cost",async()=>{
+  vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON",JSON.stringify({owner:{user_id:"blueprint",organization_id:"blueprint"},
+    upstream_max_spend_usd:1,native_max_spend_usd:1,max_total_spend_usd:2,max_paid_attempts:8,ttl_seconds:3600,
+    provider_terms_reference:`sha256:${"c".repeat(64)}`}));
+  const {grant}=await budgetJob();
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify(Object.fromEntries(["vast","openai"].map(p=>[p,
+    {digest:grant.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}]))));
+  // The scan holds $8 and the scene intake (the first object) its $20 allowance: $12 is left.
+  const record=state.docs.get("inboundRequests/one") as any;
+  record.website_preparation_reservations={atlas:{admission:{maximum_cost_usd:8,request_count:1,provider:"world_labs_atlas",
+    atlas_authorization_digest:`sha256:${"a".repeat(64)}`}}};
+  const intake={website_request_id:"one",state:"accepted",receipt:{},request:{task:{strategy:"pick_and_place"},
+    execution:{max_total_spend_usd:20}}};
+  state.docs.set("taskEvaluationSceneIntakes/intake-one",intake);
+  const object=(n:string)=>({task_context_digest:grant.task_context_digest,allocation_binding_digest:`sha256:${n.repeat(64)}`,
+    resource_class:"openai_api_candidate",provider:"openai",maximum_cost_usd:12,request_count:1});
+  await withSignedRoute(async send=>{
+    const carton=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:object("c")});
+    expect(carton.status).toBe(200);expect(await carton.json()).toMatchObject({status:"admitted",maximum_cost_usd:12});
+    // A retry of the same object is answered with the row it holds, and reserves nothing more.
+    const again=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:object("c")});
+    expect(again.status).toBe(200);expect(await again.json()).toMatchObject({status:"already_reserved"});
+    // The next object does not fit: refused with the code the Pipeline reads as the job's spending cap.
+    const crate=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:object("d")});
+    expect(crate.status).toBe(409);expect(await crate.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
+    expect(Object.keys((state.docs.get("inboundRequests/one") as any).website_preparation_reservations).sort())
+      .toEqual(["atlas","c".repeat(64)]);
+    // The carton's authoring cost $4.371234 of its $12: its row settles at that, through the existing OpenAI settlement.
+    const settled=await send("preparation-settlement",{request_id:"one",scene_id:"site-one",settlement:{
+      task_context_digest:grant.task_context_digest,allocation_binding_digest:`sha256:${"c".repeat(64)}`,provider:"openai",
+      completed_request_count:1,provider_charge_amount_usd:4.371234,usage_receipt_digest:`sha256:${"f".repeat(64)}`}});
+    expect(settled.status).toBe(200);expect(await settled.json()).toMatchObject({status:"settled",actual_cost_usd:4.371234});
+  });
+  const spend=await websiteJobSpend({record:state.docs.get("inboundRequests/one") as any,
+    reader:{sceneIntakes:async()=>[intake],screeningRuns:async()=>[]}});
+  expect(spend.total_micros).toBe(8_000_000+20_000_000+4_371_234);
+  expect(alertRows()).toHaveLength(0);
+});
 it("a malformed hold is counted as unbounded, so nothing more is admitted, and it is reported once",async()=>{
   const {spend}=await budgetJob();
   const record=state.docs.get("inboundRequests/one") as any;
@@ -667,6 +707,7 @@ it("an over-budget marker from the retired budget extension is cleared without a
 });
 import { scanOverBudgetWebsiteJobs } from "../utils/websitePreparationOpsAlerts";
 import { websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
+import { websiteJobSpend } from "../utils/websiteJobCeiling";
 it("v2 actual signed item/visual/intake handlers retain purpose through transactions and outbox replay",async()=>{
   seed(packet(),false,false);state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[]});
   const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_QUESTION_LIMIT, SITE_CLARIFICATION_LIMIT,
+import { COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_QUESTION_LIMIT, SITE_CLARIFICATION_LIMIT,
   isCompanyResponseState } from "../../client/src/lib/companyResponses";
 import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
 import { type OutboxEntry } from "./captureOutbox";
@@ -14,7 +14,7 @@ type Data = FirebaseFirestore.DocumentData;
 type ClarificationNotice = Pick<OutboxEntry, "kind" | "to" | "requestId" | "idempotencyKey">;
 
 export function questionOnReply(reply: Data | undefined): { id: string; text: string } | null {
-  if (reply?.recordedBy !== "company" || reply.statementVersion !== COMPANY_RESPONSE_STATEMENT_VERSION
+  if (reply?.recordedBy !== "company" || !COMPANY_RESPONSE_STATEMENT_VERSIONS.includes(String(reply.statementVersion))
     || !isCompanyResponseState(reply.state) || reply.state === "declined") return null;
   const value = reply.state === "needs_something" ? reply.inputs : reply.details?.question;
   const text = typeof value === "string" ? value.trim().slice(0, reply.state === "needs_something" ? 2000 : COMPANY_QUESTION_LIMIT) : "";

@@ -7,7 +7,7 @@ describe("the page for deployment companies", () => {
   it("explains the offer and gives new and approved companies their own next step", () => {
     render(<Partners />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Find jobs for the robots you deploy.");
-    expect(screen.getByText(/When a site asks to meet, we introduce you/)).toBeVisible();
+    expect(screen.getByText(/Apply to the ones you can do; when a site accepts you, we introduce you both\./)).toBeVisible();
     expect(screen.getByText(/Review real jobs, each with the site's video and description\./)).toBeVisible();
     expect(screen.getByRole("link", { name: "See jobs" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.getByRole("form", { name: "Deployment company application" })).toBeVisible();
@@ -33,8 +33,8 @@ describe("the page for deployment companies", () => {
     // Launch copy (2026-11-20): what a live job can include, the answers without a timing promise, and the privacy line
     // where the introduction is explained.
     expect(within(sample).getByRole("heading", { name: "A live job can also include" })).toBeVisible();
-    expect(within(sample).getByText("Answer Interested, Not a fit or Need more details. Once you can download the simulation, you can also answer Tested it: can do or Tested it: cannot yet.")).toBeVisible();
-    expect(within(sample).getByText("You see no site name, address or contact details until the site asks to meet you. Then we email you both each other's details.")).toBeVisible();
+    expect(within(sample).getByText("Choose Apply, Not a fit or Need more details. Once you can download the simulation, you can also choose Tested it: can do or Tested it: cannot yet.")).toBeVisible();
+    expect(within(sample).getByText("The site sees your company's name and website when you answer. You see no site name, address or contact details until the site accepts you. Then we email you both each other's details.")).toBeVisible();
     expect(sample).not.toHaveTextContent(/in a minute|busiest/);
     expect(screen.getByRole("link", { name: "See a sample job" })).toHaveAttribute("href", "#sample-job");
   });
