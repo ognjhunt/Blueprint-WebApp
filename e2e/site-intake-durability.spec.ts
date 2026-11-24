@@ -1,4 +1,5 @@
 import { test, expect, chromium, type BrowserContext } from "@playwright/test";
+import { FFMPEG_BINARY } from "./helpers/ffmpegBinary";
 import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -40,7 +41,7 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
         const output = path.join(outputRoot, `${caseId}-repeat-${testInfo.repeatEachIndex}`);
         await mkdir(output, { recursive: true });
         const fixture = path.join(output, `${caseId}-owned-synthetic.mp4`);
-        execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30", "-t", "2", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", fixture]);
+        execFileSync(FFMPEG_BINARY, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30", "-t", "2", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", fixture]);
         let context: BrowserContext;
         let submittedBody: Record<string, unknown> | null = null;
         let savedUrl: string | null = null;

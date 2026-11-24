@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { FFMPEG_BINARY } from "./helpers/ffmpegBinary";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
@@ -51,7 +52,7 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
   const profile = await mkdtemp(path.join(os.tmpdir(), "blueprint-owned-restart-"));
   const { execFileSync } = await import("node:child_process");
   const fixture = path.join(profile, "synthetic-owned.mp4");
-  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30", "-t", "2", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", fixture]);
+  execFileSync(FFMPEG_BINARY, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30", "-t", "2", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", fixture]);
   const posts: string[] = [];
   const accountMutations: string[] = [];
   let uploadAttempts = 0;
