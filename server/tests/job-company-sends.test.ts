@@ -310,7 +310,8 @@ describe("what the site receives", () => {
       headers: { "content-type": "application/json", cookie: "csrf_token=c1-test", "x-csrf-token": "c1-test" } });
     const older = await press("introduction-request-2026-11-12");
     expect(older.status).toBe(409);
-    expect(await older.json()).toMatchObject({ code: "introduction_statement_changed" });
+    // The refusal names the sentence true for the job, so the page shows it next rather than loop on "reload".
+    expect(await older.json()).toMatchObject({ code: "introduction_statement_changed", statementVersion: "introduction-request-2026-11-24" });
     expect([...state.docs.keys()].filter(key => key.startsWith("billableEvents/"))).toEqual([]);
     const response = await press(INTRODUCTION_REQUEST_STATEMENT_VERSION);
     expect(response.status, await response.clone().text()).toBe(200);

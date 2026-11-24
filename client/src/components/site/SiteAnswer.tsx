@@ -466,7 +466,11 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   const [busy, setBusy] = useState<string | null>(null);
   // A refusal or failure of Accept, with the answer it was pressed beside (`atIso`): it stays said while that answer is
   // shown, or while the company cannot be accepted, and goes once the company can be accepted on a newer answer.
-  const [errors, setErrors] = useState<Record<string, { message: string; atIso: string }>>({});
+  // A refusal for an answer that changed stays said on the newer answer too, until the next press.
+  const [errors, setErrors] = useState<Record<string, { message: string; atIso: string; changed?: boolean }>>({});
+  // The sentence the server said is true for this job when it refused another (`statement_not_current`): shown until
+  // the job's page reads a sentence of its own again, so a page that could not tell never loops on "reload".
+  const [statementOverride, setStatementOverride] = useState<{ version: string; read: string | undefined } | null>(null);
   const [requested, setRequested] = useState<string[]>([]);
   const answered = isSiteCompanyActivity(activity)
     ? activity.entries.filter((entry): entry is AnsweredEntry => entry.kind === "answered") : [];
@@ -480,11 +484,13 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   }, [activity]);
   if (!isSiteCompanyActivity(activity)) return null;
   // The sentence beside Accept that is true for this job, as the server chose it; the press sends its version.
-  const statementVersion = isIntroductionStatementVersion(activity.introductionStatementVersion)
-    ? activity.introductionStatementVersion : INTRODUCTION_REQUEST_STATEMENT_VERSION;
+  const readVersion = isIntroductionStatementVersion(activity.introductionStatementVersion)
+    ? activity.introductionStatementVersion : undefined;
+  const statementVersion = statementOverride && statementOverride.read === readVersion ? statementOverride.version
+    : readVersion ?? INTRODUCTION_REQUEST_STATEMENT_VERSION;
   const errorFor = (entry: AnsweredEntry) => {
     const error = errors[entry.alias];
-    return error?.message && (error.atIso === entry.atIso || entry.canIntroduce !== true) ? error.message : null;
+    return error?.message && (error.atIso === entry.atIso || entry.canIntroduce !== true || error.changed) ? error.message : null;
   };
   async function introduce(alias: string, atIso: string) {
     if (busy) return;
@@ -492,14 +498,18 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
     try {
       const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introductions`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
-        // The version of the sentence shown beside the button: pressing it is the agreement it records.
-        body: JSON.stringify({ alias: alias.replace(/^Company /, ""), statementVersion }),
+        // The version of the sentence shown beside the button: pressing it is the agreement it records. With it, the
+        // time of the answer shown beside it, so the server records the estimate this page showed, or refuses.
+        body: JSON.stringify({ alias: alias.replace(/^Company /, ""), statementVersion, answerAtIso: atIso }),
       });
       const result = await response.json().catch(() => null);
       if (response.status === 409 || response.status === 400) {
-        setErrors(current => ({ ...current, [alias]: { atIso, message: isIntroductionRefusalReason(result?.reason)
-          ? INTRODUCTION_REFUSAL_SENTENCES[result.reason as keyof typeof INTRODUCTION_REFUSAL_SENTENCES]
-          : result?.code === "introduction_statement_changed" ? INTRODUCTION_STATEMENT_CHANGED : INTRODUCTION_FAILED } }));
+        setErrors(current => ({ ...current, [alias]: { atIso, changed: result?.reason === "answer_changed",
+          message: isIntroductionRefusalReason(result?.reason)
+            ? INTRODUCTION_REFUSAL_SENTENCES[result.reason as keyof typeof INTRODUCTION_REFUSAL_SENTENCES]
+            : result?.code === "introduction_statement_changed" ? INTRODUCTION_STATEMENT_CHANGED : INTRODUCTION_FAILED } }));
+        if (result?.code === "introduction_statement_changed" && isIntroductionStatementVersion(result?.statementVersion))
+          setStatementOverride({ version: result.statementVersion, read: readVersion });
         // A refusal means this page is out of date (stress test, 2026-11-24: a company changed to "Not a fit" while the
         // page still offered Accept): read the job again, so the entry shows the company's answer as it is now.
         onIntroduced?.();

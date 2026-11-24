@@ -41,8 +41,11 @@ import { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION, INTRODUCTION_REQUEST
   isIntroductionStatementVersion } from "../../client/src/lib/siteIntroductions";
 
 export type IntroductionRefusal = "statement_not_current" | "not_listed" | "not_interested" | "consent_missing"
-  | "already_introduced" | "company_not_approved";
-export type IntroductionResult = { ok: true; introducedAtIso: string } | { ok: false; reason: IntroductionRefusal };
+  | "answer_changed" | "already_introduced" | "company_not_approved";
+export type IntroductionResult = { ok: true; introducedAtIso: string }
+  | { ok: false; reason: IntroductionRefusal;
+    /** With `statement_not_current`, when it is known: the sentence true for this job, for the page to show instead. */
+    statementVersion?: string };
 
 export const INTRODUCTION_SITE_KIND = "introduction_made_site";
 export const introductionSiteKey = (requestId: string, companyId: string, attempt = 0) =>
@@ -129,7 +132,13 @@ const INTRODUCTION_READ_LIMIT = 1000;
 
 export async function requestIntroduction(input: { requestId: string; alias: string; actor: "site";
   /** The recorded statement beside "Introduce us" the site agreed to: it must be the current one. */
-  statementVersion?: string | null },
+  statementVersion?: string | null;
+  /**
+   * The time of the company's answer the site read beside Accept (its `updatedAtIso`, as the page showed it). An answer
+   * changed since is refused (`answer_changed`); without it (a page from before 2026-11-24) the introduction is made and
+   * no estimate is recorded as the one accepted, as which one the site read is not known.
+   */
+  answerAtIso?: string | null },
   deps: IntroductionDeps = {}): Promise<IntroductionResult> {
   if (!db) throw new Error("introduction_store_unavailable");
   // Pressing the button is the site's agreement to give the company its details, under the sentence it was shown: one
@@ -168,6 +177,10 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     // A standing `interested` or `tested_can_do` answer (E9).
     if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer?.state)) return { ok: false, reason: "not_interested" };
     if (!answerConsentsToIntroduction(answer)) return { ok: false, reason: "consent_missing" };
+    // A review of PR #1437: the answer the site read must be the one on record, so a figure it never read is never
+    // recorded as the one it accepted, and it never accepts on words it has not seen.
+    const answerRead = typeof input.answerAtIso === "string";
+    if (answerRead && input.answerAtIso !== answer?.updatedAtIso) return { ok: false, reason: "answer_changed" };
     // There is no limit per job. The count of introductions on record that were not cancelled is kept on the job. Two
     // presses at once both write the job document, which this transaction has read, so Firestore retries one of them,
     // and a second press for the same company then finds its introduction (`already_introduced`).
@@ -179,7 +192,9 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     // The sentence the site agreed to must be the one true for what this job gives (`introductionStatementVersionFor`):
     // a page showing another (an old tab, or a record that changed) is refused before anything is recorded.
     const statementVersion = introductionStatementVersionFor(site);
-    if (input.statementVersion !== statementVersion) return { ok: false, reason: "statement_not_current" };
+    // The true sentence goes back with the refusal, so a page that could not tell which is true (its read of the job
+    // failed) shows that one next, rather than ask the site to reload into the same refusal.
+    if (input.statementVersion !== statementVersion) return { ok: false, reason: "statement_not_current", statementVersion };
     const companyRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionCompanyKey(input.requestId, companyId, attempt));
     const siteRowRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(introductionSiteKey(input.requestId, companyId, attempt));
     const [companyRow, siteRow] = [await tx.get(companyRowRef), await tx.get(siteRowRef)];
@@ -197,8 +212,9 @@ export async function requestIntroduction(input: { requestId: string; alias: str
         location: site.location }),
       companyShared: await sealShared(companyShared), outcomes: [],
       // The company's own figures as the site read them beside Accept (not personal, so plain), for "Changed after you
-      // accepted"; only under a line that shows the site an estimate.
-      ...(estimateAtAccept(answer) !== undefined ? { estimateAtAccept: estimateAtAccept(answer) } : {}) });
+      // accepted"; only under a line that shows the site an estimate, and only when the page said which answer it showed
+      // (checked above to be this one).
+      ...(answerRead && estimateAtAccept(answer) !== undefined ? { estimateAtAccept: estimateAtAccept(answer) } : {}) });
     writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso, attempt));
     if (!companyRow.exists && EMAIL.test(companyEmail)) {
       const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName,

@@ -124,9 +124,10 @@ async function siteStatus() {
   return { raw, body: JSON.parse(raw) as unknown };
 }
 /** The site's one press for one company ("Introduce us"), as its job page sends it. */
-async function press(alias: string, options: { scope?: "owner" | "film"; statementVersion?: string } = {}) {
+async function press(alias: string, options: { scope?: "owner" | "film"; statementVersion?: string; answerAtIso?: string } = {}) {
   const response = await fetch(`${base}/api/site-task-brief/${token(options.scope)}/introductions`, { method: "POST",
-    body: JSON.stringify({ alias, statementVersion: options.statementVersion ?? INTRODUCTION_REQUEST_STATEMENT_VERSION }),
+    body: JSON.stringify({ alias, statementVersion: options.statementVersion ?? INTRODUCTION_REQUEST_STATEMENT_VERSION,
+      ...(options.answerAtIso ? { answerAtIso: options.answerAtIso } : {}) }),
     headers: { "content-type": "application/json", cookie: "csrf_token=site-test", "x-csrf-token": "site-test" } });
   return { status: response.status, body: await response.json() as Record<string, any> };
 }
@@ -398,7 +399,7 @@ describe("the estimate the site read when it pressed Accept", () => {
 
   it("is recorded on the introduction and carried on the site's entry, and stays as it was when the estimate changes", async () => {
     state.docs.set(answerKey, { ...north(), details: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } } });
-    expect((await press("A")).status).toBe(200);
+    expect((await press("A", { answerAtIso: String(north().updatedAtIso) })).status).toBe(200);
     expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`))
       .toMatchObject({ estimateAtAccept: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } } });
     state.docs.set(answerKey, { ...north(), details: { chargeModel: "subscription", estimate: { lowUsd: 15000, highUsd: 15000 } } });
@@ -407,11 +408,32 @@ describe("the estimate the site read when it pressed Accept", () => {
   });
 
   it("is null when the answer gave none, and not recorded for an answer under a line that shows no estimate", async () => {
-    expect((await press("A")).status).toBe(200);
+    expect((await press("A", { answerAtIso: String(north().updatedAtIso) })).status).toBe(200);
     expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toMatchObject({ estimateAtAccept: null });
     expect(await entryA()).toMatchObject({ acceptedEstimate: null });
     state.docs.set(answerKey, { ...north(), statementVersion: "company-response-2026-11-23" });
     expect(await entryA()).not.toHaveProperty("acceptedEstimate");
+  });
+
+  // A review of PR #1437: a figure the site never read is never recorded as the one it accepted.
+  it("refuses an Accept pressed beside an answer that changed since, recording nothing and charging nothing", async () => {
+    const shown = String(north().updatedAtIso);
+    state.docs.set(answerKey, { ...north(), updatedAtIso: new Date(Date.parse(shown) + 60_000).toISOString(),
+      details: { chargeModel: "subscription", estimate: { lowUsd: 15000, highUsd: 15000 } } });
+    expect(await press("A", { answerAtIso: shown })).toMatchObject({ status: 409, body: { reason: "answer_changed",
+      error: "This company changed its answer after this page loaded. Read its answer as it is now, then press Accept again." } });
+    expect(state.docs.has(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).toBe(false);
+    expect(events()).toEqual([]);
+    // Pressed beside the answer as it is now, it goes ahead, with the estimate read then.
+    expect((await press("A", { answerAtIso: String(north().updatedAtIso) })).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`))
+      .toMatchObject({ estimateAtAccept: { chargeModel: "subscription", estimate: { lowUsd: 15000, highUsd: 15000 } } });
+  });
+
+  it("from a page that does not say which answer it showed, goes ahead and records no estimate as accepted", async () => {
+    state.docs.set(answerKey, { ...north(), details: { chargeModel: "subscription", estimate: { lowUsd: 9000, highUsd: 12000 } } });
+    expect((await press("A")).status).toBe(200);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${sha(NORTH.email)}`)).not.toHaveProperty("estimateAtAccept");
   });
 });
 

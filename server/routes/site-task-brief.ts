@@ -261,7 +261,9 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
   if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_owner_required",
     error: "Open the owner's job link to ask for this." });
   const body = z.object({ alias: z.string().trim().regex(/^Company [A-Z]{1,3}$|^[A-Z]{1,3}$/),
-    statementVersion: z.string().trim().max(100).optional() }).strict().safeParse(req.body ?? {});
+    statementVersion: z.string().trim().max(100).optional(),
+    // The time of the company's answer shown beside the button (`requestIntroduction`).
+    answerAtIso: z.string().trim().max(40).optional() }).strict().safeParse(req.body ?? {});
   if (!body.success) return res.status(400).json({ code: "introduction_invalid", error: "Press the button beside the company on your job page." });
   // Pressing the button is the agreement its sentence records (planner, 18:25Z): a page without a recorded sentence is
   // refused before anything is recorded, and one with another wording than this job's (an old tab) inside
@@ -272,10 +274,11 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
   try {
     const { requestIntroduction } = await import("../utils/jobIntroductions");
     const result = await requestIntroduction({ requestId: verified.requestId, alias, actor: "site",
-      statementVersion: body.data.statementVersion });
+      statementVersion: body.data.statementVersion, answerAtIso: body.data.answerAtIso });
     if (result.ok) return res.json({ ok: true, introducedAtIso: result.introducedAtIso });
     if ((result.reason as string) === "statement_not_current")
-      return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });
+      return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED,
+        ...(isIntroductionStatementVersion(result.statementVersion) ? { statementVersion: result.statementVersion } : {}) });
     let reason: IntroductionRefusalReason = isIntroductionRefusalReason(result.reason) ? result.reason : "not_listed";
     // A withdrawn job is said for good, never "right now" (review S8).
     if (reason === "not_listed") {

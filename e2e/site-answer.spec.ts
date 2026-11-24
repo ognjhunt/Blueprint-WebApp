@@ -215,7 +215,8 @@ test("the applicants section says the send line, each answer by alias, and offer
   await expect(companies.getByText("We will write to you about next steps.")).toHaveCount(0);
   await companies.getByRole("button", { name: "Accept" }).click();
   await expect(companies.getByRole("alert")).toHaveText("You have already accepted this company.");
-  expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A", statementVersion: "introduction-request-2026-11-24" } }]);
+  expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A", statementVersion: "introduction-request-2026-11-24",
+    answerAtIso: "2026-11-13T09:00:00.000Z" } }]);
   expect(unexpected).toEqual([]);
 });
 

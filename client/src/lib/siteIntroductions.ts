@@ -50,7 +50,7 @@ export const introducedOn = (company: string, date: string) => `You accepted ${c
 
 /** The refusal reasons `requestIntroduction` returns (`server/utils/jobIntroductions.ts`), each said in one plain sentence. */
 export const INTRODUCTION_REFUSAL_REASONS = [
-  "not_listed", "withdrawn", "not_interested", "consent_missing", "already_introduced", "company_not_approved",
+  "not_listed", "withdrawn", "not_interested", "consent_missing", "answer_changed", "already_introduced", "company_not_approved",
 ] as const;
 export type IntroductionRefusalReason = (typeof INTRODUCTION_REFUSAL_REASONS)[number];
 
@@ -60,6 +60,8 @@ export const INTRODUCTION_REFUSAL_SENTENCES: Readonly<Record<IntroductionRefusal
   withdrawn: "You withdrew this job, so you cannot accept a company.",
   not_interested: "This company has not applied, or has changed its answer since, so you cannot accept it now.",
   consent_missing: "This company needs to apply again before you can accept it.",
+  /** The company changed its answer after the page was read (a review of PR #1437): the page shows it as it is now. */
+  answer_changed: "This company changed its answer after this page loaded. Read its answer as it is now, then press Accept again.",
   already_introduced: "You have already accepted this company.",
   company_not_approved: "This company can no longer be accepted.",
 };

@@ -374,7 +374,9 @@ test.describe("desktop", () => {
     await entries.getByRole("button", { name: "Accept" }).click();
     const reply = await introduced;
     expect(reply.status(), await reply.text()).toBe(200);
-    expect(reply.request().postDataJSON()).toEqual({ alias: "A", statementVersion: "introduction-request-2026-11-24" });
+    // With the time of the answer shown beside the button, so the estimate recorded is the one the site read.
+    expect(reply.request().postDataJSON()).toEqual({ alias: "A", statementVersion: "introduction-request-2026-11-24",
+      answerAtIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/) });
     // Nothing has been sent yet: the company's email waits for the outbox, and the introduction is made only once it
     // is sent (H2). The site's page must not say it was introduced before then.
     await page.reload();

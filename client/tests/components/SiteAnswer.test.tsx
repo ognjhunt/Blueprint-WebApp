@@ -608,7 +608,38 @@ describe("the deployment companies section, with sends, answers and introduction
     // One plain sentence says both sides are being emailed (ledger EL19).
     expect(await within(companies()).findByText("We are emailing you and Company A each other's contact details.")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({ method: "POST",
-      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-24" }) }));
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-24", answerAtIso: "2026-11-13T09:00:00.000Z" }) }));
+  });
+
+  // A review of PR #1437: the press says which answer it was beside; one changed since is refused and said so, and the
+  // line stays on the newer answer the page reads back, until the next press.
+  it("says when the company changed its answer after the page loaded, and keeps saying it beside the newer answer", async () => {
+    fetchMock.mockResolvedValue(response({ ok: false, code: "introduction_refused", reason: "answer_changed" }, 409));
+    const reload = vi.fn();
+    const page = (companies: typeof activity) => <SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies }}
+      onIntroductionRequested={reload} />;
+    const { rerender } = render(page(activity));
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    const line = "This company changed its answer after this page loaded. Read its answer as it is now, then press Accept again.";
+    expect(await within(companies()).findByText(line)).toBeVisible();
+    expect(reload).toHaveBeenCalledTimes(1);
+    rerender(page({ ...activity, entries: [activity.entries[0], { ...activity.entries[1], atIso: "2026-11-13T10:00:00.000Z" }] }));
+    expect(within(companies()).getByText(line)).toBeVisible();
+  });
+
+  // A review of PR #1437: a page that could not tell which sentence is true for the job shows the one the server names
+  // with its refusal, and the next press records that one, rather than loop on "reload".
+  it("switches to the sentence the server says is true when it refuses another", async () => {
+    fetchMock.mockResolvedValueOnce(response({ ok: false, code: "introduction_statement_changed",
+      statementVersion: "introduction-request-2026-11-12" }, 409));
+    fetchMock.mockResolvedValueOnce(response({ ok: true, introducedAtIso: "2026-11-14T09:00:00.000Z" }));
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);
+    expect(within(companies()).getByText("We give Company A your email address and the place you gave us, and give you theirs.")).toBeVisible();
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    expect(await within(companies()).findByText("We give Company A your name, address and contact details, and give you theirs.")).toBeVisible();
+    fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12", answerAtIso: "2026-11-13T09:00:00.000Z" }) })));
   });
 
   // 2026-11-24: a job whose record holds a name the site gave keeps the sentence of 2026-11-12, true for it, and the
@@ -620,7 +651,7 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByText("We give Company A your name, address and contact details, and give you theirs.")).toBeVisible();
     fireEvent.click(within(companies()).getByRole("button", { name: "Accept" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({
-      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12" }) })));
+      body: JSON.stringify({ alias: "A", statementVersion: "introduction-request-2026-11-12", answerAtIso: "2026-11-13T09:00:00.000Z" }) })));
   });
 
   it("offers Introduce us again on the open page when an introduction it requested is later cancelled and may be asked again", async () => {

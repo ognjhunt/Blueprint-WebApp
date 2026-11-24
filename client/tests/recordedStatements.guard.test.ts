@@ -208,10 +208,10 @@ describe("recorded statements keep their exact text under their version", () => 
     // The company's name where its answer shows it, else its alias (owner, 2026-11-23), in the job's own version.
     expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/helper=\{introduceSentence\(shownName\(entry\), statementVersion\)\}/);
     expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/const shownName = \(entry: AnsweredEntry\) => entry\.applicant\?\.name \?\? entry\.alias;/);
-    expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/body: JSON\.stringify\(\{ alias: alias\.replace\(\/\^Company \/, ""\), statementVersion \}\)/);
+    expect(sourceText("client/src/components/site/SiteAnswer.tsx")).toMatch(/body: JSON\.stringify\(\{ alias: alias\.replace\(\/\^Company \/, ""\), statementVersion, answerAtIso: atIso \}\)/);
     // The route refuses a press with no recorded version; the transaction refuses one that is not this job's.
     expect(sourceText("server/routes/site-task-brief.ts")).toMatch(/!isIntroductionStatementVersion\(body\.data\.statementVersion\)/);
-    expect(sourceText("server/utils/jobIntroductions.ts")).toMatch(/input\.statementVersion !== statementVersion\) return \{ ok: false, reason: "statement_not_current" \}/);
+    expect(sourceText("server/utils/jobIntroductions.ts")).toMatch(/input\.statementVersion !== statementVersion\) return \{ ok: false, reason: "statement_not_current", statementVersion \}/);
   });
 
   it("shows the sharing statement word for word on every surface that records it", () => {
