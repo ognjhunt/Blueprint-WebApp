@@ -1,10 +1,15 @@
 /**
  * The WebApp's own paid agent runs as named overhead (owner decision 2026-11-20).
  *
- * The first look, brief reading and the WebApp's other agent runs stay outside every job's $40 cap (they are never
- * a row on a job's ledger, `websiteJobSpend`). The account's monthly count still needs them: the Pipeline's capacity
- * tick reads the month (`POST /api/internal/pipeline/account-spend-overhead`) and its meter keys it as
- * `overhead:<name>`, beside the jobs, in the reconciliation of each provider's bill.
+ * The WebApp's agent runs are not on the Pipeline's job ledgers, so the account's monthly count needs them: the
+ * Pipeline's capacity tick reads the month (`POST /api/internal/pipeline/account-spend-overhead`) and its meter keys it
+ * as `overhead:<name>`, beside the jobs, in the reconciliation of each provider's bill. Owner decision 2026-11-20
+ * (Pipeline `docs/architecture/metered-spend.md`, "Every paid AI call against its job"): every paid AI call counts
+ * against its job, except the first look (the robot-fit ranking) and the brief reading, which stay outside the $40 cap
+ * as named overhead. So the other runs made for a job (the follow-up picker, the free-text pass) and the video
+ * readings are also held against that job's cap on the WebApp's own ledgers (`jobLaneSpend.ts`, the video readings'
+ * ledger), while the first look and the brief reading are held against none. A hold is a stop on the job, not a second
+ * count: the month still reads each run once, here.
  *
  * The month is read from the runs' own records (`agentRuns`), the one place a run's cost is written: each run's cost
  * is the one the runtime computed and stored with the run (`metadata.cost_telemetry`), its priced usage, else its

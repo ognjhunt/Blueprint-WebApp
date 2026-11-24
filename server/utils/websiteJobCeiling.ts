@@ -7,8 +7,10 @@
  * (`contracts/pipeline/website-job-spend-cap.v1.json`, checked by `npm run pipeline:website-job-spend-cap:verify`).
  * The account's monthly limit (Pipeline `account_monthly_spend`) still applies on top.
  *
- * Every WebApp admission of new spend for a job (a preparation reservation, a scene intake) counts what the
- * job's ledgers already hold, each row at its settled cost where known and otherwise at its held quote, adds
+ * Every WebApp admission of new spend for a job (a preparation reservation, a scene intake, a video reading, a model
+ * lane's call) counts what the job's ledgers already hold, each row at its settled cost where known and otherwise at
+ * its held quote (preparation reservations, scene intakes, screening runs, the model lanes' rows, and the video
+ * readings of each of the job's captures), adds
  * the new quote, and refuses past the cap with `website_scene_preparation_budget_exhausted`, which the
  * Pipeline reads as `spending_cap_reached`: no further paid call starts, and the job ships what it has,
  * flagged. Nothing raises the cap: owner grants, Atlas authorization figures, grant policies, the old $100
@@ -27,6 +29,7 @@ import capContract from "../../contracts/pipeline/website-job-spend-cap.v1.json"
 import { parseBetaPolicyScreeningPublication, screeningMoneyMicros, SCREENING_LEGACY_SITE_LIMIT_USD } from "./betaPolicyScreeningContract";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { isNavigationStrategy } from "./navigationSceneIntake";
+import { humanDecisionDigest } from "./human-reply-admission";
 
 /** The most one website job may spend, in dollars: the committed figure, never a hosting setting. */
 export const WEBSITE_JOB_SPEND_CAP_USD = (() => {
@@ -50,19 +53,36 @@ export const JOB_LANE_RESERVATIONS_COLLECTION = "modelLaneReservations";
 /** Read at most this many lane rows; a job with more is counted as unbounded (nothing more is admitted). */
 const LANE_ROWS_READ_LIMIT = 1_000;
 
+/** Where each capture's video readings are reserved and recorded (`captureCoverageInferenceBudget.ts`). */
+export const VIDEO_READINGS_COLLECTION = "captureCoverageReviews";
+/** One capture's video readings ledger: its running figure, with one `calls` row per paid call. */
+export const videoReadingsBudgetId = (captureId: string) => `budget-${humanDecisionDigest({ capture_id: captureId })}`;
+/** Read at most this many of one capture's calls; a capture with more is counted at its ledger's running figure. */
+const VIDEO_READING_CALLS_READ_LIMIT = 200;
+
+/** One capture's video readings ledger as read: the ledger, and its call rows (at most the read limit, plus one). */
+export type VideoReadingsLedger = { capture_id: string; budget: Record<string, any>; calls: Array<Record<string, any>> };
+
 /** Reads the job's other ledgers; the caller supplies the transaction. */
 export type WebsiteJobLedgerReader = {
   sceneIntakes(): Promise<Array<Record<string, any>>>;
   screeningRuns(): Promise<Array<{ run: Record<string, any>; result: Record<string, any> | null }>>;
-  /** The job's model lane rows (`JOB_LANE_RESERVATIONS_COLLECTION`): the model pass over free text. */
+  /** The job's model lane rows (`JOB_LANE_RESERVATIONS_COLLECTION`): one per call of a lane `jobLaneSpend.ts` names. */
   laneReservations(): Promise<Array<Record<string, any>>>;
+  /** The video readings ledger of each of the job's captures that has one (the walkthrough and every supplement). */
+  videoReadings(): Promise<VideoReadingsLedger[]>;
 };
 
 type Store = { collection(name: string): any };
 type Transaction = { get(reference: any): Promise<any> };
 
-/** The same job queries the job pages already run (and index), inside the admission transaction. */
-export function transactionJobLedgerReader(store: Store, transaction: Transaction, requestId: string): WebsiteJobLedgerReader {
+/**
+ * The same job queries the job pages already run (and index), inside the admission transaction. `captureIds`: captures
+ * whose video readings the caller knows are the job's (the one a video reading is admitted for), read whether or not
+ * the job's own records list them.
+ */
+export function transactionJobLedgerReader(store: Store, transaction: Transaction, requestId: string,
+  options: { captureIds?: readonly string[] } = {}): WebsiteJobLedgerReader {
   return {
     sceneIntakes: async () => (await transaction.get(store.collection("taskEvaluationSceneIntakes")
       .where("website_request_id", "==", requestId))).docs.map((row: any) => row.data()),
@@ -81,7 +101,47 @@ export function transactionJobLedgerReader(store: Store, transaction: Transactio
       // More rows than were read: what the rest hold is not known, so it counts as unbounded.
       return rows.length >= LANE_ROWS_READ_LIMIT ? [...rows, { admission: { maximum_cost_usd: null }, truncated: true }] : rows;
     },
+    videoReadings: async () => {
+      // The job's captures: its walkthrough, and every supplement issued for it (`captureSupplement.ts`; the query the
+      // job's deletion runs, here without its scene filter, so none is missed). Each capture id is the job's own, so
+      // its ledger is this job's alone.
+      const supplements = (await transaction.get(store.collection("captureSupplements").where("requestId", "==", requestId)))
+        .docs.map((row: any) => String(row.id));
+      const captures = new Set([`walkthrough-${requestId}`, ...supplements, ...(options.captureIds ?? [])]);
+      const ledgers = await Promise.all([...captures].map(async captureId => {
+        const ref = store.collection(VIDEO_READINGS_COLLECTION).doc(videoReadingsBudgetId(captureId));
+        const budget = (await transaction.get(ref)).data();
+        if (!budget) return null;
+        const calls = (await transaction.get(ref.collection("calls").limit(VIDEO_READING_CALLS_READ_LIMIT + 1)))
+          .docs.map((row: any) => row.data());
+        return { capture_id: captureId, budget, calls };
+      }));
+      return ledgers.filter((ledger): ledger is VideoReadingsLedger => ledger !== null);
+    },
   };
+}
+
+/**
+ * One capture's video readings (2026-11-24): each paid call at the cost its response was priced at where the ledger
+ * recorded one, else at its full reservation (in flight, or its usage unknown), as a preparation row is counted. The
+ * ledger's running figure (`exposure_usd`: every call's reservation, raised by any cost above it, never lowered) bounds
+ * what its calls hold or spent, so it is what counts when its calls cannot all be read or one cannot be. Unreadable
+ * either way: unbounded.
+ */
+function videoReadingMicros(ledger: VideoReadingsLedger): { counted: number; readable: number } {
+  const { budget, calls } = ledger;
+  const exposure = budget?.capture_id === ledger.capture_id && amount(budget.exposure_usd) ? micros(budget.exposure_usd) : Infinity;
+  const complete = budget?.capture_id === ledger.capture_id && Number.isSafeInteger(budget.calls)
+    && calls.length === budget.calls && calls.length <= VIDEO_READING_CALLS_READ_LIMIT;
+  if (complete) {
+    const each = calls.map(call => call?.state === "recorded" && amount(call.cost_estimate_usd) ? micros(call.cost_estimate_usd)
+      : amount(call?.reserved_usd) && call.reserved_usd > 0 ? micros(call.reserved_usd) : Infinity);
+    if (each.every(Number.isFinite)) {
+      const sum = each.reduce((total, value) => total + value, 0);
+      return { counted: sum, readable: sum };
+    }
+  }
+  return { counted: exposure, readable: Number.isFinite(exposure) ? exposure : 0 };
 }
 
 /** One preparation row: its settlement, else its full reservation (per-row rounding as admission always did). */
@@ -228,8 +288,17 @@ export async function websiteJobSpend(input: { record: Record<string, any>; read
     if (!Number.isFinite(value)) unreadable.push(`model lane reservation ${String(row?.lane ?? "")} #${index + 1}`);
     return sum + value;
   }, 0);
+  // The job's video readings (2026-11-24, `captureCoverageInferenceBudget.ts`): each capture's ledger, each call at its
+  // priced cost, else its full reservation. Its own admission adds only the new call to this.
+  const videoReadings = (await input.reader.videoReadings()).reduce((sum: number, ledger) => {
+    const value = videoReadingMicros(ledger);
+    readable += value.readable;
+    if (!Number.isFinite(value.counted)) unreadable.push(`video readings of capture ${ledger.capture_id}`);
+    return sum + value.counted;
+  }, 0);
   return { preparation_micros: preparation, native_construction_micros: native, screening_micros: screening.counted,
-    model_lane_micros: lanes, total_micros: preparation + native + screening.counted + lanes, readable_total_micros: readable, unreadable };
+    model_lane_micros: lanes, video_reading_micros: videoReadings,
+    total_micros: preparation + native + screening.counted + lanes + videoReadings, readable_total_micros: readable, unreadable };
 }
 
 /** The read-only projection returned with the Atlas configuration; it authorizes nothing. */
@@ -241,7 +310,7 @@ export function websiteJobCeilingSummary(ceiling: ReturnType<typeof websiteJobCe
   return { schema_version: "website_job_ceiling.v1", maximum_cost_usd: ceiling.maximum_cost_usd,
     source: ceiling.source, preparation_cost_usd: finite(spend.preparation_micros),
     native_construction_cost_usd: finite(spend.native_construction_micros), screening_cost_usd: finite(spend.screening_micros),
-    model_lane_cost_usd: finite(spend.model_lane_micros),
+    model_lane_cost_usd: finite(spend.model_lane_micros), video_reading_cost_usd: finite(spend.video_reading_micros),
     reserved_or_settled_cost_usd: finite(spend.total_micros),
     remaining_cost_usd: Number.isFinite(spend.total_micros) ? dollars(Math.max(0, limit - spend.total_micros)) : 0 };
 }

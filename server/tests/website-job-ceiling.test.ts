@@ -2,15 +2,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { assertWithinWebsiteJobCeiling, checkWebsiteJobCeiling, WEBSITE_JOB_SPEND_CAP_USD, websiteJobCeiling, websiteJobCeilingSummary,
-  websiteJobSpend, type WebsiteJobLedgerReader } from "../utils/websiteJobCeiling";
+import { assertWithinWebsiteJobCeiling, checkWebsiteJobCeiling, transactionJobLedgerReader, videoReadingsBudgetId,
+  WEBSITE_JOB_SPEND_CAP_USD, websiteJobCeiling, websiteJobCeilingSummary, websiteJobSpend, type VideoReadingsLedger,
+  type WebsiteJobLedgerReader } from "../utils/websiteJobCeiling";
+import { createFakeFirestore, createFakeFirestoreState } from "./helpers/fake-firestore";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 
 const policy = { schema_version: "website_atlas_grant_policy.v1", maximum_cost_usd: 40, maximum_requests: 32,
   validity_seconds: 3600, provider_retention: "account_does_not_retain", approval_reference: "owner", approved_by: "owner" };
 const reader = (intakes: Record<string, any>[] = [],
   runs: Array<{ run: Record<string, any>; result: Record<string, any> | null }> = []): WebsiteJobLedgerReader =>
-  ({ sceneIntakes: async () => intakes, screeningRuns: async () => runs, laneReservations: async () => [] });
+  ({ sceneIntakes: async () => intakes, screeningRuns: async () => runs, laneReservations: async () => [], videoReadings: async () => [] });
 const held = (maximum: number, settled?: number) => ({ admission: { maximum_cost_usd: maximum },
   ...(settled === undefined ? {} : { settlement: { actual_cost_usd: settled, status: "settled" } }) });
 const screening = (committed: string, generatedAt: string, revision = 1) => ({ run: { run_kind: "beta_policy_screening" },
@@ -53,7 +55,7 @@ describe("what counts against it", () => {
   // A review of PR #1437 (2026-11-24): the job's small model lanes count against the same cap (`jobLaneSpend.ts`).
   it("counts each model lane row at its settlement, else its full hold, and an unreadable one as unbounded", async () => {
     const lanes = (rows: Array<Record<string, any>>): WebsiteJobLedgerReader =>
-      ({ sceneIntakes: async () => [], screeningRuns: async () => [], laneReservations: async () => rows });
+      ({ sceneIntakes: async () => [], screeningRuns: async () => [], laneReservations: async () => rows, videoReadings: async () => [] });
     const spend = await websiteJobSpend({ record: { website_preparation_reservations: { a: held(30) } },
       reader: lanes([held(0.0013), held(0.0013, 0.0004), held(0.0013, 0)]) });
     expect(spend).toMatchObject({ model_lane_micros: 1_300 + 400 + 0, total_micros: 30_000_000 + 1_700,
@@ -65,6 +67,72 @@ describe("what counts against it", () => {
     const full = { record: { website_preparation_reservations: { a: held(39.999) } }, reader: lanes([held(0.001)]) };
     expect((await checkWebsiteJobCeiling({ ...full, additionalCostUsd: 0 })).exceeded).toBe(false);
     expect((await checkWebsiteJobCeiling({ ...full, additionalCostUsd: 0.000001 })).exceeded).toBe(true);
+  });
+
+  // 2026-11-24: the video readings' ledger (`captureCoverageInferenceBudget.ts`) is one of the job's, so every admission
+  // of the job counts it, not only the reading's own.
+  describe("the video readings of each of the job's captures", () => {
+    const readings = (ledgers: VideoReadingsLedger[]): WebsiteJobLedgerReader =>
+      ({ sceneIntakes: async () => [], screeningRuns: async () => [], laneReservations: async () => [], videoReadings: async () => ledgers });
+    const call = (reserved: number, cost?: number | null) => cost === undefined
+      ? { state: "admitted", reserved_usd: reserved, cost_estimate_usd: null }
+      : { state: cost === null ? "unknown" : "recorded", reserved_usd: reserved, cost_estimate_usd: cost };
+    const ledger = (captureId: string, calls: Array<Record<string, any>>, exposure: number, count = calls.length): VideoReadingsLedger =>
+      ({ capture_id: captureId, budget: { capture_id: captureId, exposure_usd: exposure, calls: count }, calls });
+
+    it("counts each call at the cost its response was priced at, else its full reservation, on every capture", async () => {
+      const spend = await websiteJobSpend({ record: { website_preparation_reservations: { a: held(30) } }, reader: readings([
+        // A priced reading, one whose usage is unknown, and one in flight; the ledger's running figure is 3 × 1.818624.
+        ledger("walkthrough-job", [call(1.818624, 0.0412), call(1.818624, null), call(1.818624)], 5.455872),
+        ledger("supplement-1", [call(0.33192, 0.0071)], 0.33192)]) });
+      expect(spend).toMatchObject({ video_reading_micros: 41_200 + 1_818_624 + 1_818_624 + 7_100,
+        total_micros: 30_000_000 + 3_685_548, readable_total_micros: 30_000_000 + 3_685_548, unreadable: [] });
+      expect(websiteJobCeilingSummary(websiteJobCeiling(), spend)).toMatchObject({ video_reading_cost_usd: 3.685548,
+        reserved_or_settled_cost_usd: 33.685548 });
+    });
+
+    it("counts a capture at its ledger's running figure when its calls cannot all be read, and an unreadable one as unbounded", async () => {
+      const count = async (value: VideoReadingsLedger) => (await websiteJobSpend({ record: {}, reader: readings([value]) }));
+      // Fewer call rows than the ledger counts, more than the read limit, or one whose figure cannot be read.
+      expect((await count(ledger("walkthrough-job", [call(1.818624, 0.01)], 39, 21))).video_reading_micros).toBe(39_000_000);
+      expect((await count(ledger("walkthrough-job", Array.from({ length: 201 }, () => call(0.33192, 0.001)), 66.71592)))
+        .video_reading_micros).toBe(66_715_920);
+      expect((await count(ledger("walkthrough-job", [call(1.818624, 0.01), { state: "admitted" }], 3.637248))).video_reading_micros)
+        .toBe(3_637_248);
+      const unreadable = await count({ capture_id: "walkthrough-job", budget: { capture_id: "walkthrough-job", calls: 2 }, calls: [] });
+      expect(unreadable).toMatchObject({ video_reading_micros: Infinity, readable_total_micros: 0,
+        unreadable: ["video readings of capture walkthrough-job"] });
+      // A ledger kept under another capture's id is not read as this one's.
+      expect((await count({ capture_id: "walkthrough-job", budget: { capture_id: "other", exposure_usd: 1, calls: 0 }, calls: [] }))
+        .video_reading_micros).toBe(Infinity);
+    });
+
+    it("leaves the cap no room past them: every admission of the job refuses what they fill", async () => {
+      const full = { record: { website_preparation_reservations: { a: held(38) } },
+        reader: readings([ledger("walkthrough-job", [call(1.818624, 0.5), call(1.818624, 1.5)], 3.637248)]) };
+      expect((await checkWebsiteJobCeiling({ ...full, additionalCostUsd: 0 })).exceeded).toBe(false);
+      expect((await checkWebsiteJobCeiling({ ...full, additionalCostUsd: 0.000001 })).exceeded).toBe(true);
+    });
+
+    it("reads the walkthrough's ledger and every supplement's, inside the caller's transaction", async () => {
+      const state = createFakeFirestoreState(), store = createFakeFirestore(state);
+      const budget = (captureId: string, calls: Array<Record<string, any>>) => {
+        state.docs.set(`captureCoverageReviews/${videoReadingsBudgetId(captureId)}`,
+          { capture_id: captureId, exposure_usd: calls.reduce((sum, row) => sum + row.reserved_usd, 0), calls: calls.length });
+        calls.forEach((row, index) => state.docs.set(`captureCoverageReviews/${videoReadingsBudgetId(captureId)}/calls/c${index}`, row));
+      };
+      state.docs.set("captureSupplements/supplement-a", { requestId: "job", sceneId: "site-job" });
+      state.docs.set("captureSupplements/supplement-other", { requestId: "another-job", sceneId: "site-another-job" });
+      budget("walkthrough-job", [call(1.818624, 0.02)]);
+      budget("supplement-a", [call(1.818624, 0.03), call(0.33192)]);
+      budget("supplement-other", [call(1.818624, 0.04)]);
+      budget("supplement-named", [call(0.33192, 0.005)]);
+      const spend = async (options?: { captureIds: string[] }) => (await websiteJobSpend({ record: {},
+        reader: transactionJobLedgerReader(store, { get: (ref: any) => ref.get() }, "job", options) })).video_reading_micros;
+      expect(await spend()).toBe(20_000 + 30_000 + 331_920);
+      // A capture the caller names (the one a reading is admitted for) is read too.
+      expect(await spend({ captureIds: ["supplement-named"] })).toBe(20_000 + 30_000 + 331_920 + 5_000);
+    });
   });
 
   it("holds a scene intake's whole native allowance until it closes, then counts its attempts", async () => {
@@ -249,7 +317,8 @@ describe("admission", () => {
     const { ceiling, spend } = await assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 1 });
     expect(websiteJobCeilingSummary(ceiling, spend)).toEqual({ schema_version: "website_job_ceiling.v1",
       maximum_cost_usd: 40, source: "job_spending_cap", preparation_cost_usd: 30, native_construction_cost_usd: 5,
-      screening_cost_usd: 4, model_lane_cost_usd: 0, reserved_or_settled_cost_usd: 39, remaining_cost_usd: 1 });
+      screening_cost_usd: 4, model_lane_cost_usd: 0, video_reading_cost_usd: 0, reserved_or_settled_cost_usd: 39,
+      remaining_cost_usd: 1 });
     await expect(assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 1.000001 }))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
   });

@@ -10,6 +10,9 @@
  * ledgers, each at its settlement where known and otherwise at its hold, exactly as a preparation reservation is
  * counted, so every other admission of the job (a preparation reservation, a scene intake, a video reading) sees them.
  *
+ * The lanes held here, each with its job's id: the model pass over free text (`free_text_redaction`,
+ * `freeTextScreening.ts`) and the follow-up picker (`site_task_follow_up`, `siteTaskFollowUp.ts`).
+ *
  * Why a ledger of its own (`inboundRequests/{job}/modelLaneReservations`), with the preparation rows' shape
  * (`admission.maximum_cost_usd`, `settlement.actual_cost_usd`), rather than rows in `website_preparation_reservations`:
  * that map is the Pipeline's preparation ledger. Its rows are parsed strictly and summarised to the Pipeline
@@ -18,9 +21,11 @@
  *
  * Per-run cost caps and the rolling spend stop still apply on top (`server/agents/runtime.ts`).
  */
+import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { anthropicRequestShapeFor } from "../agents/anthropic-models";
 import type { AgentTaskKind } from "../agents/types";
-import { anthropicPricingForModel } from "./anthropicPricing";
+import { anthropicWorstCaseRequestUsd } from "./anthropicPricing";
 import { pricingForOpenAIModel } from "./openaiPromptCache";
 import { checkWebsiteJobCeiling, JOB_LANE_RESERVATIONS_COLLECTION, transactionJobLedgerReader } from "./websiteJobCeiling";
 
@@ -35,9 +40,10 @@ const UNKNOWN_OPENAI_PRICE = { input: 5, output: 30 };
 /**
  * The most one call of `kind` can cost for a prompt of `promptBytes` UTF-8 bytes: a byte-level tokenizer makes at most
  * one token of each byte, plus the adapters' framing; the lane's own output ceiling (thinking included); priced at the
- * dearest model the lane may be sent to among OpenAI and Anthropic (cache writes at their rate, the dearest input),
- * one request (the lane allows no correction round, and a switch after "no funds" happens only when the first provider
- * charged nothing). Null when the lane could be sent to a model with no price (it is then not called).
+ * dearest model the lane may be sent to among OpenAI and Anthropic (cache writes at their rate, the dearest input; on
+ * Anthropic, the request's server-side fallback model added, as the adapter reserves it), one request (the lane allows
+ * no correction round, and a switch after "no funds" happens only when the first provider charged nothing). Null when
+ * the lane could be sent to a model with no price (it is then not called).
  */
 export function laneCallMaximumUsd(input: { promptBytes: number; outputTokenCeiling: number;
   models: { openai_responses?: string | null; anthropic_agent_sdk?: string | null } }): number | null {
@@ -50,27 +56,59 @@ export function laneCallMaximumUsd(input: { promptBytes: number; outputTokenCeil
     costs.push((inputTokens * inputRate + outputTokens * (price ? price.outputPerMillionUsd : UNKNOWN_OPENAI_PRICE.output)) / 1e6);
   }
   if (input.models.anthropic_agent_sdk) {
-    const price = anthropicPricingForModel(input.models.anthropic_agent_sdk);
-    if (!price) return null;
-    const long = price.longContextThreshold !== undefined && inputTokens > price.longContextThreshold;
-    const inputRate = Math.max(price.cacheMissInput, price.cacheWriteInput) * (long ? price.longContextInputMultiplier ?? 1 : 1);
-    costs.push((inputTokens * inputRate + outputTokens * price.output * (long ? price.longContextOutputMultiplier ?? 1 : 1)) / 1e6);
+    // The adapter's own reservation for one request: the model, plus the fallback model a refusal moves it to inside
+    // the same request (`anthropic-agent-sdk.ts`). A model with no request shape or no price is never sent.
+    const model = input.models.anthropic_agent_sdk, shape = anthropicRequestShapeFor(model);
+    const cost = shape ? anthropicWorstCaseRequestUsd(model, inputTokens, outputTokens) : null;
+    const fallback = shape?.fallbackModel ? anthropicWorstCaseRequestUsd(shape.fallbackModel, inputTokens, outputTokens) : 0;
+    if (cost === null || fallback === null) return null;
+    costs.push(cost + fallback);
   }
   if (!costs.length) return null;
   // Rounded up to the micro-dollar the ledger counts in.
   return Math.ceil(Math.max(...costs) * 1_000_000) / 1_000_000;
 }
 
-/** The models a lane would be sent to now, by provider, among those the lane may use (`getStructuredProviderOrder`). */
+/**
+ * The models a lane's call may reach now, by provider: the provider it starts on (the first of
+ * `getStructuredProviderOrder`), and every provider a switch after "no funds" may go to. A switch goes only to a
+ * provider that enforces the per-run cap (`chooseFailoverProvider`), from the order the Privacy version of the job the
+ * run is bound to allows, so each such provider any known version allows is priced: for a job started under 2026-11-13.1
+ * or later that adds Anthropic, which the strictest table alone leaves out. Null when the lane may not be called, or
+ * starts on a provider that does not enforce the per-run cap and is not priced here: no call is admitted for it.
+ */
 export async function laneModels(kind: AgentTaskKind): Promise<{ openai_responses?: string; anthropic_agent_sdk?: string } | null> {
-  const { getStructuredProviderOrder, getTaskModelByProvider } = await import("../agents/provider-config");
+  const [{ getStructuredProviderOrder, getTaskModelByProvider, RUN_CAP_ENFORCING_PROVIDERS }, { PRIVACY_POLICY_PROVIDER_ROWS }] =
+    await Promise.all([import("../agents/provider-config"), import("../agents/provider-privacy")]);
   const order = getStructuredProviderOrder(kind);
-  if (!order.length) return null;
-  // Any other provider would not enforce the per-run cap or be priced here: no call is admitted for it.
-  if (order.some(provider => provider !== "openai_responses" && provider !== "anthropic_agent_sdk")) return null;
+  if (!order.length || !RUN_CAP_ENFORCING_PROVIDERS.has(order[0])) return null;
+  const switchable = [undefined, ...Object.keys(PRIVACY_POLICY_PROVIDER_ROWS)]
+    .flatMap(version => getStructuredProviderOrder(kind, version)).filter(provider => RUN_CAP_ENFORCING_PROVIDERS.has(provider));
+  const reachable = new Set([order[0], ...switchable]);
   const models = getTaskModelByProvider(kind);
-  return { ...(order.includes("openai_responses") ? { openai_responses: models.openai_responses } : {}),
-    ...(order.includes("anthropic_agent_sdk") ? { anthropic_agent_sdk: models.anthropic_agent_sdk } : {}) };
+  return { ...(reachable.has("openai_responses") ? { openai_responses: models.openai_responses } : {}),
+    ...(reachable.has("anthropic_agent_sdk") ? { anthropic_agent_sdk: models.anthropic_agent_sdk } : {}) };
+}
+
+/**
+ * The most one run of `kind` can cost for a prompt of `promptBytes` UTF-8 bytes, or null when no call is admitted for
+ * the lane (`laneModels`). Both adapters a lane may reach refuse, before each request, any request that could take the
+ * run past the per-run inference cost cap (`getAgentMaxInferenceCostUsd`, $5 unless set), so no run passes it. A lane
+ * of one request (its own output ceiling, no correction round) is bounded tighter by its prompt (`laneCallMaximumUsd`).
+ * A lane that may send correction rounds (up to five more requests, each up to the input ceiling, with the conversation
+ * so far) is held at the cap. `scripted` (unit tests, the local harness): the call is held as the lane's default OpenAI
+ * model would be.
+ */
+export async function laneRunMaximumUsd(kind: AgentTaskKind, promptBytes: number, options: { scripted?: boolean } = {}):
+  Promise<number | null> {
+  const [{ getAgentMaxInferenceCostUsd, getTaskModelByProvider }, { getTaskDefinition }] = await Promise.all([
+    import("../agents/provider-config"), import("../agents/tasks")]);
+  const models = options.scripted ? { openai_responses: getTaskModelByProvider(kind).openai_responses } : await laneModels(kind);
+  if (!models) return null;
+  const cap = getAgentMaxInferenceCostUsd(), definition = getTaskDefinition(kind);
+  if (definition.max_output_corrections !== 0 || definition.max_output_tokens_ceiling === undefined) return cap;
+  const call = laneCallMaximumUsd({ promptBytes, outputTokenCeiling: definition.max_output_tokens_ceiling, models });
+  return call === null ? null : Math.min(call, cap);
 }
 
 export type LaneReservation = { lane: AgentTaskKind; reservationId: string; maximumUsd: number };
@@ -94,12 +132,34 @@ export async function planJobLaneReservation(tx: FirebaseFirestore.Transaction, 
     lane: reservation.lane, admission: { maximum_cost_usd: reservation.maximumUsd, reserved_at_iso: new Date().toISOString() } }) };
 }
 
+/** A job's id as the store keeps it: one path segment. */
+const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/;
+
+export type JobLaneHold = { state: "held"; reservationId: string } | { state: "cap" | "no_job" | "unavailable" };
+
+/**
+ * For a lane with no transaction of its own: in one transaction, hold `maximumUsd` for one call against the job's one
+ * cap (`planJobLaneReservation`). "held": the call may start, and its hold is settled when it ends (`settleJobLaneRun`).
+ * Anything else starts no call and writes nothing: "cap" (the job's cap leaves no room), "no_job" (no such job), or
+ * "unavailable" (no store, or an id that is not a job's). A store that fails throws; the caller treats it as no room.
+ */
+export async function holdJobLaneSpend(requestId: string, lane: AgentTaskKind, maximumUsd: number): Promise<JobLaneHold> {
+  if (!db || !JOB_ID.test(requestId)) return { state: "unavailable" };
+  const store = db, reservationId = `${lane}-${randomUUID()}`;
+  return store.runTransaction(async (tx): Promise<JobLaneHold> => {
+    const hold = await planJobLaneReservation(tx, requestId, { lane, reservationId, maximumUsd });
+    if (hold.state !== "fits") return { state: hold.state };
+    hold.write(tx);
+    return { state: "held", reservationId };
+  });
+}
+
 /**
  * What a finished (or failed) run cost, as its adapter reported it (`inference_reservation.reconciled_cost_usd`: priced
  * usage, and the worst case for any request whose usage is unknown); 0 when the runtime made no provider request
  * (`inference_not_invoked`, or a run refused before the call); null when it cannot be told (the hold then stays whole).
  */
-export function runCostUsd(result: { artifacts?: Record<string, unknown> } | null | undefined): number | null {
+export function runCostUsd(result: { artifacts?: Record<string, unknown> | null } | null | undefined): number | null {
   const artifacts = (result?.artifacts ?? {}) as Record<string, any>;
   const reconciled = artifacts.inference_reservation?.reconciled_cost_usd;
   if (typeof reconciled === "number" && Number.isFinite(reconciled) && reconciled >= 0) return reconciled;
@@ -124,4 +184,14 @@ export async function settleJobLaneSpend(requestId: string, reservationId: strin
     tx.set(ref, { settlement: { actual_cost_usd: actual, status: "settled", basis: actualUsd === null ? "unknown_counts_in_full" : basis,
       settled_at_iso: new Date().toISOString(), ...(actual > held ? { above_reservation: true } : {}) } }, { merge: true });
   });
+}
+
+/**
+ * Settle a lane run's hold from what the run returned (`runCostUsd`): its reported cost, 0 when no provider request was
+ * made, and its full hold when the run threw (null) or its cost cannot be told.
+ */
+export async function settleJobLaneRun(requestId: string, reservationId: string,
+  result: { artifacts?: Record<string, unknown> | null } | null | undefined) {
+  const cost = runCostUsd(result);
+  await settleJobLaneSpend(requestId, reservationId, cost, cost === 0 ? "no_provider_request" : "reported_usage");
 }

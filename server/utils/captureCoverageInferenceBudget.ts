@@ -10,9 +10,10 @@ import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowser
 import { advisoryContextDigest } from "./siteAssessmentContext";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
 import type { AssessmentRecovery } from "./inferenceProgrammeAdmission";
-import { checkWebsiteJobCeiling, transactionJobLedgerReader } from "./websiteJobCeiling";
+import { checkWebsiteJobCeiling, transactionJobLedgerReader, VIDEO_READINGS_COLLECTION, videoReadingsBudgetId } from "./websiteJobCeiling";
 
-const budgetFor = (captureId: string) => db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: captureId })}`);
+/** The capture's ledger, which `websiteJobSpend` counts as one of the job's (`videoReadingsBudgetId`). */
+const budgetFor = (captureId: string) => db!.collection(VIDEO_READINGS_COLLECTION).doc(videoReadingsBudgetId(captureId));
 const digest = humanDecisionDigest;
 const privacyFor = (request: any) => request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
 function assertSource(request: any, captureId: string, source: unknown) {
@@ -121,10 +122,12 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       retiredRef = ref;
     }
     const exposure = (state?.exposure_usd ?? 0) + reserved;
-    // The job's one $40 cap (owner, 2026-11-19): what the job's other ledgers hold or spent, plus everything this
-    // capture's video readings have held or spent with this call's reservation, must fit, or no paid read starts.
+    // The job's one $40 cap (owner, 2026-11-19): what every ledger of the job holds or spent, the video readings of each
+    // of its captures included (this capture's calls so far among them, each at its priced cost, else its reservation),
+    // plus this call's reservation, must fit, or no paid read starts. Only the new call is added: the job's spend
+    // already counts this capture's ledger, so adding its running figure again would count it twice.
     const job = await checkWebsiteJobCeiling({ record: binding.request ?? {},
-      reader: transactionJobLedgerReader(db!, tx, binding.requestId), additionalCostUsd: exposure });
+      reader: transactionJobLedgerReader(db!, tx, binding.requestId, { captureIds: [captureId] }), additionalCostUsd: reserved });
     if (job.exceeded) throw new Error("coverage_budget_job_cap_reached");
     const intent = { schema_version: "capture_inference_call.v1", admission_token: token, capture_id: captureId,
       request_id: binding.requestId, run_id: runId ?? null, owner_run_id: binding.ownerRunId, review_id: reviewId ?? null, claim_token: claim ?? null,
