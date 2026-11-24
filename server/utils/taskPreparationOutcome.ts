@@ -255,6 +255,11 @@ const OBJECT_PLACEMENT_SENTENCES = {
   reason: "We could not place the object in our rebuild of your space: what your video shows of it did not line up with the room around it in one clear position.",
   nextStep: "Please film again with the object clear of clutter, resting where the job starts, and move around it so it is seen from several sides. Then send us the new video.",
 } as const;
+/** A rebuild whose shape and look did not line up: a fresh video gives a fresh rebuild. It does not fault the filming. */
+const REBUILD_MISMATCH_SENTENCES = {
+  reason: "We could not rebuild your space from this video: the shape of the room and how it looks did not line up in our rebuild.",
+  nextStep: "Please film again in one slow, steady pass through the work area, so we can rebuild it from a fresh video. Then send us the new video.",
+} as const;
 export const RECAPTURE_SENTENCES = {
   atlas_task_and_scene_coverage_gap: {
     reason: "Your video does not connect the place where the job happens to the room around it: we could not find views that overlap between them.",
@@ -295,6 +300,12 @@ export const RECAPTURE_SENTENCES = {
     reason: "From your video we could not work out how large the space is: nothing in it gave us a size we could rely on.",
     nextStep: "Please film again with an object of standard size in view near where the job happens, such as a door or a tape measure laid open on the floor. Then send us the new video.",
   },
+  // Pipeline (stress round 1, 2026-11-24): the room's mesh lay on none of its look (`atlas_mesh_not_registered_to_splat`),
+  // or as well on two framings (`atlas_mesh_frame_ambiguous`). The job now ends at once instead of waiting for a
+  // release until its deadline; only a fresh rebuild clears it. The evidence points at the rebuild, not the filming,
+  // so these sentences ask for a new video without saying what was wrong with it.
+  atlas_mesh_not_registered_to_splat: REBUILD_MISMATCH_SENTENCES,
+  atlas_mesh_frame_ambiguous: REBUILD_MISMATCH_SENTENCES,
 } as const satisfies Record<string, { reason: string; nextStep: string }>;
 export type RecaptureReason = keyof typeof RECAPTURE_SENTENCES;
 export const isRecaptureReason = (value: unknown): value is RecaptureReason =>
