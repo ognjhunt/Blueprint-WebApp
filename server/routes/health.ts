@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { Router, Request, Response } from "express";
 import { logger } from "../logger";
 import { getHostedSessionLiveStoreStatus } from "../utils/hosted-session-live-store";
-import { buildLaunchReadinessSnapshot } from "../utils/launch-readiness";
+import { buildLaunchReadinessWithWorkerFacts } from "../utils/launch-readiness";
 import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import { maybeAlertOnLaunchReadinessTransition } from "../utils/ops-alerts";
 import { probeTaskEvaluationLaunchStore } from "../utils/taskEvaluationLaunchStore";
@@ -121,7 +121,8 @@ router.get("/health/outbox", async (_req: Request, res: Response) => {
  */
 router.get("/health/ready", async (req: Request, res: Response) => {
   try {
-    const baseReadiness = buildLaunchReadinessSnapshot();
+    // With what the worker reported: it sends a site's withdrawal and may hold other settings than this process.
+    const baseReadiness = await buildLaunchReadinessWithWorkerFacts();
     const launchStore = isLocalLaunchSmokeProfile()
       ? { ready: true, code: "local_smoke", checked_at_iso: new Date().toISOString() }
       : await probeTaskEvaluationLaunchStore();

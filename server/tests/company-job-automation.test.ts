@@ -816,6 +816,47 @@ describe("every stop closes everything a company can see (E2)", () => {
   });
 });
 
+// A withdrawal the Pipeline has not acknowledged and whose deletion has not run yet (the website's deletion waits at
+// least 35 minutes, and up to 2 hours for the acknowledgement): the clip, the simulation package, the scene preview and
+// the thumbnail are all still stored, and none of them is served to a company.
+describe("a recorded withdrawal closes everything a company can see while its deletion is pending", () => {
+  it("refuses the page, the card, the video, the download, the viewer and the thumbnail, though all are still stored", async () => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    const thumbnail = await import("../utils/jobThumbnail");
+    const { createRequire } = await import("node:module");
+    const { PNG } = createRequire(import.meta.url)("pngjs") as { PNG: { sync: { write: (image: object) => Buffer } } };
+    expect(await thumbnail.makeJobThumbnail(ID, { now: () => new Date(), downloadClip: async () => true,
+      extractFrame: async () => PNG.sync.write({ width: 8, height: 5, data: Buffer.alloc(8 * 5 * 4, 9) }) })).toBe("made");
+    const before = (await page()).body.item;
+    // Every address a company was handed before the withdrawal works until then.
+    const addresses: Array<[string, string, Record<string, string>]> = [
+      ["the video", before.video.url, {}],
+      ["the simulation download", before.simulationDownload.url, {}],
+      ["the viewer", sceneContentUrl(before.simulation.viewerUrl), { "sec-fetch-dest": "empty" }],
+      ["the thumbnail", before.thumbnailUrl, { "sec-fetch-dest": "image" }],
+    ];
+    for (const [name, url, headers] of addresses) expect((await media(url, headers)).status, name).toBe(200);
+
+    // The site presses "Stop using my video": the real withdrawal, with no Pipeline acknowledgement.
+    const { recordWebsiteCaptureWithdrawal } = await import("../utils/websiteCaptureWithdrawal");
+    const { created } = await recordWebsiteCaptureWithdrawal({ requestId: ID, requestedBy: "owner_link", authorize: () => undefined });
+    expect(created).toBe(true);
+    expect(jobDoc().capture_withdrawal).toMatchObject({ state: "uploads_stopped_cleanup_pending", pipelineAcknowledged: false,
+      webappDeletion: { phase: "pending", attempts: 0 } });
+    // Nothing has been deleted yet.
+    const session = state.docs.get(`captureUploadSessions/${CAPTURE}`) as Record<string, unknown>;
+    expect(session.company_clip).toBeTruthy();
+    expect(session.company_simulation).toBeTruthy();
+    expect(session.scene_preview).toBeTruthy();
+    expect(state.docs.get(`taskThumbnails/${ID}`)).toBeTruthy();
+
+    expect((await page()).status).toBe(404);
+    expect((await list()).body.items).toEqual([]);
+    for (const [name, url, headers] of addresses) expect((await media(url, headers)).status, name).toBe(404);
+    expect((await realFetch(`${base}/api/site-worlds/tasks/${ID}/thumbnail`, { headers: signIn(NORTH) })).status).toBe(404);
+  });
+});
+
 describe("Blueprint's own work window ending is not a stop (G-01)", () => {
   it("keeps the job's page and its answer route open when the window ends its authority", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),

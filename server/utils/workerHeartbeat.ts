@@ -1,5 +1,6 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { captureLifecycleNoticeSettings } from "./captureLifecycleForwarding";
 
 /**
  * Liveness of the background worker (`blueprint-webapp-worker`).
@@ -27,12 +28,15 @@ type HeartbeatDocRef = {
 export type HeartbeatStore = { collection: (name: string) => { doc: (id: string) => HeartbeatDocRef } };
 
 export type WorkerHeartbeatStatus = "fresh" | "stale" | "missing" | "unavailable";
+/** What the worker said, at its last beat, about the settings its withdrawal notice needs; null when it said nothing. */
+export type WorkerWithdrawalNoticeReport = { addressConfigured: boolean; tokenConfigured: boolean } | null;
 export type WorkerHeartbeatReading = {
   status: WorkerHeartbeatStatus;
   ageMs: number | null;
   staleAfterMs: number;
   beatAtIso: string | null;
   revision: string | null;
+  withdrawalNotice?: WorkerWithdrawalNoticeReport;
 };
 
 function defaultStore(): HeartbeatStore | null {
@@ -80,7 +84,8 @@ export function workerHeartbeatWriterEnabled(env: NodeJS.ProcessEnv = process.en
   return env.NODE_ENV === "production";
 }
 
-export async function writeWorkerHeartbeat(options: { store?: HeartbeatStore | null; now?: () => number; startedAtIso?: string } = {}) {
+export async function writeWorkerHeartbeat(options: { store?: HeartbeatStore | null; now?: () => number; startedAtIso?: string;
+  env?: NodeJS.ProcessEnv } = {}) {
   const store = options.store === undefined ? defaultStore() : options.store;
   if (!store) return false;
   const nowMs = (options.now || Date.now)();
@@ -92,6 +97,10 @@ export async function writeWorkerHeartbeat(options: { store?: HeartbeatStore | n
     started_at_iso: options.startedAtIso ?? null,
     revision: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null,
     pid: process.pid,
+    // The worker sends a site's withdrawal to the Pipeline; the web process cannot see the worker's settings, so the
+    // worker says whether it has what the notice needs (never a value). Readiness names a missing one.
+    withdrawal_notice: (({ addressConfigured, tokenConfigured }) => ({ pipeline_address_configured: addressConfigured,
+      signing_token_configured: tokenConfigured }))(captureLifecycleNoticeSettings(options.env ?? process.env)),
   }, { merge: true });
   return true;
 }
@@ -138,7 +147,7 @@ export function startWorkerHeartbeat(options: { intervalMs?: number; store?: Hea
 export async function readWorkerHeartbeat(options: { store?: HeartbeatStore | null; now?: () => number; staleAfterMs?: number; doc?: string } = {}): Promise<WorkerHeartbeatReading> {
   const store = options.store === undefined ? defaultStore() : options.store;
   const staleAfterMs = options.staleAfterMs ?? workerHeartbeatStaleAfterMs();
-  const empty = { ageMs: null, staleAfterMs, beatAtIso: null, revision: null };
+  const empty = { ageMs: null, staleAfterMs, beatAtIso: null, revision: null, withdrawalNotice: null };
   if (!store) return { status: "unavailable", ...empty };
   let snapshot: Awaited<ReturnType<HeartbeatDocRef["get"]>>;
   try {
@@ -157,5 +166,13 @@ export async function readWorkerHeartbeat(options: { store?: HeartbeatStore | nu
     staleAfterMs,
     beatAtIso: typeof data.beat_at_iso === "string" ? data.beat_at_iso : null,
     revision: typeof data.revision === "string" ? data.revision : null,
+    withdrawalNotice: withdrawalNoticeReport(data.withdrawal_notice),
   };
+}
+
+function withdrawalNoticeReport(value: unknown): WorkerWithdrawalNoticeReport {
+  const report = value as Record<string, unknown> | null | undefined;
+  if (!report || typeof report !== "object" || typeof report.pipeline_address_configured !== "boolean"
+    || typeof report.signing_token_configured !== "boolean") return null;
+  return { addressConfigured: report.pipeline_address_configured, tokenConfigured: report.signing_token_configured };
 }

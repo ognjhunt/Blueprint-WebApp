@@ -3,6 +3,7 @@ import { isTruthyEnvValue } from "../config/env";
 import { getCityLaunchSenderStatus, getEmailTransportStatus } from "./email";
 import { getHostedSessionLiveStoreStatus } from "./hosted-session-live-store";
 import { describeSiteVideoEvidenceConfig } from "./siteVideoEvidenceConfig";
+import { readWorkerHeartbeat, type WorkerHeartbeatReading, type WorkerWithdrawalNoticeReport } from "./workerHeartbeat";
 
 type LaunchCheck = {
   required: boolean;
@@ -235,5 +236,43 @@ export function buildLaunchReadinessSnapshot() {
       redisRequired,
       launchChecks,
     },
+  };
+}
+
+/**
+ * The withdrawal notice check, from what the worker reported. A site's withdrawal is sent to the Pipeline by the worker
+ * (`websiteCaptureWithdrawal.ts`, started only in `server/worker.ts`), which may hold other settings than this web
+ * process, so the fact comes from the worker's own heartbeat report and never from this process's settings. Required
+ * once a worker has reported it; a worker that has not (none deployed here, or one from before the report) is not
+ * guessed at.
+ */
+export function withdrawalNoticeLaunchCheck(report: WorkerWithdrawalNoticeReport | undefined): LaunchCheck {
+  if (!report) return { required: false, ready: true,
+    detail: "The background worker has not reported whether it can send a site's withdrawal to the Pipeline." };
+  const missing = [
+    ...(report.addressConfigured ? [] : ["the Pipeline's address (CAPTURE_LIFECYCLE_PIPELINE_BASE_URL, or CAPTURE_UPLOAD_INTAKE_FORWARD_URL)"]),
+    ...(report.tokenConfigured ? [] : ["the signing token (CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN)"]),
+  ];
+  return { required: true, ready: missing.length === 0, detail: missing.length === 0
+    ? "The background worker can send a site's withdrawal to the Pipeline."
+    : `The background worker (blueprint-webapp-worker) cannot send a site's withdrawal to the Pipeline: it has no ${missing.join(" and no ")}. `
+      + "Set it on the worker service. Until then a withdrawal leaves every company's view but the Pipeline is not told." };
+}
+
+/**
+ * The launch readiness snapshot with the facts only the worker knows. `/health/ready` and the ops monitor's readiness
+ * pass both use it, so the blocker reaches Slack even when nothing polls `/health/ready`.
+ */
+export async function buildLaunchReadinessWithWorkerFacts(options: { readWorker?: () => Promise<WorkerHeartbeatReading> } = {}) {
+  const base = buildLaunchReadinessSnapshot();
+  const reading = await (options.readWorker || readWorkerHeartbeat)().catch(() => null);
+  const withdrawalNotice = withdrawalNoticeLaunchCheck(reading?.withdrawalNotice ?? null);
+  const blocked = withdrawalNotice.required && !withdrawalNotice.ready;
+  return {
+    ...base,
+    status: blocked ? ("not_ready" as const) : base.status,
+    checks: { ...base.checks, withdrawalNotice: !blocked },
+    blockers: blocked ? [...base.blockers, launchBlockerMessage("withdrawalNotice", withdrawalNotice)] : base.blockers,
+    dependencies: { ...base.dependencies, launchChecks: { ...base.dependencies.launchChecks, withdrawalNotice } },
   };
 }
